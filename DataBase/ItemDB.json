@@ -1,0 +1,65 @@
+{
+    "Leftovers":{
+        "type":"held",
+        "consumable":true,
+        "effect":[
+            {"effect_type": "healing",
+            "target": "self",
+            "when": "end_of_turn",
+            "amount": 0.0625}
+        ]
+    },
+    "Choice Scarf": {
+        "type": "held",
+        "consumable": false,
+        "effects": [
+            {"effect_type": "stat_modifier",
+            "stat": "spe", 
+            "multiplier": 1.5, 
+            "when": "always"},
+
+            {"effect_type": "move_lock"}
+        ]
+    },
+    "Life Orb": {
+        "type": "held",
+        "consumable": false,
+        "effects": [
+            {"effect_type": "boost_move_power", 
+            "multiplier": 1.3, 
+            "when": "attack"},
+
+            {"effect_type": "recoil", 
+            "amount": 0.1, 
+            "when": "after_attack"}
+        ]
+    },
+    "Focus Sash": {
+        "type": "held",
+        "consumable": true,
+        "effects": [
+            {"effect_type": "survive_hit", 
+            "condition": {"hp_full": true}, 
+            "when": "before_faint"}
+        ]
+    },
+    "Sitrus Berry": {
+        "type": "consumable",
+        "consumable": true,
+        "effects": [
+            {"effect_type": "healing", 
+            "target": "self", 
+            "condition": {"hp_percent_below": 50}, 
+            "amount": 0.25, 
+            "when": "on_damage"}
+        ]
+     },
+     "Heavy-Duty Boots": {
+        "type": "held",
+        "consumable": false,
+        "effects": [
+            {"effect_type": "ignore_hazards", 
+            "when": "on_switch_in"}
+        ]
+    }
+}

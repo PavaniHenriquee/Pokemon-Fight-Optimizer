@@ -1,0 +1,44 @@
+{
+"Levitate": {
+  "effects": [
+    {"effect_type": "immunity", 
+    "move_type": "Ground", 
+    "when": "damage_calc"}
+  ]
+},
+"Intimidate": {
+  "effects": [
+    {"effect_type": "stat_change", 
+    "target": "all_adjacent_opponents", 
+    "stat": "atk", 
+    "stages": -1, 
+    "when": "on_switch_in"}
+  ]
+},
+"Swift Swim": {
+  "effects": [
+    {"effect_type": "stat_modifier", 
+    "stat": "spe", 
+    "multiplier": 2, 
+    "condition": {"weather": "rain"}, 
+    "when": "always"}
+  ]
+},
+"Huge Power": {
+  "effects": [
+    {"effect_type": "stat_modifier", 
+    "stat": "atk", 
+    "multiplier": 2, 
+    "when": "always"}
+  ]
+},
+"Serene Grace": {
+  "effects": [
+    {"effect_type": "secondary_effect_boost", 
+    "multiplier": 2, 
+    "when": "apply_move_effects"}
+  ]
+}
+
+
+}

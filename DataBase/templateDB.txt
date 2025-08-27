@@ -1,0 +1,70 @@
+Pokemon = {
+  "Name":{
+    "type":["Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy"],
+    "base stats":{
+      "HP":Number,
+      "Attack":Number,
+      "Defense":Number,
+      "Special Attack":Number,
+      "Special Defense":Number,
+      "Speed":Number
+    },
+    "abilities":["Ability 1", "Ability 2", "Hidden Ability"]
+  }
+}
+move = {
+  "type": "Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy",
+  "category": "Physical"|"Special"|"Status",
+  "power": Number,                
+  "accuracy": Number,           
+  "priority": Number,
+  "pp": Number,
+  "target": "adjacent_opponent"|"self"|"all_adjacent_opponents"|"foe_side"|"ally_side",  
+  "flags": {                     
+      "sound": Boolean,
+      "protect": Boolean,
+      "mirror": Boolean,
+      "contact": Boolean
+  },
+  "effects": [                   
+  {
+    "effect_type": "stat_change"|"volatile_status"|"entry_hazard"|"remove_hazard",
+    "target": "self"|"target"|"all_opponents"|"all_pokemon"|"foe_side"|"ally_side",
+    "stat": "atk"|"def"|"spatk"|"spdef"|"spe",
+    "stages": Number,
+    "chance": Number,
+    "hazard": "stealth_rock",
+    "status": "flinch"|"confusion"
+  },
+  ]
+}
+item = {
+  "type": ("held"|"consumable"|"mega_stone"),
+  "consumable": Boolean,
+  "effects": [
+    {
+      "effect_type": "stat_modifier"|"healing"|"move_lock"|"boost_move_power"|"recoil"|"survive_hit"|"ignore_hazards",
+      "stat": "atk"|"def"|"spatk"|"spdef"|"spe",
+      "multiplier": Number,
+      "target": "self",
+      "condition": {"hp_percent_below": Number},
+      "amount": Number,     
+      "when": "always"|"end_of_turn"|"attack"|"before_faint"|"on_damage"|"on_switch_in",
+      "consumable": True,
+    },
+  ],
+}
+ability = {
+  "effects":[
+    {
+      "effect_type": "stat_change"|"immunity"|"stat_modifier"|"secondary_effect_boost",
+      "target": "self"|"target",
+      "stat": "atk"|"def"|"spatk"|"spdef"|"spe",
+      "stages": Number,
+      "multiplier": Number,
+      "move_type": "Ground",
+      "condition": {"wheater":"rain"}
+      "when": "always"|"apply_move_effects"|"damage_calc"|"on_switch_in"
+    }
+  ]
+}

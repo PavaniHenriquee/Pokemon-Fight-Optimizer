@@ -1,0 +1,74 @@
+{
+  "Bulbasaur":{
+    "type":["Grass", "Poison"],
+    "base stats":{
+      "HP":60,
+      "Attack":60,
+      "Defense":60,
+      "Special Attack":60,
+      "Special Defense":60,
+      "Speed":60
+    },
+    "abilities":["Overgrow", "Solar Power"]
+  },
+  "Ivysaur":{
+    "type":["Grass", "Poison"],
+    "base stats":{
+      "HP":60,
+      "Attack":60,
+      "Defense":60,
+      "Special Attack":60,
+      "Special Defense":60,
+      "Speed":60
+    },
+    "abilities":["Overgrow", "Solar Power"]
+  },
+  "Venusaur":{
+    "type":["Grass", "Poison"],
+    "base stats":{
+      "HP":60,
+      "Attack":60,
+      "Defense":60,
+      "Special Attack":60,
+      "Special Defense":60,
+      "Speed":60
+    },
+    "abilities":["Overgrow", "Solar Power"]
+  },
+  "Charmander":{
+    "type":["Fire"],
+    "base stats":{
+      "HP":60,
+      "Attack":60,
+      "Defense":60,
+      "Special Attack":60,
+      "Special Defense":60,
+      "Speed":60
+    },
+    "abilities":["Overgrow", "Solar Power"]
+  },
+  "Charmeleon":{
+    "type":["Fire"],
+    "base stats":{
+      "HP":60,
+      "Attack":60,
+      "Defense":60,
+      "Special Attack":60,
+      "Special Defense":60,
+      "Speed":60
+    },
+    "abilities":["Overgrow", "Solar Power"]
+  },
+  "Charizard":{
+    "type":["Fire"],
+    "base stats":{
+      "HP":60,
+      "Attack":60,
+      "Defense":60,
+      "Special Attack":60,
+      "Special Defense":60,
+      "Speed":60
+    },
+    "abilities":["Overgrow", "Solar Power"]
+  }
+}
