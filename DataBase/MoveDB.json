@@ -7,7 +7,98 @@
     "priority": 0,
     "pp": 35,
     "target": "adjacent_opponent",
+    "flags": {
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": true
+    },
     "effects": []
+  },
+  "Growl": {
+    "type": "Normal",
+    "category": "Status",
+    "accuracy": 100,
+    "priority": 0,
+    "pp": 40,
+    "target": "all_adjacent_opponents",
+    "flags": {
+      "sound": true,
+      "protect": true,
+      "mirror": true,
+      "contact": false
+    },
+    "effects": [
+      {
+        "effect_type": "stat_change",
+        "target": "all_adjacent_opponents",
+        "stat": "atk",
+        "stages": -1,
+        "chance": 100
+      }
+    ]
+  },
+  "Leer": {
+    "type": "Normal",
+    "category": "Status",
+    "accuracy": 100,
+    "priority": 0,
+    "pp": 30,
+    "target": "all_adjacent_opponents",
+    "flags": {
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": false
+    },
+    "effects": [
+      {
+        "effect_type": "stat_change",
+        "target": "all_adjacent_opponents",
+        "stat": "def",
+        "stages": -1,
+        "chance": 100
+      }
+    ]
+  },
+  "Scratch": {
+  "type": "Normal",
+  "category": "Physical",
+  "accuracy": 100,
+  "priority": 0,
+  "pp": 35,
+  "target": "adjacent_opponent",
+  "flags": {
+    "sound": false,
+    "protect": true,
+    "mirror": true,
+    "contact": true
+  },
+  "effects": []
+},
+"Tail Whip": {
+  "type": "Normal",
+  "category": "Status",
+  "power": null,
+  "accuracy": 100,
+  "priority": 0,
+  "pp": 30,
+  "target": "all_adjacent_opponents",
+  "flags": {
+    "sound": false,
+    "protect": true,
+    "mirror": true,
+    "contact": false
+  },
+  "effects": [
+      {
+        "effect_type": "stat_change",
+        "target": "all_adjacent_opponents",
+        "stat": "def",
+        "stages": -1,
+        "chance": 100
+      }
+    ]
   },
   "Bite": {
     "type": "Dark",
@@ -17,6 +108,12 @@
     "priority": 0,
     "pp": 25,
     "target": "adjacent_opponent",
+    "flags": {
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": true
+    },
     "effects": [
       {"effect_type": "volatile_status", 
       "target": "target", 
@@ -32,6 +129,12 @@
     "priority": 0,
     "pp": 20,
     "target": "self",
+    "flags": {
+      "sound": false,
+      "protect": false,
+      "mirror": false,
+      "contact": false
+    },
     "effects": [
       {"effect_type": "stat_change", 
       "target": "self", 
@@ -48,6 +151,12 @@
     "priority": 0,
     "pp": 20,
     "target": "self",
+    "flags": {
+      "sound": false,
+      "protect": false,
+      "mirror": false,
+      "contact": false
+    },
     "effects": [
       {"effect_type": "stat_change", 
       "target": "self", 
@@ -70,6 +179,12 @@
     "priority": 0,
     "pp": 15,
     "target": "adjacent_opponent",
+    "flags": {
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": false
+    },
     "effects": [
       {"effect_type": "stat_change", 
       "target": "target",
@@ -91,6 +206,12 @@
     "priority": 0,
     "pp": 15,
     "target": "all_adjacent_opponents",
+    "flags": {
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": false
+    },
     "effects": []
   },
   "Rock Slide": {
@@ -101,6 +222,12 @@
     "priority": 0,
     "pp": 10,
     "target": "all_adjacent_opponents",
+    "flags": {
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": false
+    },
     "effects": [
       {"effect_type": "volatile_status", 
       "target": "target", 
@@ -116,6 +243,12 @@
     "priority": 0,
     "pp": 20,
     "target": "foe_side",
+    "flags": {
+      "sound": false,
+      "protect": false,
+      "mirror": true,
+      "contact": false
+    },
     "effects": [
       {"effect_type": "entry_hazard", 
       "hazard": "stealth_rock", 
@@ -130,6 +263,12 @@
     "priority": 0,
     "pp": 15,
     "target": "both_sides",
+    "flags": {
+      "sound": false,
+      "protect": false,
+      "mirror": false,
+      "contact": false
+    },
     "effects": [
       {"effect_type": "remove_hazard", 
       "target": "target", 

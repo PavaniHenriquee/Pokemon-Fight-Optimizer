@@ -1,9 +1,27 @@
 import json
+import random
 #import numpy
 
-round = 1
-myPartyPk = ['Charmander']
-oppPartyPk = ['Squirtle']
+class Pokemon:
+    def __init__(self, name, base_data, level, ability, item, moves):
+        self.name = name
+        self.base_data = base_data
+        self.level = level
+        self.ability = ability
+        self.item = item
+        self.moves = moves
+        self.types = base_data.get("type", [])   # added: list of types
+        self.current_hp = self.calculate_hp()
+        self.status = None # Burn, Freeze, Paralyze, Sleep
+
+    def calculate_hp(self):
+        base = self.base_data['HP']
+        iv = 31  # max: 31 for now
+        ev = 0  # min: 0 for now
+        lvl = self.level
+        hp = ((2 * base + iv + (ev // 4)) * lvl) // 100 + lvl + 10
+        return hp
+
 with open("Database\PkDB.json","r") as f:
     pkDB = json.load(f)
 with open("Database\AbilitiesDB.json","r") as f:
@@ -12,17 +30,48 @@ with open("Database\ItemDB.json","r") as f:
     itemDB = json.load(f)
 with open("Database\MoveDB.json","r") as f:
     moveDB = json.load(f)
-myParty = {pkDB[myPartyPk[0]]:{
-            'ability': abDB['Blaze'],
-            'move1': moveDB['Tackle'],
-            'move2': moveDB['Growl']}
-            }
-oppParty = {pkDB[oppPartyPk[0]]:{
-            'ability': abDB['Blaze'],
-            'move1': moveDB['Tackle'],
-            'move2': moveDB['Growl']}
-            }
-def battleStart():
-    myPokemon = {}
-    oppPokemon = {}
+with open("Database\\TypeChart.json","r") as f:
+    type_chart = json.load(f)
+round = 1
+charmander = Pokemon("Charmander", pkDB["Charmander"], 5, abDB["Blaze"], None, {
+    1: moveDB["Scratch"],
+    2: moveDB["Growl"]
+})
+squirtle = Pokemon("Squirtle", pkDB["Squirtle"], 5, abDB["Torrent"], None, {
+    1: moveDB["Tackle"],
+    2: moveDB["Tail Whip"]
+})
+myPartyPk = [charmander]
+oppPartyPk = [squirtle]
 
+def get_type_effectiveness(atk_type, defender_types):
+    mult = 1.0
+    if atk_type not in type_chart:
+        return 1.0
+    for d in defender_types:
+        # defender type key assumed to match chart keys
+        mult *= float(type_chart[atk_type].get(d, 1.0))
+    return mult
+
+def calculate_damage(attacker, defender, move):
+    if move['category'] == "Status":
+        # Status moves don't deal damage, but may have other effects
+        return 0
+    if move['category'] == 'Physical':
+        attack = attacker.base_data['Attack']
+        defense = defender.base_data['Defense']
+    else:
+        attack = attacker.base_data['Special Attack']
+        defense = defender.base_data['Special Defense']
+
+    damage = (((2 * attacker.level / 5 + 2) * attack * move['power'] / defense) / 50 + 2) * random.uniform(0.85, 1)
+
+    # STAB
+    if move['type'] in getattr(attacker, 'types', []):
+        damage *= 1.5
+
+    # type effectiveness
+    effectiveness = get_type_effectiveness(move['type'], getattr(defender, 'types', []))
+    damage *= effectiveness
+
+    return damage

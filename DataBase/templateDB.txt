@@ -1,18 +1,16 @@
-Pokemon = {
-  "Name":{
-    "type":["Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy"],
-    "base stats":{
-      "HP":Number,
-      "Attack":Number,
-      "Defense":Number,
-      "Special Attack":Number,
-      "Special Defense":Number,
-      "Speed":Number
-    },
-    "abilities":["Ability 1", "Ability 2", "Hidden Ability"]
-  }
+"Name":{
+  "type":["Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy"],
+  "base stats":{
+    "HP":Number,
+    "Attack":Number,
+    "Defense":Number,
+    "Special Attack":Number,
+    "Special Defense":Number,
+    "Speed":Number
+  },
+  "abilities":["Ability 1", "Ability 2", "Hidden Ability"]
 }
-move = {
+"move":{
   "type": "Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy",
   "category": "Physical"|"Special"|"Status",
   "power": Number,                
@@ -38,7 +36,7 @@ move = {
   },
   ]
 }
-item = {
+'item':{
   "type": ("held"|"consumable"|"mega_stone"),
   "consumable": Boolean,
   "effects": [
@@ -54,7 +52,7 @@ item = {
     },
   ],
 }
-ability = {
+'ability':{
   "effects":[
     {
       "effect_type": "stat_change"|"immunity"|"stat_modifier"|"secondary_effect_boost"|"attack_modifier",
