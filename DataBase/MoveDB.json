@@ -2,7 +2,7 @@
   "Tackle": {
     "type": "Normal",
     "category": "Physical",
-    "power": 50,
+    "power": 40,
     "accuracy": 100,
     "priority": 0,
     "pp": 35,

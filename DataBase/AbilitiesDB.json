@@ -38,6 +38,39 @@
     "multiplier": 2, 
     "when": "apply_move_effects"}
   ]
+},
+"Overgrown":{
+  "effects":[
+    {
+      "effect_type": "attack_modifier",
+      "multiplier": 1.5,
+      "move_type":"Grass",
+      "condition": {"Pk_type":"Grass"},
+      "when": "third_hp"
+    }
+  ]
+},
+"Blaze":{
+  "effects":[
+    {
+      "effect_type": "attack_modifier",
+      "multiplier": 1.5,
+      "move_type":"Fire",
+      "condition": {"Pk_type":"Fire"},
+      "when": "third_hp"
+    }
+  ]
+},
+"Torrent":{
+  "effects":[
+    {
+      "effect_type": "attack_modifier",
+      "multiplier": 1.5,
+      "move_type":"Water",
+      "condition": {"Pk_type":"Water"},
+      "when": "third_hp"
+    }
+  ]
 }
 
 

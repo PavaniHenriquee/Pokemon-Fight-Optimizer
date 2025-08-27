@@ -57,14 +57,14 @@ item = {
 ability = {
   "effects":[
     {
-      "effect_type": "stat_change"|"immunity"|"stat_modifier"|"secondary_effect_boost",
+      "effect_type": "stat_change"|"immunity"|"stat_modifier"|"secondary_effect_boost"|"attack_modifier",
       "target": "self"|"target",
       "stat": "atk"|"def"|"spatk"|"spdef"|"spe",
       "stages": Number,
       "multiplier": Number,
       "move_type": "Ground",
-      "condition": {"wheater":"rain"}
-      "when": "always"|"apply_move_effects"|"damage_calc"|"on_switch_in"
+      "condition": {("wheater":"rain")|("Pk_type":"Water"|"Fire"|"Grass")},
+      "when": "always"|"apply_move_effects"|"damage_calc"|"on_switch_in"|"thrid_HP"
     }
   ]
 }
