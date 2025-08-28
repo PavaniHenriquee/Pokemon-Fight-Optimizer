@@ -1,5 +1,6 @@
 {
   "Tackle": {
+    "name": "Tackle",
     "type": "Normal",
     "category": "Physical",
     "power": 40,
@@ -16,6 +17,7 @@
     "effects": []
   },
   "Growl": {
+    "name": "Growl",
     "type": "Normal",
     "category": "Status",
     "accuracy": 100,
@@ -39,6 +41,7 @@
     ]
   },
   "Leer": {
+    "name": "Leer",
     "type": "Normal",
     "category": "Status",
     "accuracy": 100,
@@ -62,13 +65,15 @@
     ]
   },
   "Scratch": {
-  "type": "Normal",
-  "category": "Physical",
-  "accuracy": 100,
-  "priority": 0,
-  "pp": 35,
-  "target": "adjacent_opponent",
-  "flags": {
+    "name": "Scratch",
+    "type": "Normal",
+    "category": "Physical",
+    "power": 40,
+    "accuracy": 100,
+    "priority": 0,
+    "pp": 35,
+    "target": "adjacent_opponent",
+    "flags": {
     "sound": false,
     "protect": true,
     "mirror": true,
@@ -77,6 +82,7 @@
   "effects": []
 },
 "Tail Whip": {
+  "name": "Tail Whip",
   "type": "Normal",
   "category": "Status",
   "power": null,
@@ -101,6 +107,7 @@
     ]
   },
   "Bite": {
+    "name": "Bite",
     "type": "Dark",
     "category": "Physical",
     "power": 60,
@@ -122,6 +129,7 @@
     ]
   },
   "Swords Dance": {
+    "name": "Swords Dance",
     "type": "Normal",
     "category": "Status",
     "power": null,
@@ -144,6 +152,7 @@
     ]
   },
   "Calm Mind": {
+    "name": "Calm Mind",
     "type": "Psychic",
     "category": "Status",
     "power": null,
@@ -172,6 +181,7 @@
     ]
   },
   "Swagger": {
+    "name": "Swagger",
     "type": "Normal",
     "category": "Status",
     "power": null,
@@ -199,6 +209,7 @@
     ]
   },
   "Surf": {
+    "name": "Surf",
     "type": "Water",
     "category": "Special",
     "power": 90,
@@ -215,6 +226,7 @@
     "effects": []
   },
   "Rock Slide": {
+    "name": "Rock Slide",
     "type": "Rock",
     "category": "Physical",
     "power": 75,
@@ -236,6 +248,7 @@
     ]
   },
   "Stealth Rock": {
+    "name": "Stealth Rock",
     "type": "Rock",
     "category": "Status",
     "power": null,
@@ -256,6 +269,7 @@
     ]
   },
   "Defog": {
+    "name": "Defog",
     "type": "Flying",
     "category": "Status",
     "power": null,
