@@ -13,6 +13,7 @@ class Pokemon:
         self.move2 = moveDB[moves[1]] if len(moves) > 1 else None
         self.move3 = moveDB[moves[2]] if len(moves) > 2 else None
         self.move4 = moveDB[moves[3]] if len(moves) > 3 else None
+        self.moves = [m for m in [self.move1, self.move2, self.move3, self.move4] if m]
         self.types = self.base_data.get("type", [])
         self.status = status # Burn, Freeze, Paralyze, Sleep
         self.nature = natures[nature]
@@ -46,6 +47,7 @@ class Pokemon:
         self.special_attack = self.calculate_stat('Special Attack')
         self.special_defense = self.calculate_stat('Special Defense')
         self.speed = self.calculate_stat('Speed')
+        self.fainted = False
 
     def calculate_hp(self):
         base = self.base_data['base stats']['HP']

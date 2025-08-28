@@ -34,7 +34,7 @@
       {
         "effect_type": "stat_change",
         "target": "all_adjacent_opponents",
-        "stat": "atk",
+        "stat": "Attack",
         "stages": -1,
         "chance": 100
       }
@@ -58,7 +58,7 @@
       {
         "effect_type": "stat_change",
         "target": "all_adjacent_opponents",
-        "stat": "def",
+        "stat": "Defense",
         "stages": -1,
         "chance": 100
       }
@@ -100,10 +100,49 @@
       {
         "effect_type": "stat_change",
         "target": "all_adjacent_opponents",
-        "stat": "def",
+        "stat": "Defense",
         "stages": -1,
         "chance": 100
       }
+    ]
+  },
+  "Water Gun": {
+    "name": "Water Gun",
+    "type": "Water",
+    "category": "Special",
+    "power": 40,
+    "accuracy": 100,
+    "priority": 0,
+    "pp": 25,
+    "target": "adjacent_opponent",
+    "flags": {
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": false
+    },
+    "effects": []
+  },
+  "Ember": {
+    "name": "Ember",
+    "type": "Fire",
+    "category": "Special",
+    "power": 40,
+    "accuracy": 100,
+    "priority": 0,
+    "pp": 25,
+    "target": "adjacent_opponent",
+    "flags": {
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": false
+    },
+    "effects": [
+      {"effect_type": "status", 
+      "target": "target", 
+      "status": "burn", 
+      "chance": 10}
     ]
   },
   "Bite": {
@@ -146,7 +185,7 @@
     "effects": [
       {"effect_type": "stat_change", 
       "target": "self", 
-      "stat": "atk", 
+      "stat": "Attack", 
       "stages": 2, 
       "chance": 100}
     ]
@@ -169,13 +208,13 @@
     "effects": [
       {"effect_type": "stat_change", 
       "target": "self", 
-      "stat": "spa", 
+      "stat": "Special Attack", 
       "stages": 1, 
       "chance": 100},
 
       {"effect_type": "stat_change", 
       "target": "self", 
-      "stat": "spd", 
+      "stat": "Special Defense", 
       "stages": 1, 
       "chance": 100}
     ]
@@ -198,7 +237,7 @@
     "effects": [
       {"effect_type": "stat_change", 
       "target": "target",
-      "stat": "atk", 
+      "stat": "Attack", 
       "stages": 2, 
       "chance": 100},
 
@@ -268,8 +307,8 @@
       "chance": 100}
     ]
   },
-  "Defog": {
-    "name": "Defog",
+  "Defenseog": {
+    "name": "Defenseog",
     "type": "Flying",
     "category": "Status",
     "power": null,

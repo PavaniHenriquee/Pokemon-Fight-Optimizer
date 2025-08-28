@@ -27,7 +27,7 @@
   "effects": [                   
   {
     "effect_type": "stat_change"|"volatile_status"|"entry_hazard"|"remove_hazard",
-    "target": "self"|"target"|"all_opponents"|"all_pokemon"|"foe_side"|"ally_side",
+    "target": "self"|"target"|"all_opponents"|"all_pokemon"|"foe_side"|"ally_side"|"all_adjacent_opponents",
     "stat": "atk"|"def"|"spatk"|"spdef"|"spe",
     "stages": Number,
     "chance": Number,
