@@ -1,25 +1,13 @@
-from DataBase.loader import load_database
-from Utils.loader import load_utils
+from DataBase.loader import pkDB, abDB, itemDB, moveDB
+from Utils.loader import type_chart
 from Models.pokemon import Pokemon
 import random
 import math
 #import numpy
 
-
-pkDB = load_database("PkDB.json")
-abDB = load_database("AbilitiesDB.json")
-itemDB = load_database("ItemDB.json")
-moveDB = load_database("MoveDB.json")
-type_chart = load_utils("TypeChart.json")
 round = 1
-charmander = Pokemon("Charmander", pkDB["Charmander"], 5, abDB["Blaze"], None, {
-    1: moveDB["Scratch"],
-    2: moveDB["Growl"]
-})
-squirtle = Pokemon("Squirtle", pkDB["Squirtle"], 5, abDB["Torrent"], None, {
-    1: moveDB["Tackle"],
-    2: moveDB["Tail Whip"]
-})
+charmander = Pokemon("Charmander",5,"Blaze","Hardy",["Scratch", "Growl"])
+squirtle = Pokemon("Squirtle",5,"Torrent","Hardy",["Tackle", "Tail Whip"])
 myPartyPk = [charmander]
 oppPartyPk = [squirtle]
 
@@ -41,25 +29,12 @@ def stage_to_multiplier(stages: int) -> float:
 
 # new helper: robustly get a Pokemon's stage for a given stat name
 def get_stage(pokemon, stat_key: str) -> int:
-    """
-    stat_key: one of 'atk','def','spatk','spdef','spe','hp'
-    Pokemon may have attribute stat_stages as dict. Defaults to 0.
-    """
-    mapping = {
-        'atk': 'atk', 'def': 'def', 'spatk': 'spatk',
-        'spdef': 'spdef', 'spe': 'spe', 'hp': 'hp'
-    }
-    stages = 0
-    if hasattr(pokemon, 'stat_stages') and isinstance(pokemon.stat_stages, dict):
-        # try several possible keys
-        for key in (stat_key, mapping.get(stat_key), stat_key.upper(), stat_key.capitalize()):
-            if key in pokemon.stat_stages:
-                try:
-                    stages = int(pokemon.stat_stages[key])
-                except Exception:
-                    stages = 0
-                return max(-6, min(6, stages))
-    return 0
+    stages = pokemon.stat_stages[stat_key]
+    if stages > 6:
+        stages = 6
+    elif stages < -6:
+        stages = -6
+    return stages
 
 def get_type_effectiveness(atk_type, defender_types):
     mult = 1.0
@@ -75,15 +50,15 @@ def calculate_damage(attacker, defender, move):
         # Status moves don't deal damage
         return 0
     if move['category'] == 'Physical':
-        raw_attack = attacker.base_data['base stats']['Attack']
-        raw_defense = defender.base_data['base stats']['Defense']
-        atk_stage = get_stage(attacker, 'atk')
-        def_stage = get_stage(defender, 'def')
+        raw_attack = attacker.attack
+        raw_defense = defender.defense
+        atk_stage = get_stage(attacker, 'Attack')
+        def_stage = get_stage(defender, 'Defense')
     else:
-        raw_attack = attacker.base_data['base stats']['Special Attack']
-        raw_defense = defender.base_data['base stats']['Special Defense']
-        atk_stage = get_stage(attacker, 'spatk')
-        def_stage = get_stage(defender, 'spdef')
+        raw_attack = attacker.special_attack
+        raw_defense = defender.special_defense
+        atk_stage = get_stage(attacker, 'Special Attack')
+        def_stage = get_stage(defender, 'Special Defense')
 
     # apply stage multipliers
     attack = raw_attack * stage_to_multiplier(atk_stage)
