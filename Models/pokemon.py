@@ -9,6 +9,14 @@ class Pokemon:
         self.types = base_data.get("type", [])   # added: list of types
         self.current_hp = self.calculate_hp()
         self.status = None # Burn, Freeze, Paralyze, Sleep
+        self.stat_stages = {
+            'atk': 0,
+            'def': 0,
+            'spatk': 0,
+            'spdef': 0,
+            'spe': 0,
+            'hp': 0
+        }
 
     def calculate_hp(self):
         base = self.base_data['base stats']['HP']

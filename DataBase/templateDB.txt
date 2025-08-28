@@ -17,7 +17,7 @@
   "accuracy": Number,           
   "priority": Number,
   "pp": Number,
-  "target": "adjacent_opponent"|"self"|"all_adjacent_opponents"|"foe_side"|"ally_side",  
+  "target": "adjacent_opponent"|"self"|"all_adjacent_opponents"|"foe_side"|"ally_side"|"both_sides",  
   "flags": {                     
       "sound": Boolean,
       "protect": Boolean,
