@@ -2,6 +2,7 @@ from Utils.Helper import round_half_down, stage_to_multiplier, get_stage, get_ty
 import random
 
 def calculate_damage(attacker, defender, move):
+    """ Calculate damage based on current stats of the attacker and the defender, giving back the damage and its effectiveness"""
     if move['category'] == "Status":
         # Status moves don't deal damage
         return 0, 0

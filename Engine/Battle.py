@@ -1,6 +1,8 @@
 from Engine.Damage_Calc import calculate_damage
 from Engine.Status_Calc import calculate_status
 from Utils.Helper import has_availible_pokemon
+from Models.TrainerAI import TrainerAI
+from DataBase.loader import moveDB
 
 def battle_start(party, opp_party):
     global turn
@@ -38,7 +40,8 @@ def battle_turn(p1, move1, p2, move2):
 
 def battle(myP, oppP):
     current_pokemon, current_opp = battle_start(myP, oppP)
+    oppAi = TrainerAI()
     while has_availible_pokemon(myP) and has_availible_pokemon(oppP):
         current_move = int(input(f'Choose a move for {current_pokemon.name}: ')) - 1 #Because of 0 index
-        opp_move = int(input(f'Choose a move for {current_opp.name} which is the opponent: ')) - 1 #Because of 0 index
-        battle_turn(current_pokemon, current_pokemon.moves[current_move], current_opp, current_opp.moves[opp_move])
+        opp_move = oppAi.choose_move(current_opp,current_pokemon)
+        battle_turn(current_pokemon, current_pokemon.moves[current_move], current_opp, moveDB[opp_move])
