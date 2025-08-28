@@ -1,38 +1,16 @@
-import json
+from DataBase.loader import load_database
+from Utils.loader import load_utils
+from Models.pokemon import Pokemon
 import random
 import math
 #import numpy
 
-class Pokemon:
-    def __init__(self, name, base_data, level, ability, item, moves):
-        self.name = name
-        self.base_data = base_data
-        self.level = level
-        self.ability = ability
-        self.item = item
-        self.moves = moves
-        self.types = base_data.get("type", [])   # added: list of types
-        self.current_hp = self.calculate_hp()
-        self.status = None # Burn, Freeze, Paralyze, Sleep
 
-    def calculate_hp(self):
-        base = self.base_data['base stats']['HP']
-        iv = 31  # max: 31 for now
-        ev = 0  # min: 0 for now
-        lvl = self.level
-        hp = ((2 * base + iv + (ev // 4)) * lvl) // 100 + lvl + 10
-        return hp
-
-with open("Database\PkDB.json","r") as f:
-    pkDB = json.load(f)
-with open("Database\AbilitiesDB.json","r") as f:
-    abDB = json.load(f)
-with open("Database\ItemDB.json","r") as f:
-    itemDB = json.load(f)
-with open("Database\MoveDB.json","r") as f:
-    moveDB = json.load(f)
-with open("Database\\TypeChart.json","r") as f:
-    type_chart = json.load(f)
+pkDB = load_database("PkDB.json")
+abDB = load_database("AbilitiesDB.json")
+itemDB = load_database("ItemDB.json")
+moveDB = load_database("MoveDB.json")
+type_chart = load_utils("TypeChart.json")
 round = 1
 charmander = Pokemon("Charmander", pkDB["Charmander"], 5, abDB["Blaze"], None, {
     1: moveDB["Scratch"],
