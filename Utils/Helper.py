@@ -1,5 +1,6 @@
 from Utils.loader import type_chart
 import math
+import random
 
 def round_half_down(value: float) -> int:
     """Round to nearest integer with .5 rounded down."""
@@ -35,5 +36,57 @@ def get_type_effectiveness(atk_type, defender_types):
         mult *= float(type_chart[atk_type].get(d, 1.0))
     return mult
 
-def has_availible_pokemon(party):
-    return any(pokemon.fainted == False for pokemon in party)
+def get_non_fainted_pokemon(party):
+    return [pokemon for pokemon in party if not getattr(pokemon, 'fainted', False)]
+
+def switch_menu(alive_pokemon, current_pokemon):
+    switch_pok = -1
+    ret_menu = False
+    print("Choose the Pokemon you want to switch to:")
+    for i, pok in enumerate(alive_pokemon):
+        print(f"{i+1}. {pok.name}")
+    print("r. Return to previous menu") if not(current_pokemon.fainted) else None
+    switch_choice = input("Choose: ")
+    if switch_choice == 'r' and not(current_pokemon.fainted):
+        ret_menu = True
+        return switch_pok, ret_menu, current_pokemon
+    if switch_choice.isdigit():
+        switch_pok = int(switch_choice) - 1
+        if switch_pok < 0 or switch_pok >= len(alive_pokemon):
+            print("Please select a valid Pokemon.")
+        else:
+            current_pokemon = alive_pokemon[switch_pok]
+            print(f"You switched to {current_pokemon.name}!")
+        return switch_pok, ret_menu, current_pokemon
+    else:
+        print("Please select a valid answer.")
+        return switch_pok, ret_menu, current_pokemon
+    
+def speed_tie(p1, m1, p2, m2):
+    speedtie = random.randint(1,2)
+    if speedtie == 1:
+        order = [(p1, m1, p2), (p2, m2, p1)]
+    else:
+        order = [(p2, m2, p1), (p1, m1, p2)]
+    return order
+
+def calculate_crit():
+    """Returns a boolean if the move passed the crit check"""
+    crit_roll = random.randint(1,16) #1/16 chance of a crit
+    if crit_roll == 1:
+        iscrit = True
+    else: iscrit = False
+    return iscrit
+
+def calculate_hit_miss(move):
+    '''Returns a boolean if the move passed the accuracy check'''
+    if move['accuracy'] == 100:
+        is_hit = True
+        return is_hit
+    
+    random_roll = random.randint(1,100)
+    if random_roll <= move['accuracy']:
+        is_hit = True
+    else:
+        is_hit = False
+    return is_hit
