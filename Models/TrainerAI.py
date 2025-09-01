@@ -1,7 +1,7 @@
 import random
 import math
 from Engine.Damage_Calc import calculate_damage
-from Utils.Helper import get_type_effectiveness
+from Utils.Helper import get_type_effectiveness, batch_independent_score_from_rand, get_stage, stage_to_multiplier
 from DataBase.loader import pkDB 
 
 class TrainerAI:
@@ -49,42 +49,43 @@ class TrainerAI:
                 basic.append(-10)
             if move["flags"]["sound"] and ability == "Soundproof":
                 basic.append(-10)
-            if effectiveness < 1 and ability == "Wonder Guard":
+            if effectiveness < 2 and ability == "Wonder Guard" and move['category'] != 'Status':
                 basic.append(-10)
         for e in move["effects"]:
             status = e.get("status", 0)
             stat_change = e.get('stat', 0)
-            #stages = e.get('stages', 0)
             effect_type = e.get('effect_type', 0)
             target = e.get('target', 0)
             if move["category"] == "Status":
                 #TODO: Safeguard for all conditions
-                #Sleep
-                if status == "sleep" and (user_pok.status or ability == "Vital Spirit"):
-                    basic.append(-10)
-                #Poison
-                if status == "poison" and (user_pok.status or (ability == "Immunity" or ability == "Magic Guard" or ability == "Poison Heal") or ("Steel" in user_pok.types or "Poison" in user_pok.types)):
-                    #TODO: weather
-                    basic.append(-10)
-                #Paralysis
-                if status == "paralysis" and (user_pok.status):
-                    if move["type"] == "Electric" and (ability == "Limber" or ability == "Magic Guard" or ((ability == "Volt Absorb" or ability == "Motor Drive") and ai_pok["ability"]["name"] != "Mold Breaker")  or "Ground" in user_pok.type):
+                if effect_type == 'status_inducing':
+                    #Sleep
+                    if status == "sleep" and (user_pok.status or ability == "Vital Spirit"):
                         basic.append(-10)
-                    elif (ability == "Limber" or ability == "Magic Guard"):
+                    #Poison
+                    if status == "poison" and (user_pok.status or (ability == "Immunity" or ability == "Magic Guard" or ability == "Poison Heal") or ("Steel" in user_pok.types or "Poison" in user_pok.types)):
+                        #TODO: weather
                         basic.append(-10)
-                #Burn
-                if status == "burn" and (user_pok.status or (ability == "Water Veil" or ability == "Magic Guard") or "Fire" in user_pok.types):
-                    basic.append(-10)
-                #Confusion
-                if status == "confusion":
-                    if user_pok.confusion:
-                        basic.append(-5)
-                    elif ability == "Own Tempo":
+                    #Paralysis
+                    if status == "paralysis" and (user_pok.status):
+                        if move["type"] == "Electric" and (ability == "Limber" or ability == "Magic Guard" or ((ability == "Volt Absorb" or ability == "Motor Drive") and ai_pok["ability"]["name"] != "Mold Breaker")  or "Ground" in user_pok.type):
+                            basic.append(-10)
+                        elif (ability == "Limber" or ability == "Magic Guard"):
+                            basic.append(-10)
+                    #Burn
+                    if status == "burn" and (user_pok.status or (ability == "Water Veil" or ability == "Magic Guard") or "Fire" in user_pok.types):
                         basic.append(-10)
-                #Attract
-                if status == "attract":
-                    if user_pok.attract or ability == "Oblivious" or (user_pok.gender == ai_pok.gender or user_pok.gender):
-                        basic.append(-10)
+                if effect_type == 'volatile_status':
+                    #Confusion
+                    if status == "confusion":
+                        if user_pok.confusion:
+                            basic.append(-5)
+                        elif ability == "Own Tempo":
+                            basic.append(-10)
+                    #Attract
+                    if status == "attract":
+                        if user_pok.attract or ability == "Oblivious" or (user_pok.gender == ai_pok.gender or user_pok.gender):
+                            basic.append(-10)
                 if effect_type == 'stat_change':
                     #Stat Boosting Moves
                     if target == 'self':
@@ -265,30 +266,238 @@ class TrainerAI:
 
         return min(basic) if basic else 0
     
-    def evaluate_attack_flag(self, final_damage, effectiveness, user_pok, move):
+    def evaluate_attack_flag(self, final_damage, effectiveness, user_pok, move, idx, rand):
         score = 0
-        ko = False
+        
         #Check for kill
         if final_damage >= user_pok.current_hp: 
             if move['name'] in ['Explosion', 'Selfdestruct']:
                 score += 0
-            elif move['name'] in ['Focus Punch', 'Sucker Punch', 'Future Sight'] and random.randint(0,255) < 85:
-                score = 4
-                ko = True
-                return score, ko
+            elif move['name'] in ['Focus Punch', 'Sucker Punch', 'Future Sight']:
+                rand[idx]['score'].append(4)
+                rand[idx]['chance'].append(85)
+                return score, rand
             elif move['priority'] >= 1 and move['name'] != 'Fake Out':
                 score = 6
-                ko = True
-                return score, ko
+                return score, rand
             else:
                 score = 4
-                ko = True
-                return score, ko
-        if move['name'] in ['Explosion', 'Selfdestruct', 'Focus Punch', 'Sucker Punch'] and random.randint(0,255) < 176:
-            score -= 2
-        if effectiveness >= 4 and random.randint(0,255)< 80:
-            score += 2
-        return score, ko
+                return score, rand
+        if move['name'] in ['Explosion', 'Selfdestruct', 'Focus Punch', 'Sucker Punch']:
+            rand[idx]['score'].append(-2)
+            rand[idx]['chance'].append(176) 
+        if effectiveness == 4:
+            rand[idx]['score'].append(2)
+            rand[idx]['chance'].append(176)
+        return score, rand
+    
+    def expert_flag(self, damage, eff, ai_pok, u_pok, move, ai_pt, u_pt,turn, idx, rand):
+        score = 0
+        hp_pct_ai = math.floor(ai_pok.current_hp/ai_pok.max_hp*100)
+        hp_pct_u = math.floor(u_pok.current_hp/u_pok.max_hp*100)
+        m_name = move['name']
+        effects = move['effects']
+        category = move['category']
+        #Check if move first (TODO add Trick room logic here)
+        ai_speed_stage = get_stage(ai_pok,'Speed')
+        u_speed_stage = get_stage(u_pok,'Speed')
+        ai_speed = ai_pok.speed * stage_to_multiplier(ai_speed_stage)
+        u_speed = u_pok.speed * stage_to_multiplier(u_speed_stage)
+        if ai_speed > u_speed:
+            move_first = True
+        elif ai_speed < u_speed:
+            move_first = False
+        else:
+            move_first = random.choice([True, False])
+        if category == "Status":
+            for e in effects:
+                status = e.get("status", 0)
+                stat_change = e.get('stat', 0)
+                effect_type = e.get('effect_type', 0)
+                target = e.get('target', 0)
+                if effect_type == 'status_inducing':
+                    #Poison-Inducing
+                    if status == 'poison' and (hp_pct_ai<50 or hp_pct_u<=50):
+                        score = -1
+                        return score, rand
+                    for m in ai_pok.moves:
+                        #Sleep-Inducing
+                        if status == 'sleep' and (m['name'] in ['Dream Eater', 'Nightmare']):
+                            rand[idx]['score'].append(1)
+                            rand[idx]['chance'].append(128)
+                            return score, rand
+                    #Paralysing-Inducing
+                    if status == 'paralysis' and not(move_first):
+                        rand[idx]['score'].append(3)
+                        rand[idx]['chance'].append(236)
+                        return score, rand
+                if effect_type == 'volatile_status':
+                    #Confusion-Inducing
+                    if status == 'confusion':
+                        if m_name == 'Swagger':
+                            psych_up = False
+                            for m in ai_pok.moves:
+                                if m['name'] == ['Psych Up']:
+                                    psych_up = True
+                            if psych_up:
+                                if u_pok.stat_stages['Attack'] <= -3:
+                                    if turn == 1:
+                                        score += 5
+                                    else:
+                                        score += 3
+                                else:
+                                    score += -5
+                                return score, rand
+                        if m_name == 'Flatter' or m_name == 'Swagger':
+                            rand[idx]['score'].append(-1)
+                            rand[idx]['chance'].append(128)
+                        if hp_pct_u <= 70:
+                            rand[idx]['score'].append(-1)
+                            rand[idx]['chance'].append(128)
+                            if hp_pct_u <= 30:
+                                score += -1
+                            if hp_pct_u <= 50:
+                                score += -1
+                        return score, rand
+                if effect_type == 'stat_change':
+                    #Stat-Boosting moves
+                    if target == 'self':
+                        atk = ['Attack', 'Special Attack']
+                        de = ['Defense', 'Special Defense']
+                        for a in atk:    
+                            if stat_change == a:
+                                if ai_pok.stat_stages[a] >= 3:
+                                    rand[idx]['score'].append(-1)
+                                    rand[idx]['chance'].append(156)
+                                if hp_pct_ai >= 100:
+                                    rand[idx]['score'].append(2)
+                                    rand[idx]['chance'].append(128)
+                                elif hp_pct_ai >= 71:
+                                    break
+                                elif hp_pct_ai > 39:
+                                    rand[idx]['score'].append(-2)
+                                    rand[idx]['chance'].append(186)
+                                else:
+                                    score += -2
+                                return score, rand
+                        for d in de:
+                            if stat_change == d:
+                                if ai_pok.stat_stages[a] >= 3:
+                                    rand[idx]['score'].append(-1)
+                                    rand[idx]['chance'].append(156)
+                                if hp_pct_ai >= 100:
+                                    rand[idx]['score'].append(2)
+                                    rand[idx]['chance'].append(128)
+                                elif hp_pct_ai >= 71:
+                                    break
+                                elif hp_pct_ai > 39:
+                                    rand[idx]['score'].append(-2)
+                                    rand[idx]['chance'].append(186)
+                                else:
+                                    score += -2
+                                #TODO: Target last-used move
+                                return score, rand
+                        if stat_change == 'Speed' and m_name != "Dragon Dance":
+                            if move_first:
+                                score += -3
+                            else:
+                                rand[idx]['score'].append(3)
+                                rand[idx]['chance'].append(186)
+                            return score, rand
+                        if stat_change == 'Evasion':
+                            if hp_pct_ai > 89:
+                                rand[idx]['score'].append(3)
+                                rand[idx]['chance'].append(186)
+                            if ai_pok.stat_stages['Evasion'] >= 3:
+                                rand[idx]['score'].append(-1)
+                                rand[idx]['chance'].append(128)
+                            if u_pok.badly_poison:
+                                if hp_pct_ai > 50:
+                                    rand[idx]['score'].append(3)
+                                    rand[idx]['chance'].append(206)
+                                else:
+                                    rand[idx]['score'].append(3)
+                                    rand[idx]['chance'].append(142)
+                            if u_pok.leech_seed:
+                                rand[idx]['score'].append(3)
+                                rand[idx]['chance'].append(186)
+                            if u_pok.curse:
+                                rand[idx]['score'].append(3)
+                                rand[idx]['chance'].append(186)
+                            if hp_pct_ai > 70 or u_pok.stat_stage['Evasion'] == 0:
+                                return score, rand
+                            elif hp_pct_ai < 40 or u_pok < 40:
+                                score += -2
+                                return score, rand
+                            else:
+                                rand[idx]['score'].append(-2)
+                                rand[idx]['chance'].append(186)
+                            #TODO: Ingrain, Aqua Ring
+                                
+
+
+
+
+        #Selfdestruct, explosion, memento
+        if m_name in ['Selfdestruct', 'Explosion', 'Memento']:
+            if u_pok.stat_stages['Evasion'] >= 1:
+                score += -1
+            if u_pok.stat_stages['Evasion'] >= 3:
+                rand[idx]['score'].append(-1)
+                rand[idx]['chance'].append(128)
+            if hp_pct_ai <= 30:
+                rand[idx]['score'].append(1)
+                rand[idx]['chance'].append(206)
+                return score, rand
+            elif hp_pct_ai <= 50:
+                rand[idx]['score'].append(1)
+                rand[idx]['chance'].append(128)
+                return score, rand
+            else: 
+                if hp_pct_ai > 80 and move_first:
+                    rand[idx]['score'].append(-3)
+                    rand[idx]['chance'].append(206)
+                else:
+                    rand[idx]['score'].append(-1)
+                    rand[idx]['chance'].append(206)
+            return score, rand
+        #Healing Wish, Lunar Dance
+        if m_name in ['Healing Wish', 'Lunar Dance']:
+            if hp_pct_ai >= 80 and move_first:
+                rand[idx]['score'].append(-5)
+                rand[idx]['chance'].append(64)
+                return score, rand
+            else:
+                if hp_pct_ai > 50:
+                    rand[idx]['score'].append(-1)
+                    rand[idx]['chance'].append(206)
+                    return score, rand
+                if random.randint(0,255) < 64:
+                    score += 1
+                    ef = False
+                    for m in ai_pok.moves:
+                        if m['category'] != 'Status':
+                            effc = get_type_effectiveness(m['type'], u_pok.types)
+                            if effc > 1:
+                                ef = True
+                    if not(ef):
+                        rand[idx]['score'].append(1)
+                        rand[idx]['chance'].append(64)
+                if hp_pct_ai <= 30:
+                    rand[idx]['score'].append(1)
+                    rand[idx]['chance'].append(128)
+                return score, rand
+        #
+
+
+        """
+        TODO:
+            Draining Attacks
+            Mirror Move
+
+        """
+
+        return score, rand
             
     
     def choose_move(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn):
@@ -321,31 +530,42 @@ class TrainerAI:
         If you switch out, the AI will forget its knowledge of your moves and abilities.
         """
         ability = user_pok.ability["name"] if self.current_pok_ab else random.choice(pkDB[user_pok.name]["abilities"])
+        rand = {}
 
         for i, move in enumerate(ai_pok.moves):
-            score = 0
-            final_damage = 0
-            effectiveness = 1.0001 #a little bit over 1 just for a check on wonder Guard and the move isn't a damage move
-            if not(move["category"] == "Status"):
-                final_damage, effectiveness = calculate_damage(ai_pok, user_pok, move)
-                eval_atk, ko= self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move)
-                score += eval_atk
+            rand[i] = {'score':[], 'chance':[]}
             
+            score = 0
+            final_damage, effectiveness = calculate_damage(ai_pok, user_pok, move)
+            effectiveness = get_type_effectiveness(move['type'], user_pok.types) if move['category'] == 'Status' else effectiveness
+            eval_atk, rand= self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
+            score += eval_atk
             score += self.basic_flag(move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn)
 
             # TODO: Add expert flag
+            print(rand)
 
+            score += batch_independent_score_from_rand(rand, i)
 
-            move_scores[move['name']] = {"score":score, "dmg":final_damage, "idx":i}
+                    
+
+            move_scores[i] = {"score":score, "dmg":final_damage, "idx":i}
+
+        #Moves to not consider in damage calc
+        mov_excep = ['Explosion', 'Selfdestruct', 'Dream Eater', 'Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
+                     'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Focus Punch', 'Superpower', 'Eruption', 'Water Spout',
+                     'Sucker Punch', 'Head Smash']
 
         # Find max damage among best moves
-        max_damage = max(info["dmg"] for info in move_scores.values())
+        max_damage = max(info["dmg"] for info in move_scores.values() if ai_pok.moves[info["idx"]]['name'] not in mov_excep)
         # Apply penalty for moves that don't reach max damage
-        if not(ko):
-            for info in move_scores.values():
-                if info["dmg"] < max_damage:
+        for info in move_scores.values():
+            if (ai_pok.moves[info["idx"]]['name'] not in mov_excep) and ai_pok.moves[info["idx"]]['category'] != 'Status':
+                if info["dmg"] < max_damage and not(info['dmg'] > user_pok.current_hp):
                     info["score"] -= 1
+
         # Find max score
+        print(move_scores)
         max_score = max(info["score"] for info in move_scores.values())
         best_moves = [info for info in move_scores.values() if info["score"] == max_score]
 

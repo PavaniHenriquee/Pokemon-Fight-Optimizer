@@ -45,7 +45,7 @@ def get_type_effectiveness(atk_type, defender_types):
 def get_non_fainted_pokemon(party):
     return [pokemon for pokemon in party if not getattr(pokemon, 'fainted', False)]
 
-def reset_stat_vol(pok):
+def reset_switch_out(pok):
     pok.stat_stages = {
             'Attack': 0,
             'Defense': 0,
@@ -76,7 +76,7 @@ def switch_menu(alive_pokemon, current_pokemon):
             print("Please select a valid Pokemon.")
             return switch_pok, ret_menu, current_pokemon
         else:
-            reset_stat_vol(current_pokemon)
+            reset_switch_out(current_pokemon)
             current_pokemon = alive_pokemon[switch_pok]
             print(f"You switched to {current_pokemon.name}!")
         return switch_pok, ret_menu, current_pokemon
@@ -115,3 +115,46 @@ def calculate_hit_miss(move, attacker, defender):
     else:
         is_hit = False
     return is_hit
+
+def entries_from_rand(rand_dict, idx):
+    """
+    Convert your rand[idx] parallel lists to a list of (score_delta, chance) pairs.
+    Expects rand_dict[idx] to be {'score': [...], 'chance': [...]}.
+    """
+    item = rand_dict.get(idx)
+    if not item:
+        return []
+    scores = item.get('score', [])
+    chances = item.get('chance', [])
+    # zip will silently drop extras; check lengths to catch problems early
+    if len(scores) != len(chances):
+        raise ValueError(f"score/chance length mismatch for idx={idx}: {len(scores)} vs {len(chances)}")
+    return list(zip(scores, chances))
+
+
+def batch_independent_score_from_rand(rand_dict, idx, rng=None):
+    """
+    Compute the total score from rand_dict[idx] using one getrandbits call
+    to generate independent 0..255 draws (one per pair).
+    Returns the total score delta.
+    rng: optional random.Random-like object (must implement getrandbits(n)).
+         If None, uses the top-level random module.
+    """
+    if rng is None:
+        rng = random
+
+    entries = entries_from_rand(rand_dict, idx)
+    n = len(entries)
+    if n == 0:
+        return 0
+
+    # get n independent bytes in one call
+    bits = rng.getrandbits(n * 8)  # produces an integer with n*8 random bits
+
+    total = 0
+    for j, (s, c) in enumerate(entries):
+        # extract j-th byte (0..255)
+        r = (bits >> (8 * j)) & 0xFF
+        if r < c:           # c expected in 0..255
+            total += s
+    return total

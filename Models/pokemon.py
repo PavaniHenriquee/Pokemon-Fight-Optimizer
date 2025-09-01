@@ -17,6 +17,7 @@ class Pokemon:
         self.moves = [m for m in [self.move1, self.move2, self.move3, self.move4] if m]
         self.types = self.base_data.get("type", [])
         self.status = status # burn, freeze, paralyze, sleep
+        self.badly_poison = False
         self.confusion = False
         self.attract = False
         self.nature = natures[nature]

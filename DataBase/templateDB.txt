@@ -13,7 +13,7 @@
 
 
 "move":{
-  "name":"move"
+  "name":"move" #Bulk up, Calm Mind and Cosmic Power are defense boosting moves
   "type": "Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy",
   "category": "Physical"|"Special"|"Status",
   "power": Number,                
@@ -29,13 +29,13 @@
   },
   "effects": [                   
   {
-    "effect_type": "stat_change"|"volatile_status"|"sec_stat_change"|"res_cop_sw_stat_stage"|"force_switch"|"recovery"|"oh_ko",
+    "effect_type": "stat_change"|"status_inducing"|"volatile_status"|"sec_stat_change"|"res_cop_sw_stat_stage"|"force_switch"|"recovery"|"oh_ko",
     "target": "self"|"target"|"all_adjacent_opponents",
     "stat": "atk"|"def"|"spatk"|"spdef"|"spe",
     "stages": Number,
     "chance": Number,
     "hazard": "stealth_rock",
-    "status": "flinch"|"confusion"|"burn"
+    "status": "sleep"|"paralysis"|"burn"|"poison"|"freeze"|"confusion"|
   },
   ]
 }
