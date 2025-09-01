@@ -1,60 +1,390 @@
 import random
+import math
 from Engine.Damage_Calc import calculate_damage
-from Utils.Helper import get_type_effectiveness  # added
+from Utils.Helper import get_type_effectiveness
+from DataBase.loader import pkDB 
 
 class TrainerAI:
     def __init__(self, name=None, difficulty=None, gen=4):
         self.gen = gen
         self.name = name
         self.difficulty = difficulty
+        self.current_pok_ab = False
 
-    def choose_move(self, ai_pok, user_pok):
+    def basic_flag(self, move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn):
+        basic = []
+        #Check if move first (TODO add Trick room logic here)
+        if ai_pok.speed > user_pok.speed:
+            move_first = True
+        elif ai_pok.speed < user_pok.speed:
+            move_first = False
+        else:
+            move_first = random.choice([True, False])
+        #Check for immunity types
+        if not(move["category"] == "Status"):
+            if move["type"] == "Normal" and "Ghost" in user_pok.types:
+                basic.append(-10)
+            if move["type"] == "Fighting" and "Ghost" in user_pok.types:
+                basic.append(-10)
+            if move["type"] == "Ghost" and "Normal" in user_pok.types:
+                basic.append(-10)
+            if move["type"] == "Electric" and "Ground" in user_pok.types:
+                basic.append(-10)
+            if move["type"] == "Ground" and "Flying" in user_pok.types:
+                basic.append(-10)
+            if move["type"] == "Psychic" and "Dark" in user_pok.types:
+                basic.append(-10)
+            if move["type"] == "Dragon" and "Fairy" in user_pok.types:
+                basic.append(-10)   
+        #Check for abilities
+        ability_list = ["Volt Absorb", "Motor Drive", "Water Absorb", "Flash Fire", "Wonder Guard", "Levitate", "Soundproof"]
+        if  ability in ability_list and not(ai_pok["ability"]["name"] == "Mold Breaker"):
+            if move["type"] == "Electric" and (ability == "Volt Absorb" or ability == "Motor Drive"):
+                basic.append(-10)
+            if move["type"] == "Water" and ability == "Water Absorb":
+                basic.append(-10)
+            if move["type"] == "Fire" and ability == "Flash Fire":
+                basic.append(-10)
+            if move["type"] == "Ground" and ability == "Levitate":
+                basic.append(-10)
+            if move["flags"]["sound"] and ability == "Soundproof":
+                basic.append(-10)
+            if effectiveness < 1 and ability == "Wonder Guard":
+                basic.append(-10)
+        for e in move["effects"]:
+            status = e.get("status", 0)
+            stat_change = e.get('stat', 0)
+            #stages = e.get('stages', 0)
+            effect_type = e.get('effect_type', 0)
+            target = e.get('target', 0)
+            if move["category"] == "Status":
+                #TODO: Safeguard for all conditions
+                #Sleep
+                if status == "sleep" and (user_pok.status or ability == "Vital Spirit"):
+                    basic.append(-10)
+                #Poison
+                if status == "poison" and (user_pok.status or (ability == "Immunity" or ability == "Magic Guard" or ability == "Poison Heal") or ("Steel" in user_pok.types or "Poison" in user_pok.types)):
+                    #TODO: weather
+                    basic.append(-10)
+                #Paralysis
+                if status == "paralysis" and (user_pok.status):
+                    if move["type"] == "Electric" and (ability == "Limber" or ability == "Magic Guard" or ((ability == "Volt Absorb" or ability == "Motor Drive") and ai_pok["ability"]["name"] != "Mold Breaker")  or "Ground" in user_pok.type):
+                        basic.append(-10)
+                    elif (ability == "Limber" or ability == "Magic Guard"):
+                        basic.append(-10)
+                #Burn
+                if status == "burn" and (user_pok.status or (ability == "Water Veil" or ability == "Magic Guard") or "Fire" in user_pok.types):
+                    basic.append(-10)
+                #Confusion
+                if status == "confusion":
+                    if user_pok.confusion:
+                        basic.append(-5)
+                    elif ability == "Own Tempo":
+                        basic.append(-10)
+                #Attract
+                if status == "attract":
+                    if user_pok.attract or ability == "Oblivious" or (user_pok.gender == ai_pok.gender or user_pok.gender):
+                        basic.append(-10)
+                if effect_type == 'stat_change':
+                    #Stat Boosting Moves
+                    if target == 'self':
+                        #TODO Trick room
+                        if (stat_change == "accuracy" or stat_change == "evasion") and ai_pok.ability['name'] == "No Guard":
+                            basic.append(-10)
+                        if ai_pok.ability == "Simple" and ai_pok.stat_stages[stat_change] >= 3:
+                            basic.append(-10)
+                        if ai_pok.stat_stages[stat_change] == 6:
+                            basic.append(-10)
+                    #Stat Reducing Moves
+                    if target == 'target' or target == 'all_adjacent_opponents':
+                        #TODO Trick Room
+                        if stat_change == 'attack' and ability == "Hyper Cutter":
+                            basic.append(-10)
+                        if stat_change == "speed" and ability == "Speed Boost":
+                            basic.append(-10)
+                        if (stat_change == "accuracy" or stat_change == "evasion") and (ability == "No Guard" or ai_pok.ability['name'] == "No Guard"):
+                            basic.append(-10)
+                        if (stat_change == "accuracy") and ai_pok.ability['name'] == "Keen Eye":
+                            basic.append(-10)
+                        if ability == "Clear Body" or ability == "White Smoke":
+                            basic.append(-10)
+                        if user_pok.stat_stages.get(stat_change, 0) == 6:
+                            basic.append(-10)
+                #Stat Stage Resetting/Copying/Swapping Moves
+                if effect_type == "res_cop_sw_stat_stage":
+                    ai_stages = getattr(ai_pok, 'stat_stages', {}) or {}
+                    user_stages = getattr(user_pok, 'stat_stages', {}) or {}
+                    def _any_negative(stages):
+                        if not isinstance(stages, dict):
+                            return False
+                        for v in stages.values():
+                            try:
+                                if int(v) < 0:
+                                    return True
+                            except Exception:
+                                continue
+                        return False
+
+                    def _any_positive(stages):
+                        if not isinstance(stages, dict):
+                            return False
+                        for v in stages.values():
+                            try:
+                                if int(v) > 0:
+                                    return True
+                            except Exception:
+                                continue
+                        return False
+
+                    if not(_any_negative(ai_stages) or _any_positive(user_stages)):
+                        basic.append(-10)
+                #Moves Which Force Switches
+                if effect_type == "force_switch" and (len(user_party_alive) > 1 or (ability == 'Suction Cups' and ai_pok.ability['name'] == "Mold Breaker")):
+                    basic.append(-10)
+                #Recovery Moves
+                if effect_type == "recovery" and ai_pok.current_hp == ai_pok.max_hp:
+                    basic.append(-10)
+                #OH-KO
+                if effect_type == "oh_ko" and ((ability == "Sturdy"and ai_pok.ability['name'] == "Mold Breaker") or user_pok.level>ai_pok.level):
+                    basic.append(-10)
+                    
+
+
+
+        #Explosion / Selfdestruct
+        if move["name"] == "Selfdestruct" or move["name"] == "Explosion":
+            if effectiveness == 0 or (ability == "Damp" and ai_pok["ability"]["name"] != "Mold Breaker"):
+                basic.append(-10)
+            if len(ai_party_alive) == 1:
+                if (len(user_party_alive) == 1):
+                    basic.append(-1)
+                else:
+                    basic.append(-10)
+        #Dream Eater
+        if move["name"] == "Dream Eater":
+            if user_pok.status != "Sleep":
+                basic.append(-8)
+            elif effectiveness == 0:
+                basic.append(-10)
+        #Belly Drum
+        if move["name"] == "Belly Drum" and math.floor((ai_pok.current_hp/ai_pok.max_hp*100)) <= 51:
+                basic.append(-10)
+        #Substitute
+        if move["name"] == "Substitute":
+            if ai_pok.substitute:
+                basic.append(-8)
+            elif (ai_pok.current_hp/ai_pok.max_hp)*100 < 26:
+                basic.append(-10)
+        #Leech Seed
+        if move['name'] == "Leech Seed" and (user_pok.leech_seed or 'Grass' in user_pok.types or ability == "Magic Guard"):
+            basic.append(-10)
+        #Snore / Sleep Talk
+        if (move['name'] == "Snore" or move['name'] == "Sleep Talk") and ai_pok.status != "sleep":
+            basic.append(-8)
+        #Curse
+        if move['name'] == "Curse":
+            if "Ghost" in ai_pok.types:
+                if user_pok.curse:
+                    basic.append(-10)
+            elif (ai_pok.ability['name'] == 'Simple' and (ai_pok.stat_stages['Attack'] >= 2 or ai_pok.stat_stages['Defense'] >= 2)) or (ai_pok.stat_stages['Attack'] >= 6 or ai_pok.stat_stages['Defense'] >= 6):
+                basic.append(-10)
+        #Baton Pass
+        if move['name'] == "Baton Pass" and len(ai_party_alive) <= 1:
+            basic.append(-10)
+        #Helping Hand (Change when doubles)
+        if move['name'] == "Helping Hand":
+            basic.append(-10)
+        #Trick / Switcheroo / Knock Off
+        if (move['name'] == "Trick" or move['name'] == "Switcheroo" or move['name'] == "Knock Off") and ability == 'Sticky Hold':
+            basic.append(-10)
+        #Refresh
+        if move['name'] == "Helping Hand" and (ai_pok.status != "burn" and ai_pok.status != "paralysis" and ai_pok.status != "poison"):
+            basic.append(-10)
+        #Tickle
+        if move['name'] == "Tickle":
+            if (ability == "Clear Body" or ability == "White Smoke") or ai_pok.stat_stages['Attack'] >= 6:
+                basic.append(-10)
+            elif ai_pok.stat_stages['Defense'] >= 6:
+                basic.append(-8)
+        #Acupressure
+        if move['name'] == "Acupressure":
+            for s in ai_pok.stat_stages:
+                acupressure_check = True if s>= 6 else False
+                if ai_pok.ability['name'] == "Simple" and s>= 3:
+                    acupressure_check = True
+                if acupressure_check:
+                    basic.append(-10)
+                    break
+        #Metal Burst
+        if move['name'] == "Acupressure" and (ability == "Stall" or user_pok.item['name'] == "Shiny Stone" or move_first):
+            basic.append(-10)
+        #Copycat
+        if move['name'] == 'Copycat' and turn == 1:
+            basic.append(-10)
+        #Power Swap
+        if move['name'] == 'Power Swap' and (ai_pok.stat_stages['Attack'] > user_pok.stat_stages['Attack'] or ai_pok.stat_stages['Special Attack'] > user_pok.stat_stages['Special Attack']):
+            basic.append(-10)
+        #Guard Swap
+        if move['name'] == 'Guard Swap' and (ai_pok.stat_stages['Defense'] > user_pok.stat_stages['Defense'] or ai_pok.stat_stages['Special Defense'] > user_pok.stat_stages['Special Defense']):
+            basic.append(-10)
+        #Worry Seed (need to implement if know about Snore and Sleep Talk)
+        if move['name'] == 'Worry Seed' and ability in ['Truant','Insomnia','Vital Spirit','Multitype']:
+            basic.append(-10)
+        #Captivate
+        if move['name'] == 'Captivate' and ((ability in ['Oblivious', 'Clear Body', 'White Smoke'] and ai_pok.ability['name'] != 'Mold Breaker') or (user_pok.gender == ai_pok.gender or not(user_pok.gender)) or user_pok.stat_stages['Special Attack'] <= -6):
+            basic.append(-10)
+
+        
+                 
+        
+        '''
+        TODO: Nightmare,
+        Reflect / Light Screen / Mist / Safeguard, 
+        Focus Energy / Ingrain / Mud Sport / Water Sport / Camouflage / Power Trick / Lucky Chant / Aqua Ring / Magnet Rise
+        Disable / Encore
+        Lock On / Mean Look / Foresight / Perish Song / Torment / Miracle Eye / Heal Block / Gastro Acid
+        Hazard-Setting Moves (Spikes, Toxic Spikes, Stealth Rock)
+        Weather-Setting Moves (Sandstorm, Rain Dance, Sunny Day, Hail)
+        Future Sight / Doom Desire
+        Fake Out
+        Stockpile
+        Spit UP / Swallow
+        Memento
+        Imprison
+        Cosmic Power / Bulk Up / Calm Mind / Dragon Dance
+        Gravity / Tailwind
+        Trick Room
+        Healing Wish / Lunar Dance
+        Natural Gift
+        Embargo
+        Fling
+        Psycho Shift
+        Last Resort
+        Defog
+        '''
+
+        return min(basic) if basic else 0
+    
+    def evaluate_attack_flag(self, final_damage, effectiveness, user_pok, move):
+        score = 0
+        ko = False
+        #Check for kill
+        if final_damage >= user_pok.current_hp: 
+            if move['name'] in ['Explosion', 'Selfdestruct']:
+                score += 0
+            elif move['name'] in ['Focus Punch', 'Sucker Punch', 'Future Sight'] and random.randint(0,255) < 85:
+                score = 4
+                ko = True
+                return score, ko
+            elif move['priority'] >= 1 and move['name'] != 'Fake Out':
+                score = 6
+                ko = True
+                return score, ko
+            else:
+                score = 4
+                ko = True
+                return score, ko
+        if move['name'] in ['Explosion', 'Selfdestruct', 'Focus Punch', 'Sucker Punch'] and random.randint(0,255) < 176:
+            score -= 2
+        if effectiveness >= 4 and random.randint(0,255)< 80:
+            score += 2
+        return score, ko
+            
+    
+    def choose_move(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn):
         move_scores = {}
-        for move in ai_pok.moves:
+        choice = {}
+        """The AI always knows what item you're holding. It cheats to see it.
+
+        The AI always knows your exact current HP and max HP.
+
+        The AI does not know your moves until it sees you use them. Other methods that expose moves, such as Sleep Talk or the Forewarn 
+        ability, do not count.
+
+        The AI does not know your ability until it sees a text box with the ability name, such as: "... makes ground moves miss using LEVITATE"
+        , or "... FLASH FIRE made Flamethrower useless". If the AI does not know your ability, then most times it tries to check what your 
+        ability is, it will randomly guess one of the possible abilities your Pokémon's species can normally have. Abilities that modify 
+        damage but do not generate text, like Heatproof or Solid Rock, are not known to the AI even after damage is dealt. However, the AI 
+        is aware of the reduced damage that will be inflicted (e.g., for a Heatproof Bronzong, it will assume Levitate 50% of the time, but 
+        also will know that the Bronzong may survive a high-damage Fire attack that would KO if it had Levitate).
+
+        Rarely, the AI must specifically see your ability, or your species must not have any other possible ability, in order for a check to 
+        succeed; these cases are worded as "If the target's ability is certainly...".
+
+        There is one exception to this: the AI knows if your ability is Shadow Tag, Magnet Pull, or Arena Trap preventing it from switching.
+
+        The AI always knows the attack order of all Pokémon on the field, barring speed ties or Quick Claws. It knows if there will be a
+        speed tie, but does not know who will win it. If the AI is checking if it will attack before or after another target, and there
+        is a speed tie, it will randomly guess the outcome of the tie. For any Pokémon on the field with a Quick Claw, it will randomly
+        guess the Quick Claw will activate 20% of the time, independent of if the Quick Claw will actually activate.
+
+        If you switch out, the AI will forget its knowledge of your moves and abilities.
+        """
+        ability = user_pok.ability["name"] if self.current_pok_ab else random.choice(pkDB[user_pok.name]["abilities"])
+
+        for i, move in enumerate(ai_pok.moves):
             score = 0
-            # Basic check: type effectiveness
-            final_damage, effectiveness = calculate_damage(ai_pok, user_pok, move)
-            if final_damage >= user_pok.current_hp: 
-                score += 4
+            final_damage = 0
+            effectiveness = 1.0001 #a little bit over 1 just for a check on wonder Guard and the move isn't a damage move
+            if not(move["category"] == "Status"):
+                final_damage, effectiveness = calculate_damage(ai_pok, user_pok, move)
+                eval_atk, ko= self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move)
+                score += eval_atk
+            
+            score += self.basic_flag(move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn)
 
-            # TODO: Add more checks (STAB, status, accuracy, etc.)
+            # TODO: Add expert flag
 
 
-            move_scores[move['name']] = {"score":score, "dmg":final_damage}
-
-        # Find max score
-        max_score = max(info["score"] for info in move_scores.values())
-        best_moves = [move for move, info in move_scores.items() if info["score"] == max_score]
-
-        if len(best_moves) == 1:
-            return best_moves[0]
+            move_scores[move['name']] = {"score":score, "dmg":final_damage, "idx":i}
 
         # Find max damage among best moves
-        max_damage = max(move_scores[move]["dmg"] for move in best_moves)
-        damage_moves = [move for move in best_moves if move_scores[move]["dmg"] == max_damage]
+        max_damage = max(info["dmg"] for info in move_scores.values())
+        # Apply penalty for moves that don't reach max damage
+        if not(ko):
+            for info in move_scores.values():
+                if info["dmg"] < max_damage:
+                    info["score"] -= 1
+        # Find max score
+        max_score = max(info["score"] for info in move_scores.values())
+        best_moves = [info for info in move_scores.values() if info["score"] == max_score]
 
-        # If tie, pick randomly, if it's only one the random is just for show
-        return random.choice(damage_moves)
+        choice = {info['idx']:1 for info in best_moves}
+
+        return choice
     
+    def return_idx(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn):
+        weighted_moves = self.choose_move(ai_pok, user_pok, user_party_alive, ai_party_alive, turn)
+        # unpack dict into lists
+        items = list(weighted_moves.keys())
+        weights = list(weighted_moves.values())
+
+        idx = random.choices(items, weights, k=1)[0] if any(weights) else random.choice(items)
+
+        return idx
+
     def sub_after_death(self, ai_party, user_pok, deadmon):
         """
-        Implements the switch-in logic described in TrainerAI_switchin.txt.
+        Implements the switch-in logic
 
         Phase 1:
-          - Consider only non-fainted teammates.
-          - Select teammates that have at least one move that is supereffective (>1) vs user_pok.
-          - If any such teammates exist, score each teammate by summing the effectiveness
+        --------
+          * Consider only non-fainted teammates.
+          * Select teammates that have at least one move that is supereffective (>1) vs user_pok.
+          * If any such teammates exist, score each teammate by summing the effectiveness
             of each of their TYPE(S) versus user_pok (single-typed counted twice).
             Higher sum wins; ties broken by party order (lower index wins).
 
         Phase 2:
-          - If no Phase 1 candidate, for each non-fainted teammate compute the max damage
-            any of its moves would do to user_pok (use calculate_damage). Apply the
-            "255 overflow" rule: if damage > 255 -> damage = damage - 255.
-          - Choose teammate with highest such max move damage. Ties broken by party order.
+        ---------
+          * If no Phase 1 candidate, for each non-fainted teammate compute the max damage any of its moves would do to user_pok 
+          (use calculate_damage). Apply the "255 overflow" rule: if damage > 255 -> damage = damage - 255.
+          * Choose teammate with highest such max move damage. Ties broken by party order.
 
         Returns:
-          index of chosen teammate in ai_party (int) or None if no valid candidate.
+        -------
+                index of chosen teammate in ai_party (int) or None if no valid candidate.
+
         """
         # filter non-fainted teammates and keep original party indices for tie-breaks
         candidates = [(i, mon) for i, mon in enumerate(ai_party) if not getattr(mon, 'fainted', False)]

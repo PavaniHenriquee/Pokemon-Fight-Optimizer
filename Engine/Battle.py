@@ -2,7 +2,6 @@ from Engine.Damage_Calc import calculate_damage
 from Engine.Status_Calc import calculate_status
 from Utils.Helper import calculate_hit_miss, calculate_crit, get_non_fainted_pokemon, switch_menu, speed_tie
 from Models.TrainerAI import TrainerAI
-from DataBase.loader import moveDB
 
 def battle_start(party, opp_party):
     global turn
@@ -55,9 +54,9 @@ def battle_turn(p1, move1, p2, move2, p1_switch = False):
         else:
             order = [(p2, move2, p1), (p1, move1, p2)]
     else:
-        if p1.base_data['base stats']['Speed'] > p2.base_data['base stats']['Speed']:
+        if p1.speed > p2.speed:
             order = [(p1, move1, p2), (p2, move2, p1)]
-        elif p2.base_data['base stats']['Speed'] > p1.base_data['base stats']['Speed']:
+        elif p2.speed > p1.speed:
             order = [(p2, move2, p1), (p1, move1, p2)]
         else:
             order = speed_tie(p1,move1,p2,move2)
@@ -71,7 +70,7 @@ def battle_turn(p1, move1, p2, move2, p1_switch = False):
             continue #Failsafe
         
         #Check Move accuracy
-        move_hit = calculate_hit_miss(move)
+        move_hit = calculate_hit_miss(move, attacker, defender)
 
         #Calculate the move damage or effects
         if move_hit == True:
@@ -80,7 +79,7 @@ def battle_turn(p1, move1, p2, move2, p1_switch = False):
                 crit = calculate_crit()
                 damage, effectiveness = calculate_damage(attacker, defender, move, crit)   
                 defender.current_hp -= damage
-                print(f"{attacker.name} used {move['name']} on {defender.name}!")
+                print(f"{attacker.name} used {move['name']} on {defender.name}!") if attacker == p1 else print(f"Opponent {attacker.name} used {move['name']} on {defender.name}!")
                 print("\033[91mIt's a critical hit! \033[0m") if crit == True else None
                 print(f"It dealt {damage} damage.")
                 print(f"Effectiveness: {effectiveness}x") if effectiveness != 1 else None
@@ -105,13 +104,15 @@ def battle(myP, oppP):
     myP_alive = myP
     oppP_alive = oppP
     current_pokemon, current_opp = battle_start(myP_alive, oppP_alive)
+    global turn
     while len(myP_alive) > 0 and len(oppP_alive) > 0:
-        opp_move = oppAi.choose_move(current_opp,current_pokemon)
+        opp_move_idx = oppAi.return_idx(current_opp,current_pokemon, myP_alive, oppP_alive, turn)
+        opp_move = current_opp.moves[opp_move_idx]
         current_move, switch_pok, current_pokemon = battle_menu(myP_alive, current_pokemon)
         if current_move >= 0: #if switched current_move is -1
-            battle_turn(current_pokemon, current_pokemon.moves[current_move], current_opp, moveDB[opp_move])
+            battle_turn(current_pokemon, current_pokemon.moves[current_move], current_opp, opp_move)
         elif switch_pok >= 0:
-            battle_turn(current_pokemon, 0, current_opp, moveDB[opp_move], p1_switch = True)
+            battle_turn(current_pokemon, 0, current_opp, opp_move, p1_switch = True)
         myP_alive = get_non_fainted_pokemon(myP_alive)
         oppP_alive = get_non_fainted_pokemon(oppP_alive)
         

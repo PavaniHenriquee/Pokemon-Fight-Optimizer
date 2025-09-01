@@ -1,10 +1,11 @@
-from Utils.Helper import round_half_down, stage_to_multiplier, get_stage, get_type_effectiveness
+from Utils.Helper import stage_to_multiplier, get_stage, get_type_effectiveness
 import random
+import math
 
 def calculate_damage(attacker, defender, move, crit = False, roll_multiplier = None):
     """ Calculate damage based on current stats of the attacker and the defender, giving back the damage and its effectiveness"""
     if move['category'] == "Status":
-        # Status moves don't deal damage(Fail-Safe, Status moves shouldn't get thorugh here)
+        # Status moves don't deal damage(Fail-Safe, Status moves shouldn't get through here)
         return 0, 0
     if move['category'] == 'Physical':
         raw_attack = attacker.attack
@@ -21,6 +22,8 @@ def calculate_damage(attacker, defender, move, crit = False, roll_multiplier = N
         crit_mult = 2
         if def_stage > 0:
             def_stage = 0
+        if atk_stage < 0:
+            atk_stage = 0
     else: crit_mult = 1
 
     # apply stage multipliers
@@ -31,7 +34,7 @@ def calculate_damage(attacker, defender, move, crit = False, roll_multiplier = N
         roll_multiplier = random.randint(85,100)/100
 
     #Base damage formula
-    damage = (((2 * attacker.level / 5 + 2) * attack * move['power'] / defense) / 50 + 2) 
+    damage = math.floor(math.floor(((2 * attacker.level / 5) + 2) * move['power'] * (attack / defense)) / 50 + 2)
     
     # STAB
     if move['type'] in getattr(attacker, 'types', []):
@@ -41,5 +44,5 @@ def calculate_damage(attacker, defender, move, crit = False, roll_multiplier = N
     # type effectiveness
     effectiveness = get_type_effectiveness(move['type'], getattr(defender, 'types', []))
     damage *= effectiveness * crit_mult * stab * roll_multiplier
-    final_damage = round_half_down(damage)
+    final_damage = math.floor(damage)
     return final_damage, effectiveness

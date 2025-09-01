@@ -10,7 +10,10 @@
   },
   "abilities":["Ability 1", "Ability 2", "Hidden Ability"]
 }
+
+
 "move":{
+  "name":"move"
   "type": "Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy",
   "category": "Physical"|"Special"|"Status",
   "power": Number,                
@@ -26,18 +29,22 @@
   },
   "effects": [                   
   {
-    "effect_type": "stat_change"|"volatile_status"|"entry_hazard"|"remove_hazard",
-    "target": "self"|"target"|"all_opponents"|"all_pokemon"|"foe_side"|"ally_side"|"all_adjacent_opponents",
+    "effect_type": "stat_change"|"volatile_status"|"sec_stat_change"|"res_cop_sw_stat_stage"|"force_switch"|"recovery"|"oh_ko",
+    "target": "self"|"target"|"all_adjacent_opponents",
     "stat": "atk"|"def"|"spatk"|"spdef"|"spe",
     "stages": Number,
     "chance": Number,
     "hazard": "stealth_rock",
-    "status": "flinch"|"confusion"
+    "status": "flinch"|"confusion"|"burn"
   },
   ]
 }
+
+
+
 'item':{
   "type": ("held"|"consumable"|"mega_stone"),
+  "berry": Boolean,
   "consumable": Boolean,
   "effects": [
     {
@@ -52,7 +59,11 @@
     },
   ],
 }
+
+
+
 'ability':{
+  "name": "ability"
   "effects":[
     {
       "effect_type": "stat_change"|"immunity"|"stat_modifier"|"secondary_effect_boost"|"attack_modifier",
@@ -61,8 +72,8 @@
       "stages": Number,
       "multiplier": Number,
       "move_type": "Ground",
-      "condition": {("wheater":"rain")|("Pk_type":"Water"|"Fire"|"Grass")},
-      "when": "always"|"apply_move_effects"|"damage_calc"|"on_switch_in"|"thrid_HP"
+      "condition": {("weather":"rain")|("Pk_type":"Water"|"Fire"|"Grass")},
+      "when": "always"|"apply_move_effects"|"damage_calc"|"on_switch_in"|"third_HP"
     }
   ]
 }

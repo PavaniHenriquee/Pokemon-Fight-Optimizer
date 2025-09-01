@@ -12,7 +12,13 @@ def round_half_down(value: float) -> int:
         return flo
     
 # new helper: convert stage (-6..6) to multiplier used by main-series games
-def stage_to_multiplier(stages: int) -> float:
+def stage_to_multiplier(stages: int, acc = False) -> float:
+    if acc:
+        if stages >= 0:
+            return (3 + stages) / 3.0
+        else:
+            return 3.0 / (3 - stages)
+    
     if stages >= 0:
         return (2 + stages) / 2.0
     else:
@@ -39,6 +45,20 @@ def get_type_effectiveness(atk_type, defender_types):
 def get_non_fainted_pokemon(party):
     return [pokemon for pokemon in party if not getattr(pokemon, 'fainted', False)]
 
+def reset_stat_vol(pok):
+    pok.stat_stages = {
+            'Attack': 0,
+            'Defense': 0,
+            'Special Attack': 0,
+            'Special Defense': 0,
+            'Speed': 0,
+            'Accuracy': 0,
+            'Evasion': 0
+        }
+    pok.confusion = False
+    pok.attract = False
+
+
 def switch_menu(alive_pokemon, current_pokemon):
     switch_pok = -1
     ret_menu = False
@@ -54,7 +74,9 @@ def switch_menu(alive_pokemon, current_pokemon):
         switch_pok = int(switch_choice) - 1
         if switch_pok < 0 or switch_pok >= len(alive_pokemon):
             print("Please select a valid Pokemon.")
+            return switch_pok, ret_menu, current_pokemon
         else:
+            reset_stat_vol(current_pokemon)
             current_pokemon = alive_pokemon[switch_pok]
             print(f"You switched to {current_pokemon.name}!")
         return switch_pok, ret_menu, current_pokemon
@@ -78,14 +100,17 @@ def calculate_crit():
     else: iscrit = False
     return iscrit
 
-def calculate_hit_miss(move):
+def calculate_hit_miss(move, attacker, defender):
     '''Returns a boolean if the move passed the accuracy check'''
-    if move['accuracy'] == 100:
+    acc_stage = get_stage(attacker, "Accuracy") - get_stage(defender, "Evasion")
+    accuracy = move['accuracy'] * stage_to_multiplier(acc_stage, acc = True)
+
+    if accuracy >= 100:
         is_hit = True
         return is_hit
     
     random_roll = random.randint(1,100)
-    if random_roll <= move['accuracy']:
+    if random_roll <= accuracy:
         is_hit = True
     else:
         is_hit = False
