@@ -1,12 +1,15 @@
+"""Pokemon class, so i can check each pokemon and its conditions and stats"""
+import math
 from Utils.loader import natures
 from DataBase.loader import pkDB, abDB, itemDB, moveDB
-import math
+
 
 class Pokemon:
-    def __init__(self, name, gender, level, ability, nature, moves, ivs=None, evs=None, status = None, item = None):
+    """Pokemon class, so i can follow everything related to each pokemon"""
+    def __init__(self, name, gender, level, ability, nature, moves, ivs=None, evs=None, status=None, item=None):
         self.name = name
         self.base_data = pkDB[name]
-        self.gender = gender # Male, Female, None
+        self.gender = gender  # Male, Female, None
         self.weight = self.base_data.get("weight", [])
         self.level = level
         self.ability = abDB[ability]
@@ -17,7 +20,7 @@ class Pokemon:
         self.move4 = moveDB[moves[3]] if len(moves) > 3 else None
         self.moves = [m for m in [self.move1, self.move2, self.move3, self.move4] if m]
         self.types = self.base_data.get("type", [])
-        self.status = status # burn, freeze, paralyze, sleep
+        self.status = status  # burn, freeze, paralyze, sleep
         self.badly_poison = False
         self.confusion = False
         self.attract = False
@@ -53,21 +56,23 @@ class Pokemon:
         self.special_attack = self.calculate_stat('Special Attack')
         self.special_defense = self.calculate_stat('Special Defense')
         self.speed = self.calculate_stat('Speed')
-        self.current_hp = self.max_hp #I use this to alter hp
+        self.current_hp = self.max_hp  # I use this to alter hp
         self.substitute = False
         self.leech_seed = False
         self.curse = False
         self.fainted = False
 
     def calculate_hp(self):
+        """Calculate HP"""
         base = self.base_data['base stats']['HP']
         iv = self.ivs['HP']
         ev = self.evs['HP']
         lvl = self.level
         hp = ((2 * base + iv + (ev // 4)) * lvl) // 100 + lvl + 10
         return hp
-    
+
     def calculate_stat(self, stat_name):
+        """Calculate every stat that not HP"""
         base = self.base_data['base stats'][stat_name]
         iv = self.ivs[stat_name]
         ev = self.evs[stat_name]

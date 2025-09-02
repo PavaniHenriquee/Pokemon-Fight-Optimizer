@@ -1,10 +1,15 @@
+"""Gives the class for the trainer Ai to be what the game would do"""
 import random
 import math
 from Engine.Damage_Calc import calculate_damage
 from Utils.Helper import get_type_effectiveness, batch_independent_score_from_rand, get_stage, stage_to_multiplier
-from DataBase.loader import pkDB 
+from DataBase.loader import pkDB
+
 
 class TrainerAI:
+    """
+    Trainer AI, where it is used by using the def where it returns what the original ai would have done
+    """
     def __init__(self, name=None, difficulty=None, gen=4):
         self.gen = gen
         self.name = name
@@ -12,16 +17,19 @@ class TrainerAI:
         self.current_pok_ab = False
 
     def basic_flag(self, move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn) -> int:
+        """
+        Basic Flag, every trainer has this, it desencourages moves that would have no effect or that would make no sense
+        """
         basic = []
-        #Check if move first (TODO add Trick room logic here)
+        # Check if move first (TODO add Trick room logic here)
         if ai_pok.speed > user_pok.speed:
             move_first = True
         elif ai_pok.speed < user_pok.speed:
             move_first = False
         else:
             move_first = random.choice([True, False])
-        #Check for immunity types
-        if not(move["category"] == "Status"):
+        # Check for immunity types
+        if not move["category"] == "Status":
             if move["type"] == "Normal" and "Ghost" in user_pok.types:
                 basic.append(-10)
             if move["type"] == "Fighting" and "Ghost" in user_pok.types:
@@ -35,10 +43,10 @@ class TrainerAI:
             if move["type"] == "Psychic" and "Dark" in user_pok.types:
                 basic.append(-10)
             if move["type"] == "Dragon" and "Fairy" in user_pok.types:
-                basic.append(-10)   
-        #Check for abilities
+                basic.append(-10)
+        # Check for abilities
         ability_list = ["Volt Absorb", "Motor Drive", "Water Absorb", "Flash Fire", "Wonder Guard", "Levitate", "Soundproof"]
-        if  ability in ability_list and not(ai_pok["ability"]["name"] == "Mold Breaker"):
+        if ability in ability_list and not ai_pok.ability["name"] == "Mold Breaker":
             if move["type"] == "Electric" and (ability == "Volt Absorb" or ability == "Motor Drive"):
                 basic.append(-10)
             if move["type"] == "Water" and ability == "Water Absorb":
@@ -57,48 +65,48 @@ class TrainerAI:
             effect_type = e.get('effect_type', 0)
             target = e.get('target', 0)
             if move["category"] == "Status":
-                #TODO: Safeguard for all conditions
+                # TODO: Safeguard for all conditions
                 if effect_type == 'status_inducing':
-                    #Sleep
+                    # Sleep
                     if status == "sleep" and (user_pok.status or ability == "Vital Spirit"):
                         basic.append(-10)
-                    #Poison
+                    # Poison
                     if status == "poison" and (user_pok.status or (ability == "Immunity" or ability == "Magic Guard" or ability == "Poison Heal") or ("Steel" in user_pok.types or "Poison" in user_pok.types)):
-                        #TODO: weather
+                        # TODO: weather
                         basic.append(-10)
-                    #Paralysis
+                    # Paralysis
                     if status == "paralysis" and (user_pok.status):
-                        if move["type"] == "Electric" and (ability == "Limber" or ability == "Magic Guard" or ((ability == "Volt Absorb" or ability == "Motor Drive") and ai_pok["ability"]["name"] != "Mold Breaker")  or "Ground" in user_pok.type):
+                        if move["type"] == "Electric" and (ability == "Limber" or ability == "Magic Guard" or ((ability == "Volt Absorb" or ability == "Motor Drive") and ai_pok["ability"]["name"] != "Mold Breaker") or "Ground" in user_pok.types):
                             basic.append(-10)
                         elif (ability == "Limber" or ability == "Magic Guard"):
                             basic.append(-10)
-                    #Burn
+                    # Burn
                     if status == "burn" and (user_pok.status or (ability == "Water Veil" or ability == "Magic Guard") or "Fire" in user_pok.types):
                         basic.append(-10)
                 if effect_type == 'volatile_status':
-                    #Confusion
+                    # Confusion
                     if status == "confusion":
                         if user_pok.confusion:
                             basic.append(-5)
                         elif ability == "Own Tempo":
                             basic.append(-10)
-                    #Attract
+                    # Attract
                     if status == "attract":
                         if user_pok.attract or ability == "Oblivious" or (user_pok.gender == ai_pok.gender or user_pok.gender):
                             basic.append(-10)
                 if effect_type == 'stat_change':
-                    #Stat Boosting Moves
+                    # Stat Boosting Moves
                     if target == 'self':
-                        #TODO Trick room
+                        # TODO Trick room
                         if (stat_change == "accuracy" or stat_change == "evasion") and ai_pok.ability['name'] == "No Guard":
                             basic.append(-10)
-                        if ai_pok.ability == "Simple" and ai_pok.stat_stages[stat_change] >= 3:
+                        if ai_pok.ability['name'] == "Simple" and ai_pok.stat_stages[stat_change] >= 3:
                             basic.append(-10)
                         if ai_pok.stat_stages[stat_change] == 6:
                             basic.append(-10)
-                    #Stat Reducing Moves
+                    # Stat Reducing Moves
                     if target == 'target' or target == 'all_adjacent_opponents':
-                        #TODO Trick Room
+                        # TODO Trick Room
                         if stat_change == 'attack' and ability == "Hyper Cutter":
                             basic.append(-10)
                         if stat_change == "speed" and ability == "Speed Boost":
@@ -111,10 +119,11 @@ class TrainerAI:
                             basic.append(-10)
                         if user_pok.stat_stages.get(stat_change, 0) == 6:
                             basic.append(-10)
-                #Stat Stage Resetting/Copying/Swapping Moves
+                # Stat Stage Resetting/Copying/Swapping Moves
                 if effect_type == "res_cop_sw_stat_stage":
                     ai_stages = getattr(ai_pok, 'stat_stages', {}) or {}
                     user_stages = getattr(user_pok, 'stat_stages', {}) or {}
+
                     def _any_negative(stages):
                         if not isinstance(stages, dict):
                             return False
@@ -137,110 +146,104 @@ class TrainerAI:
                                 continue
                         return False
 
-                    if not(_any_negative(ai_stages) or _any_positive(user_stages)):
+                    if not (_any_negative(ai_stages) or _any_positive(user_stages)):
                         basic.append(-10)
-                #Moves Which Force Switches
+                # Moves Which Force Switches
                 if effect_type == "force_switch" and (len(user_party_alive) > 1 or (ability == 'Suction Cups' and ai_pok.ability['name'] == "Mold Breaker")):
                     basic.append(-10)
-                #Recovery Moves
+                # Recovery Moves
                 if effect_type == "recovery" and ai_pok.current_hp == ai_pok.max_hp:
                     basic.append(-10)
-                #OH-KO
-                if effect_type == "oh_ko" and ((ability == "Sturdy"and ai_pok.ability['name'] == "Mold Breaker") or user_pok.level>ai_pok.level):
+                # OH-KO
+                if effect_type == "oh_ko" and ((ability == "Sturdy" and ai_pok.ability['name'] == "Mold Breaker") or user_pok.level > ai_pok.level):
                     basic.append(-10)
-                    
 
-
-
-        #Explosion / Selfdestruct
+        # Explosion / Selfdestruct
         if move["name"] == "Selfdestruct" or move["name"] == "Explosion":
-            if effectiveness == 0 or (ability == "Damp" and ai_pok["ability"]["name"] != "Mold Breaker"):
+            if effectiveness == 0 or (ability == "Damp" and ai_pok.ability["name"] != "Mold Breaker"):
                 basic.append(-10)
             if len(ai_party_alive) == 1:
-                if (len(user_party_alive) == 1):
+                if len(user_party_alive) == 1:
                     basic.append(-1)
                 else:
                     basic.append(-10)
-        #Dream Eater
+        # Dream Eater
         if move["name"] == "Dream Eater":
             if user_pok.status != "Sleep":
                 basic.append(-8)
             elif effectiveness == 0:
                 basic.append(-10)
-        #Belly Drum
+        # Belly Drum
         if move["name"] == "Belly Drum" and math.floor((ai_pok.current_hp/ai_pok.max_hp*100)) <= 51:
-                basic.append(-10)
-        #Substitute
+            basic.append(-10)
+        # Substitute
         if move["name"] == "Substitute":
             if ai_pok.substitute:
                 basic.append(-8)
             elif (ai_pok.current_hp/ai_pok.max_hp)*100 < 26:
                 basic.append(-10)
-        #Leech Seed
+        # Leech Seed
         if move['name'] == "Leech Seed" and (user_pok.leech_seed or 'Grass' in user_pok.types or ability == "Magic Guard"):
             basic.append(-10)
-        #Snore / Sleep Talk
+        # Snore / Sleep Talk
         if (move['name'] == "Snore" or move['name'] == "Sleep Talk") and ai_pok.status != "sleep":
             basic.append(-8)
-        #Curse
+        # Curse
         if move['name'] == "Curse":
             if "Ghost" in ai_pok.types:
                 if user_pok.curse:
                     basic.append(-10)
             elif (ai_pok.ability['name'] == 'Simple' and (ai_pok.stat_stages['Attack'] >= 2 or ai_pok.stat_stages['Defense'] >= 2)) or (ai_pok.stat_stages['Attack'] >= 6 or ai_pok.stat_stages['Defense'] >= 6):
                 basic.append(-10)
-        #Baton Pass
+        # Baton Pass
         if move['name'] == "Baton Pass" and len(ai_party_alive) <= 1:
             basic.append(-10)
-        #Helping Hand (Change when doubles)
+        # Helping Hand (Change when doubles)
         if move['name'] == "Helping Hand":
             basic.append(-10)
-        #Trick / Switcheroo / Knock Off
+        # Trick / Switcheroo / Knock Off
         if (move['name'] == "Trick" or move['name'] == "Switcheroo" or move['name'] == "Knock Off") and ability == 'Sticky Hold':
             basic.append(-10)
-        #Refresh
+        # Refresh
         if move['name'] == "Helping Hand" and (ai_pok.status != "burn" and ai_pok.status != "paralysis" and ai_pok.status != "poison"):
             basic.append(-10)
-        #Tickle
+        # Tickle
         if move['name'] == "Tickle":
             if (ability == "Clear Body" or ability == "White Smoke") or ai_pok.stat_stages['Attack'] >= 6:
                 basic.append(-10)
             elif ai_pok.stat_stages['Defense'] >= 6:
                 basic.append(-8)
-        #Acupressure
+        # Acupressure
         if move['name'] == "Acupressure":
             for s in ai_pok.stat_stages:
-                acupressure_check = True if s>= 6 else False
-                if ai_pok.ability['name'] == "Simple" and s>= 3:
+                acupressure_check = True if s >= 6 else False
+                if ai_pok.ability['name'] == "Simple" and s >= 3:
                     acupressure_check = True
                 if acupressure_check:
                     basic.append(-10)
                     break
-        #Metal Burst
+        # Metal Burst
         if move['name'] == "Acupressure" and (ability == "Stall" or user_pok.item['name'] == "Shiny Stone" or move_first):
             basic.append(-10)
-        #Copycat
+        # Copycat
         if move['name'] == 'Copycat' and turn == 1:
             basic.append(-10)
-        #Power Swap
+        # Power Swap
         if move['name'] == 'Power Swap' and (ai_pok.stat_stages['Attack'] > user_pok.stat_stages['Attack'] or ai_pok.stat_stages['Special Attack'] > user_pok.stat_stages['Special Attack']):
             basic.append(-10)
-        #Guard Swap
+        # Guard Swap
         if move['name'] == 'Guard Swap' and (ai_pok.stat_stages['Defense'] > user_pok.stat_stages['Defense'] or ai_pok.stat_stages['Special Defense'] > user_pok.stat_stages['Special Defense']):
             basic.append(-10)
-        #Worry Seed (need to implement if know about Snore and Sleep Talk)
-        if move['name'] == 'Worry Seed' and ability in ['Truant','Insomnia','Vital Spirit','Multitype']:
+        # Worry Seed (need to implement if know about Snore and Sleep Talk)
+        if move['name'] == 'Worry Seed' and ability in ['Truant', 'Insomnia', 'Vital Spirit', 'Multitype']:
             basic.append(-10)
-        #Captivate
-        if move['name'] == 'Captivate' and ((ability in ['Oblivious', 'Clear Body', 'White Smoke'] and ai_pok.ability['name'] != 'Mold Breaker') or (user_pok.gender == ai_pok.gender or not(user_pok.gender)) or user_pok.stat_stages['Special Attack'] <= -6):
+        # Captivate
+        if move['name'] == 'Captivate' and ((ability in ['Oblivious', 'Clear Body', 'White Smoke'] and ai_pok.ability['name'] != 'Mold Breaker') or (user_pok.gender == ai_pok.gender or not user_pok.gender) or user_pok.stat_stages['Special Attack'] <= -6):
             basic.append(-10)
 
-        
-                 
-        
         '''
         TODO: Nightmare,
-        Reflect / Light Screen / Mist / Safeguard, 
+        Reflect / Light Screen / Mist / Safeguard,
         Focus Energy / Ingrain / Mud Sport / Water Sport / Camouflage / Power Trick / Lucky Chant / Aqua Ring / Magnet Rise
         Disable / Encore
         Lock On / Mean Look / Foresight / Perish Song / Torment / Miracle Eye / Heal Block / Gastro Acid
@@ -265,12 +268,15 @@ class TrainerAI:
         '''
 
         return min(basic) if basic else 0
-    
+
     def evaluate_attack_flag(self, final_damage, effectiveness, user_pok, move, idx, rand) -> tuple[int, dict]:
+        """
+        For damage moves it sees if it kill and some move exceptions then add to score
+        For non-damaging moves it checks if its 4x effective, for some reason
+        """
         score = 0
-        
-        #Check for kill
-        if final_damage >= user_pok.current_hp: 
+        # Check for kill
+        if final_damage >= user_pok.current_hp:
             if move['name'] in ['Explosion', 'Selfdestruct']:
                 score += 0
             elif move['name'] in ['Focus Punch', 'Sucker Punch', 'Future Sight']:
@@ -285,22 +291,25 @@ class TrainerAI:
                 return score, rand
         if move['name'] in ['Explosion', 'Selfdestruct', 'Focus Punch', 'Sucker Punch']:
             rand[idx]['score'].append(-2)
-            rand[idx]['chance'].append(176) 
+            rand[idx]['chance'].append(176)
         if effectiveness == 4:
             rand[idx]['score'].append(2)
             rand[idx]['chance'].append(176)
         return score, rand
-    
-    def expert_flag(self, damage, eff, ai_pok, u_pok, move, ai_pt, u_pt,turn, idx, rand):
+
+    def expert_flag(self, damage, eff, ai_pok, u_pok, move, ai_pt, u_pt, turn, idx, rand):
+        """
+        It shows the incentives and disincentives for the best trainer ai out there, for ROM HACKS every trainer has it
+        """
         score = 0
         hp_pct_ai = math.floor(ai_pok.current_hp/ai_pok.max_hp*100)
         hp_pct_u = math.floor(u_pok.current_hp/u_pok.max_hp*100)
         m_name = move['name']
         effects = move['effects']
         category = move['category']
-        #Check if move first (TODO add Trick room logic here)
-        ai_speed_stage = get_stage(ai_pok,'Speed')
-        u_speed_stage = get_stage(u_pok,'Speed')
+        # Check if move first (TODO add Trick room logic here)
+        ai_speed_stage = get_stage(ai_pok, 'Speed')
+        u_speed_stage = get_stage(u_pok, 'Speed')
         ai_speed = ai_pok.speed * stage_to_multiplier(ai_speed_stage)
         u_speed = u_pok.speed * stage_to_multiplier(u_speed_stage)
         if ai_speed > u_speed:
@@ -316,28 +325,28 @@ class TrainerAI:
                 effect_type = e.get('effect_type', 0)
                 target = e.get('target', 0)
                 if effect_type == 'status_inducing':
-                    #Poison-Inducing
-                    if status == 'poison' and (hp_pct_ai<50 or hp_pct_u<=50) and m_name != 'Toxic':
+                    # Poison-Inducing
+                    if status == 'poison' and (hp_pct_ai < 50 or hp_pct_u <= 50) and m_name != 'Toxic':
                         score = -1
                         return score, rand
                     for m in ai_pok.moves:
-                        #Sleep-Inducing
+                        # Sleep-Inducing
                         if status == 'sleep' and (m['name'] in ['Dream Eater', 'Nightmare']):
                             rand[idx]['score'].append(1)
                             rand[idx]['chance'].append(128)
                             return score, rand
-                    #Paralyzing-Inducing
-                    if status == 'paralysis' and not(move_first):
+                    # Paralyzing-Inducing
+                    if status == 'paralysis' and not move_first:
                         rand[idx]['score'].append(3)
                         rand[idx]['chance'].append(236)
                         return score, rand
                 if effect_type == 'volatile_status':
-                    #Confusion-Inducing
+                    # Confusion-Inducing
                     if status == 'confusion':
                         if m_name == 'Swagger':
                             psych_up = False
                             for m in ai_pok.moves:
-                                if m['name'] == ['Psych Up']:
+                                if m['name'] == 'Psych Up':
                                     psych_up = True
                             if psych_up:
                                 if u_pok.stat_stages['Attack'] <= -3:
@@ -360,11 +369,11 @@ class TrainerAI:
                                 score += -1
                         return score, rand
                 if effect_type == 'stat_change':
-                    #Stat-Boosting moves
+                    # Stat-Boosting moves
+                    atk = ['Attack', 'Special Attack']
+                    de = ['Defense', 'Special Defense']
                     if target == 'self':
-                        atk = ['Attack', 'Special Attack']
-                        de = ['Defense', 'Special Defense']
-                        for a in atk:    
+                        for a in atk:
                             if stat_change == a:
                                 if ai_pok.stat_stages[a] >= 3:
                                     rand[idx]['score'].append(-1)
@@ -382,7 +391,7 @@ class TrainerAI:
                                 return score, rand
                         for d in de:
                             if stat_change == d:
-                                if ai_pok.stat_stages[a] >= 3:
+                                if ai_pok.stat_stages[d] >= 3:
                                     rand[idx]['score'].append(-1)
                                     rand[idx]['chance'].append(156)
                                 if hp_pct_ai >= 100:
@@ -395,7 +404,7 @@ class TrainerAI:
                                     rand[idx]['chance'].append(186)
                                 else:
                                     score += -2
-                                #TODO: Target last-used move
+                                # TODO: Target last-used move
                                 return score, rand
                         if stat_change == 'Speed' and m_name != "Dragon Dance":
                             if move_first:
@@ -424,17 +433,17 @@ class TrainerAI:
                             if u_pok.curse:
                                 rand[idx]['score'].append(3)
                                 rand[idx]['chance'].append(186)
-                            if hp_pct_ai > 70 or u_pok.stat_stage['Evasion'] == 0:
+                            if hp_pct_ai > 70 or u_pok.stat_stages['Evasion'] == 0:
                                 return score, rand
-                            elif hp_pct_ai < 40 or u_pok < 40:
+                            elif hp_pct_ai < 40 or hp_pct_u < 40:
                                 score += -2
                                 return score, rand
                             else:
                                 rand[idx]['score'].append(-2)
                                 rand[idx]['chance'].append(186)
-                            #TODO: Ingrain, Aqua Ring
-                    if target in ['target', 'all_adjacent_pokemon']:
-                        #Attack and Special Attack
+                            # TODO: Ingrain, Aqua Ring
+                    if target in ['target', 'all_adjacent_opponents']:
+                        # Attack and Special Attack
                         if stat_change in atk:
                             for a in atk:
                                 if u_pok.stat_stages[a] != 0:
@@ -446,32 +455,32 @@ class TrainerAI:
                                     rand[idx]['chance'].append(206)
                                 if hp_pct_u <= 70:
                                     score += -2
-                                #TODO: Last move check: If the move last used by the target was not of the corresponding 
+                                # TODO: Last move check: If the move last used by the target was not of the corresponding
                                 # class (Physical/Special), 50% chance of score -2.
                                 return score, rand
-                        #Defense and Special Defense
+                        # Defense and Special Defense
                         if stat_change in de:
                             for d in de:
                                 if hp_pct_ai < 70:
                                     rand[idx]['score'].append(-2)
                                     rand[idx]['chance'].append(206)
-                                if u_pok.stat_stages[a] <= -3:
+                                if u_pok.stat_stages[d] <= -3:
                                     rand[idx]['score'].append(-2)
                                     rand[idx]['chance'].append(206)
                                 if hp_pct_u < 70:
                                     score += -2
                                 return score, rand
-                        #Speed
+                        # Speed
                         if stat_change == 'Speed':
-                            if not(move_first):
+                            if not move_first:
                                 rand[idx]['score'].append(2)
                                 rand[idx]['chance'].append(186)
                             else:
                                 score += -3
                             return score, rand
-                        #Accuracy
+                        # Accuracy
                         if stat_change == 'Accuracy':
-                            if hp_pct_u <= 70 and not (hp_pct_ai >= 70):
+                            if hp_pct_u <= 70 and not hp_pct_ai >= 70:
                                 rand[idx]['score'].append(-1)
                                 rand[idx]['chance'].append(156)
                             if ai_pok.stat_stages['Accuracy'] <= -2:
@@ -495,8 +504,8 @@ class TrainerAI:
                                     rand[idx]['score'].append(-2)
                                     rand[idx]['chance'].append(186)
                                 return score, rand
-                            #TODO: Ingrain, Aqua Ring
-                        #Evasion
+                            # TODO: Ingrain, Aqua Ring
+                        # Evasion
                         if stat_change == 'Evasion':
                             if hp_pct_ai < 70:
                                 rand[idx]['score'].append(-2)
@@ -508,10 +517,8 @@ class TrainerAI:
                                 score += -2
                             return score, rand
 
-                                
-
-        #Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
-        if not(isinstance(move['accuracy'], int)):
+        # Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
+        if not isinstance(move['accuracy'], int):
             if ai_pok.stat_stages['Accuracy'] <= -5 or u_pok.stat_stages['Evasion'] >= 5:
                 score += 1
             if ai_pok.stat_stages['Accuracy'] <= -3 or u_pok.stat_stages['Evasion'] >= 3:
@@ -519,8 +526,7 @@ class TrainerAI:
                 rand[idx]['chance'].append(156)
             return score, rand
 
-
-        #Selfdestruct, explosion, memento
+        # Selfdestruct, explosion, memento
         if m_name in ['Selfdestruct', 'Explosion', 'Memento']:
             if u_pok.stat_stages['Evasion'] >= 1:
                 score += -1
@@ -535,7 +541,7 @@ class TrainerAI:
                 rand[idx]['score'].append(1)
                 rand[idx]['chance'].append(128)
                 return score, rand
-            else: 
+            else:
                 if hp_pct_ai > 80 and move_first:
                     rand[idx]['score'].append(-3)
                     rand[idx]['chance'].append(206)
@@ -543,35 +549,34 @@ class TrainerAI:
                     rand[idx]['score'].append(-1)
                     rand[idx]['chance'].append(206)
             return score, rand
-        #Healing Wish, Lunar Dance
+        # Healing Wish, Lunar Dance
         if m_name in ['Healing Wish', 'Lunar Dance']:
             if hp_pct_ai >= 80 and move_first:
                 rand[idx]['score'].append(-5)
                 rand[idx]['chance'].append(64)
                 return score, rand
-            else:
-                if hp_pct_ai > 50:
-                    rand[idx]['score'].append(-1)
-                    rand[idx]['chance'].append(206)
-                    return score, rand
-                if random.randint(0,255) < 64:
-                    score += 1
-                    ef = False
-                    for m in ai_pok.moves:
-                        if m['category'] != 'Status':
-                            effc = get_type_effectiveness(m['type'], u_pok.types)
-                            if effc > 1:
-                                ef = True
-                    if not(ef):
-                        rand[idx]['score'].append(1)
-                        rand[idx]['chance'].append(64)
-                if hp_pct_ai <= 30:
-                    rand[idx]['score'].append(1)
-                    rand[idx]['chance'].append(128)
+            if hp_pct_ai > 50:
+                rand[idx]['score'].append(-1)
+                rand[idx]['chance'].append(206)
                 return score, rand
-        #Dragon Dance
+            if random.randint(0, 255) < 64:
+                score += 1
+                ef = False
+                for m in ai_pok.moves:
+                    if m['category'] != 'Status':
+                        effc = get_type_effectiveness(m['type'], u_pok.types)
+                        if effc > 1:
+                            ef = True
+                if not ef:
+                    rand[idx]['score'].append(1)
+                    rand[idx]['chance'].append(64)
+            if hp_pct_ai <= 30:
+                rand[idx]['score'].append(1)
+                rand[idx]['chance'].append(128)
+            return score, rand
+        # Dragon Dance
         if m_name == 'Dragon Dance':
-            if not(move_first):
+            if not move_first:
                 rand[idx]['score'].append(1)
                 rand[idx]['chance'].append(128)
                 return score, rand
@@ -579,21 +584,19 @@ class TrainerAI:
                 rand[idx]['score'].append(-1)
                 rand[idx]['chance'].append(186)
                 return score, rand
-        #Acupressure
+        # Acupressure
         if m_name == 'Acupressure':
             if hp_pct_ai <= 50:
                 score += -1
                 return score, rand
-            elif hp_pct_ai > 90:
+            if hp_pct_ai > 90:
                 rand[idx]['score'].append(1)
                 rand[idx]['chance'].append(192)
                 return score, rand
-            else:
-                rand[idx]['score'].append(1)
-                rand[idx]['chance'].append(96)
-                return score, rand
-        #
-
+            rand[idx]['score'].append(1)
+            rand[idx]['chance'].append(96)
+            return score, rand
+        # a
 
         """
         TODO:
@@ -601,28 +604,29 @@ class TrainerAI:
             Mirror Move
 
         """
-
         return score, rand
-            
-    
+
     def choose_move(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn):
+        """
+        Calculates the score of the moves and sees what has the highest score
+        """
         move_scores = {}
         choice = {}
         """The AI always knows what item you're holding. It cheats to see it.
 
         The AI always knows your exact current HP and max HP.
 
-        The AI does not know your moves until it sees you use them. Other methods that expose moves, such as Sleep Talk or the Forewarn 
+        The AI does not know your moves until it sees you use them. Other methods that expose moves, such as Sleep Talk or the Forewarn
         ability, do not count.
 
         The AI does not know your ability until it sees a text box with the ability name, such as: "... makes ground moves miss using LEVITATE"
-        , or "... FLASH FIRE made Flamethrower useless". If the AI does not know your ability, then most times it tries to check what your 
-        ability is, it will randomly guess one of the possible abilities your Pokémon's species can normally have. Abilities that modify 
-        damage but do not generate text, like Heatproof or Solid Rock, are not known to the AI even after damage is dealt. However, the AI 
-        is aware of the reduced damage that will be inflicted (e.g., for a Heatproof Bronzong, it will assume Levitate 50% of the time, but 
+        , or "... FLASH FIRE made Flamethrower useless". If the AI does not know your ability, then most times it tries to check what your
+        ability is, it will randomly guess one of the possible abilities your Pokémon's species can normally have. Abilities that modify
+        damage but do not generate text, like Heatproof or Solid Rock, are not known to the AI even after damage is dealt. However, the AI
+        is aware of the reduced damage that will be inflicted (e.g., for a Heatproof Bronzong, it will assume Levitate 50% of the time, but
         also will know that the Bronzong may survive a high-damage Fire attack that would KO if it had Levitate).
 
-        Rarely, the AI must specifically see your ability, or your species must not have any other possible ability, in order for a check to 
+        Rarely, the AI must specifically see your ability, or your species must not have any other possible ability, in order for a check to
         succeed; these cases are worded as "If the target's ability is certainly...".
 
         There is one exception to this: the AI knows if your ability is Shadow Tag, Magnet Pull, or Arena Trap preventing it from switching.
@@ -638,25 +642,23 @@ class TrainerAI:
         rand = {}
 
         for i, move in enumerate(ai_pok.moves):
-            rand[i] = {'score':[], 'chance':[]}
-            
+            rand[i] = {'score': [], 'chance': []}
+
             score = 0
             final_damage, effectiveness = calculate_damage(ai_pok, user_pok, move)
             effectiveness = get_type_effectiveness(move['type'], user_pok.types) if move['category'] == 'Status' else effectiveness
-            eval_atk, rand= self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
+            eval_atk, rand = self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
             score += eval_atk
             score += self.basic_flag(move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn)
+            eval_expert, rand = self.expert_flag(final_damage, effectiveness, ai_pok, user_pok, move, ai_party_alive, user_party_alive, turn, i, rand)
+            score += eval_expert
 
-            # TODO: Add expert flag
-            print(rand)
-
+            # TODO: Finish expert flag
             score += batch_independent_score_from_rand(rand, i)
 
-                    
+            move_scores[i] = {"score": score, "dmg": final_damage, "idx": i}
 
-            move_scores[i] = {"score":score, "dmg":final_damage, "idx":i}
-
-        #Moves to not consider in damage calc
+        # Moves to not consider in damage calc
         mov_excep = ['Explosion', 'Selfdestruct', 'Dream Eater', 'Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
                      'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Focus Punch', 'Superpower', 'Eruption', 'Water Spout',
                      'Sucker Punch', 'Head Smash']
@@ -666,19 +668,21 @@ class TrainerAI:
         # Apply penalty for moves that don't reach max damage
         for info in move_scores.values():
             if (ai_pok.moves[info["idx"]]['name'] not in mov_excep) and ai_pok.moves[info["idx"]]['category'] != 'Status':
-                if info["dmg"] < max_damage and not(info['dmg'] > user_pok.current_hp):
+                if info["dmg"] < max_damage and not info['dmg'] > user_pok.current_hp:
                     info["score"] -= 1
 
         # Find max score
-        print(move_scores)
         max_score = max(info["score"] for info in move_scores.values())
         best_moves = [info for info in move_scores.values() if info["score"] == max_score]
 
-        choice = {info['idx']:1 for info in best_moves}
+        choice = {info['idx']: 1 for info in best_moves}
 
         return choice
-    
+
     def return_idx(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn):
+        """
+        It transform the highest moving score to the index of the move
+        """
         weighted_moves = self.choose_move(ai_pok, user_pok, user_party_alive, ai_party_alive, turn)
         # unpack dict into lists
         items = list(weighted_moves.keys())
@@ -702,7 +706,7 @@ class TrainerAI:
 
         Phase 2:
         ---------
-          * If no Phase 1 candidate, for each non-fainted teammate compute the max damage any of its moves would do to user_pok 
+          * If no Phase 1 candidate, for each non-fainted teammate compute the max damage any of its moves would do to user_pok
           (use calculate_damage). Apply the "255 overflow" rule: if damage > 255 -> damage = damage - 255.
           * Choose teammate with highest such max move damage. Ties broken by party order.
 
@@ -801,4 +805,3 @@ class TrainerAI:
         # choose highest max_dmg, tie-break by party order (lower index wins)
         best2 = max(scored_phase2, key=lambda x: (x['max_dmg'], -x['index']))
         return best2['index']
-
