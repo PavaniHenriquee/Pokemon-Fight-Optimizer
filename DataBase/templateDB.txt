@@ -1,5 +1,6 @@
 "Name":{
   "type":["Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy"],
+  "weight"
   "base stats":{
     "HP":Number,
     "Attack":Number,

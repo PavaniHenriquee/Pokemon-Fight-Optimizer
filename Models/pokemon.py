@@ -7,6 +7,7 @@ class Pokemon:
         self.name = name
         self.base_data = pkDB[name]
         self.gender = gender # Male, Female, None
+        self.weight = self.base_data.get("weight", [])
         self.level = level
         self.ability = abDB[ability]
         self.item = itemDB[item] if item else None

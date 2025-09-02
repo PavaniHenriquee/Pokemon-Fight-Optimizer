@@ -103,7 +103,7 @@ def calculate_crit():
 def calculate_hit_miss(move, attacker, defender):
     '''Returns a boolean if the move passed the accuracy check'''
     acc_stage = get_stage(attacker, "Accuracy") - get_stage(defender, "Evasion")
-    accuracy = move['accuracy'] * stage_to_multiplier(acc_stage, acc = True)
+    accuracy = move['accuracy'] * stage_to_multiplier(acc_stage, acc = True) if isinstance(move['accuracy'], int) else 1
 
     if accuracy >= 100:
         is_hit = True
