@@ -1,11 +1,10 @@
-import streamlit as st
+from flask import Flask, render_template
 
-st.title("PBS")
+app = Flask(__name__)
 
-my_pk = st.selectbox("choose",["Char","Squ"])
-opp_pk = st.selectbox("choose opp", ["Char", "Squ"])
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-st.write = (f"You chose **{my_pk}** vs **{opp_pk}**")
-
-if st.button("Start Battle"):
-    st.write("Battle started")
+if __name__ == "__main__":
+    app.run(debug=True)
