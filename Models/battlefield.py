@@ -7,3 +7,4 @@ class Battlefield:
         self.weather = None
         self.trickroom = None
         self.terrain = None
+        self.terrain_duration = None

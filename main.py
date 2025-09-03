@@ -1,6 +1,6 @@
 """Main"""
 from Models.pokemon import Pokemon
-from Engine.Battle import battle
+from Engine.battle import battle
 
 
 charmander = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl"])

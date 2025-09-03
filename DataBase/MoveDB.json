@@ -139,7 +139,7 @@
       "contact": false
     },
     "effects": [
-      {"effect_type": "status", 
+      {"effect_type": "sec_effect", 
       "target": "target", 
       "status": "burn", 
       "chance": 10}

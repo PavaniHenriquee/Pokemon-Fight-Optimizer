@@ -1,8 +1,8 @@
 """Gives the class for the trainer Ai to be what the game would do"""
 import random
 import math
-from Engine.Damage_Calc import calculate_damage
-from Utils.Helper import get_type_effectiveness, batch_independent_score_from_rand, get_stage, stage_to_multiplier
+from Engine.damage_calc import calculate_damage
+from Utils.helper import get_type_effectiveness, batch_independent_score_from_rand, get_stage, stage_to_multiplier
 from DataBase.loader import pkDB
 
 
@@ -606,12 +606,12 @@ class TrainerAI:
         """
         return score, rand
 
-    def choose_move(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn):
+    def choose_move(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn, search=False):
         """
         Calculates the score of the moves and sees what has the highest score
+        search is used for me to get the raw values of score and rand, so i can see what percentage of chance each move has
         """
         move_scores = {}
-        choice = {}
         """The AI always knows what item you're holding. It cheats to see it.
 
         The AI always knows your exact current HP and max HP.
@@ -654,7 +654,8 @@ class TrainerAI:
             score += eval_expert
 
             # TODO: Finish expert flag
-            score += batch_independent_score_from_rand(rand, i)
+            if not search:
+                score += batch_independent_score_from_rand(rand, i)
 
             move_scores[i] = {"score": score, "dmg": final_damage, "idx": i}
 
@@ -671,25 +672,22 @@ class TrainerAI:
                 if info["dmg"] < max_damage and not info['dmg'] > user_pok.current_hp:
                     info["score"] -= 1
 
-        # Find max score
-        max_score = max(info["score"] for info in move_scores.values())
-        best_moves = [info for info in move_scores.values() if info["score"] == max_score]
+        print(rand)
 
-        choice = {info['idx']: 1 for info in best_moves}
-
-        return choice
+        return move_scores, rand
 
     def return_idx(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn):
         """
         It transform the highest moving score to the index of the move
         """
-        weighted_moves = self.choose_move(ai_pok, user_pok, user_party_alive, ai_party_alive, turn)
-        # unpack dict into lists
-        items = list(weighted_moves.keys())
-        weights = list(weighted_moves.values())
-
-        idx = random.choices(items, weights, k=1)[0] if any(weights) else random.choice(items)
-
+        move_scores, _ = self.choose_move(ai_pok, user_pok, user_party_alive, ai_party_alive, turn)
+        max_score = max(info["score"] for info in move_scores.values())
+        best_moves = [info for info in move_scores.values() if info["score"] == max_score]
+        if len(best_moves) == 1:
+            idx = best_moves[0]['idx']
+        else:
+            choice = random.choice(best_moves)
+            idx = choice['idx']
         return idx
 
     def sub_after_death(self, ai_party, user_pok, deadmon):

@@ -4,9 +4,9 @@ This preserves the original behaviour while removing module-level globals.
 Keep helper functions imported from your project (calculate_damage, calculate_status, etc.).
 """
 
-from Engine.Damage_Calc import calculate_damage
-from Engine.Status_Calc import calculate_status
-from Utils.Helper import (
+from Engine.damage_calc import calculate_damage
+from Engine.status_calc import calculate_status, sec_stat_change, after_turn_status
+from Utils.helper import (
     calculate_hit_miss,
     calculate_crit,
     get_non_fainted_pokemon,
@@ -84,11 +84,9 @@ class Battle:
                         break
                 if switch_pok >= 0:
                     break
-                else:
-                    continue
-            else:
-                print("Please select a valid answer.")
-                current_move = -1
+                continue
+            print("Please select a valid answer.")
+            current_move = -1
 
         return current_move, switch_pok, self.current_pokemon
 
@@ -101,6 +99,7 @@ class Battle:
         is performed but p1_switch=True so we handle that case by not accessing
         move1 when p1_switch is True).
         """
+        dead = False
         # Determine order
         if p1_switch:
             order = [(p2, move2, p1)]
@@ -135,6 +134,7 @@ class Battle:
                     crit = calculate_crit()
                     damage, effectiveness = calculate_damage(attacker, defender, move, crit)
                     defender.current_hp -= damage
+                    dead = defender.current_hp <= 0
                     # print statements kept intentionally to mirror original behaviour
                     if attacker == p1:
                         print(f"{attacker.name} used {move['name']} on {defender.name}!")
@@ -148,7 +148,11 @@ class Battle:
                     if effectiveness != 1:
                         print(f"Effectiveness: {effectiveness}x")
 
-                    if defender.current_hp <= 0:
+                    # Check for move effects
+                    if move['effects']:
+                        sec_stat_change(move, attacker, defender)
+
+                    if dead:
                         print(f"\033[91m{defender.name} has fainted! \033[0m")
                         defender.fainted = True
                     else:
@@ -159,6 +163,16 @@ class Battle:
             else:
                 print(f"{attacker.name} used {move['name']} on {defender.name}!")
                 print('But it missed!')
+
+        if not dead:
+            after_turn_status(p1)
+            after_turn_status(p2)
+        dead_u = p1.current_hp <= 0
+        dead_ai = p2.current_hp <= 0
+        if dead_u:
+            print(f"\033[91m{p1.name} has fainted! \033[0m")
+        if dead_ai:
+            print(f"\033[91m{p2.name} has fainted! \033[0m")
 
         # end of turn, increment instance turn counter
         self.turn += 1

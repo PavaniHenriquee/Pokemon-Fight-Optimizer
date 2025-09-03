@@ -60,6 +60,7 @@ class Pokemon:
         self.substitute = False
         self.leech_seed = False
         self.curse = False
+        self.turns = 0
         self.fainted = False
 
     def calculate_hp(self):

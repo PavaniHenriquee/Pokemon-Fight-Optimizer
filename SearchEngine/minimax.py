@@ -1,27 +1,25 @@
-from SearchEngine.evaluate import evaluate_state
+"""Actual run-through"""
+from Models.trainer_ai import TrainerAI
 
-def search_best_move(state, depth):
-    if depth == 0 or state.is_terminal():
-        return evaluate_state(state), None
 
-    best_score = float("-inf")
-    best_move = None
-
-    for move in state.available_moves(player="me"):
-        # simulate my move and opponent's response
-        new_state = state.clone()
-        new_state.apply_move("me", move)
-        
-        # Opponent plays optimally/randomly (depends on your AI)
-        for opp_move in new_state.available_moves(player="opp"):
-            opp_state = new_state.clone()
-            opp_state.apply_move("opp", opp_move)
-            
-            score, _ = search_best_move(opp_state, depth - 1)
-            score = -score  # because next turn is opponent’s advantage
-
-            if score > best_score:
-                best_score = score
-                best_move = move
-
-    return best_score, best_move
+def search_best_move(my_pty, ai_pty, cur_pok, cur_opp_pok, turn):
+    """Search of the best move"""
+    opp_ai = TrainerAI()
+    ai_m_scores, ai_rand_scores = opp_ai.choose_move(cur_opp_pok, cur_pok, my_pty, ai_pty, turn, search=True)
+    max_rand_score = 0
+    min_rand_score = 0
+    poss_scores = {}
+    for i in ai_rand_scores:
+        poss_scores[i] = ()
+        score_pos = ai_rand_scores[i]['score']
+        score_neg = 0
+        score_pos = 0
+        for j in dict(score_pos):
+            if j >= 0:
+                score_pos += j
+            else:
+                score_neg += j
+        max_rand_score += score_pos
+        min_rand_score += score_neg
+        poss_scores[i] = (min_rand_score, max_rand_score)
+    max_nrand_score = max(info["score"] for info in ai_m_scores.values())
