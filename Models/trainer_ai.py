@@ -18,7 +18,7 @@ class TrainerAI:
 
     def basic_flag(self, move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn) -> int:
         """
-        Basic Flag, every trainer has this, it desencourages moves that would have no effect or that would make no sense
+        Basic Flag, every trainer has this, it discourages moves that would have no effect or that would make no sense
         """
         basic = []
         # Check if move first (TODO add Trick room logic here)
@@ -666,13 +666,12 @@ class TrainerAI:
 
         # Find max damage among best moves
         max_damage = max(info["dmg"] for info in move_scores.values() if ai_pok.moves[info["idx"]]['name'] not in mov_excep)
+        
         # Apply penalty for moves that don't reach max damage
         for info in move_scores.values():
             if (ai_pok.moves[info["idx"]]['name'] not in mov_excep) and ai_pok.moves[info["idx"]]['category'] != 'Status':
                 if info["dmg"] < max_damage and not info['dmg'] > user_pok.current_hp:
                     info["score"] -= 1
-
-        print(rand)
 
         return move_scores, rand
 
