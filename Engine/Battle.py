@@ -40,8 +40,8 @@ class Battle:
         self.current_pokemon = self.my_pty_alive[0]
         self.current_opp = self.opp_pty_alive[0]
 
-        print(f"You sent out {self.current_pokemon.name}!")
-        print(f"The opponent sent out {self.current_opp.name}!")
+        # print(f"You sent out {self.current_pokemon.name}!")
+        # print(f"The opponent sent out {self.current_opp.name}!")
 
     def battle_menu(self):
         """Prompt the player for a move or switch.
@@ -90,17 +90,12 @@ class Battle:
 
         return current_move, switch_pok, self.current_pokemon
 
-    def battle_turn(self, p1, move1, p2, move2, p1_switch=False):
-        """Perform a single turn of the battle.
+    def move_order(self, p1, move1, p2, move2, p1_switch):
+        """Calculates the order which the what move should be played
+        Returns:
 
-        p1 and p2 are the attacker/defender Pokémon objects as in the original
-        functions. move1 and move2 follow the original conventions (dictionaries
-        for real moves; the original code sometimes passes 0 when a switch
-        is performed but p1_switch=True so we handle that case by not accessing
-        move1 when p1_switch is True).
-        """
-        dead = False
-        # Determine order
+        [('Faster Pokemon', 'Move of Faster Pokemon', 'Slower Pokemon'),
+         ('Slower Pokemon, 'Move of Slower Pokemon', 'Faster Pokemon')]"""
         if p1_switch:
             order = [(p2, move2, p1)]
         elif (move1['priority'] != 0 or move2['priority'] != 0) and move1['priority'] != move2['priority']:
@@ -115,6 +110,20 @@ class Battle:
                 order = [(p2, move2, p1), (p1, move1, p2)]
             else:
                 order = speed_tie(p1, move1, p2, move2)
+        return order
+
+    def battle_turn(self, p1, move1, p2, move2, p1_switch=False):
+        """Perform a single turn of the battle.
+
+        p1 and p2 are the attacker/defender Pokémon objects as in the original
+        functions. move1 and move2 follow the original conventions (dictionaries
+        for real moves; the original code sometimes passes 0 when a switch
+        is performed but p1_switch=True so we handle that case by not accessing
+        move1 when p1_switch is True).
+        """
+        dead = False
+        # Determine order
+        order = self.move_order(p1, move1, p2, move2, p1_switch)
 
         for attacker, move, defender in order:
             if defender.current_hp <= 0:
@@ -155,6 +164,8 @@ class Battle:
                     if dead:
                         print(f"\033[91m{defender.name} has fainted! \033[0m")
                         defender.fainted = True
+                        self.turn += 1
+                        return
                     else:
                         print(f"{defender.name} has {defender.current_hp} HP left.")
                 else:
@@ -171,8 +182,10 @@ class Battle:
         dead_ai = p2.current_hp <= 0
         if dead_u:
             print(f"\033[91m{p1.name} has fainted! \033[0m")
+            p1.fainted = True
         if dead_ai:
             print(f"\033[91m{p2.name} has fainted! \033[0m")
+            p2.fainted = True
 
         # end of turn, increment instance turn counter
         self.turn += 1

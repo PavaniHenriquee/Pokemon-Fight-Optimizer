@@ -73,7 +73,7 @@
       "stages": Number,
       "multiplier": Number,
       "move_type": "Ground",
-      "condition": {("weather":"rain")|("Pk_type":"Water"|"Fire"|"Grass")},
+      "condition": {("weather":"rain")|("pk_type":"Water"|"Fire"|"Grass")},
       "when": "always"|"apply_move_effects"|"damage_calc"|"on_switch_in"|"third_HP"
     }
   ]

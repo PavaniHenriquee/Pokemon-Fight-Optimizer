@@ -1,57 +1,13 @@
 {
-"Levitate": {
-  "name": "Levitate",
-  "effects": [
-    {"effect_type": "immunity", 
-    "move_type": "Ground", 
-    "when": "damage_calc"}
-  ]
-},
-"Intimidate": {
-  "name": "Intimidate",
-  "effects": [
-    {"effect_type": "stat_change", 
-    "target": "all_adjacent_opponents", 
-    "stat": "atk", 
-    "stages": -1, 
-    "when": "on_switch_in"}
-  ]
-},
-"Swift Swim": {
-  "name": "Swift Swim",
-  "effects": [
-    {"effect_type": "stat_modifier", 
-    "stat": "spe", 
-    "multiplier": 2, 
-    "condition": {"weather": "rain"}, 
-    "when": "always"}
-  ]
-},
-"Huge Power": {
-  "name": "Huge Power",
-  "effects": [
-    {"effect_type": "stat_modifier", 
-    "stat": "atk", 
-    "multiplier": 2, 
-    "when": "always"}
-  ]
-},
-"Serene Grace": {
-  "name": "Serene Grace",
-  "effects": [
-    {"effect_type": "secondary_effect_boost", 
-    "multiplier": 2, 
-    "when": "apply_move_effects"}
-  ]
-},
 "Overgrown":{
   "name": "Overgrown",
   "effects":[
     {
       "effect_type": "attack_modifier",
+      "target": "self",
       "multiplier": 1.5,
       "move_type":"Grass",
-      "condition": {"Pk_type":"Grass"},
+      "condition": {"pk_type":"Grass"},
       "when": "third_hp"
     }
   ]
@@ -61,9 +17,10 @@
   "effects":[
     {
       "effect_type": "attack_modifier",
+      "target": "self",
       "multiplier": 1.5,
       "move_type":"Fire",
-      "condition": {"Pk_type":"Fire"},
+      "condition": {"pk_type":"Fire"},
       "when": "third_hp"
     }
   ]
@@ -73,9 +30,10 @@
   "effects":[
     {
       "effect_type": "attack_modifier",
+      "target": "self",
       "multiplier": 1.5,
       "move_type":"Water",
-      "condition": {"Pk_type":"Water"},
+      "condition": {"pk_type":"Water"},
       "when": "third_hp"
     }
   ]

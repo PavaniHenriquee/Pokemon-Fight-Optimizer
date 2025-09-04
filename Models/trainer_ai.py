@@ -297,7 +297,7 @@ class TrainerAI:
             rand[idx]['chance'].append(176)
         return score, rand
 
-    def expert_flag(self, damage, eff, ai_pok, u_pok, move, ai_pt, u_pt, turn, idx, rand):
+    def expert_flag(self, damage, eff, ai_pok, u_pok, move, ai_pt, u_pt, turn, idx, rand):  # pylint: disable=W0613
         """
         It shows the incentives and disincentives for the best trainer ai out there, for ROM HACKS every trainer has it
         """
@@ -666,7 +666,7 @@ class TrainerAI:
 
         # Find max damage among best moves
         max_damage = max(info["dmg"] for info in move_scores.values() if ai_pok.moves[info["idx"]]['name'] not in mov_excep)
-        
+
         # Apply penalty for moves that don't reach max damage
         for info in move_scores.values():
             if (ai_pok.moves[info["idx"]]['name'] not in mov_excep) and ai_pok.moves[info["idx"]]['category'] != 'Status':
