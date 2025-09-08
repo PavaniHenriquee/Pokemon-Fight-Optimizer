@@ -64,5 +64,5 @@ if __name__ == '__main__':
         mv = my_party[init_state.cur_my_idx].moves[best_move_idx]
         best_move_name = mv['name'] if isinstance(mv, dict) else getattr(mv, 'name', str(best_move_idx))
 
-    winrate = winrate_vs_ai_parallel(my_party, opp_party, games=10, iters=100)
-    print(f"Best first move: {best_move_name}  |  Winrate vs built-in AI: {winrate*100:.2f}%")
+    winrate = winrate_vs_ai_parallel(my_party, opp_party, games=50, iters=1000)
+    print(f"Best first move: {best_move_name} \n Winrate vs built-in AI: {winrate*100:.2f}%")

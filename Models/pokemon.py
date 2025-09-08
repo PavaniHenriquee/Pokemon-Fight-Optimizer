@@ -79,5 +79,5 @@ class Pokemon:
         ev = self.evs[stat_name]
         nat = self.nature[stat_name] if stat_name in self.nature else 1.0
         lvl = self.level
-        stat = math.floor(((((2*base + iv + (ev // 4))*lvl)//100) + 5)*nat)
+        stat = math.floor(((((2 * base + iv + (ev // 4)) * lvl) // 100) + 5) * nat)
         return stat

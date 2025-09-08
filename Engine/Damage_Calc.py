@@ -21,7 +21,7 @@ def damaging_ability(attacker, defender, move) -> int:  # pylint: disable=W0613
         condition = e.get('condition', 0)
         when = e.get('when', 0)
         if target == 'self':
-            if when == 'third_hp' and attacker.current_hp/attacker.max_hp < 1/3:
+            if when == 'third_hp' and attacker.current_hp / attacker.max_hp < 1 / 3:
                 if (condition.get('pk_type', 0) in attacker.types and move['type'] == condition.get('pk_type', 0)):
                     mult = multip
 
@@ -48,7 +48,7 @@ def multipliers(move, attacker, defender, crit, roll_mult):
 
     # Roll Multiplier
     if roll_mult is None:
-        roll_mult = random.randint(85, 100)/100
+        roll_mult = random.randint(85, 100) / 100
 
     # Burn
     if attacker.status == 'burn':

@@ -174,13 +174,13 @@ class TrainerAI:
             elif effectiveness == 0:
                 basic.append(-10)
         # Belly Drum
-        if move["name"] == "Belly Drum" and math.floor((ai_pok.current_hp/ai_pok.max_hp*100)) <= 51:
+        if move["name"] == "Belly Drum" and math.floor((ai_pok.current_hp / ai_pok.max_hp * 100)) <= 51:
             basic.append(-10)
         # Substitute
         if move["name"] == "Substitute":
             if ai_pok.substitute:
                 basic.append(-8)
-            elif (ai_pok.current_hp/ai_pok.max_hp)*100 < 26:
+            elif (ai_pok.current_hp / ai_pok.max_hp) * 100 < 26:
                 basic.append(-10)
         # Leech Seed
         if move['name'] == "Leech Seed" and (user_pok.leech_seed or 'Grass' in user_pok.types or ability == "Magic Guard"):
@@ -302,8 +302,8 @@ class TrainerAI:
         It shows the incentives and disincentives for the best trainer ai out there, for ROM HACKS every trainer has it
         """
         score = 0
-        hp_pct_ai = math.floor(ai_pok.current_hp/ai_pok.max_hp*100)
-        hp_pct_u = math.floor(u_pok.current_hp/u_pok.max_hp*100)
+        hp_pct_ai = math.floor(ai_pok.current_hp / ai_pok.max_hp * 100)
+        hp_pct_u = math.floor(u_pok.current_hp / u_pok.max_hp * 100)
         m_name = move['name']
         effects = move['effects']
         category = move['category']

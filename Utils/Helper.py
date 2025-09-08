@@ -1,32 +1,36 @@
 """Helper functions"""
-import math
 import random
+import numpy as np
 from Utils.loader import type_chart
 
 
 def round_half_down(value: float) -> int:
     """Round to nearest integer with .5 rounded down."""
-    flo = math.floor(value)
-    frac = value - flo
-    if frac > 0.5:
-        return math.ceil(value)
-    else:
-        return flo
+    arr = np.asarray(value)
+    flo = np.floor(arr)
+    frac = arr - flo
+    res = np.where(frac > 0.5, np.ceil(arr), flo).astype(int)
+    # return scalar int when scalar input provided
+    if arr.shape == ():
+        return int(res.item())
+    return res
 
 
-# new helper: convert stage (-6..6) to multiplier used by main-series games
+# Convert stage (-6..6) to multiplier used by main-series games
 def stage_to_multiplier(stages: int, acc=False) -> float:
     """Check how the stages are affecting the stats"""
+    arr = np.asarray(stages)
     if acc:
-        if stages >= 0:
-            return (3 + stages) / 3.0
-        else:
-            return 3.0 / (3 - stages)
-
-    if stages >= 0:
-        return (2 + stages) / 2.0
+        pos = arr >= 0
+        res = np.where(pos, (3.0 + arr) / 3.0, 3.0 / (3.0 - arr))
     else:
-        return 2.0 / (2 - stages)
+        pos = arr >= 0
+        res = np.where(pos, (2.0 + arr) / 2.0, 2.0 / (2.0 - arr))
+
+    # if scalar, return scalar float
+    if arr.shape == ():
+        return float(res.item())
+    return res
 
 
 def get_stage(pokemon, stat_key: str) -> int:
@@ -43,13 +47,12 @@ def get_stage(pokemon, stat_key: str) -> int:
 
 def get_type_effectiveness(atk_type, defender_types):
     """Check to see if 0.25, 0.50, 1, 2, 4 times effective"""
-    mult = 1.0
     if atk_type not in type_chart:
         return 1.0
-    for d in defender_types:
-        # defender type key assumed to match chart keys
-        mult *= float(type_chart[atk_type].get(d, 1.0))
-    return mult
+    vals = [float(type_chart[atk_type].get(d, 1.0)) for d in defender_types]
+    if not vals:
+        return 1.0
+    return float(np.prod(vals)) 
 
 
 def get_non_fainted_pokemon(party):
@@ -60,14 +63,14 @@ def get_non_fainted_pokemon(party):
 def reset_switch_out(pok):
     """If a pokemon swithces out it needs to reset these conditions"""
     pok.stat_stages = {
-            'Attack': 0,
-            'Defense': 0,
-            'Special Attack': 0,
-            'Special Defense': 0,
-            'Speed': 0,
-            'Accuracy': 0,
-            'Evasion': 0
-        }
+        'Attack': 0,
+        'Defense': 0,
+        'Special Attack': 0,
+        'Special Defense': 0,
+        'Speed': 0,
+        'Accuracy': 0,
+        'Evasion': 0
+    }
     pok.confusion = False
     pok.attract = False
     pok.substitute = False
@@ -164,6 +167,14 @@ def batch_independent_score_from_rand(rand_dict, idx, rng=None):
     n = len(entries)
     if n == 0:
         return 0
+
+    # Fast numpy path when a numpy Generator is provided
+    if np is not None and hasattr(rng, 'integers') and isinstance(rng, np.random.Generator):
+        scores = np.array([s for s, _ in entries], dtype=np.int64)
+        chances = np.array([c for _, c in entries], dtype=np.uint16)
+        draws = rng.integers(0, 256, size=n, dtype=np.uint16)
+        mask = draws < chances
+        return int(scores.dot(mask.astype(np.int64)))
 
     # get n independent bytes in one call
     bits = rng.getrandbits(n * 8)  # produces an integer with n*8 random bits
