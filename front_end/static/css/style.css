@@ -4,7 +4,7 @@ body {
   height: 100vh; /* full screen */
   display: flex;
   flex-direction: column;
-  background-color: gray;
+  background-image: url(/front_end/static/);
 }
 
 header {
