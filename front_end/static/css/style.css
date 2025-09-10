@@ -4,12 +4,29 @@ body {
   height: 100vh; /* full screen */
   display: flex;
   flex-direction: column;
-  background-image: url(/front_end/static/);
+  /*background-image: url(/front_end/static/images/Platinum.gif);
+  background-size: cover;
+  background-position: center center;*/
 }
 
 header {
   text-align: center;
-  padding: 1.2rem;
+  padding: .5rem;
+  padding-bottom: 25px;
+}
+
+label {
+  display: block;
+}
+
+.head_label {
+  display: block;
+  padding: .2rem;
+  border: solid 3px black;
+  width: 70px;
+  position: relative;
+  margin: 0 auto;
+  border-radius: 25px;
 }
 
 .content {
@@ -22,6 +39,10 @@ header {
 .my_side {
   width: 40%;
   padding: 1rem;
+  padding-top: 5rem;
+  padding-left: 1px;
+  display: grid;
+  grid-template-columns: auto auto;
 }
 
 .middle {
@@ -30,4 +51,21 @@ header {
 
 .opp_side {
   width: 40%;
+  padding: 1rem;
+}
+
+.opp {
+  background-color: blue;
+  padding: .5rem;
+  border-radius: 10px;
+  display: block;
+}
+
+.set_pok {
+  padding: .3rem;
+  display: block;
+}
+
+.pok_input {
+  text-align: center;
 }
