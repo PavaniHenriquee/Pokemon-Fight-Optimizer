@@ -52,31 +52,12 @@ def get_type_effectiveness(atk_type, defender_types):
     vals = [float(type_chart[atk_type].get(d, 1.0)) for d in defender_types]
     if not vals:
         return 1.0
-    return float(np.prod(vals)) 
+    return float(np.prod(vals))
 
 
 def get_non_fainted_pokemon(party):
     """Only non fainted pokemon list"""
     return [pokemon for pokemon in party if not getattr(pokemon, 'fainted', False)]
-
-
-def reset_switch_out(pok):
-    """If a pokemon swithces out it needs to reset these conditions"""
-    pok.stat_stages = {
-        'Attack': 0,
-        'Defense': 0,
-        'Special Attack': 0,
-        'Special Defense': 0,
-        'Speed': 0,
-        'Accuracy': 0,
-        'Evasion': 0
-    }
-    pok.confusion = False
-    pok.attract = False
-    pok.substitute = False
-    pok.leech_seed = False
-    pok.turns = 0
-    pok.curse = False
 
 
 def switch_menu(alive_pokemon, current_pokemon):
@@ -97,7 +78,6 @@ def switch_menu(alive_pokemon, current_pokemon):
         if switch_pok < 0 or switch_pok >= len(alive_pokemon):
             print("Please select a valid Pokemon.")
             return switch_pok, ret_menu, current_pokemon
-        reset_switch_out(current_pokemon)
         current_pokemon = alive_pokemon[switch_pok]
         print(f"You switched to {current_pokemon.name}!")
         return switch_pok, ret_menu, current_pokemon

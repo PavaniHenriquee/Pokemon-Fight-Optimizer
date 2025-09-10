@@ -36,7 +36,11 @@ def calculate_status(attacker, defender, move):
                         continue
                     print('But it failed.')
                     continue
+                if defender.status == 'sleep':
+                    print('But it failed.')
+                    continue
                 defender.status = status
+                defender.sleep_counter = random.randint(1, 4)
                 print(f"{defender.name} is fast asleep")
                 continue
             print('Something went wrong')
@@ -74,8 +78,18 @@ def after_turn_status(pok):
     if pok.status:
         s = pok.status
         if s == 'burn' or (s == 'poison' and not pok.badly_poison):
-            dmg = math.floor(pok.max_hp/8)
+            dmg = math.floor(pok.max_hp / 8)
             pok.current_hp -= dmg
             print(f'{pok.name} suffered {dmg} HP from {s}')
-            print(f'{pok.name} has {pok.current_hp} left.')
-            return
+            if pok.current_hp <= 0:
+                print(f'{pok.name} has fainted.')
+                pok.fainted = True
+            else:
+                print(f'{pok.name} has {pok.current_hp} left.')
+
+
+def paralysis():
+    """Check if Pokemon is fully paralysed"""
+    if random.randint(1, 4) <= 1:
+        return True
+    return False

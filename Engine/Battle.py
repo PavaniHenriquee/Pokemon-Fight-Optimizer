@@ -1,17 +1,16 @@
-"""Refactored Battle module: encapsulates battle state into a Battle class.
-
-This preserves the original behaviour while removing module-level globals.
-Keep helper functions imported from your project (calculate_damage, calculate_status, etc.).
+"""Battle module: encapsulates battle state into a Battle class.
 """
 
 from Engine.damage_calc import calculate_damage
-from Engine.status_calc import calculate_status, sec_stat_change, after_turn_status
+from Engine.status_calc import calculate_status, sec_stat_change, after_turn_status, paralysis
 from Utils.helper import (
     calculate_hit_miss,
     calculate_crit,
     get_non_fainted_pokemon,
     switch_menu,
     speed_tie,
+    get_stage,
+    stage_to_multiplier,
 )
 from Models.trainer_ai import TrainerAI
 
@@ -90,29 +89,47 @@ class Battle:
 
         return current_move, switch_pok, self.current_pokemon
 
-    def move_order(self, p1, move1, p2, move2, p1_switch):
+    def move_order(self, p1, move1, p2, move2, p1_switch, p2_switch):
         """Calculates the order which the what move should be played
         Returns:
 
         [('Faster Pokemon', 'Move of Faster Pokemon', 'Slower Pokemon'),
          ('Slower Pokemon, 'Move of Slower Pokemon', 'Faster Pokemon')]"""
+        if p1_switch and p2_switch:
+            return []
         if p1_switch:
             order = [(p2, move2, p1)]
-        elif (move1['priority'] != 0 or move2['priority'] != 0) and move1['priority'] != move2['priority']:
+            return order
+        if p2_switch:
+            order = [(p1, move1, p2)]
+            return order
+
+        mult1 = 1
+        mult2 = 1
+        if p1.status == 'paralysis':
+            mult1 = 0.25
+        if p2.status == 'paralysis':
+            mult2 = 0.25
+        mult1 *= stage_to_multiplier(get_stage(p1, "Speed"))
+        mult2 *= stage_to_multiplier(get_stage(p2, "Speed"))
+        p1_speed = mult1 * p1.speed
+        p2_speed = mult2 * p2.speed
+
+        if (move1['priority'] != 0 or move2['priority'] != 0) and move1['priority'] != move2['priority']:
             if move1['priority'] > move2['priority']:
                 order = [(p1, move1, p2), (p2, move2, p1)]
             else:
                 order = [(p2, move2, p1), (p1, move1, p2)]
         else:
-            if p1.speed > p2.speed:
+            if p1_speed > p2_speed:
                 order = [(p1, move1, p2), (p2, move2, p1)]
-            elif p2.speed > p1.speed:
+            elif p2_speed > p1_speed:
                 order = [(p2, move2, p1), (p1, move1, p2)]
             else:
                 order = speed_tie(p1, move1, p2, move2)
         return order
 
-    def battle_turn(self, p1, move1, p2, move2, p1_switch=False):
+    def battle_turn(self, p1, move1, p2, move2, p1_switch=False, p2_switch=False):
         """Perform a single turn of the battle.
 
         p1 and p2 are the attacker/defender Pokémon objects as in the original
@@ -123,7 +140,7 @@ class Battle:
         """
         dead = False
         # Determine order
-        order = self.move_order(p1, move1, p2, move2, p1_switch)
+        order = self.move_order(p1, move1, p2, move2, p1_switch, p2_switch)
 
         for attacker, move, defender in order:
             if defender.current_hp <= 0:
@@ -132,6 +149,15 @@ class Battle:
                 continue  # In cases like self-destruct
             if attacker.current_hp <= 0:
                 continue  # Failsafe
+            if attacker.status == "paralysis" and paralysis():
+                print(f"{attacker.name} is fully paralysed!")
+                continue
+            if attacker.status == 'sleep':
+                if attacker.sleep_counter > 0:
+                    print(f"{attacker.name} is fast asleep!")
+                    continue
+                attacker.status = None
+                print(f"{attacker.name} has woken up!")
 
             # Check Move accuracy
             move_hit = calculate_hit_miss(move, attacker, defender)
@@ -144,7 +170,7 @@ class Battle:
                     damage, effectiveness = calculate_damage(attacker, defender, move, crit)
                     defender.current_hp -= damage
                     dead = defender.current_hp <= 0
-                    # print statements kept intentionally to mirror original behaviour
+
                     if attacker == p1:
                         print(f"{attacker.name} used {move['name']} on {defender.name}!")
                     else:
@@ -188,6 +214,10 @@ class Battle:
             p2.fainted = True
 
         # end of turn, increment instance turn counter
+        if p1.sleep_counter > 0:
+            p1.sleep_counter -= 1
+        if p2.sleep_counter > 0:
+            p2.sleep_counter -= 1
         self.turn += 1
 
     def run(self):

@@ -24,6 +24,7 @@ class Pokemon:
         self.badly_poison = False
         self.confusion = False
         self.attract = False
+        self.sleep_counter = 0
         self.nature = natures[nature]
         self.stat_stages = {
             'Attack': 0,
