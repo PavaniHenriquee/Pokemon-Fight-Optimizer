@@ -18,7 +18,7 @@
   "type": "Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy",
   "category": "Physical"|"Special"|"Status",
   "power": Number,                
-  "accuracy": Number,           
+  "accuracy": Number|always,           
   "priority": Number,
   "pp": Number,
   "target": "adjacent_opponent"|"self"|"all_adjacent_opponents"|"foe_side"|"ally_side"|"both_sides",  
@@ -37,6 +37,7 @@
     "chance": Number,
     "hazard": "stealth_rock",
     "status": "sleep"|"paralysis"|"burn"|"poison"|"freeze"|"confusion"|
+    "flinch": True
   },
   ]
 }

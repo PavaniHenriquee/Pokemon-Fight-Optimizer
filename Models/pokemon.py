@@ -22,9 +22,10 @@ class Pokemon:
         self.types = self.base_data.get("type", [])
         self.status = status  # burn, freeze, paralyze, sleep
         self.badly_poison = False
+        self.sleep_counter = 0
+        self.vol_status = []
         self.confusion = False
         self.attract = False
-        self.sleep_counter = 0
         self.nature = natures[nature]
         self.stat_stages = {
             'Attack': 0,

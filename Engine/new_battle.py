@@ -7,37 +7,39 @@ from Engine.engine_helper import (
     calculate_hit_miss,
     calculate_crit,
     get_non_fainted_pokemon,
-    reset_switch_out
+    reset_switch_out,
+    MoveOutcome,
+    flinch_checker
 )
 from Engine.status_calc import paralysis, sec_stat_change, calculate_status, after_turn_status
 from Engine.damage_calc import calculate_damage
 from Models.trainer_ai import TrainerAI
 
 
-def switch_menu(current_pokemon, alive_pokemon):
+def switch_menu(current_pokemon, alive_pokemon, my_pty):
     """Makes what the switch menu looks like, it should loop where its used"""
     switch_pok = -1
     ret_menu = False
+    opt = []
     print("Choose the Pokemon you want to switch to:")
-    for i, pok in enumerate(alive_pokemon):
-        print(f"{i+1}. {pok.name}")
+    for i, pok in enumerate(my_pty):
+        if pok in alive_pokemon and pok != current_pokemon:
+            opt.append(i + 1)
+            print(f"{i+1}. {pok.name}")
     if not current_pokemon.fainted:
         print("r. Return to previous menu")
     switch_choice = input("Choose: ")
     if switch_choice == 'r' and not current_pokemon.fainted:
         ret_menu = True
         return switch_pok, ret_menu
-    if switch_choice.isdigit():
-        switch_pok = int(switch_choice) - 1
-        if switch_pok < 0 or switch_pok >= len(alive_pokemon):
-            print("Please select a valid Pokemon.")
-            return switch_pok, ret_menu
+    if int(switch_choice) in opt:
+        switch_pok = int(switch_choice) - 1  # Because of idx 0
         return switch_pok, ret_menu
     print("Please select a valid answer.")
     return switch_pok, ret_menu
 
 
-def battle_menu(current_pokemon, my_pty_alive):
+def battle_menu(current_pokemon, my_pty_alive, my_pty):
     """Prompt the player for a move or switch.
 
     Returns:
@@ -71,8 +73,8 @@ def battle_menu(current_pokemon, my_pty_alive):
             alive_pokemon = my_pty_alive.copy()
             # remove current from the choices
             del alive_pokemon[alive_pokemon.index(current_pokemon)]
-            while switch_pok_idx < 0 or switch_pok_idx >= len(alive_pokemon):
-                switch_pok_idx, ret_menu = switch_menu(current_pokemon, alive_pokemon)
+            while switch_pok_idx < 0 and my_pty[switch_pok_idx].name in [p.name for p in alive_pokemon]:
+                switch_pok_idx, ret_menu = switch_menu(current_pokemon, my_pty_alive, my_pty)
                 if ret_menu:
                     break
             if switch_pok_idx >= 0:
@@ -90,6 +92,8 @@ class Battle():
         # copy the lists so external callers don't get mutated lists unexpectedly
         self.my_pty_alive = list(my_pty)
         self.opp_pty_alive = list(opp_pty)
+        self.my_pty = list(my_pty)
+        self.opp_pty = list(opp_pty)
 
         self.opp_ai = TrainerAI()
         self.turn = 1
@@ -116,6 +120,8 @@ class Battle():
         elif p2_speed > p1_speed or speed_tie_2:
             print(f"The opponent sent out {self.current_opp.name}!")
             print(f"You sent out {self.current_pokemon.name}!")
+        self.current_pokemon.turns = 1
+        self.current_opp.turns = 1
 
     def selection(self):
         """Does the selection part of the battle, what I choose and what the opponent chooses"""
@@ -126,7 +132,7 @@ class Battle():
             self.opp_pty_alive,
             self.turn
         )
-        current_move_idx, switch_move_idx = battle_menu(self.current_pokemon, self.my_pty_alive)
+        current_move_idx, switch_move_idx = battle_menu(self.current_pokemon, self.my_pty_alive, self.my_pty)
         return opp_move, current_move_idx, switch_move_idx
 
     def start_of_turn(self, opp_move, switch_idx):
@@ -149,45 +155,46 @@ class Battle():
                     speed_tie_2 = True
             if my_p > opp_p or speed_tie_1:
                 # TODO: Switch in abilities and terrain hazards
-                print(f'You switched {self.current_pokemon} out.')
+                print(f'You switched {self.current_pokemon.name} out.')
                 reset_switch_out(self.current_pokemon)
-                self.current_pokemon = self.my_pty_alive[switch_idx]
-                print(f'You switched {self.current_pokemon} in.')
+                self.current_pokemon = self.my_pty[switch_idx]
+                print(f'You switched {self.current_pokemon.name} in.')
 
-                print(f'Opponent has switched {self.current_opp} out.')
+                print(f'Opponent has switched {self.current_opp.name} out.')
                 reset_switch_out(self.current_opp)
                 self.current_opp = opp_switch
-                print(f'Opponent has switched {self.current_opp} in.')
+                print(f'Opponent has switched {self.current_opp.name} in.')
             elif my_p < opp_p or speed_tie_2:
                 # TODO: Switch in abilities and terrain hazards
-                print(f'Opponent has switched {self.current_opp} out.')
+                print(f'Opponent has switched {self.current_opp.name} out.')
                 reset_switch_out(self.current_opp)
                 self.current_opp = opp_switch
-                print(f'Opponent has switched {self.current_opp} in.')
+                print(f'Opponent has switched {self.current_opp.name} in.')
 
-                print(f'You switched {self.current_pokemon} out.')
+                print(f'You switched {self.current_pokemon.name} out.')
                 reset_switch_out(self.current_pokemon)
-                self.current_pokemon = self.my_pty_alive[switch_idx]
-                print(f'You switched {self.current_pokemon} in.')
+                self.current_pokemon = self.my_pty[switch_idx]
+                print(f'You switched {self.current_pokemon.name} in.')
 
         if opp_switch:
             # TODO: Switch in abilities and terrain hazards
-            print(f'Opponent has switched {self.current_opp} out.')
+            print(f'Opponent has switched {self.current_opp.name} out.')
             reset_switch_out(self.current_opp)
             self.current_opp = opp_switch
-            print(f'Opponent has switched {self.current_opp} in.')
+            print(f'Opponent has switched {self.current_opp.name} in.')
 
         if switch_idx >= 0:
             # TODO: Switch in abilities and terrain hazards
-            print(f'You switched {self.current_pokemon} out.')
+            print(f'You switched {self.current_pokemon.name} out.')
             reset_switch_out(self.current_pokemon)
-            self.current_pokemon = self.my_pty_alive[switch_idx]
-            print(f'You switched {self.current_pokemon} in.')
+            self.current_pokemon = self.my_pty[switch_idx]
+            print(f'You switched {self.current_pokemon.name} in.')
 
     def action(self, current_move, opp_move):
         """Where the moves are calculated"""
         p1_switch = False
         p2_switch = False
+        flinch = False
         if current_move < 0 and not isinstance(opp_move, int):
             return  # Check if neither used an action, if so early return
         if current_move < 0:
@@ -205,10 +212,9 @@ class Battle():
             p1_switch,
             p2_switch)
 
-        for attacker, move, defender in order:
-            # Check for Paralysis and if the moves goes through
-            if attacker.status == 'paralysis' and paralysis():
-                print(f"{attacker.name} is fully paralysed!")
+        for idx, (attacker, move, defender) in enumerate(order):
+            # If attacker slower and died before could attack
+            if attacker.current_hp <= 0:
                 continue
             # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
             if attacker.status == 'sleep':
@@ -218,27 +224,46 @@ class Battle():
                     continue
                 attacker.status = None
                 print(f"{attacker.name} has woken up!")
+            # Check for Paralysis
+            if attacker.status == 'paralysis' and paralysis():
+                print(f"{attacker.name} is fully paralysed!")
+                continue
+            # Flinch
+            if idx >= 2 and flinch is True:
+                print(f"{attacker.name} flinched and couldn\'t move!")
+                continue
             # In cases like after recoil damage, selfdestruct, etc.
             if defender.current_hp <= 0:
                 print(f"{attacker.name} used {move['name']} on {defender.name}!")
                 print("But it failed.")
                 continue
-            # Failsafe
-            if attacker.current_hp <= 0:
-                print('This Shouldn\'t happen, if you see this check code')
-                continue
 
             move_hit = calculate_hit_miss(move, attacker, defender)
 
-            if move_hit:
+            if move_hit is MoveOutcome.HIT:
                 if move['category'] in ['Physical', 'Special']:
                     self.ps_moves(attacker, defender, move)
+                    flinch = flinch_checker(move)
                 else:
                     if attacker == self.current_pokemon:
                         print(f"{attacker.name} used {move['name']}!")
                     else:
                         print(f"Opponent {attacker.name} used {move['name']}!")
                     calculate_status(attacker, defender, move)
+
+            if move_hit is MoveOutcome.MISS:
+                if attacker == self.current_pokemon:
+                    print(f"{attacker.name} used {move['name']}!")
+                else:
+                    print(f"Opponent {attacker.name} used {move['name']}!")
+                print('But it missed.')
+
+            if move_hit is MoveOutcome.INVULNERABLE:
+                if attacker == self.current_pokemon:
+                    print(f"{attacker.name} used {move['name']}!")
+                else:
+                    print(f"Opponent {attacker.name} used {move['name']}!")
+                print('But it had no effect.')
 
     def ps_moves(self, attacker, defender, move):
         """Physical or Special moves, where I need to calculate damage and secondary effects"""
@@ -287,15 +312,17 @@ class Battle():
 
         # Switch after everything it Pokemon is dead. TODO: order of switch
         if self.current_pokemon.fainted is True:
-            switch_pok = -1
+            switch_pok_idx = -1
             self.my_pty_alive = get_non_fainted_pokemon(self.my_pty_alive)
-            while switch_pok < 0 or switch_pok >= len(self.my_pty_alive):
-                switch_pok_idx, ret_menu = switch_menu(self.my_pty_alive, self.current_pokemon)
-                self.current_pokemon = self.my_pty_alive[switch_pok_idx]
-                if ret_menu:
-                    break
+            if len(self.my_pty_alive) == 0:
+                return
+            while switch_pok_idx < 0 and self.my_pty[switch_pok_idx].name in [p.name for p in self.my_pty_alive]:
+                switch_pok_idx, _ = switch_menu(self.current_pokemon, self.my_pty_alive, self.my_pty)
+                self.current_pokemon = self.my_pty[switch_pok_idx]
         if self.current_opp.fainted is True:
             self.opp_pty_alive = get_non_fainted_pokemon(self.opp_pty_alive)
+            if len(self.opp_pty_alive) == 0:
+                return
             self.current_opp = self.opp_pty_alive[
                 self.opp_ai.sub_after_death(self.opp_pty_alive, self.current_pokemon, self.current_opp)
             ]
@@ -303,14 +330,15 @@ class Battle():
 
     def run(self):
         """Runs through the entire battle"""
-        if self.turn == 1:
-            self.start_of_battle()
+        self.start_of_battle()
         while len(self.my_pty_alive) > 0 and len(self.opp_pty_alive) > 0:
             opp_move, current_move, switch_idx = self.selection()
             self.start_of_turn(opp_move, switch_idx)
             self.action(current_move, opp_move)
             self.end_of_turn()
             self.turn += 1
+            self.current_opp.turns += 1
+            self.current_pokemon.turns += 1
 
         if len(self.my_pty_alive) == 0:
             print("You Lost!")
@@ -319,6 +347,6 @@ class Battle():
 
 
 def battle(my_pty, opp_pty):
-    """Compatibility wrapper that mirrors the original function signature."""
+    """Just so it's easier to call on main"""
     b = Battle(my_pty, opp_pty)
     return b.run()

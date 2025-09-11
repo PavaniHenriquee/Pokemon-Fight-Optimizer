@@ -1,6 +1,7 @@
 """Helpers that are only needed in the engine directory"""
 import random
-from Utils.helper import get_stage, stage_to_multiplier
+from enum import Enum, auto
+from Utils.helper import get_stage, stage_to_multiplier, get_type_effectiveness
 
 
 def check_speed(p1, p2):
@@ -60,22 +61,33 @@ def move_order(p1, move1, p2, move2, p1_switch, p2_switch):
     return order
 
 
+class MoveOutcome(Enum):
+    """Possible moves outcomes"""
+    HIT = auto()
+    MISS = auto()
+    INVULNERABLE = auto()
+    SEMI_INVULNERABLE = auto()
+
+
 def calculate_hit_miss(move, attacker, defender):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
     # TODO: Invulnerability like Eletric Ground, Poison Steel.
+    # TODO: Check for flinch
+
+    if get_type_effectiveness(move['type'], defender.types) == 0:
+        return MoveOutcome.INVULNERABLE
+
+    if move['accuracy'] == 'always':
+        return MoveOutcome.HIT
+
     acc_stage = get_stage(attacker, "Accuracy") - get_stage(defender, "Evasion")
-
     # Checking if it's an always hit move, if so it won't have an number on accuracy so it will always be 100 to hit
-    accuracy = move['accuracy'] * stage_to_multiplier(acc_stage, acc=True) if isinstance(move['accuracy'], int) else 100
+    accuracy = move['accuracy'] * stage_to_multiplier(acc_stage, acc=True)
 
-    if accuracy >= 100:
-        is_hit = True
-        return is_hit
-
-    random_roll = random.randint(1, 100)
-    is_hit = random_roll <= accuracy
-    return is_hit
+    if random.randint(1, 100) <= accuracy:
+        return MoveOutcome.HIT
+    return MoveOutcome.MISS
 
 
 def calculate_crit():
@@ -107,3 +119,30 @@ def reset_switch_out(pok):
     pok.leech_seed = False
     pok.turns = 0
     pok.curse = False
+
+
+def flinch_checker(move):
+    """Returns true or false if move has a flinch percent and it should flinch"""
+    for e in move['effects']:
+        flinch = e.get('flinch', 0)
+        chance = e.get('chance', 100)
+        if flinch is True:
+            if random.randint(1, 100) <= chance:
+                return True
+
+    return False
+
+
+def vol_early_returns(attacker):
+    """If any volatile condition stops the move, like confusion, attract, charge moves"""
+    for i, v in enumerate(attacker.vol_status):
+        status = v.get('name', 0)
+        turns = v.get('turns', 0)
+        if status == 'confusion':
+            if turns > 0:
+                v['turns'] -= 1
+            else:
+                del attacker.vol_status[i]
+                print('Confusion has faded.')
+
+    return False

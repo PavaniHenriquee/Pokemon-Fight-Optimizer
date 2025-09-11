@@ -93,3 +93,19 @@ def calculate_damage(attacker, defender, move, crit=False, roll_multiplier=None)
     damage *= mult
     final_damage = math.floor(damage)
     return final_damage, effectiveness
+
+
+def calculate_damage_confusion(pok):
+    """Calculate the damage for Confusion self hit"""
+    raw_attack = pok.attack
+    raw_defense = pok.defense
+    atk_stage = get_stage(pok, 'Attack')
+    def_stage = get_stage(pok, 'Defense')
+    # apply stage multipliers
+    attack = raw_attack * stage_to_multiplier(atk_stage)
+    defense = raw_defense * stage_to_multiplier(def_stage)
+    # Base damage formula, confusion counts as a 40 power move
+    damage = math.floor(math.floor(((2 * pok.level / 5) + 2) * 40 * (attack / defense)) / 50 + 2)
+    if pok.status == 'burn':
+        damage *= 0.5
+    return damage
