@@ -14,7 +14,7 @@
 
 
 "move":{
-  "name":"move" #Bulk up, Calm Mind and Cosmic Power are defense boosting moves
+  "name":"move"  # Bulk up, Calm Mind and Cosmic Power are defense boosting moves
   "type": "Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy",
   "category": "Physical"|"Special"|"Status",
   "power": Number,                
@@ -37,7 +37,9 @@
     "chance": Number,
     "hazard": "stealth_rock",
     "status": "sleep"|"paralysis"|"burn"|"poison"|"freeze"|"confusion"|
+    "badly_poison": True
     "flinch": True
+    "drain": True
   },
   ]
 }
@@ -45,6 +47,7 @@
 
 
 'item':{
+  "name"
   "type": ("held"|"consumable"|"mega_stone"),
   "berry": Boolean,
   "consumable": Boolean,

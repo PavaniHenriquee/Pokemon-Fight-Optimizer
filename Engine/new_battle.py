@@ -9,9 +9,11 @@ from Engine.engine_helper import (
     get_non_fainted_pokemon,
     reset_switch_out,
     MoveOutcome,
-    flinch_checker
+    flinch_checker,
+    vol_early_returns,
+    thaw
 )
-from Engine.status_calc import paralysis, sec_stat_change, calculate_status, after_turn_status
+from Engine.status_calc import paralysis, sec_effects, calculate_effects, after_turn_status, freeze
 from Engine.damage_calc import calculate_damage
 from Models.trainer_ai import TrainerAI
 
@@ -212,7 +214,7 @@ class Battle():
             p1_switch,
             p2_switch)
 
-        for idx, (attacker, move, defender) in enumerate(order):
+        for idx, (attacker, move, defender) in enumerate(order, start=1):
             # If attacker slower and died before could attack
             if attacker.current_hp <= 0:
                 continue
@@ -228,10 +230,23 @@ class Battle():
             if attacker.status == 'paralysis' and paralysis():
                 print(f"{attacker.name} is fully paralysed!")
                 continue
+            # Freeze
+            if attacker.status == 'freeze':
+                early_return = freeze()
+                if early_return:
+                    print(f'{attacker.name} is frozen solid!')
+                    continue
+                attacker.status = None
+                print(f"{attacker.name} has thawed out!")
             # Flinch
             if idx >= 2 and flinch is True:
                 print(f"{attacker.name} flinched and couldn\'t move!")
                 continue
+            # Volatile Status early returns, only confusion for now
+            if attacker.vol_status:
+                early_return = vol_early_returns(attacker, self.current_pokemon)
+                if early_return:
+                    continue
             # In cases like after recoil damage, selfdestruct, etc.
             if defender.current_hp <= 0:
                 print(f"{attacker.name} used {move['name']} on {defender.name}!")
@@ -244,12 +259,14 @@ class Battle():
                 if move['category'] in ['Physical', 'Special']:
                     self.ps_moves(attacker, defender, move)
                     flinch = flinch_checker(move)
+                    if defender.status == 'freeze':
+                        thaw(move, defender)
                 else:
                     if attacker == self.current_pokemon:
                         print(f"{attacker.name} used {move['name']}!")
                     else:
                         print(f"Opponent {attacker.name} used {move['name']}!")
-                    calculate_status(attacker, defender, move)
+                    calculate_effects(attacker, defender, move)
 
             if move_hit is MoveOutcome.MISS:
                 if attacker == self.current_pokemon:
@@ -277,19 +294,24 @@ class Battle():
             print(f"{attacker.name} used {move['name']} on {defender.name}!")
         else:
             print(f"Opponent {attacker.name} used {move['name']} on {defender.name}!")
+
         # Text to show crit
         if crit is True:
             print("\033[91mIt's a critical hit! \033[0m")
+
         # Since i don't have the hp bars for either side print out how much damage
         print(f"It dealt {damage} damage.")
+
         # If the move is supper effective or not much effective
         if effectivness >= 2:
             print("\033[92mIt's super effective! \033[0m")
         elif 0 < effectivness < 1:
             print("\033[94mIt's not very effective... \033[0m")
+
         # Check for secondary effects and apply them
         if move['effects']:
-            sec_stat_change(move, attacker, defender)
+            sec_effects(move, attacker, defender, damage)
+
         # Text of how much hp left, or if dead
         if dead:
             print(f"\033[91m{defender.name} has fainted! \033[0m")

@@ -21,7 +21,7 @@ class Pokemon:
         self.moves = [m for m in [self.move1, self.move2, self.move3, self.move4] if m]
         self.types = self.base_data.get("type", [])
         self.status = status  # burn, freeze, paralyze, sleep
-        self.badly_poison = False
+        self.badly_poison = 0  # if badly_poison it's how many turns
         self.sleep_counter = 0
         self.vol_status = []
         self.confusion = False

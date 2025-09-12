@@ -4,7 +4,7 @@ import math
 import random
 import copy
 import builtins                                  # added
-from Engine.battle import Battle
+from Engine.new_battle import Battle
 from Models.trainer_ai import TrainerAI
 
 
@@ -302,5 +302,5 @@ def mcts_decide(root_state, iterations=800):
     if not root.children:
         return None, {}
     best_move, _ = max(root.children.items(), key=lambda kv: kv[1].visits)
-    stats = {m: (n.visits, (n.total_reward/n.visits if n.visits else 0.0)) for m, n in root.children.items()}
+    stats = {m: (n.visits, (n.total_reward / n.visits if n.visits else 0.0)) for m, n in root.children.items()}
     return best_move, stats

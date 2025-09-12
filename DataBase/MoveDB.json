@@ -74,29 +74,29 @@
     "pp": 35,
     "target": "adjacent_opponent",
     "flags": {
-    "sound": false,
-    "protect": true,
-    "mirror": true,
-    "contact": true
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": true
+    },
+    "effects": []
   },
-  "effects": []
-},
-"Tail Whip": {
-  "name": "Tail Whip",
-  "type": "Normal",
-  "category": "Status",
-  "power": null,
-  "accuracy": 100,
-  "priority": 0,
-  "pp": 30,
-  "target": "all_adjacent_opponents",
-  "flags": {
-    "sound": false,
-    "protect": true,
-    "mirror": true,
-    "contact": false
-  },
-  "effects": [
+  "Tail Whip": {
+    "name": "Tail Whip",
+    "type": "Normal",
+    "category": "Status",
+    "power": null,
+    "accuracy": 100,
+    "priority": 0,
+    "pp": 30,
+    "target": "all_adjacent_opponents",
+    "flags": {
+      "sound": false,
+      "protect": true,
+      "mirror": true,
+      "contact": false
+    },
+    "effects": [
       {
         "effect_type": "stat_change",
         "target": "all_adjacent_opponents",
@@ -139,11 +139,12 @@
       "contact": false
     },
     "effects": [
-      {"effect_type": "sec_effect", 
-      "target": "target", 
-      "status": "burn", 
-      "chance": 10}
+      {
+        "effect_type": "sec_effect",
+        "target": "target",
+        "status": "burn",
+        "chance": 10
+      }
     ]
   }
 }
-  

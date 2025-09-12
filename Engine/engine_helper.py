@@ -2,6 +2,7 @@
 import random
 from enum import Enum, auto
 from Utils.helper import get_stage, stage_to_multiplier, get_type_effectiveness
+from Engine.damage_calc import calculate_damage_confusion
 
 
 def check_speed(p1, p2):
@@ -119,6 +120,9 @@ def reset_switch_out(pok):
     pok.leech_seed = False
     pok.turns = 0
     pok.curse = False
+    if pok.badly_poison >= 1:
+        pok.badly_poison = 1
+    pok.vol_status = []
 
 
 def flinch_checker(move):
@@ -133,16 +137,49 @@ def flinch_checker(move):
     return False
 
 
-def vol_early_returns(attacker):
+def confusion(attacker, my_pok):
+    """Calculates confusion turn"""
+    if attacker == my_pok:
+        print(f"{attacker.name} is confused!")
+    else:
+        print(f'Enemy {attacker.name} is confused!')
+    if random.randint(1, 100) <= 50:
+        print('it hurt itself in its confusion!')
+        dmg = calculate_damage_confusion(attacker)
+        attacker.current_hp -= dmg
+        print(f'{attacker.name} lost {dmg} HP')
+        if attacker.current_hp <= 0:
+            attacker.fainted = True
+            if attacker == my_pok:
+                print(f"{attacker.name} fainted!")
+            else:
+                print(f"Enemy {attacker.name} fainted!")
+        return True
+    return False
+
+
+def vol_early_returns(attacker, my_pok):
     """If any volatile condition stops the move, like confusion, attract, charge moves"""
-    for i, v in enumerate(attacker.vol_status):
+    new_status = []
+    for v in attacker.vol_status:
         status = v.get('name', 0)
         turns = v.get('turns', 0)
         if status == 'confusion':
             if turns > 0:
                 v['turns'] -= 1
-            else:
-                del attacker.vol_status[i]
-                print('Confusion has faded.')
+                return confusion(attacker, my_pok)
+            print('Confusion has faded.')
+        else:
+            new_status.append(v)
 
+    attacker.vol_status = new_status
+    return False
+
+
+def thaw(move, defender):
+    """Check if a move thaws"""
+    if move['type'] == 'Fire':
+        defender.status = None
+        print(f"{defender.name} has thawed out!")
+        return True
     return False
