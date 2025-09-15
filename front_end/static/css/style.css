@@ -4,15 +4,12 @@ body {
   height: 100vh; /* full screen */
   display: flex;
   flex-direction: column;
-  /*background-image: url(/front_end/static/images/Platinum.gif);
-  background-size: cover;
-  background-position: center center;*/
 }
 
 header {
   text-align: center;
   padding: .5rem;
-  padding-bottom: 25px;
+  padding-bottom: 10px;
 }
 
 label {
@@ -37,28 +34,43 @@ label {
 }
 
 .my_side {
-  width: 40%;
+  width: 35%;
   padding: 1rem;
   padding-top: 5rem;
   padding-left: 1px;
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: 262px 262px;
+  grid-template-rows: calc(100% / 3) calc(100% / 3) calc(100% / 3);
+  border-top: solid;
+  border-right: solid;
+  overflow: auto;
 }
 
 .middle {
   width: 30%;
+  border-top: solid;
 }
 
 .opp_side {
-  width: 40%;
+  width: 35%;
   padding: 1rem;
+  padding-right: 1px;
+  display: grid;
+  grid-template-rows: 4.5rem calc(calc(100% - 4.5rem) / 6) calc(calc(100% - 4.5rem) / 6) calc(calc(100% - 4.5rem) / 6) calc(calc(100% - 4.5rem) / 6) calc(calc(100% - 4.5rem) / 6) calc(calc(100% - 4.5rem) / 6);
+  border-left: solid;
+  border-top: solid;
+  overflow: auto;
 }
 
-.opp {
-  background-color: blue;
+.opp_input {
+  background-color: gray;
   padding: .5rem;
-  border-radius: 10px;
-  display: block;
+  margin-right: 10px;
+  border-radius: 20px;
+  text-align: center;
+  font-size: 20px;
+  height: 2.5rem;
+  grid-column: 1 / span 2;
 }
 
 .set_pok {
@@ -68,4 +80,95 @@ label {
 
 .pok_input {
   text-align: center;
+}
+
+.opp_side > div {
+  display: grid;
+  grid-template-columns: 261px 261px;
+}
+
+.opp_pok_side_1 {
+  grid-row: 2 / span 2;
+}
+
+.opp_pok_side_2{
+  grid-row: 4 / span 2;
+ }
+
+.opp_pok_side_3{
+  grid-row: 6 / span 2;
+ }
+
+.opp_pok {
+  display: block;
+}
+
+.opp {
+  grid-row: 1;
+  padding: 1px;
+  text-align: center;
+}
+
+.play_game {
+  position: relative;
+  top: 45%;
+}
+
+.box {
+  position: absolute;
+  top: 90%;
+  left: calc(35% + 1rem);
+}
+
+.trainer {
+  position: absolute;
+  top: 90%;
+  right: calc(35% + 1rem);
+}
+
+.popup_box {
+  background: lightblue;
+  border-radius: 6px;
+  position: absolute;
+  top: 90%;
+  left: 40%;
+  transform: translate(-50%,-50%) scale(0.1);
+  text-align: center;
+  padding: 0 30px 30px;
+  color: #333;
+  width: 800px;
+  height: 600px;
+  opacity: 0;
+  transition: opacity 1s, transform 1s, top 1s, visibility 0s linear 1s, left 1s;
+  visibility: hidden;
+}
+.open-popup_box {
+  opacity: 1;
+  visibility: visible;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%) scale(1);
+  transition: opacity 1s, transform 1s, visibility 0s, top 1s, left 1s;
+}
+.close-popip_box {
+  visibility: hidden;
+  top: 90%;
+  transform: translate(-50%,-50%) scale(0.1);
+  transition: transform 1s, top 0.4s;
+}
+.popup_box p {
+  height: 415px;
+  overflow: auto;
+}
+.popup_box button {
+  width: 100%;
+  margin-top: 50px;
+  padding: 10px 0;
+  background: #0f0;
+  border: 0;
+  outline: none;
+  font-size: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 5px 5px rgba(0, 0, 0, 0.2);
 }
