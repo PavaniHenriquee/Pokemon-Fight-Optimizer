@@ -28,7 +28,7 @@
       "mirror": Boolean,
       "contact": Boolean
   },
-  "effects": [                   
+  "effects": [
   {
     "effect_type": "stat_change"|"status_inducing"|"volatile_status"|"sec_effect"|"res_cop_sw_stat_stage"|"force_switch"|"recovery"|"oh_ko",
     "target": "self"|"target"|"all_adjacent_opponents",

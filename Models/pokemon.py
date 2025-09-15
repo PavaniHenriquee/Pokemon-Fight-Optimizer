@@ -1,7 +1,9 @@
 """Pokemon class, so i can check each pokemon and its conditions and stats"""
 import math
+import numpy as np
 from Utils.loader import natures
 from DataBase.loader import pkDB, abDB, itemDB, moveDB
+from Models.helper import type_to_number, status_to_number, gender_to_number
 
 
 class Pokemon:
@@ -20,7 +22,7 @@ class Pokemon:
         self.move4 = moveDB[moves[3]] if len(moves) > 3 else None
         self.moves = [m for m in [self.move1, self.move2, self.move3, self.move4] if m]
         self.types = self.base_data.get("type", [])
-        self.status = status  # burn, freeze, paralyze, sleep
+        self.status = status  # burn, freeze, paralysis, sleep
         self.badly_poison = 0  # if badly_poison it's how many turns
         self.sleep_counter = 0
         self.vol_status = []
@@ -75,7 +77,7 @@ class Pokemon:
         return hp
 
     def calculate_stat(self, stat_name):
-        """Calculate every stat that not HP"""
+        """Calculate every stat that's not HP"""
         base = self.base_data['base stats'][stat_name]
         iv = self.ivs[stat_name]
         ev = self.evs[stat_name]
@@ -83,3 +85,39 @@ class Pokemon:
         lvl = self.level
         stat = math.floor(((((2 * base + iv + (ev // 4)) * lvl) // 100) + 5) * nat)
         return stat
+
+    def to_np(self):
+        """Transforming everything in np array"""
+        status_val = status_to_number(self.status)
+
+        gender = gender_to_number(self.gender)
+
+        type1, type2 = type_to_number(self.types)
+
+        stats = np.array([
+            self.level,
+            type1,
+            type2,
+            self.current_hp,
+            self.max_hp,
+            self.attack,
+            self.defense,
+            self.special_attack,
+            self.special_defense,
+            self.speed,
+            self.stat_stages['Attack'],
+            self.stat_stages['Defense'],
+            self.stat_stages['Special Attack'],
+            self.stat_stages['Special Defense'],
+            self.stat_stages['Speed'],
+            self.stat_stages['Accuracy'],
+            self.stat_stages['Evasion'],
+            status_val,
+            self.sleep_counter,
+            self.badly_poison,
+            self.turns,
+            gender,
+            self.weight
+        ])
+
+        return stats
