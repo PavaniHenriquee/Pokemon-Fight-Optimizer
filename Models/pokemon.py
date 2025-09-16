@@ -119,5 +119,29 @@ class Pokemon:
             gender,
             self.weight
         ])
+        ability = np.array([])
+        item = np.array([])
 
-        return stats
+        if self.move1:
+            move1 = np.array([])
+        else:
+            move1 = np.zeros(60)
+
+        if self.move2:
+            move2 = np.array([])
+        else:
+            move2 = np.zeros(60)
+
+        if self.move3:
+            move3 = np.array([])
+        else:
+            move3 = np.zeros(60)
+
+        if self.move4:
+            move4 = np.array([])
+        else:
+            move4 = np.zeros(60)
+
+        everything = np.concatenate([stats, ability, move1, move2, move3, move4, item])
+
+        return everything

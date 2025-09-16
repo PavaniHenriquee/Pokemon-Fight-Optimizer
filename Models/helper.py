@@ -1,43 +1,45 @@
 """Helper for transformation of Names to number, so i can use Numpy efficiently"""
-from enum import Enum
+from enum import Enum, auto
 
 
 class Types(Enum):
     """Types to numbers"""
-    NORMAL = 1
-    FIGHTING = 2
-    FLYING = 3
-    POISON = 4
-    GROUND = 5
-    ROCK = 6
-    BUG = 7
-    GHOST = 8
-    STEEL = 9
-    FIRE = 10
-    WATER = 11
-    GRASS = 12
-    ELECTRIC = 13
-    PSYCHIC = 14
-    ICE = 15
-    DRAGON = 16
-    DARK = 17
-    FAIRY = 18
+    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
+        return count + 1
+    NORMAL = auto()
+    FIGHTING = auto()
+    FLYING = auto()
+    POISON = auto()
+    GROUND = auto()
+    ROCK = auto()
+    BUG = auto()
+    GHOST = auto()
+    STEEL = auto()
+    FIRE = auto()
+    WATER = auto()
+    GRASS = auto()
+    ELECTRIC = auto()
+    PSYCHIC = auto()
+    ICE = auto()
+    DRAGON = auto()
+    DARK = auto()
+    FAIRY = auto()
 
 
 class Status(Enum):
     """Status to numbers"""
-    SLEEP = 1
-    FREEZE = 2
-    PARALYSIS = 3
-    BURN = 4
-    POISON = 5
+    SLEEP = auto()
+    FREEZE = auto()
+    PARALYSIS = auto()
+    BURN = auto()
+    POISON = auto()
 
 
 class Gender(Enum):
     """Gender to numbers"""
-    GENDERLESS = 0
-    MALE = 1
-    FEMALE = 2
+    GENDERLESS = auto()
+    MALE = auto()
+    FEMALE = auto()
 
 
 def type_to_number(types: list):
@@ -64,3 +66,62 @@ def gender_to_number(gender):
         g = gender
 
     return Gender[g.upper()]
+
+
+class Target(Enum):
+    """Which target is the move"""
+    ADJACENT_ALLY = auto()
+    ADJACENT_ALLY_OR_SELF = auto()
+    ADJACENT_FOE = auto()
+    ALL = auto()
+    ALL_ADJACENT = auto()
+    ALL_ADJACENT_FOES = auto()
+    ALLIES = auto()
+    ALLY_SIDE = auto()
+    ALLY_TEAM = auto()
+    ANY = auto()
+    FOE_SIDE = auto()
+    NORMAL = auto()
+    RANDOM_NORMAL = auto()
+    SCRIPTED = auto()
+    SELF = auto()
+
+
+class MoveFlags(Enum):
+    """Move Flags index"""
+    BYPASSSUB = auto()
+    BITE = auto()
+    BULLET = auto()
+    CANT_USE_TWICE = auto()
+    CHARGE = auto()
+    CONTACT = auto()
+    DANCE = auto()
+    DEFROST = auto()
+    DISTANCE = auto()
+    FAIL_COPYCAT = auto()
+    FAIL_ENCORE = auto()
+    FAIL_INSTRUCT = auto()
+    FAIL_ME_FIRST = auto()
+    FAIL_MIMIC = auto()
+    FUTURE_MOVE = auto()
+    GRAVITY = auto()
+    HEAL = auto()
+    METRONOME = ()
+    MIRROR = auto()
+    MUST_PRESSURE = auto()
+    NO_ASSIST = auto()
+    NO_SKY = auto()
+    NO_PARENTAL_BOND = auto()
+    NO_SKETCH = auto()
+    NO_SLEEP_TALK = auto()
+    PLEDGE_COMBO = auto()
+    POWDER = auto()
+    PROTECT = auto()
+    PULSE = auto()
+    PUNCH = auto()
+    RECHARGE = auto()
+    REFLECTABLE = auto()
+    SLICING = auto()
+    SNATCHING = auto()
+    SOUND = auto()
+    WIND = auto()
