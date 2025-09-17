@@ -1,8 +1,8 @@
 """Helper for transformation of Names to number, so i can use Numpy efficiently"""
-from enum import Enum, auto
+from enum import auto, IntEnum, IntFlag
 
 
-class Types(Enum):
+class Types(IntEnum):
     """Types to numbers"""
     def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
         return count + 1
@@ -26,17 +26,54 @@ class Types(Enum):
     FAIRY = auto()
 
 
-class Status(Enum):
+class Stat(IntEnum):
+    """Stats to number, used for override stat in move description, like body press"""
+    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
+        return count
+    ATTACK = auto()
+    DEFENSE = auto()
+    SPECIAL_ATTACK = auto()
+    SPECIAL_DEFENSE = auto()
+    SPEED = auto()
+
+
+class Status(IntEnum):
     """Status to numbers"""
+    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
+        return count + 1
     SLEEP = auto()
     FREEZE = auto()
     PARALYSIS = auto()
     BURN = auto()
     POISON = auto()
+    TOXIC = auto()
 
 
-class Gender(Enum):
+class VolStatus(IntFlag):
+    """Volatile status to numbers"""
+    FLINCH = auto()
+    CONFUSION = auto()
+    HEAL_BLOCK = auto()
+    SALT_CURE = auto()
+    SPARKLIN_ARIA = auto()
+    PARTIALLY_TRAPPED = auto()
+
+
+class SideCondition(IntFlag):
+    """Side condition to numbers"""
+    STEALTH_ROCK = auto()
+    SPIKES = auto()
+    TOXIC_SPIKES = auto()
+    STIKCY_WEBS = auto()
+    REFLECT = auto()
+    LIGHT_SCREEN = auto()
+    AURORA_VEIL = auto()
+
+
+class Gender(IntEnum):
     """Gender to numbers"""
+    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
+        return count
     GENDERLESS = auto()
     MALE = auto()
     FEMALE = auto()
@@ -68,8 +105,12 @@ def gender_to_number(gender):
     return Gender[g.upper()]
 
 
-class Target(Enum):
+class Target(IntEnum):
     """Which target is the move"""
+    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
+        return count
+
+    NORMAL = auto()
     ADJACENT_ALLY = auto()
     ADJACENT_ALLY_OR_SELF = auto()
     ADJACENT_FOE = auto()
@@ -81,14 +122,16 @@ class Target(Enum):
     ALLY_TEAM = auto()
     ANY = auto()
     FOE_SIDE = auto()
-    NORMAL = auto()
     RANDOM_NORMAL = auto()
     SCRIPTED = auto()
     SELF = auto()
 
 
-class MoveFlags(Enum):
+class MoveFlags(IntEnum):
     """Move Flags index"""
+    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
+        return count
+
     BYPASSSUB = auto()
     BITE = auto()
     BULLET = auto()
@@ -106,11 +149,10 @@ class MoveFlags(Enum):
     FUTURE_MOVE = auto()
     GRAVITY = auto()
     HEAL = auto()
-    METRONOME = ()
+    METRONOME = auto()
     MIRROR = auto()
     MUST_PRESSURE = auto()
     NO_ASSIST = auto()
-    NO_SKY = auto()
     NO_PARENTAL_BOND = auto()
     NO_SKETCH = auto()
     NO_SLEEP_TALK = auto()

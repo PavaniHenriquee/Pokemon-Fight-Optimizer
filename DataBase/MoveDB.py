@@ -33,6 +33,19 @@ Template:
     'crit_mod': Number
     'force_stab': Bool  # Used for pledge moves
     'vol_status': ID  # Like Heal block, Grudge
+    'has_crash_damage': Bool
+    'sleep_usable': Bool
+    'smart_target': Bool
+    'boost_atk': Number
+    'boost_def': Number
+    'boost_spatk': Number
+    'boost_spdef': Number
+    'boost_speed': Number
+    'boost_acc': Number
+    'boost_ev': Number
+    'side_condition': String
+    'recoil': Number
+    'drain': Number
 }
 
 """
