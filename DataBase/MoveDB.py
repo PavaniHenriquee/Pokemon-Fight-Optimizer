@@ -1,51 +1,18 @@
 """Database for moves in python, where it gives everything a move does"""  # pylint:disable=C0103
-"""
-Template:
-'move':{
-    'name': 'move'
-    'category': 'Physical' | 'Special' | 'Status'
-    'type': String
-    'target': 'adjacentAlly' | 'adjacentAllyOrSelf' | 'adjacentFoe' | 'all' | 'allAdjacent' | 'allAdjacentFoes' |
-    'allies' | 'allySide' | 'allyTeam' | 'any' | 'foeSide' | 'normal' | 'randomNormal' | 'scripted' | 'self';
-    'power': Number
-    'accuracy': True | Number
-    'crit_ratio': Number
-    'will_crit': Bool
-    'oh_ko': Bool
-    'secondary': List | Null
-    'sheer_force': Bool
-    'priority': Number
-    'override_off_pok': 'target' | 'source'
-    'override_off_stat': 'Attack' | 'Defense' | 'Special Attack' | 'Special Defense' | 'Speed'
-    'override_def_stat': 'Attack' | 'Defense' | 'Special Attack' | 'Special Defense' | 'Speed'
-    'ignore_def': Bool  # Chip Away, Sacred Sword, Darkest Lariat
-    'ignore_immunity': Bool
-    'pp': Number
-    'ppup': 1 | 2 | 3
-    'multi_hit': Number | [min, max]
-    'flags': Obj
-    'self_switch': Bool
-    'non_ghost': 'self'  # Used for Curse
-    'ignore_ab': Bool
-    'damage': Number | 'level'
-    'spread_hit': Bool
-    'spread_mod': Number
-    'crit_mod': Number
-    'force_stab': Bool  # Used for pledge moves
-    'vol_status': ID  # Like Heal block, Grudge
-    'has_crash_damage': Bool
-    'sleep_usable': Bool
-    'smart_target': Bool
-    'boost_atk': Number
-    'boost_def': Number
-    'boost_spatk': Number
-    'boost_spdef': Number
-    'boost_speed': Number
-    'boost_acc': Number
-    'boost_ev': Number
-    'side_condition': String
-    'recoil': Number
-    'drain': Number
-}
+from enum import IntEnum, auto
 
-"""
+
+class MoveName(IntEnum):
+    """Converting move names to numbers"""
+    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
+        return count + 1
+
+    TACKLE = auto()
+    GROWL = auto()
+    SCRATCH = auto()
+    TAIL_WHIP = auto()
+    POUND = auto()
+    LEER = auto()
+    EMBER = auto()
+    BUBBLE = auto()
+    RAZOR_LEAF = auto()

@@ -1,43 +1,32 @@
 {
-"Overgrown":{
-  "name": "Overgrown",
-  "effects":[
-    {
-      "effect_type": "attack_modifier",
-      "target": "self",
-      "multiplier": 1.5,
-      "move_type":"Grass",
-      "condition": {"pk_type":"Grass"},
-      "when": "third_hp"
-    }
-  ]
-},
-"Blaze":{
-  "name": "Blaze",
-  "effects":[
-    {
-      "effect_type": "attack_modifier",
-      "target": "self",
-      "multiplier": 1.5,
-      "move_type":"Fire",
-      "condition": {"pk_type":"Fire"},
-      "when": "third_hp"
-    }
-  ]
-},
-"Torrent":{
-  "name": "Torrent",
-  "effects":[
-    {
-      "effect_type": "attack_modifier",
-      "target": "self",
-      "multiplier": 1.5,
-      "move_type":"Water",
-      "condition": {"pk_type":"Water"},
-      "when": "third_hp"
-    }
-  ]
-}
-
-
+  "Overgrown": {
+    "name": "Overgrown",
+    "effects": [
+      {
+        "effect_type": "attack_modifier",
+        "target": "self",
+        "multiplier": 1.5,
+        "move_type": "Grass",
+        "condition": { "pk_type": "Grass" },
+        "when": "third_hp"
+      }
+    ]
+  },
+  "Blaze": {
+    "name": "Blaze",
+    "when": "on_damage"
+  },
+  "Torrent": {
+    "name": "Torrent",
+    "effects": [
+      {
+        "effect_type": "attack_modifier",
+        "target": "self",
+        "multiplier": 1.5,
+        "move_type": "Water",
+        "condition": { "pk_type": "Water" },
+        "when": "third_hp"
+      }
+    ]
+  }
 }

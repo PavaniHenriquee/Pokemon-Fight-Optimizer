@@ -203,7 +203,7 @@ class Battle():
             p1_switch = True
         if not isinstance(opp_move, int):
             p2_switch = True
-            opp_move = 0  # Just so i don't break the move_order function call being
+            opp_move = 0  # Just so i don't break the move_order function call being ->
             # self.current_opp.moves[opp_move] this need to be a number
 
         order = move_order(

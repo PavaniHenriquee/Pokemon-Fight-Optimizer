@@ -4,15 +4,18 @@ import numpy as np
 from Utils.loader import natures
 from DataBase.loader import pkDB, abDB, itemDB, moveDB
 from Models.helper import type_to_number, status_to_number, gender_to_number
+from Models.move import Move
+from Models.ability import ability_to_np
+from Models.item import item_to_np
 
 
 class Pokemon:
     """Pokemon class, so i can follow everything related to each pokemon"""
-    def __init__(self, name, gender, level, ability, nature, moves, ivs=None, evs=None, status=None, item=None):
+    def __init__(self, name, gender, level, ability, nature, moves, ivs=None, evs=None, status=0, item=None):
         self.name = name
         self.base_data = pkDB[name]
         self.gender = gender  # Male, Female, None
-        self.weight = self.base_data.get("weight", [])
+        self.weight = self.base_data.get("weight", 1)
         self.level = level
         self.ability = abDB[ability]
         self.item = itemDB[item] if item else None
@@ -118,30 +121,20 @@ class Pokemon:
             self.turns,
             gender,
             self.weight
-        ])
-        ability = np.array([])
-        item = np.array([])
+        ], dtype=np.float32)
+        ability = ability_to_np(self.ability)
 
-        if self.move1:
-            move1 = np.array([])
-        else:
-            move1 = np.zeros(60)
+        move_helper = Move(self.move1)
+        move1 = move_helper.to_array()
+        move_helper = Move(self.move2)
+        move2 = move_helper.to_array()
+        move_helper = Move(self.move3)
+        move3 = move_helper.to_array()
+        move_helper = Move(self.move4)
+        move4 = move_helper.to_array()
 
-        if self.move2:
-            move2 = np.array([])
-        else:
-            move2 = np.zeros(60)
+        item = item_to_np(self.item)
 
-        if self.move3:
-            move3 = np.array([])
-        else:
-            move3 = np.zeros(60)
-
-        if self.move4:
-            move4 = np.array([])
-        else:
-            move4 = np.zeros(60)
-
-        everything = np.concatenate([stats, ability, move1, move2, move3, move4, item])
+        everything = np.concatenate([stats, ability, move1, move2, move3, move4, item], dtype=np.float32)  # pylint:disable=E1123
 
         return everything

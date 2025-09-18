@@ -90,8 +90,11 @@ def type_to_number(types: list):
     return type1, type2
 
 
-def status_to_number(status: str):
+def status_to_number(status):
     """Transform it to number"""
+    if not isinstance(status, str):
+        return 0
+
     return Status[status.upper()]
 
 
@@ -167,3 +170,44 @@ class MoveFlags(IntEnum):
     SNATCHING = auto()
     SOUND = auto()
     WIND = auto()
+
+
+class AbilityActivation(IntFlag):
+    """When will the ability be used"""
+    SWITCH_IN = auto()
+    ON_PREPARE_HIT = auto()
+    ON_DAMAGE = auto()
+    ON_WEATHER_CHANGE = auto()
+    ON_END = auto()
+    ON_RECEIVE_DAMAGE = auto()
+
+
+class MoveCategory(IntEnum):
+    """The three move types"""
+    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
+        return count
+    PHYSICAL = auto()
+    SPECIAL = auto()
+    STATUS = auto()
+
+
+class ItemType(IntEnum):
+    """Item type"""
+    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
+        return count
+    BERRY = auto()
+    CONSUMABLE = auto()
+    CHOICE = auto()
+    HELD = auto()
+    MEGA = auto()
+
+
+class ItemActivation(IntFlag):
+    """When will the ability be used"""
+    SWITCH_IN = auto()
+    ON_PREPARE_HIT = auto()
+    ON_DAMAGE = auto()
+    ON_WEATHER_CHANGE = auto()
+    ON_END = auto()
+    ON_RECEIVE_DAMAGE = auto()
+    ON_SELECTION = auto()

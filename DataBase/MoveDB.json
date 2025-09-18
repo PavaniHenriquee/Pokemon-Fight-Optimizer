@@ -1,150 +1,17 @@
 {
-  "Tackle": {
-    "name": "Tackle",
-    "type": "Normal",
-    "category": "Physical",
-    "power": 40,
-    "accuracy": 100,
-    "priority": 0,
-    "pp": 35,
-    "target": "adjacent_opponent",
-    "flags": {
-      "sound": false,
-      "protect": true,
-      "mirror": true,
-      "contact": true
-    },
-    "effects": []
-  },
-  "Growl": {
-    "name": "Growl",
-    "type": "Normal",
-    "category": "Status",
-    "accuracy": 100,
-    "priority": 0,
-    "pp": 40,
-    "target": "all_adjacent_opponents",
-    "flags": {
-      "sound": true,
-      "protect": true,
-      "mirror": true,
-      "contact": false
-    },
-    "effects": [
-      {
-        "effect_type": "stat_change",
-        "target": "all_adjacent_opponents",
-        "stat": "Attack",
-        "stages": -1,
-        "chance": 100
-      }
-    ]
-  },
-  "Leer": {
-    "name": "Leer",
-    "type": "Normal",
-    "category": "Status",
-    "accuracy": 100,
-    "priority": 0,
-    "pp": 30,
-    "target": "all_adjacent_opponents",
-    "flags": {
-      "sound": false,
-      "protect": true,
-      "mirror": true,
-      "contact": false
-    },
-    "effects": [
-      {
-        "effect_type": "stat_change",
-        "target": "all_adjacent_opponents",
-        "stat": "Defense",
-        "stages": -1,
-        "chance": 100
-      }
-    ]
-  },
   "Scratch": {
     "name": "Scratch",
-    "type": "Normal",
     "category": "Physical",
-    "power": 40,
-    "accuracy": 100,
-    "priority": 0,
-    "pp": 35,
-    "target": "adjacent_opponent",
-    "flags": {
-      "sound": false,
-      "protect": true,
-      "mirror": true,
-      "contact": true
-    },
-    "effects": []
-  },
-  "Tail Whip": {
-    "name": "Tail Whip",
     "type": "Normal",
-    "category": "Status",
-    "power": null,
-    "accuracy": 100,
-    "priority": 0,
-    "pp": 30,
-    "target": "all_adjacent_opponents",
-    "flags": {
-      "sound": false,
-      "protect": true,
-      "mirror": true,
-      "contact": false
-    },
-    "effects": [
-      {
-        "effect_type": "stat_change",
-        "target": "all_adjacent_opponents",
-        "stat": "Defense",
-        "stages": -1,
-        "chance": 100
-      }
-    ]
-  },
-  "Water Gun": {
-    "name": "Water Gun",
-    "type": "Water",
-    "category": "Special",
+    "target": "normal",
     "power": 40,
     "accuracy": 100,
-    "priority": 0,
-    "pp": 25,
-    "target": "adjacent_opponent",
+    "pp": 35,
     "flags": {
-      "sound": false,
+      "contact": true,
       "protect": true,
       "mirror": true,
-      "contact": false
-    },
-    "effects": []
-  },
-  "Ember": {
-    "name": "Ember",
-    "type": "Fire",
-    "category": "Special",
-    "power": 40,
-    "accuracy": 100,
-    "priority": 0,
-    "pp": 25,
-    "target": "adjacent_opponent",
-    "flags": {
-      "sound": false,
-      "protect": true,
-      "mirror": true,
-      "contact": false
-    },
-    "effects": [
-      {
-        "effect_type": "sec_effect",
-        "target": "target",
-        "status": "burn",
-        "chance": 10
-      }
-    ]
+      "metronome": true
+    }
   }
 }

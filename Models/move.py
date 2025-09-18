@@ -1,7 +1,8 @@
 """Normalize moves into numpy Arrays"""
 import numpy as np
 from Models.idx_nparray import MoveArray, MoveFlags, SecondaryArray
-from Models.helper import Types, Target, Stat, SideCondition, Status, VolStatus
+from Models.helper import Types, Target, Stat, SideCondition, Status, VolStatus, MoveCategory
+from DataBase.MoveDB import MoveName
 
 
 class Move():
@@ -12,8 +13,10 @@ class Move():
     def base_move(self):
         """Populating the array for the base move"""
         base_move_array = np.zeros(len(MoveArray), dtype=np.int16)
-        base_move_array[MoveArray.NAME] = self.move['name']
-        base_move_array[MoveArray.CATEGORY] = 0 if self.move['category'] == 'Physical' else 1 if self.move['category'] == 'Special' else 2
+        if self.move is None:
+            return base_move_array
+        base_move_array[MoveArray.ID] = MoveName[self.move['name'].upper()]
+        base_move_array[MoveArray.CATEGORY] = MoveCategory[self.move['category'].upper()]
         base_move_array[MoveArray.TYPE] = Types[self.move['type'].upper()]
         base_move_array[MoveArray.TARGET] = Target[self.move['target'].upper()]
         base_move_array[MoveArray.POWER] = self.move.get('power', 0) if self.move.get('power', 0) is not None else 0
@@ -38,7 +41,6 @@ class Move():
         base_move_array[MoveArray.DAMAGE] = -1 if self.move.get('damage', None) is None else self.move.get('damage', -1) if isinstance(self.move.get('damage', -1), int) else -2 if self.move.get('damage', -1) == 'level' else -1
         base_move_array[MoveArray.SPREAD_HIT] = int(self.move.get('spread_hit', False))
         base_move_array[MoveArray.SPREAD_MOD] = self.move.get('spread_mod', 100)
-        base_move_array[MoveArray.CRIT_MOD] = self.move.get('crit_mod', 100)
         base_move_array[MoveArray.FORCE_STATUS] = 1 if self.move.get('force_stab', False) else 0
         base_move_array[MoveArray.VOL_STATUS] = self.move.get('vol_status', 0) if self.move.get('vol_status', 0) is not None else 0
         base_move_array[MoveArray.HAS_CRASH_DAMAGE] = int(self.move.get('has_crash_damage', False))
@@ -59,6 +61,8 @@ class Move():
     def move_flags(self):
         """Array for move flags"""
         move_flags_array = np.zeros(len(MoveFlags), dtype=np.bool_)
+        if self.move is None:
+            return move_flags_array
         flags = self.move.get('flags', {})
         move_flags_array[MoveFlags.BYPASSSUB] = int(flags.get('bypasssub', False))
         move_flags_array[MoveFlags.BULLET] = int(flags.get('bullet', False))
@@ -100,6 +104,8 @@ class Move():
     def sec_effect(self):
         """Array for secondary effects"""
         sec_array = np.zeros(len(SecondaryArray), dtype=np.int16)
+        if self.move is None:
+            return sec_array
         secondary2 = {}
         if not self.move.get('secondary', None):
             return sec_array

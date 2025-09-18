@@ -1,6 +1,6 @@
 "Name":{
   "type":["Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy"],
-  "weight"
+  "weight": Number
   "base stats":{
     "HP":Number,
     "Attack":Number,
@@ -14,39 +14,54 @@
 
 
 "move":{
-  "name":"move"  # Bulk up, Calm Mind and Cosmic Power are defense boosting moves
-  "type": "Normal"|"Water"|"Grass"|"Fire"|"Bug"|"Poison"|"Flying"|"Ground"|"Electric"|"Rock"|"Fighting"|"Ghost"|"Psychic"|"Dragon"|"Ice"|"Dark"|"Fairy",
-  "category": "Physical"|"Special"|"Status",
-  "power": Number,                
-  "accuracy": Number|always,           
-  "priority": Number,
-  "pp": Number,
-  "target": "adjacent_opponent"|"self"|"all_adjacent_opponents"|"foe_side"|"ally_side"|"both_sides",  
-  "flags": {                     
-      "sound": Boolean,
-      "protect": Boolean,
-      "mirror": Boolean,
-      "contact": Boolean
-  },
-  "effects": [
-  {
-    "effect_type": "stat_change"|"status_inducing"|"volatile_status"|"sec_effect"|"res_cop_sw_stat_stage"|"force_switch"|"recovery"|"oh_ko",
-    "target": "self"|"target"|"all_adjacent_opponents",
-    "stat": "atk"|"def"|"spatk"|"spdef"|"spe",
-    "stages": Number,
-    "chance": Number,
-    "hazard": "stealth_rock",
-    "status": "sleep"|"paralysis"|"burn"|"poison"|"freeze"|"confusion"|
-    "badly_poison": True
-    "flinch": True
-    "drain": True
-  },
-  ]
+    "name": "move"
+    "category": "Physical" | "Special" | "Status"
+    "type": String
+    "target": "adjacent_Ally" | "adjacent_Ally_Or_Self" | "adjacent_Foe" | "all" | "all_Adjacent" | "all_Adjacent_Foes" |
+    "allies" | "ally_Side" | "ally_Team" | "any" | "foe_Side" | "normal" | "random_Normal" | "scripted" | "self";
+    "power": Number
+    "accuracy": True | Number
+    "crit_ratio": Number
+    "will_crit": Bool
+    "oh_ko": Bool
+    "secondary": List | Null
+    "sheer_force": Bool
+    "priority": Number
+    "override_off_pok": "target" | "source"
+    "override_off_stat": "Attack" | "Defense" | "Special_Attack" | "Special_Defense" | "Speed"
+    "override_def_stat": "Attack" | "Defense" | "Special_Attack" | "Special_Defense" | "Speed"
+    "ignore_def": Bool  # Chip Away, Sacred Sword, Darkest Lariat
+    "ignore_immunity": Bool
+    "pp": Number
+    "ppup": 1 | 2 | 3
+    "multi_hit": Number | [min, max]
+    "flags": Obj (CHECK FLAG LIST)
+    "self_switch": Bool
+    "non_ghost": "self"  # Used for Curse
+    "ignore_ab": Bool
+    "damage": Number | "level"
+    "spread_hit": Bool
+    "spread_mod": Number
+    "force_stab": Bool  # Used for pledge moves
+    "vol_status": ID  # Like Heal block, Grudge
+    "has_crash_damage": Bool
+    "sleep_usable": Bool
+    "smart_target": Bool
+    "boost_atk": Number
+    "boost_def": Number
+    "boost_spatk": Number
+    "boost_spdef": Number
+    "boost_speed": Number
+    "boost_acc": Number
+    "boost_ev": Number
+    "side_condition": String
+    "recoil": Number
+    "drain": Number
 }
 
 
 
-'item':{
+"item":{
   "name"
   "type": ("held"|"consumable"|"mega_stone"),
   "berry": Boolean,
@@ -67,18 +82,16 @@
 
 
 
-'ability':{
+"ability":{
   "name": "ability"
-  "effects":[
-    {
-      "effect_type": "stat_change"|"immunity"|"stat_modifier"|"secondary_effect_boost"|"attack_modifier",
-      "target": "self"|"target",
-      "stat": "atk"|"def"|"spatk"|"spdef"|"spe",
-      "stages": Number,
-      "multiplier": Number,
-      "move_type": "Ground",
-      "condition": {("weather":"rain")|("pk_type":"Water"|"Fire"|"Grass")},
-      "when": "always"|"apply_move_effects"|"damage_calc"|"on_switch_in"|"third_HP"
-    }
-  ]
+  "when": List  # Check list in Models.helper
+  "breakable" = Bool
+  "cant_supress" = Bool
+  "fail_roleplay" = Bool
+  "fail_skill_swap" = Bool
+  "no_entrain" = Bool
+  "no_receiver" = Bool
+  "no_tracer" = Bool
+  "no_transform" = Bool
+  "supress_weather" = Bool
 }

@@ -144,13 +144,13 @@ class BaseArray(IntEnum):
     WEIGHT = auto()
 
 
-class Ability(IntEnum):
-    """Index for ability, i will be doing the checks on the battle sim,
-    so here is just for minimal flags and ID"""
+class AbilityIdx(IntEnum):
+    """Index for Ability"""
     def _generate_next_value_(name, start, count, last_values):  # pylint: disable=(W0237, E0213)
         return count
 
     ID = auto()
+    WHEN = auto()
     BREAKABLE = auto()
     CANT_SUPRESS = auto()
     FAIL_ROLEPLAY = auto()
@@ -162,4 +162,17 @@ class Ability(IntEnum):
     SUPRESS_WEATHER = auto()
 
 
-print(len(BaseArray) + (len(SecondaryArray) + len(MoveFlags) + len(MoveArray) * 4))
+class ItemIdx(IntEnum):
+    """Index for Items"""
+    def _generate_next_value_(name, start, count, last_values):  # pylint: disable=(W0237, E0213)
+        return count
+
+    ID = auto()
+    WHEN = auto()
+    ITEM_TYPE = auto()
+    FLING_POWER = auto()
+    FLING_STATUS = auto()
+    FLING_VOLATILE = auto()
+    NATURAL_GIFT_POWER = auto()
+    NATURAL_GIFT_TYPE = auto()
+    ITEM_USER = auto()
