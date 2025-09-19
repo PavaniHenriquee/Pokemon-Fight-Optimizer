@@ -1,4 +1,36 @@
 {
+  "Tackle": {
+    "name": "Tackle",
+    "category": "Physical",
+    "type": "Normal",
+    "target": "normal",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 35,
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Growl": {
+    "name": "Growl",
+    "category": "Status",
+    "type": "Normal",
+    "target": "all_adjacent_foes",
+    "accuracy": 100,
+    "pp": 40,
+    "flags": {
+      "protect": true,
+      "reflectable": true,
+      "mirror": true,
+      "sound": true,
+      "bypass_sub":true,
+      "metronome": true
+    },
+    "boost_atk": -1
+  },
   "Scratch": {
     "name": "Scratch",
     "category": "Physical",
@@ -13,5 +45,102 @@
       "mirror": true,
       "metronome": true
     }
+  },
+  "Tail_Whip": {
+    "name": "Tail_Whip",
+    "category": "Status",
+    "type": "Normal",
+    "target": "all_adjacent_foes",
+    "accuracy": 100,
+    "pp": 30,
+    "flags": {
+      "protect": true,
+      "reflectable": true,
+      "mirror": true,
+      "metronome": true
+    },
+    "boost_def": -1
+  },
+  "Pound": {
+    "name": "Pound",
+    "category": "Physical",
+    "type": "Normal",
+    "target": "normal",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 35,
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Leer": {
+    "name": "Leer",
+    "category": "Status",
+    "type": "Normal",
+    "target": "all_adjacent_foes",
+    "accuracy": 100,
+    "pp": 30,
+    "flags": {
+      "protect": true,
+      "reflectable": true,
+      "mirror": true,
+      "metronome": true
+    },
+    "boost_def": -1
+  },
+  "Ember": {
+    "name": "ember",
+    "category": "Special",
+    "type": "Fire",
+    "target": "normal",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 25,
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    },
+    "secondary": {
+      "chance": 10,
+      "status": "burn"
+    }
+  },
+  "Bubble": {
+    "name": "bubble",
+    "category": "Special",
+    "type": "Water",
+    "target": "all_adjacent_foes",
+    "power": 40,
+    "accuracy": 100,
+    "pp": 30,
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    },
+    "secondary": {
+      "chance": 10,
+      "sec_boost_speed": -1
+    }
+  },
+  "Razor_Leaf": {
+    "name": "razor_leaf",
+    "category": "Physical",
+    "type": "Grass",
+    "target": "all_adjacent_foes",
+    "power": 55,
+    "accuracy": 95,
+    "pp": 25,
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "metronome": true,
+      "slicing": true
+    },
+    "crit_ratio": 2
   }
 }

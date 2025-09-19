@@ -64,7 +64,7 @@ class Move():
         if self.move is None:
             return move_flags_array
         flags = self.move.get('flags', {})
-        move_flags_array[MoveFlags.BYPASSSUB] = int(flags.get('bypasssub', False))
+        move_flags_array[MoveFlags.BYPASS_SUB] = int(flags.get('bypasssub', False))
         move_flags_array[MoveFlags.BULLET] = int(flags.get('bullet', False))
         move_flags_array[MoveFlags.BITE] = int(flags.get('bite', False))
         move_flags_array[MoveFlags.CANT_USE_TWICE] = int(flags.get('cant_use_twice', False))

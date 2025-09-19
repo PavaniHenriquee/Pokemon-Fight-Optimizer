@@ -1,16 +1,7 @@
 {
-  "Overgrown": {
+  "Overgrow": {
     "name": "Overgrown",
-    "effects": [
-      {
-        "effect_type": "attack_modifier",
-        "target": "self",
-        "multiplier": 1.5,
-        "move_type": "Grass",
-        "condition": { "pk_type": "Grass" },
-        "when": "third_hp"
-      }
-    ]
+    "when": "on_damage"
   },
   "Blaze": {
     "name": "Blaze",
@@ -18,15 +9,6 @@
   },
   "Torrent": {
     "name": "Torrent",
-    "effects": [
-      {
-        "effect_type": "attack_modifier",
-        "target": "self",
-        "multiplier": 1.5,
-        "move_type": "Water",
-        "condition": { "pk_type": "Water" },
-        "when": "third_hp"
-      }
-    ]
+    "when": "on_damage"
   }
 }

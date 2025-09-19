@@ -130,48 +130,6 @@ class Target(IntEnum):
     SELF = auto()
 
 
-class MoveFlags(IntEnum):
-    """Move Flags index"""
-    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count
-
-    BYPASSSUB = auto()
-    BITE = auto()
-    BULLET = auto()
-    CANT_USE_TWICE = auto()
-    CHARGE = auto()
-    CONTACT = auto()
-    DANCE = auto()
-    DEFROST = auto()
-    DISTANCE = auto()
-    FAIL_COPYCAT = auto()
-    FAIL_ENCORE = auto()
-    FAIL_INSTRUCT = auto()
-    FAIL_ME_FIRST = auto()
-    FAIL_MIMIC = auto()
-    FUTURE_MOVE = auto()
-    GRAVITY = auto()
-    HEAL = auto()
-    METRONOME = auto()
-    MIRROR = auto()
-    MUST_PRESSURE = auto()
-    NO_ASSIST = auto()
-    NO_PARENTAL_BOND = auto()
-    NO_SKETCH = auto()
-    NO_SLEEP_TALK = auto()
-    PLEDGE_COMBO = auto()
-    POWDER = auto()
-    PROTECT = auto()
-    PULSE = auto()
-    PUNCH = auto()
-    RECHARGE = auto()
-    REFLECTABLE = auto()
-    SLICING = auto()
-    SNATCHING = auto()
-    SOUND = auto()
-    WIND = auto()
-
-
 class AbilityActivation(IntFlag):
     """When will the ability be used"""
     SWITCH_IN = auto()

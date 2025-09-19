@@ -7,7 +7,7 @@ class MoveFlags(IntEnum):
     def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
         return count
 
-    BYPASSSUB = auto()
+    BYPASS_SUB = auto()
     BITE = auto()
     BULLET = auto()
     CANT_USE_TWICE = auto()
