@@ -1,8 +1,65 @@
 """Helpers that are only needed in the engine directory"""
 import random
 from enum import Enum, auto
+import numpy as np
 from Utils.helper import get_stage, stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
+from Models.idx_nparray import PokArray
+
+
+def to_battle_array(my_pty, opp_pty):
+    """Tranform both parties in the battle arrray"""
+    try:
+        pok1 = my_pty[0].to_np()
+    except IndexError:
+        pok1 = np.zeros(len(PokArray))
+    try:
+        pok2 = my_pty[1].to_np()
+    except IndexError:
+        pok2 = np.zeros(len(PokArray))
+    try:
+        pok3 = my_pty[2].to_np()
+    except IndexError:
+        pok3 = np.zeros(len(PokArray))
+    try:
+        pok4 = my_pty[3].to_np()
+    except IndexError:
+        pok4 = np.zeros(len(PokArray))
+    try:
+        pok5 = my_pty[4].to_np()
+    except IndexError:
+        pok5 = np.zeros(len(PokArray))
+    try:
+        pok6 = my_pty[5].to_np()
+    except IndexError:
+        pok6 = np.zeros(len(PokArray))
+    try:
+        o_pok1 = opp_pty[0].to_np()
+    except IndexError:
+        o_pok1 = np.zeros(len(PokArray))
+    try:
+        o_pok2 = opp_pty[1].to_np()
+    except IndexError:
+        o_pok2 = np.zeros(len(PokArray))
+    try:
+        o_pok3 = opp_pty[2].to_np()
+    except IndexError:
+        o_pok3 = np.zeros(len(PokArray))
+    try:
+        o_pok4 = opp_pty[3].to_np()
+    except IndexError:
+        o_pok4 = np.zeros(len(PokArray))
+    try:
+        o_pok5 = opp_pty[4].to_np()
+    except IndexError:
+        o_pok5 = np.zeros(len(PokArray))
+    try:
+        o_pok6 = opp_pty[5].to_np()
+    except IndexError:
+        o_pok6 = np.zeros(len(PokArray))
+
+    return np.concatenate([pok1, pok2, pok3, pok4, pok5, pok6,
+                           o_pok1, o_pok2, o_pok3, o_pok4, o_pok5, o_pok6])
 
 
 def check_speed(p1, p2):
@@ -13,10 +70,10 @@ def check_speed(p1, p2):
         mult1 = 0.25
     if p2.status == 'paralysis':
         mult2 = 0.25
-    mult1 *= stage_to_multiplier(get_stage(p1, "Speed"))
-    mult2 *= stage_to_multiplier(get_stage(p2, "Speed"))
-    p1_speed = mult1 * p1.speed
-    p2_speed = mult2 * p2.speed
+    mult1 *= stage_to_multiplier(p1[PokArray.SPEED_STAT_STAGE])
+    mult2 *= stage_to_multiplier(p2[PokArray.SPEED_STAT_STAGE])
+    p1_speed = mult1 * p1[PokArray.SPEED]
+    p2_speed = mult2 * p2[PokArray.SPEED]
     return p1_speed, p2_speed
 
 

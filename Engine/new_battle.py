@@ -11,11 +11,14 @@ from Engine.engine_helper import (
     MoveOutcome,
     flinch_checker,
     vol_early_returns,
-    thaw
+    thaw,
+    to_battle_array
 )
 from Engine.status_calc import paralysis, sec_effects, calculate_effects, after_turn_status, freeze
 from Engine.damage_calc import calculate_damage
 from Models.trainer_ai import TrainerAI
+from Models.idx_nparray import PokArray
+from DataBase.PkDB import PokemonName
 
 
 def switch_menu(current_pokemon, alive_pokemon, my_pty):
@@ -91,18 +94,37 @@ def battle_menu(current_pokemon, my_pty_alive, my_pty):
 class Battle():
     """Battle class, where i calculate all the battle, following the flow of battle"""
     def __init__(self, my_pty, opp_pty):
-        # copy the lists so external callers don't get mutated lists unexpectedly
-        self.my_pty_alive = list(my_pty)
-        self.opp_pty_alive = list(opp_pty)
-        self.my_pty = list(my_pty)
-        self.opp_pty = list(opp_pty)
-
+        # Make the normalized battle array
+        self.battle_array = to_battle_array(my_pty, opp_pty)
+        pok_features = len(PokArray)
+        self.pok1 = self.battle_array[0:pok_features]
+        self.pok2 = self.battle_array[pok_features:(2 * pok_features)]
+        self.pok3 = self.battle_array[(2 * pok_features):(3 * pok_features)]
+        self.pok4 = self.battle_array[(3 * pok_features):(4 * pok_features)]
+        self.pok5 = self.battle_array[(4 * pok_features):(5 * pok_features)]
+        self.pok6 = self.battle_array[(5 * pok_features):(6 * pok_features)]
+        self.opp_pok1 = self.battle_array[(6 * pok_features):(7 * pok_features)]
+        self.opp_pok2 = self.battle_array[(7 * pok_features):(8 * pok_features)]
+        self.opp_pok3 = self.battle_array[(8 * pok_features):(9 * pok_features)]
+        self.opp_pok4 = self.battle_array[(9 * pok_features):(10 * pok_features)]
+        self.opp_pok5 = self.battle_array[(10 * pok_features):(11 * pok_features)]
+        self.opp_pok6 = self.battle_array[(11 * pok_features):(12 * pok_features)]
+        self.my_pty = self.battle_array[0:(6 * pok_features)]
+        self.opp_pty = self.battle_array[(6 * pok_features):(12 * pok_features)]
         self.opp_ai = TrainerAI()
         self.turn = 1
 
         # current active Pokémon
-        self.current_pokemon = self.my_pty_alive[0]
-        self.current_opp = self.opp_pty_alive[0]
+        self.current_pokemon = self.pok1
+        self.current_opp = self.opp_pok1
+        self.move1 = self.current_pokemon[PokArray.MOVE1_ID:PokArray.MOVE2_ID]
+        self.move2 = self.current_pokemon[PokArray.MOVE2_ID:PokArray.MOVE3_ID]
+        self.move3 = self.current_pokemon[PokArray.MOVE3_ID:PokArray.MOVE4_ID]
+        self.move4 = self.current_pokemon[PokArray.MOVE4_ID:PokArray.ITEM_ID]
+        self.op_move1 = self.current_opp[PokArray.MOVE1_ID:PokArray.MOVE2_ID]
+        self.op_move2 = self.current_opp[PokArray.MOVE2_ID:PokArray.MOVE3_ID]
+        self.op_move3 = self.current_opp[PokArray.MOVE3_ID:PokArray.MOVE4_ID]
+        self.op_move4 = self.current_opp[PokArray.MOVE4_ID:PokArray.ITEM_ID]
 
     def start_of_battle(self):
         """Select the two first pokemon of each team and does ability effects on switch in
@@ -117,23 +139,24 @@ class Battle():
             else:
                 speed_tie_2 = True
         if p1_speed > p2_speed or speed_tie_1:
-            print(f"You sent out {self.current_pokemon.name}!")
-            print(f"The opponent sent out {self.current_opp.name}!")
+            print(f"You sent out {PokemonName(self.current_pokemon[PokArray.ID]).name.capitalize()}!")
+            print(f"The opponent sent out {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()}!")
         elif p2_speed > p1_speed or speed_tie_2:
-            print(f"The opponent sent out {self.current_opp.name}!")
-            print(f"You sent out {self.current_pokemon.name}!")
-        self.current_pokemon.turns = 1
-        self.current_opp.turns = 1
+            print(f"The opponent sent out {PokemonName(self.current_pokemon[PokArray.ID]).name.capitalize()}!")
+            print(f"You sent out {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()}!")
+        self.current_pokemon[PokArray.TURNS] = 1
+        self.current_opp[PokArray.TURNS] = 1
 
     def selection(self):
         """Does the selection part of the battle, what I choose and what the opponent chooses"""
-        opp_move = self.opp_ai.return_idx(
+        '''opp_move = self.opp_ai.return_idx(
             self.current_opp,
             self.current_pokemon,
             self.my_pty_alive,
             self.opp_pty_alive,
             self.turn
-        )
+        )'''
+        opp_move = 1
         current_move_idx, switch_move_idx = battle_menu(self.current_pokemon, self.my_pty_alive, self.my_pty)
         return opp_move, current_move_idx, switch_move_idx
 
@@ -177,6 +200,7 @@ class Battle():
                 reset_switch_out(self.current_pokemon)
                 self.current_pokemon = self.my_pty[switch_idx]
                 print(f'You switched {self.current_pokemon.name} in.')
+            return
 
         if opp_switch:
             # TODO: Switch in abilities and terrain hazards

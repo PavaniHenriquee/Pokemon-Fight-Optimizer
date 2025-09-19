@@ -1,2 +1,2 @@
 [MESSAGES CONTROL]
-disable=fixme, pointless-string-statement, broad-exception-caught, line-too-long, unspecified-encoding
+disable=fixme, pointless-string-statement, broad-exception-caught, line-too-long, unspecified-encoding, too-many-instance-attributes, too-many-function-args

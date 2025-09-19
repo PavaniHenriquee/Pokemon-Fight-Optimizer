@@ -17,32 +17,19 @@ def round_half_down(value: float) -> int:
 
 
 # Convert stage (-6..6) to multiplier used by main-series games
-def stage_to_multiplier(stages: int, acc=False) -> float:
+def stage_to_multiplier(stages: np.float32, acc=False) -> float:
     """Check how the stages are affecting the stats"""
-    arr = np.asarray(stages)
     if acc:
-        pos = arr >= 0
-        res = np.where(pos, (3.0 + arr) / 3.0, 3.0 / (3.0 - arr))
+        mult = 3
     else:
-        pos = arr >= 0
-        res = np.where(pos, (2.0 + arr) / 2.0, 2.0 / (2.0 - arr))
+        mult = 2
 
-    # if scalar, return scalar float
-    if arr.shape == ():
-        return float(res.item())
+    if stages >= 0:
+        res = (mult + stages) / mult
+    else:
+        res = mult / (mult - stages)
+
     return res
-
-
-def get_stage(pokemon, stat_key: str) -> int:
-    """ Get what stages the pokemon has, being defensive to only do between -6..6"""
-    stages = pokemon.stat_stages[stat_key]
-    if stages > 6:
-        stages = 6
-        pokemon.stat_stages[stat_key] = stages
-    elif stages < -6:
-        stages = -6
-        pokemon.stat_stages[stat_key] = stages
-    return stages
 
 
 def get_type_effectiveness(atk_type, defender_types):
@@ -102,9 +89,10 @@ def calculate_crit():
     return iscrit
 
 
-def calculate_hit_miss(move, attacker, defender):
+def calculate_hit_miss(move, attacker, defender):  # pylint:disable=W0613
     '''Returns a boolean if the move passed the accuracy check'''
-    acc_stage = get_stage(attacker, "Accuracy") - get_stage(defender, "Evasion")
+    # acc_stage = get_stage(attacker, "Accuracy") - get_stage(defender, "Evasion")
+    acc_stage = 0
     accuracy = move['accuracy'] * stage_to_multiplier(acc_stage, acc=True) if isinstance(move['accuracy'], int) else 1
 
     if accuracy >= 100:

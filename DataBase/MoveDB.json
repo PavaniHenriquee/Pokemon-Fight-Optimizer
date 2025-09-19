@@ -46,7 +46,7 @@
       "metronome": true
     }
   },
-  "Tail_Whip": {
+  "Tail Whip": {
     "name": "Tail_Whip",
     "category": "Status",
     "type": "Normal",
@@ -127,7 +127,7 @@
       "sec_boost_speed": -1
     }
   },
-  "Razor_Leaf": {
+  "Razor Leaf": {
     "name": "razor_leaf",
     "category": "Physical",
     "type": "Grass",
