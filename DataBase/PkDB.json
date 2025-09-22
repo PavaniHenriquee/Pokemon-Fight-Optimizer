@@ -1,110 +1,110 @@
 {
-  "Bulbasaur":{
-    "type":["Grass", "Poison"],
-    "base stats":{
-      "HP":45,
-      "Attack":49,
-      "Defense":49,
-      "Special Attack":65,
-      "Special Defense":65,
-      "Speed":45
+  "Bulbasaur": {
+    "type": ["Grass", "Poison"],
+    "base stats": {
+      "HP": 45,
+      "Attack": 49,
+      "Defense": 49,
+      "Special Attack": 65,
+      "Special Defense": 65,
+      "Speed": 45
     },
-    "abilities":["Overgrow", "Chlorophyll"]
+    "abilities": ["Overgrow", "Chlorophyll"]
   },
-  "Ivysaur":{
-    "type":["Grass", "Poison"],
-    "base stats":{
-      "HP":60,
-      "Attack":62,
-      "Defense":63,
-      "Special Attack":80,
-      "Special Defense":80,
-      "Speed":60
+  "Ivysaur": {
+    "type": ["Grass", "Poison"],
+    "base stats": {
+      "HP": 60,
+      "Attack": 62,
+      "Defense": 63,
+      "Special Attack": 80,
+      "Special Defense": 80,
+      "Speed": 60
     },
-    "abilities":["Overgrow", "Chlorophyll"]
+    "abilities": ["Overgrow", "Chlorophyll"]
   },
-  "Venusaur":{
-    "type":["Grass", "Poison"],
-    "base stats":{
-      "HP":80,
-      "Attack":82,
-      "Defense":83,
-      "Special Attack":100,
-      "Special Defense":100,
-      "Speed":80
+  "Venusaur": {
+    "type": ["Grass", "Poison"],
+    "base stats": {
+      "HP": 80,
+      "Attack": 82,
+      "Defense": 83,
+      "Special Attack": 100,
+      "Special Defense": 100,
+      "Speed": 80
     },
-    "abilities":["Overgrow", "Chlorophyll"]
+    "abilities": ["Overgrow", "Chlorophyll"]
   },
-  "Charmander":{
-    "type":["Fire"],
-    "base stats":{
-      "HP":39,
-      "Attack":52,
-      "Defense":43,
-      "Special Attack":60,
-      "Special Defense":50,
-      "Speed":65
+  "Charmander": {
+    "type": ["Fire"],
+    "base stats": {
+      "HP": 39,
+      "Attack": 52,
+      "Defense": 43,
+      "Special Attack": 60,
+      "Special Defense": 50,
+      "Speed": 65
     },
-    "abilities":["Blaze", "Solar Power"]
+    "abilities": ["Blaze", "Solar Power"]
   },
-  "Charmeleon":{
-    "type":["Fire"],
-    "base stats":{
-      "HP":58,
-      "Attack":64,
-      "Defense":58,
-      "Special Attack":80,
-      "Special Defense":65,
-      "Speed":80
+  "Charmeleon": {
+    "type": ["Fire"],
+    "base stats": {
+      "HP": 58,
+      "Attack": 64,
+      "Defense": 58,
+      "Special Attack": 80,
+      "Special Defense": 65,
+      "Speed": 80
     },
-    "abilities":["Blaze", "Solar Power"]
+    "abilities": ["Blaze", "Solar Power"]
   },
-  "Charizard":{
-    "type":["Fire", "Flying"],
-    "base stats":{
-      "HP":78,
-      "Attack":84,
-      "Defense":78,
-      "Special Attack":109,
-      "Special Defense":85,
-      "Speed":100
+  "Charizard": {
+    "type": ["Fire", "Flying"],
+    "base stats": {
+      "HP": 78,
+      "Attack": 84,
+      "Defense": 78,
+      "Special Attack": 109,
+      "Special Defense": 85,
+      "Speed": 100
     },
-    "abilities":["Blaze", "Solar Power"]
+    "abilities": ["Blaze", "Solar Power"]
   },
-  "Squirtle":{
-    "type":["Water"],
-    "base stats":{
-      "HP":44,
-      "Attack":48,
-      "Defense":65,
-      "Special Attack":50,
-      "Special Defense":64,
-      "Speed":43
+  "Squirtle": {
+    "type": ["Water"],
+    "base stats": {
+      "HP": 44,
+      "Attack": 48,
+      "Defense": 65,
+      "Special Attack": 50,
+      "Special Defense": 64,
+      "Speed": 43
     },
-    "abilities":["Torrent", "Raind Dish"]
+    "abilities": ["Torrent", "Raind Dish"]
   },
-  "Wartortle":{
-    "type":["Water"],
-    "base stats":{
-      "HP":59,
-      "Attack":63,
-      "Defense":80,
-      "Special Attack":65,
-      "Special Defense":80,
-      "Speed":58
+  "Wartortle": {
+    "type": ["Water"],
+    "base stats": {
+      "HP": 59,
+      "Attack": 63,
+      "Defense": 80,
+      "Special Attack": 65,
+      "Special Defense": 80,
+      "Speed": 58
     },
-    "abilities":["Torrent", "Raind Dish"]
+    "abilities": ["Torrent", "Raind Dish"]
   },
-  "Blastoise":{
-    "type":["Water"],
-    "base stats":{
-      "HP":79,
-      "Attack":83,
-      "Defense":100,
-      "Special Attack":85,
-      "Special Defense":105,
-      "Speed":78
+  "Blastoise": {
+    "type": ["Water"],
+    "base stats": {
+      "HP": 79,
+      "Attack": 83,
+      "Defense": 100,
+      "Special Attack": 85,
+      "Special Defense": 105,
+      "Speed": 78
     },
-    "abilities":["Torrent", "Raind Dish"]
+    "abilities": ["Torrent", "Rain Dish"]
   }
 }

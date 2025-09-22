@@ -41,7 +41,8 @@ class Move():
         base_move_array[MoveArray.DAMAGE] = -1 if self.move.get('damage', None) is None else self.move.get('damage', -1) if isinstance(self.move.get('damage', -1), int) else -2 if self.move.get('damage', -1) == 'level' else -1
         base_move_array[MoveArray.SPREAD_HIT] = int(self.move.get('spread_hit', False))
         base_move_array[MoveArray.SPREAD_MOD] = self.move.get('spread_mod', 100)
-        base_move_array[MoveArray.FORCE_STATUS] = 1 if self.move.get('force_stab', False) else 0
+        base_move_array[MoveArray.FORCE_STAB] = 1 if self.move.get('force_stab', False) else 0
+        base_move_array[MoveArray.STATUS] = Status[self.move.get('status', 'None').upper()] if self.move.get('status', None) else 0
         base_move_array[MoveArray.VOL_STATUS] = self.move.get('vol_status', 0) if self.move.get('vol_status', 0) is not None else 0
         base_move_array[MoveArray.HAS_CRASH_DAMAGE] = int(self.move.get('has_crash_damage', False))
         base_move_array[MoveArray.SLEEP_USABLE] = int(self.move.get('sleep_usable', False))
@@ -123,7 +124,7 @@ class Move():
         sec_array[SecondaryArray.SEC_BOOST_SPEED] = secondary.get('boost', {}).get('spe', 0) if secondary and secondary.get('boost', None) else 0
         sec_array[SecondaryArray.SEC_BOOST_ACC] = secondary.get('boost', {}).get('accuracy', 0) if secondary and secondary.get('boost', None) else 0
         sec_array[SecondaryArray.SEC_BOOST_EV] = secondary.get('boost', {}).get('evasion', 0) if secondary and secondary.get('boost', None) else 0
-        sec_array[SecondaryArray.STATUS] = Status[secondary.get('status', 'None').upper()] if secondary and secondary.get('status', None) else -1
+        sec_array[SecondaryArray.STATUS] = Status[secondary.get('status', 'None').upper()] if secondary and secondary.get('status', None) else 0
         sec_array[SecondaryArray.VOL_STATUS] = VolStatus[secondary.get('vol_status', 'None').upper()] if secondary and secondary.get('volatileStatus', None) else -1
         # Second secondary effect(for the fangs moves)
         sec_array[SecondaryArray.CHANCE2] = secondary2.get('chance', 0) if secondary2 else 0

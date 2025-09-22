@@ -1,18 +1,31 @@
 """Gives the class for the trainer Ai to be what the game would do"""
 import random
 import math
+import numpy as np
 from Engine.damage_calc import calculate_damage
-from Utils.helper import get_type_effectiveness, batch_independent_score_from_rand, get_stage, stage_to_multiplier
+from Utils.helper import get_type_effectiveness, batch_independent_score_from_rand, stage_to_multiplier
 from DataBase.loader import pkDB
+from DataBase.MoveDB import MoveName
+from DataBase.AbilitiesDB import AbilityNames
+from Models.idx_nparray import MoveArray, PokArray, MoveFlags
+from Models.helper import MoveCategory, Types, Status, VolStatus, Gender, Target
+
+
+def add_adjustment(arr, move_id, delta, chance):
+    """Add a [delta, chance] pair to the first free slot."""
+    # Find the first index where chance is NaN (unused)
+    free_idx = np.where(np.isnan(arr[move_id, :, 1]))[0]
+    if free_idx.size == 0:
+        raise ValueError("No free slots left for this move, needs to add more")
+    arr[move_id, free_idx[0]] = [delta, chance]
 
 
 class TrainerAI:
     """
     Trainer AI, where it is used by using the def where it returns what the original ai would have done
     """
-    def __init__(self, name=None, difficulty=None, gen=4):
+    def __init__(self, difficulty=None, gen=4):
         self.gen = gen
-        self.name = name
         self.difficulty = difficulty
         self.current_pok_ab = False
 
@@ -20,143 +33,204 @@ class TrainerAI:
         """
         Basic Flag, every trainer has this, it discourages moves that would have no effect or that would make no sense
         """
-        basic = []
+        basic = 0
         # Check if move first (TODO add Trick room logic here)
-        if ai_pok.speed > user_pok.speed:
+        if (
+            ai_pok[PokArray.SPEED] * stage_to_multiplier(ai_pok[PokArray.SPEED_STAT_STAGE])
+            > user_pok[PokArray.SPEED] * stage_to_multiplier(user_pok[PokArray.SPEED_STAT_STAGE])
+        ):
             move_first = True
-        elif ai_pok.speed < user_pok.speed:
+        elif (
+            ai_pok[PokArray.SPEED] * stage_to_multiplier(ai_pok[PokArray.SPEED_STAT_STAGE])
+            < user_pok[PokArray.SPEED] * stage_to_multiplier(user_pok[PokArray.SPEED_STAT_STAGE])
+        ):
             move_first = False
         else:
             move_first = random.choice([True, False])
         # Check for immunity types
-        if not move["category"] == "Status":
-            if move["type"] == "Normal" and "Ghost" in user_pok.types:
-                basic.append(-10)
-            if move["type"] == "Fighting" and "Ghost" in user_pok.types:
-                basic.append(-10)
-            if move["type"] == "Ghost" and "Normal" in user_pok.types:
-                basic.append(-10)
-            if move["type"] == "Electric" and "Ground" in user_pok.types:
-                basic.append(-10)
-            if move["type"] == "Ground" and "Flying" in user_pok.types:
-                basic.append(-10)
-            if move["type"] == "Psychic" and "Dark" in user_pok.types:
-                basic.append(-10)
-            if move["type"] == "Dragon" and "Fairy" in user_pok.types:
-                basic.append(-10)
+        if move[MoveArray.CATEGORY] != MoveCategory["STATUS"] and effectiveness == 0:
+            return -10
         # Check for abilities
-        ability_list = ["Volt Absorb", "Motor Drive", "Water Absorb", "Flash Fire", "Wonder Guard", "Levitate", "Soundproof"]
-        if ability in ability_list and not ai_pok.ability["name"] == "Mold Breaker":
-            if move["type"] == "Electric" and (ability == "Volt Absorb" or ability == "Motor Drive"):
+        if ai_pok[PokArray.AB_ID] != AbilityNames["MOLD_BREAKER"]:
+            if move[MoveArray.TYPE] == Types["ELECTRIC"] and ability in ("VOLT_ABSORB", "MOTOR_DRIVE"):
+                return -10
+            if move[MoveArray.TYPE] == Types["WATER"] and ability == "WATER_ABSORB":
+                return -10
+            if move[MoveArray.TYPE] == Types["FIRE"] and ability == "FLASH_FIRE":
+                return -10
+            if move[MoveArray.TYPE] == Types["GROUND"] and ability == "LEVITATE":
+                return -10
+            if move[len(MoveArray) + MoveFlags.SOUND] and ability == "SOUNDPROOF":
+                return -10
+            if (
+                effectiveness < 2 and ability == "WONDER_GUARD"
+                and move[MoveArray.CATEGORY] != MoveCategory["STATUS"]
+            ):
+                return -10
+        if move[MoveArray.CATEGORY] == MoveCategory["STATUS"]:
+            # TODO: Safeguard for all conditions
+            if move[MoveArray.STATUS] != 0:
+                # Sleep
+                if (
+                    move[MoveArray.STATUS] == Status["SLEEP"]
+                    and (
+                        user_pok[PokArray.STATUS] != 0
+                        or ability == "VITAL_SPIRIT"
+                    )
+                ):
+                    return -10
+                # Poison
+                if (
+                    move[MoveArray.STATUS] in (Status["POISON"], Status["TOXIC"])
+                    and (
+                        user_pok[PokArray.STATUS] != 0
+                        or ability in ("IMMUNITY", "MAGIC_GUARD", "POISON_HEAL")
+                        or Types["STEEL"] in (user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                        or Types["POISON"] in (user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                    )
+                ):
+                    # TODO: weather
+                    return -10
+                # Paralysis
+                if (
+                    move[MoveArray.STATUS] == Status["PARALYSIS"]
+                    and (
+                        user_pok[PokArray.STATUS] != 0
+                        or (
+                            move[MoveArray.TYPE] == Types["ELECTRIC"]
+                            and (
+                                Types["GROUND"] in (user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                                or (
+                                    ability in ('VOLT_ABSORB', 'MOTOR_DRIVE')
+                                    and ai_pok[PokArray.AB_ID] != AbilityNames["MOLD_BREAKER"]
+                                ) 
+                            )
+                        )
+                        or ability in ('LIMBER', 'MAGIC_GUARD')
+                    )
+                ):
+                    return -10
+                # Burn
+                if (
+                    move[MoveArray.STATUS] == Status["BURN"]
+                    and (
+                        user_pok[PokArray.STATUS] != 0
+                        or ability in ("WATER_VEIL", "MAGIC_GUARD")
+                        or Types["FIRE"] in (user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                    )
+                ):
+                    return -10
+            if move[MoveArray.VOL_STATUS] != 0:
+                # Confusion
+                if move[MoveArray.VOL_STATUS] == VolStatus["CONFUSION"]:
+                    if user_pok[PokArray.VOL_STATUS] & VolStatus["CONFUSION"]:
+                        return -5
+                    if ability == "OWN_TEMPO":
+                        return -10
+                # Attract
+                if move[MoveArray.VOL_STATUS] == VolStatus["ATTRACT"]:
+                    if (
+                        user_pok[PokArray.VOL_STATUS] & VolStatus["ATTRACT"]
+                        or ability == "OBLIVIOUS"
+                        or (
+                            user_pok[PokArray.GENDER] == ai_pok[PokArray.GENDER]
+                            or user_pok[PokArray.GENDER] == Gender['GENDERLESS']
+                        )
+                    ):
+                        return -10
+            if any(move[MoveArray.BOOST_ATK: MoveArray.BOOST_EV + 1]):
+                # Stat Boosting Moves
+                if move[MoveArray.TARGET] in (
+                    Target['ADJACENT_ALLY'],
+                    Target['ADJACENT_ALLY_OR_SELF'],
+                    Target['ALLIES'],
+                    Target['ALLY_SIDE'],
+                    Target['SELF']
+                ):
+                    # TODO Trick room
+                    if (
+                        ai_pok[PokArray.AB_ID] == AbilityNames["NO_GUARD"]
+                        and (
+                            move[MoveArray.BOOST_ACC] > 0 or move[MoveArray.BOOST_EV] > 0
+                        )
+                    ):
+                        return -10
+                    if ai_pok[PokArray.AB_ID] == AbilityNames["SIMPLE"]:
+                        if move[MoveArray.BOOST_ATK] > 0 and ai_pok[PokArray.ATTACK_STAT_STAGE] >= 3:
+                            return -10
+                        if move[MoveArray.BOOST_DEF] > 0 and ai_pok[PokArray.DEFENSE_STAT_STAGE] >= 3:
+                            return -10
+                        if move[MoveArray.BOOST_SPATK] > 0 and ai_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE] >= 3:
+                            return -10
+                        if move[MoveArray.BOOST_SPDEF] > 0 and ai_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE] >= 3:
+                            return -10
+                        if move[MoveArray.BOOST_SPEED] > 0 and ai_pok[PokArray.SPEED_STAT_STAGE] >= 3:
+                            return -10
+                        if move[MoveArray.BOOST_ACC] > 0 and ai_pok[PokArray.ACCURACY_STAT_STAGE] >= 3:
+                            return -10
+                        if move[MoveArray.BOOST_EV] > 0 and ai_pok[PokArray.EVASION_STAT_STAGE] >= 3:
+                            return -10
+                    if move[MoveArray.BOOST_ATK] > 0 and ai_pok[PokArray.ATTACK_STAT_STAGE] == 6:
+                        return -10
+                    if move[MoveArray.BOOST_DEF] > 0 and ai_pok[PokArray.DEFENSE_STAT_STAGE] == 6:
+                        return -10
+                    if move[MoveArray.BOOST_SPATK] > 0 and ai_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE] == 6:
+                        return -10
+                    if move[MoveArray.BOOST_SPDEF] > 0 and ai_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE] == 6:
+                        return -10
+                    if move[MoveArray.BOOST_SPEED] > 0 and ai_pok[PokArray.SPEED_STAT_STAGE] == 6:
+                        return -10
+                    if move[MoveArray.BOOST_ACC] > 0 and ai_pok[PokArray.ACCURACY_STAT_STAGE] == 6:
+                        return -10
+                    if move[MoveArray.BOOST_EV] > 0 and ai_pok[PokArray.EVASION_STAT_STAGE] == 6:
+                        return -10
+                # Stat Reducing Moves
+                if move[MoveArray.TARGET] in (
+                    Target['NORMAL'],
+                    Target['ADJACENT_FOE'],
+                    Target['ALL_ADJACENT_FOES'],
+                    Target['ANY'],
+                    Target['FOE_SIDE'],
+                    Target['RANDOM_NOTMAL'],
+                    Target['SCRIPTED']
+                ):
+                    # TODO Trick Room
+                    if move[MoveArray.BOOST_ATK] and ability == "HYPER_CUTTER":
+                        return -10
+                    if move[MoveArray.BOOST_SPEED] and ability == "SPEED_BOOST":
+                        return -10
+                    if (
+                        (move[MoveArray.BOOST_ACC] or move[MoveArray.BOOST_EV])
+                        and (ability == "NO_GUARD" or ai_pok[PokArray.AB_ID] == AbilityNames["NO_GUARD"])
+                    ):
+                        return -10
+                    if move[MoveArray.BOOST_ACC] and ai_pok[PokArray.AB_ID] == AbilityNames["KEEN_EYE"]:
+                        return -10
+                    if ability in ("CLEAR_BODY", "WHITE_SMOKE"):
+                        return -10
+                    if move[MoveArray.BOOST_ATK] < 0 and user_pok[PokArray.ATTACK_STAT_STAGE] == -6:
+                        return -10
+                    if move[MoveArray.BOOST_DEF] < 0 and user_pok[PokArray.DEFENSE_STAT_STAGE] == -6:
+                        return -10
+                    if move[MoveArray.BOOST_SPATK] < 0 and user_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE] == -6:
+                        return -10
+                    if move[MoveArray.BOOST_SPDEF] < 0 and user_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE] == -6:
+                        return -10
+                    if move[MoveArray.BOOST_SPEED] < 0 and user_pok[PokArray.SPEED_STAT_STAGE] == -6:
+                        return -10
+                    if move[MoveArray.BOOST_ACC] < 0 and user_pok[PokArray.ACCURACY_STAT_STAGE] == -6:
+                        return -10
+                    if move[MoveArray.BOOST_EV] < 0 and user_pok[PokArray.EVASION_STAT_STAGE] == -6:
+                        return -10
+            # Moves Which Force Switches
+            if effect_type == "force_switch" and (len(user_party_alive) > 1 or (ability == 'Suction Cups' and ai_pok.ability['name'] == "Mold Breaker")):
                 basic.append(-10)
-            if move["type"] == "Water" and ability == "Water Absorb":
+            # Recovery Moves
+            if effect_type == "recovery" and ai_pok.current_hp == ai_pok.max_hp:
                 basic.append(-10)
-            if move["type"] == "Fire" and ability == "Flash Fire":
+            # OH-KO
+            if effect_type == "oh_ko" and ((ability == "Sturdy" and ai_pok.ability['name'] == "Mold Breaker") or user_pok.level > ai_pok.level):
                 basic.append(-10)
-            if move["type"] == "Ground" and ability == "Levitate":
-                basic.append(-10)
-            if move["flags"]["sound"] and ability == "Soundproof":
-                basic.append(-10)
-            if effectiveness < 2 and ability == "Wonder Guard" and move['category'] != 'Status':
-                basic.append(-10)
-        for e in move["effects"]:
-            status = e.get("status", 0)
-            stat_change = e.get('stat', 0)
-            effect_type = e.get('effect_type', 0)
-            target = e.get('target', 0)
-            if move["category"] == "Status":
-                # TODO: Safeguard for all conditions
-                if effect_type == 'status_inducing':
-                    # Sleep
-                    if status == "sleep" and (user_pok.status or ability == "Vital Spirit"):
-                        basic.append(-10)
-                    # Poison
-                    if status == "poison" and (user_pok.status or (ability == "Immunity" or ability == "Magic Guard" or ability == "Poison Heal") or ("Steel" in user_pok.types or "Poison" in user_pok.types)):
-                        # TODO: weather
-                        basic.append(-10)
-                    # Paralysis
-                    if status == "paralysis" and (user_pok.status):
-                        if move["type"] == "Electric" and (ability == "Limber" or ability == "Magic Guard" or ((ability == "Volt Absorb" or ability == "Motor Drive") and ai_pok["ability"]["name"] != "Mold Breaker") or "Ground" in user_pok.types):
-                            basic.append(-10)
-                        elif (ability == "Limber" or ability == "Magic Guard"):
-                            basic.append(-10)
-                    # Burn
-                    if status == "burn" and (user_pok.status or (ability == "Water Veil" or ability == "Magic Guard") or "Fire" in user_pok.types):
-                        basic.append(-10)
-                if effect_type == 'volatile_status':
-                    # Confusion
-                    if status == "confusion":
-                        if user_pok.confusion:
-                            basic.append(-5)
-                        elif ability == "Own Tempo":
-                            basic.append(-10)
-                    # Attract
-                    if status == "attract":
-                        if user_pok.attract or ability == "Oblivious" or (user_pok.gender == ai_pok.gender or user_pok.gender):
-                            basic.append(-10)
-                if effect_type == 'stat_change':
-                    # Stat Boosting Moves
-                    if target == 'self':
-                        # TODO Trick room
-                        if (stat_change == "accuracy" or stat_change == "evasion") and ai_pok.ability['name'] == "No Guard":
-                            basic.append(-10)
-                        if ai_pok.ability['name'] == "Simple" and ai_pok.stat_stages[stat_change] >= 3:
-                            basic.append(-10)
-                        if ai_pok.stat_stages[stat_change] == 6:
-                            basic.append(-10)
-                    # Stat Reducing Moves
-                    if target == 'target' or target == 'all_adjacent_opponents':
-                        # TODO Trick Room
-                        if stat_change == 'attack' and ability == "Hyper Cutter":
-                            basic.append(-10)
-                        if stat_change == "speed" and ability == "Speed Boost":
-                            basic.append(-10)
-                        if (stat_change == "accuracy" or stat_change == "evasion") and (ability == "No Guard" or ai_pok.ability['name'] == "No Guard"):
-                            basic.append(-10)
-                        if (stat_change == "accuracy") and ai_pok.ability['name'] == "Keen Eye":
-                            basic.append(-10)
-                        if ability == "Clear Body" or ability == "White Smoke":
-                            basic.append(-10)
-                        if user_pok.stat_stages.get(stat_change, 0) == 6:
-                            basic.append(-10)
-                # Stat Stage Resetting/Copying/Swapping Moves
-                if effect_type == "res_cop_sw_stat_stage":
-                    ai_stages = getattr(ai_pok, 'stat_stages', {}) or {}
-                    user_stages = getattr(user_pok, 'stat_stages', {}) or {}
-
-                    def _any_negative(stages):
-                        if not isinstance(stages, dict):
-                            return False
-                        for v in stages.values():
-                            try:
-                                if int(v) < 0:
-                                    return True
-                            except Exception:
-                                continue
-                        return False
-
-                    def _any_positive(stages):
-                        if not isinstance(stages, dict):
-                            return False
-                        for v in stages.values():
-                            try:
-                                if int(v) > 0:
-                                    return True
-                            except Exception:
-                                continue
-                        return False
-
-                    if not (_any_negative(ai_stages) or _any_positive(user_stages)):
-                        basic.append(-10)
-                # Moves Which Force Switches
-                if effect_type == "force_switch" and (len(user_party_alive) > 1 or (ability == 'Suction Cups' and ai_pok.ability['name'] == "Mold Breaker")):
-                    basic.append(-10)
-                # Recovery Moves
-                if effect_type == "recovery" and ai_pok.current_hp == ai_pok.max_hp:
-                    basic.append(-10)
-                # OH-KO
-                if effect_type == "oh_ko" and ((ability == "Sturdy" and ai_pok.ability['name'] == "Mold Breaker") or user_pok.level > ai_pok.level):
-                    basic.append(-10)
 
         # Explosion / Selfdestruct
         if move["name"] == "Selfdestruct" or move["name"] == "Explosion":
@@ -242,7 +316,9 @@ class TrainerAI:
             basic.append(-10)
 
         '''
-        TODO: Nightmare,
+        TODO: 
+        Stat Stage Resetting/Copying/Swapping Moves
+        Nightmare,
         Reflect / Light Screen / Mist / Safeguard,
         Focus Energy / Ingrain / Mud Sport / Water Sport / Camouflage / Power Trick / Lucky Chant / Aqua Ring / Magnet Rise
         Disable / Encore
@@ -276,25 +352,30 @@ class TrainerAI:
         """
         score = 0
         # Check for kill
-        if final_damage >= user_pok.current_hp:
-            if move['name'] in ['Explosion', 'Selfdestruct']:
+        if final_damage >= user_pok[PokArray.CURRENT_HP]:
+            if move[MoveArray.ID] in (MoveName["EXPLOSION"], MoveName["SELFDESTRUCT"]):
                 score += 0
-            elif move['name'] in ['Focus Punch', 'Sucker Punch', 'Future Sight']:
-                rand[idx]['score'].append(4)
-                rand[idx]['chance'].append(85)
+            elif move[MoveArray.ID] in (MoveName['SUCKER_PUNCH'], MoveName['FOCUS_PUNCH'], MoveName['FUTURE_SIGHT']):
+                add_adjustment(rand, idx, 4, 85)
                 return score, rand
-            elif move['priority'] >= 1 and move['name'] != 'Fake Out':
+            elif move[MoveArray.PRIORITY] >= 1 and move[MoveArray.ID] != MoveName['FAKE_OUT']:
                 score = 6
                 return score, rand
             else:
                 score = 4
                 return score, rand
-        if move['name'] in ['Explosion', 'Selfdestruct', 'Focus Punch', 'Sucker Punch']:
-            rand[idx]['score'].append(-2)
-            rand[idx]['chance'].append(176)
+
+        if (
+            move[MoveArray.ID] in (
+                MoveName['SUCKER_PUNCH'],
+                MoveName['FOCUS_PUNCH'],
+                MoveName['EXPLOSION'],
+                MoveName["SELFDESTRUCT"]
+            )
+        ):
+            add_adjustment(rand, idx, -2, 176)
         if effectiveness == 4:
-            rand[idx]['score'].append(2)
-            rand[idx]['chance'].append(176)
+            add_adjustment(rand, idx, 2, 176)
         return score, rand
 
     def expert_flag(self, damage, eff, ai_pok, u_pok, move, ai_pt, u_pt, turn, idx, rand):  # pylint: disable=W0613
@@ -606,7 +687,18 @@ class TrainerAI:
         """
         return score, rand
 
-    def choose_move(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn, search=False):
+    def choose_move(
+            self,
+            ai_pok,
+            user_pok,
+            user_party_alive,
+            ai_party_alive,
+            turn,
+            move1,
+            move2,
+            move3,
+            move4
+    ):
         """
         Calculates the score of the moves and sees what has the highest score
         search is used for me to get the raw values of score and rand, so i can see what percentage of chance each move has
@@ -638,15 +730,25 @@ class TrainerAI:
 
         If you switch out, the AI will forget its knowledge of your moves and abilities.
         """
-        ability = user_pok.ability["name"] if self.current_pok_ab else random.choice(pkDB[user_pok.name]["abilities"])
-        rand = {}
+        if self.current_pok_ab is True:
+            ability = AbilityNames(user_pok[PokArray.AB_ID]).name
+        else:
+            try:
+                ability = AbilityNames[random.choice(pkDB[user_pok.name]['abilities']).upper()].name
+            except Exception:
+                ability = AbilityNames(user_pok[PokArray.AB_ID]).name
+        max_rand = 5
+        rand = np.full((4, max_rand, 2), np.nan)
 
-        for i, move in enumerate(ai_pok.moves):
-            rand[i] = {'score': [], 'chance': []}
+        for i, move in enumerate((move1, move2, move3, move4)):
 
             score = 0
-            final_damage, effectiveness = calculate_damage(ai_pok, user_pok, move)
-            effectiveness = get_type_effectiveness(move['type'], user_pok.types) if move['category'] == 'Status' else effectiveness
+            final_damage, _ = calculate_damage(ai_pok, user_pok, move)
+            effectiveness = get_type_effectiveness(
+                move[MoveArray.TYPE],
+                user_pok[PokArray.TYPE1],
+                user_pok[PokArray.TYPE2]
+            )
             eval_atk, rand = self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
             score += eval_atk
             score += self.basic_flag(move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn)
@@ -654,8 +756,7 @@ class TrainerAI:
             score += eval_expert
 
             # TODO: Finish expert flag
-            if not search:
-                score += batch_independent_score_from_rand(rand, i)
+            score += batch_independent_score_from_rand(rand, i)
 
             move_scores[i] = {"score": score, "dmg": final_damage, "idx": i}
 

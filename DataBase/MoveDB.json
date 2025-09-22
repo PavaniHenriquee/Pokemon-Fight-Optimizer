@@ -26,7 +26,7 @@
       "reflectable": true,
       "mirror": true,
       "sound": true,
-      "bypass_sub":true,
+      "bypass_sub": true,
       "metronome": true
     },
     "boost_atk": -1

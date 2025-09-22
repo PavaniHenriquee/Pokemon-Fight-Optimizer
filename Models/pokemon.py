@@ -4,7 +4,7 @@ import numpy as np
 from Utils.loader import natures
 from DataBase.loader import pkDB, abDB, itemDB, moveDB
 from DataBase.PkDB import PokemonName
-from Models.helper import type_to_number, status_to_number, gender_to_number
+from Models.helper import type_to_number, status_to_number, gender_to_number, vol_status
 from Models.move import Move
 from Models.ability import ability_to_np
 from Models.item import item_to_np
@@ -118,6 +118,7 @@ class Pokemon:
             self.stat_stages['Accuracy'],
             self.stat_stages['Evasion'],
             status_val,
+            vol_status(),
             self.sleep_counter,
             self.badly_poison,
             self.turns,

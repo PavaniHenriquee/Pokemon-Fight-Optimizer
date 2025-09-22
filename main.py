@@ -1,8 +1,9 @@
 """Main"""
 import numpy as np
 from Models.pokemon import Pokemon
-from Models.idx_nparray import PokArray
-from DataBase.PkDB import PokemonName
+from Models.idx_nparray import PokArray, MoveFlags, MoveArray, SecondaryArray
+from Engine.damage_calc import calculate_damage
+from DataBase.MoveDB import MoveName
 # from Engine.new_battle import battle
 
 
@@ -20,7 +21,17 @@ char_array = battle_array[0:pokarray_len]
 squi = battle_array[pokarray_len:(2 * pokarray_len)]
 squi1 = battle_array[(2 * pokarray_len):(3 * pokarray_len)]
 char1 = battle_array[(3 * pokarray_len):(4 * pokarray_len)]
+move1 = char_array[PokArray.MOVE1_ID:PokArray.MOVE2_ID]
+move2 = char_array[PokArray.MOVE2_ID:PokArray.MOVE3_ID]
+move3 = char_array[PokArray.MOVE3_ID:PokArray.MOVE4_ID]
+m = move3[len(MoveArray) + len(MoveFlags) + SecondaryArray.CHANCE]
 print(battle_array)
 print(battle_array.dtype)
 print(len(battle_array))
-print(PokemonName(char1[PokArray.ID]).name.capitalize())
+damage, eff = calculate_damage(char_array, squi, move1, roll_multiplier=1)
+print(MoveName(move3[MoveArray.ID]).name)
+print(damage)
+print(eff)
+print(m)
+print(move2[MoveArray.BOOST_ATK])
+print(any(move2[MoveArray.BOOST_ATK: MoveArray.BOOST_EV + 1]))

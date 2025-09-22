@@ -10,3 +10,7 @@ class AbilityNames(IntEnum):
     BLAZE = auto()
     TORRENT = auto()
     OVERGROW = auto()
+    MOLD_BREAKER = auto()
+    NO_GUARD = auto()
+    SIMPLE = auto()
+    KEEN_EYE = auto()

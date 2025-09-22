@@ -50,7 +50,7 @@ class Status(IntEnum):
 
 
 class VolStatus(IntFlag):
-    """Volatile status to numbers"""
+    """Volatile status to numbers, using bitmap"""
     FLINCH = auto()
     CONFUSION = auto()
     HEAL_BLOCK = auto()
@@ -106,6 +106,11 @@ def gender_to_number(gender):
         g = gender
 
     return Gender[g.upper()]
+
+
+def vol_status():
+    """returns 0, because you can't start a battle with any volatile status"""
+    return 0
 
 
 class Target(IntEnum):

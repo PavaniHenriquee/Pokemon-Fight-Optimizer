@@ -1,34 +1,40 @@
 """Damage calculations"""
 import random
-import math
-from Utils.helper import stage_to_multiplier, get_stage, get_type_effectiveness
+import numpy as np
+from Utils.helper import stage_to_multiplier, get_type_effectiveness
+from Models.idx_nparray import PokArray, MoveArray
+from Models.helper import MoveCategory, Status, Types
+from Models.pokemon import Pokemon
+from Models.move import Move
+from DataBase.AbilitiesDB import AbilityNames
 
 
-def damaging_ability(attacker, defender, move) -> int:  # pylint: disable=W0613
+def damaging_ability(attacker: np.float32, defender: np.float32, move: np.float32) -> float:  # pylint: disable=W0613
     """Calculate what the ability does in relation to damage
     Returns:
         1 if nothing happens\n
         0 if gives immunity\n
         multiplier if it does something, like Blaze"""
     mult = 1
-    for e in attacker.ability['effects']:
-        # eff_type = e.get('effect_type', 0)
-        target = e.get('target', 0)
-        # stat = e.get('stat', 0)
-        # stages = e.get('stages', 0)
-        multip = e.get('multiplier', 0)
-        # move_type = e.get('mover_type', 0)
-        condition = e.get('condition', 0)
-        when = e.get('when', 0)
-        if target == 'self':
-            if when == 'third_hp' and attacker.current_hp / attacker.max_hp < 1 / 3:
-                if (condition.get('pk_type', 0) in attacker.types and move['type'] == condition.get('pk_type', 0)):
-                    mult = multip
+    if (
+        attacker[PokArray.AB_ID] in (
+            AbilityNames["BLAZE"],
+            AbilityNames['TORRENT'],
+            AbilityNames['OVERGROW']
+        )
+        and attacker[PokArray.CURRENT_HP] / attacker[PokArray.MAX_HP] <= 1 / 3
+    ):
+        if attacker[PokArray.AB_ID] == AbilityNames['BLAZE'] and move[MoveArray.TYPE] == Types['FIRE']:
+            mult = 1.5
+        if attacker[PokArray.AB_ID] == AbilityNames['TORRENT'] and move[MoveArray.TYPE] == Types['WATER']:
+            mult = 1.5
+        if attacker[PokArray.AB_ID] == AbilityNames['OVERGROW'] and move[MoveArray.TYPE] == Types['GRASS']:
+            mult = 1.5
 
     return mult
 
 
-def multipliers(move, attacker, defender, crit, roll_mult):
+def multipliers(move: np.float32, attacker: np.float32, defender: np.float32, crit: bool, roll_mult: int):
     """Calc Multiplers for bas formula damage"""
     stab = 1
     effectiveness = 1
@@ -36,7 +42,7 @@ def multipliers(move, attacker, defender, crit, roll_mult):
     burn = 1
 
     # STAB
-    if move['type'] in getattr(attacker, 'types', []):
+    if move[MoveArray.TYPE] in [attacker[PokArray.TYPE1], attacker[PokArray.TYPE2]]:
         stab = 1.5
 
     # Crit
@@ -44,15 +50,15 @@ def multipliers(move, attacker, defender, crit, roll_mult):
         crit_mult = 2
 
     # effectiveness
-    effectiveness = get_type_effectiveness(move['type'], getattr(defender, 'types', []))
+    effectiveness = get_type_effectiveness(move[MoveArray.TYPE], defender[PokArray.TYPE1], defender[PokArray.TYPE2])
 
     # Roll Multiplier
     if roll_mult is None:
         roll_mult = random.randint(85, 100) / 100
 
     # Burn
-    if attacker.status == 'burn':
-        if move['category'] == 'Physical' and not (attacker.ability['name'] == 'Guts') and not move['name'] == 'Facade':
+    if attacker[PokArray.STATUS] == Status["BURN"]:
+        if move[MoveArray.CATEGORY] == MoveCategory['PHYSICAL']:
             burn = 0.5
 
     # Ability
@@ -62,50 +68,50 @@ def multipliers(move, attacker, defender, crit, roll_mult):
     return mult, effectiveness
 
 
-def calculate_damage(attacker, defender, move, crit=False, roll_multiplier=None):
+def calculate_damage(attacker: Pokemon, defender: Pokemon, move: Move, crit: bool=False, roll_multiplier: float=None):
     """Calculate damage based on current stats of the attacker and the defender, giving back the damage and its effectiveness"""
-    if move['category'] == "Status":
+    if move[MoveArray.CATEGORY] == MoveCategory["STATUS"]:
         # Status moves don't deal damage(Trainer AI will fall here)
         return 0, 0
-    if move['category'] == 'Physical':
-        raw_attack = attacker.attack
-        raw_defense = defender.defense
-        atk_stage = get_stage(attacker, 'Attack')
-        def_stage = get_stage(defender, 'Defense')
+    if move[MoveArray.CATEGORY] == MoveCategory['PHYSICAL']:
+        raw_attack = attacker[PokArray.ATTACK]
+        raw_defense = defender[PokArray.DEFENSE]
+        atk_stage = attacker[PokArray.ATTACK_STAT_STAGE]
+        def_stage = defender[PokArray.DEFENSE_STAT_STAGE]
     else:
-        raw_attack = attacker.special_attack
-        raw_defense = defender.special_defense
-        atk_stage = get_stage(attacker, 'Special Attack')
-        def_stage = get_stage(defender, 'Special Defense')
+        raw_attack = attacker[PokArray.SPECIAL_ATTACK]
+        raw_defense = defender[PokArray.SPECIAL_DEFENSE]
+        atk_stage = attacker[PokArray.SPECIAL_ATTACK_STAT_STAGE]
+        def_stage = defender[PokArray.SPECIAL_DEFENSE_STAT_STAGE]
 
     if crit is True:
         def_stage = min(def_stage, 0)
         atk_stage = max(atk_stage, 0)
 
     # apply stage multipliers
-    attack = raw_attack * stage_to_multiplier(atk_stage)
-    defense = raw_defense * stage_to_multiplier(def_stage)
+    attack = np.floor(raw_attack * stage_to_multiplier(atk_stage))
+    defense = np.floor(raw_defense * stage_to_multiplier(def_stage))
 
     # Base damage formula
-    damage = math.floor(math.floor(((2 * attacker.level / 5) + 2) * move['power'] * (attack / defense)) / 50 + 2)
+    damage = np.floor(np.floor(((2 * attacker[PokArray.LEVEL] / 5) + 2) * move[MoveArray.POWER] * (attack / defense)) / 50 + 2)
 
     mult, effectiveness = multipliers(move, attacker, defender, crit, roll_multiplier)
     damage *= mult
-    final_damage = math.floor(damage)
+    final_damage = np.floor(damage)
     return final_damage, effectiveness
 
 
 def calculate_damage_confusion(pok):
     """Calculate the damage for Confusion self hit"""
-    raw_attack = pok.attack
-    raw_defense = pok.defense
-    atk_stage = get_stage(pok, 'Attack')
-    def_stage = get_stage(pok, 'Defense')
+    raw_attack = pok[PokArray.ATTACK]
+    raw_defense = pok[PokArray.DEFENSE]
+    atk_stage = pok[PokArray.ATTACK_STAT_STAGE]
+    def_stage = pok[PokArray.DEFENSE_STAT_STAGE]
     # apply stage multipliers
-    attack = raw_attack * stage_to_multiplier(atk_stage)
-    defense = raw_defense * stage_to_multiplier(def_stage)
+    attack = np.floor(raw_attack * stage_to_multiplier(atk_stage))
+    defense = np.floor(raw_defense * stage_to_multiplier(def_stage))
     # Base damage formula, confusion counts as a 40 power move
-    damage = math.floor(math.floor(((2 * pok.level / 5) + 2) * 40 * (attack / defense)) / 50 + 2)
-    if pok.status == 'burn':
+    damage = np.floor(np.floor(((2 * pok[PokArray.LEVEL] / 5) + 2) * 40 * (attack / defense)) / 50 + 2)
+    if pok[PokArray.STATUS] == Status['BURN']:
         damage *= 0.5
     return damage
