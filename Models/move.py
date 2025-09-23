@@ -36,6 +36,7 @@ class Move():
         base_move_array[MoveArray.MULTI_HIT_MIN] = self.move.get('multi_hit', 1) if isinstance(self.move.get('multi_hit', 1), int) else self.move.get('multi_hit', [1, 1])[0]
         base_move_array[MoveArray.MULTI_HIT_MAX] = self.move.get('multi_hit', 1) if isinstance(self.move.get('multi_hit', 1), int) else self.move.get('multi_hit', [1, 1])[1]
         base_move_array[MoveArray.SELF_SWITCH] = int(self.move.get('self_switch', False))
+        base_move_array[MoveArray.FORCE_SWITCH] = int(self.move.get('self_switch', False))
         base_move_array[MoveArray.NON_GHOST] = 1 if self.move.get('non_ghost', None) == 'self' else 0
         base_move_array[MoveArray.IGNORE_AB] = int(self.move.get('ignore_ab', False))
         base_move_array[MoveArray.DAMAGE] = -1 if self.move.get('damage', None) is None else self.move.get('damage', -1) if isinstance(self.move.get('damage', -1), int) else -2 if self.move.get('damage', -1) == 'level' else -1

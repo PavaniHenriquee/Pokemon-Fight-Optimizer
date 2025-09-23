@@ -37,6 +37,7 @@
     "multi_hit": Number | [min, max]
     "flags": Obj (CHECK FLAG LIST)
     "self_switch": Bool
+    "force_switch": Bool
     "non_ghost": "self"  # Used for Curse
     "ignore_ab": Bool
     "damage": Number | "level"

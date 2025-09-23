@@ -22,3 +22,8 @@ class MoveName(IntEnum):
     SUCKER_PUNCH = auto()
     FUTURE_SIGHT = auto()
     FAKE_OUT = auto()
+    DREAM_EATER = auto()
+    NIGHTMARE = auto()
+    SWAGGER = auto()
+    PSYCH_UP = auto()
+    FLATTER = auto()
