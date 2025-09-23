@@ -28,13 +28,17 @@ class TrainerAI:
         self.difficulty = difficulty
         self.current_pok_ab = False
 
-    def basic_flag(self, move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn) -> int:  # pylint: disable=W0613
+    def basic_flag(
+            self, move, ability, ai_pok, user_pok, effectiveness, user_party_alive,
+            ai_party_alive, turn  # pylint: disable=W0613
+    ) -> int:
         """
-        Basic Flag, every trainer has this, it discourages moves that would have no effect or that would make no sense
+        Basic Flag, every trainer has this,
+        it discourages moves that would have no effect or that would make no sense
         """
-
+        """
         # Check if move first (TODO add Trick room logic here)
-        """if (
+        if (
             ai_pok[PokArray.SPEED] * stage_to_multiplier(ai_pok[PokArray.SPEED_STAT_STAGE])
             > user_pok[PokArray.SPEED] * stage_to_multiplier(user_pok[PokArray.SPEED_STAT_STAGE])
         ):
@@ -45,7 +49,8 @@ class TrainerAI:
         ):
             move_first = False
         else:
-            move_first = random.choice([True, False])"""
+            move_first = random.choice([True, False])
+        """
         # Check for immunity types
         if move[MoveArray.CATEGORY] != MoveCategory["STATUS"] and effectiveness == 0:
             return -10
@@ -102,7 +107,7 @@ class TrainerAI:
                                 or (
                                     ability in ('VOLT_ABSORB', 'MOTOR_DRIVE')
                                     and ai_pok[PokArray.AB_ID] != AbilityNames["MOLD_BREAKER"]
-                                ) 
+                                )
                             )
                         )
                         or ability in ('LIMBER', 'MAGIC_GUARD')
@@ -190,7 +195,7 @@ class TrainerAI:
                     Target['ALL_ADJACENT_FOES'],
                     Target['ANY'],
                     Target['FOE_SIDE'],
-                    Target['RANDOM_NOTMAL'],
+                    Target['RANDOM_NORMAL'],
                     Target['SCRIPTED']
                 ):
                     # TODO Trick Room
@@ -423,10 +428,12 @@ class TrainerAI:
                     Target['ALLY_SIDE'],
                     Target['SELF']
                 ):
-                    if move[MoveArray.BOOST_ATK] or move[MoveArray.BOOST_SPATK]:
+                    if any(move[MoveArray.BOOST_ATK: MoveArray.BOOST_SPDEF + 1]):
                         if (
                             (move[MoveArray.BOOST_ATK] and ai_pok[PokArray.ATTACK_STAT_STAGE]>= 3)
                             or (move[MoveArray.BOOST_SPATK] and ai_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE]>= 3)
+                            or (move[MoveArray.BOOST_DEF] and ai_pok[PokArray.DEFENSE_STAT_STAGE]>= 3)
+                            or (move[MoveArray.BOOST_SPDEF] and ai_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE]>= 3)
                         ):
                             add_adjustment(rand, idx, -1, 156)
                         if hp_pct_ai >= 100:
@@ -438,219 +445,128 @@ class TrainerAI:
                         else:
                             score += -2
                         return score, rand
-                    for d in de:
-                        if stat_change == d:
-                            if ai_pok.stat_stages[d] >= 3:
-                                rand[idx]['score'].append(-1)
-                                rand[idx]['chance'].append(156)
-                            if hp_pct_ai >= 100:
-                                rand[idx]['score'].append(2)
-                                rand[idx]['chance'].append(128)
-                            elif hp_pct_ai >= 71:
-                                break
-                            elif hp_pct_ai > 39:
-                                rand[idx]['score'].append(-2)
-                                rand[idx]['chance'].append(186)
-                            else:
-                                score += -2
-                            # TODO: Target last-used move
-                            return score, rand
-                    if stat_change == 'Speed' and m_name != "Dragon Dance":
+                    if move[MoveArray.BOOST_SPEED] and move[MoveArray.ID] != MoveName.DRAGON_DANCE:
                         if move_first:
                             score += -3
                         else:
-                            rand[idx]['score'].append(3)
-                            rand[idx]['chance'].append(186)
+                            add_adjustment(rand, idx, 3, 186)
                         return score, rand
-                    if stat_change == 'Evasion':
+                    if move[MoveArray.BOOST_EV]:
                         if hp_pct_ai > 89:
-                            rand[idx]['score'].append(3)
-                            rand[idx]['chance'].append(186)
-                        if ai_pok.stat_stages['Evasion'] >= 3:
-                            rand[idx]['score'].append(-1)
-                            rand[idx]['chance'].append(128)
-                        if u_pok.badly_poison:
+                            add_adjustment(rand, idx, 3, 186)
+                        if ai_pok[PokArray.EVASION_STAT_STAGE]>= 3:
+                            add_adjustment(rand, idx, -1, 128)
+                        if u_pok[PokArray.STATUS] == Status.TOXIC:
                             if hp_pct_ai > 50:
-                                rand[idx]['score'].append(3)
-                                rand[idx]['chance'].append(206)
+                                add_adjustment(rand, idx, 3, 206)
                             else:
-                                rand[idx]['score'].append(3)
-                                rand[idx]['chance'].append(142)
-                        if u_pok.leech_seed:
-                            rand[idx]['score'].append(3)
-                            rand[idx]['chance'].append(186)
-                        if u_pok.curse:
-                            rand[idx]['score'].append(3)
-                            rand[idx]['chance'].append(186)
-                        if hp_pct_ai > 70 or u_pok.stat_stages['Evasion'] == 0:
+                                add_adjustment(rand, idx, 3, 142)
+                        if u_pok[PokArray.VOL_STATUS] & VolStatus.LEECH_SEED:
+                            add_adjustment(rand, idx, 3, 186)
+                        if u_pok[PokArray.VOL_STATUS] & VolStatus.CURSE:
+                            add_adjustment(rand, idx, 3, 186)
+                        if hp_pct_ai > 70 or u_pok[PokArray.EVASION_STAT_STAGE] == 0:
                             return score, rand
-                        elif hp_pct_ai < 40 or hp_pct_u < 40:
+                        if hp_pct_ai < 40 or hp_pct_u < 40:
                             score += -2
                             return score, rand
-                        else:
-                            rand[idx]['score'].append(-2)
-                            rand[idx]['chance'].append(186)
+                        add_adjustment(rand, idx, -2, 186)
                         # TODO: Ingrain, Aqua Ring
-                if target in ['target', 'all_adjacent_opponents']:
+                if move[MoveArray.TARGET] in (
+                    Target['NORMAL'],
+                    Target['ADJACENT_FOE'],
+                    Target['ALL_ADJACENT_FOES'],
+                    Target['ANY'],
+                    Target['FOE_SIDE'],
+                    Target['RANDOM_NORMAL'],
+                    Target['SCRIPTED']
+                ):
                     # Attack and Special Attack
-                    if stat_change in atk:
-                        for a in atk:
-                            if u_pok.stat_stages[a] != 0:
-                                score += -1
-                            if hp_pct_ai <= 90:
-                                score += -1
-                            if u_pok.stat_stages[a] <= -3:
-                                rand[idx]['score'].append(-2)
-                                rand[idx]['chance'].append(206)
-                            if hp_pct_u <= 70:
-                                score += -2
-                            # TODO: Last move check: If the move last used by the target was not of the corresponding
-                            # class (Physical/Special), 50% chance of score -2.
-                            return score, rand
+                    if move[MoveArray.BOOST_ATK] or move[MoveArray.BOOST_SPATK]:
+                        if (
+                            (move[MoveArray.BOOST_ATK]< 0 and u_pok[PokArray.ATTACK_STAT_STAGE]!= 0)
+                            or (move[MoveArray.BOOST_SPATK] and u_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE]!= 0)
+                        ):
+                            score += -1
+                        if hp_pct_ai <= 90:
+                            score += -1
+                        if (
+                            (move[MoveArray.BOOST_ATK] and u_pok[PokArray.ATTACK_STAT_STAGE]<= -3)
+                            or (move[MoveArray.BOOST_SPATK] and u_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE]<= -3)
+                        ):
+                            add_adjustment(rand, idx, -2, 206)
+                        if hp_pct_u <= 70:
+                            score += -2
+                        # TODO: Last move check: If the move last used by the target was not of the corresponding
+                        # class (Physical/Special), 50% chance of score -2.
+                        return score, rand
                     # Defense and Special Defense
-                    if stat_change in de:
-                        for d in de:
-                            if hp_pct_ai < 70:
-                                rand[idx]['score'].append(-2)
-                                rand[idx]['chance'].append(206)
-                            if u_pok.stat_stages[d] <= -3:
-                                rand[idx]['score'].append(-2)
-                                rand[idx]['chance'].append(206)
-                            if hp_pct_u < 70:
-                                score += -2
-                            return score, rand
+                    if move[MoveArray.BOOST_DEF] or move[MoveArray.BOOST_SPDEF]:
+                        if hp_pct_ai < 70:
+                            add_adjustment(rand, idx, -2, 206)
+                        if (
+                            (move[MoveArray.BOOST_DEF] and ai_pok[PokArray.DEFENSE_STAT_STAGE]<= -3)
+                            or (move[MoveArray.BOOST_SPDEF] and ai_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE]<= -3)
+                        ):
+                            add_adjustment(rand, idx, -2, 206)
+                        if hp_pct_u < 70:
+                            score += -2
+                        return score, rand
                     # Speed
-                    if stat_change == 'Speed':
+                    if move[MoveArray.BOOST_SPEED]:
                         if not move_first:
-                            rand[idx]['score'].append(2)
-                            rand[idx]['chance'].append(186)
+                            add_adjustment(rand, idx, 2, 186)
                         else:
                             score += -3
                         return score, rand
                     # Accuracy
-                    if stat_change == 'Accuracy':
+                    if move[MoveArray.BOOST_ACC]:
+                        # Check this, think it's wrong
                         if hp_pct_u <= 70 and not hp_pct_ai >= 70:
-                            rand[idx]['score'].append(-1)
-                            rand[idx]['chance'].append(156)
-                        if ai_pok.stat_stages['Accuracy'] <= -2:
-                            rand[idx]['score'].append(-2)
-                            rand[idx]['chance'].append(176)
-                        if u_pok.badly_poison:
-                            rand[idx]['score'].append(2)
-                            rand[idx]['chance'].append(186)
-                        if u_pok.leech_seed:
-                            rand[idx]['score'].append(2)
-                            rand[idx]['chance'].append(186)
-                        if u_pok.curse:
-                            rand[idx]['score'].append(2)
-                            rand[idx]['chance'].append(186)
-                        if hp_pct_ai >= 70 or u_pok.stat_stages['Accuracy'] == 0:
+                            add_adjustment(rand, idx, -1, 156)
+                        if ai_pok[PokArray.ACCURACY_STAT_STAGE] <= -2:
+                            add_adjustment(rand, idx, 2, 176)
+                        if u_pok[PokArray.STATUS] == Status.TOXIC:
+                            add_adjustment(rand, idx, 2, 186)
+                        if u_pok[PokArray.VOL_STATUS] & VolStatus.LEECH_SEED:
+                            add_adjustment(rand, idx, 2, 186)
+                        if u_pok[PokArray.VOL_STATUS] & VolStatus.CURSE:
+                            add_adjustment(rand, idx, 2, 186)
+                        if hp_pct_ai >= 70 or ai_pok[PokArray.ACCURACY_STAT_STAGE] == 0:
                             return score, rand
+                        if hp_pct_ai <= 40 or hp_pct_u <= 40:
+                            score += -2
                         else:
-                            if hp_pct_ai <= 40 or hp_pct_u <= 40:
-                                score += -2
-                            else:
-                                rand[idx]['score'].append(-2)
-                                rand[idx]['chance'].append(186)
-                            return score, rand
+                            add_adjustment(rand, idx, -2, 186)
+                        return score, rand
                         # TODO: Ingrain, Aqua Ring
                     # Evasion
-                    if stat_change == 'Evasion':
+                    if move[MoveArray.BOOST_EV]:
                         if hp_pct_ai < 70:
-                            rand[idx]['score'].append(-2)
-                            rand[idx]['chance'].append(206)
+                            add_adjustment(rand, idx, -2, 206)
                         if u_pok.stat_stages['Evasion'] <= -3:
-                            rand[idx]['score'].append(-2)
-                            rand[idx]['chance'].append(206)
+                            add_adjustment(rand, idx, -2, 206)
                         if hp_pct_u <= 70:
                             score += -2
                         return score, rand
 
         # Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
-        if not isinstance(move['accuracy'], int):
-            if ai_pok.stat_stages['Accuracy'] <= -5 or u_pok.stat_stages['Evasion'] >= 5:
+        if move[MoveArray.ACCURACY] == -1:  # -1 is how always hit moves is represented, being equal to acc: true
+            if ai_pok[PokArray.ACCURACY_STAT_STAGE] <= -5 or u_pok[PokArray.EVASION_STAT_STAGE] >= 5:
                 score += 1
-            if ai_pok.stat_stages['Accuracy'] <= -3 or u_pok.stat_stages['Evasion'] >= 3:
-                rand[idx]['score'].append(1)
-                rand[idx]['chance'].append(156)
+            if ai_pok[PokArray.ACCURACY_STAT_STAGE] <= -3 or u_pok[PokArray.EVASION_STAT_STAGE] >= 3:
+                add_adjustment(rand, idx, 1, 156)
             return score, rand
 
-        # Selfdestruct, explosion, memento
-        if m_name in ['Selfdestruct', 'Explosion', 'Memento']:
-            if u_pok.stat_stages['Evasion'] >= 1:
-                score += -1
-            if u_pok.stat_stages['Evasion'] >= 3:
-                rand[idx]['score'].append(-1)
-                rand[idx]['chance'].append(128)
-            if hp_pct_ai <= 30:
-                rand[idx]['score'].append(1)
-                rand[idx]['chance'].append(206)
-                return score, rand
-            elif hp_pct_ai <= 50:
-                rand[idx]['score'].append(1)
-                rand[idx]['chance'].append(128)
-                return score, rand
-            else:
-                if hp_pct_ai > 80 and move_first:
-                    rand[idx]['score'].append(-3)
-                    rand[idx]['chance'].append(206)
-                else:
-                    rand[idx]['score'].append(-1)
-                    rand[idx]['chance'].append(206)
-            return score, rand
-        # Healing Wish, Lunar Dance
-        if m_name in ['Healing Wish', 'Lunar Dance']:
-            if hp_pct_ai >= 80 and move_first:
-                rand[idx]['score'].append(-5)
-                rand[idx]['chance'].append(64)
-                return score, rand
-            if hp_pct_ai > 50:
-                rand[idx]['score'].append(-1)
-                rand[idx]['chance'].append(206)
-                return score, rand
-            if random.randint(0, 255) < 64:
-                score += 1
-                ef = False
-                for m in ai_pok.moves:
-                    if m['category'] != 'Status':
-                        effc = get_type_effectiveness(m['type'], u_pok.types)
-                        if effc > 1:
-                            ef = True
-                if not ef:
-                    rand[idx]['score'].append(1)
-                    rand[idx]['chance'].append(64)
-            if hp_pct_ai <= 30:
-                rand[idx]['score'].append(1)
-                rand[idx]['chance'].append(128)
-            return score, rand
-        # Dragon Dance
-        if m_name == 'Dragon Dance':
-            if not move_first:
-                rand[idx]['score'].append(1)
-                rand[idx]['chance'].append(128)
-                return score, rand
-            if hp_pct_ai <= 50:
-                rand[idx]['score'].append(-1)
-                rand[idx]['chance'].append(186)
-                return score, rand
-        # Acupressure
-        if m_name == 'Acupressure':
-            if hp_pct_ai <= 50:
-                score += -1
-                return score, rand
-            if hp_pct_ai > 90:
-                rand[idx]['score'].append(1)
-                rand[idx]['chance'].append(192)
-                return score, rand
-            rand[idx]['score'].append(1)
-            rand[idx]['chance'].append(96)
-            return score, rand
-        # a
 
         """
         TODO:
             Draining Attacks
             Mirror Move
+            Selfdestruct, explosion, memento
+            Healing Wish, Lunar Dance
+            Dragon Dance
+            Acupressure
 
         """
         return score, rand
@@ -719,9 +635,13 @@ class TrainerAI:
             )
             eval_atk, rand = self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
             score += eval_atk
-            score += self.basic_flag(move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn)
-            eval_expert, rand = self.expert_flag(final_damage, effectiveness, ai_pok, user_pok, move, ai_party_alive, user_party_alive, turn, i, rand)
-            score += eval_expert
+            score += self.basic_flag(
+                move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn
+            )
+            expert, rand = self.expert_flag(
+                final_damage, effectiveness, ai_pok, user_pok, move, ai_party_alive, user_party_alive, turn, i, rand
+            )
+            score += expert
 
             # TODO: Finish expert flag
             score += batch_independent_score_from_rand(rand, i)

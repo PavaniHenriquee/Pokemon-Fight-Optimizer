@@ -58,6 +58,8 @@ class VolStatus(IntFlag):
     SALT_CURE = auto()
     SPARKLIN_ARIA = auto()
     PARTIALLY_TRAPPED = auto()
+    LEECH_SEED = auto()
+    CURSE = auto()
 
 
 class SideCondition(IntFlag):

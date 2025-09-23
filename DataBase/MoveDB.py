@@ -27,3 +27,4 @@ class MoveName(IntEnum):
     SWAGGER = auto()
     PSYCH_UP = auto()
     FLATTER = auto()
+    DRAGON_DANCE = auto()
