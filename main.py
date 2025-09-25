@@ -28,7 +28,7 @@ m = move3[len(MoveArray) + len(MoveFlags) + SecondaryArray.CHANCE]
 print(battle_array)
 print(battle_array.dtype)
 print(len(battle_array))
-damage, eff = calculate_damage(char_array, squi, move1, roll_multiplier=1)
+damage, eff = calculate_damage(char_array, squi, move3, roll_multiplier=1)
 print(MoveName(move3[MoveArray.ID]).name)
 print(damage)
 print(eff)

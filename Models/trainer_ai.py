@@ -587,7 +587,6 @@ class TrainerAI:
         Calculates the score of the moves and sees what has the highest score
         search is used for me to get the raw values of score and rand, so i can see what percentage of chance each move has
         """
-        move_scores = {}
         """The AI always knows what item you're holding. It cheats to see it.
 
         The AI always knows your exact current HP and max HP.
@@ -614,6 +613,7 @@ class TrainerAI:
 
         If you switch out, the AI will forget its knowledge of your moves and abilities.
         """
+        move_scores = {}
         if self.current_pok_ab is True:
             ability = AbilityNames(user_pok[PokArray.AB_ID]).name
         else:
@@ -623,6 +623,13 @@ class TrainerAI:
                 ability = AbilityNames(user_pok[PokArray.AB_ID]).name
         max_rand = 5
         rand = np.full((4, max_rand, 2), np.nan)
+        max_damage = 0
+        # Moves to not consider in damage calc
+        # mov_excep = ['Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
+        #             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Superpower', 'Eruption', 'Water Spout',
+        #             'Head Smash']
+        mov_excep = [0, MoveName.EXPLOSION, MoveName.SELFDESTRUCT, MoveName.DREAM_EATER, MoveName.FOCUS_PUNCH,
+                     MoveName.SUCKER_PUNCH]
 
         for i, move in enumerate((move1, move2, move3, move4)):
 
@@ -643,32 +650,33 @@ class TrainerAI:
             )
             score += expert
 
+            # Find max damage among best moves
+            if move[MoveArray.ID] not in mov_excep and final_damage > max_damage:
+                max_damage = final_damage
+
             # TODO: Finish expert flag
             score += batch_independent_score_from_rand(rand, i)
 
             move_scores[i] = {"score": score, "dmg": final_damage, "idx": i}
 
-        # Moves to not consider in damage calc
-        mov_excep = ['Explosion', 'Selfdestruct', 'Dream Eater', 'Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
-                     'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Focus Punch', 'Superpower', 'Eruption', 'Water Spout',
-                     'Sucker Punch', 'Head Smash']
-
-        # Find max damage among best moves
-        max_damage = max(info["dmg"] for info in move_scores.values() if ai_pok.moves[info["idx"]]['name'] not in mov_excep)
-
         # Apply penalty for moves that don't reach max damage
-        for info in move_scores.values():
-            if (ai_pok.moves[info["idx"]]['name'] not in mov_excep) and ai_pok.moves[info["idx"]]['category'] != 'Status':
-                if info["dmg"] < max_damage and not info['dmg'] > user_pok.current_hp:
-                    info["score"] -= 1
+        for i, move in enumerate((move1, move2, move3, move4)):
+            if move[MoveArray.ID] not in mov_excep and move[MoveArray.CATEGORY] != MoveCategory['STATUS']:
+                if (
+                    move_scores[i]['dmg'] < max_damage
+                    and not move_scores[i]['dmg'] >= user_pok[PokArray.CURRENT_HP]
+                ):
+                    move_scores[i]["score"] -= 1
 
-        return move_scores, rand
+        return move_scores
 
-    def return_idx(self, ai_pok, user_pok, user_party_alive, ai_party_alive, turn):
+    def return_idx(self, ai_pok, user_pok, user_party, ai_party, turn, move1, move2, move3, move4):
         """
         It transform the highest moving score to the index of the move
         """
-        move_scores, _ = self.choose_move(ai_pok, user_pok, user_party_alive, ai_party_alive, turn)
+        move_scores= self.choose_move(
+            ai_pok, user_pok, user_party, ai_party, turn, move1, move2, move3, move4
+        )
         max_score = max(info["score"] for info in move_scores.values())
         best_moves = [info for info in move_scores.values() if info["score"] == max_score]
         if len(best_moves) == 1:
@@ -678,7 +686,7 @@ class TrainerAI:
             idx = choice['idx']
         return idx
 
-    def sub_after_death(self, ai_party, user_pok, deadmon):
+    def sub_after_death(self, ai_party, user_pok, deadmon) -> int:
         """
         Implements the switch-in logic
 
@@ -702,56 +710,45 @@ class TrainerAI:
 
         """
         # filter non-fainted teammates and keep original party indices for tie-breaks
-        candidates = [(i, mon) for i, mon in enumerate(ai_party) if not getattr(mon, 'fainted', False)]
+        candidates = np.where(ai_party[PokArray.CURRENT_HP:: len(PokArray)] > 0)[0].tolist()
         if not candidates:
             return None
-
-        # Helper to read pokemon types robustly
-        def pokemon_types(mon):
-            # prefer attribute .types, fallback to base_data structure
-            t = getattr(mon, 'types', None)
-            if t:
-                return t
-            bd = getattr(mon, 'base_data', None)
-            if bd:
-                return bd.get('types', []) or bd.get('Type', []) or []
-            return []
+        if len(candidates) == 1:
+            return candidates[0]
 
         # Phase 1: find mons that have at least one move that is SE (>1) vs user_pok
         phase1 = []
-        for idx, mon in candidates:
+        for idx in candidates:
+            pok = ai_party[(len(PokArray)*idx):(len(PokArray)*(idx + 1))]
             has_se_move = False
-            for mv in getattr(mon, 'moves', []):
-                mv_type = mv.get('type') if isinstance(mv, dict) else getattr(mv, 'type', None)
-                if mv_type is None:
-                    continue
-                try:
-                    eff = get_type_effectiveness(mv_type, getattr(user_pok, 'types', []))
-                except Exception:
-                    # if helper fails, skip this move
-                    continue
+            m1 = pok[PokArray.MOVE1_ID:PokArray.MOVE2_ID]
+            m2 = pok[PokArray.MOVE2_ID:PokArray.MOVE3_ID]
+            m3 = pok[PokArray.MOVE3_ID:PokArray.MOVE4_ID]
+            m4 = pok[PokArray.MOVE4_ID:PokArray.ITEM_ID]
+            for mv in (m1, m2, m3, m4):
+                mv_type = mv[MoveArray.TYPE]
+                if mv_type == 0:
+                    break
+                eff = get_type_effectiveness(mv_type, user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
                 if eff > 1:
                     has_se_move = True
                     break
             if has_se_move:
-                phase1.append((idx, mon))
+                phase1.append((idx, pok))
 
         if phase1:
+            # TODO: Check bugged list of Pokemon in document: 
+            # https://drive.google.com/file/d/1MpWJWc4wNTz2oA6QiPMmstLpSwHBlpRk/view
             # Score each mon by summing the effectiveness of each of its types vs user_pok
+            if len(phase1) == 1:
+                return phase1[0][0]
             scored = []
             for idx, mon in phase1:
-                types = pokemon_types(mon)
+                type1 = mon[PokArray.TYPE1]
                 # single-typed counted twice
-                if len(types) == 1:
-                    types = [types[0], types[0]]
-                # defensively handle missing types
-                types = types[:2] + ([] if len(types) >= 2 else [])
-                total = 0.0
-                for t in types:
-                    try:
-                        total += get_type_effectiveness(t, getattr(user_pok, 'types', []))
-                    except Exception:
-                        total += 1.0
+                type2 = mon[PokArray.TYPE2] if mon[PokArray.TYPE2] != 0 else mon[PokArray.TYPE1]
+                total += get_type_effectiveness(type1, user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                total += get_type_effectiveness(type2, user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
                 if total == 8:
                     total = 1.75
                 scored.append({'index': idx, 'mon': mon, 'score': total})
@@ -761,18 +758,16 @@ class TrainerAI:
             return best['index']
 
         # Phase 2: simulate moves as if used on the (full) user pok and pick mon with max single-move damage
-        # Determine "full HP" for user_pok: prefer max_hp, fallback to base stat 'HP', else current_hp
-        full_hp = getattr(user_pok, 'max_hp', None)
-        if full_hp is None:
-            bd = getattr(user_pok, 'base_data', {})
-            full_hp = bd.get('base stats', {}).get('HP', None) if isinstance(bd, dict) else None
-        if full_hp is None:
-            full_hp = getattr(user_pok, 'current_hp', 0)
 
         scored_phase2 = []
-        for idx, mon in candidates:
+        for idx in candidates:
+            mon = ai_party[(len(PokArray)*idx):(len(PokArray)*(idx + 1))]
             max_move_dmg = 0
-            for mv in getattr(mon, 'moves', []):
+            m1 = pok[PokArray.MOVE1_ID:PokArray.MOVE2_ID]
+            m2 = pok[PokArray.MOVE2_ID:PokArray.MOVE3_ID]
+            m3 = pok[PokArray.MOVE3_ID:PokArray.MOVE4_ID]
+            m4 = pok[PokArray.MOVE4_ID:PokArray.ITEM_ID]
+            for mv in (m1, m2, m3, m4):
                 # build move object shape expected by calculate_damage
                 try:
                     raw_dmg, _ = calculate_damage(deadmon, user_pok, mv, roll_multiplier=1)
@@ -781,12 +776,11 @@ class TrainerAI:
                     continue
                 # apply overflow bug: if damage > 255, it overflows by subtracting 255
                 dmg = raw_dmg - 255 if raw_dmg > 255 else raw_dmg
-                if dmg > max_move_dmg:
-                    max_move_dmg = dmg
-            scored_phase2.append({'index': idx, 'mon': mon, 'max_dmg': max_move_dmg})
+                max_move_dmg = max(max_move_dmg, dmg)
+            scored_phase2.append({'index': idx, 'max_dmg': max_move_dmg})
 
-        if not scored_phase2:
-            return None
+        if not scored_phase2:  # Defensive, shouldn't get here
+            raise ValueError("Shouldn't get here, check flow of code, because at least one pok should be avaliable")
 
         # choose highest max_dmg, tie-break by party order (lower index wins)
         best2 = max(scored_phase2, key=lambda x: (x['max_dmg'], -x['index']))

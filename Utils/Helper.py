@@ -124,37 +124,17 @@ def entries_from_rand(rand_dict, idx):
     return list(zip(scores, chances))
 
 
-def batch_independent_score_from_rand(rand_dict, idx, rng=None):
+def batch_independent_score_from_rand(rand, idx):
     """
-    Compute the total score from rand_dict[idx] using one getrandbits call
-    to generate independent 0..255 draws (one per pair).
-    Returns the total score delta.
-    rng: optional random.Random-like object (must implement getrandbits(n)).
-         If None, uses the top-level random module.
+    Rand is a three dim array, where i'm getting the index of the move, so i'm checking the 
+    x by 2 array where on the 'col' is how much score and the number out of 255 that is the percentage
+    of chance of it adding it or not to the return
     """
-    if rng is None:
-        rng = random
-
-    entries = entries_from_rand(rand_dict, idx)
-    n = len(entries)
-    if n == 0:
-        return 0
-
-    # Fast numpy path when a numpy Generator is provided
-    if np is not None and hasattr(rng, 'integers') and isinstance(rng, np.random.Generator):
-        scores = np.array([s for s, _ in entries], dtype=np.int64)
-        chances = np.array([c for _, c in entries], dtype=np.uint16)
-        draws = rng.integers(0, 256, size=n, dtype=np.uint16)
-        mask = draws < chances
-        return int(scores.dot(mask.astype(np.int64)))
-
-    # get n independent bytes in one call
-    bits = rng.getrandbits(n * 8)  # produces an integer with n*8 random bits
-
+    arr = rand[idx]
     total = 0
-    for j, (s, c) in enumerate(entries):
-        # extract j-th byte (0..255)
-        r = (bits >> (8 * j)) & 0xFF
-        if r < c:           # c expected in 0..255
-            total += s
+    for score, chance in arr:
+        if np.isnan(score):
+            break
+        if random.randint(0, 255) < chance:
+            total += score
     return total

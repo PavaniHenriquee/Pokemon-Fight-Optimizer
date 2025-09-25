@@ -1,4 +1,5 @@
 """Helper for transformation of Names to number, so i can use Numpy efficiently"""
+import numpy as np
 from enum import auto, IntEnum, IntFlag
 from Models.idx_nparray import PokArray
 
@@ -182,11 +183,4 @@ class ItemActivation(IntFlag):
 def count_party(pty):
     """How many pok are alive"""
     pok_features = len(PokArray)
-    total = pty / pok_features
-    i=0
-    l = []
-    while i < total:
-        if pty[PokArray.CURRENT_HP + (pok_features * i)]:
-            l.append(True)
-        i += 1
-    return len(l)
+    return np.count_nonzero(pty[PokArray.CURRENT_HP :: pok_features] > 0)
