@@ -2,9 +2,11 @@
 import random
 from enum import Enum, auto
 import numpy as np
-from Utils.helper import get_stage, stage_to_multiplier, get_type_effectiveness
+from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
-from Models.idx_nparray import PokArray
+from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray
+from Models.helper import Status, VolStatus, Types
+from DataBase.PkDB import PokemonName
 
 
 def to_battle_array(my_pty, opp_pty):
@@ -66,9 +68,9 @@ def check_speed(p1, p2):
     """Gives speed after modifications of stages and paralysis"""
     mult1 = 1
     mult2 = 1
-    if p1.status == 'paralysis':
+    if p1[PokArray.STATUS] == Status['PARALYSIS']:
         mult1 = 0.25
-    if p2.status == 'paralysis':
+    if p2[PokArray.STATUS] == Status['PARALYSIS']:
         mult2 = 0.25
     mult1 *= stage_to_multiplier(p1[PokArray.SPEED_STAT_STAGE])
     mult2 *= stage_to_multiplier(p2[PokArray.SPEED_STAT_STAGE])
@@ -104,8 +106,11 @@ def move_order(p1, move1, p2, move2, p1_switch, p2_switch):
 
     p1_speed, p2_speed = check_speed(p1, p2)
 
-    if (move1['priority'] != 0 or move2['priority'] != 0) and move1['priority'] != move2['priority']:
-        if move1['priority'] > move2['priority']:
+    if (
+        (move1[MoveArray.PRIORITY] != 0 or move2[MoveArray.PRIORITY] != 0)
+        and move1[MoveArray.PRIORITY] != move2[MoveArray.PRIORITY]
+    ):
+        if move1[MoveArray.PRIORITY] > move2[MoveArray.PRIORITY]:
             order = [(p1, move1, p2), (p2, move2, p1)]
         else:
             order = [(p2, move2, p1), (p1, move1, p2)]
@@ -133,15 +138,15 @@ def calculate_hit_miss(move, attacker, defender):
     # TODO: Invulnerability like Eletric Ground, Poison Steel.
     # TODO: Check for flinch
 
-    if get_type_effectiveness(move['type'], defender.types) == 0:
+    if get_type_effectiveness(move[MoveArray.TYPE], defender[PokArray.TYPE1], defender[PokArray.TYPE2]) == 0:
         return MoveOutcome.INVULNERABLE
 
-    if move['accuracy'] == 'always':
+    if move[MoveArray.ACCURACY] == -1:
         return MoveOutcome.HIT
 
-    acc_stage = get_stage(attacker, "Accuracy") - get_stage(defender, "Evasion")
+    acc_stage = attacker[PokArray.ACCURACY_STAT_STAGE] - defender[PokArray.EVASION_STAT_STAGE]
     # Checking if it's an always hit move, if so it won't have an number on accuracy so it will always be 100 to hit
-    accuracy = move['accuracy'] * stage_to_multiplier(acc_stage, acc=True)
+    accuracy = move[MoveArray.ACCURACY] * stage_to_multiplier(acc_stage, acc=True)
 
     if random.randint(1, 100) <= accuracy:
         return MoveOutcome.HIT
@@ -162,34 +167,26 @@ def get_non_fainted_pokemon(party):
 
 def reset_switch_out(pok):
     """If a pokemon swithces out it needs to reset these conditions"""
-    pok.stat_stages = {
-        'Attack': 0,
-        'Defense': 0,
-        'Special Attack': 0,
-        'Special Defense': 0,
-        'Speed': 0,
-        'Accuracy': 0,
-        'Evasion': 0
-    }
-    pok.confusion = False
-    pok.attract = False
-    pok.substitute = False
-    pok.leech_seed = False
-    pok.turns = 0
-    pok.curse = False
-    if pok.badly_poison >= 1:
-        pok.badly_poison = 1
-    pok.vol_status = []
+    pok[PokArray.ATTACK_STAT_STAGE] = 0
+    pok[PokArray.DEFENSE_STAT_STAGE] = 0
+    pok[PokArray.SPECIAL_ATTACK_STAT_STAGE] = 0
+    pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE] = 0
+    pok[PokArray.SPEED_STAT_STAGE] = 0
+    pok[PokArray.ACCURACY_STAT_STAGE] = 0
+    pok[PokArray.EVASION_STAT_STAGE] = 0
+    pok[PokArray.VOL_STATUS] = 0
+    pok[PokArray.TURNS] = 0
+    pok[PokArray.BADLY_POISON] = 1
 
 
 def flinch_checker(move):
     """Returns true or false if move has a flinch percent and it should flinch"""
-    for e in move['effects']:
-        flinch = e.get('flinch', 0)
-        chance = e.get('chance', 100)
-        if flinch is True:
-            if random.randint(1, 100) <= chance:
-                return True
+    offset = len(MoveArray) + len(MoveFlags)
+    flinch = move[offset + SecondaryArray.VOL_STATUS]
+    chance = move[offset + SecondaryArray.CHANCE]
+    if flinch != 0 and flinch & VolStatus.FLINCH:
+        if random.randint(1, 100) <= chance:
+            return True
 
     return False
 
@@ -235,8 +232,8 @@ def vol_early_returns(attacker, my_pok):
 
 def thaw(move, defender):
     """Check if a move thaws"""
-    if move['type'] == 'Fire':
-        defender.status = None
-        print(f"{defender.name} has thawed out!")
+    if move[MoveArray.TYPE] == Types['FIRE']:
+        defender[PokArray.STATUS] = 0
+        print(f"{PokemonName(defender[PokArray.ID]).name.capitalize()} has thawed out!")
         return True
     return False

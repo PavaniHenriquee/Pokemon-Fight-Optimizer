@@ -121,6 +121,7 @@ class BaseArray(IntEnum):
     def _generate_next_value_(name, start, count, last_values):  # pylint: disable=(W0237, E0213)
         return count
 
+    ID = auto()
     LEVEL = auto()
     TYPE1 = auto()
     TYPE2 = auto()

@@ -1,40 +1,44 @@
 """Battle class where it follows battle flow, doing the sequence selection, start of turn, actions,
 end of turn and repeat"""
 import random
+import numpy as np
 from Engine.engine_helper import (
     check_speed,
     move_order,
     calculate_hit_miss,
     calculate_crit,
-    get_non_fainted_pokemon,
     reset_switch_out,
     MoveOutcome,
     flinch_checker,
-    vol_early_returns,
     thaw,
     to_battle_array
 )
 from Engine.status_calc import paralysis, sec_effects, calculate_effects, after_turn_status, freeze
 from Engine.damage_calc import calculate_damage
 from Models.trainer_ai import TrainerAI
-from Models.idx_nparray import PokArray
+from Models.idx_nparray import PokArray, BaseArray, MoveArray, MoveFlags, SecondaryArray, AbilityIdx
+from Models.helper import count_party, Status, VolStatus, MoveCategory
 from DataBase.PkDB import PokemonName
+from DataBase.MoveDB import MoveName
 
 
-def switch_menu(current_pokemon, alive_pokemon, my_pty):
-    """Makes what the switch menu looks like, it should loop where its used"""
+def switch_menu(current_pokemon, my_pty):
+    """Makes what the switch menu looks like, it should loop outside"""
     switch_pok = -1
     ret_menu = False
     opt = []
     print("Choose the Pokemon you want to switch to:")
-    for i, pok in enumerate(my_pty):
-        if pok in alive_pokemon and pok != current_pokemon:
+    for i in range(6):
+        if (
+            my_pty[PokArray.CURRENT_HP + len(PokArray)*i] != 0
+            and my_pty[PokArray.ID + len(PokArray)*i] != current_pokemon[PokArray.ID]
+        ):
             opt.append(i + 1)
-            print(f"{i+1}. {pok.name}")
-    if not current_pokemon.fainted:
+            print(f"{i+1}. {PokemonName(my_pty[PokArray.ID + len(PokArray)*i]).name.capitalize()}")
+    if current_pokemon[PokArray.CURRENT_HP] > 0:
         print("r. Return to previous menu")
     switch_choice = input("Choose: ")
-    if switch_choice == 'r' and not current_pokemon.fainted:
+    if switch_choice == 'r' and current_pokemon[PokArray.CURRENT_HP] >= 0:
         ret_menu = True
         return switch_pok, ret_menu
     if int(switch_choice) in opt:
@@ -44,42 +48,57 @@ def switch_menu(current_pokemon, alive_pokemon, my_pty):
     return switch_pok, ret_menu
 
 
-def battle_menu(current_pokemon, my_pty_alive, my_pty):
+def battle_menu(current_pokemon, my_pty):
     """Prompt the player for a move or switch.
 
     Returns:
-        (current_move_idx, switch_pok_idx, current_pokemon)
-        current_move_idx: index of move chosen or -1 if switch chosen
-        switch_pok_idx: index selected from the alive list (or -1)
+        (current_move_idx, switch_pok_idx) \n
+        current_move_idx: 1..4 or -1 if switch chosen \n
+        switch_pok_idx: 0..5 of my party list (or -1)
     """
     current_move_idx = -1
     switch_pok_idx = -1
-    while current_move_idx < 0 or current_move_idx >= len(current_pokemon.moves):
-        print(f"Your current Pokemon is {current_pokemon.name}")
-        if len(my_pty_alive) > 1:
+    pok_moves_len = 0
+    for m in (
+        current_pokemon[PokArray.MOVE1_ID],
+        current_pokemon[PokArray.MOVE2_ID],
+        current_pokemon[PokArray.MOVE3_ID],
+        current_pokemon[PokArray.MOVE4_ID]
+    ):
+        if m != 0:
+            pok_moves_len += 1
+
+    while current_move_idx < 0 or current_move_idx >= pok_moves_len:
+        print(f"Your current Pokemon is {PokemonName(current_pokemon[PokArray.ID]).name.capitalize()}")
+        if count_party(my_pty) > 1:
             print("Choose one of the moves or if you want to switch:")
         else:
             print("Choose one of the moves:")
 
-        for i, move in enumerate(current_pokemon.moves):
-            print(f"{i+1}. {move['name']}")
+        for i, move in enumerate(
+        (current_pokemon[PokArray.MOVE1_ID],
+        current_pokemon[PokArray.MOVE2_ID],
+        current_pokemon[PokArray.MOVE3_ID],
+        current_pokemon[PokArray.MOVE4_ID]),
+        start=1
+        ):
+            if move!= 0:
+                print(f"{i}. {MoveName(move).name.capitalize()}")
 
-        if len(my_pty_alive) > 1:
+        if count_party(my_pty) > 1:
             print('s. Switch')
 
         choice = input("Choose: ")
         if choice.isdigit():
-            current_move_idx = int(choice) - 1  # Because of index 0
-            if current_move_idx < 0 or current_move_idx >= len(current_pokemon.moves):
+            current_move_idx = int(choice) - 1
+            if current_move_idx < 0 or current_move_idx > pok_moves_len:
                 print("Please select a valid move.")
                 current_move_idx = -1
             continue
-        if choice == 's' and len(my_pty_alive) > 1:
-            alive_pokemon = my_pty_alive.copy()
-            # remove current from the choices
-            del alive_pokemon[alive_pokemon.index(current_pokemon)]
-            while switch_pok_idx < 0 and my_pty[switch_pok_idx].name in [p.name for p in alive_pokemon]:
-                switch_pok_idx, ret_menu = switch_menu(current_pokemon, my_pty_alive, my_pty)
+        if choice == 's' and count_party(my_pty) > 1:
+            alive = np.where(my_pty[PokArray.CURRENT_HP:: len(PokArray)] > 0)[0].tolist()
+            while switch_pok_idx not in alive:
+                switch_pok_idx, ret_menu = switch_menu(current_pokemon, my_pty)
                 if ret_menu:
                     break
             if switch_pok_idx >= 0:
@@ -156,8 +175,18 @@ class Battle():
             self.opp_pty_alive,
             self.turn
         )'''
-        opp_move = 1
-        current_move_idx, switch_move_idx = battle_menu(self.current_pokemon, self.my_pty_alive, self.my_pty)
+        opp_move = self.opp_ai.return_idx(
+            self.current_opp,
+            self.current_pokemon,
+            self.my_pty,
+            self.opp_ai,
+            self.turn,
+            self.op_move1,
+            self.op_move2,
+            self.op_move3,
+            self.op_move4
+        )
+        current_move_idx, switch_move_idx = battle_menu(self.current_pokemon, self.my_pty)
         return opp_move, current_move_idx, switch_move_idx
 
     def start_of_turn(self, opp_move, switch_idx):
@@ -165,56 +194,57 @@ class Battle():
         # TODO: Opponent Items
         opp_switch = None
         if opp_move == 's':
-            opp_switch = self.opp_pty_alive[self.opp_ai.sub_after_death(
-                self.opp_pty_alive, self.current_pokemon, self.current_opp
-            )]
+            i = self.opp_ai.sub_after_death(
+                self.opp_pty, self.current_pokemon, self.current_opp
+            )
+            opp_switch = self.opp_pty[(i * len(PokArray)):((i+1) * len(PokArray))]
 
         if switch_idx >= 0 and opp_move == 's':
-            my_p, opp_p = check_speed(self.current_pokemon, self.current_opp)
+            my_s, opp_s = check_speed(self.current_pokemon, self.current_opp)
             speed_tie_1 = False
             speed_tie_2 = False
-            if my_p == opp_p:
+            if my_s == opp_s:
                 if random.randint(1, 2) == 1:
                     speed_tie_1 = True
                 else:
                     speed_tie_2 = True
-            if my_p > opp_p or speed_tie_1:
+            if my_s > opp_s or speed_tie_1:
                 # TODO: Switch in abilities and terrain hazards
-                print(f'You switched {self.current_pokemon.name} out.')
+                print(f'You switched {PokemonName(self.current_pokemon[PokArray.ID]).name.capitalize()} out.')
                 reset_switch_out(self.current_pokemon)
-                self.current_pokemon = self.my_pty[switch_idx]
-                print(f'You switched {self.current_pokemon.name} in.')
+                self.current_pokemon = self.my_pty[(switch_idx * len(PokArray)):((switch_idx+1) * len(PokArray))]
+                print(f'You switched {PokemonName(self.current_pokemon[PokArray.ID]).name.capitalize()} in.')
 
-                print(f'Opponent has switched {self.current_opp.name} out.')
+                print(f'Opponent has switched {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()} out.')
                 reset_switch_out(self.current_opp)
                 self.current_opp = opp_switch
-                print(f'Opponent has switched {self.current_opp.name} in.')
-            elif my_p < opp_p or speed_tie_2:
+                print(f'Opponent has switched {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()} in.')
+            elif my_s < opp_s or speed_tie_2:
                 # TODO: Switch in abilities and terrain hazards
-                print(f'Opponent has switched {self.current_opp.name} out.')
+                print(f'Opponent has switched {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()} out.')
                 reset_switch_out(self.current_opp)
                 self.current_opp = opp_switch
-                print(f'Opponent has switched {self.current_opp.name} in.')
+                print(f'Opponent has switched {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()} in.')
 
-                print(f'You switched {self.current_pokemon.name} out.')
+                print(f'You switched {PokemonName(self.current_pokemon[PokArray.ID]).name.capitalize()} out.')
                 reset_switch_out(self.current_pokemon)
-                self.current_pokemon = self.my_pty[switch_idx]
-                print(f'You switched {self.current_pokemon.name} in.')
+                self.current_pokemon = self.my_pty[(switch_idx * len(PokArray)):((switch_idx+1) * len(PokArray))]
+                print(f'You switched {PokemonName(self.current_pokemon[PokArray.ID]).name.capitalize()} in.')
             return
 
         if opp_switch:
             # TODO: Switch in abilities and terrain hazards
-            print(f'Opponent has switched {self.current_opp.name} out.')
+            print(f'Opponent has switched {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()} out.')
             reset_switch_out(self.current_opp)
             self.current_opp = opp_switch
-            print(f'Opponent has switched {self.current_opp.name} in.')
+            print(f'Opponent has switched {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()} in.')
 
         if switch_idx >= 0:
             # TODO: Switch in abilities and terrain hazards
-            print(f'You switched {self.current_pokemon.name} out.')
+            print(f'You switched {PokemonName(self.current_pokemon[PokArray.ID]).name.capitalize()} out.')
             reset_switch_out(self.current_pokemon)
-            self.current_pokemon = self.my_pty[switch_idx]
-            print(f'You switched {self.current_pokemon.name} in.')
+            self.current_pokemon = self.my_pty[(switch_idx * len(PokArray)):((switch_idx+1) * len(PokArray))]
+            print(f'You switched {PokemonName(self.current_pokemon[PokArray.ID]).name.capitalize()} in.')
 
     def action(self, current_move, opp_move):
         """Where the moves are calculated"""
@@ -230,94 +260,132 @@ class Battle():
             opp_move = 0  # Just so i don't break the move_order function call being ->
             # self.current_opp.moves[opp_move] this need to be a number
 
+        move_offset = len(MoveArray) + len(MoveFlags) + len(SecondaryArray)
+        base_offset = len(BaseArray) + len(AbilityIdx)
+
         order = move_order(
             self.current_pokemon,
-            self.current_pokemon.moves[current_move],
+            self.current_pokemon[base_offset + (move_offset * current_move):base_offset + (move_offset * (current_move + 1))],
             self.current_opp,
-            self.current_opp.moves[opp_move],
+            self.current_opp[base_offset + (move_offset * opp_move):base_offset + (move_offset * (opp_move + 1))],
             p1_switch,
-            p2_switch)
+            p2_switch
+        )
 
         for idx, (attacker, move, defender) in enumerate(order, start=1):
             # If attacker slower and died before could attack
-            if attacker.current_hp <= 0:
+            if attacker[PokArray.CURRENT_HP] <= 0:
                 continue
             # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
-            if attacker.status == 'sleep':
-                if attacker.sleep_counter > 0:
-                    print(f"{attacker.name} is fast asleep!")
-                    attacker.sleep_counter -= 1
+            if attacker[PokArray.STATUS] == Status.SLEEP:
+                if attacker[PokArray.SLEEP_COUNTER] > 0:
+                    print(f"{PokemonName(attacker[PokArray.ID]).name.capitalize()} is fast asleep!")
+                    attacker[PokArray.SLEEP_COUNTER] -= 1
                     continue
-                attacker.status = None
-                print(f"{attacker.name} has woken up!")
+                attacker[PokArray.STATUS] = 0
+                print(f"{PokemonName(attacker[PokArray.ID]).name.capitalize()} has woken up!")
             # Check for Paralysis
-            if attacker.status == 'paralysis' and paralysis():
-                print(f"{attacker.name} is fully paralysed!")
+            if attacker[PokArray.STATUS] == Status.PARALYSIS and paralysis():
+                print(f"{PokemonName(attacker[PokArray.ID]).name.capitalize()} is fully paralysed!")
                 continue
             # Freeze
-            if attacker.status == 'freeze':
+            if attacker[PokArray.STATUS] == Status.FREEZE:
                 early_return = freeze()
                 if early_return:
-                    print(f'{attacker.name} is frozen solid!')
+                    print(f'{PokemonName(attacker[PokArray.ID]).name.capitalize()} is frozen solid!')
                     continue
-                attacker.status = None
-                print(f"{attacker.name} has thawed out!")
+                attacker[PokArray.STATUS] = 0
+                print(f"{PokemonName(attacker[PokArray.ID]).name.capitalize()} has thawed out!")
             # Flinch
             if idx >= 2 and flinch is True:
-                print(f"{attacker.name} flinched and couldn\'t move!")
+                print(f"{PokemonName(attacker[PokArray.ID]).name.capitalize()} flinched and couldn\'t move!")
                 continue
             # Volatile Status early returns, only confusion for now
-            if attacker.vol_status:
-                early_return = vol_early_returns(attacker, self.current_pokemon)
+            if attacker[PokArray.VOL_STATUS] != 0 and attacker[PokArray.VOL_STATUS] & VolStatus.CONFUSION:
+                early_return = random.randint(1,2) == 1
                 if early_return:
                     continue
             # In cases like after recoil damage, selfdestruct, etc.
-            if defender.current_hp <= 0:
-                print(f"{attacker.name} used {move['name']} on {defender.name}!")
+            if defender[PokArray.CURRENT_HP] <= 0:
+                print(
+                    f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}"
+                    f"used {MoveName(move[MoveArray.ID]).name.capitalize()} "
+                    f"on {PokemonName(defender[PokArray.ID]).name.capitalize()}!"
+                )
                 print("But it failed.")
                 continue
 
             move_hit = calculate_hit_miss(move, attacker, defender)
 
             if move_hit is MoveOutcome.HIT:
-                if move['category'] in ['Physical', 'Special']:
+                if move[MoveArray.CATEGORY] in [MoveCategory.PHYSICAL, MoveCategory.SPECIAL]:
                     self.ps_moves(attacker, defender, move)
                     flinch = flinch_checker(move)
-                    if defender.status == 'freeze':
+                    if attacker[PokArray.STATUS] == Status.FREEZE:
                         thaw(move, defender)
                 else:
-                    if attacker == self.current_pokemon:
-                        print(f"{attacker.name} used {move['name']}!")
+                    if attacker[PokArray.ID] == self.current_pokemon[PokArray.ID]:
+                        print(
+                            f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}"
+                            f"used {MoveName(move[MoveArray.ID]).name.capitalize()}!"
+                        )
                     else:
-                        print(f"Opponent {attacker.name} used {move['name']}!")
+                        print(
+                            f"Opponent {PokemonName(attacker[PokArray.ID]).name.capitalize()}"
+                            f"used {MoveName(move[MoveArray.ID]).name.capitalize()}!"
+                        )
                     calculate_effects(attacker, defender, move)
 
             if move_hit is MoveOutcome.MISS:
-                if attacker == self.current_pokemon:
-                    print(f"{attacker.name} used {move['name']}!")
+                if attacker[PokArray.ID] == self.current_pokemon[PokArray.ID]:
+                    print(
+                        f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}"
+                        f"used {MoveName(move[MoveArray.ID]).name.capitalize()}!"
+                    )
                 else:
-                    print(f"Opponent {attacker.name} used {move['name']}!")
+                    print(
+                        f"Opponent {PokemonName(attacker[PokArray.ID]).name.capitalize()}"
+                        f"used {MoveName(move[MoveArray.ID]).name.capitalize()}!"
+                    )
                 print('But it missed.')
 
             if move_hit is MoveOutcome.INVULNERABLE:
-                if attacker == self.current_pokemon:
-                    print(f"{attacker.name} used {move['name']}!")
+                if attacker[PokArray.ID] == self.current_pokemon[PokArray.ID]:
+                    print(
+                        f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}"
+                        f"used {MoveName(move[MoveArray.ID]).name.capitalize()}!"
+                    )
                 else:
-                    print(f"Opponent {attacker.name} used {move['name']}!")
+                    print(
+                        f"Opponent {PokemonName(attacker[PokArray.ID]).name.capitalize()}"
+                        f"used {MoveName(move[MoveArray.ID]).name.capitalize()}!"
+                    )
                 print('But it had no effect.')
 
     def ps_moves(self, attacker, defender, move):
         """Physical or Special moves, where I need to calculate damage and secondary effects"""
         crit = calculate_crit()
         damage, effectivness = calculate_damage(attacker, defender, move, crit)
-        defender.current_hp -= damage
-        dead = defender.current_hp <= 0
+        if damage <= defender[PokArray.CURRENT_HP]:
+            defender[PokArray.CURRENT_HP] -= damage
+            dead = False
+        else:
+            defender[PokArray.CURRENT_HP] = 0
+            dead = True
 
         # Check to see which side is attacking and represent accordingly
-        if attacker == self.current_pokemon:
-            print(f"{attacker.name} used {move['name']} on {defender.name}!")
+        if attacker[PokArray.ID] == self.current_pokemon[PokArray.ID]:
+            print(
+                    f"{PokemonName(attacker[PokArray.ID]).name.capitalize()} "
+                    f"used {MoveName(move[MoveArray.ID]).name.capitalize()} "
+                    f"on {PokemonName(defender[PokArray.ID]).name.capitalize()}!"
+                )
         else:
-            print(f"Opponent {attacker.name} used {move['name']} on {defender.name}!")
+            print(
+                    f"Opponent {PokemonName(attacker[PokArray.ID]).name.capitalize()} "
+                    f"used {MoveName(move[MoveArray.ID]).name.capitalize()} "
+                    f"on {PokemonName(defender[PokArray.ID]).name.capitalize()}!"
+                )
 
         # Text to show crit
         if crit is True:
@@ -333,62 +401,65 @@ class Battle():
             print("\033[94mIt's not very effective... \033[0m")
 
         # Check for secondary effects and apply them
-        if move['effects']:
+        if move[len(MoveArray) + len(MoveFlags) + SecondaryArray.CHANCE]:
             sec_effects(move, attacker, defender, damage)
 
         # Text of how much hp left, or if dead
         if dead:
-            print(f"\033[91m{defender.name} has fainted! \033[0m")
-            defender.fainted = True
+            print(f"\033[91m{PokemonName(defender[PokArray.ID]).name.capitalize()} has fainted! \033[0m")
         else:
-            print(f"{defender.name} has {defender.current_hp} HP left.")
+            print(
+                f"{PokemonName(defender[PokArray.ID]).name.capitalize()} "
+                f"has {int(defender[PokArray.CURRENT_HP])} HP left."
+            )
 
     def end_of_turn(self):
-        """Does end of turn calculations like switch if dead, burn, poison, leech seed, ...,
-        items like leftovers, hail, sandstorm"""
+        """Does end of turn calculations like switch if dead, burn, poison, leech seed, ...,\n
+        items like leftovers\n
+        Weather damage like hail, sandstorm"""
         # TODO: weather
         # TODO: Abilities
         # TODO: Items
 
         # Calculate after turn status like burn, leech seed, curse
-        if self.current_pokemon.fainted is False:
+        if self.current_pokemon[PokArray.CURRENT_HP] >= 0:
             after_turn_status(self.current_pokemon)
-        if self.current_opp.fainted is False:
+        if self.current_opp[PokArray.CURRENT_HP] >= 0:
             after_turn_status(self.current_opp)
 
-        # Switch after everything it Pokemon is dead. TODO: order of switch
-        if self.current_pokemon.fainted is True:
-            switch_pok_idx = -1
-            self.my_pty_alive = get_non_fainted_pokemon(self.my_pty_alive)
-            if len(self.my_pty_alive) == 0:
+        # Switch after everything and Pokemon is dead. TODO: order of switch
+        if self.current_pokemon[PokArray.CURRENT_HP] <= 0:
+            switch_idx = -1
+            if count_party(self.my_pty) == 0:
                 return
-            while switch_pok_idx < 0 and self.my_pty[switch_pok_idx].name in [p.name for p in self.my_pty_alive]:
-                switch_pok_idx, _ = switch_menu(self.current_pokemon, self.my_pty_alive, self.my_pty)
-                self.current_pokemon = self.my_pty[switch_pok_idx]
-        if self.current_opp.fainted is True:
-            self.opp_pty_alive = get_non_fainted_pokemon(self.opp_pty_alive)
-            if len(self.opp_pty_alive) == 0:
+            alive = np.where(self.my_pty[PokArray.CURRENT_HP:: len(PokArray)] > 0)[0].tolist()
+            while switch_idx not in alive:
+                switch_idx, _ = switch_menu(self.current_pokemon, self.my_pty)
+                self.current_pokemon = self.my_pty[(switch_idx * len(PokArray)):((switch_idx+1) * len(PokArray))]
+        if self.current_opp[PokArray.CURRENT_HP] <= 0:
+            if count_party(self.opp_pty) == 0:
                 return
-            self.current_opp = self.opp_pty_alive[
-                self.opp_ai.sub_after_death(self.opp_pty_alive, self.current_pokemon, self.current_opp)
-            ]
-            print(f'the opponent has sent {self.current_opp.name} out')
+            i = self.opp_ai.sub_after_death(
+                self.opp_pty, self.current_pokemon, self.current_opp
+            )
+            self.current_opp = self.opp_pty[(i * len(PokArray)):((i+1) * len(PokArray))]
+            print(f'the opponent has sent {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()} out')
 
     def run(self):
         """Runs through the entire battle"""
         self.start_of_battle()
-        while len(self.my_pty_alive) > 0 and len(self.opp_pty_alive) > 0:
+        while count_party(self.my_pty) > 0 and count_party(self.opp_pty) > 0:
             opp_move, current_move, switch_idx = self.selection()
             self.start_of_turn(opp_move, switch_idx)
             self.action(current_move, opp_move)
             self.end_of_turn()
             self.turn += 1
-            self.current_opp.turns += 1
-            self.current_pokemon.turns += 1
+            self.current_opp[PokArray.TURNS] += 1
+            self.current_pokemon[PokArray.TURNS] += 1
 
-        if len(self.my_pty_alive) == 0:
+        if count_party(self.my_pty) == 0:
             print("You Lost!")
-        if len(self.opp_pty_alive) == 0:
+        if count_party(self.opp_pty) == 0:
             print("You Won!")
 
 

@@ -61,6 +61,7 @@ class VolStatus(IntFlag):
     PARTIALLY_TRAPPED = auto()
     LEECH_SEED = auto()
     CURSE = auto()
+    ATTRACT = auto()
 
 
 class SideCondition(IntFlag):
@@ -152,7 +153,7 @@ class AbilityActivation(IntFlag):
 class MoveCategory(IntEnum):
     """The three move types"""
     def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count
+        return count + 1
     PHYSICAL = auto()
     SPECIAL = auto()
     STATUS = auto()

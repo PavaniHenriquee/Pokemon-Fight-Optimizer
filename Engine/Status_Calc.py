@@ -1,116 +1,279 @@
 """Calculate Status effects moves"""
-import math
 import random
+import numpy as np
+from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray
+from Models.helper import Status, MoveCategory, Target
+from DataBase.PkDB import PokemonName
 
 
-def apply_status(status, pok, badly_p, sec=False):
+def apply_status(move, pok, sec=False):
     """Apply status effects"""
-    if status != 'sleep':
-        if not pok.status:
-            pok.status = status
-            print(f"{pok.name}'s was afflicted by {status}")
-            if badly_p:
-                pok.badly_poison = 1
+    if sec:
+        offset = len(MoveArray) + len(MoveFlags)
+        if move[offset + SecondaryArray.STATUS] != Status.SLEEP:
+            if pok[PokArray.STATUS] == 0:
+                pok[PokArray.STATUS] = move[offset + SecondaryArray.STATUS]
+                print(
+                    f"{PokemonName(pok[PokArray.ID]).name.capitalize()}'s "
+                    f"was afflicted by {Status(move[offset + SecondaryArray.STATUS]).name.lower()}"
+                )
+                if move[offset + SecondaryArray.STATUS] == Status.TOXIC:
+                    pok[PokArray.BADLY_POISON] = 1
+                return
             return
-        if not sec:
-            print('But it failed.')
+        if pok[PokArray.STATUS] == Status.SLEEP:
+            return
+        pok[PokArray.STATUS] = move[offset + SecondaryArray.STATUS]
+        pok[PokArray.SLEEP_COUNTER] = np.random.randint(1,5)  # End not inclusive thats why to 5
+        print(f"{PokemonName(pok[PokArray.ID]).name.capitalize()} is fast asleep")
         return
-    if pok.status == 'sleep':
-        if not sec:
-            print('But it failed.')
+    if move[MoveArray.STATUS] != Status.SLEEP:
+        if pok[PokArray.STATUS] == 0:
+            pok[PokArray.STATUS] = move[MoveArray.STATUS]
+            print(
+                f"{PokemonName(pok[PokArray.ID]).name.capitalize()}'s "
+                f"was afflicted by {Status(move[MoveArray.STATUS]).name.lower()}"
+            )
+            if move[MoveArray.STATUS] == Status.TOXIC:
+                pok[PokArray.BADLY_POISON] = 1
+            return
+        print('But it failed.')
         return
-    pok.status = status
-    pok.sleep_counter = random.randint(1, 4)
-    print(f"{pok.name} is fast asleep")
+    if pok[PokArray.STATUS] == Status.SLEEP:
+        print('But it failed.')
+        return
+    pok[PokArray.STATUS] = move[MoveArray.STATUS]
+    pok[PokArray.SLEEP_COUNTER] = np.random.randint(1,5)  # End not inclusive thats why to 5
+    print(f"{PokemonName(pok[PokArray.ID]).name.capitalize()} is fast asleep")
     return
 
 
-def drain_effect(attacker, dmg):
+def drain_effect(attacker, dmg, drain_amount):
     """Calculates how much should it drain"""
-    drain_hp = math.floor(dmg / 2)
+    drain_hp = np.floor(dmg * drain_amount)
     if drain_hp <= 0:
         drain_hp = 1
-    if attacker.current_hp + drain_hp > attacker.max_hp:
-        drain_hp = attacker.max_hp - attacker.current_hp
+    if attacker[PokArray.CURRENT_HP] + drain_hp > attacker[PokArray.MAX_HP]:
+        drain_hp = attacker[PokArray.MAX_HP] - attacker[PokArray.CURRENT_HP]
     if drain_hp <= 0:
         return
-    attacker.current_hp += drain_hp
-    print(f"{attacker.name} drained {drain_hp} HP")
+    attacker[PokArray.CURRENT_HP] += drain_hp
+    print(f"{PokemonName(attacker[PokArray.ID]).name.capitalize()} drained {drain_hp} HP")
 
 
 def calculate_effects(attacker, defender, move):
     """Calculate the effect parts of the moves"""
-    if move['category'] != "Status":
+    if move[MoveArray.CATEGORY] != MoveCategory.STATUS:
         return
 
-    for eff in move['effects']:
-        eff_t = eff.get('effect_type', 0)
-        target = eff.get('target', 0)
-        stat = eff.get('stat', 0)
-        stages = int(eff.get('stages', 0))
-        status = eff.get('status', 0)
-        badly_p = eff.get('badly_posion', 0)
-        # Stat boost and reducing
-        if eff_t == 'stat_change':
-            if target in ['self']:
-                attacker.stat_stages[stat] += stages
-                print(f"{attacker.name}'s {stat} changed by {stages} stages.")
-                continue
-            if target in ['target', 'all_adjacent_opponents']:
-                defender.stat_stages[stat] += stages
-                print(f"{defender.name}'s {stat} changed by {stages} stages.")
-                continue
-            raise ValueError("Target isn't defined in calculate effects")
-        # Status
-        if eff_t == 'status_inducing':
-            if target == 'target':
-                apply_status(status, defender, badly_p)
-            raise ValueError("Shouldn't have self status change")
+    # Stat boost and reducing
+    if any(move[MoveArray.BOOST_ATK: MoveArray.BOOST_EV + 1]):
+        if move[MoveArray.TARGET] in (
+            Target.ADJACENT_ALLY,
+            Target.ADJACENT_ALLY_OR_SELF,
+            Target.ALLIES,
+            Target.ALLY_SIDE,
+            Target.SELF
+        ):
+            if move[MoveArray.BOOST_ATK]:
+                attacker[PokArray.ATTACK_STAT_STAGE] += move[MoveArray.BOOST_ATK]
+                print(
+                    f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                    f"attack changed by {int(move[MoveArray.BOOST_ATK])} stages."
+                )
+            if move[MoveArray.BOOST_DEF]:
+                attacker[PokArray.DEFENSE_STAT_STAGE] += move[MoveArray.BOOST_DEF]
+                print(
+                    f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                    f"defense changed by {int(move[MoveArray.BOOST_DEF])} stages."
+                )
+            if move[MoveArray.BOOST_SPATK]:
+                attacker[PokArray.SPECIAL_ATTACK_STAT_STAGE] += move[MoveArray.BOOST_SPATK]
+                print(
+                    f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                    f"special attack changed by {int(move[MoveArray.BOOST_SPATK])} stages."
+                )
+            if move[MoveArray.BOOST_SPDEF]:
+                attacker[PokArray.SPECIAL_DEFENSE_STAT_STAGE] += move[MoveArray.BOOST_SPDEF]
+                print(
+                    f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                    f"special defense changed by {int(move[MoveArray.BOOST_SPDEF])} stages."
+                )
+            if move[MoveArray.BOOST_SPEED]:
+                attacker[PokArray.SPEED_STAT_STAGE] += move[MoveArray.BOOST_SPEED]
+                print(
+                    f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                    f"speed changed by {int(move[MoveArray.BOOST_SPEED])} stages."
+                )
+            if move[MoveArray.BOOST_ACC]:
+                attacker[PokArray.ACCURACY_STAT_STAGE] += move[MoveArray.BOOST_ACC]
+                print(
+                    f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                    f"accuracy changed by {int(move[MoveArray.BOOST_ACC])} stages."
+                )
+            if move[MoveArray.BOOST_EV]:
+                attacker[PokArray.EVASION_STAT_STAGE] += move[MoveArray.BOOST_EV]
+                print(
+                    f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                    f"evasion changed by {int(move[MoveArray.BOOST_EV])} stages."
+                )
+
+        if move[MoveArray.TARGET] in (
+            Target.NORMAL,
+            Target.ADJACENT_FOE,
+            Target.ALL_ADJACENT_FOES,
+            Target.ANY,
+            Target.FOE_SIDE,
+            Target.RANDOM_NORMAL,
+            Target.SCRIPTED
+        ):
+            if move[MoveArray.BOOST_ATK]:
+                defender[PokArray.ATTACK_STAT_STAGE] += move[MoveArray.BOOST_ATK]
+                print(
+                    f"{PokemonName(defender[PokArray.ID]).name.capitalize()}'s "
+                    f"attack changed by {int(move[MoveArray.BOOST_ATK])} stages."
+                )
+            if move[MoveArray.BOOST_DEF]:
+                defender[PokArray.DEFENSE_STAT_STAGE] += move[MoveArray.BOOST_DEF]
+                print(
+                    f"{PokemonName(defender[PokArray.ID]).name.capitalize()}'s "
+                    f"defense changed by {int(move[MoveArray.BOOST_DEF])} stages."
+                )
+            if move[MoveArray.BOOST_SPATK]:
+                defender[PokArray.SPECIAL_ATTACK_STAT_STAGE] += move[MoveArray.BOOST_SPATK]
+                print(
+                    f"{PokemonName(defender[PokArray.ID]).name.capitalize()}'s "
+                    f"special attack changed by {int(move[MoveArray.BOOST_SPATK])} stages."
+                )
+            if move[MoveArray.BOOST_SPDEF]:
+                defender[PokArray.SPECIAL_DEFENSE_STAT_STAGE] += move[MoveArray.BOOST_SPDEF]
+                print(
+                    f"{PokemonName(defender[PokArray.ID]).name.capitalize()}'s "
+                    f"special defense changed by {int(move[MoveArray.BOOST_SPDEF])} stages."
+                )
+            if move[MoveArray.BOOST_SPEED]:
+                defender[PokArray.SPEED_STAT_STAGE] += move[MoveArray.BOOST_SPEED]
+                print(
+                    f"{PokemonName(defender[PokArray.ID]).name.capitalize()}'s "
+                    f"speed changed by {int(move[MoveArray.BOOST_SPEED])} stages."
+                )
+            if move[MoveArray.BOOST_ACC]:
+                defender[PokArray.ACCURACY_STAT_STAGE] += move[MoveArray.BOOST_ACC]
+                print(
+                    f"{PokemonName(defender[PokArray.ID]).name.capitalize()}'s "
+                    f"accuracy changed by {int(move[MoveArray.BOOST_ACC])} stages."
+                )
+            if move[MoveArray.BOOST_EV]:
+                defender[PokArray.EVASION_STAT_STAGE] += move[MoveArray.BOOST_EV]
+                print(
+                    f"{PokemonName(defender[PokArray.ID]).name.capitalize()}'s "
+                    f"evasion changed by {int(move[MoveArray.BOOST_EV])} stages."
+                )
+    # Status
+    if move[MoveArray.STATUS] != 0:
+        if move[MoveArray.TARGET] in (
+            Target.NORMAL,
+            Target.ADJACENT_FOE,
+            Target.ALL_ADJACENT_FOES,
+            Target.ANY,
+            Target.FOE_SIDE,
+            Target.RANDOM_NORMAL,
+            Target.SCRIPTED
+        ):
+            apply_status(move, defender)
+        raise ValueError("Shouldn't have self status change")
 
 
 def sec_effects(move, attacker, defender, dmg):
     """Calculate the secondary effects, like 10% of burning,
     30% of increasing attacking, Drain moves etc."""
-    effects = move['effects']
-    for e in effects:
-        chance = e.get('chance', 100)
-        roll = random.randint(1, 100) if chance < 100 else 0
-        if roll <= chance:
-            target = e.get('target', 0)
-            status = e.get('status', 0)
-            stat = e.get('stat', 0)
-            stages = e.get('stages', 0)
-            drain = e.get('drain', 0)
-            badly_p = e.get('badly_posion', 0)
-            if target == 'target':
-                if status:
-                    apply_status(status, defender, badly_p, sec=True)
-                    continue
-            if target == 'self':
-                if stat:
-                    attacker.stat_stages[stat] += stages
-                    print(f"{attacker.name}'s {stat} changed by {stages} stages.")
-                    continue
-                if drain:
-                    drain_effect(attacker, dmg)
+    offset = len(MoveArray) + len(MoveFlags)
+    chance = move[offset + SecondaryArray.CHANCE]
+    roll = random.randint(1, 10) if chance < 100 else 0
+    if roll <= chance:
+        if move[MoveArray.TARGET] in (
+            Target.NORMAL,
+            Target.ADJACENT_FOE,
+            Target.ALL_ADJACENT_FOES,
+            Target.ANY,
+            Target.FOE_SIDE,
+            Target.RANDOM_NORMAL,
+            Target.SCRIPTED
+        ):
+            a = move[offset + SecondaryArray.STATUS]
+            if a != 0:
+                apply_status(move, defender, sec=True)
+        if move[MoveArray.TARGET] in (
+            Target.ADJACENT_ALLY,
+            Target.ADJACENT_ALLY_OR_SELF,
+            Target.ALLIES,
+            Target.ALLY_SIDE,
+            Target.SELF
+        ):
+            if any(move[offset + SecondaryArray.SEC_BOOST_ATK: offset + SecondaryArray.SEC_BOOST_EV + 1]):
+                if move[offset + SecondaryArray.SEC_BOOST_ATK]:
+                    attacker[PokArray.ATTACK_STAT_STAGE] += move[offset + SecondaryArray.SEC_BOOST_ATK]
+                    print(
+                        f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                        f"attack changed by {int(move[offset + SecondaryArray.SEC_BOOST_ATK])} stages."
+                    )
+                if move[offset + SecondaryArray.SEC_BOOST_DEF]:
+                    attacker[PokArray.DEFENSE_STAT_STAGE] += move[offset + SecondaryArray.SEC_BOOST_DEF]
+                    print(
+                        f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                        f"defense changed by {int(move[offset + SecondaryArray.SEC_BOOST_DEF])} stages."
+                    )
+                if move[offset + SecondaryArray.SEC_BOOST_SPATK]:
+                    attacker[PokArray.SPECIAL_ATTACK_STAT_STAGE] += move[offset + SecondaryArray.SEC_BOOST_SPATK]
+                    print(
+                        f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                        f"special attack changed by {int(move[offset + SecondaryArray.SEC_BOOST_SPATK])} stages."
+                    )
+                if move[offset + SecondaryArray.SEC_BOOST_SPDEF]:
+                    attacker[PokArray.SPECIAL_DEFENSE_STAT_STAGE] += move[offset + SecondaryArray.SEC_BOOST_SPDEF]
+                    print(
+                        f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                        f"special defense changed by {int(move[offset + SecondaryArray.SEC_BOOST_SPDEF])} stages."
+                    )
+                if move[offset + SecondaryArray.SEC_BOOST_SPEED]:
+                    attacker[PokArray.SPEED_STAT_STAGE] += move[offset + SecondaryArray.SEC_BOOST_SPEED]
+                    print(
+                        f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                        f"speed changed by {int(move[offset + SecondaryArray.SEC_BOOST_SPEED])} stages."
+                    )
+                if move[offset + SecondaryArray.SEC_BOOST_ACC]:
+                    attacker[PokArray.ACCURACY_STAT_STAGE] += move[offset + SecondaryArray.SEC_BOOST_ACC]
+                    print(
+                        f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                        f"accuracy changed by {int(move[offset + SecondaryArray.SEC_BOOST_ACC])} stages."
+                    )
+                if move[offset + SecondaryArray.SEC_BOOST_EV]:
+                    attacker[PokArray.EVASION_STAT_STAGE] += move[offset + SecondaryArray.SEC_BOOST_EV]
+                    print(
+                        f"{PokemonName(attacker[PokArray.ID]).name.capitalize()}'s "
+                        f"evasion changed by {int(move[offset + SecondaryArray.SEC_BOOST_EV])} stages."
+                    )
+            if move[MoveArray.DRAIN]:
+                drain_effect(attacker, dmg, move[MoveArray.DRAIN])
 
 
 def after_turn_status(pok):
-    """Calculate damage after turn like burn, poison, curse*, leech seed*"""
-    if pok.status:
-        s = pok.status
-        if s in ('burn', 'poison'):
-            if pok.badly_poison >= 1:
-                dmg = math.floor(pok.max_hp * pok.badly_poison * (1 / 16))
+    """Calculate damage after turn like burn, poison, volatile status"""
+    # TODO:
+    if pok[PokArray.STATUS]:
+        if pok[PokArray.STATUS] in (Status.BURN, Status.POISON):
+            if pok[PokArray.BADLY_POISON] >= 1:
+                dmg = np.floor(pok[PokArray.MAX_HP] * pok[PokArray.BADLY_POISON] * (1 / 16))
+                pok[PokArray.BADLY_POISON] += 1
             else:
-                dmg = math.floor(pok.max_hp / 8)
-            pok.current_hp -= dmg
-            print(f'{pok.name} suffered {dmg} HP from {s}')
-            if pok.current_hp <= 0:
-                print(f'{pok.name} has fainted.')
-                pok.fainted = True
+                dmg = np.floor(pok[PokArray.MAX_HP] / 8)
+            pok[PokArray.CURRENT_HP] -= dmg
+            print(f'{PokemonName(pok[PokArray.ID]).name.capitalize()} suffered {dmg} HP from {Status(pok[PokArray.STATUS]).name.lower()}')
+            if pok[PokArray.CURRENT_HP] <= 0:
+                print(f'{PokemonName(pok[PokArray.ID]).name.capitalize()} has fainted.')
+                pok[PokArray.CURRENT_HP] = 0
             else:
-                print(f'{pok.name} has {pok.current_hp} left.')
+                print(f'{PokemonName(pok[PokArray.ID]).name.capitalize()} has {pok[PokArray.CURRENT_HP]} left.')
 
 
 def paralysis():

@@ -126,10 +126,10 @@ class Move():
         sec_array[SecondaryArray.SEC_BOOST_ACC] = secondary.get('boost', {}).get('accuracy', 0) if secondary and secondary.get('boost', None) else 0
         sec_array[SecondaryArray.SEC_BOOST_EV] = secondary.get('boost', {}).get('evasion', 0) if secondary and secondary.get('boost', None) else 0
         sec_array[SecondaryArray.STATUS] = Status[secondary.get('status', 'None').upper()] if secondary and secondary.get('status', None) else 0
-        sec_array[SecondaryArray.VOL_STATUS] = VolStatus[secondary.get('vol_status', 'None').upper()] if secondary and secondary.get('volatileStatus', None) else -1
+        sec_array[SecondaryArray.VOL_STATUS] = VolStatus[secondary.get('vol_status', 'None').upper()] if secondary and secondary.get('volatileStatus', None) else 0
         # Second secondary effect(for the fangs moves)
         sec_array[SecondaryArray.CHANCE2] = secondary2.get('chance', 0) if secondary2 else 0
-        sec_array[SecondaryArray.VOL_STATUS2] = VolStatus[secondary2.get('vol_status', 'None').upper()] if secondary2 and secondary2.get('volatileStatus', None) else -1
+        sec_array[SecondaryArray.VOL_STATUS2] = VolStatus[secondary2.get('vol_status', 'None').upper()] if secondary2 and secondary2.get('volatileStatus', None) else 0
         return sec_array
 
     def to_array(self):
