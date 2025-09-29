@@ -99,7 +99,7 @@ def calculate_damage(attacker: Pokemon, defender: Pokemon, move: Move, crit: boo
     if move[MoveArray.CATEGORY] == MoveCategory.STATUS or move[MoveArray.CATEGORY] == 0:
         # Status moves don't deal damage(Trainer AI will fall here)
         return 0, 0
-    if move[MoveArray.CATEGORY] == MoveCategory.STATUS:
+    if move[MoveArray.CATEGORY] == MoveCategory.PHYSICAL:
         raw_attack = attacker[PokArray.ATTACK]
         raw_defense = defender[PokArray.DEFENSE]
         atk_stage = attacker[PokArray.ATTACK_STAT_STAGE]

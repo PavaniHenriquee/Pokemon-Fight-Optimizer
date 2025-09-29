@@ -189,7 +189,7 @@ def sec_effects(move, attacker, defender, dmg):
     30% of increasing attacking, Drain moves etc."""
     offset = len(MoveArray) + len(MoveFlags)
     chance = move[offset + SecondaryArray.CHANCE]
-    roll = random.randint(1, 10) if chance < 100 else 0
+    roll = random.randint(1, 100) if chance < 100 else 0
     if roll <= chance:
         if move[MoveArray.TARGET] in (
             Target.NORMAL,

@@ -20,6 +20,7 @@ from Models.idx_nparray import PokArray, BaseArray, MoveArray, MoveFlags, Second
 from Models.helper import count_party, Status, VolStatus, MoveCategory
 from DataBase.PkDB import PokemonName
 from DataBase.MoveDB import MoveName
+from SearchEngine.expectminimax import AIBattleInterface
 
 
 def switch_menu(current_pokemon, my_pty):
@@ -186,6 +187,12 @@ class Battle():
             self.op_move3,
             self.op_move4
         )
+
+        ai_interface = AIBattleInterface(nuzlocke_mode=True, max_depth=5)
+        ai_decision = ai_interface.get_ai_decision(self)
+        ai_interface.format_for_display(ai_decision)
+
+
         current_move_idx, switch_move_idx = battle_menu(self.current_pokemon, self.my_pty)
         return opp_move, current_move_idx, switch_move_idx
 
