@@ -21,6 +21,7 @@ from Models.helper import count_party, Status, VolStatus, MoveCategory
 from DataBase.PkDB import PokemonName
 from DataBase.MoveDB import MoveName
 from SearchEngine.expectminimax import AIBattleInterface
+from SearchEngine.my_mcts import BattlePhase
 
 
 def switch_menu(current_pokemon, my_pty):
@@ -113,9 +114,9 @@ def battle_menu(current_pokemon, my_pty):
 
 class Battle():
     """Battle class, where i calculate all the battle, following the flow of battle"""
-    def __init__(self, my_pty, opp_pty):
+    def __init__(self, my_pty=None, opp_pty=None, battle_array=None):
         # Make the normalized battle array
-        self.battle_array = to_battle_array(my_pty, opp_pty)
+        self.battle_array = to_battle_array(my_pty, opp_pty) if battle_array is None else battle_array
         pok_features = len(PokArray)
         self.pok1 = self.battle_array[0:pok_features]
         self.pok2 = self.battle_array[pok_features:(2 * pok_features)]
@@ -420,7 +421,7 @@ class Battle():
                 f"has {int(defender[PokArray.CURRENT_HP])} HP left."
             )
 
-    def end_of_turn(self):
+    def end_of_turn(self, search=False):
         """Does end of turn calculations like switch if dead, burn, poison, leech seed, ...,\n
         items like leftovers\n
         Weather damage like hail, sandstorm"""
@@ -435,14 +436,6 @@ class Battle():
             after_turn_status(self.current_opp)
 
         # Switch after everything and Pokemon is dead. TODO: order of switch
-        if self.current_pokemon[PokArray.CURRENT_HP] <= 0:
-            switch_idx = -1
-            if count_party(self.my_pty) == 0:
-                return
-            alive = np.where(self.my_pty[PokArray.CURRENT_HP:: len(PokArray)] > 0)[0].tolist()
-            while switch_idx not in alive:
-                switch_idx, _ = switch_menu(self.current_pokemon, self.my_pty)
-                self.current_pokemon = self.my_pty[(switch_idx * len(PokArray)):((switch_idx+1) * len(PokArray))]
         if self.current_opp[PokArray.CURRENT_HP] <= 0:
             if count_party(self.opp_pty) == 0:
                 return
@@ -451,6 +444,20 @@ class Battle():
             )
             self.current_opp = self.opp_pty[(i * len(PokArray)):((i+1) * len(PokArray))]
             print(f'the opponent has sent {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()} out')
+        if search is False:
+            if self.current_pokemon[PokArray.CURRENT_HP] <= 0:
+                switch_idx = -1
+                if count_party(self.my_pty) == 0:
+                    return
+                alive = np.where(self.my_pty[PokArray.CURRENT_HP:: len(PokArray)] > 0)[0].tolist()
+                while switch_idx not in alive:
+                    switch_idx, _ = switch_menu(self.current_pokemon, self.my_pty)
+                    self.current_pokemon = self.my_pty[(switch_idx * len(PokArray)):((switch_idx+1) * len(PokArray))]
+        else:
+            self.current_pokemon = self.my_pty[(search * len(PokArray)):((search+1) * len(PokArray))]
+            self.turn += 1
+            self.current_opp[PokArray.TURNS] += 1
+            self.current_pokemon[PokArray.TURNS] += 1
 
     def run(self):
         """Runs through the entire battle"""
@@ -468,6 +475,23 @@ class Battle():
             print("You Lost!")
         if count_party(self.opp_pty) == 0:
             print("You Won!")
+
+    def turn_sim(self, opp_move, current_move):
+        """One turn"""
+        if current_move <= 3:
+            switch_idx = -1
+        else:
+            switch_idx = current_move - 4
+        self.start_of_turn(opp_move, switch_idx)
+        self.action(current_move, opp_move)
+        self.end_of_turn(search=True)
+        self.turn += 1
+        self.current_opp[PokArray.TURNS] += 1
+        self.current_pokemon[PokArray.TURNS] += 1
+        if self.current_pokemon[PokArray.CURRENT_HP] <= 0:
+            return BattlePhase.DEATH_END_OF_TURN, False
+
+        return BattlePhase.TURN_START, False
 
 
 def battle(my_pty, opp_pty):
