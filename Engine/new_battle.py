@@ -21,7 +21,6 @@ from Models.helper import count_party, Status, VolStatus, MoveCategory
 from DataBase.PkDB import PokemonName
 from DataBase.MoveDB import MoveName
 from SearchEngine.expectminimax import AIBattleInterface
-from SearchEngine.my_mcts import BattlePhase
 
 
 def switch_menu(current_pokemon, my_pty):
@@ -444,7 +443,7 @@ class Battle():
             )
             self.current_opp = self.opp_pty[(i * len(PokArray)):((i+1) * len(PokArray))]
             print(f'the opponent has sent {PokemonName(self.current_opp[PokArray.ID]).name.capitalize()} out')
-        if search is False:
+        if search >= 0:
             if self.current_pokemon[PokArray.CURRENT_HP] <= 0:
                 switch_idx = -1
                 if count_party(self.my_pty) == 0:
@@ -476,18 +475,22 @@ class Battle():
         if count_party(self.opp_pty) == 0:
             print("You Won!")
 
-    def turn_sim(self, opp_move, current_move):
+    def turn_sim(self, opp_move, current_action):
         """One turn"""
-        if current_move <= 3:
+        from SearchEngine.my_mcts import BattlePhase  # pylint:disable=C0415
+        if current_action[0] == 'move':
             switch_idx = -1
+            current_move = current_action[1]
         else:
-            switch_idx = current_move - 4
+            current_move = -1
+            switch_idx = current_action[1]
         self.start_of_turn(opp_move, switch_idx)
         self.action(current_move, opp_move)
         self.end_of_turn(search=True)
         self.turn += 1
         self.current_opp[PokArray.TURNS] += 1
         self.current_pokemon[PokArray.TURNS] += 1
+        print(self.current_pokemon[PokArray.ID])
         if self.current_pokemon[PokArray.CURRENT_HP] <= 0:
             return BattlePhase.DEATH_END_OF_TURN, False
 

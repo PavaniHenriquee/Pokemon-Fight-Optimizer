@@ -18,6 +18,7 @@ from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray
 from Models.helper import count_party
 from Models.trainer_ai import TrainerAI
 from Engine.new_battle import Battle
+from SearchEngine.mcts_eval import evaluate_terminal
 
 
 class ActionType(Enum):
@@ -107,10 +108,10 @@ class GameState():
     def step(self, my_move_idx):
         """Simulate the entire turn"""
         new = self.clone()
-        battle = Battle(battle_array=self.battle_array)
+        battle = Battle(battle_array=new.battle_array)
         if self.phase == BattlePhase.DEATH_END_OF_TURN:
-            battle.end_of_turn(search=my_move_idx)
-            new.my_active = my_move_idx
+            battle.end_of_turn(search=my_move_idx[1])
+            new.my_active = my_move_idx[1]
             new.phase = BattlePhase.TURN_START
             return new
         opp_move_idx = self.opp_ai.return_idx(
@@ -148,26 +149,31 @@ class Node():
         self.total_value = 0
         self.legal_moves = state.get_valid_actions(is_player=True)
 
-    def ucb(self, c=0.5):
-        """
-        - Basic formula: value/visits + C * sqrt(ln(parent_visits)/visits)
-        - For Nuzlocke: Modify C (exploration constant) to be conservative (~0.5)
-        """
-        if self.visits == 0:
-            return float('inf')
-        # Ensure parent.visits used in log is at least 1 to avoid log(0)
-        if self.parent is None:
-            parent_visits = 1
-        else:
-            parent_visits = max(1, self.parent.visits)
-        return (self.total_value / self.visits) + c * math.sqrt(math.log(parent_visits) / self.visits)
-
     def best_action(self, c=0.5):
         """Best outcome"""
-        return max(self.children.values(), key=lambda n: n.ucb(c))
+        best_key, best_node = None, None
+        best_val = -float("inf")
+
+        parent_visits = max(1, self.visits)
+        log_parent_visits = math.log(parent_visits)
+
+        for key, child in self.children.items():
+            if child.visits == 0:
+                # Shortcut: unvisited nodes always win
+                return key, child
+
+            # Inline UCB formula (avoid function calls)
+            ucb_val = (child.total_value / child.visits) + c * math.sqrt(log_parent_visits / child.visits)
+
+            if ucb_val > best_val:
+                best_val = ucb_val
+                best_key = key
+                best_node = child
+
+        return best_key, best_node
 
 
-def mcts(root_state, iterations):
+def mcts(root_state: GameState, iterations: int):
     """MCTS"""
     root = Node(root_state)
 
@@ -187,9 +193,9 @@ def mcts(root_state, iterations):
                 break
             elif node.children:
                 # All actions explored, select best child
-                action = node.best_action()  # Pick action with best UCB
-                node = node.children[action]
-                state = state.step(action)
+                action_key, action = node.best_action()  # Pick action with best UCB
+                node = action
+                state = state.step(action_key)
                 path.append(node)
             else:
                 # No valid actions (shouldn't happen)
@@ -216,10 +222,9 @@ def mcts(root_state, iterations):
                 action = random.choice(sim_state.get_valid_actions())
             sim_state = sim_state.step(action)
 
-        '''# 4) Backpropagation
+        # 4) Backpropagation
         value = evaluate_terminal(sim_state)  # Your evaluation
         for node in reversed(path):
             node.visits += 1
             node.total_value += value
-            # Flip value for opponent nodes if needed'''
         
