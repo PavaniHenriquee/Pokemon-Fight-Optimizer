@@ -1,54 +1,53 @@
 """Helper for transformation of Names to number, so i can use Numpy efficiently"""
+from enum import auto, IntFlag
+from types import SimpleNamespace
 import numpy as np
-from enum import auto, IntEnum, IntFlag
 from Models.idx_nparray import PokArray
 
 
-class Types(IntEnum):
-    """Types to numbers"""
-    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count + 1
-    NORMAL = auto()
-    FIGHTING = auto()
-    FLYING = auto()
-    POISON = auto()
-    GROUND = auto()
-    ROCK = auto()
-    BUG = auto()
-    GHOST = auto()
-    STEEL = auto()
-    FIRE = auto()
-    WATER = auto()
-    GRASS = auto()
-    ELECTRIC = auto()
-    PSYCHIC = auto()
-    ICE = auto()
-    DRAGON = auto()
-    DARK = auto()
-    FAIRY = auto()
+Types = SimpleNamespace(
+    NORMAL = 1,
+    FIGHTING = 2,
+    FLYING = 3,
+    POISON = 4,
+    GROUND = 5,
+    ROCK = 6,
+    BUG = 7,
+    GHOST = 8,
+    STEEL = 9,
+    FIRE = 10,
+    WATER = 11,
+    GRASS = 12,
+    ELECTRIC = 13,
+    PSYCHIC = 14,
+    ICE = 15,
+    DRAGON = 16,
+    DARK = 17,
+    FAIRY = 18
+)
+
+TypesIdToName = {v: k for k, v in Types.__dict__.items() if not k.startswith("__")}
 
 
-class Stat(IntEnum):
-    """Stats to number, used for override stat in move description, like body press"""
-    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count
-    ATTACK = auto()
-    DEFENSE = auto()
-    SPECIAL_ATTACK = auto()
-    SPECIAL_DEFENSE = auto()
-    SPEED = auto()
+Stat = SimpleNamespace(
+    ATTACK = 0,
+    DEFENSE = 1,
+    SPECIAL_ATTACK = 2,
+    SPECIAL_DEFENSE = 3,
+    SPEED = 4
+)
 
 
-class Status(IntEnum):
-    """Status to numbers"""
-    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count + 1
-    SLEEP = auto()
-    FREEZE = auto()
-    PARALYSIS = auto()
-    BURN = auto()
-    POISON = auto()
-    TOXIC = auto()
+Status = SimpleNamespace(
+    SLEEP = 1,
+    FREEZE = 2,
+    PARALYSIS = 3,
+    BURN = 4,
+    POISON = 5,
+    TOXIC = 6
+)
+
+StatusIdToName = {v: k for k, v in Status.__dict__.items() if not k.startswith("__")}
 
 
 class VolStatus(IntFlag):
@@ -75,18 +74,16 @@ class SideCondition(IntFlag):
     AURORA_VEIL = auto()
 
 
-class Gender(IntEnum):
-    """Gender to numbers"""
-    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count
-    GENDERLESS = auto()
-    MALE = auto()
-    FEMALE = auto()
+Gender = SimpleNamespace(
+    GENDERLESS = 0,
+    MALE = 1,
+    FEMALE = 2
+)
 
 
 def type_to_number(types: list):
     """Receive the types list and transform them in numbers"""
-    type1 = Types[types[0].upper()]
+    type1 = getattr(Types, types[0].upper())
     try:
         type2 = Types[types[1].upper()]
     except (KeyError, IndexError):
@@ -110,7 +107,7 @@ def gender_to_number(gender):
     else:
         g = gender
 
-    return Gender[g.upper()]
+    return getattr(Gender, g.upper())
 
 
 def vol_status():
@@ -118,26 +115,23 @@ def vol_status():
     return 0
 
 
-class Target(IntEnum):
-    """Which target is the move"""
-    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count
-
-    NORMAL = auto()
-    ADJACENT_ALLY = auto()
-    ADJACENT_ALLY_OR_SELF = auto()
-    ADJACENT_FOE = auto()
-    ALL = auto()
-    ALL_ADJACENT = auto()
-    ALL_ADJACENT_FOES = auto()
-    ALLIES = auto()
-    ALLY_SIDE = auto()
-    ALLY_TEAM = auto()
-    ANY = auto()
-    FOE_SIDE = auto()
-    RANDOM_NORMAL = auto()
-    SCRIPTED = auto()
-    SELF = auto()
+Target = SimpleNamespace(
+    NORMAL = 0,
+    ADJACENT_ALLY = 1,
+    ADJACENT_ALLY_OR_SELF = 2,
+    ADJACENT_FOE = 3,
+    ALL = 4,
+    ALL_ADJACENT = 5,
+    ALL_ADJACENT_FOES = 6,
+    ALLIES = 7,
+    ALLY_SIDE = 8,
+    ALLY_TEAM = 9,
+    ANY = 10,
+    FOE_SIDE = 11,
+    RANDOM_NORMAL = 12,
+    SCRIPTED = 13,
+    SELF = 14
+)
 
 
 class AbilityActivation(IntFlag):
@@ -150,24 +144,20 @@ class AbilityActivation(IntFlag):
     ON_RECEIVE_DAMAGE = auto()
 
 
-class MoveCategory(IntEnum):
-    """The three move types"""
-    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count + 1
-    PHYSICAL = auto()
-    SPECIAL = auto()
-    STATUS = auto()
+MoveCategory = SimpleNamespace(
+    PHYSICAL = 1,
+    SPECIAL = 2,
+    STATUS = 3
+)
 
 
-class ItemType(IntEnum):
-    """Item type"""
-    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count
-    BERRY = auto()
-    CONSUMABLE = auto()
-    CHOICE = auto()
-    HELD = auto()
-    MEGA = auto()
+ItemType = SimpleNamespace(
+    BERRY = 0,
+    CONSUMABLE = 1,
+    CHOICE = 2,
+    HELD = 3,
+    MEGA = 4
+)
 
 
 class ItemActivation(IntFlag):

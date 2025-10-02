@@ -51,6 +51,7 @@ class TrainerAI:
         else:
             move_first = random.choice([True, False])
         """
+        move_array_off = len(MoveArray)
         # Check for immunity types
         if move[MoveArray.CATEGORY] != MoveCategory.STATUS and effectiveness == 0:
             return -10
@@ -64,7 +65,7 @@ class TrainerAI:
                 return -10
             if move[MoveArray.TYPE] == Types.GROUND and ability == "LEVITATE":
                 return -10
-            if move[len(MoveArray) + MoveFlags.SOUND] and ability == "SOUNDPROOF":
+            if move[move_array_off + MoveFlags.SOUND] and ability == "SOUNDPROOF":
                 return -10
             if (
                 effectiveness < 2 and ability == "WONDER_GUARD"
@@ -239,7 +240,7 @@ class TrainerAI:
             ):
                 return -10
             # Recovery Moves
-            if move[len(MoveArray) + MoveFlags.HEAL] and ai_pok[PokArray.CURRENT_HP] == ai_pok[PokArray.MAX_HP]:
+            if move[move_array_off + MoveFlags.HEAL] and ai_pok[PokArray.CURRENT_HP] == ai_pok[PokArray.MAX_HP]:
                 return -10
             # OH-KO
             if (
@@ -711,8 +712,9 @@ class TrainerAI:
                 index of chosen teammate in ai_party (int) or None if no valid candidate.
 
         """
+        off = len(PokArray)
         # filter non-fainted teammates and keep original party indices for tie-breaks
-        candidates = np.where(ai_party[PokArray.CURRENT_HP:: len(PokArray)] > 0)[0].tolist()
+        candidates = np.where(ai_party[PokArray.CURRENT_HP:: off] > 0)[0].tolist()
         if not candidates:
             return None
         if len(candidates) == 1:
@@ -721,7 +723,7 @@ class TrainerAI:
         # Phase 1: find mons that have at least one move that is SE (>1) vs user_pok
         phase1 = []
         for idx in candidates:
-            pok = ai_party[(len(PokArray)*idx):(len(PokArray)*(idx + 1))]
+            pok = ai_party[(off*idx):(off*(idx + 1))]
             has_se_move = False
             m1 = pok[PokArray.MOVE1_ID:PokArray.MOVE2_ID]
             m2 = pok[PokArray.MOVE2_ID:PokArray.MOVE3_ID]
@@ -763,7 +765,7 @@ class TrainerAI:
 
         scored_phase2 = []
         for idx in candidates:
-            mon = ai_party[(len(PokArray)*idx):(len(PokArray)*(idx + 1))]
+            mon = ai_party[(off*idx):(off*(idx + 1))]
             max_move_dmg = 0
             m1 = pok[PokArray.MOVE1_ID:PokArray.MOVE2_ID]
             m2 = pok[PokArray.MOVE2_ID:PokArray.MOVE3_ID]

@@ -1,9 +1,6 @@
-"""Main"""
-from cProfile import Profile
-from pstats import Stats, SortKey
+"""test"""
 from Models.pokemon import Pokemon
-from SearchEngine.my_mcts import GameState, mcts
-from Engine.engine_helper import to_battle_array
+from Engine.new_battle import battle
 
 
 charmander = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"])
@@ -14,14 +11,4 @@ charmander1 = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Gr
 my_party = [charmander, squirtle]
 opp_party = [squirtle1, charmander1]
 
-battle = to_battle_array(my_party, opp_party)
-root = GameState(battle)
-
-with Profile() as profile:
-    mcts(root, 500)
-    (
-        Stats(profile)
-        .strip_dirs()
-        .sort_stats(SortKey.TIME)
-        .print_stats()
-    )
+battle(my_party, opp_party)

@@ -2,7 +2,7 @@
 import random
 import numpy as np
 from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray
-from Models.helper import Status, MoveCategory, Target
+from Models.helper import Status, MoveCategory, Target, StatusIdToName
 from DataBase.PkDB import PokemonName
 
 
@@ -15,7 +15,7 @@ def apply_status(move, pok, sec=False):
                 pok[PokArray.STATUS] = move[offset + SecondaryArray.STATUS]
                 print(
                     f"{PokemonName(pok[PokArray.ID]).name.capitalize()}'s "
-                    f"was afflicted by {Status(move[offset + SecondaryArray.STATUS]).name.lower()}"
+                    f"was afflicted by {StatusIdToName[move[offset + SecondaryArray.STATUS]].lower()}"
                 )
                 if move[offset + SecondaryArray.STATUS] == Status.TOXIC:
                     pok[PokArray.BADLY_POISON] = 1
@@ -32,7 +32,7 @@ def apply_status(move, pok, sec=False):
             pok[PokArray.STATUS] = move[MoveArray.STATUS]
             print(
                 f"{PokemonName(pok[PokArray.ID]).name.capitalize()}'s "
-                f"was afflicted by {Status(move[MoveArray.STATUS]).name.lower()}"
+                f"was afflicted by {StatusIdToName[move[offset + SecondaryArray.STATUS]].lower()}"
             )
             if move[MoveArray.STATUS] == Status.TOXIC:
                 pok[PokArray.BADLY_POISON] = 1
@@ -268,7 +268,7 @@ def after_turn_status(pok):
             else:
                 dmg = np.floor(pok[PokArray.MAX_HP] / 8)
             pok[PokArray.CURRENT_HP] -= dmg
-            print(f'{PokemonName(pok[PokArray.ID]).name.capitalize()} suffered {dmg} HP from {Status(pok[PokArray.STATUS]).name.lower()}')
+            print(f'{PokemonName(pok[PokArray.ID]).name.capitalize()} suffered {dmg} HP from {StatusIdToName[pok[PokArray.STATUS]].lower()}')
             if pok[PokArray.CURRENT_HP] <= 0:
                 print(f'{PokemonName(pok[PokArray.ID]).name.capitalize()} has fainted.')
                 pok[PokArray.CURRENT_HP] = 0

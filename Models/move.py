@@ -15,10 +15,10 @@ class Move():
         base_move_array = np.zeros(len(MoveArray), dtype=np.int16)
         if self.move is None:
             return base_move_array
-        base_move_array[MoveArray.ID] = MoveName[self.move['name'].upper()]
-        base_move_array[MoveArray.CATEGORY] = MoveCategory[self.move['category'].upper()]
-        base_move_array[MoveArray.TYPE] = Types[self.move['type'].upper()]
-        base_move_array[MoveArray.TARGET] = Target[self.move['target'].upper()]
+        base_move_array[MoveArray.ID] = getattr(MoveName, self.move['name'].upper())
+        base_move_array[MoveArray.CATEGORY] = getattr(MoveCategory, self.move['category'].upper())
+        base_move_array[MoveArray.TYPE] = getattr(Types,self.move['type'].upper())
+        base_move_array[MoveArray.TARGET] = getattr(Target,self.move['target'].upper())
         base_move_array[MoveArray.POWER] = self.move.get('power', 0) if self.move.get('power', 0) is not None else 0
         base_move_array[MoveArray.ACCURACY] = -1 if self.move.get('accuracy', True) is True else self.move.get('accuracy', 0) if self.move.get('accuracy', 0) is not None else 0
         base_move_array[MoveArray.CRIT_RATIO] = self.move.get('crit_ratio', 1)
@@ -125,7 +125,7 @@ class Move():
         sec_array[SecondaryArray.SEC_BOOST_SPEED] = secondary.get('boost', {}).get('spe', 0) if secondary and secondary.get('boost', None) else 0
         sec_array[SecondaryArray.SEC_BOOST_ACC] = secondary.get('boost', {}).get('accuracy', 0) if secondary and secondary.get('boost', None) else 0
         sec_array[SecondaryArray.SEC_BOOST_EV] = secondary.get('boost', {}).get('evasion', 0) if secondary and secondary.get('boost', None) else 0
-        sec_array[SecondaryArray.STATUS] = Status[secondary.get('status', 'None').upper()] if secondary and secondary.get('status', None) else 0
+        sec_array[SecondaryArray.STATUS] = getattr(Status,secondary.get('status', 'None').upper()) if secondary and secondary.get('status', None) else 0
         sec_array[SecondaryArray.VOL_STATUS] = VolStatus[secondary.get('vol_status', 'None').upper()] if secondary and secondary.get('volatileStatus', None) else 0
         # Second secondary effect(for the fangs moves)
         sec_array[SecondaryArray.CHANCE2] = secondary2.get('chance', 0) if secondary2 else 0

@@ -2,7 +2,7 @@
 import random
 import numpy as np
 from Utils.loader import type_chart
-from Models.helper import Types
+from Models.helper import TypesIdToName
 
 
 def round_half_down(value: float) -> int:
@@ -35,9 +35,9 @@ def stage_to_multiplier(stages: np.float32, acc=False) -> float:
 
 def get_type_effectiveness(atk_type: np.float32, defender_type1: np.float32, defender_type2: np.float32):
     """Check to see if 0.25, 0.50, 1, 2, 4 times effective"""
-    a_type = Types(atk_type).name.capitalize()
-    d_type1 = Types(defender_type1).name.capitalize()
-    d_type2 = Types(defender_type2).name.capitalize() if defender_type2 != 0 else None
+    a_type = TypesIdToName[atk_type].capitalize()
+    d_type1 = TypesIdToName[defender_type1].capitalize()
+    d_type2 = TypesIdToName[defender_type2].capitalize() if defender_type2 != 0 else None
     if a_type not in type_chart:
         return 1.0
     vals = [float(type_chart[a_type].get(d, 1.0)) for d in (d_type1, d_type2)]

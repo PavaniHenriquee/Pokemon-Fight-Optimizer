@@ -29,8 +29,8 @@ class ActionType(Enum):
 
 class BattlePhase(Enum):
     """Where in the battle i am"""
-    TURN_START = 'turn_start'
-    DEATH_END_OF_TURN = 'death_end_of_turn'
+    TURN_START = 1
+    DEATH_END_OF_TURN = 2
 
 
 
@@ -108,12 +108,24 @@ class GameState():
     def step(self, my_move_idx):
         """Simulate the entire turn"""
         new = self.clone()
-        battle = Battle(battle_array=new.battle_array)
+        battle = Battle(
+            battle_array=new.battle_array,
+            my_active=new.my_active,
+            opp_active=new.opp_active,
+            turn=new.turn
+        )
         if self.phase == BattlePhase.DEATH_END_OF_TURN:
             battle.end_of_turn(search=my_move_idx[1])
-            new.my_active = my_move_idx[1]
+            if my_move_idx[0] == "switch":
+                new.my_active = my_move_idx[1]
+            else:
+                pass
             new.phase = BattlePhase.TURN_START
+            if new.my_active > 1:
+                pass
             return new
+        if my_move_idx[0] == 'switch':
+            new.my_active = my_move_idx[1]
         opp_move_idx = self.opp_ai.return_idx(
             new.battle_array[0:(6 * len(PokArray))],
             new.battle_array[(6 * len(PokArray)):(12 * len(PokArray))],
@@ -128,7 +140,9 @@ class GameState():
         orig_print = builtins.print
         try:
             builtins.print = lambda *a, **k: None
-            battle.turn_sim(opp_move_idx, my_move_idx)
+            new.phase, opp_idx = battle.turn_sim(opp_move_idx, my_move_idx)
+            if opp_idx:
+                new.opp_active = opp_idx
         finally:
             builtins.print = orig_print
 
@@ -227,4 +241,5 @@ def mcts(root_state: GameState, iterations: int):
         for node in reversed(path):
             node.visits += 1
             node.total_value += value
+        print(_)
         

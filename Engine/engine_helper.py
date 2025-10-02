@@ -68,9 +68,9 @@ def check_speed(p1, p2):
     """Gives speed after modifications of stages and paralysis"""
     mult1 = 1
     mult2 = 1
-    if p1[PokArray.STATUS] == Status['PARALYSIS']:
+    if p1[PokArray.STATUS] == Status.PARALYSIS:
         mult1 = 0.25
-    if p2[PokArray.STATUS] == Status['PARALYSIS']:
+    if p2[PokArray.STATUS] == Status.PARALYSIS:
         mult2 = 0.25
     mult1 *= stage_to_multiplier(p1[PokArray.SPEED_STAT_STAGE])
     mult2 *= stage_to_multiplier(p2[PokArray.SPEED_STAT_STAGE])
