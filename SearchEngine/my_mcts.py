@@ -78,13 +78,15 @@ class GameState():
         """Get all valid actions for current player"""
         actions = []
 
+        # Handle death phase first and return immediately
         if self.phase == BattlePhase.DEATH_END_OF_TURN:
             for i in range(6):
                 pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
-                if pokemon[PokArray.CURRENT_HP] > 0:
+                if pokemon[PokArray.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
                     actions.append((ActionType.SWITCH.value, i))
-            return actions
+            return actions  # Return here to prevent adding move actions
 
+        # Normal turn phase - get active pokemon
         if is_player:
             active = self.get_my_active()
         else:
@@ -96,7 +98,7 @@ class GameState():
             if active[move_id_idx] != 0:  # Move exists
                 actions.append((ActionType.MOVE.value, i))
 
-        # Add switch actions
+        # Add switch actions for normal turn
         for i in range(6):
             pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
             # Can switch if pokemon is alive and not currently active
@@ -241,5 +243,3 @@ def mcts(root_state: GameState, iterations: int):
         for node in reversed(path):
             node.visits += 1
             node.total_value += value
-        print(_)
-        

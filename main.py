@@ -18,7 +18,7 @@ battle = to_battle_array(my_party, opp_party)
 root = GameState(battle)
 
 with Profile() as profile:
-    mcts(root, 500)
+    mcts(root, 10000)
     (
         Stats(profile)
         .strip_dirs()
