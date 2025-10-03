@@ -18,7 +18,7 @@ from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray
 from Models.helper import count_party
 from Models.trainer_ai import TrainerAI
 from Engine.new_battle import Battle
-from SearchEngine.mcts_eval import evaluate_terminal
+from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref, evaluate_state
 
 
 class ActionType(Enum):
@@ -40,9 +40,15 @@ class GameState():
         self.battle_array = copy.deepcopy(battle_array)
         self.my_active = my_active  # Index of 0..5
         self.opp_active = opp_active  # Index of 0..5
+        self.my_pty = self.battle_array[0:(6 * len(PokArray))]
+        self.opp_pty = self.battle_array[(6 * len(PokArray)):(12 * len(PokArray))]
         self.turn = turn
         self.phase = phase
         self.opp_ai = TrainerAI()
+        if self.phase != BattlePhase.DEATH_END_OF_TURN:
+            self.opp_move = self.opp_move_choice()
+        else:
+            self.opp_move = None
 
     def clone(self):
         """Clone"""
@@ -70,8 +76,8 @@ class GameState():
 
     def is_terminal(self) -> bool:
         """Check if battle is over"""
-        my_alive = count_party(self.battle_array[0:(6 * len(PokArray))])
-        opp_alive = count_party(self.battle_array[(6 * len(PokArray)):(12 * len(PokArray))])
+        my_alive = count_party(self.my_pty)
+        opp_alive = count_party(self.opp_pty)
         return my_alive == 0 or opp_alive == 0
 
     def get_valid_actions(self, is_player: bool = True) -> List[Tuple[str, int]]:
@@ -107,6 +113,21 @@ class GameState():
 
         return actions
 
+    def opp_move_choice(self):
+        """Uses the trainer AI to choose the move"""
+        opp_idx = self.opp_ai.return_idx(
+            self.battle_array[0:(6 * len(PokArray))],
+            self.battle_array[(6 * len(PokArray)):(12 * len(PokArray))],
+            self.get_my_active(),
+            self.get_opp_active(),
+            self.turn,
+            self.get_opp_active()[PokArray.MOVE1_ID:PokArray.MOVE2_ID],
+            self.get_opp_active()[PokArray.MOVE2_ID:PokArray.MOVE3_ID],
+            self.get_opp_active()[PokArray.MOVE3_ID:PokArray.MOVE4_ID],
+            self.get_opp_active()[PokArray.MOVE4_ID:PokArray.ITEM_ID]
+        )
+        return opp_idx
+    
     def step(self, my_move_idx):
         """Simulate the entire turn"""
         new = self.clone()
@@ -128,17 +149,7 @@ class GameState():
             return new
         if my_move_idx[0] == 'switch':
             new.my_active = my_move_idx[1]
-        opp_move_idx = self.opp_ai.return_idx(
-            new.battle_array[0:(6 * len(PokArray))],
-            new.battle_array[(6 * len(PokArray)):(12 * len(PokArray))],
-            new.get_my_active(),
-            new.get_opp_active(),
-            new.turn,
-            new.get_opp_active()[PokArray.MOVE1_ID:PokArray.MOVE2_ID],
-            new.get_opp_active()[PokArray.MOVE2_ID:PokArray.MOVE3_ID],
-            new.get_opp_active()[PokArray.MOVE3_ID:PokArray.MOVE4_ID],
-            new.get_opp_active()[PokArray.MOVE4_ID:PokArray.ITEM_ID]
-        )
+        opp_move_idx = self.opp_move
         orig_print = builtins.print
         try:
             builtins.print = lambda *a, **k: None
@@ -165,26 +176,26 @@ class Node():
         self.total_value = 0
         self.legal_moves = state.get_valid_actions(is_player=True)
 
-    def best_action(self, c=0.5):
-        """Best outcome"""
+    def best_action(self, c=1.4):
+        """Best outcome using UCB; break ties and unvisited bias fairly."""
+        # prefer a random unvisited child to avoid insertion-order bias
+        unvisited = [(k, n) for k, n in self.children.items() if n.visits == 0]
+        if unvisited:
+            return random.choice(unvisited)
+
         best_key, best_node = None, None
         best_val = -float("inf")
 
-        parent_visits = max(1, self.visits)
-        log_parent_visits = math.log(parent_visits)
+        # guard: if parent visits is 0/1, exploration term becomes 0
+        log_parent_visits = math.log(self.visits) if self.visits > 1 else 0.0
 
         for key, child in self.children.items():
-            if child.visits == 0:
-                # Shortcut: unvisited nodes always win
-                return key, child
-
-            # Inline UCB formula (avoid function calls)
-            ucb_val = (child.total_value / child.visits) + c * math.sqrt(log_parent_visits / child.visits)
-
-            if ucb_val > best_val:
-                best_val = ucb_val
-                best_key = key
-                best_node = child
+            # average value
+            avg = child.total_value / child.visits
+            # UCB: avg + c * sqrt(2 * ln(N) / n)
+            ucb_val = avg + c * math.sqrt(2 * (log_parent_visits) / child.visits)
+            if ucb_val > best_val or (ucb_val == best_val and random.random() < 0.5):
+                best_val, best_key, best_node = ucb_val, key, child
 
         return best_key, best_node
 
@@ -196,12 +207,12 @@ def mcts(root_state: GameState, iterations: int):
     for _ in range(iterations):
         node = root
         state = root_state.clone()
-        path = []
+        path = [node]
 
         # 1) Selection
         while not state.is_terminal():
             untried_actions = [
-                a for a in state.get_valid_actions()if a not in node.children
+                a for a in state.get_valid_actions() if a not in node.children
             ]
 
             if untried_actions:
@@ -214,13 +225,14 @@ def mcts(root_state: GameState, iterations: int):
                 state = state.step(action_key)
                 path.append(node)
             else:
-                # No valid actions (shouldn't happen)
-                break
+                raise ValueError("Failbreak")
+
         # 2) Expansion (if not terminal)
         if not state.is_terminal() and untried_actions:
             action = random.choice(untried_actions)
             state = state.step(action)
             child = Node(state, parent=node, move=action)
+            child.total_value = evaluate_state(state, root)  # Set initial value based on heuristic
             node.children[action] = child
             path.append(child)
             node = child
@@ -230,12 +242,15 @@ def mcts(root_state: GameState, iterations: int):
         while not sim_state.is_terminal():
             # Random rollout handling phases
             if sim_state.phase == BattlePhase.DEATH_END_OF_TURN:
-                # Random switch from alive pokemon
                 valid = sim_state.get_valid_actions()
                 action = random.choice(valid)
             else:
-                # Normal turn - random moves
-                action = random.choice(sim_state.get_valid_actions())
+                action = rollout_pref(
+                    sim_state.get_my_active(),
+                    sim_state.get_opp_active(),
+                    sim_state.opp_move,
+                    sim_state.get_valid_actions()
+                )
             sim_state = sim_state.step(action)
 
         # 4) Backpropagation
@@ -243,3 +258,8 @@ def mcts(root_state: GameState, iterations: int):
         for node in reversed(path):
             node.visits += 1
             node.total_value += value
+
+    for actions, nodes in root.children.items():
+        win_rate = (nodes.total_value / nodes.visits + 1) / 2
+        print(f'actions: {actions}, visits: {(nodes.visits)}, total value: {int(nodes.total_value)}'
+              f', win_rate: {round(win_rate*100, 2)}%')
