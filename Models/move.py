@@ -1,6 +1,7 @@
 """Normalize moves into numpy Arrays"""
 import numpy as np
-from Models.idx_nparray import MoveArray, MoveFlags, SecondaryArray
+from Models.idx_const import BASE_MOVE_LEN, SEC_LEN, FLAGS_LEN
+from Models.idx_nparray import MoveArray, SecondaryArray, MoveFlags
 from Models.helper import Types, Target, Stat, SideCondition, Status, VolStatus, MoveCategory
 from DataBase.MoveDB import MoveName
 
@@ -12,7 +13,7 @@ class Move():
 
     def base_move(self):
         """Populating the array for the base move"""
-        base_move_array = np.zeros(len(MoveArray), dtype=np.int16)
+        base_move_array = np.zeros(BASE_MOVE_LEN, dtype=np.int16)
         if self.move is None:
             return base_move_array
         base_move_array[MoveArray.ID] = getattr(MoveName, self.move['name'].upper())
@@ -62,7 +63,7 @@ class Move():
 
     def move_flags(self):
         """Array for move flags"""
-        move_flags_array = np.zeros(len(MoveFlags), dtype=np.bool_)
+        move_flags_array = np.zeros(FLAGS_LEN, dtype=np.bool_)
         if self.move is None:
             return move_flags_array
         flags = self.move.get('flags', {})
@@ -105,7 +106,7 @@ class Move():
 
     def sec_effect(self):
         """Array for secondary effects"""
-        sec_array = np.zeros(len(SecondaryArray), dtype=np.int16)
+        sec_array = np.zeros(SEC_LEN, dtype=np.int16)
         if self.move is None:
             return sec_array
         secondary2 = {}

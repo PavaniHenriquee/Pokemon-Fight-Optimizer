@@ -1,6 +1,8 @@
 """Evaluation of terminal and current state"""
 import random
-from Models.idx_nparray import PokArray, BaseArray, AbilityIdx, MoveArray, MoveFlags, SecondaryArray
+from Models.idx_const import(
+    Pok, Sec, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, OFFSET_SEC
+)
 from Models.helper import count_party, count_Id
 from Engine.damage_calc import calculate_damage
 
@@ -14,9 +16,9 @@ def party_hp_fraction(battle_array, offset, maxp):
     """Compute sum(current_hp / max_hp) across a party (0..6)"""
     total_frac = 0.0
     for i in range(maxp):
-        start = offset + i * len(PokArray)
-        curr = battle_array[start + PokArray.CURRENT_HP]
-        mx = battle_array[start + PokArray.MAX_HP]
+        start = offset + i * POK_LEN
+        curr = battle_array[start + Pok.CURRENT_HP]
+        mx = battle_array[start + Pok.MAX_HP]
         if mx <= 0:
             frac = 0.0
         else:
@@ -28,8 +30,8 @@ def count_fainted(battle_array, offset, maxp):
     """ Opposite of count party"""
     fallen = 0
     for i in range(maxp):
-        start = offset + i * len(PokArray)
-        if battle_array[start + PokArray.CURRENT_HP] <= 0:
+        start = offset + i * POK_LEN
+        if battle_array[start + Pok.CURRENT_HP] <= 0:
             fallen += 1
     return fallen
 
@@ -41,9 +43,9 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     - draw => 0
     """
     # quick terminal check
-    my_pty_count = count_Id(sim_state.battle_array[0:(6 * len(PokArray))])
-    my_alive = count_party(sim_state.battle_array[0:(6 * len(PokArray))])
-    opp_alive = count_party(sim_state.battle_array[(6 * len(PokArray)):(12 * len(PokArray))])
+    my_pty_count = count_Id(sim_state.battle_array[0:(6 * POK_LEN)])
+    my_alive = count_party(sim_state.battle_array[0:(6 * POK_LEN)])
+    opp_alive = count_party(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
     dead = my_pty_count - my_alive
 
     if opp_alive == 0 and my_alive > 0:
@@ -66,14 +68,14 @@ def evaluate_state(sim_state, root) -> float:
     opp_max = count_party(root.state.opp_pty)
 
     my_hp_frac  = party_hp_fraction(battle, 0, my_max)
-    opp_hp_frac = party_hp_fraction(battle, 6 * len(PokArray), opp_max)
+    opp_hp_frac = party_hp_fraction(battle, 6 * POK_LEN, opp_max)
 
     # HP advantage in [-1, 1]
     hp_adv = my_hp_frac - opp_hp_frac   # range [-1, 1]
 
     # count fainted (0..6)
     my_fainted  = count_fainted(battle, 0, my_max)
-    opp_fainted = count_fainted(battle, 6 * len(PokArray), my_max)
+    opp_fainted = count_fainted(battle, 6 * POK_LEN, my_max)
 
     # death penalty (player deaths hurt much more than opponent deaths help)
     death_score = (opp_fainted - ALPHA_DEATH * my_fainted) / ((my_max+opp_max) / 2)
@@ -84,34 +86,31 @@ def evaluate_state(sim_state, root) -> float:
 
 def rollout_pref(c_pok, o_pok, o_idx, actions) -> tuple:
     """Prefer certain moves to reduce noise"""
-    off = len(BaseArray) + len(AbilityIdx)
-    off_ma = len(MoveArray)
-    off_m = off_ma + len(MoveFlags) + len(SecondaryArray)
     ev = []
 
     for a in actions:
-        o_move = o_pok[off + o_idx * off_m: off + o_idx * off_m + off_m]
+        o_move = o_pok[OFFSET_MOVE + o_idx * MOVE_STRIDE: OFFSET_MOVE + o_idx * MOVE_STRIDE + MOVE_STRIDE]
         o_dmg, _ = calculate_damage(o_pok, c_pok, o_move)
         weight = 1
         if a[0] == 'move':
-            move = c_pok[off + a[1] * off_m: off + a[1] * off_m + off_m]
+            move = c_pok[OFFSET_MOVE + a[1] * MOVE_STRIDE: OFFSET_MOVE + a[1] * MOVE_STRIDE + MOVE_STRIDE]
             dmg, _ = calculate_damage(c_pok, o_pok, move)
             if (
-                dmg >= o_pok[PokArray.CURRENT_HP]
+                dmg >= o_pok[Pok.CURRENT_HP]
                 and (
-                    c_pok[PokArray.SPEED] > o_pok[PokArray.SPEED]
-                    or o_dmg < c_pok[PokArray.CURRENT_HP]
+                    c_pok[Pok.SPEED] > o_pok[Pok.SPEED]
+                    or o_dmg < c_pok[Pok.CURRENT_HP]
                 )
             ):
                 weight += 100
-            if move[off_ma + len(MoveFlags) + SecondaryArray.CHANCE]:
+            if move[OFFSET_SEC + Sec.CHANCE]:
                 weight += 10
         else:
             # Need to work on that, because it need to be way more complex
             if (
-                o_dmg >= c_pok[PokArray.CURRENT_HP]
+                o_dmg >= c_pok[Pok.CURRENT_HP]
                 and (
-                    o_pok[PokArray.SPEED] >= c_pok[PokArray.SPEED]
+                    o_pok[Pok.SPEED] >= c_pok[Pok.SPEED]
                 )
             ):
                 weight += 50
