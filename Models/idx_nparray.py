@@ -624,3 +624,14 @@ class BattlefieldArray(IntEnum):
     OPP_SCREEN = auto()
     OPP_SCREEN_DURATION = auto()
     PHASE = auto()
+
+BASE_ARRAY_LEN = len(BaseArray)
+ABILITY_LEN = len(AbilityIdx)
+BASE_MOVE_LEN = len(MoveArray)
+MOVE_FLAGS_LEN = len(MoveFlags)
+MOVE_SECONDARY_LEN = len(SecondaryArray)
+POK_LEN = len(PokArray)
+OFFSET_MOVE = BASE_ARRAY_LEN + ABILITY_LEN
+OFFSET_SEC = BASE_MOVE_LEN + MOVE_FLAGS_LEN
+MOVE_STRIDE = OFFSET_SEC + MOVE_SECONDARY_LEN
+OFFSET_ITEM = OFFSET_MOVE + (4 * MOVE_STRIDE)

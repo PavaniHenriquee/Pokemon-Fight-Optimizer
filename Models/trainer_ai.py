@@ -6,7 +6,9 @@ from Utils.helper import get_type_effectiveness, batch_independent_score_from_ra
 from DataBase.loader import pkDB
 from DataBase.MoveDB import MoveName
 from DataBase.AbilitiesDB import AbilityNames
-from Models.idx_nparray import MoveArray, PokArray, MoveFlags
+from Models.idx_const import (
+    Pok, Move, Flags, BASE_MOVE_LEN, POK_LEN
+)
 from Models.helper import MoveCategory, Types, Status, VolStatus, Gender, Target, count_party
 
 
@@ -51,63 +53,63 @@ class TrainerAI:
         else:
             move_first = random.choice([True, False])
         """
-        move_array_off = len(MoveArray)
+        move_array_off = BASE_MOVE_LEN
         # Check for immunity types
-        if move[MoveArray.CATEGORY] != MoveCategory.STATUS and effectiveness == 0:
+        if move[Move.CATEGORY] != MoveCategory.STATUS and effectiveness == 0:
             return -10
         # Check for abilities
-        if ai_pok[PokArray.AB_ID] != AbilityNames.MOLD_BREAKER:
-            if move[MoveArray.TYPE] == Types.ELECTRIC and ability in ("VOLT_ABSORB", "MOTOR_DRIVE"):
+        if ai_pok[Pok.AB_ID] != AbilityNames.MOLD_BREAKER:
+            if move[Move.TYPE] == Types.ELECTRIC and ability in ("VOLT_ABSORB", "MOTOR_DRIVE"):
                 return -10
-            if move[MoveArray.TYPE] == Types.WATER and ability == "WATER_ABSORB":
+            if move[Move.TYPE] == Types.WATER and ability == "WATER_ABSORB":
                 return -10
-            if move[MoveArray.TYPE] == Types.FIRE and ability == "FLASH_FIRE":
+            if move[Move.TYPE] == Types.FIRE and ability == "FLASH_FIRE":
                 return -10
-            if move[MoveArray.TYPE] == Types.GROUND and ability == "LEVITATE":
+            if move[Move.TYPE] == Types.GROUND and ability == "LEVITATE":
                 return -10
-            if move[move_array_off + MoveFlags.SOUND] and ability == "SOUNDPROOF":
+            if move[move_array_off + Flags.SOUND] and ability == "SOUNDPROOF":
                 return -10
             if (
                 effectiveness < 2 and ability == "WONDER_GUARD"
-                and move[MoveArray.CATEGORY] != MoveCategory.STATUS
+                and move[Move.CATEGORY] != MoveCategory.STATUS
             ):
                 return -10
-        if move[MoveArray.CATEGORY] == MoveCategory.STATUS:
+        if move[Move.CATEGORY] == MoveCategory.STATUS:
             # TODO: Safeguard for all conditions
-            if move[MoveArray.STATUS] != 0:
+            if move[Move.STATUS] != 0:
                 # Sleep
                 if (
-                    move[MoveArray.STATUS] == Status.SLEEP
+                    move[Move.STATUS] == Status.SLEEP
                     and (
-                        user_pok[PokArray.STATUS] != 0
+                        user_pok[Pok.STATUS] != 0
                         or ability == "VITAL_SPIRIT"
                     )
                 ):
                     return -10
                 # Poison
                 if (
-                    move[MoveArray.STATUS] in (Status.POISON, Status.TOXIC)
+                    move[Move.STATUS] in (Status.POISON, Status.TOXIC)
                     and (
-                        user_pok[PokArray.STATUS] != 0
+                        user_pok[Pok.STATUS] != 0
                         or ability in ("IMMUNITY", "MAGIC_GUARD", "POISON_HEAL")
-                        or Types.STEEL in (user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
-                        or Types.POISON in (user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                        or Types.STEEL in (user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
+                        or Types.POISON in (user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
                     )
                 ):
                     # TODO: weather
                     return -10
                 # Paralysis
                 if (
-                    move[MoveArray.STATUS] == Status.PARALYSIS
+                    move[Move.STATUS] == Status.PARALYSIS
                     and (
-                        user_pok[PokArray.STATUS] != 0
+                        user_pok[Pok.STATUS] != 0
                         or (
-                            move[MoveArray.TYPE] == Types.ELECTRIC
+                            move[Move.TYPE] == Types.ELECTRIC
                             and (
-                                Types.GROUND in (user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                                Types.GROUND in (user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
                                 or (
                                     ability in ('VOLT_ABSORB', 'MOTOR_DRIVE')
-                                    and ai_pok[PokArray.AB_ID] != AbilityNames.MOLD_BREAKER
+                                    and ai_pok[Pok.AB_ID] != AbilityNames.MOLD_BREAKER
                                 )
                             )
                         )
@@ -117,35 +119,35 @@ class TrainerAI:
                     return -10
                 # Burn
                 if (
-                    move[MoveArray.STATUS] == Status.BURN
+                    move[Move.STATUS] == Status.BURN
                     and (
-                        user_pok[PokArray.STATUS] != 0
+                        user_pok[Pok.STATUS] != 0
                         or ability in ("WATER_VEIL", "MAGIC_GUARD")
-                        or Types.FIRE in (user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                        or Types.FIRE in (user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
                     )
                 ):
                     return -10
-            if move[MoveArray.VOL_STATUS] != 0:
+            if move[Move.VOL_STATUS] != 0:
                 # Confusion
-                if move[MoveArray.VOL_STATUS] == VolStatus.CONFUSION:
-                    if user_pok[PokArray.VOL_STATUS] & VolStatus.CONFUSION:
+                if move[Move.VOL_STATUS] == VolStatus.CONFUSION:
+                    if user_pok[Pok.VOL_STATUS] & VolStatus.CONFUSION:
                         return -5
                     if ability == "OWN_TEMPO":
                         return -10
                 # Attract
-                if move[MoveArray.VOL_STATUS] == VolStatus.ATTRACT:
+                if move[Move.VOL_STATUS] == VolStatus.ATTRACT:
                     if (
-                        user_pok[PokArray.VOL_STATUS] & VolStatus.ATTRACT
+                        user_pok[Pok.VOL_STATUS] & VolStatus.ATTRACT
                         or ability == "OBLIVIOUS"
                         or (
-                            user_pok[PokArray.GENDER] == ai_pok[PokArray.GENDER]
-                            or user_pok[PokArray.GENDER] == Gender.GENDERLESS
+                            user_pok[Pok.GENDER] == ai_pok[Pok.GENDER]
+                            or user_pok[Pok.GENDER] == Gender.GENDERLESS
                         )
                     ):
                         return -10
-            if any(move[MoveArray.BOOST_ATK: MoveArray.BOOST_EV + 1]):
+            if any(move[Move.BOOST_ATK: Move.BOOST_EV + 1]):
                 # Stat Boosting Moves
-                if move[MoveArray.TARGET] in (
+                if move[Move.TARGET] in (
                     Target.ADJACENT_ALLY,
                     Target.ADJACENT_ALLY_OR_SELF,
                     Target.ALLIES,
@@ -154,43 +156,43 @@ class TrainerAI:
                 ):
                     # TODO Trick room
                     if (
-                        ai_pok[PokArray.AB_ID] == AbilityNames.NO_GUARD
+                        ai_pok[Pok.AB_ID] == AbilityNames.NO_GUARD
                         and (
-                            move[MoveArray.BOOST_ACC] > 0 or move[MoveArray.BOOST_EV] > 0
+                            move[Move.BOOST_ACC] > 0 or move[Move.BOOST_EV] > 0
                         )
                     ):
                         return -10
-                    if ai_pok[PokArray.AB_ID] == AbilityNames.SIMPLE:
-                        if move[MoveArray.BOOST_ATK] > 0 and ai_pok[PokArray.ATTACK_STAT_STAGE] >= 3:
+                    if ai_pok[Pok.AB_ID] == AbilityNames.SIMPLE:
+                        if move[Move.BOOST_ATK] > 0 and ai_pok[Pok.ATTACK_STAT_STAGE] >= 3:
                             return -10
-                        if move[MoveArray.BOOST_DEF] > 0 and ai_pok[PokArray.DEFENSE_STAT_STAGE] >= 3:
+                        if move[Move.BOOST_DEF] > 0 and ai_pok[Pok.DEFENSE_STAT_STAGE] >= 3:
                             return -10
-                        if move[MoveArray.BOOST_SPATK] > 0 and ai_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE] >= 3:
+                        if move[Move.BOOST_SPATK] > 0 and ai_pok[Pok.SPECIAL_ATTACK_STAT_STAGE] >= 3:
                             return -10
-                        if move[MoveArray.BOOST_SPDEF] > 0 and ai_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE] >= 3:
+                        if move[Move.BOOST_SPDEF] > 0 and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE] >= 3:
                             return -10
-                        if move[MoveArray.BOOST_SPEED] > 0 and ai_pok[PokArray.SPEED_STAT_STAGE] >= 3:
+                        if move[Move.BOOST_SPEED] > 0 and ai_pok[Pok.SPEED_STAT_STAGE] >= 3:
                             return -10
-                        if move[MoveArray.BOOST_ACC] > 0 and ai_pok[PokArray.ACCURACY_STAT_STAGE] >= 3:
+                        if move[Move.BOOST_ACC] > 0 and ai_pok[Pok.ACCURACY_STAT_STAGE] >= 3:
                             return -10
-                        if move[MoveArray.BOOST_EV] > 0 and ai_pok[PokArray.EVASION_STAT_STAGE] >= 3:
+                        if move[Move.BOOST_EV] > 0 and ai_pok[Pok.EVASION_STAT_STAGE] >= 3:
                             return -10
-                    if move[MoveArray.BOOST_ATK] > 0 and ai_pok[PokArray.ATTACK_STAT_STAGE] == 6:
+                    if move[Move.BOOST_ATK] > 0 and ai_pok[Pok.ATTACK_STAT_STAGE] == 6:
                         return -10
-                    if move[MoveArray.BOOST_DEF] > 0 and ai_pok[PokArray.DEFENSE_STAT_STAGE] == 6:
+                    if move[Move.BOOST_DEF] > 0 and ai_pok[Pok.DEFENSE_STAT_STAGE] == 6:
                         return -10
-                    if move[MoveArray.BOOST_SPATK] > 0 and ai_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE] == 6:
+                    if move[Move.BOOST_SPATK] > 0 and ai_pok[Pok.SPECIAL_ATTACK_STAT_STAGE] == 6:
                         return -10
-                    if move[MoveArray.BOOST_SPDEF] > 0 and ai_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE] == 6:
+                    if move[Move.BOOST_SPDEF] > 0 and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE] == 6:
                         return -10
-                    if move[MoveArray.BOOST_SPEED] > 0 and ai_pok[PokArray.SPEED_STAT_STAGE] == 6:
+                    if move[Move.BOOST_SPEED] > 0 and ai_pok[Pok.SPEED_STAT_STAGE] == 6:
                         return -10
-                    if move[MoveArray.BOOST_ACC] > 0 and ai_pok[PokArray.ACCURACY_STAT_STAGE] == 6:
+                    if move[Move.BOOST_ACC] > 0 and ai_pok[Pok.ACCURACY_STAT_STAGE] == 6:
                         return -10
-                    if move[MoveArray.BOOST_EV] > 0 and ai_pok[PokArray.EVASION_STAT_STAGE] == 6:
+                    if move[Move.BOOST_EV] > 0 and ai_pok[Pok.EVASION_STAT_STAGE] == 6:
                         return -10
                 # Stat Reducing Moves
-                if move[MoveArray.TARGET] in (
+                if move[Move.TARGET] in (
                     Target.NORMAL,
                     Target.ADJACENT_FOE,
                     Target.ALL_ADJACENT_FOES,
@@ -200,55 +202,55 @@ class TrainerAI:
                     Target.SCRIPTED
                 ):
                     # TODO Trick Room
-                    if move[MoveArray.BOOST_ATK] and ability == "HYPER_CUTTER":
+                    if move[Move.BOOST_ATK] and ability == "HYPER_CUTTER":
                         return -10
-                    if move[MoveArray.BOOST_SPEED] and ability == "SPEED_BOOST":
+                    if move[Move.BOOST_SPEED] and ability == "SPEED_BOOST":
                         return -10
                     if (
-                        (move[MoveArray.BOOST_ACC] or move[MoveArray.BOOST_EV])
-                        and (ability == "NO_GUARD" or ai_pok[PokArray.AB_ID] == AbilityNames.NO_GUARD)
+                        (move[Move.BOOST_ACC] or move[Move.BOOST_EV])
+                        and (ability == "NO_GUARD" or ai_pok[Pok.AB_ID] == AbilityNames.NO_GUARD)
                     ):
                         return -10
-                    if move[MoveArray.BOOST_ACC] and ai_pok[PokArray.AB_ID] == AbilityNames.KEEN_EYE:
+                    if move[Move.BOOST_ACC] and ai_pok[Pok.AB_ID] == AbilityNames.KEEN_EYE:
                         return -10
                     if ability in ("CLEAR_BODY", "WHITE_SMOKE"):
                         return -10
-                    if move[MoveArray.BOOST_ATK] < 0 and user_pok[PokArray.ATTACK_STAT_STAGE] == -6:
+                    if move[Move.BOOST_ATK] < 0 and user_pok[Pok.ATTACK_STAT_STAGE] == -6:
                         return -10
-                    if move[MoveArray.BOOST_DEF] < 0 and user_pok[PokArray.DEFENSE_STAT_STAGE] == -6:
+                    if move[Move.BOOST_DEF] < 0 and user_pok[Pok.DEFENSE_STAT_STAGE] == -6:
                         return -10
-                    if move[MoveArray.BOOST_SPATK] < 0 and user_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE] == -6:
+                    if move[Move.BOOST_SPATK] < 0 and user_pok[Pok.SPECIAL_ATTACK_STAT_STAGE] == -6:
                         return -10
-                    if move[MoveArray.BOOST_SPDEF] < 0 and user_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE] == -6:
+                    if move[Move.BOOST_SPDEF] < 0 and user_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE] == -6:
                         return -10
-                    if move[MoveArray.BOOST_SPEED] < 0 and user_pok[PokArray.SPEED_STAT_STAGE] == -6:
+                    if move[Move.BOOST_SPEED] < 0 and user_pok[Pok.SPEED_STAT_STAGE] == -6:
                         return -10
-                    if move[MoveArray.BOOST_ACC] < 0 and user_pok[PokArray.ACCURACY_STAT_STAGE] == -6:
+                    if move[Move.BOOST_ACC] < 0 and user_pok[Pok.ACCURACY_STAT_STAGE] == -6:
                         return -10
-                    if move[MoveArray.BOOST_EV] < 0 and user_pok[PokArray.EVASION_STAT_STAGE] == -6:
+                    if move[Move.BOOST_EV] < 0 and user_pok[Pok.EVASION_STAT_STAGE] == -6:
                         return -10
             # Moves Which Force Switches
             if (
-                move[MoveArray.FORCE_SWITCH]
+                move[Move.FORCE_SWITCH]
                 and (
                     count_party(user_party_alive) > 1
                     or (
                         ability == 'SUCTION_CUPS'
-                        and ai_pok[PokArray.AB_ID] == AbilityNames.MOLD_BREAKER
+                        and ai_pok[Pok.AB_ID] == AbilityNames.MOLD_BREAKER
                     )
                 )
             ):
                 return -10
             # Recovery Moves
-            if move[move_array_off + MoveFlags.HEAL] and ai_pok[PokArray.CURRENT_HP] == ai_pok[PokArray.MAX_HP]:
+            if move[move_array_off + Flags.HEAL] and ai_pok[Pok.CURRENT_HP] == ai_pok[Pok.MAX_HP]:
                 return -10
             # OH-KO
             if (
-                move[MoveArray.OH_KO]
+                move[Move.OH_KO]
                 and (
-                    user_pok[PokArray.LEVEL] > ai_pok[PokArray.LEVEL]
+                    user_pok[Pok.LEVEL] > ai_pok[Pok.LEVEL]
                     or (
-                        ability == "STURDY" and ai_pok[PokArray.AB_ID] == AbilityNames.MOLD_BREAKER
+                        ability == "STURDY" and ai_pok[Pok.AB_ID] == AbilityNames.MOLD_BREAKER
                     )
                 )
             ):
@@ -310,13 +312,13 @@ class TrainerAI:
         """
         score = 0
         # Check for kill
-        if final_damage >= user_pok[PokArray.CURRENT_HP]:
-            if move[MoveArray.ID] in (MoveName.EXPLOSION, MoveName.SELFDESTRUCT):
+        if final_damage >= user_pok[Pok.CURRENT_HP]:
+            if move[Move.ID] in (MoveName.EXPLOSION, MoveName.SELFDESTRUCT):
                 score += 0
-            elif move[MoveArray.ID] in (MoveName.SUCKER_PUNCH, MoveName.FOCUS_PUNCH, MoveName.FUTURE_SIGHT):
+            elif move[Move.ID] in (MoveName.SUCKER_PUNCH, MoveName.FOCUS_PUNCH, MoveName.FUTURE_SIGHT):
                 add_adjustment(rand, idx, 4, 85)
                 return score, rand
-            elif move[MoveArray.PRIORITY] >= 1 and move[MoveArray.ID] != MoveName.FAKE_OUT:
+            elif move[Move.PRIORITY] >= 1 and move[Move.ID] != MoveName.FAKE_OUT:
                 score = 6
                 return score, rand
             else:
@@ -324,7 +326,7 @@ class TrainerAI:
                 return score, rand
 
         if (
-            move[MoveArray.ID] in (
+            move[Move.ID] in (
                 MoveName.SUCKER_PUNCH,
                 MoveName.FOCUS_PUNCH,
                 MoveName.EXPLOSION,
@@ -341,67 +343,67 @@ class TrainerAI:
         It shows the incentives and disincentives for the best trainer ai out there, for ROM HACKS every trainer has it
         """
         score = 0
-        hp_pct_ai = np.floor(ai_pok[PokArray.CURRENT_HP] / ai_pok[PokArray.MAX_HP] * 100)
-        hp_pct_u = np.floor(u_pok[PokArray.CURRENT_HP] / u_pok[PokArray.MAX_HP] * 100)
+        hp_pct_ai = np.floor(ai_pok[Pok.CURRENT_HP] / ai_pok[Pok.MAX_HP] * 100)
+        hp_pct_u = np.floor(u_pok[Pok.CURRENT_HP] / u_pok[Pok.MAX_HP] * 100)
         # Check if move first (TODO add Trick room logic here)
         if (
-            ai_pok[PokArray.SPEED] * stage_to_multiplier(ai_pok[PokArray.SPEED_STAT_STAGE])
-            > u_pok[PokArray.SPEED] * stage_to_multiplier(u_pok[PokArray.SPEED_STAT_STAGE])
+            ai_pok[Pok.SPEED] * stage_to_multiplier(ai_pok[Pok.SPEED_STAT_STAGE])
+            > u_pok[Pok.SPEED] * stage_to_multiplier(u_pok[Pok.SPEED_STAT_STAGE])
         ):
             move_first = True
         elif (
-            ai_pok[PokArray.SPEED] * stage_to_multiplier(ai_pok[PokArray.SPEED_STAT_STAGE])
-            < u_pok[PokArray.SPEED] * stage_to_multiplier(u_pok[PokArray.SPEED_STAT_STAGE])
+            ai_pok[Pok.SPEED] * stage_to_multiplier(ai_pok[Pok.SPEED_STAT_STAGE])
+            < u_pok[Pok.SPEED] * stage_to_multiplier(u_pok[Pok.SPEED_STAT_STAGE])
         ):
             move_first = False
         else:
             move_first = random.choice([True, False])
 
-        if move[MoveArray.CATEGORY] == MoveCategory.STATUS:
-            if move[MoveArray.STATUS] != 0:
+        if move[Move.CATEGORY] == MoveCategory.STATUS:
+            if move[Move.STATUS] != 0:
                 # Poison-Inducing
                 if (
-                    move[MoveArray.STATUS] == Status.POISON
+                    move[Move.STATUS] == Status.POISON
                     and (hp_pct_ai < 50 or hp_pct_u <= 50)
                 ):
                     score = -1
                     return score, rand
                     # Sleep-Inducing
                 if (
-                    move[MoveArray.STATUS] == Status.SLEEP
+                    move[Move.STATUS] == Status.SLEEP
                     and any(
                         m in [MoveName.DREAM_EATER, MoveName.NIGHTMARE]
                         for m in [
-                            ai_pok[PokArray.MOVE1_ID],
-                            ai_pok[PokArray.MOVE2_ID],
-                            ai_pok[PokArray.MOVE3_ID],
-                            ai_pok[PokArray.MOVE4_ID],
+                            ai_pok[Pok.MOVE1_ID],
+                            ai_pok[Pok.MOVE2_ID],
+                            ai_pok[Pok.MOVE3_ID],
+                            ai_pok[Pok.MOVE4_ID],
                         ]
                     )
                 ):
                     add_adjustment(rand, idx, 1, 128)
                     return score, rand
                 # Paralyzing-Inducing
-                if move[MoveArray.STATUS] == Status.PARALYSIS and not move_first:
+                if move[Move.STATUS] == Status.PARALYSIS and not move_first:
                     add_adjustment(rand, idx, 3, 236)
                     return score, rand
-            if move[MoveArray.VOL_STATUS]:
+            if move[Move.VOL_STATUS]:
                 # Confusion-Inducing
-                if move[MoveArray.VOL_STATUS] == VolStatus.CONFUSION:
-                    if move[MoveArray.ID] == MoveName.SWAGGER:
+                if move[Move.VOL_STATUS] == VolStatus.CONFUSION:
+                    if move[Move.ID] == MoveName.SWAGGER:
                         psych_up = False
                         if any(
                             m == MoveName.PSYCH_UP
                             for m in [
-                                ai_pok[PokArray.MOVE1_ID],
-                                ai_pok[PokArray.MOVE2_ID],
-                                ai_pok[PokArray.MOVE3_ID],
-                                ai_pok[PokArray.MOVE4_ID],
+                                ai_pok[Pok.MOVE1_ID],
+                                ai_pok[Pok.MOVE2_ID],
+                                ai_pok[Pok.MOVE3_ID],
+                                ai_pok[Pok.MOVE4_ID],
                             ]
                         ):
                             psych_up = True
                         if psych_up:
-                            if u_pok[PokArray.ATTACK_STAT_STAGE] <= -3:
+                            if u_pok[Pok.ATTACK_STAT_STAGE] <= -3:
                                 if turn == 1:
                                     score += 5
                                 else:
@@ -409,7 +411,7 @@ class TrainerAI:
                             else:
                                 score += -5
                             return score, rand
-                    if move[MoveArray.ID] in (MoveName.SWAGGER, MoveName.FLATTER):
+                    if move[Move.ID] in (MoveName.SWAGGER, MoveName.FLATTER):
                         add_adjustment(rand, idx, -1, 128)
                     if hp_pct_u <= 70:
                         add_adjustment(rand, idx, -1, 128)
@@ -418,23 +420,23 @@ class TrainerAI:
                         if hp_pct_u <= 50:
                             score += -1
                     return score, rand
-            if any(move[MoveArray.BOOST_ATK: MoveArray.BOOST_EV + 1]):
+            if any(move[Move.BOOST_ATK: Move.BOOST_EV + 1]):
                 # Stat-Boosting moves
                 # atk = ['Attack', 'Special Attack']
                 # de = ['Defense', 'Special Defense']
-                if move[MoveArray.TARGET] in (
+                if move[Move.TARGET] in (
                     Target.ADJACENT_ALLY,
                     Target.ADJACENT_ALLY_OR_SELF,
                     Target.ALLIES,
                     Target.ALLY_SIDE,
                     Target.SELF
                 ):
-                    if any(move[MoveArray.BOOST_ATK: MoveArray.BOOST_SPDEF + 1]):
+                    if any(move[Move.BOOST_ATK: Move.BOOST_SPDEF + 1]):
                         if (
-                            (move[MoveArray.BOOST_ATK] and ai_pok[PokArray.ATTACK_STAT_STAGE]>= 3)
-                            or (move[MoveArray.BOOST_SPATK] and ai_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE]>= 3)
-                            or (move[MoveArray.BOOST_DEF] and ai_pok[PokArray.DEFENSE_STAT_STAGE]>= 3)
-                            or (move[MoveArray.BOOST_SPDEF] and ai_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE]>= 3)
+                            (move[Move.BOOST_ATK] and ai_pok[Pok.ATTACK_STAT_STAGE]>= 3)
+                            or (move[Move.BOOST_SPATK] and ai_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]>= 3)
+                            or (move[Move.BOOST_DEF] and ai_pok[Pok.DEFENSE_STAT_STAGE]>= 3)
+                            or (move[Move.BOOST_SPDEF] and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]>= 3)
                         ):
                             add_adjustment(rand, idx, -1, 156)
                         if hp_pct_ai >= 100:
@@ -446,34 +448,34 @@ class TrainerAI:
                         else:
                             score += -2
                         return score, rand
-                    if move[MoveArray.BOOST_SPEED] and move[MoveArray.ID] != MoveName.DRAGON_DANCE:
+                    if move[Move.BOOST_SPEED] and move[Move.ID] != MoveName.DRAGON_DANCE:
                         if move_first:
                             score += -3
                         else:
                             add_adjustment(rand, idx, 3, 186)
                         return score, rand
-                    if move[MoveArray.BOOST_EV]:
+                    if move[Move.BOOST_EV]:
                         if hp_pct_ai > 89:
                             add_adjustment(rand, idx, 3, 186)
-                        if ai_pok[PokArray.EVASION_STAT_STAGE]>= 3:
+                        if ai_pok[Pok.EVASION_STAT_STAGE]>= 3:
                             add_adjustment(rand, idx, -1, 128)
-                        if u_pok[PokArray.STATUS] == Status.TOXIC:
+                        if u_pok[Pok.STATUS] == Status.TOXIC:
                             if hp_pct_ai > 50:
                                 add_adjustment(rand, idx, 3, 206)
                             else:
                                 add_adjustment(rand, idx, 3, 142)
-                        if u_pok[PokArray.VOL_STATUS] & VolStatus.LEECH_SEED:
+                        if u_pok[Pok.VOL_STATUS] & VolStatus.LEECH_SEED:
                             add_adjustment(rand, idx, 3, 186)
-                        if u_pok[PokArray.VOL_STATUS] & VolStatus.CURSE:
+                        if u_pok[Pok.VOL_STATUS] & VolStatus.CURSE:
                             add_adjustment(rand, idx, 3, 186)
-                        if hp_pct_ai > 70 or u_pok[PokArray.EVASION_STAT_STAGE] == 0:
+                        if hp_pct_ai > 70 or u_pok[Pok.EVASION_STAT_STAGE] == 0:
                             return score, rand
                         if hp_pct_ai < 40 or hp_pct_u < 40:
                             score += -2
                             return score, rand
                         add_adjustment(rand, idx, -2, 186)
                         # TODO: Ingrain, Aqua Ring
-                if move[MoveArray.TARGET] in (
+                if move[Move.TARGET] in (
                     Target.NORMAL,
                     Target.ADJACENT_FOE,
                     Target.ALL_ADJACENT_FOES,
@@ -483,17 +485,17 @@ class TrainerAI:
                     Target.SCRIPTED
                 ):
                     # Attack and Special Attack
-                    if move[MoveArray.BOOST_ATK] or move[MoveArray.BOOST_SPATK]:
+                    if move[Move.BOOST_ATK] or move[Move.BOOST_SPATK]:
                         if (
-                            (move[MoveArray.BOOST_ATK]< 0 and u_pok[PokArray.ATTACK_STAT_STAGE]!= 0)
-                            or (move[MoveArray.BOOST_SPATK] and u_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE]!= 0)
+                            (move[Move.BOOST_ATK]< 0 and u_pok[Pok.ATTACK_STAT_STAGE]!= 0)
+                            or (move[Move.BOOST_SPATK] and u_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]!= 0)
                         ):
                             score += -1
                         if hp_pct_ai <= 90:
                             score += -1
                         if (
-                            (move[MoveArray.BOOST_ATK] and u_pok[PokArray.ATTACK_STAT_STAGE]<= -3)
-                            or (move[MoveArray.BOOST_SPATK] and u_pok[PokArray.SPECIAL_ATTACK_STAT_STAGE]<= -3)
+                            (move[Move.BOOST_ATK] and u_pok[Pok.ATTACK_STAT_STAGE]<= -3)
+                            or (move[Move.BOOST_SPATK] and u_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]<= -3)
                         ):
                             add_adjustment(rand, idx, -2, 206)
                         if hp_pct_u <= 70:
@@ -502,38 +504,38 @@ class TrainerAI:
                         # class (Physical/Special), 50% chance of score -2.
                         return score, rand
                     # Defense and Special Defense
-                    if move[MoveArray.BOOST_DEF] or move[MoveArray.BOOST_SPDEF]:
+                    if move[Move.BOOST_DEF] or move[Move.BOOST_SPDEF]:
                         if hp_pct_ai < 70:
                             add_adjustment(rand, idx, -2, 206)
                         if (
-                            (move[MoveArray.BOOST_DEF] and ai_pok[PokArray.DEFENSE_STAT_STAGE]<= -3)
-                            or (move[MoveArray.BOOST_SPDEF] and ai_pok[PokArray.SPECIAL_DEFENSE_STAT_STAGE]<= -3)
+                            (move[Move.BOOST_DEF] and ai_pok[Pok.DEFENSE_STAT_STAGE]<= -3)
+                            or (move[Move.BOOST_SPDEF] and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]<= -3)
                         ):
                             add_adjustment(rand, idx, -2, 206)
                         if hp_pct_u < 70:
                             score += -2
                         return score, rand
                     # Speed
-                    if move[MoveArray.BOOST_SPEED]:
+                    if move[Move.BOOST_SPEED]:
                         if not move_first:
                             add_adjustment(rand, idx, 2, 186)
                         else:
                             score += -3
                         return score, rand
                     # Accuracy
-                    if move[MoveArray.BOOST_ACC]:
+                    if move[Move.BOOST_ACC]:
                         # Check this, think it's wrong
                         if hp_pct_u <= 70 and not hp_pct_ai >= 70:
                             add_adjustment(rand, idx, -1, 156)
-                        if ai_pok[PokArray.ACCURACY_STAT_STAGE] <= -2:
+                        if ai_pok[Pok.ACCURACY_STAT_STAGE] <= -2:
                             add_adjustment(rand, idx, 2, 176)
-                        if u_pok[PokArray.STATUS] == Status.TOXIC:
+                        if u_pok[Pok.STATUS] == Status.TOXIC:
                             add_adjustment(rand, idx, 2, 186)
-                        if u_pok[PokArray.VOL_STATUS] & VolStatus.LEECH_SEED:
+                        if u_pok[Pok.VOL_STATUS] & VolStatus.LEECH_SEED:
                             add_adjustment(rand, idx, 2, 186)
-                        if u_pok[PokArray.VOL_STATUS] & VolStatus.CURSE:
+                        if u_pok[Pok.VOL_STATUS] & VolStatus.CURSE:
                             add_adjustment(rand, idx, 2, 186)
-                        if hp_pct_ai >= 70 or ai_pok[PokArray.ACCURACY_STAT_STAGE] == 0:
+                        if hp_pct_ai >= 70 or ai_pok[Pok.ACCURACY_STAT_STAGE] == 0:
                             return score, rand
                         if hp_pct_ai <= 40 or hp_pct_u <= 40:
                             score += -2
@@ -542,7 +544,7 @@ class TrainerAI:
                         return score, rand
                         # TODO: Ingrain, Aqua Ring
                     # Evasion
-                    if move[MoveArray.BOOST_EV]:
+                    if move[Move.BOOST_EV]:
                         if hp_pct_ai < 70:
                             add_adjustment(rand, idx, -2, 206)
                         if u_pok.stat_stages['Evasion'] <= -3:
@@ -552,10 +554,10 @@ class TrainerAI:
                         return score, rand
 
         # Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
-        if move[MoveArray.ACCURACY] == -1:  # -1 is how always hit moves is represented, being equal to acc: true
-            if ai_pok[PokArray.ACCURACY_STAT_STAGE] <= -5 or u_pok[PokArray.EVASION_STAT_STAGE] >= 5:
+        if move[Move.ACCURACY] == -1:  # -1 is how always hit moves is represented, being equal to acc: true
+            if ai_pok[Pok.ACCURACY_STAT_STAGE] <= -5 or u_pok[Pok.EVASION_STAT_STAGE] >= 5:
                 score += 1
-            if ai_pok[PokArray.ACCURACY_STAT_STAGE] <= -3 or u_pok[PokArray.EVASION_STAT_STAGE] >= 3:
+            if ai_pok[Pok.ACCURACY_STAT_STAGE] <= -3 or u_pok[Pok.EVASION_STAT_STAGE] >= 3:
                 add_adjustment(rand, idx, 1, 156)
             return score, rand
 
@@ -616,12 +618,12 @@ class TrainerAI:
         """
         move_scores = {}
         if self.current_pok_ab is True:
-            ability = AbilityNames(user_pok[PokArray.AB_ID]).name
+            ability = AbilityNames(user_pok[Pok.AB_ID]).name
         else:
             try:
                 ability = AbilityNames[random.choice(pkDB[user_pok.name]['abilities']).upper()].name
             except Exception:
-                ability = AbilityNames(user_pok[PokArray.AB_ID]).name
+                ability = AbilityNames(user_pok[Pok.AB_ID]).name
         max_rand = 5
         rand = np.full((4, max_rand, 2), np.nan)
         max_damage = 0
@@ -634,14 +636,14 @@ class TrainerAI:
 
         for i, move in enumerate((move1, move2, move3, move4)):
 
-            if move[MoveArray.ID] == 0:
+            if move[Move.ID] == 0:
                 break
             score = 0
             final_damage, _ = calculate_damage(ai_pok, user_pok, move)
             effectiveness = get_type_effectiveness(
-                move[MoveArray.TYPE],
-                user_pok[PokArray.TYPE1],
-                user_pok[PokArray.TYPE2]
+                move[Move.TYPE],
+                user_pok[Pok.TYPE1],
+                user_pok[Pok.TYPE2]
             )
             eval_atk, rand = self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
             score += eval_atk
@@ -654,7 +656,7 @@ class TrainerAI:
             score += expert
 
             # Find max damage among best moves
-            if move[MoveArray.ID] not in mov_excep and final_damage > max_damage:
+            if move[Move.ID] not in mov_excep and final_damage > max_damage:
                 max_damage = final_damage
 
             # TODO: Finish expert flag
@@ -664,10 +666,10 @@ class TrainerAI:
 
         # Apply penalty for moves that don't reach max damage
         for i, move in enumerate((move1, move2, move3, move4)):
-            if move[MoveArray.ID] not in mov_excep and move[MoveArray.CATEGORY] != MoveCategory.STATUS:
+            if move[Move.ID] not in mov_excep and move[Move.CATEGORY] != MoveCategory.STATUS:
                 if (
                     move_scores[i]['dmg'] < max_damage
-                    and not move_scores[i]['dmg'] >= user_pok[PokArray.CURRENT_HP]
+                    and not move_scores[i]['dmg'] >= user_pok[Pok.CURRENT_HP]
                 ):
                     move_scores[i]["score"] -= 1
 
@@ -712,9 +714,9 @@ class TrainerAI:
                 index of chosen teammate in ai_party (int) or None if no valid candidate.
 
         """
-        off = len(PokArray)
+        off = POK_LEN
         # filter non-fainted teammates and keep original party indices for tie-breaks
-        candidates = np.where(ai_party[PokArray.CURRENT_HP:: off] > 0)[0].tolist()
+        candidates = np.where(ai_party[Pok.CURRENT_HP:: off] > 0)[0].tolist()
         if not candidates:
             return None
         if len(candidates) == 1:
@@ -725,15 +727,15 @@ class TrainerAI:
         for idx in candidates:
             pok = ai_party[(off*idx):(off*(idx + 1))]
             has_se_move = False
-            m1 = pok[PokArray.MOVE1_ID:PokArray.MOVE2_ID]
-            m2 = pok[PokArray.MOVE2_ID:PokArray.MOVE3_ID]
-            m3 = pok[PokArray.MOVE3_ID:PokArray.MOVE4_ID]
-            m4 = pok[PokArray.MOVE4_ID:PokArray.ITEM_ID]
+            m1 = pok[Pok.MOVE1_ID:Pok.MOVE2_ID]
+            m2 = pok[Pok.MOVE2_ID:Pok.MOVE3_ID]
+            m3 = pok[Pok.MOVE3_ID:Pok.MOVE4_ID]
+            m4 = pok[Pok.MOVE4_ID:Pok.ITEM_ID]
             for mv in (m1, m2, m3, m4):
-                mv_type = mv[MoveArray.TYPE]
+                mv_type = mv[Move.TYPE]
                 if mv_type == 0:
                     break
-                eff = get_type_effectiveness(mv_type, user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                eff = get_type_effectiveness(mv_type, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
                 if eff > 1:
                     has_se_move = True
                     break
@@ -748,11 +750,11 @@ class TrainerAI:
                 return phase1[0][0]
             scored = []
             for idx, mon in phase1:
-                type1 = mon[PokArray.TYPE1]
+                type1 = mon[Pok.TYPE1]
                 # single-typed counted twice
-                type2 = mon[PokArray.TYPE2] if mon[PokArray.TYPE2] != 0 else mon[PokArray.TYPE1]
-                total += get_type_effectiveness(type1, user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
-                total += get_type_effectiveness(type2, user_pok[PokArray.TYPE1], user_pok[PokArray.TYPE2])
+                type2 = mon[Pok.TYPE2] if mon[Pok.TYPE2] != 0 else mon[Pok.TYPE1]
+                total += get_type_effectiveness(type1, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
+                total += get_type_effectiveness(type2, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
                 if total == 8:
                     total = 1.75
                 scored.append({'index': idx, 'mon': mon, 'score': total})
@@ -767,10 +769,10 @@ class TrainerAI:
         for idx in candidates:
             mon = ai_party[(off*idx):(off*(idx + 1))]
             max_move_dmg = 0
-            m1 = pok[PokArray.MOVE1_ID:PokArray.MOVE2_ID]
-            m2 = pok[PokArray.MOVE2_ID:PokArray.MOVE3_ID]
-            m3 = pok[PokArray.MOVE3_ID:PokArray.MOVE4_ID]
-            m4 = pok[PokArray.MOVE4_ID:PokArray.ITEM_ID]
+            m1 = pok[Pok.MOVE1_ID:Pok.MOVE2_ID]
+            m2 = pok[Pok.MOVE2_ID:Pok.MOVE3_ID]
+            m3 = pok[Pok.MOVE3_ID:Pok.MOVE4_ID]
+            m4 = pok[Pok.MOVE4_ID:Pok.ITEM_ID]
             for mv in (m1, m2, m3, m4):
                 # build move object shape expected by calculate_damage
                 try:

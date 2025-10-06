@@ -7,14 +7,15 @@ MCTS expands the tree by adding child nodes representing possible future actions
 3. Simulation (Rollout): A random playout is run from the new node to a terminal state,
 estimating its potential value.
 4. Backpropagation: The results of the simulation are then propagated up the tree…"""
-import copy
 import math
 import builtins
 import random
 from enum import Enum
 from typing import List, Tuple
 import numpy as np
-from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray, BattlefieldArray
+from Models.idx_const import (
+    Pok, Field, POK_LEN, MOVE_STRIDE
+)
 from Models.helper import count_party
 from Models.trainer_ai import TrainerAI
 from Engine.new_battle import Battle
@@ -36,14 +37,17 @@ class BattlePhase(Enum):
 
 class GameState():
     """Screenshot of the current gamestate"""
+    __slots__ = (
+        'battle_array', 'my_active', 'opp_active', 'my_pty', 'opp_pty', 'turn', 'phase', 'opp_ai', 'opp_move'
+    )
     def __init__(self, battle_array):
-        self.battle_array = copy.deepcopy(battle_array)
-        self.my_active = int(self.battle_array[BattlefieldArray.MY_POK])  # Index of 0..5
-        self.opp_active = int(self.battle_array[BattlefieldArray.OPP_POK])  # Index of 0..5
-        self.my_pty = self.battle_array[0:(6 * len(PokArray))]
-        self.opp_pty = self.battle_array[(6 * len(PokArray)):(12 * len(PokArray))]
-        self.turn = self.battle_array[BattlefieldArray.TURN]
-        self.phase = self.battle_array[BattlefieldArray.PHASE]
+        self.battle_array = np.copy(battle_array)
+        self.my_active = int(self.battle_array[Field.MY_POK])  # Index of 0..5
+        self.opp_active = int(self.battle_array[Field.OPP_POK])  # Index of 0..5
+        self.my_pty = self.battle_array[0:(6 * POK_LEN)]
+        self.opp_pty = self.battle_array[(6 * POK_LEN):(12 * POK_LEN)]
+        self.turn = self.battle_array[Field.TURN]
+        self.phase = self.battle_array[Field.PHASE]
         self.opp_ai = TrainerAI()
         if self.phase != BattlePhase.DEATH_END_OF_TURN:
             self.opp_move = self.opp_move_choice()
@@ -56,14 +60,14 @@ class GameState():
 
     def get_my_pokemon(self, idx: int) -> np.ndarray:
         """Get pokemon from my party by index (0-5)"""
-        start = idx * len(PokArray)
-        end = (idx + 1) * len(PokArray)
+        start = idx * POK_LEN
+        end = (idx + 1) * POK_LEN
         return self.battle_array[int(start):int(end)]
 
     def get_opp_pokemon(self, idx: int) -> np.ndarray:
         """Get pokemon from opponent party by index (0-5)"""
-        start = (6 + idx) * len(PokArray)
-        end = (7 + idx) * len(PokArray)
+        start = (6 + idx) * POK_LEN
+        end = (7 + idx) * POK_LEN
         return self.battle_array[int(start):int(end)]
 
     def get_my_active(self) -> np.ndarray:
@@ -88,7 +92,7 @@ class GameState():
         if self.phase == BattlePhase.DEATH_END_OF_TURN:
             for i in range(6):
                 pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
-                if pokemon[PokArray.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
+                if pokemon[Pok.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
                     actions.append((ActionType.SWITCH.value, i))
             return actions  # Return here to prevent adding move actions
 
@@ -100,7 +104,7 @@ class GameState():
 
         # Check each move slot
         for i in range(4):
-            move_id_idx = PokArray.MOVE1_ID + (i * (len(MoveArray) + len(MoveFlags) + len(SecondaryArray)))
+            move_id_idx = Pok.MOVE1_ID + (i * MOVE_STRIDE)
             if active[move_id_idx] != 0:  # Move exists
                 actions.append((ActionType.MOVE.value, i))
 
@@ -108,7 +112,7 @@ class GameState():
         for i in range(6):
             pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
             # Can switch if pokemon is alive and not currently active
-            if pokemon[PokArray.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
+            if pokemon[Pok.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
                 actions.append((ActionType.SWITCH.value, i))
 
         return actions
@@ -116,15 +120,15 @@ class GameState():
     def opp_move_choice(self):
         """Uses the trainer AI to choose the move"""
         opp_idx = self.opp_ai.return_idx(
-            self.battle_array[0:(6 * len(PokArray))],
-            self.battle_array[(6 * len(PokArray)):(12 * len(PokArray))],
+            self.battle_array[0:(6 * POK_LEN)],
+            self.battle_array[(6 * POK_LEN):(12 * POK_LEN)],
             self.get_my_active(),
             self.get_opp_active(),
             self.turn,
-            self.get_opp_active()[PokArray.MOVE1_ID:PokArray.MOVE2_ID],
-            self.get_opp_active()[PokArray.MOVE2_ID:PokArray.MOVE3_ID],
-            self.get_opp_active()[PokArray.MOVE3_ID:PokArray.MOVE4_ID],
-            self.get_opp_active()[PokArray.MOVE4_ID:PokArray.ITEM_ID]
+            self.get_opp_active()[Pok.MOVE1_ID:Pok.MOVE2_ID],
+            self.get_opp_active()[Pok.MOVE2_ID:Pok.MOVE3_ID],
+            self.get_opp_active()[Pok.MOVE3_ID:Pok.MOVE4_ID],
+            self.get_opp_active()[Pok.MOVE4_ID:Pok.ITEM_ID]
         )
         return opp_idx
 
@@ -138,10 +142,10 @@ class GameState():
             battle.end_of_turn(search=my_move_idx[1])
             if my_move_idx[0] == "switch":
                 new.my_active = my_move_idx[1]
-                new.battle_array[BattlefieldArray.MY_POK] = my_move_idx[1]
+                new.battle_array[Field.MY_POK] = my_move_idx[1]
             new.phase = BattlePhase.TURN_START
-            new.battle_array[BattlefieldArray.PHASE] = BattlePhase.TURN_START.value
-            if new.my_active != new.battle_array[BattlefieldArray.MY_POK] or new.my_active >= 2:
+            new.battle_array[Field.PHASE] = BattlePhase.TURN_START.value
+            if new.my_active != new.battle_array[Field.MY_POK] or new.my_active >= 2:
                 pass
 
             return new
@@ -150,13 +154,13 @@ class GameState():
         try:
             builtins.print = lambda *a, **k: None
             new.phase, opp_idx = battle.turn_sim(opp_move_idx, my_move_idx)
-            new.battle_array[BattlefieldArray.PHASE] = new.phase.value
+            new.battle_array[Field.PHASE] = new.phase.value
             if opp_idx:
                 new.opp_active = opp_idx
             if my_move_idx[0] == 'switch':
                 new.my_active = my_move_idx[1]
-                new.battle_array[BattlefieldArray.MY_POK] = my_move_idx[1]
-            if new.my_active != new.battle_array[BattlefieldArray.MY_POK] or new.my_active >= 2:
+                new.battle_array[Field.MY_POK] = my_move_idx[1]
+            if new.my_active != new.battle_array[Field.MY_POK] or new.my_active >= 2:
                 pass
         finally:
             builtins.print = orig_print
@@ -169,6 +173,9 @@ class Node():
     - Store: state, parent, children, visit count, total value, untried actions
     - Key: nodes represent decision points, not chance outcomes
     """
+    __slots__ = (
+        'state', 'parent', 'move', 'children', 'visits', 'total_value', 'legal_moves', 'wins', 'dead'
+    )
     def __init__(self, state, parent=None, move=None):
         self.state = state
         self.parent = parent
@@ -217,7 +224,7 @@ def mcts(root_state: GameState, iterations: int):
 
         # 1) Selection
         while not state.is_terminal():
-            if state.my_active != state.battle_array[BattlefieldArray.MY_POK] or state.my_active >= 2:
+            if state.my_active != state.battle_array[Field.MY_POK] or state.my_active >= 2:
                 raise ValueError('Wrong')
             untried_actions = [
                 a for a in state.get_valid_actions() if a not in node.children
@@ -249,7 +256,7 @@ def mcts(root_state: GameState, iterations: int):
             action = random.choice(untried_actions)
             state = state.step(action)
             child = Node(state, parent=node, move=action)
-            if state.my_active != state.battle_array[BattlefieldArray.MY_POK] or state.my_active >= 2:
+            if state.my_active != state.battle_array[Field.MY_POK] or state.my_active >= 2:
                 pass
             child.total_value = evaluate_state(state, root)  # Set initial value based on heuristic
             if action not in node.children:
@@ -273,7 +280,7 @@ def mcts(root_state: GameState, iterations: int):
                     sim_state.get_valid_actions()
                 )
             sim_state = sim_state.step(action)
-            if sim_state.my_active != sim_state.battle_array[BattlefieldArray.MY_POK] or state.my_active >= 2:
+            if sim_state.my_active != sim_state.battle_array[Field.MY_POK] or state.my_active >= 2:
                 pass
 
         # 4) Backpropagation
@@ -294,9 +301,7 @@ def mcts(root_state: GameState, iterations: int):
             nodes_visits += n.visits
             nodes_dead += n.dead
             nodes_total_value += n.total_value
-            if n.parent != root:
-                print("⚠️ Child has wrong parent:", action)
         win_rate = nodes_wins / nodes_visits
         dead = nodes_dead / nodes_wins if nodes_wins else 0.0
         print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {int(nodes_total_value)}'
-              f', win_rate: {round(win_rate, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
+              f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
