@@ -1,7 +1,7 @@
 """Evaluation of terminal and current state"""
 import random
 from Models.idx_nparray import PokArray, BaseArray, AbilityIdx, MoveArray, MoveFlags, SecondaryArray
-from Models.helper import count_party
+from Models.helper import count_party, count_Id
 from Engine.damage_calc import calculate_damage
 
 
@@ -33,7 +33,7 @@ def count_fainted(battle_array, offset, maxp):
             fallen += 1
     return fallen
 
-def evaluate_terminal(sim_state) -> float:
+def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     """
     Terminal evaluation for MCTS backprop.
     - Win  => +1
@@ -41,16 +41,18 @@ def evaluate_terminal(sim_state) -> float:
     - draw => 0
     """
     # quick terminal check
+    my_pty_count = count_Id(sim_state.battle_array[0:(6 * len(PokArray))])
     my_alive = count_party(sim_state.battle_array[0:(6 * len(PokArray))])
     opp_alive = count_party(sim_state.battle_array[(6 * len(PokArray)):(12 * len(PokArray))])
+    dead = my_pty_count - my_alive
 
     if opp_alive == 0 and my_alive > 0:
-        return +1.0
+        return +1.0, 1, dead
     if my_alive == 0 and opp_alive > 0:
-        return -1.0
+        return -1.0, 0, dead
 
     # Rare draw case (both 0)
-    return 0.0
+    return 0.0, 0, dead
 
 def evaluate_state(sim_state, root) -> float:
     """

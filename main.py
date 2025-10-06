@@ -11,8 +11,8 @@ squirtle = Pokemon("Squirtle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail W
 squirtle1 = Pokemon("Squirtle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail Whip"])
 charmander1 = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl"])
 
-my_party = [charmander]
-opp_party = [squirtle1]
+my_party = [charmander, squirtle]
+opp_party = [squirtle1, charmander1]
 
 battle = to_battle_array(my_party, opp_party)
 root = GameState(battle)

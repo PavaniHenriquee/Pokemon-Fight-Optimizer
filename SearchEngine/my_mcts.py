@@ -14,7 +14,7 @@ import random
 from enum import Enum
 from typing import List, Tuple
 import numpy as np
-from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray
+from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray, BattlefieldArray
 from Models.helper import count_party
 from Models.trainer_ai import TrainerAI
 from Engine.new_battle import Battle
@@ -29,21 +29,21 @@ class ActionType(Enum):
 
 class BattlePhase(Enum):
     """Where in the battle i am"""
-    TURN_START = 1
-    DEATH_END_OF_TURN = 2
+    TURN_START = 0
+    DEATH_END_OF_TURN = 1
 
 
 
 class GameState():
     """Screenshot of the current gamestate"""
-    def __init__(self, battle_array, my_active=0, opp_active=0, turn=1, phase=BattlePhase.TURN_START):
+    def __init__(self, battle_array):
         self.battle_array = copy.deepcopy(battle_array)
-        self.my_active = my_active  # Index of 0..5
-        self.opp_active = opp_active  # Index of 0..5
+        self.my_active = int(self.battle_array[BattlefieldArray.MY_POK])  # Index of 0..5
+        self.opp_active = int(self.battle_array[BattlefieldArray.OPP_POK])  # Index of 0..5
         self.my_pty = self.battle_array[0:(6 * len(PokArray))]
         self.opp_pty = self.battle_array[(6 * len(PokArray)):(12 * len(PokArray))]
-        self.turn = turn
-        self.phase = phase
+        self.turn = self.battle_array[BattlefieldArray.TURN]
+        self.phase = self.battle_array[BattlefieldArray.PHASE]
         self.opp_ai = TrainerAI()
         if self.phase != BattlePhase.DEATH_END_OF_TURN:
             self.opp_move = self.opp_move_choice()
@@ -52,19 +52,19 @@ class GameState():
 
     def clone(self):
         """Clone"""
-        return GameState(self.battle_array, self.my_active, self.opp_active, self.turn)
+        return GameState(self.battle_array)
 
     def get_my_pokemon(self, idx: int) -> np.ndarray:
         """Get pokemon from my party by index (0-5)"""
         start = idx * len(PokArray)
         end = (idx + 1) * len(PokArray)
-        return self.battle_array[start:end]
+        return self.battle_array[int(start):int(end)]
 
     def get_opp_pokemon(self, idx: int) -> np.ndarray:
         """Get pokemon from opponent party by index (0-5)"""
         start = (6 + idx) * len(PokArray)
         end = (7 + idx) * len(PokArray)
-        return self.battle_array[start:end]
+        return self.battle_array[int(start):int(end)]
 
     def get_my_active(self) -> np.ndarray:
         """Get my active pokemon"""
@@ -127,35 +127,37 @@ class GameState():
             self.get_opp_active()[PokArray.MOVE4_ID:PokArray.ITEM_ID]
         )
         return opp_idx
-    
+
     def step(self, my_move_idx):
         """Simulate the entire turn"""
         new = self.clone()
         battle = Battle(
-            battle_array=new.battle_array,
-            my_active=new.my_active,
-            opp_active=new.opp_active,
-            turn=new.turn
+            battle_array=new.battle_array
         )
-        if self.phase == BattlePhase.DEATH_END_OF_TURN:
+        if new.phase == BattlePhase.DEATH_END_OF_TURN:
             battle.end_of_turn(search=my_move_idx[1])
             if my_move_idx[0] == "switch":
                 new.my_active = my_move_idx[1]
-            else:
-                pass
+                new.battle_array[BattlefieldArray.MY_POK] = my_move_idx[1]
             new.phase = BattlePhase.TURN_START
-            if new.my_active > 1:
+            new.battle_array[BattlefieldArray.PHASE] = BattlePhase.TURN_START.value
+            if new.my_active != new.battle_array[BattlefieldArray.MY_POK] or new.my_active >= 2:
                 pass
+
             return new
-        if my_move_idx[0] == 'switch':
-            new.my_active = my_move_idx[1]
         opp_move_idx = self.opp_move
         orig_print = builtins.print
         try:
             builtins.print = lambda *a, **k: None
             new.phase, opp_idx = battle.turn_sim(opp_move_idx, my_move_idx)
+            new.battle_array[BattlefieldArray.PHASE] = new.phase.value
             if opp_idx:
                 new.opp_active = opp_idx
+            if my_move_idx[0] == 'switch':
+                new.my_active = my_move_idx[1]
+                new.battle_array[BattlefieldArray.MY_POK] = my_move_idx[1]
+            if new.my_active != new.battle_array[BattlefieldArray.MY_POK] or new.my_active >= 2:
+                pass
         finally:
             builtins.print = orig_print
 
@@ -175,13 +177,12 @@ class Node():
         self.visits = 0
         self.total_value = 0
         self.legal_moves = state.get_valid_actions(is_player=True)
+        self.wins = 0
+        self.dead = 0
 
-    def best_action(self, c=1.4):
+    def best_action(self, c=1.2):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
         # prefer a random unvisited child to avoid insertion-order bias
-        unvisited = [(k, n) for k, n in self.children.items() if n.visits == 0]
-        if unvisited:
-            return random.choice(unvisited)
 
         best_key, best_node = None, None
         best_val = -float("inf")
@@ -191,9 +192,14 @@ class Node():
 
         for key, child in self.children.items():
             # average value
-            avg = child.total_value / child.visits
+            c_total_value = 0
+            c_visits = 0
+            for chi in child:
+                c_total_value += chi.total_value
+                c_visits += chi.visits
+            avg = c_total_value / c_visits
             # UCB: avg + c * sqrt(2 * ln(N) / n)
-            ucb_val = avg + c * math.sqrt(2 * (log_parent_visits) / child.visits)
+            ucb_val = avg + c * math.sqrt(2 * (log_parent_visits) / c_visits)
             if ucb_val > best_val or (ucb_val == best_val and random.random() < 0.5):
                 best_val, best_key, best_node = ucb_val, key, child
 
@@ -211,6 +217,8 @@ def mcts(root_state: GameState, iterations: int):
 
         # 1) Selection
         while not state.is_terminal():
+            if state.my_active != state.battle_array[BattlefieldArray.MY_POK] or state.my_active >= 2:
+                raise ValueError('Wrong')
             untried_actions = [
                 a for a in state.get_valid_actions() if a not in node.children
             ]
@@ -218,22 +226,35 @@ def mcts(root_state: GameState, iterations: int):
             if untried_actions:
                 # We have unexplored actions, time to expand
                 break
-            elif node.children:
-                # All actions explored, select best child
-                action_key, action = node.best_action()  # Pick action with best UCB
-                node = action
-                state = state.step(action_key)
+            if node.children:
+                action_key, child = node.best_action()  # Pick action with best UCB
+                new_state = state.step(action_key)
+                has_phase = False
+                for c in child:
+                    if c.state.phase == new_state.phase:
+                        c.state = new_state.clone()
+                        node = c
+                        has_phase = True
+                if has_phase is False:
+                    new_child = Node(new_state, parent=node, move=action_key)
+                    child.append(new_child)
+                    node = new_child
+                state = new_state
                 path.append(node)
             else:
-                raise ValueError("Failbreak")
+                raise ValueError("MCTS Selection")
 
         # 2) Expansion (if not terminal)
         if not state.is_terminal() and untried_actions:
             action = random.choice(untried_actions)
             state = state.step(action)
             child = Node(state, parent=node, move=action)
+            if state.my_active != state.battle_array[BattlefieldArray.MY_POK] or state.my_active >= 2:
+                pass
             child.total_value = evaluate_state(state, root)  # Set initial value based on heuristic
-            node.children[action] = child
+            if action not in node.children:
+                node.children[action] = []
+                node.children[action].append(child)
             path.append(child)
             node = child
 
@@ -252,14 +273,30 @@ def mcts(root_state: GameState, iterations: int):
                     sim_state.get_valid_actions()
                 )
             sim_state = sim_state.step(action)
+            if sim_state.my_active != sim_state.battle_array[BattlefieldArray.MY_POK] or state.my_active >= 2:
+                pass
 
         # 4) Backpropagation
-        value = evaluate_terminal(sim_state)  # Your evaluation
+        value, win, dead = evaluate_terminal(sim_state)  # Your evaluation
         for node in reversed(path):
             node.visits += 1
             node.total_value += value
+            node.wins += win
+            node.dead += dead if win else 0
 
     for actions, nodes in root.children.items():
-        win_rate = (nodes.total_value / nodes.visits + 1) / 2
-        print(f'actions: {actions}, visits: {(nodes.visits)}, total value: {int(nodes.total_value)}'
-              f', win_rate: {round(win_rate*100, 2)}%')
+        nodes_wins = 0
+        nodes_visits = 0
+        nodes_dead = 0
+        nodes_total_value = 0
+        for n in nodes:
+            nodes_wins += n.wins
+            nodes_visits += n.visits
+            nodes_dead += n.dead
+            nodes_total_value += n.total_value
+            if n.parent != root:
+                print("⚠️ Child has wrong parent:", action)
+        win_rate = nodes_wins / nodes_visits
+        dead = nodes_dead / nodes_wins if nodes_wins else 0.0
+        print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {int(nodes_total_value)}'
+              f', win_rate: {round(win_rate, 2)}%, chance of losing a pokemon: {round(dead, 2)}')

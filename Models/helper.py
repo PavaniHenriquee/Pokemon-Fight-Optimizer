@@ -175,3 +175,9 @@ def count_party(pty):
     """How many pok are alive"""
     pok_features = len(PokArray)
     return np.count_nonzero(pty[PokArray.CURRENT_HP :: pok_features] > 0)
+
+
+def count_Id(pty):
+    """Pokemon in party, no matter if alive or dead"""
+    pok_features = len(PokArray)
+    return np.count_nonzero(pty[PokArray.ID :: pok_features] > 0)

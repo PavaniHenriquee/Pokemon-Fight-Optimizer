@@ -4,12 +4,12 @@ from enum import Enum, auto
 import numpy as np
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
-from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray
+from Models.idx_nparray import PokArray, MoveArray, MoveFlags, SecondaryArray, BattlefieldArray
 from Models.helper import Status, VolStatus, Types
 from DataBase.PkDB import PokemonName
 
 
-def to_battle_array(my_pty, opp_pty):
+def to_battle_array(my_pty, opp_pty, battlefield=None):
     """Tranform both parties in the battle arrray"""
     try:
         pok1 = my_pty[0].to_np()
@@ -59,9 +59,14 @@ def to_battle_array(my_pty, opp_pty):
         o_pok6 = opp_pty[5].to_np()
     except IndexError:
         o_pok6 = np.zeros(len(PokArray))
+    try:
+        battlef = battlefield.to_array()
+    except Exception:
+        battlef = np.zeros(len(BattlefieldArray))
 
     return np.concatenate([pok1, pok2, pok3, pok4, pok5, pok6,
-                           o_pok1, o_pok2, o_pok3, o_pok4, o_pok5, o_pok6])
+                           o_pok1, o_pok2, o_pok3, o_pok4, o_pok5, o_pok6,
+                           battlef])
 
 
 def check_speed(p1, p2):
