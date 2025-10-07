@@ -85,7 +85,7 @@ def type_to_number(types: list):
     """Receive the types list and transform them in numbers"""
     type1 = getattr(Types, types[0].upper())
     try:
-        type2 = Types[types[1].upper()]
+        type2 = getattr(Types, types[1].upper())
     except (KeyError, IndexError):
         type2 = 0
 

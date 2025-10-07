@@ -265,7 +265,7 @@ def mixed_rollout(state: GameState, max_depth=50, heuristic_prob=0.3) -> float:
 
 
 
-def mcts(root_state: GameState, iterations: int):
+def mcts(root_state: GameState, iterations: int, training: bool=False):
     """MCTS"""
     root = Node(root_state)
 
@@ -323,17 +323,18 @@ def mcts(root_state: GameState, iterations: int):
             node.wins += win
             node.dead += dead if win else 0
 
-    for actions, nodes in root.children.items():
-        nodes_wins = 0
-        nodes_visits = 0
-        nodes_dead = 0
-        nodes_total_value = 0
-        for n in nodes:
-            nodes_wins += n.wins
-            nodes_visits += n.visits
-            nodes_dead += n.dead
-            nodes_total_value += n.total_value
-        win_rate = nodes_wins / nodes_visits
-        dead = nodes_dead / nodes_wins if nodes_wins else 0.0
-        print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
-              f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
+    if training is False:
+        for actions, nodes in root.children.items():
+            nodes_wins = 0
+            nodes_visits = 0
+            nodes_dead = 0
+            nodes_total_value = 0
+            for n in nodes:
+                nodes_wins += n.wins
+                nodes_visits += n.visits
+                nodes_dead += n.dead
+                nodes_total_value += n.total_value
+            win_rate = nodes_wins / nodes_visits
+            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
+            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
+                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
