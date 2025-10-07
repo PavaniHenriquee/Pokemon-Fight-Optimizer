@@ -1,17 +1,17 @@
 """Database for Pokemon in python, pokemon names to numbers"""  # pylint:disable=C0103
-from enum import IntEnum, auto
+from types import SimpleNamespace
 
 
-class PokemonName(IntEnum):
-    """Converting move names to numbers"""
-    def _generate_next_value_(name, start, count, last_values):  # pylint:disable=E0213
-        return count + 1
-    BULBASAUR = auto()
-    IVYSAUR = auto()
-    VENUSAUR = auto()
-    CHARMANDER = auto()
-    CHARMELEON = auto()
-    CHARIZARD = auto()
-    SQUIRTLE = auto()
-    WARTORTLE = auto()
-    BLASTOISE = auto()
+PokemonName = SimpleNamespace(
+    BULBASAUR = 1,
+    IVYSAUR = 2,
+    VENUSAUR = 3,
+    CHARMANDER = 4,
+    CHARMELEON = 5,
+    CHARIZARD = 6,
+    SQUIRTLE = 7,
+    WARTORTLE = 8,
+    BLASTOISE = 9
+)
+
+PokIdToName = {v: k for k, v in PokemonName.__dict__.items() if not k.startswith("__")}

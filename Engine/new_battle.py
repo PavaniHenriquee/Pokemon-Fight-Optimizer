@@ -20,7 +20,7 @@ from Models.idx_const import (
     Pok, Field, Move, Sec, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, OFFSET_SEC
 )
 from Models.helper import count_party, Status, VolStatus, MoveCategory
-from DataBase.PkDB import PokemonName
+from DataBase.PkDB import PokIdToName
 from DataBase.MoveDB import MoveIdToName
 
 
@@ -37,7 +37,7 @@ def switch_menu(current_pokemon, my_pty):
             and my_pty[Pok.ID + off] != current_pokemon[Pok.ID]
         ):
             opt.append(i + 1)
-            print(f"{i+1}. {PokemonName(my_pty[Pok.ID + off]).name.capitalize()}")
+            print(f"{i+1}. {PokIdToName[my_pty[Pok.ID + off]].capitalize()}")
     if current_pokemon[Pok.CURRENT_HP] > 0:
         print("r. Return to previous menu")
     switch_choice = input("Choose1: ")
@@ -72,7 +72,7 @@ def battle_menu(current_pokemon, my_pty):
             pok_moves_len += 1
 
     while current_move_idx < 0 or current_move_idx >= pok_moves_len:
-        print(f"Your current Pokemon is {PokemonName(current_pokemon[Pok.ID]).name.capitalize()}")
+        print(f"Your current Pokemon is {PokIdToName[current_pokemon[Pok.ID]].capitalize()}")
         if count_party(my_pty) > 1:
             print("Choose one of the moves or if you want to switch:")
         else:
@@ -151,11 +151,11 @@ class Battle():
             else:
                 speed_tie_2 = True
         if p1_speed > p2_speed or speed_tie_1:
-            print(f"You sent out {PokemonName(self.current_pokemon[Pok.ID]).name.capitalize()}!")
-            print(f"The opponent sent out {PokemonName(self.current_opp[Pok.ID]).name.capitalize()}!")
+            print(f"You sent out {PokIdToName[self.current_pokemon[Pok.ID]].capitalize()}!")
+            print(f"The opponent sent out {PokIdToName[self.current_opp[Pok.ID]].capitalize()}!")
         elif p2_speed > p1_speed or speed_tie_2:
-            print(f"The opponent sent out {PokemonName(self.current_pokemon[Pok.ID]).name.capitalize()}!")
-            print(f"You sent out {PokemonName(self.current_opp[Pok.ID]).name.capitalize()}!")
+            print(f"The opponent sent out {PokIdToName[self.current_pokemon[Pok.ID]].capitalize()}!")
+            print(f"You sent out {PokIdToName[self.current_opp[Pok.ID]].capitalize()}!")
         self.current_pokemon[Pok.TURNS] = 1
         self.current_opp[Pok.TURNS] = 1
 
@@ -205,47 +205,47 @@ class Battle():
                     speed_tie_2 = True
             if my_s > opp_s or speed_tie_1:
                 # TODO: Switch in abilities and terrain hazards
-                print(f'You switched {PokemonName(self.current_pokemon[Pok.ID]).name.capitalize()} out.')
+                print(f'You switched {PokIdToName[self.current_pokemon[Pok.ID]].capitalize()} out.')
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.current_pokemon = self.my_pty[(switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)]
-                print(f'You switched {PokemonName(self.current_pokemon[Pok.ID]).name.capitalize()} in.')
+                print(f'You switched {PokIdToName[self.current_pokemon[Pok.ID]].capitalize()} in.')
 
-                print(f'Opponent has switched {PokemonName(self.current_opp[Pok.ID]).name.capitalize()} out.')
+                print(f'Opponent has switched {PokIdToName[self.current_opp[Pok.ID]].capitalize()} out.')
                 reset_switch_out(self.current_opp)
                 self.current_opp = opp_switch
                 self.battle_array[Field.OPP_POK] = opp_switch
-                print(f'Opponent has switched {PokemonName(self.current_opp[Pok.ID]).name.capitalize()} in.')
+                print(f'Opponent has switched {PokIdToName[self.current_opp[Pok.ID]].capitalize()} in.')
             elif my_s < opp_s or speed_tie_2:
                 # TODO: Switch in abilities and terrain hazards
-                print(f'Opponent has switched {PokemonName(self.current_opp[Pok.ID]).name.capitalize()} out.')
+                print(f'Opponent has switched {PokIdToName[self.current_opp[Pok.ID]].capitalize()} out.')
                 reset_switch_out(self.current_opp)
                 self.battle_array[Field.OPP_POK] = opp_switch
                 self.current_opp = opp_switch
-                print(f'Opponent has switched {PokemonName(self.current_opp[Pok.ID]).name.capitalize()} in.')
+                print(f'Opponent has switched {PokIdToName[self.current_opp[Pok.ID]].capitalize()} in.')
 
-                print(f'You switched {PokemonName(self.current_pokemon[Pok.ID]).name.capitalize()} out.')
+                print(f'You switched {PokIdToName[self.current_pokemon[Pok.ID]].capitalize()} out.')
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.current_pokemon = self.my_pty[(switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)]
-                print(f'You switched {PokemonName(self.current_pokemon[Pok.ID]).name.capitalize()} in.')
+                print(f'You switched {PokIdToName[self.current_pokemon[Pok.ID]].capitalize()} in.')
             return
 
         if opp_switch:
             # TODO: Switch in abilities and terrain hazards
-            print(f'Opponent has switched {PokemonName(self.current_opp[Pok.ID]).name.capitalize()} out.')
+            print(f'Opponent has switched {PokIdToName[self.current_opp[Pok.ID]].capitalize()} out.')
             reset_switch_out(self.current_opp)
             self.current_opp = opp_switch
             self.battle_array[Field.OPP_POK] = opp_switch
-            print(f'Opponent has switched {PokemonName(self.current_opp[Pok.ID]).name.capitalize()} in.')
+            print(f'Opponent has switched {PokIdToName[self.current_opp[Pok.ID]].capitalize()} in.')
 
         if switch_idx >= 0:
             # TODO: Switch in abilities and terrain hazards
-            print(f'You switched {PokemonName(self.current_pokemon[Pok.ID]).name.capitalize()} out.')
+            print(f'You switched {PokIdToName[self.current_pokemon[Pok.ID]].capitalize()} out.')
             reset_switch_out(self.current_pokemon)
             self.battle_array[Field.MY_POK] = switch_idx
             self.current_pokemon = self.my_pty[(switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)]
-            print(f'You switched {PokemonName(self.current_pokemon[Pok.ID]).name.capitalize()} in.')
+            print(f'You switched {PokIdToName[self.current_pokemon[Pok.ID]].capitalize()} in.')
 
     def action(self, current_move, opp_move, search=False):
         """Where the moves are calculated"""
@@ -330,26 +330,26 @@ class Battle():
             # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
             if attacker[Pok.STATUS] == Status.SLEEP:
                 if attacker[Pok.SLEEP_COUNTER] > 0:
-                    print(f"{PokemonName(attacker[Pok.ID]).name.capitalize()} is fast asleep!")
+                    print(f"{PokIdToName[attacker[Pok.ID]].capitalize()} is fast asleep!")
                     attacker[Pok.SLEEP_COUNTER] -= 1
                     continue
                 attacker[Pok.STATUS] = 0
-                print(f"{PokemonName(attacker[Pok.ID]).name.capitalize()} has woken up!")
+                print(f"{PokIdToName[attacker[Pok.ID]].capitalize()} has woken up!")
             # Check for Paralysis
             if attacker[Pok.STATUS] == Status.PARALYSIS and paralysis():
-                print(f"{PokemonName(attacker[Pok.ID]).name.capitalize()} is fully paralysed!")
+                print(f"{PokIdToName[attacker[Pok.ID]].capitalize()} is fully paralysed!")
                 continue
             # Freeze
             if attacker[Pok.STATUS] == Status.FREEZE:
                 early_return = freeze()
                 if early_return:
-                    print(f'{PokemonName(attacker[Pok.ID]).name.capitalize()} is frozen solid!')
+                    print(f'{PokIdToName[attacker[Pok.ID]].capitalize()} is frozen solid!')
                     continue
                 attacker[Pok.STATUS] = 0
-                print(f"{PokemonName(attacker[Pok.ID]).name.capitalize()} has thawed out!")
+                print(f"{PokIdToName[attacker[Pok.ID]].capitalize()} has thawed out!")
             # Flinch
             if idx >= 2 and flinch is True:
-                print(f"{PokemonName(attacker[Pok.ID]).name.capitalize()} flinched and couldn\'t move!")
+                print(f"{PokIdToName[attacker[Pok.ID]].capitalize()} flinched and couldn\'t move!")
                 continue
             # Volatile Status early returns, only confusion for now
             if attacker[Pok.VOL_STATUS] != 0 and attacker[Pok.VOL_STATUS] & VolStatus.CONFUSION:
@@ -359,9 +359,9 @@ class Battle():
             # In cases like after recoil damage, selfdestruct, etc.
             if defender[Pok.CURRENT_HP] <= 0:
                 print(
-                    f"{PokemonName(attacker[Pok.ID]).name.capitalize()}"
+                    f"{PokIdToName[attacker[Pok.ID]].capitalize()}"
                     f"used {MoveIdToName[move[Move.ID]].capitalize()} "
-                    f"on {PokemonName(defender[Pok.ID]).name.capitalize()}!"
+                    f"on {PokIdToName[defender[Pok.ID]].capitalize()}!"
                 )
                 print("But it failed.")
                 continue
@@ -377,12 +377,12 @@ class Battle():
                 else:
                     if attacker[Pok.ID] == self.current_pokemon[Pok.ID]:
                         print(
-                            f"{PokemonName(attacker[Pok.ID]).name.capitalize()}"
+                            f"{PokIdToName[attacker[Pok.ID]].capitalize()}"
                             f"used {MoveIdToName[move[Move.ID]].capitalize()}!"
                         )
                     else:
                         print(
-                            f"Opponent {PokemonName(attacker[Pok.ID]).name.capitalize()}"
+                            f"Opponent {PokIdToName[attacker[Pok.ID]].capitalize()}"
                             f"used {MoveIdToName[move[Move.ID]].capitalize()}!"
                         )
                     calculate_effects(attacker, defender, move)
@@ -390,12 +390,12 @@ class Battle():
             if move_hit is MoveOutcome.MISS:
                 if attacker[Pok.ID] == self.current_pokemon[Pok.ID]:
                     print(
-                        f"{PokemonName(attacker[Pok.ID]).name.capitalize()}"
+                        f"{PokIdToName[attacker[Pok.ID]].capitalize()}"
                         f"used {MoveIdToName[move[Move.ID]].capitalize()}!"
                     )
                 else:
                     print(
-                        f"Opponent {PokemonName(attacker[Pok.ID]).name.capitalize()}"
+                        f"Opponent {PokIdToName[attacker[Pok.ID]].capitalize()}"
                         f"used {MoveIdToName[move[Move.ID]].capitalize()}!"
                     )
                 print('But it missed.')
@@ -403,12 +403,12 @@ class Battle():
             if move_hit is MoveOutcome.INVULNERABLE:
                 if attacker[Pok.ID] == self.current_pokemon[Pok.ID]:
                     print(
-                        f"{PokemonName(attacker[Pok.ID]).name.capitalize()}"
+                        f"{PokIdToName[attacker[Pok.ID]].capitalize()}"
                         f"used {MoveIdToName[move[Move.ID]].capitalize()}!"
                     )
                 else:
                     print(
-                        f"Opponent {PokemonName(attacker[Pok.ID]).name.capitalize()}"
+                        f"Opponent {PokIdToName[attacker[Pok.ID]].capitalize()}"
                         f"used {MoveIdToName[move[Move.ID]].capitalize()}!"
                     )
                 print('But it had no effect.')
@@ -427,15 +427,15 @@ class Battle():
         # Check to see which side is attacking and represent accordingly
         if attacker[Pok.ID] == self.current_pokemon[Pok.ID]:
             print(
-                    f"{PokemonName(attacker[Pok.ID]).name.capitalize()} "
+                    f"{PokIdToName[attacker[Pok.ID]].capitalize()} "
                     f"used {MoveIdToName[move[Move.ID]].capitalize()} "
-                    f"on {PokemonName(defender[Pok.ID]).name.capitalize()}!"
+                    f"on {PokIdToName[defender[Pok.ID]].capitalize()}!"
                 )
         else:
             print(
-                    f"Opponent {PokemonName(attacker[Pok.ID]).name.capitalize()} "
+                    f"Opponent {PokIdToName[attacker[Pok.ID]].capitalize()} "
                     f"used {MoveIdToName[move[Move.ID]].capitalize()} "
-                    f"on {PokemonName(defender[Pok.ID]).name.capitalize()}!"
+                    f"on {PokIdToName[defender[Pok.ID]].capitalize()}!"
                 )
 
         # Text to show crit
@@ -457,10 +457,10 @@ class Battle():
 
         # Text of how much hp left, or if dead
         if dead:
-            print(f"\033[91m{PokemonName(defender[Pok.ID]).name.capitalize()} has fainted! \033[0m")
+            print(f"\033[91m{PokIdToName[defender[Pok.ID]].capitalize()} has fainted! \033[0m")
         else:
             print(
-                f"{PokemonName(defender[Pok.ID]).name.capitalize()} "
+                f"{PokIdToName[defender[Pok.ID]].capitalize()} "
                 f"has {int(defender[Pok.CURRENT_HP])} HP left."
             )
 
@@ -496,7 +496,7 @@ class Battle():
             self.battle_array[Field.OPP_POK] = i
             self.current_opp = self.opp_pty[(i * self.pok_features):((i+1) * self.pok_features)]
             print(f'the opponent has sent '
-                  f'{PokemonName(self.current_opp[Pok.ID]).name.capitalize()} out')
+                  f'{PokIdToName[self.current_opp[Pok.ID]].capitalize()} out')
             if search:
                 return i
         if search is False:

@@ -11,7 +11,7 @@ def ability_to_np(ability):
     if not ability:
         return array
 
-    array[AbilityIdx.ID] = AbilityNames[ability['name'].upper()].value
+    array[AbilityIdx.ID] = getattr(AbilityNames, ability['name'].upper())
     array[AbilityIdx.WHEN] = AbilityActivation[ability['when'].upper()].value
     array[AbilityIdx.BREAKABLE] = int(ability.get('breakable', False) is True)
     array[AbilityIdx.CANT_SUPRESS] = int(ability.get('cant_suppress', False) is True)

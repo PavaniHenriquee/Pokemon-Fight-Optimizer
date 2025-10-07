@@ -99,7 +99,7 @@ class Pokemon:
         type1, type2 = type_to_number(self.types)
 
         stats = np.array([
-            PokemonName[self.name.upper()],
+            getattr(PokemonName, self.name.upper()),
             self.level,
             type1,
             type2,

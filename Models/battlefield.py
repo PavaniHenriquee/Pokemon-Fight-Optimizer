@@ -17,6 +17,7 @@ class Battlefield:
         self.opp_screen = None
         self.opp_screen_duration = None
         self.phase = None
+        self.opp_move = None
 
     def to_array(self):
         """Transform in np array to add oin battle_array"""

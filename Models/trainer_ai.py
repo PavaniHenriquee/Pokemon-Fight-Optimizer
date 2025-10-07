@@ -6,6 +6,7 @@ from Utils.helper import get_type_effectiveness, batch_independent_score_from_ra
 from DataBase.loader import pkDB
 from DataBase.MoveDB import MoveName
 from DataBase.AbilitiesDB import AbilityNames
+from DataBase.PkDB import PokIdToName
 from Models.idx_const import (
     Pok, Move, Flags, BASE_MOVE_LEN, POK_LEN
 )
@@ -618,12 +619,12 @@ class TrainerAI:
         """
         move_scores = {}
         if self.current_pok_ab is True:
-            ability = AbilityNames(user_pok[Pok.AB_ID]).name
+            ability = AbilityNames[user_pok[Pok.AB_ID]]
         else:
             try:
-                ability = AbilityNames[random.choice(pkDB[user_pok.name]['abilities']).upper()].name
+                ability = random.choice(pkDB[PokIdToName[user_pok[Pok.ID]].capitalize()]['abilities']).upper()
             except Exception:
-                ability = AbilityNames(user_pok[Pok.AB_ID]).name
+                ability = AbilityNames[user_pok[Pok.AB_ID]]
         max_rand = 5
         rand = np.full((4, max_rand, 2), np.nan)
         max_damage = 0

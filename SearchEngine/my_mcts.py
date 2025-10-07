@@ -10,8 +10,8 @@ estimating its potential value.
 import math
 import builtins
 import random
-from enum import Enum
 from typing import List, Tuple
+from types import SimpleNamespace
 import numpy as np
 from Models.idx_const import (
     Pok, Field, POK_LEN, MOVE_STRIDE
@@ -22,16 +22,16 @@ from Engine.new_battle import Battle
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref, evaluate_state
 
 
-class ActionType(Enum):
-    """Move Action"""
-    MOVE = "move"
+ActionType = SimpleNamespace(
+    MOVE = "move",
     SWITCH = "switch"
+)
 
 
-class BattlePhase(Enum):
-    """Where in the battle i am"""
-    TURN_START = 0
+BattlePhase = SimpleNamespace(
+    TURN_START = 0,
     DEATH_END_OF_TURN = 1
+)
 
 
 
@@ -93,7 +93,7 @@ class GameState():
             for i in range(6):
                 pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
                 if pokemon[Pok.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
-                    actions.append((ActionType.SWITCH.value, i))
+                    actions.append((ActionType.SWITCH, i))
             return actions  # Return here to prevent adding move actions
 
         # Normal turn phase - get active pokemon
@@ -106,18 +106,18 @@ class GameState():
         for i in range(4):
             move_id_idx = Pok.MOVE1_ID + (i * MOVE_STRIDE)
             if active[move_id_idx] != 0:  # Move exists
-                actions.append((ActionType.MOVE.value, i))
+                actions.append((ActionType.MOVE, i))
 
         # Add switch actions for normal turn
         for i in range(6):
             pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
             # Can switch if pokemon is alive and not currently active
             if pokemon[Pok.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
-                actions.append((ActionType.SWITCH.value, i))
+                actions.append((ActionType.SWITCH, i))
 
         return actions
 
-    def opp_move_choice(self):
+    def opp_move_choice(self) -> int:
         """Uses the trainer AI to choose the move"""
         opp_idx = self.opp_ai.return_idx(
             self.battle_array[0:(6 * POK_LEN)],
@@ -143,18 +143,16 @@ class GameState():
             if my_move_idx[0] == "switch":
                 new.my_active = my_move_idx[1]
                 new.battle_array[Field.MY_POK] = my_move_idx[1]
-            new.phase = BattlePhase.TURN_START
-            new.battle_array[Field.PHASE] = BattlePhase.TURN_START.value
-            if new.my_active != new.battle_array[Field.MY_POK] or new.my_active >= 2:
-                pass
-
+            new.phase = int(BattlePhase.TURN_START)
+            new.battle_array[Field.PHASE] = BattlePhase.TURN_START
+            new.opp_move = new.opp_move_choice()
             return new
         opp_move_idx = self.opp_move
         orig_print = builtins.print
         try:
             builtins.print = lambda *a, **k: None
             new.phase, opp_idx = battle.turn_sim(opp_move_idx, my_move_idx)
-            new.battle_array[Field.PHASE] = new.phase.value
+            new.battle_array[Field.PHASE] = new.phase
             if opp_idx:
                 new.opp_active = opp_idx
             if my_move_idx[0] == 'switch':
@@ -280,8 +278,6 @@ def mcts(root_state: GameState, iterations: int):
                     sim_state.get_valid_actions()
                 )
             sim_state = sim_state.step(action)
-            if sim_state.my_active != sim_state.battle_array[Field.MY_POK] or state.my_active >= 2:
-                pass
 
         # 4) Backpropagation
         value, win, dead = evaluate_terminal(sim_state)  # Your evaluation

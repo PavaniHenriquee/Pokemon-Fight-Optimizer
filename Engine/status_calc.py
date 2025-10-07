@@ -3,7 +3,7 @@ import random
 import numpy as np
 from Models.idx_const import Pok, Move, Sec, OFFSET_SEC
 from Models.helper import Status, MoveCategory, Target, StatusIdToName
-from DataBase.PkDB import PokemonName
+from DataBase.PkDB import PokIdToName
 
 
 def apply_status(move, pok, sec=False):
@@ -14,7 +14,7 @@ def apply_status(move, pok, sec=False):
             if pok[Pok.STATUS] == 0:
                 pok[Pok.STATUS] = move[offset + Sec.STATUS]
                 print(
-                    f"{PokemonName(pok[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[pok[Pok.ID]].capitalize()}'s "
                     f"was afflicted by {StatusIdToName[move[offset + Sec.STATUS]].lower()}"
                 )
                 if move[offset + Sec.STATUS] == Status.TOXIC:
@@ -25,13 +25,13 @@ def apply_status(move, pok, sec=False):
             return
         pok[Pok.STATUS] = move[offset + Sec.STATUS]
         pok[Pok.SLEEP_COUNTER] = np.random.randint(1,5)  # End not inclusive thats why to 5
-        print(f"{PokemonName(pok[Pok.ID]).name.capitalize()} is fast asleep")
+        print(f"{PokIdToName[pok[Pok.ID]].capitalize()} is fast asleep")
         return
     if move[Move.STATUS] != Status.SLEEP:
         if pok[Pok.STATUS] == 0:
             pok[Pok.STATUS] = move[Move.STATUS]
             print(
-                f"{PokemonName(pok[Pok.ID]).name.capitalize()}'s "
+                f"{PokIdToName[pok[Pok.ID]].capitalize()}'s "
                 f"was afflicted by {StatusIdToName[move[offset + Sec.STATUS]].lower()}"
             )
             if move[Move.STATUS] == Status.TOXIC:
@@ -44,7 +44,7 @@ def apply_status(move, pok, sec=False):
         return
     pok[Pok.STATUS] = move[Move.STATUS]
     pok[Pok.SLEEP_COUNTER] = np.random.randint(1,5)  # End not inclusive thats why to 5
-    print(f"{PokemonName(pok[Pok.ID]).name.capitalize()} is fast asleep")
+    print(f"{PokIdToName[pok[Pok.ID]].capitalize()} is fast asleep")
     return
 
 
@@ -58,7 +58,7 @@ def drain_effect(attacker, dmg, drain_amount):
     if drain_hp <= 0:
         return
     attacker[Pok.CURRENT_HP] += drain_hp
-    print(f"{PokemonName(attacker[Pok.ID]).name.capitalize()} drained {drain_hp} HP")
+    print(f"{PokIdToName[attacker[Pok.ID]].capitalize()} drained {drain_hp} HP")
 
 
 def calculate_effects(attacker, defender, move):
@@ -78,43 +78,43 @@ def calculate_effects(attacker, defender, move):
             if move[Move.BOOST_ATK]:
                 attacker[Pok.ATTACK_STAT_STAGE] += move[Move.BOOST_ATK]
                 print(
-                    f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                     f"attack changed by {int(move[Move.BOOST_ATK])} stages."
                 )
             if move[Move.BOOST_DEF]:
                 attacker[Pok.DEFENSE_STAT_STAGE] += move[Move.BOOST_DEF]
                 print(
-                    f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                     f"defense changed by {int(move[Move.BOOST_DEF])} stages."
                 )
             if move[Move.BOOST_SPATK]:
                 attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += move[Move.BOOST_SPATK]
                 print(
-                    f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                     f"special attack changed by {int(move[Move.BOOST_SPATK])} stages."
                 )
             if move[Move.BOOST_SPDEF]:
                 attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += move[Move.BOOST_SPDEF]
                 print(
-                    f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                     f"special defense changed by {int(move[Move.BOOST_SPDEF])} stages."
                 )
             if move[Move.BOOST_SPEED]:
                 attacker[Pok.SPEED_STAT_STAGE] += move[Move.BOOST_SPEED]
                 print(
-                    f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                     f"speed changed by {int(move[Move.BOOST_SPEED])} stages."
                 )
             if move[Move.BOOST_ACC]:
                 attacker[Pok.ACCURACY_STAT_STAGE] += move[Move.BOOST_ACC]
                 print(
-                    f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                     f"accuracy changed by {int(move[Move.BOOST_ACC])} stages."
                 )
             if move[Move.BOOST_EV]:
                 attacker[Pok.EVASION_STAT_STAGE] += move[Move.BOOST_EV]
                 print(
-                    f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                     f"evasion changed by {int(move[Move.BOOST_EV])} stages."
                 )
 
@@ -130,43 +130,43 @@ def calculate_effects(attacker, defender, move):
             if move[Move.BOOST_ATK]:
                 defender[Pok.ATTACK_STAT_STAGE] += move[Move.BOOST_ATK]
                 print(
-                    f"{PokemonName(defender[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[defender[Pok.ID]].capitalize()}'s "
                     f"attack changed by {int(move[Move.BOOST_ATK])} stages."
                 )
             if move[Move.BOOST_DEF]:
                 defender[Pok.DEFENSE_STAT_STAGE] += move[Move.BOOST_DEF]
                 print(
-                    f"{PokemonName(defender[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[defender[Pok.ID]].capitalize()}'s "
                     f"defense changed by {int(move[Move.BOOST_DEF])} stages."
                 )
             if move[Move.BOOST_SPATK]:
                 defender[Pok.SPECIAL_ATTACK_STAT_STAGE] += move[Move.BOOST_SPATK]
                 print(
-                    f"{PokemonName(defender[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[defender[Pok.ID]].capitalize()}'s "
                     f"special attack changed by {int(move[Move.BOOST_SPATK])} stages."
                 )
             if move[Move.BOOST_SPDEF]:
                 defender[Pok.SPECIAL_DEFENSE_STAT_STAGE] += move[Move.BOOST_SPDEF]
                 print(
-                    f"{PokemonName(defender[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[defender[Pok.ID]].capitalize()}'s "
                     f"special defense changed by {int(move[Move.BOOST_SPDEF])} stages."
                 )
             if move[Move.BOOST_SPEED]:
                 defender[Pok.SPEED_STAT_STAGE] += move[Move.BOOST_SPEED]
                 print(
-                    f"{PokemonName(defender[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[defender[Pok.ID]].capitalize()}'s "
                     f"speed changed by {int(move[Move.BOOST_SPEED])} stages."
                 )
             if move[Move.BOOST_ACC]:
                 defender[Pok.ACCURACY_STAT_STAGE] += move[Move.BOOST_ACC]
                 print(
-                    f"{PokemonName(defender[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[defender[Pok.ID]].capitalize()}'s "
                     f"accuracy changed by {int(move[Move.BOOST_ACC])} stages."
                 )
             if move[Move.BOOST_EV]:
                 defender[Pok.EVASION_STAT_STAGE] += move[Move.BOOST_EV]
                 print(
-                    f"{PokemonName(defender[Pok.ID]).name.capitalize()}'s "
+                    f"{PokIdToName[defender[Pok.ID]].capitalize()}'s "
                     f"evasion changed by {int(move[Move.BOOST_EV])} stages."
                 )
     # Status
@@ -214,43 +214,43 @@ def sec_effects(move, attacker, defender, dmg):
                 if move[offset + Sec.SEC_BOOST_ATK]:
                     attacker[Pok.ATTACK_STAT_STAGE] += move[offset + Sec.SEC_BOOST_ATK]
                     print(
-                        f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                        f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                         f"attack changed by {int(move[offset + Sec.SEC_BOOST_ATK])} stages."
                     )
                 if move[offset + Sec.SEC_BOOST_DEF]:
                     attacker[Pok.DEFENSE_STAT_STAGE] += move[offset + Sec.SEC_BOOST_DEF]
                     print(
-                        f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                        f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                         f"defense changed by {int(move[offset + Sec.SEC_BOOST_DEF])} stages."
                     )
                 if move[offset + Sec.SEC_BOOST_SPATK]:
                     attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += move[offset + Sec.SEC_BOOST_SPATK]
                     print(
-                        f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                        f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                         f"special attack changed by {int(move[offset + Sec.SEC_BOOST_SPATK])} stages."
                     )
                 if move[offset + Sec.SEC_BOOST_SPDEF]:
                     attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += move[offset + Sec.SEC_BOOST_SPDEF]
                     print(
-                        f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                        f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                         f"special defense changed by {int(move[offset + Sec.SEC_BOOST_SPDEF])} stages."
                     )
                 if move[offset + Sec.SEC_BOOST_SPEED]:
                     attacker[Pok.SPEED_STAT_STAGE] += move[offset + Sec.SEC_BOOST_SPEED]
                     print(
-                        f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                        f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                         f"speed changed by {int(move[offset + Sec.SEC_BOOST_SPEED])} stages."
                     )
                 if move[offset + Sec.SEC_BOOST_ACC]:
                     attacker[Pok.ACCURACY_STAT_STAGE] += move[offset + Sec.SEC_BOOST_ACC]
                     print(
-                        f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                        f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                         f"accuracy changed by {int(move[offset + Sec.SEC_BOOST_ACC])} stages."
                     )
                 if move[offset + Sec.SEC_BOOST_EV]:
                     attacker[Pok.EVASION_STAT_STAGE] += move[offset + Sec.SEC_BOOST_EV]
                     print(
-                        f"{PokemonName(attacker[Pok.ID]).name.capitalize()}'s "
+                        f"{PokIdToName[attacker[Pok.ID]].capitalize()}'s "
                         f"evasion changed by {int(move[offset + Sec.SEC_BOOST_EV])} stages."
                     )
             if move[Move.DRAIN]:
@@ -268,13 +268,13 @@ def after_turn_status(pok):
             else:
                 dmg = np.floor(pok[Pok.MAX_HP] / 8)
             pok[Pok.CURRENT_HP] -= dmg
-            print(f'{PokemonName(pok[Pok.ID]).name.capitalize()} suffered '
+            print(f'{PokIdToName[pok[Pok.ID]].capitalize()} suffered '
                   f'{dmg} HP from {StatusIdToName[pok[Pok.STATUS]].lower()}')
             if pok[Pok.CURRENT_HP] <= 0:
-                print(f'{PokemonName(pok[Pok.ID]).name.capitalize()} has fainted.')
+                print(f'{PokIdToName[pok[Pok.ID]].capitalize()} has fainted.')
                 pok[Pok.CURRENT_HP] = 0
             else:
-                print(f'{PokemonName(pok[Pok.ID]).name.capitalize()} has '
+                print(f'{PokIdToName[pok[Pok.ID]].capitalize()} has '
                       f'{pok[Pok.CURRENT_HP]} left.')
 
 

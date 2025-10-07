@@ -178,6 +178,7 @@ class Field:
     OPP_SCREEN = 5013
     OPP_SCREEN_DURATION = 5014
     PHASE = 5015
+    OPP_MOVE = 5016
 
 '''# Verification function (run once to validate hardcoded values)
 def _verify_constants():

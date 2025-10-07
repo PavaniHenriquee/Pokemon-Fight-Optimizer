@@ -604,23 +604,3 @@ class PokArray(IntEnum):
     ITEM_NATURAL_GIFT_POWER = auto()
     ITEM_NATURAL_GIFT_TYPE = auto()
     ITEM_USER = auto()
-
-
-
-
-
-class BattlefieldArray(IntEnum):
-    """Battlefield Array"""
-    ALL_POK_LEN = len(PokArray) * 12
-    MY_POK = ALL_POK_LEN
-    OPP_POK = auto()
-    TURN = auto()
-    WEATHER = auto()
-    WEATHER_DURATION = auto()
-    TRICKROOM = auto()
-    TRICKROOM_DURATION = auto()
-    MY_SCREEN = auto()
-    MY_SCREEN_DURATION = auto()
-    OPP_SCREEN = auto()
-    OPP_SCREEN_DURATION = auto()
-    PHASE = auto()
