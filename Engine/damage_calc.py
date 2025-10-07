@@ -34,7 +34,9 @@ def damaging_ability(attacker, defender, move) -> float:  # pylint: disable=W061
     return mult
 
 
-def multipliers(move: np.float32, attacker: np.float32, defender: np.float32, crit: bool, roll_mult: int, damage):
+def multipliers(
+        move: np.float32, attacker: np.float32, defender: np.float32, crit: bool, roll_mult: int, damage
+):
     """Calc Multiplers for bas formula damage"""
 
     # Burn

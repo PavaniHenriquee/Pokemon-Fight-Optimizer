@@ -19,7 +19,7 @@ from Models.idx_const import (
 from Models.helper import count_party
 from Models.trainer_ai import TrainerAI
 from Engine.new_battle import Battle
-from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref, evaluate_state
+from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 
 
 ActionType = SimpleNamespace(
@@ -38,21 +38,43 @@ BattlePhase = SimpleNamespace(
 class GameState():
     """Screenshot of the current gamestate"""
     __slots__ = (
-        'battle_array', 'my_active', 'opp_active', 'my_pty', 'opp_pty', 'turn', 'phase', 'opp_ai', 'opp_move'
+        'battle_array', 'my_active', 'opp_active', 'turn', 'phase', '_opp_ai', '_opp_move'
     )
-    def __init__(self, battle_array):
-        self.battle_array = np.copy(battle_array)
+    def __init__(self, battle_array, share_array=False):
+        if share_array:
+            self.battle_array = battle_array
+        else:
+            self.battle_array = np.copy(battle_array)
         self.my_active = int(self.battle_array[Field.MY_POK])  # Index of 0..5
         self.opp_active = int(self.battle_array[Field.OPP_POK])  # Index of 0..5
-        self.my_pty = self.battle_array[0:(6 * POK_LEN)]
-        self.opp_pty = self.battle_array[(6 * POK_LEN):(12 * POK_LEN)]
         self.turn = self.battle_array[Field.TURN]
         self.phase = self.battle_array[Field.PHASE]
-        self.opp_ai = TrainerAI()
-        if self.phase != BattlePhase.DEATH_END_OF_TURN:
-            self.opp_move = self.opp_move_choice()
-        else:
-            self.opp_move = None
+        self._opp_ai = None
+        self._opp_move = None
+
+    @property
+    def opp_ai(self):
+        """Only apply Trainer AI to states that are necessary"""
+        if self._opp_ai is None:
+            self._opp_ai = TrainerAI()
+        return self._opp_ai
+
+    @property
+    def opp_move(self):
+        """Only do opp ai moves when necessary"""
+        if self._opp_move is None and self.phase != BattlePhase.DEATH_END_OF_TURN:
+            self._opp_move = self.opp_move_choice()
+        return self._opp_move
+
+    @property
+    def my_pty(self):
+        """My party"""
+        return self.battle_array[0:(6 * POK_LEN)]
+
+    @property
+    def opp_pty(self):
+        """Opp party"""
+        return self.battle_array[(6 * POK_LEN):(12 * POK_LEN)]
 
     def clone(self):
         """Clone"""
@@ -145,7 +167,6 @@ class GameState():
                 new.battle_array[Field.MY_POK] = my_move_idx[1]
             new.phase = int(BattlePhase.TURN_START)
             new.battle_array[Field.PHASE] = BattlePhase.TURN_START
-            new.opp_move = new.opp_move_choice()
             return new
         opp_move_idx = self.opp_move
         orig_print = builtins.print
@@ -185,7 +206,7 @@ class Node():
         self.wins = 0
         self.dead = 0
 
-    def best_action(self, c=1.2):
+    def best_action(self, c=1.8):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
         # prefer a random unvisited child to avoid insertion-order bias
 
@@ -211,6 +232,39 @@ class Node():
         return best_key, best_node
 
 
+def mixed_rollout(state: GameState, max_depth=50, heuristic_prob=0.3) -> float:
+    """
+    Mixed rollout: sometimes use heuristics, sometimes pure random
+    This reduces bias while still getting some benefit from domain knowledge
+    """
+    sim_state = state.clone()
+    depth = 0
+
+    while not sim_state.is_terminal() and depth < max_depth:
+        valid_actions = sim_state.get_valid_actions()
+        if not valid_actions:
+            break
+
+        if random.random() < heuristic_prob and sim_state.phase != BattlePhase.DEATH_END_OF_TURN:
+            # Use heuristic occasionally
+            action = rollout_pref(
+                sim_state.get_my_active(),
+                sim_state.get_opp_active(),
+                sim_state.opp_move,
+                valid_actions
+            )
+        else:
+            # Pure random most of the time
+            action = random.choice(valid_actions)
+
+        sim_state = sim_state.step(action)
+        depth += 1
+
+    value, _, _ = evaluate_terminal(sim_state)
+    return value, sim_state
+
+
+
 def mcts(root_state: GameState, iterations: int):
     """MCTS"""
     root = Node(root_state)
@@ -222,8 +276,6 @@ def mcts(root_state: GameState, iterations: int):
 
         # 1) Selection
         while not state.is_terminal():
-            if state.my_active != state.battle_array[Field.MY_POK] or state.my_active >= 2:
-                raise ValueError('Wrong')
             untried_actions = [
                 a for a in state.get_valid_actions() if a not in node.children
             ]
@@ -254,9 +306,6 @@ def mcts(root_state: GameState, iterations: int):
             action = random.choice(untried_actions)
             state = state.step(action)
             child = Node(state, parent=node, move=action)
-            if state.my_active != state.battle_array[Field.MY_POK] or state.my_active >= 2:
-                pass
-            child.total_value = evaluate_state(state, root)  # Set initial value based on heuristic
             if action not in node.children:
                 node.children[action] = []
                 node.children[action].append(child)
@@ -264,20 +313,7 @@ def mcts(root_state: GameState, iterations: int):
             node = child
 
         # 3) Simulation
-        sim_state = state.clone()
-        while not sim_state.is_terminal():
-            # Random rollout handling phases
-            if sim_state.phase == BattlePhase.DEATH_END_OF_TURN:
-                valid = sim_state.get_valid_actions()
-                action = random.choice(valid)
-            else:
-                action = rollout_pref(
-                    sim_state.get_my_active(),
-                    sim_state.get_opp_active(),
-                    sim_state.opp_move,
-                    sim_state.get_valid_actions()
-                )
-            sim_state = sim_state.step(action)
+        value, sim_state = mixed_rollout(state, heuristic_prob=0.3)
 
         # 4) Backpropagation
         value, win, dead = evaluate_terminal(sim_state)  # Your evaluation
@@ -299,5 +335,5 @@ def mcts(root_state: GameState, iterations: int):
             nodes_total_value += n.total_value
         win_rate = nodes_wins / nodes_visits
         dead = nodes_dead / nodes_wins if nodes_wins else 0.0
-        print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {int(nodes_total_value)}'
+        print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
               f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
