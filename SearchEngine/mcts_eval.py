@@ -7,11 +7,6 @@ from Models.helper import count_party, count_Id
 from Engine.damage_calc import calculate_damage
 
 
-# hyperparameters (tweak these)
-ALPHA_DEATH = 1.6       # penalty per fainted Pokemon (strong)
-BETA_HP = 0.8           # weight for HP advantage
-GAMMA_WIN = 1.0         # extra bonus for winning (already covered by terminal)
-
 def party_hp_fraction(battle_array, offset, maxp):
     """Compute sum(current_hp / max_hp) across a party (0..6)"""
     total_frac = 0.0
@@ -39,7 +34,7 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     """
     Terminal evaluation for MCTS backprop.
     - Win  => +1
-    - Loss => -1
+    - Loss => 0
     - draw => 0
     """
     # quick terminal check
@@ -47,41 +42,17 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     my_alive = count_party(sim_state.battle_array[0:(6 * POK_LEN)])
     opp_alive = count_party(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
     dead = my_pty_count - my_alive
+    if dead:
+        win_value = (my_alive / my_pty_count)* 0.7
+    else:
+        win_value = 1.0
 
     if opp_alive == 0 and my_alive > 0:
-        return +1.0, 1, dead
-    if my_alive == 0 and opp_alive > 0:
-        return -1.0, 0, dead
+        return win_value, 1, dead
+    if my_alive == 0:
+        return 0.0, 0, dead
 
-    # Rare draw case (both 0)
-    return 0.0, 0, dead
-
-def evaluate_state(sim_state, root) -> float:
-    """
-    Non-terminal heuristic evaluation, return in [-1, 1].
-    Combines: normalized HP advantage and per-death penalty.
-    """
-    battle = sim_state.battle_array
-
-    # Total Pokemon
-    my_max = count_party(root.state.my_pty)
-    opp_max = count_party(root.state.opp_pty)
-
-    my_hp_frac  = party_hp_fraction(battle, 0, my_max)
-    opp_hp_frac = party_hp_fraction(battle, 6 * POK_LEN, opp_max)
-
-    # HP advantage in [-1, 1]
-    hp_adv = my_hp_frac - opp_hp_frac   # range [-1, 1]
-
-    # count fainted (0..6)
-    my_fainted  = count_fainted(battle, 0, my_max)
-    opp_fainted = count_fainted(battle, 6 * POK_LEN, my_max)
-
-    # death penalty (player deaths hurt much more than opponent deaths help)
-    death_score = (opp_fainted - ALPHA_DEATH * my_fainted) / ((my_max+opp_max) / 2)
-
-    value = BETA_HP * hp_adv + death_score
-    return value
+    raise ValueError("Shouldn't get here")
 
 
 def rollout_pref(c_pok, o_pok, o_idx, actions) -> tuple:

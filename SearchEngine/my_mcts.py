@@ -206,7 +206,7 @@ class Node():
         self.wins = 0
         self.dead = 0
 
-    def best_action(self, c=1.8):
+    def best_action(self, c=0.55):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
         # prefer a random unvisited child to avoid insertion-order bias
 
