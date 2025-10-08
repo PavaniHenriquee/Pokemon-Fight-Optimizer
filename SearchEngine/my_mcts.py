@@ -206,7 +206,7 @@ class Node():
         self.wins = 0
         self.dead = 0
 
-    def best_action(self, c=0.55):
+    def best_action(self, c=0.45):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
         # prefer a random unvisited child to avoid insertion-order bias
 
@@ -324,17 +324,129 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             node.dead += dead if win else 0
 
     if training is False:
+        best_children = None
+        best_children_visits = 0
         for actions, nodes in root.children.items():
             nodes_wins = 0
             nodes_visits = 0
             nodes_dead = 0
             nodes_total_value = 0
+            n_visits = 0
             for n in nodes:
                 nodes_wins += n.wins
                 nodes_visits += n.visits
                 nodes_dead += n.dead
                 nodes_total_value += n.total_value
+                if nodes_visits > best_children_visits and n.visits > n_visits:
+                    best_children = n
+                    best_children_visits = nodes_visits
+                n_visits = n.visits
             win_rate = nodes_wins / nodes_visits
             dead = nodes_dead / nodes_wins if nodes_wins else 0.0
             print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
                 f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
+        print("\n\n----------------Best Children Actions--------------------\n\n")
+        best_children1 = None
+        best_children_visits = 0
+        for actions, nodes in best_children.children.items():
+            nodes_wins = 0
+            nodes_visits = 0
+            nodes_dead = 0
+            nodes_total_value = 0
+            n_visits = 0
+            for n in nodes:
+                nodes_wins += n.wins
+                nodes_visits += n.visits
+                nodes_dead += n.dead
+                nodes_total_value += n.total_value
+                if nodes_visits > best_children_visits and n.visits > n_visits:
+                    best_children1 = n
+                    best_children_visits = nodes_visits
+                n_visits = n.visits
+            win_rate = nodes_wins / nodes_visits
+            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
+            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
+                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
+        print("\n\n----------------Best Children Actions--------------------\n\n")
+        best_children2 = None
+        best_children_visits = 0
+        for actions, nodes in best_children1.children.items():
+            nodes_wins = 0
+            nodes_visits = 0
+            nodes_dead = 0
+            nodes_total_value = 0
+            n_visits = 0
+            for n in nodes:
+                nodes_wins += n.wins
+                nodes_visits += n.visits
+                nodes_dead += n.dead
+                nodes_total_value += n.total_value
+                if nodes_visits > best_children_visits and n.visits > n_visits:
+                    best_children2 = n
+                    best_children_visits = nodes_visits
+                n_visits = n.visits
+            win_rate = nodes_wins / nodes_visits
+            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
+            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
+                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
+        print("\n\n----------------Best Children Actions--------------------\n\n")
+        best_children3 = None
+        best_children_visits = 0
+        for actions, nodes in best_children2.children.items():
+            nodes_wins = 0
+            nodes_visits = 0
+            nodes_dead = 0
+            nodes_total_value = 0
+            n_visits = 0
+            for n in nodes:
+                nodes_wins += n.wins
+                nodes_visits += n.visits
+                nodes_dead += n.dead
+                nodes_total_value += n.total_value
+                if nodes_visits > best_children_visits and n.visits > n_visits:
+                    best_children3 = n
+                    best_children_visits = nodes_visits
+                n_visits = n.visits
+            win_rate = nodes_wins / nodes_visits
+            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
+            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
+                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
+        print("\n\n----------------Best Children Actions--------------------\n\n")
+        best_children4 = None
+        best_children_visits = 0
+        for actions, nodes in best_children3.children.items():
+            nodes_wins = 0
+            nodes_visits = 0
+            nodes_dead = 0
+            nodes_total_value = 0
+            n_visits = 0
+            for n in nodes:
+                nodes_wins += n.wins
+                nodes_visits += n.visits
+                nodes_dead += n.dead
+                nodes_total_value += n.total_value
+                if nodes_visits > best_children_visits and n.visits > n_visits:
+                    best_children4 = n
+                    best_children_visits = nodes_visits
+                n_visits = n.visits
+            win_rate = nodes_wins / nodes_visits
+            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
+            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
+                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
+        print("\n\n----------------Best Children Actions--------------------\n\n")
+        if best_children4:
+            for actions, nodes in best_children4.children.items():
+                nodes_wins = 0
+                nodes_visits = 0
+                nodes_dead = 0
+                nodes_total_value = 0
+                for n in nodes:
+                    nodes_wins += n.wins
+                    nodes_visits += n.visits
+                    nodes_dead += n.dead
+                    nodes_total_value += n.total_value
+                win_rate = nodes_wins / nodes_visits
+                dead = nodes_dead / nodes_wins if nodes_wins else 0.0
+                print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
+                    f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
+        
