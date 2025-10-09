@@ -19,7 +19,7 @@ root = GameState(battle)
 
 
 with Profile() as profile:
-    mcts(root, 10000)
+    mcts(root, 1000)
     (
         Stats(profile)
         .strip_dirs()

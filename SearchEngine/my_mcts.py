@@ -193,7 +193,8 @@ class Node():
     - Key: nodes represent decision points, not chance outcomes
     """
     __slots__ = (
-        'state', 'parent', 'move', 'children', 'visits', 'total_value', 'legal_moves', 'wins', 'dead'
+        'state', 'parent', 'move', 'children', 'visits', 'total_value', 'legal_moves', 'wins', 'dead',
+        'depth', 'win_chance', 'dead_avg'
     )
     def __init__(self, state, parent=None, move=None):
         self.state = state
@@ -205,6 +206,9 @@ class Node():
         self.legal_moves = state.get_valid_actions(is_player=True)
         self.wins = 0
         self.dead = 0
+        self.depth = 0
+        self.win_chance = 0.0
+        self.dead_avg = 0
 
     def best_action(self, c=0.45):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
@@ -317,11 +321,24 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
 
         # 4) Backpropagation
         value, win, dead = evaluate_terminal(sim_state)  # Your evaluation
+        win_chance = 0
+        dead_avg = 0
         for node in reversed(path):
             node.visits += 1
             node.total_value += value
             node.wins += win
             node.dead += dead if win else 0
+            node.dead_avg = node.dead / node.wins if node.wins else 0
+            node.win_chance = win/ node.visits
+            if node.visits >= 70 and node.win_chance > win_chance:
+                win_chance = node.win_chance
+                dead_avg = node.dead_avg
+            elif not win_chance:
+                node.win_chance = win_chance
+                node.dead_avg = dead_avg
+
+            if not node.depth and node != root:
+                node.depth = len(path) - 1
 
     if training is False:
         best_children = None
@@ -333,16 +350,17 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             nodes_total_value = 0
             n_visits = 0
             for n in nodes:
-                nodes_wins += n.wins
+                nodes_wins += n.win_chance
                 nodes_visits += n.visits
-                nodes_dead += n.dead
+                nodes_dead += n.dead_avg
                 nodes_total_value += n.total_value
                 if nodes_visits > best_children_visits and n.visits > n_visits:
                     best_children = n
                     best_children_visits = nodes_visits
                 n_visits = n.visits
-            win_rate = nodes_wins / nodes_visits
-            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
+            nod = len(nodes)
+            win_rate = nodes_wins / nod
+            dead = nodes_dead / nod
             print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
                 f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
         print("\n\n----------------Best Children Actions--------------------\n\n")
