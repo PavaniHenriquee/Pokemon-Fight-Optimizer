@@ -321,150 +321,117 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
 
         # 4) Backpropagation
         value, win, dead = evaluate_terminal(sim_state)  # Your evaluation
-        win_chance = 0
-        dead_avg = 0
-        for node in reversed(path):
+        for depth, node in enumerate(reversed(path)):
             node.visits += 1
             node.total_value += value
             node.wins += win
             node.dead += dead if win else 0
             node.dead_avg = node.dead / node.wins if node.wins else 0
-            node.win_chance = win/ node.visits
-            if node.visits >= 70 and node.win_chance > win_chance:
-                win_chance = node.win_chance
-                dead_avg = node.dead_avg
-            elif not win_chance:
-                node.win_chance = win_chance
-                node.dead_avg = dead_avg
+            node.win_chance = node.wins/ node.visits
 
-            if not node.depth and node != root:
-                node.depth = len(path) - 1
+            if not hasattr(node, 'depth'):
+                node.depth = depth
 
-    if training is False:
-        best_children = None
-        best_children_visits = 0
-        for actions, nodes in root.children.items():
-            nodes_wins = 0
-            nodes_visits = 0
-            nodes_dead = 0
-            nodes_total_value = 0
-            n_visits = 0
-            for n in nodes:
-                nodes_wins += n.win_chance
-                nodes_visits += n.visits
-                nodes_dead += n.dead_avg
-                nodes_total_value += n.total_value
-                if nodes_visits > best_children_visits and n.visits > n_visits:
-                    best_children = n
-                    best_children_visits = nodes_visits
-                n_visits = n.visits
-            nod = len(nodes)
-            win_rate = nodes_wins / nod
-            dead = nodes_dead / nod
-            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
-                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
-        print("\n\n----------------Best Children Actions--------------------\n\n")
-        best_children1 = None
-        best_children_visits = 0
-        for actions, nodes in best_children.children.items():
-            nodes_wins = 0
-            nodes_visits = 0
-            nodes_dead = 0
-            nodes_total_value = 0
-            n_visits = 0
-            for n in nodes:
-                nodes_wins += n.wins
-                nodes_visits += n.visits
-                nodes_dead += n.dead
-                nodes_total_value += n.total_value
-                if nodes_visits > best_children_visits and n.visits > n_visits:
-                    best_children1 = n
-                    best_children_visits = nodes_visits
-                n_visits = n.visits
-            win_rate = nodes_wins / nodes_visits
-            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
-            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
-                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
-        print("\n\n----------------Best Children Actions--------------------\n\n")
-        best_children2 = None
-        best_children_visits = 0
-        for actions, nodes in best_children1.children.items():
-            nodes_wins = 0
-            nodes_visits = 0
-            nodes_dead = 0
-            nodes_total_value = 0
-            n_visits = 0
-            for n in nodes:
-                nodes_wins += n.wins
-                nodes_visits += n.visits
-                nodes_dead += n.dead
-                nodes_total_value += n.total_value
-                if nodes_visits > best_children_visits and n.visits > n_visits:
-                    best_children2 = n
-                    best_children_visits = nodes_visits
-                n_visits = n.visits
-            win_rate = nodes_wins / nodes_visits
-            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
-            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
-                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
-        print("\n\n----------------Best Children Actions--------------------\n\n")
-        best_children3 = None
-        best_children_visits = 0
-        for actions, nodes in best_children2.children.items():
-            nodes_wins = 0
-            nodes_visits = 0
-            nodes_dead = 0
-            nodes_total_value = 0
-            n_visits = 0
-            for n in nodes:
-                nodes_wins += n.wins
-                nodes_visits += n.visits
-                nodes_dead += n.dead
-                nodes_total_value += n.total_value
-                if nodes_visits > best_children_visits and n.visits > n_visits:
-                    best_children3 = n
-                    best_children_visits = nodes_visits
-                n_visits = n.visits
-            win_rate = nodes_wins / nodes_visits
-            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
-            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
-                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
-        print("\n\n----------------Best Children Actions--------------------\n\n")
-        best_children4 = None
-        best_children_visits = 0
-        for actions, nodes in best_children3.children.items():
-            nodes_wins = 0
-            nodes_visits = 0
-            nodes_dead = 0
-            nodes_total_value = 0
-            n_visits = 0
-            for n in nodes:
-                nodes_wins += n.wins
-                nodes_visits += n.visits
-                nodes_dead += n.dead
-                nodes_total_value += n.total_value
-                if nodes_visits > best_children_visits and n.visits > n_visits:
-                    best_children4 = n
-                    best_children_visits = nodes_visits
-                n_visits = n.visits
-            win_rate = nodes_wins / nodes_visits
-            dead = nodes_dead / nodes_wins if nodes_wins else 0.0
-            print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
-                f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
-        print("\n\n----------------Best Children Actions--------------------\n\n")
-        if best_children4:
-            for actions, nodes in best_children4.children.items():
-                nodes_wins = 0
-                nodes_visits = 0
-                nodes_dead = 0
-                nodes_total_value = 0
-                for n in nodes:
-                    nodes_wins += n.wins
-                    nodes_visits += n.visits
-                    nodes_dead += n.dead
-                    nodes_total_value += n.total_value
-                win_rate = nodes_wins / nodes_visits
-                dead = nodes_dead / nodes_wins if nodes_wins else 0.0
-                print(f'actions: {actions}, visits: {(nodes_visits)}, total value: {round(nodes_total_value, 2)}'
-                    f', win_rate: {round(win_rate*100, 2)}%, chance of losing a pokemon: {round(dead, 2)}')
+    def propagate_stable_values(node, min_visits=70):
+        """Single-player minimax backup for dict-of-lists children structure."""
+        if not node.children:
+            return node.win_chance, node.dead_avg
+
+        best_win, best_dead = node.win_chance, node.dead_avg
+        found_valid = False
+
+        for _, node_list in node.children.items():
+            # Aggregate stats across stochastic outcomes of this (action, index)
+            total_visits = sum(c.visits for c in node_list if hasattr(c, "visits"))
+            if total_visits < min_visits:
+                continue
+
+            avg_win = sum(c.win_chance * c.visits for c in node_list) / total_visits
+            avg_dead = sum(c.dead_avg * c.visits for c in node_list) / total_visits
+
+            # You can replace this max logic by a weighted combo if you prefer
+            if not found_valid or avg_win > best_win:
+                best_win, best_dead = avg_win, avg_dead
+                found_valid = True
+
+        if found_valid:
+            node.win_chance, node.dead_avg = best_win, best_dead
+
+        return node.win_chance, node.dead_avg
+
+    def recursive_backup(node, min_visits=70):
+        if not node.children:
+            return node.win_chance, node.dead_avg
+
+        for node_list in node.children.values():
+            for child in node_list:
+                recursive_backup(child, min_visits=min_visits)
+
+        propagate_stable_values(node, min_visits=min_visits)
+        return node.win_chance, node.dead_avg
+
+    recursive_backup(root)
+
+    def print_best_path(root, depth=0, max_depth=5, min_visits=1, choose_by='avg_win'):
+        """
+        Print all actions at each depth, then descend into the best action's best node.
+        - choose_by: 'avg_win' (default), 'visits', or 'value'
+        - Expects node.win_chance and node.dead_avg to be populated by your propagation pass.
+        """
+        if depth > max_depth or not getattr(root, "children", None):
+            return
+
+        indent = "    " * depth
+        print(f"\n{indent}------ Depth {depth} ------")
+
+        best_action = None
+        best_metric = -float("inf")
+        best_node = None
+
+        for action, nodes in root.children.items():
+            # total visits for this action (sum over stochastic outcome-nodes)
+            total_visits = sum(getattr(n, "visits", 0) for n in nodes)
+            if total_visits < min_visits:
+                print(f"{indent}Action: {action} (skipped, visits={total_visits})")
+                continue
+
+            # helpers: prefer precomputed fields, fallback to raw counters
+            def node_win(n):
+                return getattr(n, "win_chance",
+                            (n.wins / n.visits if getattr(n, "visits", 0) else 0.0))
+            def node_dead(n):
+                return getattr(n, "dead_avg",
+                            (n.dead / n.wins if getattr(n, "wins", 0) else 0.0))
+
+            # weighted averages by visits (reflects confidence)
+            avg_win = sum(node_win(n) * getattr(n, "visits", 0) for n in nodes) / total_visits
+            avg_dead = sum(node_dead(n) * getattr(n, "visits", 0) for n in nodes) / total_visits
+            total_value = sum(getattr(n, "total_value", 0) for n in nodes)
+
+            print(f"{indent}Action: {action}, visits: {total_visits}, "
+                f"total value: {round(total_value,2)}, "
+                f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}")
+
+            # choose metric for "best" action
+            if choose_by == "avg_win":
+                metric = avg_win
+            elif choose_by == "visits":
+                metric = total_visits
+            elif choose_by == "value":
+                metric = total_value
+            else:
+                metric = avg_win
+
+            if metric > best_metric:
+                best_metric = metric
+                best_action = action
+                # representative node inside this action: the node with max visits
+                best_node = max(nodes, key=lambda n: getattr(n, "visits", 0))
+
+        if best_node:
+            print(f"{indent}==> Best action at depth {depth}: {best_action}")
+            print_best_path(best_node, depth + 1, max_depth, min_visits, choose_by)
+    
+    if not training:
+        print_best_path(root, max_depth=6)
         
