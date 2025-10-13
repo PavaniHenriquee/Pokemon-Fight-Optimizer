@@ -1,6 +1,6 @@
 {
   "Overgrow": {
-    "name": "Overgrown",
+    "name": "Overgrow",
     "when": "on_damage"
   },
   "Blaze": {

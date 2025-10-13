@@ -210,7 +210,7 @@ class Node():
         self.win_chance = 0.0
         self.dead_avg = 0
 
-    def best_action(self, c=0.45):
+    def best_action(self, c=0.5):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
         # prefer a random unvisited child to avoid insertion-order bias
 
@@ -263,9 +263,7 @@ def mixed_rollout(state: GameState, max_depth=50, heuristic_prob=0.3) -> float:
 
         sim_state = sim_state.step(action)
         depth += 1
-
-    value, _, _ = evaluate_terminal(sim_state)
-    return value, sim_state
+    return sim_state
 
 
 
@@ -290,10 +288,12 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             if node.children:
                 action_key, child = node.best_action()  # Pick action with best UCB
                 new_state = state.step(action_key)
+                if new_state.is_terminal():
+                    pass
                 has_phase = False
                 for c in child:
                     if c.state.phase == new_state.phase:
-                        c.state = new_state.clone()
+                        c.state = new_state
                         node = c
                         has_phase = True
                 if has_phase is False:
@@ -317,10 +317,13 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             node = child
 
         # 3) Simulation
-        value, sim_state = mixed_rollout(state, heuristic_prob=0.3)
+        if not state.is_terminal():
+            sim_state = mixed_rollout(state, heuristic_prob=0.3)
+            value, win, dead = evaluate_terminal(sim_state)
+        else:
+            value, win, dead = evaluate_terminal(state)
 
         # 4) Backpropagation
-        value, win, dead = evaluate_terminal(sim_state)  # Your evaluation
         for depth, node in enumerate(reversed(path)):
             node.visits += 1
             node.total_value += value
@@ -333,50 +336,96 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
                 node.depth = depth
 
     def propagate_stable_values(node, min_visits=70):
-        """Single-player minimax backup for dict-of-lists children structure."""
+        """
+        Version 3: Use confidence intervals (Wilson score) to handle uncertainty.
+        This properly accounts for "40 visits at 100%" being less trustworthy
+        than "9000 visits at 97%".
+        """
+        def wilson_lower_bound(wins, total, confidence=0.95):
+            """
+            Calculate Wilson score interval lower bound.
+            This gives a conservative estimate that accounts for sample size.
+            """
+            if total == 0:
+                return 0
+
+            z = 1.96 if confidence == 0.95 else 1.645  # z-score for confidence level
+            phat = wins / total
+
+            denominator = 1 + z**2 / total
+            center = phat + z**2 / (2 * total)
+            spread = z * math.sqrt((phat * (1 - phat) + z**2 / (4 * total)) / total)
+
+            return (center - spread) / denominator
+
         if not node.children:
             return node.win_chance, node.dead_avg
 
-        best_win, best_dead = node.win_chance, node.dead_avg
-        found_valid = False
+        best_score = -1
+        best_win = node.win_chance
+        best_dead = node.dead_avg
 
         for _, node_list in node.children.items():
-            # Aggregate stats across stochastic outcomes of this (action, index)
             total_visits = sum(c.visits for c in node_list if hasattr(c, "visits"))
+
             if total_visits < min_visits:
                 continue
 
+            total_wins = sum(c.wins for c in node_list)
             avg_win = sum(c.win_chance * c.visits for c in node_list) / total_visits
-            avg_dead = sum(c.dead_avg * c.visits for c in node_list) / total_visits
 
-            # You can replace this max logic by a weighted combo if you prefer
-            if not found_valid or avg_win > best_win:
-                best_win, best_dead = avg_win, avg_dead
-                found_valid = True
+            if total_wins > 0:
+                avg_dead = sum(c.dead_avg * c.wins for c in node_list) / total_wins
+            else:
+                avg_dead = float('inf')
 
-        if found_valid:
-            node.win_chance, node.dead_avg = best_win, best_dead
+            # Use Wilson score: conservative win estimate accounting for sample size
+            # This naturally prefers "9000 visits at 97%" over "40 visits at 100%"
+            wilson_score = wilson_lower_bound(total_wins, total_visits)
+
+            # Add small penalty for deaths (but don't let it dominate)
+            score = wilson_score - (0.01 * avg_dead if avg_dead != float('inf') else 0)
+
+            if score > best_score:
+                best_score = score
+                best_win = avg_win
+                best_dead = avg_dead
+
+        node.win_chance = best_win
+        node.dead_avg = best_dead
 
         return node.win_chance, node.dead_avg
 
-    def recursive_backup(node, min_visits=70):
+
+    def recursive_backup(node, min_visits=70, use_wilson=True):
+        """
+        Recursively backup values from leaves to root.
+        
+        Args:
+            use_wilson: If True, use Wilson score (v3) which handles sample size naturally.
+                    If False, use simple top-tier selection (v1).
+        """
         if not node.children:
             return node.win_chance, node.dead_avg
 
+        # First, recursively backup all children
         for node_list in node.children.values():
             for child in node_list:
-                recursive_backup(child, min_visits=min_visits)
+                recursive_backup(child, min_visits=min_visits, use_wilson=use_wilson)
 
-        propagate_stable_values(node, min_visits=min_visits)
+        # Then propagate the best child values to this node
+        if use_wilson:
+            propagate_stable_values(node, min_visits=min_visits)
+        else:
+            propagate_stable_values(node, min_visits=min_visits)
+
         return node.win_chance, node.dead_avg
 
     recursive_backup(root)
 
-    def print_best_path(root, depth=0, max_depth=5, min_visits=1, choose_by='avg_win'):
+    def print_best_path(root, depth=0, max_depth=5, min_visits=1, choose_by='wilson'):
         """
-        Print all actions at each depth, then descend into the best action's best node.
-        - choose_by: 'avg_win' (default), 'visits', or 'value'
-        - Expects node.win_chance and node.dead_avg to be populated by your propagation pass.
+        Print all actions with enhanced metrics including confidence.
         """
         if depth > max_depth or not getattr(root, "children", None):
             return
@@ -389,49 +438,45 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
         best_node = None
 
         for action, nodes in root.children.items():
-            # total visits for this action (sum over stochastic outcome-nodes)
             total_visits = sum(getattr(n, "visits", 0) for n in nodes)
             if total_visits < min_visits:
                 print(f"{indent}Action: {action} (skipped, visits={total_visits})")
                 continue
 
-            # helpers: prefer precomputed fields, fallback to raw counters
-            def node_win(n):
-                return getattr(n, "win_chance",
-                            (n.wins / n.visits if getattr(n, "visits", 0) else 0.0))
-            def node_dead(n):
-                return getattr(n, "dead_avg",
-                            (n.dead / n.wins if getattr(n, "wins", 0) else 0.0))
+            total_wins = sum(getattr(n, "wins", 0) for n in nodes)
+            total_dead = sum(getattr(n, "dead", 0) for n in nodes)
 
-            # weighted averages by visits (reflects confidence)
-            avg_win = sum(node_win(n) * getattr(n, "visits", 0) for n in nodes) / total_visits
-            avg_dead = sum(node_dead(n) * getattr(n, "visits", 0) for n in nodes) / total_visits
+            avg_win = sum(n.win_chance * getattr(n, "visits", 0) for n in nodes) / total_visits
+            avg_dead = sum(n.dead_avg * getattr(n, "wins", 0) for n in nodes) / total_wins if total_wins > 0 else 0
             total_value = sum(getattr(n, "total_value", 0) for n in nodes)
+
+            # Calculate Wilson score for display
+            if choose_by == 'wilson':
+                z = 1.96
+                phat = total_wins / total_visits if total_visits > 0 else 0
+                denominator = 1 + z**2 / total_visits if total_visits > 0 else 1
+                center = phat + z**2 / (2 * total_visits) if total_visits > 0 else 0
+                spread = z * math.sqrt((phat * (1 - phat) + z**2 / (4 * total_visits)) / total_visits) if total_visits > 0 else 0
+                wilson = (center - spread) / denominator
+                metric = wilson - (0.01 * avg_dead)
+            else:
+                metric = avg_win
 
             print(f"{indent}Action: {action}, visits: {total_visits}, "
                 f"total value: {round(total_value,2)}, "
-                f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}")
-
-            # choose metric for "best" action
-            if choose_by == "avg_win":
-                metric = avg_win
-            elif choose_by == "visits":
-                metric = total_visits
-            elif choose_by == "value":
-                metric = total_value
-            else:
-                metric = avg_win
+                f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}, "
+                f"total win: {total_wins}, total dead: {total_dead}")
 
             if metric > best_metric:
                 best_metric = metric
                 best_action = action
-                # representative node inside this action: the node with max visits
                 best_node = max(nodes, key=lambda n: getattr(n, "visits", 0))
 
         if best_node:
             print(f"{indent}==> Best action at depth {depth}: {best_action}")
             print_best_path(best_node, depth + 1, max_depth, min_visits, choose_by)
-    
+
+
     if not training:
-        print_best_path(root, max_depth=6)
+        print_best_path(root, max_depth=15)
         

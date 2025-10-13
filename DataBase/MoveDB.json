@@ -114,7 +114,7 @@
     "category": "Special",
     "type": "Water",
     "target": "all_adjacent_foes",
-    "power": 40,
+    "power": 60,
     "accuracy": 100,
     "pp": 30,
     "flags": {
@@ -133,7 +133,7 @@
     "type": "Grass",
     "target": "all_adjacent_foes",
     "power": 55,
-    "accuracy": 95,
+    "accuracy": 100,
     "pp": 25,
     "flags": {
       "protect": true,
