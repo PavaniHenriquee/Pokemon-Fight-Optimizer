@@ -20,6 +20,7 @@ from Models.helper import count_party
 from Models.trainer_ai import TrainerAI
 from Engine.new_battle import Battle
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
+from SearchEngine.helper import multiple_nodes
 
 
 ActionType = SimpleNamespace(
@@ -288,18 +289,13 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             if node.children:
                 action_key, child = node.best_action()  # Pick action with best UCB
                 new_state = state.step(action_key)
-                if new_state.is_terminal():
-                    pass
-                has_phase = False
-                for c in child:
-                    if c.state.phase == new_state.phase:
-                        c.state = new_state
-                        node = c
-                        has_phase = True
-                if has_phase is False:
+                new_node = multiple_nodes(child, new_state)
+                if not new_node:
                     new_child = Node(new_state, parent=node, move=action_key)
                     child.append(new_child)
                     node = new_child
+                else:
+                    node = new_node
                 state = new_state
                 path.append(node)
             else:
@@ -337,9 +333,7 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
 
     def propagate_stable_values(node, min_visits=70):
         """
-        Version 3: Use confidence intervals (Wilson score) to handle uncertainty.
-        This properly accounts for "40 visits at 100%" being less trustworthy
-        than "9000 visits at 97%".
+        Choose it's child best node and propagate as that being the outcome of the parent
         """
         def wilson_lower_bound(wins, total, confidence=0.95):
             """
@@ -465,6 +459,8 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             else:
                 metric = avg_win
 
+            if avg_dead < 0 or avg_dead > 2:
+                pass
             print(f"{indent}Action: {action}, visits: {total_visits}, "
                 f"total value: {round(total_value,2)}, "
                 f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}, "

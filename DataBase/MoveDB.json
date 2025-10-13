@@ -114,7 +114,7 @@
     "category": "Special",
     "type": "Water",
     "target": "all_adjacent_foes",
-    "power": 60,
+    "power": 40,
     "accuracy": 100,
     "pp": 30,
     "flags": {
