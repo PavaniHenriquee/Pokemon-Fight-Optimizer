@@ -210,7 +210,7 @@ class Node():
         self.win_chance = 0.0
         self.dead_avg = 0
 
-    def best_action(self, c=0.5):
+    def best_action(self, c=0.4):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
         # prefer a random unvisited child to avoid insertion-order bias
 
@@ -405,6 +405,7 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             use_wilson: If True, use Wilson score (v3) which handles sample size naturally.
                     If False, use simple top-tier selection (v1).
         """
+        # Base case: terminal node (leaf) - just return its values
         if not node.children:
             return node.win_chance, node.dead_avg
 
@@ -414,10 +415,12 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
                 recursive_backup(child, min_visits=min_visits, use_wilson=use_wilson)
 
         # Then propagate the best child values to this node
-        if use_wilson:
-            propagate_stable_values(node, min_visits=min_visits)
-        else:
-            propagate_stable_values(node, min_visits=min_visits)
+        # Only do this if node has children (non-terminal)
+        if node.children:
+            if use_wilson:
+                propagate_stable_values(node, min_visits=min_visits)
+            else:
+                propagate_stable_values(node, min_visits=min_visits)
 
         return node.win_chance, node.dead_avg
 

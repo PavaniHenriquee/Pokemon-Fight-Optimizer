@@ -133,7 +133,7 @@
     "type": "Grass",
     "target": "all_adjacent_foes",
     "power": 55,
-    "accuracy": 100,
+    "accuracy": 95,
     "pp": 25,
     "flags": {
       "protect": true,

@@ -42,8 +42,6 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     my_alive = count_party(sim_state.battle_array[0:(6 * POK_LEN)])
     opp_alive = count_party(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
     dead = my_pty_count - my_alive
-    if my_pty_count < 2:
-        raise ValueError("What?")
     if dead:
         win_value = (my_alive / my_pty_count)* 0.8
     else:
