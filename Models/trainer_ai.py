@@ -581,11 +581,7 @@ class TrainerAI:
             user_pok,
             user_party_alive,
             ai_party_alive,
-            turn,
-            move1,
-            move2,
-            move3,
-            move4
+            turn
     ):
         """
         Calculates the score of the moves and sees what has the highest score
@@ -617,6 +613,10 @@ class TrainerAI:
 
         If you switch out, the AI will forget its knowledge of your moves and abilities.
         """
+        move1 = ai_pok[Pok.MOVE1_ID:Pok.MOVE2_ID]
+        move2 = ai_pok[Pok.MOVE2_ID:Pok.MOVE3_ID]
+        move3 = ai_pok[Pok.MOVE3_ID:Pok.MOVE4_ID]
+        move4 = ai_pok[Pok.MOVE4_ID:Pok.ITEM_ID]
         move_scores = {}
         if self.current_pok_ab is True:
             ability = AbilityNames[user_pok[Pok.AB_ID]]
@@ -676,12 +676,12 @@ class TrainerAI:
 
         return move_scores
 
-    def return_idx(self, ai_pok, user_pok, user_party, ai_party, turn, move1, move2, move3, move4):
+    def return_idx(self, ai_pok, user_pok, user_party, ai_party, turn):
         """
         It transform the highest moving score to the index of the move
         """
         move_scores= self.choose_move(
-            ai_pok, user_pok, user_party, ai_party, turn, move1, move2, move3, move4
+            ai_pok, user_pok, user_party, ai_party, turn
         )
         max_score = max(info["score"] for info in move_scores.values())
         best_moves = [info for info in move_scores.values() if info["score"] == max_score]

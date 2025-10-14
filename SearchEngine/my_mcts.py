@@ -143,15 +143,11 @@ class GameState():
     def opp_move_choice(self) -> int:
         """Uses the trainer AI to choose the move"""
         opp_idx = self.opp_ai.return_idx(
+            self.get_opp_active(),
+            self.get_my_active(),
             self.battle_array[0:(6 * POK_LEN)],
             self.battle_array[(6 * POK_LEN):(12 * POK_LEN)],
-            self.get_my_active(),
-            self.get_opp_active(),
-            self.turn,
-            self.get_opp_active()[Pok.MOVE1_ID:Pok.MOVE2_ID],
-            self.get_opp_active()[Pok.MOVE2_ID:Pok.MOVE3_ID],
-            self.get_opp_active()[Pok.MOVE3_ID:Pok.MOVE4_ID],
-            self.get_opp_active()[Pok.MOVE4_ID:Pok.ITEM_ID]
+            self.turn
         )
         return opp_idx
 
@@ -312,10 +308,11 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             path.append(child)
             node = child
 
-        # 3) Simulation
+        # 3) Rollout
         if not state.is_terminal():
             sim_state = mixed_rollout(state, heuristic_prob=0.3)
             value, win, dead = evaluate_terminal(sim_state)
+        # If state is terminal there's no need to rollout
         else:
             value, win, dead = evaluate_terminal(state)
 

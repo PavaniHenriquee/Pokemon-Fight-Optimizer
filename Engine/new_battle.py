@@ -133,10 +133,6 @@ class Battle():
         self.current_opp = self.battle_array[
             ((opp_active+6) * self.pok_features):((opp_active+7) * self.pok_features)
         ]
-        self.op_move1 = self.current_opp[Pok.MOVE1_ID:Pok.MOVE2_ID]
-        self.op_move2 = self.current_opp[Pok.MOVE2_ID:Pok.MOVE3_ID]
-        self.op_move3 = self.current_opp[Pok.MOVE3_ID:Pok.MOVE4_ID]
-        self.op_move4 = self.current_opp[Pok.MOVE4_ID:Pok.ITEM_ID]
 
     def start_of_battle(self):
         """Select the two first pokemon of each team and does ability effects on switch in
@@ -161,23 +157,12 @@ class Battle():
 
     def selection(self):
         """Does the selection part of the battle, what I choose and what the opponent chooses"""
-        '''opp_move = self.opp_ai.return_idx(
-            self.current_opp,
-            self.current_pokemon,
-            self.my_pty_alive,
-            self.opp_pty_alive,
-            self.turn
-        )'''
         opp_move = self.opp_ai.return_idx(
             self.current_opp,
             self.current_pokemon,
             self.my_pty,
-            self.opp_ai,
-            self.turn,
-            self.op_move1,
-            self.op_move2,
-            self.op_move3,
-            self.op_move4
+            self.opp_pty,
+            self.turn
         )
 
 
