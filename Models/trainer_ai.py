@@ -2,13 +2,18 @@
 import random
 import numpy as np
 from Engine.damage_calc import calculate_damage
-from Utils.helper import get_type_effectiveness, batch_independent_score_from_rand, stage_to_multiplier
+from Utils.helper import (
+    get_type_effectiveness,
+    batch_independent_score_from_rand,
+    stage_to_multiplier,
+    possible_rand
+)
 from DataBase.loader import pkDB
 from DataBase.MoveDB import MoveName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.PkDB import PokIdToName
 from Models.idx_const import (
-    Pok, Move, Flags, BASE_MOVE_LEN, POK_LEN
+    Pok, Move, Flags, BASE_MOVE_LEN, POK_LEN, Field
 )
 from Models.helper import MoveCategory, Types, Status, VolStatus, Gender, Target, count_party
 
@@ -581,7 +586,8 @@ class TrainerAI:
             user_pok,
             user_party_alive,
             ai_party_alive,
-            turn
+            turn,
+            search=False
     ):
         """
         Calculates the score of the moves and sees what has the highest score
@@ -618,13 +624,15 @@ class TrainerAI:
         move3 = ai_pok[Pok.MOVE3_ID:Pok.MOVE4_ID]
         move4 = ai_pok[Pok.MOVE4_ID:Pok.ITEM_ID]
         move_scores = {}
+        if search:
+            move_search = []
         if self.current_pok_ab is True:
             ability = AbilityNames[user_pok[Pok.AB_ID]]
         else:
             try:
-                ability = random.choice(pkDB[PokIdToName[user_pok[Pok.ID]].capitalize()]['abilities']).upper()
-            except Exception:
-                ability = AbilityNames[user_pok[Pok.AB_ID]]
+                ability = (random.choice(pkDB[PokIdToName[user_pok[Pok.ID]].capitalize()]['abilities'])).upper()
+            except Exception as exc:
+                raise ValueError("i don't know") from exc
         max_rand = 5
         rand = np.full((4, max_rand, 2), np.nan)
         max_damage = 0
@@ -640,7 +648,7 @@ class TrainerAI:
             if move[Move.ID] == 0:
                 break
             score = 0
-            final_damage, _ = calculate_damage(ai_pok, user_pok, move)
+            final_damage, _ = calculate_damage(ai_pok, user_pok, move, crit=False)
             effectiveness = get_type_effectiveness(
                 move[Move.TYPE],
                 user_pok[Pok.TYPE1],
@@ -656,6 +664,10 @@ class TrainerAI:
             )
             score += expert
 
+            if search:
+                move_search[i] = score
+                continue
+
             # Find max damage among best moves
             if move[Move.ID] not in mov_excep and final_damage > max_damage:
                 max_damage = final_damage
@@ -664,6 +676,9 @@ class TrainerAI:
             score += batch_independent_score_from_rand(rand, i)
 
             move_scores[i] = {"score": score, "dmg": final_damage, "idx": i}
+
+        if search:
+            return move_search, rand
 
         # Apply penalty for moves that don't reach max damage
         for i, move in enumerate((move1, move2, move3, move4)):
@@ -792,3 +807,48 @@ class TrainerAI:
         # choose highest max_dmg, tie-break by party order (lower index wins)
         best2 = max(scored_phase2, key=lambda x: (x['max_dmg'], -x['index']))
         return best2['index']
+
+    def prob_of_move(self, battle_array):
+        """Probability of choosing each move"""
+        moves = np.zeros(4)
+        opp_i = battle_array[Field.OPP_POK]
+        us_i = battle_array[Field.MY_POK]
+        turn = battle_array[Field.TURN]
+        opp_c = battle_array[((opp_i+6) * POK_LEN):((opp_i+7) * POK_LEN)]
+        us_c = battle_array[((us_i) * POK_LEN):((us_i+1) * POK_LEN)]
+        us_pty = battle_array[0:(6 * POK_LEN)]
+        opp_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
+        m1 = opp_c[Pok.MOVE1_ID:Pok.MOVE2_ID]
+        m2 = opp_c[Pok.MOVE2_ID:Pok.MOVE3_ID]
+        m3 = opp_c[Pok.MOVE3_ID:Pok.MOVE4_ID]
+        m4 = opp_c[Pok.MOVE4_ID:Pok.ITEM_ID]
+        data, rand = self.choose_move(opp_c, us_c, us_pty, opp_pty, turn, search=True)
+        legal_moves = [m for m in (m1,m2,m3,m4) if m[Move.ID] != 0]
+        min_scores = []
+        max_scores = []
+        for i, _ in enumerate(legal_moves):
+            mini, maxi = possible_rand(rand, i)
+            min_scores.append(data[i] + mini)
+            max_scores.append(data[i] + maxi)
+        max_of_min_v = max(min_scores)
+        possible_mask = max_scores >= max_of_min_v
+        remaining_indices = np.nonzero(possible_mask)[0]
+        if len(remaining_indices) == 1:
+            moves[remaining_indices[0]] = 1
+            return moves
+        count_PS = 0
+        new_rand = np.full((len(remaining_indices), 5, 2), np.nan)
+        for i, m in enumerate(remaining_indices):
+            if legal_moves[m][Move.CATEGORY] in (MoveCategory.PHYSICAL, MoveCategory.SPECIAL):
+                count_PS += 1
+            new_rand[i] = rand[m]
+        if count_PS <= 1:
+            all_outcomes = []
+            rand_outcomes = []
+            chance = []
+            for i, m in enumerate(remaining_indices):
+                all_outcomes.append(data[m])
+                for r in new_rand[i]:
+                    if r[1] != np.nan:
+                        rand_outcomes.append(r[0])
+                        chance.append(r[1]/256)

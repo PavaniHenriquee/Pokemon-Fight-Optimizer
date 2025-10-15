@@ -138,3 +138,17 @@ def batch_independent_score_from_rand(rand, idx):
         if random.randint(0, 255) < chance:
             total += score
     return total
+
+def possible_rand(rand, idx):
+    """Get the min and max score possible from rand by move"""
+    arr = rand[idx]
+    min_p = 0
+    max_p = 0
+    for score, _ in arr:
+        if np.isnan(score):
+            break
+        if score < 0:
+            min_p += score
+        else:
+            max_p += score
+    return min_p, max_p
