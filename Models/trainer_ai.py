@@ -6,7 +6,8 @@ from Utils.helper import (
     get_type_effectiveness,
     batch_independent_score_from_rand,
     stage_to_multiplier,
-    possible_rand
+    possible_rand,
+    pick_probabilities
 )
 from DataBase.loader import pkDB
 from DataBase.MoveDB import MoveName
@@ -625,7 +626,7 @@ class TrainerAI:
         move4 = ai_pok[Pok.MOVE4_ID:Pok.ITEM_ID]
         move_scores = {}
         if search:
-            move_search = []
+            move_search = np.zeros(4, dtype=np.float64)
         if self.current_pok_ab is True:
             ability = AbilityNames[user_pok[Pok.AB_ID]]
         else:
@@ -645,7 +646,7 @@ class TrainerAI:
 
         for i, move in enumerate((move1, move2, move3, move4)):
 
-            if move[Move.ID] == 0:
+            if move[Move.ID] == 0 and search:
                 break
             score = 0
             final_damage, _ = calculate_damage(ai_pok, user_pok, move, crit=False)
@@ -824,31 +825,41 @@ class TrainerAI:
         m4 = opp_c[Pok.MOVE4_ID:Pok.ITEM_ID]
         data, rand = self.choose_move(opp_c, us_c, us_pty, opp_pty, turn, search=True)
         legal_moves = [m for m in (m1,m2,m3,m4) if m[Move.ID] != 0]
-        min_scores = []
-        max_scores = []
+        min_scores = np.full(4, -100)
+        max_scores = np.full(4, -100)
         for i, _ in enumerate(legal_moves):
             mini, maxi = possible_rand(rand, i)
-            min_scores.append(data[i] + mini)
-            max_scores.append(data[i] + maxi)
-        max_of_min_v = max(min_scores)
+            min_scores[i] = data[i] + mini
+            max_scores[i] = data[i] + maxi
+        max_of_min_v = np.max(min_scores)
         possible_mask = max_scores >= max_of_min_v
         remaining_indices = np.nonzero(possible_mask)[0]
         if len(remaining_indices) == 1:
             moves[remaining_indices[0]] = 1
             return moves
         count_PS = 0
-        new_rand = np.full((len(remaining_indices), 5, 2), np.nan)
-        for i, m in enumerate(remaining_indices):
+        dmg_moves = np.zeros(4, dtype=bool)
+        for m in remaining_indices:
             if legal_moves[m][Move.CATEGORY] in (MoveCategory.PHYSICAL, MoveCategory.SPECIAL):
                 count_PS += 1
-            new_rand[i] = rand[m]
+                dmg_moves[m] = True
         if count_PS <= 1:
-            all_outcomes = []
-            rand_outcomes = []
-            chance = []
-            for i, m in enumerate(remaining_indices):
-                all_outcomes.append(data[m])
-                for r in new_rand[i]:
-                    if r[1] != np.nan:
-                        rand_outcomes.append(r[0])
-                        chance.append(r[1]/256)
+            moves = pick_probabilities(data, rand)
+            return moves
+        else:
+            max_min_dmg = np.zeros((2,4))
+            for m in remaining_indices:
+                if dmg_moves[m]:
+                    max_min_dmg[0, m] = calculate_damage(opp_c, us_c, legal_moves[m], crit=True, roll_multiplier=1.0)
+                    max_min_dmg[1, m] = calculate_damage(opp_c, us_c, legal_moves[m], crit=False, roll_multiplier=0.85)
+            max_of_min = np.max(max_min_dmg[1])
+            mask = max_min_dmg[0] >= max_of_min
+            overlap = np.nonzero(mask)[0]
+            if len(overlap) == 1:
+                for i in range(4):
+                    if dmg_moves[i] and i != overlap[0]:
+                        add_adjustment(rand, i, -1, 256)
+                moves = pick_probabilities(data, rand)
+                return moves
+            else:
+                pass

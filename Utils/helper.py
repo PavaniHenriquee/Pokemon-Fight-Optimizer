@@ -1,6 +1,7 @@
 """Helper functions"""
 import random
 import numpy as np
+# from numba import njit
 from Utils.loader import type_chart
 from Models.helper import TypesIdToName
 
@@ -152,3 +153,115 @@ def possible_rand(rand, idx):
         else:
             max_p += score
     return min_p, max_p
+
+# @njit
+def move_outcomes_numba(base_score, offsets, chances):
+    """
+    offsets: array of offsets (float64)
+    chances: array of 0-256 floats (same length)
+    Returns a 2D array [[score, prob], ...]
+    """
+    # remove NaNs
+    valid = ~np.isnan(chances)
+    offsets = offsets[valid]
+    chances = chances[valid]
+
+    outcomes = np.empty((1, 2), dtype=np.float64)
+    outcomes[0, 0] = base_score
+    outcomes[0, 1] = 1.0
+
+    for i in range(len(offsets)):
+        off = offsets[i]
+        p = chances[i] / 256.0
+        q = 1.0 - p
+        new_count = len(outcomes) * 2
+        new_outcomes = np.empty((new_count, 2), dtype=np.float64)
+        k = 0
+        for j in range(len(outcomes)):
+            s, pr = outcomes[j]
+            new_outcomes[k, 0] = s
+            new_outcomes[k, 1] = pr * q
+            k += 1
+            new_outcomes[k, 0] = s + off
+            new_outcomes[k, 1] = pr * p
+            k += 1
+        # merge duplicates
+        # (for small K, brute-force merge is fine)
+        merged = []
+        for j in range(len(new_outcomes)):
+            found = False
+            for k in range(len(merged)):
+                if merged[k][0] == new_outcomes[j, 0]:
+                    merged[k][1] += new_outcomes[j, 1]
+                    found = True
+                    break
+            if not found:
+                merged.append([new_outcomes[j, 0], new_outcomes[j, 1]])
+        outcomes = np.array(merged, dtype=np.float64)
+    return outcomes
+
+# @njit
+def pick_probabilities(data, rand):
+    """Pick probability of each move, needs to have data be a 4 len list and rand a np.ndarray(4,5,2)"""
+    n = len(data)
+    dists = []
+    max_len = 0
+    # Precompute each move's outcome distribution
+    for i in range(n):
+        offs = rand[i, :, 0]
+        chans = rand[i, :, 1]
+        dist = move_outcomes_numba(data[i], offs, chans)
+        dists.append(dist)
+        if len(dist) > max_len:
+            max_len = len(dist)
+
+    # Convert to 3D arrays for numba friendliness
+    scores = np.full((n, max_len), np.nan)
+    probs = np.zeros((n, max_len))
+    lens = np.zeros(n, dtype=np.int64)
+    for i in range(n):
+        dist = dists[i]
+        lens[i] = len(dist)
+        for j in range(len(dist)):
+            scores[i, j] = dist[j, 0]
+            probs[i, j] = dist[j, 1]
+
+    out_probs = np.zeros(n)
+    for i in range(n):
+        for a in range(lens[i]):
+            s_i = scores[i, a]
+            p_i = probs[i, a]
+            if p_i == 0 or np.isnan(s_i):
+                continue
+            others = [j for j in range(n) if j != i]
+            m = len(others)
+            contrib = 0.0
+            # loop over all tie subsets (bitmask)
+            for mask in range(1 << m):
+                prob_subset = 1.0
+                tie_count = 0
+                for bit in range(m):
+                    j = others[bit]
+                    p_eq = 0.0
+                    p_lt = 0.0
+                    for b in range(lens[j]):
+                        s_j = scores[j, b]
+                        p_j = probs[j, b]
+                        if np.isnan(s_j):
+                            continue
+                        if s_j < s_i:
+                            p_lt += p_j
+                        elif s_j == s_i:
+                            p_eq += p_j
+                    if (mask >> bit) & 1:
+                        prob_subset *= p_eq
+                        tie_count += 1
+                    else:
+                        prob_subset *= p_lt
+                contrib += prob_subset / (tie_count + 1.0)
+            out_probs[i] += p_i * contrib
+
+    total = out_probs.sum()
+    if total > 0:
+        out_probs /= total
+    return out_probs
