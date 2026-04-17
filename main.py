@@ -12,7 +12,7 @@ bulbasaur = Pokemon("Bulbasaur", "Male", 5, "Overgrow", "Hardy", ["Pound", "Leer
 squirtle1 = Pokemon("Squirtle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail Whip"])
 charmander1 = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl"])
 
-my_party = [charmander, squirtle]
+my_party = [charmander, bulbasaur]
 opp_party = [squirtle1, charmander1]
 
 battle = to_battle_array(my_party, opp_party)
@@ -20,7 +20,7 @@ root = GameState(battle)
 
 
 with Profile() as profile:
-    mcts(root, 5000)
+    mcts(root, 25000)
     (
         Stats(profile)
         .strip_dirs()

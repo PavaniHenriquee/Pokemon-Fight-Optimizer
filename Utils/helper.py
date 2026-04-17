@@ -1,8 +1,7 @@
 """Helper functions"""
 import random
 import numpy as np
-from Utils.loader import type_chart
-from Models.helper import TypesIdToName
+from Utils.loader import TYPE_CHART_ARRAY
 
 
 def round_half_down(value: float) -> int:
@@ -33,17 +32,13 @@ def stage_to_multiplier(stages: np.float32, acc=False) -> float:
     return res
 
 
-def get_type_effectiveness(atk_type: np.float32, defender_type1: np.float32, defender_type2: np.float32):
-    """Check to see if 0.25, 0.50, 1, 2, 4 times effective"""
-    a_type = TypesIdToName[atk_type].capitalize()
-    d_type1 = TypesIdToName[defender_type1].capitalize()
-    d_type2 = TypesIdToName[defender_type2].capitalize() if defender_type2 != 0 else None
-    if a_type not in type_chart:
-        return 1.0
-    vals = [float(type_chart[a_type].get(d, 1.0)) for d in (d_type1, d_type2)]
-    if not vals:
-        return 1.0
-    return float(np.prod(vals))
+def get_type_effectiveness(atk_type, def_type1, def_type2):
+    """Get how effective the type is against its target"""
+    atk = int(atk_type)
+    result = TYPE_CHART_ARRAY[atk, int(def_type1)]
+    if def_type2:
+        result *= TYPE_CHART_ARRAY[atk, int(def_type2)]
+    return result
 
 
 def get_non_fainted_pokemon(party):
