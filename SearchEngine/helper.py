@@ -3,7 +3,7 @@ import random
 import copy
 import numpy as np
 from DataBase.pok_sets import charmander, squirtle, bulbasaur
-from Engine.engine_helper import to_battle_array
+from Utils.helper import to_battle_array
 from Models.idx_const import Pok
 
 

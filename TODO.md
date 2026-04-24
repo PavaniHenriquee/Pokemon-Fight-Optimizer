@@ -34,11 +34,7 @@ Abilities
 []Sturdy
 
 Moves
-[]Pound
-[]Withdraw
 []Water Sport
-[]Bubble
-[]Razor Leaf
 []Absorb
 []Taunt
 []Fury Swipes

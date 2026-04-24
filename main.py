@@ -3,7 +3,7 @@ from cProfile import Profile
 from pstats import Stats, SortKey
 from Models.pokemon import Pokemon
 from SearchEngine.my_mcts import GameState, mcts
-from Engine.engine_helper import to_battle_array
+from Utils.helper import to_battle_array
 
 
 charmander = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"])
@@ -20,7 +20,7 @@ root = GameState(battle)
 
 
 with Profile() as profile:
-    mcts(root, 25000)
+    mcts(root, 15000)
     (
         Stats(profile)
         .strip_dirs()

@@ -12,7 +12,7 @@ def ability_to_np(ability):
         return array
 
     array[AbilityIdx.ID] = getattr(AbilityNames, ability['name'].upper())
-    array[AbilityIdx.WHEN] = AbilityActivation[ability['when'].upper()].value
+    array[AbilityIdx.WHEN] = getattr(AbilityActivation, ability['when'].upper())
     array[AbilityIdx.BREAKABLE] = int(ability.get('breakable', False) is True)
     array[AbilityIdx.CANT_SUPRESS] = int(ability.get('cant_suppress', False) is True)
     array[AbilityIdx.FAIL_ROLEPLAY] = int(ability.get('fail_roleplay', False) is True)

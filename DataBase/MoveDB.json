@@ -1,6 +1,6 @@
 {
   "Tackle": {
-    "name": "Tackle",
+    "name": "tackle",
     "category": "Physical",
     "type": "Normal",
     "target": "normal",
@@ -15,7 +15,7 @@
     }
   },
   "Growl": {
-    "name": "Growl",
+    "name": "growl",
     "category": "Status",
     "type": "Normal",
     "target": "all_adjacent_foes",
@@ -32,7 +32,7 @@
     "boost_atk": -1
   },
   "Scratch": {
-    "name": "Scratch",
+    "name": "scratch",
     "category": "Physical",
     "type": "Normal",
     "target": "normal",
@@ -47,7 +47,7 @@
     }
   },
   "Tail Whip": {
-    "name": "Tail_Whip",
+    "name": "tail_whip",
     "category": "Status",
     "type": "Normal",
     "target": "all_adjacent_foes",
@@ -62,7 +62,7 @@
     "boost_def": -1
   },
   "Pound": {
-    "name": "Pound",
+    "name": "pound",
     "category": "Physical",
     "type": "Normal",
     "target": "normal",
@@ -77,7 +77,7 @@
     }
   },
   "Leer": {
-    "name": "Leer",
+    "name": "leer",
     "category": "Status",
     "type": "Normal",
     "target": "all_adjacent_foes",
@@ -142,5 +142,18 @@
       "slicing": true
     },
     "crit_ratio": 2
+  },
+  "Withdraw": {
+    "name": "withdraw",
+    "category": "Status",
+    "type": "Water",
+    "target": "self",
+    "accuracy": true,
+    "pp": 40,
+    "flags": {
+      "snatch": true,
+      "metronome": true
+    },
+    "boost_def": 1
   }
 }

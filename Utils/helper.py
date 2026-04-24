@@ -2,6 +2,7 @@
 import random
 import numpy as np
 from Utils.loader import TYPE_CHART_ARRAY
+from Models.idx_const import POK_LEN, FIELD_LEN
 
 
 def round_half_down(value: float) -> int:
@@ -133,3 +134,25 @@ def batch_independent_score_from_rand(rand, idx):
         if random.randint(0, 255) < chance:
             total += score
     return total
+
+
+def to_battle_array(my_pty, opp_pty, battlefield=None):
+    """Transform both parties into a single flat battle array."""
+
+    def get_party_arrays(party, max_size=6):
+        arrays = []
+        for i in range(max_size):
+            try:
+                arrays.append(party[i].to_np())
+            except IndexError:
+                arrays.append(np.zeros(POK_LEN))
+        return arrays
+
+    # Process both parties
+    my_data = get_party_arrays(my_pty)
+    opp_data = get_party_arrays(opp_pty)
+
+    # Handle battlefield with a simple fallback
+    battlef = battlefield.to_array() if battlefield else np.zeros(FIELD_LEN)
+
+    return np.concatenate([*my_data, *opp_data, battlef])

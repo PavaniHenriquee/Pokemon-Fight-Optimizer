@@ -1,5 +1,4 @@
 """Helper for transformation of Names to number, so i can use Numpy efficiently"""
-from enum import auto, IntFlag
 from types import SimpleNamespace
 import numpy as np
 from Models.idx_const import Pok, POK_LEN
@@ -50,28 +49,28 @@ Status = SimpleNamespace(
 StatusIdToName = {v: k for k, v in Status.__dict__.items() if not k.startswith("__")}
 
 
-class VolStatus(IntFlag):
+class VolStatus:
     """Volatile status to numbers, using bitmap"""
-    FLINCH = auto()
-    CONFUSION = auto()
-    HEAL_BLOCK = auto()
-    SALT_CURE = auto()
-    SPARKLIN_ARIA = auto()
-    PARTIALLY_TRAPPED = auto()
-    LEECH_SEED = auto()
-    CURSE = auto()
-    ATTRACT = auto()
+    FLINCH = 1
+    CONFUSION = 2
+    HEAL_BLOCK = 4
+    SALT_CURE = 8
+    SPARKLIN_ARIA = 16
+    PARTIALLY_TRAPPED = 32
+    LEECH_SEED = 64
+    CURSE = 128
+    ATTRACT = 256
 
 
-class SideCondition(IntFlag):
+class SideCondition:
     """Side condition to numbers"""
-    STEALTH_ROCK = auto()
-    SPIKES = auto()
-    TOXIC_SPIKES = auto()
-    STIKCY_WEBS = auto()
-    REFLECT = auto()
-    LIGHT_SCREEN = auto()
-    AURORA_VEIL = auto()
+    STEALTH_ROCK = 1
+    SPIKES = 2
+    TOXIC_SPIKES = 4
+    STIKCY_WEBS = 8
+    REFLECT = 16
+    LIGHT_SCREEN = 32
+    AURORA_VEIL = 64
 
 
 Gender = SimpleNamespace(
@@ -134,14 +133,14 @@ Target = SimpleNamespace(
 )
 
 
-class AbilityActivation(IntFlag):
+class AbilityActivation:
     """When will the ability be used"""
-    SWITCH_IN = auto()
-    ON_PREPARE_HIT = auto()
-    ON_DAMAGE = auto()
-    ON_WEATHER_CHANGE = auto()
-    ON_END = auto()
-    ON_RECEIVE_DAMAGE = auto()
+    SWITCH_IN = 1
+    ON_PREPARE_HIT = 2
+    ON_DAMAGE = 4
+    ON_WEATHER_CHANGE = 8
+    ON_END = 16
+    ON_RECEIVE_DAMAGE = 32
 
 
 MoveCategory = SimpleNamespace(
@@ -160,15 +159,15 @@ ItemType = SimpleNamespace(
 )
 
 
-class ItemActivation(IntFlag):
+class ItemActivation:
     """When will the ability be used"""
-    SWITCH_IN = auto()
-    ON_PREPARE_HIT = auto()
-    ON_DAMAGE = auto()
-    ON_WEATHER_CHANGE = auto()
-    ON_END = auto()
-    ON_RECEIVE_DAMAGE = auto()
-    ON_SELECTION = auto()
+    SWITCH_IN = 1
+    ON_PREPARE_HIT = 2
+    ON_DAMAGE = 4
+    ON_WEATHER_CHANGE = 8
+    ON_END = 16
+    ON_RECEIVE_DAMAGE = 32
+    ON_SELECTION = 64
 
 
 def count_party(pty):

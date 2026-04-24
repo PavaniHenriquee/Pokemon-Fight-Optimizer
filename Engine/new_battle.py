@@ -294,6 +294,7 @@ class Battle():
                         continue
                 # In cases like after recoil damage, selfdestruct, etc.
                 if defender[Pok.CURRENT_HP] <= 0:
+                    #TODO: Some moves still go through, like self buff, dig, future sight
                     continue
 
                 move_hit = calculate_hit_miss(move, attacker, defender)
