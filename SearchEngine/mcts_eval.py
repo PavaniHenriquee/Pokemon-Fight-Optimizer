@@ -1,7 +1,7 @@
 """Evaluation of terminal and current state"""
 import random
 from Models.idx_const import(
-    Pok, Sec, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, OFFSET_SEC
+    Pok, Sec, POK_LEN, OFFSET_MOVE, MOVE_STRIDE
 )
 from Models.helper import count_party, count_Id
 from Engine.damage_calc import calculate_damage
@@ -52,7 +52,9 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     if my_alive == 0:
         return 0.0, 0, dead
 
-    raise ValueError("Shouldn't get here")
+    # Fallback to if the game haven't finished yet, but max depth reached
+    return 0.2, 0, dead
+    #  raise ValueError("Shouldn't get here")
 
 
 def rollout_pref(c_pok, o_pok, o_idx, actions) -> tuple:
@@ -74,10 +76,10 @@ def rollout_pref(c_pok, o_pok, o_idx, actions) -> tuple:
                 )
             ):
                 weight += 100
-            if move[OFFSET_SEC + Sec.CHANCE]:
+            if move[Sec.CHANCE]:
                 weight += 10
         else:
-            # Need to work on that, because it need to be way more complex
+            # Need to work on that, because it needs to be way more complex, maybe??
             if (
                 o_dmg >= c_pok[Pok.CURRENT_HP]
                 and (

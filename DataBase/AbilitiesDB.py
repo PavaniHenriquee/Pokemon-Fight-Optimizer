@@ -9,5 +9,6 @@ AbilityNames = SimpleNamespace(
     MOLD_BREAKER = 4,
     NO_GUARD = 5,
     SIMPLE = 6,
-    KEEN_EYE = 7
+    KEEN_EYE = 7,
+    IRON_FIST = 8
 )

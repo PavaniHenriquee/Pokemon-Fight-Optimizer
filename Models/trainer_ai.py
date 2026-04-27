@@ -8,7 +8,7 @@ from DataBase.MoveDB import MoveName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.PkDB import PokIdToName
 from Models.idx_const import (
-    Pok, Move, Flags, BASE_MOVE_LEN, POK_LEN
+    Pok, Move, Flags, POK_LEN
 )
 from Models.helper import MoveCategory, Types, Status, VolStatus, Gender, Target, count_party
 
@@ -54,7 +54,6 @@ class TrainerAI:
         else:
             move_first = random.choice([True, False])
         """
-        move_array_off = BASE_MOVE_LEN
         # Check for immunity types
         if move[Move.CATEGORY] != MoveCategory.STATUS and effectiveness == 0:
             return -10
@@ -68,7 +67,7 @@ class TrainerAI:
                 return -10
             if move[Move.TYPE] == Types.GROUND and ability == "LEVITATE":
                 return -10
-            if move[move_array_off + Flags.SOUND] and ability == "SOUNDPROOF":
+            if move[Flags.SOUND] and ability == "SOUNDPROOF":
                 return -10
             if (
                 effectiveness < 2 and ability == "WONDER_GUARD"
@@ -243,7 +242,7 @@ class TrainerAI:
             ):
                 return -10
             # Recovery Moves
-            if move[move_array_off + Flags.HEAL] and ai_pok[Pok.CURRENT_HP] == ai_pok[Pok.MAX_HP]:
+            if move[Flags.HEAL] and ai_pok[Pok.CURRENT_HP] == ai_pok[Pok.MAX_HP]:
                 return -10
             # OH-KO
             if (

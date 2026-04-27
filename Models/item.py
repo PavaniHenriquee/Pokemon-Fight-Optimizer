@@ -1,19 +1,19 @@
 """Transform item in Numpy array"""
 import numpy as np
-from Models.idx_nparray import ItemIdx
 from Models.helper import ItemActivation, ItemType
+from Models.idx_const import Item as ItemIdx, ITEM_LEN
 from DataBase.ItemDB import ItemNames
 from DataBase.PkDB import PokemonName
 
 
 def item_to_np(item):
     """Basic array for Item"""
-    array = np.zeros(len(ItemIdx), dtype=np.int16)
+    array = np.zeros(ITEM_LEN, dtype=np.int16)
     if not item:
         return array
 
     array[ItemIdx.ID] = ItemNames[item['name'].upper()].value
-    array[ItemIdx.WHEN] = ItemActivation[item['when'].upper()].value
+    array[ItemIdx.WHEN] = getattr(ItemActivation, item['when'].upper())
     array[ItemIdx.ITEM_TYPE] = ItemType[item['item_type'].upper()].value
     array[ItemIdx.ITEM_USER] = PokemonName[item['item_user'].upper()].value if 'item_user' in item else 0
     array[ItemIdx.FLING_POWER] = item.get('fling_power', 0)

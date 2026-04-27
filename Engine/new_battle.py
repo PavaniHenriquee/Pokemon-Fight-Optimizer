@@ -17,7 +17,7 @@ from Engine.status_calc import paralysis, sec_effects, calculate_effects, after_
 from Engine.damage_calc import calculate_damage
 from Models.trainer_ai import TrainerAI
 from Models.idx_const import (
-    Pok, Field, Move, Sec, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, OFFSET_SEC
+    Pok, Field, Move, Sec, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 )
 from Models.helper import count_party, Status, VolStatus, MoveCategory
 from DataBase.PkDB import PokIdToName
@@ -438,7 +438,7 @@ class Battle():
             print("\033[94mIt's not very effective... \033[0m")
 
         # Check for secondary effects and apply them
-        if move[OFFSET_SEC + Sec.CHANCE]:
+        if move[Sec.CHANCE]:
             sec_effects(move, attacker, defender, damage)
 
         # Text of how much hp left, or if dead

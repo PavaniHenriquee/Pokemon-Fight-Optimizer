@@ -2,7 +2,7 @@
 import random
 import numpy as np
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
-from Models.idx_const import Pok, Move
+from Models.idx_const import Pok, Move, Flags
 from Models.helper import MoveCategory, Status, Types, AbilityActivation
 from Models.pokemon import Pokemon
 from Models.move import Move as Move_
@@ -13,9 +13,10 @@ def damaging_ability(attacker, defender, move) -> float:  # pylint: disable=W061
     """Calculate what the ability does in relation to damage
     Returns:
         1 if nothing happens\n
-        0 if gives immunity\n
         multiplier if it does something, like Blaze"""
     mult = 1
+
+    # Starter Abilities
     if (
         attacker[Pok.AB_ID] in (
             AbilityNames.BLAZE,
@@ -30,6 +31,11 @@ def damaging_ability(attacker, defender, move) -> float:  # pylint: disable=W061
             mult = 1.5
         if attacker[Pok.AB_ID] == AbilityNames.OVERGROW and move[Move.TYPE] == Types.GRASS:
             mult = 1.5
+        return mult
+
+    # Iron Fist
+    if attacker[Pok.AB_ID] == AbilityNames.IRON_FIST and move[Flags.PUNCH]:
+        mult = 1.199951172  # 4915/4096 beacuse there isn't 1.2 in game engine
 
     return mult
 
@@ -123,7 +129,7 @@ def calculate_damage(attacker: Pokemon, defender: Pokemon, move: Move_, crit: bo
     # Ability
     power = move[Move.POWER]
     if attacker[Pok.AB_WHEN] == AbilityActivation.ON_DAMAGE:
-        power = power * damaging_ability(attacker, defender, move)
+        power *= damaging_ability(attacker, defender, move)
 
     # Base damage formula
     damage = np.floor((((2 * attacker[Pok.LEVEL] / 5) + 2) * move[Move.POWER] * (attack / defense)) / 50)

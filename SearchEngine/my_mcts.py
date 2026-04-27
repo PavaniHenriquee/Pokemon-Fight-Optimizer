@@ -233,7 +233,7 @@ class Node():
         return best_key, best_node
 
 
-def mixed_rollout(state: GameState, max_depth=150, heuristic_prob=0.3) -> float:
+def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.15) -> float:
     """
     Mixed rollout: sometimes use heuristics, sometimes pure random
     This reduces bias while still getting some benefit from domain knowledge

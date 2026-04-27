@@ -4,7 +4,7 @@ from enum import Enum, auto
 import numpy as np
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
-from Models.idx_const import Pok, POK_LEN, FIELD_LEN, Move, OFFSET_SEC, Sec
+from Models.idx_const import Pok, POK_LEN, FIELD_LEN, Move, Sec
 from Models.helper import Status, VolStatus, Types
 from DataBase.PkDB import PokemonName
 
@@ -186,8 +186,8 @@ def reset_switch_out(pok):
 
 def flinch_checker(move):
     """Returns true or false if move has a flinch percent and it should flinch"""
-    flinch = move[OFFSET_SEC + Sec.VOL_STATUS]
-    chance = move[OFFSET_SEC + Sec.CHANCE]
+    flinch = move[Sec.VOL_STATUS]
+    chance = move[Sec.CHANCE]
     if flinch != 0 and flinch & VolStatus.FLINCH:
         if random.randint(1, 100) <= chance:
             return True

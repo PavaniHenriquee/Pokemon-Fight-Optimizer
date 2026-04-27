@@ -1,24 +1,23 @@
 """Calculate Status effects moves"""
 import random
 import numpy as np
-from Models.idx_const import Pok, Move, Sec, OFFSET_SEC
+from Models.idx_const import Pok, Move, Sec
 from Models.helper import Status, MoveCategory, Target
 
 
 def apply_status(move, pok, sec=False):
     """Apply status effects"""
     if sec:
-        offset = OFFSET_SEC
-        if move[offset + Sec.STATUS] != Status.SLEEP:
+        if move[Sec.STATUS] != Status.SLEEP:
             if pok[Pok.STATUS] == 0:
-                pok[Pok.STATUS] = move[offset + Sec.STATUS]
-                if move[offset + Sec.STATUS] == Status.TOXIC:
+                pok[Pok.STATUS] = move[Sec.STATUS]
+                if move[Sec.STATUS] == Status.TOXIC:
                     pok[Pok.BADLY_POISON] = 1
                 return
             return
         if pok[Pok.STATUS] == Status.SLEEP:
             return
-        pok[Pok.STATUS] = move[offset + Sec.STATUS]
+        pok[Pok.STATUS] = move[Sec.STATUS]
         pok[Pok.SLEEP_COUNTER] = np.random.randint(1,5)  # End not inclusive thats why to 5
         return
     if move[Move.STATUS] != Status.SLEEP:
@@ -117,8 +116,7 @@ def calculate_effects(attacker, defender, move):
 def sec_effects(move, attacker, defender, dmg):
     """Calculate the secondary effects, like 10% of burning,
     30% of increasing attacking, Drain moves etc."""
-    offset = OFFSET_SEC
-    chance = move[offset + Sec.CHANCE]
+    chance = move[Sec.CHANCE]
     roll = random.randint(1, 100) if chance < 100 else 0
     if roll <= chance:
         if move[Move.TARGET] in (
@@ -130,7 +128,7 @@ def sec_effects(move, attacker, defender, dmg):
             Target.RANDOM_NORMAL,
             Target.SCRIPTED
         ):
-            a = move[offset + Sec.STATUS]
+            a = move[Sec.STATUS]
             if a != 0:
                 apply_status(move, defender, sec=True)
         if move[Move.TARGET] in (
@@ -140,21 +138,21 @@ def sec_effects(move, attacker, defender, dmg):
             Target.ALLY_SIDE,
             Target.SELF
         ):
-            if any(move[offset + Sec.SEC_BOOST_ATK: offset + Sec.SEC_BOOST_EV + 1]):
-                if move[offset + Sec.SEC_BOOST_ATK]:
-                    attacker[Pok.ATTACK_STAT_STAGE] += move[offset + Sec.SEC_BOOST_ATK]
-                if move[offset + Sec.SEC_BOOST_DEF]:
-                    attacker[Pok.DEFENSE_STAT_STAGE] += move[offset + Sec.SEC_BOOST_DEF]
-                if move[offset + Sec.SEC_BOOST_SPATK]:
-                    attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += move[offset + Sec.SEC_BOOST_SPATK]
-                if move[offset + Sec.SEC_BOOST_SPDEF]:
-                    attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += move[offset + Sec.SEC_BOOST_SPDEF]
-                if move[offset + Sec.SEC_BOOST_SPEED]:
-                    attacker[Pok.SPEED_STAT_STAGE] += move[offset + Sec.SEC_BOOST_SPEED]
-                if move[offset + Sec.SEC_BOOST_ACC]:
-                    attacker[Pok.ACCURACY_STAT_STAGE] += move[offset + Sec.SEC_BOOST_ACC]
-                if move[offset + Sec.SEC_BOOST_EV]:
-                    attacker[Pok.EVASION_STAT_STAGE] += move[offset + Sec.SEC_BOOST_EV]
+            if any(move[Sec.BOOST_ATK: Sec.BOOST_EV + 1]):
+                if move[Sec.BOOST_ATK]:
+                    attacker[Pok.ATTACK_STAT_STAGE] += move[Sec.BOOST_ATK]
+                if move[Sec.BOOST_DEF]:
+                    attacker[Pok.DEFENSE_STAT_STAGE] += move[Sec.BOOST_DEF]
+                if move[Sec.BOOST_SPATK]:
+                    attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += move[Sec.BOOST_SPATK]
+                if move[Sec.BOOST_SPDEF]:
+                    attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += move[Sec.BOOST_SPDEF]
+                if move[Sec.BOOST_SPEED]:
+                    attacker[Pok.SPEED_STAT_STAGE] += move[Sec.BOOST_SPEED]
+                if move[Sec.BOOST_ACC]:
+                    attacker[Pok.ACCURACY_STAT_STAGE] += move[Sec.BOOST_ACC]
+                if move[Sec.BOOST_EV]:
+                    attacker[Pok.EVASION_STAT_STAGE] += move[Sec.BOOST_EV]
             if move[Move.DRAIN]:
                 drain_effect(attacker, dmg, move[Move.DRAIN])
 
