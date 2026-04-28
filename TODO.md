@@ -1,37 +1,34 @@
 Abilities
-[]Iron Fist
-[]Run Away
-[]Simple
-[]Tinted Lens
-[]Reckless
-[]Intimidate
+[]Aftermath
 []Battle Armor
-[]Pickup
-[]Magic Guard
-[]Damp
-[]Synchronize
-[]Illuminate
 []Chlorophyll
-[]Solar Power
-[]Rain Dish
-[]Poison Point
-[]Keen Eye
-[]Swift Swim
-[]Thick Fat
+[]Damp
+[]Guts
+[]Huge Power
 []Hustle
 []Inner Focus
-[]Sand Veil
-[]Guts
+[]Intimidate
+[]Keen Eye
+[]Magic Guard !
+[]Pickup # Difference in other gens, define how to do it
+[]Poison Point
+[]Rain Dish
+[]Reckless
 []Rock Head
-[]Huge Power
-[]Water Absorb
+[]Sand Veil
+[]Simple
+[]Solar Power
 []Soundproof
 []Speed Boost
-[]Unburden
 []Steadfast
-[]Battle Armor
-[]Suction Cups
 []Sturdy
+[]Suction Cups !
+[]Swift Swim
+[]Synchronize
+[]Thick Fat
+[]Tinted Lens
+[]Unburden !
+[]Water Absorb
 
 Moves
 []Water Sport

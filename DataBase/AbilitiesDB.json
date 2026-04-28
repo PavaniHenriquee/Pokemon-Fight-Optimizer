@@ -1,14 +1,154 @@
 {
-  "Overgrow": {
-    "name": "Overgrow",
+  "Aftermath": {
+    "name": "aftermath",
     "when": "on_damage"
   },
+  "Battle Armor": {
+    "breakable": true,
+    "name": "battle_armor",
+    "when": "on_critical"
+  },
   "Blaze": {
-    "name": "Blaze",
+    "name": "blaze",
+    "when": "on_base_power"
+  },
+  "Chlorophyll": {
+    "name": "chlorophyll",
+    "when": "on_modify_speed"
+  },
+  "Damp": {
+    "breakable": true,
+    "name": "damp",
+    "when": "on_try_move"
+  },
+  "Guts": {
+    "name": "guts",
+    "when": "on_modify_stat"
+  },
+  "Huge Power": {
+    "name": "huge_power",
+    "when": "on_modify_stat"
+  },
+  "Hustle": {
+    "name": "hustle",
+    "when": "on_modify_stat"
+  },
+  "Illuminate": {
+    "name": "illuminate"
+  },
+  "Inner Focus": {
+    "breakable": true,
+    "name": "inner_focus",
+    "when": ["on_change_stat", "on_set_status"]
+  },
+  "Intimidate": {
+    "name": "intimidate",
+    "when": "on_start"
+  },
+  "Iron Fist": {
+    "name": "iron_fist",
+    "when": "on_base_power"
+  },
+  "Keen Eye": {
+    "breakable": true,
+    "name": "keen_eye",
+    "when": "on_change_stat"
+  },
+  "Magic Guard": {
+    "name": "magic_guard",
+    "when": "on_damage"
+  },
+  "Overgrow": {
+    "name": "overgrow",
+    "when": "on_base_power"
+  },
+  "Pickup": {
+    "name": "pickup"
+  },
+  "Poison Point": {
+    "name": "poison_point",
+    "when": "on_damage"
+  },
+  "Rain Dish": {
+    "name": "rain_dish",
+    "when": "on_weather"
+  },
+  "Reckless": {
+    "name": "reckless",
+    "when": "on_base_power"
+  },
+  "Rock Head": {
+    "name": "rock_head",
+    "when": "on_damage"
+  },
+  "Run Away": {
+    "name": "run_away"
+  },
+  "Sand Veil": {
+    "breakable": true,
+    "name": "sand_veil",
+    "when": ["on_modify_acc", "on_weather"]
+  },
+  "Simple": {
+    "breakable": true,
+    "name": "simple",
+    "when": "on_change_stat"
+  },
+  "Solar Power": {
+    "name": "solar_power",
+    "when": ["on_modify_stat", "on_weather"]
+  },
+  "Soundproof": {
+    "breakable": true,
+    "name": "soundproof",
+    "when": "on_try_move"
+  },
+  "Speed Boost": {
+    "name": "speed_boost",
+    "when": "on_residual"
+  },
+  "Steadfast": {
+    "name": "steadfast",
+    "when": "on_set_status"
+  },
+  "Sturdy": {
+    "breakable": true,
+    "name": "sturdy",
+    "when": "on_try_move"
+  },
+  "Suction Cups": {
+    "breakable": true,
+    "name": "suction cups",
+    "when": "on_residual"
+  },
+  "Swift Swim": {
+    "name": "swift_swim",
+    "when": "on_modify_speed"
+  },
+  "Synchronize": {
+    "name": "synchronize",
+    "when": "on_set_status"
+  },
+  "Thick Fat": {
+    "breakable": true,
+    "name": "thick_fat",
+    "when": "on_modify_stat"
+  },
+  "Tinted Lens": {
+    "name": "tinted_lens",
     "when": "on_damage"
   },
   "Torrent": {
-    "name": "Torrent",
-    "when": "on_damage"
+    "name": "torrent",
+    "when": "on_base_power"
+  },
+  "Unburden": {
+    "name": "unburden",
+    "when": "on_residual"
+  },
+  "Water Absorb": {
+    "breakable": true,
+    "name": "water_absorb",
+    "when": "on_try_move"
   }
 }

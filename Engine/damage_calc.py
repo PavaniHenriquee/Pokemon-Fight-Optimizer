@@ -126,7 +126,7 @@ def calculate_damage(attacker: Pokemon, defender: Pokemon, move: Move_, crit: bo
     attack = np.floor(raw_attack * stage_to_multiplier(atk_stage))
     defense = np.floor(raw_defense * stage_to_multiplier(def_stage))
 
-    # Ability
+    # Ability TODO: change everything to accomodate activation changes
     power = move[Move.POWER]
     if attacker[Pok.AB_WHEN] == AbilityActivation.ON_DAMAGE:
         power *= damaging_ability(attacker, defender, move)

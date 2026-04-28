@@ -431,18 +431,16 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
         best_metric = -float("inf")
         best_node = None
 
-        for action, nodes in root.children.items():
+        for action, nodes in sorted(root.children.items(), key=lambda x: (x[0][0], x[0][1])):
             total_visits = sum(getattr(n, "visits", 0) for n in nodes)
             if total_visits < min_visits:
                 print(f"{indent}Action: {action} (skipped, visits={total_visits})")
                 continue
 
             total_wins = sum(getattr(n, "wins", 0) for n in nodes)
-            total_dead = sum(getattr(n, "dead", 0) for n in nodes)
 
             avg_win = sum(n.win_chance * getattr(n, "visits", 0) for n in nodes) / total_visits
             avg_dead = sum(n.dead_avg * getattr(n, "wins", 0) for n in nodes) / total_wins if total_wins > 0 else 0
-            total_value = sum(getattr(n, "total_value", 0) for n in nodes)
 
             # Calculate Wilson score for display
             if choose_by == 'wilson':
@@ -459,9 +457,7 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             if avg_dead < 0 or avg_dead > 2:
                 pass
             print(f"{indent}Action: {action}, visits: {total_visits}, "
-                f"total value: {round(total_value,2)}, "
-                f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}, "
-                f"total win: {total_wins}, total dead: {total_dead}")
+                f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}, ")
 
             if metric > best_metric:
                 best_metric = metric
@@ -475,4 +471,3 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
 
     if not training:
         print_best_path(root, max_depth=15)
-        

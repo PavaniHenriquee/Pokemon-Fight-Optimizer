@@ -11,9 +11,18 @@ def ability_to_np(ability):
     if not ability:
         return array
 
+    if isinstance(ability['when'], list):
+        when = 0
+        for i in ability['when']:
+            when += getattr(AbilityActivation, i.upper())
+    elif ability['when']:
+        when = getattr(AbilityActivation, ability['when'].upper())
+    else:
+        when = 0
+
     off = BASE_LEN
     array[Pok.AB_ID - off]              = getattr(AbilityNames, ability['name'].upper())
-    array[Pok.AB_WHEN - off]            = getattr(AbilityActivation, ability['when'].upper())
+    array[Pok.AB_WHEN - off]            = when
     array[Pok.AB_BREAKABLE - off]       = int(ability.get('breakable', False) is True)
     array[Pok.AB_CANT_SUPRESS - off]    = int(ability.get('cant_suppress', False) is True)
     array[Pok.AB_FAIL_ROLEPLAY - off]   = int(ability.get('fail_roleplay', False) is True)

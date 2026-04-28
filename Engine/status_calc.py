@@ -159,7 +159,7 @@ def sec_effects(move, attacker, defender, dmg):
 
 def after_turn_status(pok):
     """Calculate damage after turn like burn, poison, volatile status"""
-    # TODO:
+    # TODO: Magic Guard
     if pok[Pok.STATUS]:
         if pok[Pok.STATUS] in (Status.BURN, Status.POISON):
             if pok[Pok.BADLY_POISON] >= 1:

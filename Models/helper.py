@@ -135,13 +135,18 @@ Target = SimpleNamespace(
 
 class AbilityActivation:
     """When will the ability be used"""
-    SWITCH_IN = 1
-    ON_PREPARE_HIT = 2
-    ON_DAMAGE = 4
-    ON_WEATHER_CHANGE = 8
-    ON_END = 16
-    ON_RECEIVE_DAMAGE = 32
-
+    ON_MODIFY_STAT  = 1
+    ON_BASE_POWER   = 2
+    ON_CHANGE_STAT  = 4
+    ON_DAMAGE       = 8
+    ON_START        = 16
+    ON_CRITICAL     = 32
+    ON_TRY_MOVE     = 64
+    ON_SET_STATUS   = 128
+    ON_MODIFY_SPEED = 256
+    ON_WEATHER      = 512
+    ON_MODIFY_ACC   = 1024
+    ON_RESIDUAL     = 2048
 
 MoveCategory = SimpleNamespace(
     PHYSICAL = 1,
