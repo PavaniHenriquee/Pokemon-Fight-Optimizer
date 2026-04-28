@@ -19,6 +19,7 @@ from Models.idx_const import (
 from Models.helper import count_party
 from Models.trainer_ai import TrainerAI
 from Engine.new_battle import Battle
+from Engine.engine_helper import start_of_battle
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes
 
@@ -154,14 +155,18 @@ class GameState():
     def step(self, my_move_idx):
         """Simulate the entire turn"""
         new = self.clone()
+        if new.turn == 0:
+            start_of_battle(new.battle_array)
         battle = Battle(
             battle_array=new.battle_array
         )
         if new.phase == BattlePhase.DEATH_END_OF_TURN:
-            battle.end_of_turn(search=my_move_idx[1])
+            battle.end_of_turn(switch_idx=my_move_idx[1])
             if my_move_idx[0] == "switch":
                 new.my_active = my_move_idx[1]
                 new.battle_array[Field.MY_POK] = my_move_idx[1]
+            else:
+                pass
             new.phase = int(BattlePhase.TURN_START)
             new.battle_array[Field.PHASE] = BattlePhase.TURN_START
             return new

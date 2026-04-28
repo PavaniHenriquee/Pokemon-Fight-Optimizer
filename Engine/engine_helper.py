@@ -1,72 +1,10 @@
 """Helpers that are only needed in the engine directory"""
 import random
-from enum import Enum, auto
-import numpy as np
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
-from Models.idx_const import Pok, POK_LEN, FIELD_LEN, Move, Sec
+from Models.idx_const import Pok, Move, Sec, Field, POK_LEN
 from Models.helper import Status, VolStatus, Types
 from DataBase.PkDB import PokemonName
-
-
-def to_battle_array(my_pty, opp_pty, battlefield=None):
-    """Tranform both parties in the battle arrray"""
-    try:
-        pok1 = my_pty[0].to_np()
-    except IndexError:
-        pok1 = np.zeros(POK_LEN)
-    try:
-        pok2 = my_pty[1].to_np()
-    except IndexError:
-        pok2 = np.zeros(POK_LEN)
-    try:
-        pok3 = my_pty[2].to_np()
-    except IndexError:
-        pok3 = np.zeros(POK_LEN)
-    try:
-        pok4 = my_pty[3].to_np()
-    except IndexError:
-        pok4 = np.zeros(POK_LEN)
-    try:
-        pok5 = my_pty[4].to_np()
-    except IndexError:
-        pok5 = np.zeros(POK_LEN)
-    try:
-        pok6 = my_pty[5].to_np()
-    except IndexError:
-        pok6 = np.zeros(POK_LEN)
-    try:
-        o_pok1 = opp_pty[0].to_np()
-    except IndexError:
-        o_pok1 = np.zeros(POK_LEN)
-    try:
-        o_pok2 = opp_pty[1].to_np()
-    except IndexError:
-        o_pok2 = np.zeros(POK_LEN)
-    try:
-        o_pok3 = opp_pty[2].to_np()
-    except IndexError:
-        o_pok3 = np.zeros(POK_LEN)
-    try:
-        o_pok4 = opp_pty[3].to_np()
-    except IndexError:
-        o_pok4 = np.zeros(POK_LEN)
-    try:
-        o_pok5 = opp_pty[4].to_np()
-    except IndexError:
-        o_pok5 = np.zeros(POK_LEN)
-    try:
-        o_pok6 = opp_pty[5].to_np()
-    except IndexError:
-        o_pok6 = np.zeros(POK_LEN)
-    try:
-        battlef = battlefield.to_array()
-    except Exception:
-        battlef = np.zeros(FIELD_LEN)
-
-    return np.concatenate([pok1, pok2, pok3, pok4, pok5, pok6,
-                           o_pok1, o_pok2, o_pok3, o_pok4, o_pok5, o_pok6,
-                           battlef])
 
 
 def check_speed(p1, p2):
@@ -129,19 +67,17 @@ def move_order(p1, move1, p2, move2, p1_switch, p2_switch):
     return order
 
 
-class MoveOutcome(Enum):
+class MoveOutcome:
     """Possible moves outcomes"""
-    HIT = auto()
-    MISS = auto()
-    INVULNERABLE = auto()
-    SEMI_INVULNERABLE = auto()
+    HIT               = 1
+    MISS              = 2
+    INVULNERABLE      = 3
+    SEMI_INVULNERABLE = 4
 
 
 def calculate_hit_miss(move, attacker, defender):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
-    # TODO: Invulnerability like Eletric Ground, Poison Steel.
-    # TODO: Check for flinch
 
     if get_type_effectiveness(move[Move.TYPE], defender[Pok.TYPE1], defender[Pok.TYPE2]) == 0:
         return MoveOutcome.INVULNERABLE
@@ -172,16 +108,16 @@ def get_non_fainted_pokemon(party):
 
 def reset_switch_out(pok):
     """If a pokemon swithces out it needs to reset these conditions"""
-    pok[Pok.ATTACK_STAT_STAGE] = 0
-    pok[Pok.DEFENSE_STAT_STAGE] = 0
-    pok[Pok.SPECIAL_ATTACK_STAT_STAGE] = 0
+    pok[Pok.ATTACK_STAT_STAGE]          = 0
+    pok[Pok.DEFENSE_STAT_STAGE]         = 0
+    pok[Pok.SPECIAL_ATTACK_STAT_STAGE]  = 0
     pok[Pok.SPECIAL_DEFENSE_STAT_STAGE] = 0
-    pok[Pok.SPEED_STAT_STAGE] = 0
-    pok[Pok.ACCURACY_STAT_STAGE] = 0
-    pok[Pok.EVASION_STAT_STAGE] = 0
-    pok[Pok.VOL_STATUS] = 0
-    pok[Pok.TURNS] = 0
-    pok[Pok.BADLY_POISON] = 1
+    pok[Pok.SPEED_STAT_STAGE]           = 0
+    pok[Pok.ACCURACY_STAT_STAGE]        = 0
+    pok[Pok.EVASION_STAT_STAGE]         = 0
+    pok[Pok.VOL_STATUS]                 = 0
+    pok[Pok.TURNS]                      = 0
+    pok[Pok.BADLY_POISON]               = 1
 
 
 def flinch_checker(move):
@@ -241,3 +177,32 @@ def thaw(move, defender):
         print(f"{PokemonName(defender[Pok.ID]).name.capitalize()} has thawed out!")
         return True
     return False
+
+
+def start_of_battle(array):
+    """Select the two first pokemon of each team and does ability effects on switch in
+    for each following their speed"""
+    # TODO: Switch in abilities like Intimidate, Drought etc.
+    # Order of entry is in account for things like Drought against Drizzle
+    current_pokemon = array[
+            (int(array[Field.MY_POK]) * POK_LEN):(int(array[Field.MY_POK]+1) * POK_LEN)
+        ]
+    current_opp = array[
+            ((int(array[Field.OPP_POK])+6) * POK_LEN):(int(array[Field.OPP_POK]+7) * POK_LEN)
+        ]
+    p1_speed, p2_speed = check_speed(current_pokemon, current_opp)
+    speed_tie_1 = False
+    speed_tie_2 = False
+    if p1_speed == p2_speed:
+        if random.randint(1, 2) == 1:
+            speed_tie_1 = True
+        else:
+            speed_tie_2 = True
+    if speed_tie_1 or p1_speed > p2_speed:
+        pass
+    elif speed_tie_2 or p2_speed > p1_speed:
+        pass
+    else:
+        raise ValueError("Shouldn't get here")
+    current_pokemon[Pok.TURNS] = 1
+    current_opp[Pok.TURNS] = 1

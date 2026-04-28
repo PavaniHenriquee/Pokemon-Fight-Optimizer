@@ -639,7 +639,7 @@ class TrainerAI:
             if move[Move.ID] == 0:
                 break
             score = 0
-            final_damage, _ = calculate_damage(ai_pok, user_pok, move)
+            final_damage = calculate_damage(ai_pok, user_pok, move)
             effectiveness = get_type_effectiveness(
                 move[Move.TYPE],
                 user_pok[Pok.TYPE1],
@@ -776,7 +776,7 @@ class TrainerAI:
             for mv in (m1, m2, m3, m4):
                 # build move object shape expected by calculate_damage
                 try:
-                    raw_dmg, _ = calculate_damage(deadmon, user_pok, mv, roll_multiplier=1)
+                    raw_dmg = calculate_damage(deadmon, user_pok, mv, roll_multiplier=1)
                 except Exception:
                     # if damage calc fails, skip move
                     continue

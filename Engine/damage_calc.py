@@ -88,8 +88,6 @@ def multipliers(
         effectiveness2 = get_type_effectiveness(move[Move.TYPE], defender[Pok.TYPE2], 0)
         if effectiveness2 != 1:
             damage = np.floor(effectiveness2 * damage)
-    else:
-        effectiveness2 = 1
 
     # TODO: Solid Rock and Filter
 
@@ -99,14 +97,14 @@ def multipliers(
 
     # TODO: Berry
 
-    return damage, effectiveness*effectiveness2
+    return damage
 
 
 def calculate_damage(attacker: Pokemon, defender: Pokemon, move: Move_, crit: bool=False, roll_multiplier: float=None):
     """Calculate damage based on current stats of the attacker and the defender, giving back the damage and its effectiveness"""
     if move[Move.CATEGORY] == MoveCategory.STATUS or move[Move.CATEGORY] == 0:
         # Status moves don't deal damage(Trainer AI will fall here)
-        return 0, 0
+        return 0
     if move[Move.CATEGORY] == MoveCategory.PHYSICAL:
         raw_attack = attacker[Pok.ATTACK]
         raw_defense = defender[Pok.DEFENSE]
@@ -134,8 +132,8 @@ def calculate_damage(attacker: Pokemon, defender: Pokemon, move: Move_, crit: bo
     # Base damage formula
     damage = np.floor((((2 * attacker[Pok.LEVEL] / 5) + 2) * move[Move.POWER] * (attack / defense)) / 50)
 
-    damage, effectiveness = multipliers(move, attacker, defender, crit, roll_multiplier, damage)
-    return damage, effectiveness
+    damage = multipliers(move, attacker, defender, crit, roll_multiplier, damage)
+    return damage
 
 
 def calculate_damage_confusion(pok):

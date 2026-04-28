@@ -166,13 +166,13 @@ ItemType = SimpleNamespace(
 
 class ItemActivation:
     """When will the ability be used"""
-    SWITCH_IN = 1
-    ON_PREPARE_HIT = 2
-    ON_DAMAGE = 4
+    SWITCH_IN         = 1
+    ON_PREPARE_HIT    = 2
+    ON_DAMAGE         = 4
     ON_WEATHER_CHANGE = 8
-    ON_END = 16
+    ON_END            = 16
     ON_RECEIVE_DAMAGE = 32
-    ON_SELECTION = 64
+    ON_SELECTION      = 64
 
 
 def count_party(pty):
@@ -185,3 +185,12 @@ def count_Id(pty):
     """Pokemon in party, no matter if alive or dead"""
     pok_features = POK_LEN
     return np.count_nonzero(pty[Pok.ID :: pok_features] > 0)
+
+
+class Weather:
+    """Types of Weather"""
+    SUN       = 1
+    RAIN      = 2
+    HAIL      = 3
+    SANDSTORM = 4
+    MIST      = 5

@@ -27,5 +27,3 @@ MoveName = SimpleNamespace(
     DRAGON_DANCE = 21
 
 )
-
-MoveIdToName = {v: k for k, v in MoveName.__dict__.items() if not k.startswith("__")}
