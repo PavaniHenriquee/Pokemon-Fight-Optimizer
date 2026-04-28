@@ -17,8 +17,8 @@ class AbilityNames:
     IRON_FIST    = INTIMIDATE + 1
     KEEN_EYE     = IRON_FIST + 1
     MAGIC_GUARD  = KEEN_EYE + 1
-    MOLD_BREAK   = MAGIC_GUARD + 1
-    NO_GUARD     = MOLD_BREAK + 1
+    MOLD_BREAKER = MAGIC_GUARD + 1
+    NO_GUARD     = MOLD_BREAKER + 1
     OVERGROW     = NO_GUARD + 1
     PICKUP       = OVERGROW + 1
     POISON_POINT = PICKUP + 1

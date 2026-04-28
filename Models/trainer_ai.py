@@ -618,12 +618,12 @@ class TrainerAI:
         move4 = ai_pok[Pok.MOVE4_ID:Pok.ITEM_ID]
         move_scores = {}
         if self.current_pok_ab is True:
-            ability = AbilityNames[user_pok[Pok.AB_ID]]
+            ability = getattr(AbilityNames, user_pok[Pok.AB_ID])
         else:
             try:
                 ability = random.choice(pkDB[PokIdToName[user_pok[Pok.ID]].capitalize()]['abilities']).upper()
             except Exception:
-                ability = AbilityNames[user_pok[Pok.AB_ID]]
+                ability = getattr(AbilityNames, user_pok[Pok.AB_ID])
         max_rand = 5
         rand = np.full((4, max_rand, 2), np.nan)
         max_damage = 0
