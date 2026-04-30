@@ -27,3 +27,7 @@ Thumbs.db
 
 # VSCode settings
 .vscode/
+
+# Node
+node_modules/
+frontend/dist/
