@@ -21,7 +21,7 @@ from Models.trainer_ai import TrainerAI
 from Engine.new_battle import Battle
 from Engine.engine_helper import start_of_battle
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
-from SearchEngine.helper import multiple_nodes
+from SearchEngine.helper import multiple_nodes, find_best_terminal_node
 
 
 ActionType = SimpleNamespace(
@@ -269,11 +269,11 @@ def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.15) -> float
 
 
 
-def mcts(root_state: GameState, iterations: int, training: bool=False):
+def mcts(root_state: GameState, max_iterations: int=50000, terminal_iterations: int=1000):
     """MCTS"""
     root = Node(root_state)
 
-    for _ in range(iterations):
+    for iterations in range(max_iterations):
         node = root
         state = root_state.clone()
         path = [node]
@@ -332,6 +332,16 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
 
             if not hasattr(node, 'depth'):
                 node.depth = depth
+
+        # Cutoff when results are good enough
+        if iterations % 100 == 0 and iterations > 0:
+            terminal_node, terminal_path = find_best_terminal_node(root)
+            if terminal_node.state.is_terminal() and terminal_node.visits >= terminal_iterations:
+                print(f"Converged at {iterations} iterations, "
+                    f"terminal depth {len(terminal_path)}, "
+                    f"terminal visits {terminal_node.visits}")
+                break
+
 
     def propagate_stable_values(node, min_visits=70):
         """
@@ -429,7 +439,7 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
         if depth > max_depth or not getattr(root, "children", None):
             return
 
-        indent = "    " * depth
+        indent = " " * depth
         print(f"\n{indent}------ Depth {depth} ------")
 
         best_action = None
@@ -474,5 +484,4 @@ def mcts(root_state: GameState, iterations: int, training: bool=False):
             print_best_path(best_node, depth + 1, max_depth, min_visits, choose_by)
 
 
-    if not training:
-        print_best_path(root, max_depth=15)
+    print_best_path(root, max_depth=15)

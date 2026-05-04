@@ -88,3 +88,21 @@ def batch_rollouts(sim_state):
     hit_rolls = np.random.randint(1, 101, batch_size)
     crit_rolls = np.random.randint(1, 17, batch_size)
     return batch, hit_rolls, crit_rolls
+
+def find_best_terminal_node(root):
+    """Follow the highest-visit path down to the deepest node"""
+    node = root
+    path = [node]
+
+    while node.children:
+        # Pick the action with most total visits (the "committed" path)
+        _, best_children = max(
+            node.children.items(),
+            key=lambda x: sum(n.visits for n in x[1])
+        )
+        # Pick the most visited outcome for that action
+        best_child = max(best_children, key=lambda n: n.visits)
+        node = best_child
+        path.append(node)
+
+    return node, path

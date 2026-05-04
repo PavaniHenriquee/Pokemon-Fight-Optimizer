@@ -1,4 +1,6 @@
 """Main"""
+import random
+import numpy as np
 from cProfile import Profile
 from pstats import Stats, SortKey
 from Models.pokemon import Pokemon
@@ -18,9 +20,13 @@ opp_party = [squirtle1, charmander1, charmander1, charmander1, charmander1, char
 battle = to_battle_array(my_party, opp_party)
 root = GameState(battle)
 
+SEED = 50
+
+random.seed(SEED)
+np.random.seed(SEED)
 
 with Profile() as profile:
-    mcts(root, 5000)
+    mcts(root)
     (
         Stats(profile)
         .strip_dirs()
