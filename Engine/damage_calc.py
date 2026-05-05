@@ -9,32 +9,36 @@ from Models.move import Move as Move_
 from DataBase.AbilitiesDB import AbilityNames
 
 
-def damaging_ability(attacker, defender, move) -> float:  # pylint: disable=W0613
+MULTIPLIERS = [i / 100 for i in range(85, 101)]
+
+
+def base_power_ability(attacker, defender, move) -> float:  # pylint: disable=W0613
     """Calculate what the ability does in relation to damage
     Returns:
         1 if nothing happens\n
         multiplier if it does something, like Blaze"""
     mult = 1
+    att_ab = attacker[Pok.AB_ID]
 
     # Starter Abilities
     if (
-        attacker[Pok.AB_ID] in (
+        att_ab in (
             AbilityNames.BLAZE,
             AbilityNames.TORRENT,
             AbilityNames.OVERGROW
         )
         and attacker[Pok.CURRENT_HP] / attacker[Pok.MAX_HP] <= 1 / 3
     ):
-        if attacker[Pok.AB_ID] == AbilityNames.BLAZE and move[Move.TYPE] == Types.FIRE:
+        if att_ab == AbilityNames.BLAZE and move[Move.TYPE] == Types.FIRE:
             mult = 1.5
-        if attacker[Pok.AB_ID] == AbilityNames.TORRENT and move[Move.TYPE] == Types.WATER:
+        if att_ab == AbilityNames.TORRENT and move[Move.TYPE] == Types.WATER:
             mult = 1.5
-        if attacker[Pok.AB_ID] == AbilityNames.OVERGROW and move[Move.TYPE] == Types.GRASS:
+        if att_ab == AbilityNames.OVERGROW and move[Move.TYPE] == Types.GRASS:
             mult = 1.5
         return mult
 
     # Iron Fist
-    if attacker[Pok.AB_ID] == AbilityNames.IRON_FIST and move[Flags.PUNCH]:
+    if att_ab == AbilityNames.IRON_FIST and move[Flags.PUNCH]:
         mult = 1.199951172  # 4915/4096 beacuse there isn't 1.2 in game engine
 
     return mult
@@ -71,7 +75,7 @@ def multipliers(
 
     # Roll Multiplier
     if roll_mult is None:
-        roll_mult = random.randint(85, 100) / 100
+        roll_mult = MULTIPLIERS[random.getrandbits(4)]
     damage = np.floor(roll_mult * damage)
 
     # STAB
@@ -126,11 +130,11 @@ def calculate_damage(attacker: Pokemon, defender: Pokemon, move: Move_, crit: bo
 
     # Ability TODO: change everything to accomodate activation changes
     power = move[Move.POWER]
-    if attacker[Pok.AB_WHEN] == AbilityActivation.ON_DAMAGE:
-        power *= damaging_ability(attacker, defender, move)
+    if attacker[Pok.AB_WHEN] == AbilityActivation.ON_BASE_POWER:
+        power *= base_power_ability(attacker, defender, move)
 
     # Base damage formula
-    damage = np.floor((((2 * attacker[Pok.LEVEL] / 5) + 2) * move[Move.POWER] * (attack / defense)) / 50)
+    damage = np.floor((((2 * attacker[Pok.LEVEL] / 5) + 2) * power * (attack / defense)) / 50)
 
     damage = multipliers(move, attacker, defender, crit, roll_multiplier, damage)
     return damage

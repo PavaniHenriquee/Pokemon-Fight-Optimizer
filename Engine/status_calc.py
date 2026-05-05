@@ -18,7 +18,7 @@ def apply_status(move, pok, sec=False):
         if pok[Pok.STATUS] == Status.SLEEP:
             return
         pok[Pok.STATUS] = move[Sec.STATUS]
-        pok[Pok.SLEEP_COUNTER] = np.random.randint(1,5)  # End not inclusive thats why to 5
+        pok[Pok.SLEEP_COUNTER] = random.getrandbits(2) + 1
         return
     if move[Move.STATUS] != Status.SLEEP:
         if pok[Pok.STATUS] == 0:
@@ -30,7 +30,7 @@ def apply_status(move, pok, sec=False):
     if pok[Pok.STATUS] == Status.SLEEP:
         return
     pok[Pok.STATUS] = move[Move.STATUS]
-    pok[Pok.SLEEP_COUNTER] = np.random.randint(1,5)  # End not inclusive thats why to 5
+    pok[Pok.SLEEP_COUNTER] = random.getrandbits(2) + 1
     return
 
 
@@ -116,8 +116,8 @@ def calculate_effects(attacker, defender, move):
 def sec_effects(move, attacker, defender, dmg):
     """Calculate the secondary effects, like 10% of burning,
     30% of increasing attacking, Drain moves etc."""
-    chance = move[Sec.CHANCE]
-    roll = random.randint(1, 100) if chance < 100 else 0
+    chance = move[Sec.CHANCE] / 100
+    roll = random.random() if chance < 1 else 0
     if roll <= chance:
         if move[Move.TARGET] in (
             Target.NORMAL,
@@ -174,13 +174,13 @@ def after_turn_status(pok):
 
 def paralysis():
     """Check if Pokemon is fully paralysed"""
-    if random.randint(1, 4) <= 1:
+    if random.getrandbits(2):
         return True
     return False
 
 
 def freeze():
     """Check if it thaws"""
-    if random.randint(1, 5) <= 1:
+    if random.random() <= 0.2:
         return False
     return True

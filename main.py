@@ -20,7 +20,7 @@ opp_party = [squirtle1, charmander1, charmander1, charmander1, charmander1, char
 battle = to_battle_array(my_party, opp_party)
 root = GameState(battle)
 
-SEED = 50
+SEED = 37
 
 random.seed(SEED)
 np.random.seed(SEED)

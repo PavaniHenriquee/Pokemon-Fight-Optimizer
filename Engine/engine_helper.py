@@ -24,7 +24,7 @@ def check_speed(p1, p2):
 
 def move_speed_tie(p1, m1, p2, m2):
     """Get at random the order"""
-    speedtie = random.randint(1, 2)
+    speedtie = random.getrandbits(1)
     if speedtie == 1:
         order = [(p1, m1, p2), (p2, m2, p1)]
     else:
@@ -87,16 +87,16 @@ def calculate_hit_miss(move, attacker, defender):
 
     acc_stage = attacker[Pok.ACCURACY_STAT_STAGE] - defender[Pok.EVASION_STAT_STAGE]
     # Checking if it's an always hit move, if so it won't have an number on accuracy so it will always be 100 to hit
-    accuracy = move[Move.ACCURACY] * stage_to_multiplier(acc_stage, acc=True)
+    accuracy = move[Move.ACCURACY] * stage_to_multiplier(acc_stage, acc=True) / 100
 
-    if random.randint(1, 100) <= accuracy:
+    if random.random() <= accuracy:
         return MoveOutcome.HIT
     return MoveOutcome.MISS
 
 
 def calculate_crit():
     """Returns a boolean if the move passed the crit check"""
-    crit_roll = random.randint(1, 16)  # 1/16 chance of a crit
+    crit_roll = random.getrandbits(4) + 1  # 1/16 chance of a crit
     iscrit = crit_roll == 1
     return iscrit
 
@@ -123,9 +123,9 @@ def reset_switch_out(pok):
 def flinch_checker(move):
     """Returns true or false if move has a flinch percent and it should flinch"""
     flinch = move[Sec.VOL_STATUS]
-    chance = move[Sec.CHANCE]
+    chance = move[Sec.CHANCE] / 100
     if flinch != 0 and flinch & VolStatus.FLINCH:
-        if random.randint(1, 100) <= chance:
+        if random.random() <= chance:
             return True
 
     return False
@@ -137,7 +137,7 @@ def confusion(attacker, my_pok):
         print(f"{attacker.name} is confused!")
     else:
         print(f'Enemy {attacker.name} is confused!')
-    if random.randint(1, 100) <= 50:
+    if random.getrandbits(1):
         print('it hurt itself in its confusion!')
         dmg = calculate_damage_confusion(attacker)
         attacker.current_hp -= dmg
@@ -194,7 +194,7 @@ def start_of_battle(array):
     speed_tie_1 = False
     speed_tie_2 = False
     if p1_speed == p2_speed:
-        if random.randint(1, 2) == 1:
+        if random.getrandbits(1):
             speed_tie_1 = True
         else:
             speed_tie_2 = True

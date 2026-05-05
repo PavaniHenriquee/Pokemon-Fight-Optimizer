@@ -74,7 +74,7 @@ def switch_menu(alive_pokemon, current_pokemon):
 
 def speed_tie(p1, m1, p2, m2):
     """Get at random the order"""
-    speedtie = random.randint(1, 2)
+    speedtie = random.getrandbits(1)
     if speedtie == 1:
         order = [(p1, m1, p2), (p2, m2, p1)]
     else:
@@ -84,7 +84,7 @@ def speed_tie(p1, m1, p2, m2):
 
 def calculate_crit():
     """Returns a boolean if the move passed the crit check"""
-    crit_roll = random.randint(1, 16)  # 1/16 chance of a crit
+    crit_roll = random.getrandbits(4) + 1  # 1/16 chance of a crit
     iscrit = crit_roll == 1
     return iscrit
 
@@ -99,8 +99,8 @@ def calculate_hit_miss(move, attacker, defender):  # pylint:disable=W0613
         is_hit = True
         return is_hit
 
-    random_roll = random.randint(1, 100)
-    is_hit = random_roll <= accuracy
+    random_roll = random.random()
+    is_hit = random_roll <= accuracy/100
     return is_hit
 
 
@@ -131,7 +131,7 @@ def batch_independent_score_from_rand(rand, idx):
     for score, chance in arr:
         if np.isnan(score):
             break
-        if random.randint(0, 255) < chance:
+        if random.getrandbits(8) < chance:
             total += score
     return total
 

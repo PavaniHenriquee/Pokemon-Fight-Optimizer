@@ -1,7 +1,6 @@
 """helper functions"""
 import random
 import copy
-import numpy as np
 from DataBase.pok_sets import charmander, squirtle, bulbasaur
 from Utils.helper import to_battle_array
 from Models.idx_const import Pok
@@ -59,13 +58,13 @@ def multiple_nodes(child, new_state):
         # Check to see if the opp got a different vol_status
         if c_opp_active[Pok.VOL_STATUS] == new_opp[Pok.VOL_STATUS]:
             opp_vol = True
-        '''# Check to see if i got a different vol_status
+        '''# Check to see if i got a different stat change
         if np.array_equal(
             c_my_active[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE+1],
             new_my[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE+1]
         ):
             my_stat = True
-        # Check to see if the opp got a different vol_status
+        # Check to see if the opp got a different stat change
         if np.array_equal(
             c_opp_active[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE+1],
             new_opp[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE+1]
@@ -79,15 +78,6 @@ def multiple_nodes(child, new_state):
             return node
 
     return None
-
-
-def batch_rollouts(sim_state):
-    """Batch rollouts so i can simulate through multiples battles at once"""
-    batch_size = 2
-    batch = np.tile(sim_state.battle_array, (batch_size, 1))
-    hit_rolls = np.random.randint(1, 101, batch_size)
-    crit_rolls = np.random.randint(1, 17, batch_size)
-    return batch, hit_rolls, crit_rolls
 
 def find_best_terminal_node(root):
     """Follow the highest-visit path down to the deepest node"""

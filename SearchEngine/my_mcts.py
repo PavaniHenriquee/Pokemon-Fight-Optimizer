@@ -212,7 +212,7 @@ class Node():
         self.win_chance = 0.0
         self.dead_avg = 0
 
-    def best_action(self, c=0.4):
+    def best_action(self, c=0.5):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
         # prefer a random unvisited child to avoid insertion-order bias
 
@@ -232,13 +232,13 @@ class Node():
             avg = c_total_value / c_visits
             # UCB: avg + c * sqrt(2 * ln(N) / n)
             ucb_val = avg + c * math.sqrt(2 * (log_parent_visits) / c_visits)
-            if ucb_val > best_val or (ucb_val == best_val and random.random() < 0.5):
+            if ucb_val > best_val or (ucb_val == best_val and random.getrandbits(1)):
                 best_val, best_key, best_node = ucb_val, key, child
 
         return best_key, best_node
 
 
-def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.15) -> float:
+def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.3) -> float:
     """
     Mixed rollout: sometimes use heuristics, sometimes pure random
     This reduces bias while still getting some benefit from domain knowledge
@@ -315,7 +315,7 @@ def mcts(root_state: GameState, max_iterations: int=50000, terminal_iterations: 
 
         # 3) Rollout
         if not state.is_terminal():
-            sim_state = mixed_rollout(state, heuristic_prob=0.3)
+            sim_state = mixed_rollout(state)
             value, win, dead = evaluate_terminal(sim_state)
         # If state is terminal there's no need to rollout
         else:
@@ -337,8 +337,8 @@ def mcts(root_state: GameState, max_iterations: int=50000, terminal_iterations: 
         if iterations % 100 == 0 and iterations > 0:
             terminal_node, terminal_path = find_best_terminal_node(root)
             if terminal_node.state.is_terminal() and terminal_node.visits >= terminal_iterations:
-                print(f"Converged at {iterations} iterations, "
-                    f"terminal depth {len(terminal_path)}, "
+                print(f"Converged at {iterations} iterations, \n"
+                    f"terminal depth {len(terminal_path)}, \n"
                     f"terminal visits {terminal_node.visits}")
                 break
 
@@ -403,7 +403,7 @@ def mcts(root_state: GameState, max_iterations: int=50000, terminal_iterations: 
         return node.win_chance, node.dead_avg
 
 
-    def recursive_backup(node, min_visits=70, use_wilson=True):
+    def recursive_backup(node, min_visits=70):
         """
         Recursively backup values from leaves to root.
         
@@ -418,23 +418,20 @@ def mcts(root_state: GameState, max_iterations: int=50000, terminal_iterations: 
         # First, recursively backup all children
         for node_list in node.children.values():
             for child in node_list:
-                recursive_backup(child, min_visits=min_visits, use_wilson=use_wilson)
+                recursive_backup(child, min_visits=min_visits)
 
         # Then propagate the best child values to this node
         # Only do this if node has children (non-terminal)
         if node.children:
-            if use_wilson:
-                propagate_stable_values(node, min_visits=min_visits)
-            else:
-                propagate_stable_values(node, min_visits=min_visits)
+            propagate_stable_values(node, min_visits=min_visits)
 
         return node.win_chance, node.dead_avg
 
     recursive_backup(root)
 
-    def print_best_path(root, depth=0, max_depth=5, min_visits=1, choose_by='wilson'):
+    def print_best_path(root, depth=0, max_depth=50, min_visits=1):
         """
-        Print all actions with enhanced metrics including confidence.
+        Print best path using backpropagated values.
         """
         if depth > max_depth or not getattr(root, "children", None):
             return
@@ -452,27 +449,15 @@ def mcts(root_state: GameState, max_iterations: int=50000, terminal_iterations: 
                 print(f"{indent}Action: {action} (skipped, visits={total_visits})")
                 continue
 
-            total_wins = sum(getattr(n, "wins", 0) for n in nodes)
-
+            # Use the backpropagated values directly
             avg_win = sum(n.win_chance * getattr(n, "visits", 0) for n in nodes) / total_visits
-            avg_dead = sum(n.dead_avg * getattr(n, "wins", 0) for n in nodes) / total_wins if total_wins > 0 else 0
+            avg_dead = sum(n.dead_avg * getattr(n, "wins", 0) for n in nodes) / sum(getattr(n, "wins", 0) for n in nodes) if sum(getattr(n, "wins", 0) for n in nodes) > 0 else 0
 
-            # Calculate Wilson score for display
-            if choose_by == 'wilson':
-                z = 1.96
-                phat = total_wins / total_visits if total_visits > 0 else 0
-                denominator = 1 + z**2 / total_visits if total_visits > 0 else 1
-                center = phat + z**2 / (2 * total_visits) if total_visits > 0 else 0
-                spread = z * math.sqrt((phat * (1 - phat) + z**2 / (4 * total_visits)) / total_visits) if total_visits > 0 else 0
-                wilson = (center - spread) / denominator
-                metric = wilson - (0.01 * avg_dead)
-            else:
-                metric = avg_win
+            # For metric, just use avg_win directly since backprop already selected it
+            metric = avg_win - (0.01 * avg_dead)
 
-            if avg_dead < 0 or avg_dead > 2:
-                pass
             print(f"{indent}Action: {action}, visits: {total_visits}, "
-                f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}, ")
+                f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}")
 
             if metric > best_metric:
                 best_metric = metric
@@ -481,7 +466,7 @@ def mcts(root_state: GameState, max_iterations: int=50000, terminal_iterations: 
 
         if best_node:
             print(f"{indent}==> Best action at depth {depth}: {best_action}")
-            print_best_path(best_node, depth + 1, max_depth, min_visits, choose_by)
+            print_best_path(best_node, depth + 1, max_depth, min_visits)
 
 
-    print_best_path(root, max_depth=15)
+    print_best_path(root)

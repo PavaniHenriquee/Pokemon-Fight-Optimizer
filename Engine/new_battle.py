@@ -56,7 +56,7 @@ class Battle():
             speed_tie_1 = False
             speed_tie_2 = False
             if my_s == opp_s:
-                if random.randint(1, 2) == 1:
+                if random.getrandbits(1):
                     speed_tie_1 = True
                 else:
                     speed_tie_2 = True
@@ -150,7 +150,7 @@ class Battle():
                 continue
             # Volatile Status early returns, only not fully implemented confusion for now
             if attacker[Pok.VOL_STATUS] != 0 and attacker[Pok.VOL_STATUS] & VolStatus.CONFUSION:
-                if random.randint(1,2) == 1:
+                if random.getrandbits(1):
                     continue
             # In cases like after recoil damage, selfdestruct, etc.
             if defender[Pok.CURRENT_HP] <= 0:
@@ -221,7 +221,7 @@ class Battle():
 
     def turn_sim(self, opp_move, current_action):
         """One turn"""
-        from SearchEngine.my_mcts import BattlePhase  #pylint: disable=C0415
+        from SearchEngine.my_mcts import BattlePhase
         if current_action[0] == 'move':
             switch_idx = -1
             current_move = current_action[1]
