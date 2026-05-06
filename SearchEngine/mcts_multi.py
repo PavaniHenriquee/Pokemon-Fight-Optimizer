@@ -155,7 +155,7 @@ def parallel_mcts(
     num_workers: int = None,
     total_iterations: int = 400_000,
     terminal_iterations: int = 1_500,
-) -> Tuple[Dict, Tuple]:
+):
     """
     Run MCTS across `num_workers` processes and combine the results.
  
@@ -196,5 +196,3 @@ def parallel_mcts(
 
     root_stats, best_paths = _combine_results(worker_results)
     _print_combined(root_stats, best_paths)
-
-    return

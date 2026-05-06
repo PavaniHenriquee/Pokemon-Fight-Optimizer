@@ -396,68 +396,79 @@ def print_best_path(root, depth=0, max_depth=50, min_visits=1):
         print_best_path(best_node, depth + 1, max_depth, min_visits)
 
 
-def mcts_loop(root: 'Node', root_state: GameState, max_iterations: int=50000, terminal_iterations: int=1000):
+def _select_expand(state: GameState, node: Node):
+    """Phases 1 and 2 of MCTS"""
+    path = [node]
+    while not state.is_terminal():
+        untried_actions = [
+            a for a in state.get_valid_actions() if a not in node.children
+        ]
+
+        if untried_actions:
+            # We have unexplored actions, time to expand
+            break
+        if node.children:
+            action_key, child = node.best_action()  # Pick action with best UCB
+            new_state = state.step(action_key)
+            new_node = multiple_nodes(child, new_state)
+            if not new_node:
+                new_child = Node(new_state, parent=node, move=action_key)
+                child.append(new_child)
+                node = new_child
+            else:
+                node = new_node
+            state = new_state
+            path.append(node)
+        else:
+            raise ValueError("MCTS Selection")
+
+    # 2) Expansion (if not terminal)
+    if not state.is_terminal() and untried_actions:
+        action = random.choice(untried_actions)
+        state = state.step(action)
+        child = Node(state, parent=node, move=action)
+        if action not in node.children:
+            node.children[action] = []
+            node.children[action].append(child)
+        path.append(child)
+
+    return state, path
+
+
+def _rollout(state: GameState):
+    """Phase 3 of MCTS"""
+    if not state.is_terminal():
+        sim_state = mixed_rollout(state)
+        value, win, dead = evaluate_terminal(sim_state)
+    # If state is terminal there's no need to rollout
+    else:
+        value, win, dead = evaluate_terminal(state)
+
+    return value, win, dead
+
+def _backprop(path: List, value: float, win: int, dead: int):
+    """Phase 4 of MCTS"""
+    for depth, node in enumerate(reversed(path)):
+        node.visits += 1
+        node.total_value += value
+        node.wins += win
+        node.dead += dead if win else 0
+        node.dead_avg = node.dead / node.wins if node.wins else 0
+        node.win_chance = node.wins/ node.visits
+
+        if not hasattr(node, 'depth'):
+            node.depth = depth
+
+
+def mcts_loop(root: 'Node', root_state: GameState, max_iterations: int=50_000, terminal_iterations: int=1000):
     """MCTS"""
 
     for iterations in range(max_iterations):
         node = root
         state = root_state.clone()
-        path = [node]
-
-        # 1) Selection
-        while not state.is_terminal():
-            untried_actions = [
-                a for a in state.get_valid_actions() if a not in node.children
-            ]
-
-            if untried_actions:
-                # We have unexplored actions, time to expand
-                break
-            if node.children:
-                action_key, child = node.best_action()  # Pick action with best UCB
-                new_state = state.step(action_key)
-                new_node = multiple_nodes(child, new_state)
-                if not new_node:
-                    new_child = Node(new_state, parent=node, move=action_key)
-                    child.append(new_child)
-                    node = new_child
-                else:
-                    node = new_node
-                state = new_state
-                path.append(node)
-            else:
-                raise ValueError("MCTS Selection")
-
-        # 2) Expansion (if not terminal)
-        if not state.is_terminal() and untried_actions:
-            action = random.choice(untried_actions)
-            state = state.step(action)
-            child = Node(state, parent=node, move=action)
-            if action not in node.children:
-                node.children[action] = []
-                node.children[action].append(child)
-            path.append(child)
-            node = child
-
-        # 3) Rollout
-        if not state.is_terminal():
-            sim_state = mixed_rollout(state)
-            value, win, dead = evaluate_terminal(sim_state)
-        # If state is terminal there's no need to rollout
-        else:
-            value, win, dead = evaluate_terminal(state)
-
-        # 4) Backpropagation
-        for depth, node in enumerate(reversed(path)):
-            node.visits += 1
-            node.total_value += value
-            node.wins += win
-            node.dead += dead if win else 0
-            node.dead_avg = node.dead / node.wins if node.wins else 0
-            node.win_chance = node.wins/ node.visits
-
-            if not hasattr(node, 'depth'):
-                node.depth = depth
+        state, path = _select_expand(state, node)
+        value, win, dead = _rollout(state)
+        _backprop(path, value, win, dead)
 
         # Cutoff when results are good enough
         if iterations % 100 == 0 and iterations > 0:
@@ -469,9 +480,9 @@ def mcts_loop(root: 'Node', root_state: GameState, max_iterations: int=50000, te
                 break
 
 
-def mcts(root_state: GameState, max_iterations: int = 50000, terminal_iterations: int = 1000) -> 'Node':
+def mcts(root_state: GameState, max_iterations: int = 50_000, terminal_iterations: int = 1000):
+    """Runs the loop uses the tree to give only the best answers back the path the prints the path"""
     root = Node(root_state)
     mcts_loop(root, root_state, max_iterations, terminal_iterations)
     recursive_backup(root)
     print_best_path(root)
-    return root
