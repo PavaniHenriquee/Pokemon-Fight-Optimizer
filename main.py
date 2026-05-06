@@ -25,7 +25,7 @@ def run_single(root):
     from cProfile import Profile
     from pstats import Stats, SortKey
     with Profile() as profile:
-        mcts(root, max_iterations=5000)
+        mcts(root, max_iterations=10000)
         Stats(profile).strip_dirs().sort_stats(SortKey.TIME).print_stats()
 
 

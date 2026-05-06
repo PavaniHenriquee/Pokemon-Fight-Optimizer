@@ -318,7 +318,7 @@ def propagate_stable_values(node, min_visits=70):
         wilson_score = wilson_lower_bound(total_wins, total_visits)
 
         # Add small penalty for deaths (but don't let it dominate)
-        score = wilson_score - (0.01 * avg_dead if avg_dead != float('inf') else 0)
+        score = wilson_score - (0.1 * avg_dead if avg_dead != float('inf') else 0)
 
         if score > best_score:
             best_score = score

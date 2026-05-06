@@ -126,13 +126,12 @@ def batch_independent_score_from_rand(rand, idx):
     x by 2 array where on the 'col' is how much score and the number out of 255 that is the percentage
     of chance of it adding it or not to the return
     """
-    arr = rand[idx]
     total = 0
-    for score, chance in arr:
-        if np.isnan(score):
-            break
-        if random.getrandbits(8) < chance:
+    r = random.getrandbits
+    for score, chance in rand[idx]:
+        if r(8) < chance:
             total += score
+
     return total
 
 

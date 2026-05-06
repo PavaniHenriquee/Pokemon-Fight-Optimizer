@@ -16,11 +16,7 @@ from Models.helper import MoveCategory, Types, Status, VolStatus, Gender, Target
 def add_adjustment(arr, move_id, delta, chance):
     """Add a [delta, chance] pair to the first free slot."""
     # Find the first index where chance is NaN (unused)
-    free_idx = np.where(np.isnan(arr[move_id, :, 1]))[0]
-    if free_idx.size == 0:
-        raise ValueError("No free slots left for this move, needs to add more")
-    arr[move_id, free_idx[0]] = [delta, chance]
-
+    arr[move_id].append((delta, chance))
 
 class TrainerAI:
     """
@@ -343,8 +339,8 @@ class TrainerAI:
         It shows the incentives and disincentives for the best trainer ai out there, for ROM HACKS every trainer has it
         """
         score = 0
-        hp_pct_ai = np.floor(ai_pok[Pok.CURRENT_HP] / ai_pok[Pok.MAX_HP] * 100)
-        hp_pct_u = np.floor(u_pok[Pok.CURRENT_HP] / u_pok[Pok.MAX_HP] * 100)
+        hp_pct_ai = int(ai_pok[Pok.CURRENT_HP] / ai_pok[Pok.MAX_HP] * 100)
+        hp_pct_u = int(u_pok[Pok.CURRENT_HP] / u_pok[Pok.MAX_HP] * 100)
         # Check if move first (TODO add Trick room logic here)
         if (
             ai_pok[Pok.SPEED] * stage_to_multiplier(ai_pok[Pok.SPEED_STAT_STAGE])
@@ -624,15 +620,15 @@ class TrainerAI:
                 ability = random.choice(pkDB[PokIdToName[user_pok[Pok.ID]].capitalize()]['abilities']).upper()
             except Exception:
                 ability = getattr(AbilityNames, user_pok[Pok.AB_ID])
-        max_rand = 5
-        rand = np.full((4, max_rand, 2), np.nan)
+        rand = [[] for _ in range(4)]
         max_damage = 0
         # Moves to not consider in damage calc
         # mov_excep = ['Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
         #             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Superpower', 'Eruption', 'Water Spout',
         #             'Head Smash']
-        mov_excep = [0, MoveName.EXPLOSION, MoveName.SELFDESTRUCT, MoveName.DREAM_EATER, MoveName.FOCUS_PUNCH,
-                     MoveName.SUCKER_PUNCH]
+        # mov_excep = [0, MoveName.EXPLOSION, MoveName.SELFDESTRUCT, MoveName.DREAM_EATER, MoveName.FOCUS_PUNCH,
+        #              MoveName.SUCKER_PUNCH]
+        mov_excep = [0]
 
         for i, move in enumerate((move1, move2, move3, move4)):
 
