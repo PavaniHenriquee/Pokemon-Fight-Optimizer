@@ -25,17 +25,15 @@ def run_single(root):
     from cProfile import Profile
     from pstats import Stats, SortKey
     with Profile() as profile:
-        mcts(root, max_iterations=10000)
+        mcts(root)
         Stats(profile).strip_dirs().sort_stats(SortKey.TIME).print_stats()
 
 
 def run_parallel(root):
     """Run Faster but can't debug or profile"""
     import time
-    # from SearchEngine.mcts_multi import parallel_mcts
     from SearchEngine.mcts_async import mcts_async
     s_time = time.perf_counter()
-    # parallel_mcts(root)
     mcts_async(root)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
@@ -49,5 +47,5 @@ if __name__ =='__main__':
 
     battle = build_battle()
     root_state = GameState(battle)
-    run_single(root_state)
-    # run_parallel(root_state)
+    #  run_single(root_state)
+    run_parallel(root_state)

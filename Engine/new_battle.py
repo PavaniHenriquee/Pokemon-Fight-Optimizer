@@ -15,9 +15,10 @@ from Engine.status_calc import paralysis, sec_effects, calculate_effects, after_
 from Engine.damage_calc import calculate_damage
 from Models.trainer_ai import TrainerAI
 from Models.idx_const import (
-    Pok, Field, Move, Sec, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
+    Pok, Field, Move, Flags, Sec, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 )
-from Models.helper import count_party, Status, VolStatus, MoveCategory
+from Models.helper import count_party, Status, VolStatus, MoveCategory, AbilityActivation
+from DataBase.AbilitiesDB import AbilityNames
 
 
 class Battle():
@@ -170,17 +171,33 @@ class Battle():
 
     def ps_moves(self, attacker, defender, move):
         """Physical or Special moves, where I need to calculate damage and secondary effects"""
-        crit = calculate_crit()
+        if defender[Pok.AB_WHEN] & AbilityActivation.ON_CRITICAL:
+            crit = False
+        else:
+            crit = calculate_crit()
         damage = calculate_damage(attacker, defender, move, crit)
         if damage <= defender[Pok.CURRENT_HP]:
             defender[Pok.CURRENT_HP] -= damage
         else:
             defender[Pok.CURRENT_HP] = 0
+            # Aftermath damage after kill
+            if (
+                defender[Pok.AB_ID] == AbilityNames.AFTERMATH and
+                move[Flags.CONTACT] and
+                move[Move.POWER] != 0 and
+                attacker[Pok.AB_ID] != AbilityNames.DAMP
+            ):
+                dmg = int(attacker[Pok.MAX_HP] / 4)
+                if dmg <= attacker[Pok.CURRENT_HP:]:
+                    attacker[Pok.CURRENT_HP] -= damage
+                else:
+                    attacker[Pok.CURRENT_HP] = 0
+                    return  # Both are dead so early return
 
         # TODO: recoil
 
         # Check for secondary effects and apply them
-        if move[Sec.CHANCE]:
+        if move[Sec.CHANCE] and defender[Pok.CURRENT_HP] > 0:
             sec_effects(move, attacker, defender, damage)
 
     def end_of_turn(self, switch_idx=None):

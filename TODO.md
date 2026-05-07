@@ -1,6 +1,6 @@
 Abilities
-[]Aftermath
-[]Battle Armor
+[X]Aftermath
+[X]Battle Armor
 []Chlorophyll
 []Damp
 []Guts

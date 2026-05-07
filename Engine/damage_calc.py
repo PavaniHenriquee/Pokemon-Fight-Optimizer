@@ -10,6 +10,7 @@ from DataBase.AbilitiesDB import AbilityNames
 
 
 MULTIPLIERS = [i / 100 for i in range(85, 101)]
+STARTER_AB = (AbilityNames.BLAZE, AbilityNames.TORRENT, AbilityNames.OVERGROW)
 
 
 def base_power_ability(attacker, defender, move) -> float:  # pylint: disable=W0613
@@ -22,11 +23,7 @@ def base_power_ability(attacker, defender, move) -> float:  # pylint: disable=W0
 
     # Starter Abilities
     if (
-        att_ab in (
-            AbilityNames.BLAZE,
-            AbilityNames.TORRENT,
-            AbilityNames.OVERGROW
-        )
+        att_ab in STARTER_AB
         and attacker[Pok.CURRENT_HP] / attacker[Pok.MAX_HP] <= 1 / 3
     ):
         if att_ab == AbilityNames.BLAZE and move[Move.TYPE] == Types.FIRE:

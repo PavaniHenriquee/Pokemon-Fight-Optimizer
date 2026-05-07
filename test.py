@@ -18,6 +18,7 @@ array = to_battle_array(my_party, opp_party)
 pok = array[0:POK_LEN]
 opp = array[POK_LEN*6:POK_LEN*7]
 opp[Pok.DEFENSE_STAT_STAGE] = -1
+pok[Pok.CURRENT_HP] = 2
 move = pok[Pok.MOVE3_ID:(Pok.MOVE3_ID + MOVE_STRIDE)]
 print(calculate_damage(pok,opp,move,roll_multiplier=0.85))
 print(calculate_damage(pok,opp,move,roll_multiplier=0.86))
@@ -35,5 +36,3 @@ print(calculate_damage(pok,opp,move,roll_multiplier=0.97))
 print(calculate_damage(pok,opp,move,roll_multiplier=0.98))
 print(calculate_damage(pok,opp,move,roll_multiplier=0.99))
 print(calculate_damage(pok,opp,move,roll_multiplier=1))
-print(pok[Pok.ATTACK])
-print(opp[Pok.DEFENSE])

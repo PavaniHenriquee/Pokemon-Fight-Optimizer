@@ -31,7 +31,7 @@ def _async_worker(task_queue: mp.Queue, result_queue: mp.Queue):
 
 def mcts_async(
         root_state: GameState,
-        max_iterations: int=50_000,
+        max_iterations: int=350_000,
         terminal_iterations: int=1_000,
         num_workers: int=None
 ):
@@ -61,7 +61,7 @@ def mcts_async(
         while iterations < max_iterations or in_flight:
             # Feed tasks until pipeline is full or iterations exhausted
             while len(in_flight) < pipeline_depth and iterations < max_iterations:
-                state, path = _select_expand(root, root_state)
+                state, path = _select_expand(root_state, root)
                 for n in path:                  # virtual loss, so ucb dont keep choosing the same
                     n.visits      += 1
                     n.total_value -= 1
@@ -96,7 +96,7 @@ def mcts_async(
                 terminal_node, terminal_path = find_best_terminal_node(root)
                 if terminal_node.state.is_terminal() and terminal_node.visits >= terminal_iterations:
                     print(f"Converged at {iterations} iterations, "
-                          f"depth {len(terminal_path)}, visits {terminal_node.visits}")
+                          f"depth {len(terminal_path)-1}, visits {terminal_node.visits}")
                     break
     finally:
         for _ in workers:

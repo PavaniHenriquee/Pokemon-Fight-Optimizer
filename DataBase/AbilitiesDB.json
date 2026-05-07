@@ -1,7 +1,6 @@
 {
   "Aftermath": {
-    "name": "aftermath",
-    "when": "on_damage"
+    "name": "aftermath"
   },
   "Battle Armor": {
     "breakable": true,
