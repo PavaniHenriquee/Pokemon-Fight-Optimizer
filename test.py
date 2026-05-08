@@ -11,28 +11,28 @@ bulbasaur = Pokemon("Bulbasaur", "Male", 5, "Overgrow", "Hardy", ["Pound", "Leer
 squirtle1 = Pokemon("Squirtle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail Whip"])
 charmander1 = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl"])
 
-my_party = [bulbasaur]
+my_party = [charmander]
 opp_party = [squirtle1]
 
 array = to_battle_array(my_party, opp_party)
 pok = array[0:POK_LEN]
 opp = array[POK_LEN*6:POK_LEN*7]
-opp[Pok.DEFENSE_STAT_STAGE] = -1
-pok[Pok.CURRENT_HP] = 2
+opp[Pok.SPECIAL_DEFENSE_STAT_STAGE] = -1
+pok[Pok.CURRENT_HP] = 3
 move = pok[Pok.MOVE3_ID:(Pok.MOVE3_ID + MOVE_STRIDE)]
-print(calculate_damage(pok,opp,move,roll_multiplier=0.85))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.86))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.87))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.88))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.89))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.90))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.91))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.92))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.93))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.94))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.95))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.96))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.97))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.98))
-print(calculate_damage(pok,opp,move,roll_multiplier=0.99))
-print(calculate_damage(pok,opp,move,roll_multiplier=1))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.85))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.86))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.87))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.88))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.89))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.90))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.91))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.92))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.93))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.94))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.95))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.96))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.97))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.98))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=0.99))
+print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=1))

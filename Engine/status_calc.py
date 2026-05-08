@@ -2,34 +2,28 @@
 import random
 import numpy as np
 from Models.idx_const import Pok, Move, Sec
-from Models.helper import Status, MoveCategory, Target
+from Models.helper import Status, MoveCategory, Target, Weather
 
 
-def apply_status(move, pok, sec=False):
+def apply_status(move, pok, weather, sec=False):
     """Apply status effects"""
+    pok_status = pok[Pok.STATUS]
     if sec:
-        if move[Sec.STATUS] != Status.SLEEP:
-            if pok[Pok.STATUS] == 0:
-                pok[Pok.STATUS] = move[Sec.STATUS]
-                if move[Sec.STATUS] == Status.TOXIC:
-                    pok[Pok.BADLY_POISON] = 1
+        m_status = move[Sec.STATUS]
+    else:
+        m_status = move[Move.STATUS]
+    if m_status != Status.SLEEP:
+        if pok_status == 0:
+            if m_status == Status.FREEZE and weather == Weather.SUN:
                 return
-            return
-        if pok[Pok.STATUS] == Status.SLEEP:
-            return
-        pok[Pok.STATUS] = move[Sec.STATUS]
-        pok[Pok.SLEEP_COUNTER] = random.getrandbits(2) + 1
-        return
-    if move[Move.STATUS] != Status.SLEEP:
-        if pok[Pok.STATUS] == 0:
-            pok[Pok.STATUS] = move[Move.STATUS]
-            if move[Move.STATUS] == Status.TOXIC:
+            pok_status = m_status
+            if m_status == Status.TOXIC:
                 pok[Pok.BADLY_POISON] = 1
             return
         return
-    if pok[Pok.STATUS] == Status.SLEEP:
+    if pok_status == Status.SLEEP:
         return
-    pok[Pok.STATUS] = move[Move.STATUS]
+    pok[Pok.STATUS] = m_status
     pok[Pok.SLEEP_COUNTER] = random.getrandbits(2) + 1
     return
 
@@ -46,7 +40,7 @@ def drain_effect(attacker, dmg, drain_amount):
     attacker[Pok.CURRENT_HP] += drain_hp
 
 
-def calculate_effects(attacker, defender, move):
+def calculate_effects(attacker, defender, move, weather):
     """Calculate the effect parts of the moves"""
     if move[Move.CATEGORY] != MoveCategory.STATUS:
         return
@@ -109,11 +103,11 @@ def calculate_effects(attacker, defender, move):
             Target.RANDOM_NORMAL,
             Target.SCRIPTED
         ):
-            apply_status(move, defender)
+            apply_status(move, defender, weather)
         raise ValueError("Shouldn't have self status change")
 
 
-def sec_effects(move, attacker, defender, dmg):
+def sec_effects(move, attacker, defender, dmg, weather):
     """Calculate the secondary effects, like 10% of burning,
     30% of increasing attacking, Drain moves etc."""
     chance = move[Sec.CHANCE] / 100
@@ -130,7 +124,7 @@ def sec_effects(move, attacker, defender, dmg):
         ):
             a = move[Sec.STATUS]
             if a != 0:
-                apply_status(move, defender, sec=True)
+                apply_status(move, defender, weather, sec=True)
         if move[Move.TARGET] in (
             Target.ADJACENT_ALLY,
             Target.ADJACENT_ALLY_OR_SELF,

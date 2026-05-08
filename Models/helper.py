@@ -4,26 +4,27 @@ import numpy as np
 from Models.idx_const import Pok, POK_LEN
 
 
-Types = SimpleNamespace(
-    NORMAL = 1,
-    FIGHTING = 2,
-    FLYING = 3,
-    POISON = 4,
-    GROUND = 5,
-    ROCK = 6,
-    BUG = 7,
-    GHOST = 8,
-    STEEL = 9,
-    FIRE = 10,
-    WATER = 11,
-    GRASS = 12,
-    ELECTRIC = 13,
-    PSYCHIC = 14,
-    ICE = 15,
-    DRAGON = 16,
-    DARK = 17,
+class Types:
+    """Types to numbers"""
+    NORMAL = 1
+    FIGHTING = 2
+    FLYING = 3
+    POISON = 4
+    GROUND = 5
+    ROCK = 6
+    BUG = 7
+    GHOST = 8
+    STEEL = 9
+    FIRE = 10
+    WATER = 11
+    GRASS = 12
+    ELECTRIC = 13
+    PSYCHIC = 14
+    ICE = 15
+    DRAGON = 16
+    DARK = 17
     FAIRY = 18
-)
+
 
 TypesIdToName = {v: k for k, v in Types.__dict__.items() if not k.startswith("__")}
 
@@ -37,14 +38,15 @@ Stat = SimpleNamespace(
 )
 
 
-Status = SimpleNamespace(
-    SLEEP = 1,
-    FREEZE = 2,
-    PARALYSIS = 3,
-    BURN = 4,
-    POISON = 5,
+class Status:
+    """Status to numbers"""
+    SLEEP = 1
+    FREEZE = 2
+    PARALYSIS = 3
+    BURN = 4
+    POISON = 5
     TOXIC = 6
-)
+
 
 StatusIdToName = {v: k for k, v in Status.__dict__.items() if not k.startswith("__")}
 
@@ -89,14 +91,6 @@ def type_to_number(types: list):
         type2 = 0
 
     return type1, type2
-
-
-def status_to_number(status):
-    """Transform it to number"""
-    if not isinstance(status, str):
-        return 0
-
-    return Status[status.upper()]
 
 
 def gender_to_number(gender):
@@ -193,4 +187,4 @@ class Weather:
     RAIN      = 2
     HAIL      = 3
     SANDSTORM = 4
-    MIST      = 5
+    FOG      = 5

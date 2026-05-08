@@ -4,7 +4,7 @@ import numpy as np
 from Utils.loader import natures
 from DataBase.loader import pkDB, abDB, itemDB, moveDB
 from DataBase.PkDB import PokemonName
-from Models.helper import type_to_number, status_to_number, gender_to_number, vol_status
+from Models.helper import type_to_number, Status, gender_to_number, vol_status
 from Models.move import Move
 from Models.ability import ability_to_np
 from Models.item import item_to_np
@@ -92,7 +92,7 @@ class Pokemon:
 
     def to_np(self):
         """Transforming everything in np array"""
-        status_val = status_to_number(self.status)
+        status_val = getattr(Status, self, self.status.upper()) if self.status else 0
 
         gender = gender_to_number(self.gender)
 

@@ -3,14 +3,14 @@ import random
 import numpy as np
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Models.idx_const import Pok, Move, Flags
-from Models.helper import MoveCategory, Status, Types, AbilityActivation
+from Models.helper import MoveCategory, Status, Types, AbilityActivation, Weather
 from Models.pokemon import Pokemon
 from Models.move import Move as Move_
 from DataBase.AbilitiesDB import AbilityNames
 
 
 MULTIPLIERS = [i / 100 for i in range(85, 101)]
-STARTER_AB = (AbilityNames.BLAZE, AbilityNames.TORRENT, AbilityNames.OVERGROW)
+STARTER_AB = {AbilityNames.BLAZE, AbilityNames.TORRENT, AbilityNames.OVERGROW}
 
 
 def base_power_ability(attacker, defender, move) -> float:  # pylint: disable=W0613
@@ -36,26 +36,43 @@ def base_power_ability(attacker, defender, move) -> float:  # pylint: disable=W0
 
     # Iron Fist
     if att_ab == AbilityNames.IRON_FIST and move[Flags.PUNCH]:
-        mult = 1.199951172  # 4915/4096 beacuse there isn't 1.2 in game engine
+        mult = 1.199951172  # 4915/4096 because there isn't 1.2 in game engine
 
     return mult
 
 
 def multipliers(
-        move: np.float32, attacker: np.float32, defender: np.float32, crit: bool, roll_mult: int, damage
+        move: np.float32, attacker: np.float32, defender: np.float32,
+        weather:int, crit: bool, roll_mult: int, damage
 ):
     """Calc Multiplers for bas formula damage"""
+    m_type = move[Move.TYPE]
+    atk_type1 = attacker[Pok.TYPE1]
+    atk_type2 = attacker[Pok.TYPE2]
+    def_type2 = defender[Pok.TYPE2]
 
     # Burn
     if attacker[Pok.STATUS] == Status.BURN:
         if move[Move.CATEGORY] == MoveCategory.PHYSICAL:
-            damage = int(0.5 * damage)
+            damage //= 2
 
     # TODO: Screen
 
     # TODO: Targets
 
-    # TODO: Weather
+    # Weather
+    if weather:
+        w = weather
+        if w == Weather.SUN:
+            if m_type == Types.FIRE:
+                damage = (damage*3) // 2
+            elif m_type == Types.WATER:
+                damage //= 2
+        if w == Weather.RAIN:
+            if m_type == Types.WATER:
+                damage = (damage*3) // 2
+            elif m_type == Types.FIRE:
+                damage //= 2
 
     # TODO: Flash Fire
 
@@ -63,7 +80,7 @@ def multipliers(
     damage += 2
 
     # Crit
-    if crit is True:
+    if crit:
         damage *= 2
 
     # TODO: Item
@@ -76,17 +93,17 @@ def multipliers(
     damage = int(roll_mult * damage)
 
     # STAB
-    if move[Move.TYPE] in [attacker[Pok.TYPE1], attacker[Pok.TYPE2]]:
-        damage = int(1.5 * damage)
+    if m_type == atk_type1 or m_type == atk_type2:  # pylint: disable=R1714
+        damage = (damage*3) // 2
 
     # Effectiveness type 1
-    effectiveness = get_type_effectiveness(move[Move.TYPE], defender[Pok.TYPE1], 0)
+    effectiveness = get_type_effectiveness(m_type, defender[Pok.TYPE1], 0)
     if effectiveness != 1:
         damage = int(effectiveness * damage)
 
     # Effectiveness type 2
-    if defender[Pok.TYPE2]:
-        effectiveness2 = get_type_effectiveness(move[Move.TYPE], defender[Pok.TYPE2], 0)
+    if def_type2:
+        effectiveness2 = get_type_effectiveness(m_type, def_type2, 0)
         if effectiveness2 != 1:
             damage = int(effectiveness2 * damage)
 
@@ -102,7 +119,10 @@ def multipliers(
 
 
 def calculate_damage(
-        attacker: Pokemon, defender: Pokemon, move: Move_, crit: bool=False, roll_multiplier: float=None
+        attacker: Pokemon, defender: Pokemon, move: Move_,
+        weather: int=0,
+        crit: bool=False,
+        roll_multiplier: float=None
 ) -> int:
     """Calculate damage based on current stats of the attacker and the defender,
        giving back the damage and its effectiveness"""
@@ -145,7 +165,7 @@ def calculate_damage(
     if damage < 0:
         raise ValueError("There shouldn't be negative damage")
 
-    damage = multipliers(mv, atk, defn, crit, roll_multiplier, damage)
+    damage = multipliers(mv, atk, defn, weather, crit, roll_multiplier, damage)
     return damage
 
 

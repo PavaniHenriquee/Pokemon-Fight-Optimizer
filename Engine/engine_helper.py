@@ -172,7 +172,7 @@ def vol_early_returns(attacker, my_pok):
 
 def thaw(move, defender):
     """Check if a move thaws"""
-    if move[Move.TYPE] == Types['FIRE']:
+    if move[Move.TYPE] == Types.FIRE:
         defender[Pok.STATUS] = 0
         print(f"{PokemonName(defender[Pok.ID]).name.capitalize()} has thawed out!")
         return True

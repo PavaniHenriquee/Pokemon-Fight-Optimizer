@@ -167,15 +167,17 @@ class Battle():
                     if attacker[Pok.STATUS] == Status.FREEZE:
                         thaw(move, defender)
                 else:
-                    calculate_effects(attacker, defender, move)
+                    calculate_effects(attacker, defender, move, self.battle_array[Field.WEATHER])
 
     def ps_moves(self, attacker, defender, move):
         """Physical or Special moves, where I need to calculate damage and secondary effects"""
-        if defender[Pok.AB_WHEN] & AbilityActivation.ON_CRITICAL:
+        ab_when = int(defender[Pok.AB_WHEN])
+        weather = self.battle_array[Field.WEATHER]
+        if ab_when & AbilityActivation.ON_CRITICAL:
             crit = False
         else:
             crit = calculate_crit()
-        damage = calculate_damage(attacker, defender, move, crit)
+        damage = calculate_damage(attacker, defender, move, weather, crit)
         if damage <= defender[Pok.CURRENT_HP]:
             defender[Pok.CURRENT_HP] -= damage
         else:
@@ -198,7 +200,7 @@ class Battle():
 
         # Check for secondary effects and apply them
         if move[Sec.CHANCE] and defender[Pok.CURRENT_HP] > 0:
-            sec_effects(move, attacker, defender, damage)
+            sec_effects(move, attacker, defender, damage, weather)
 
     def end_of_turn(self, switch_idx=None):
         """Does end of turn calculations like switch if dead, burn, poison, leech seed, ...,\n
@@ -208,7 +210,7 @@ class Battle():
         # TODO: Abilities
         # TODO: Items
 
-        # If my Pokemon is dead and my switch
+        # TODO: This needs to be a separate function, there's no reason to it be in here
         if isinstance(switch_idx, int):
             self.battle_array[Field.MY_POK] = switch_idx
             self.current_pokemon = self.my_pty[(switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)]

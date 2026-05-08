@@ -25,7 +25,7 @@ def run_single(root):
     from cProfile import Profile
     from pstats import Stats, SortKey
     with Profile() as profile:
-        mcts(root)
+        mcts(root, max_iterations=10000)
         Stats(profile).strip_dirs().sort_stats(SortKey.TIME).print_stats()
 
 
@@ -47,5 +47,5 @@ if __name__ =='__main__':
 
     battle = build_battle()
     root_state = GameState(battle)
-    #  run_single(root_state)
-    run_parallel(root_state)
+    run_single(root_state)
+    # run_parallel(root_state)
