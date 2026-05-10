@@ -47,5 +47,5 @@ if __name__ =='__main__':
 
     battle = build_battle()
     root_state = GameState(battle)
-    #  run_single(root_state)
+    # run_single(root_state)
     run_parallel(root_state)
