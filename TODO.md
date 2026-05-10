@@ -1,7 +1,7 @@
 Abilities
 [X]Aftermath
 [X]Battle Armor
-[]Chlorophyll
+[X]Chlorophyll
 []Damp
 []Guts
 []Huge Power

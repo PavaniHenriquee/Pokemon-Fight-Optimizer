@@ -9,7 +9,8 @@ from Engine.engine_helper import (
     reset_switch_out,
     MoveOutcome,
     flinch_checker,
-    thaw
+    thaw,
+    after_turn_damage
 )
 from Engine.status_calc import paralysis, sec_effects, calculate_effects, after_turn_status, freeze
 from Engine.damage_calc import calculate_damage
@@ -209,15 +210,24 @@ class Battle():
         # TODO: weather
         # TODO: Abilities
         # TODO: Items
+        m_hp = self.current_pokemon[Pok.CURRENT_HP]
+        opp_hp = self.current_opp[Pok.CURRENT_HP]
+        weather = self.battle_array[Field.WEATHER]
 
         # Calculate after turn status like burn, leech seed, curse
-        if self.current_pokemon[Pok.CURRENT_HP] >= 0:
-            after_turn_status(self.current_pokemon)
-        if self.current_opp[Pok.CURRENT_HP] >= 0:
-            after_turn_status(self.current_opp)
+        if m_hp >= 0:
+            dmg = after_turn_damage(self.current_pokemon, weather)
+            if dmg > m_hp:
+                dmg = m_hp
+            self.current_pokemon[Pok.CURRENT_HP] -= dmg
+        if opp_hp >= 0:
+            dmg = after_turn_damage(self.current_opp, weather)
+            if dmg > opp_hp:
+                dmg = opp_hp
+            self.current_opp[Pok.CURRENT_HP] -= dmg
 
         # If Opponent is dead
-        if self.current_opp[Pok.CURRENT_HP] <= 0:
+        if opp_hp <= 0:
             if count_party(self.opp_pty) == 0:
                 return None
             i = self.opp_ai.sub_after_death(

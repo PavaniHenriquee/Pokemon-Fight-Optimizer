@@ -2,13 +2,18 @@
 import random
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
+from Engine.status_calc import after_turn_status
 from Models.idx_const import Pok, Move, Sec, Field, POK_LEN
-from Models.helper import Status, VolStatus, Types
+from Models.helper import Status, VolStatus, Types, Weather, AbilityActivation
 from DataBase.PkDB import PokemonName
+from DataBase.AbilitiesDB import AbilityNames
 
 
-def check_speed(p1, p2):
-    """Gives speed after modifications of stages and paralysis"""
+SANDSTORM_IM = {Types.ROCK, Types.GROUND, Types.STEEL}
+
+
+def check_speed(p1, p2, weather):
+    """Gives speed after modifications of stages, paralysis and Abilities"""
     mult1 = 1
     mult2 = 1
     if p1[Pok.STATUS] == Status.PARALYSIS:
@@ -17,6 +22,16 @@ def check_speed(p1, p2):
         mult2 = 0.25
     mult1 *= stage_to_multiplier(p1[Pok.SPEED_STAT_STAGE])
     mult2 *= stage_to_multiplier(p2[Pok.SPEED_STAT_STAGE])
+    ab_w1 = int(p1[Pok.AB_WHEN])
+    ab_w2 = int(p2[Pok.AB_WHEN])
+    if ab_w1 & AbilityActivation.ON_MODIFY_SPEED:
+        ab = p1[Pok.AB_ID]
+        if weather == Weather.SUN and ab == AbilityNames.CHLOROPHYLL:
+            mult1 *= 2
+    if ab_w2 & AbilityActivation.ON_MODIFY_SPEED:
+        ab = p2[Pok.AB_ID]
+        if weather == Weather.SUN and ab == AbilityNames.CHLOROPHYLL:
+            mult2 *= 2
     p1_speed = mult1 * p1[Pok.SPEED]
     p2_speed = mult2 * p2[Pok.SPEED]
     return p1_speed, p2_speed
@@ -41,11 +56,9 @@ def move_order(p1, move1, p2, move2, p1_switch, p2_switch):
     if p1_switch and p2_switch:
         return []
     if p1_switch:
-        order = [(p2, move2, p1)]
-        return order
+        return [(p2, move2, p1)]
     if p2_switch:
-        order = [(p1, move1, p2)]
-        return order
+        return [(p1, move1, p2)]
 
     p1_speed, p2_speed = check_speed(p1, p2)
 
@@ -206,3 +219,17 @@ def start_of_battle(array):
         raise ValueError("Shouldn't get here")
     current_pokemon[Pok.TURNS] = 1
     current_opp[Pok.TURNS] = 1
+
+
+def after_turn_damage(pokemon, weather: int) -> int:
+    """Calculate all damage sources that comes at the end of turns"""
+    dmg = 0
+    max_hp = pokemon[Pok.MAX_HP]
+    dmg += after_turn_status(pokemon)
+    type1_2= {pokemon[Pok.TYPE1],pokemon[Pok.TYPE2]}
+    if weather == Weather.SANDSTORM and not type1_2.isdisjoint(SANDSTORM_IM):
+        dmg += max_hp // 16
+    elif weather == Weather.HAIL and not Types.ICE in type1_2:
+        dmg += max_hp // 16
+    
+    return dmg

@@ -144,6 +144,8 @@ def calculate_damage(
         raw_defense = defn[Pok.SPECIAL_DEFENSE]
         atk_stage = atk[Pok.SPECIAL_ATTACK_STAT_STAGE]
         def_stage = defn[Pok.SPECIAL_DEFENSE_STAT_STAGE]
+        if weather == Weather.SANDSTORM and (atk[Pok.TYPE1] == Types.Rock or atk[Pok.TYPE2] == Types.ROCK):
+            raw_defense = (raw_defense*3)//2
 
     if crit is True:
         def_stage = min(def_stage, 0)
@@ -179,7 +181,7 @@ def calculate_damage_confusion(pok):
     attack = int(raw_attack * stage_to_multiplier(atk_stage))
     defense = int(raw_defense * stage_to_multiplier(def_stage))
     # Base damage formula, confusion counts as a 40 power move
-    damage = int(int(((2 * pok[Pok.LEVEL] / 5) + 2) * 40 * (attack / defense)) / 50 + 2)
+    damage = int(((2 * pok[Pok.LEVEL] / 5) + 2) * 40 * (attack / defense)) // 50 + 2
     if pok[Pok.STATUS] == Status.BURN:
-        damage *= 0.5
+        damage //= 2
     return damage

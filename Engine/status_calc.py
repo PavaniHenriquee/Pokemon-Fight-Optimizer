@@ -154,16 +154,19 @@ def sec_effects(move, attacker, defender, dmg, weather):
 def after_turn_status(pok):
     """Calculate damage after turn like burn, poison, volatile status"""
     # TODO: Magic Guard
-    if pok[Pok.STATUS]:
-        if pok[Pok.STATUS] in (Status.BURN, Status.POISON):
-            if pok[Pok.BADLY_POISON] >= 1:
-                dmg = np.floor(pok[Pok.MAX_HP] * pok[Pok.BADLY_POISON] * (1 / 16))
+    status = pok[Pok.STATUS]
+    b_p = {Status.BURN, Status.POISON}
+    badly = pok[Pok.BADLY_POISON]
+    max_hp = pok[Pok.MAX_HP]
+    if status:
+        if status in b_p:
+            if badly >= 1:
+                dmg = int(max_hp * badly * (1 / 16))
                 pok[Pok.BADLY_POISON] += 1
             else:
-                dmg = np.floor(pok[Pok.MAX_HP] / 8)
-            pok[Pok.CURRENT_HP] -= dmg
-            if pok[Pok.CURRENT_HP] <= 0:
-                pok[Pok.CURRENT_HP] = 0
+                dmg = int(max_hp / 8)
+            return dmg
+    return 0
 
 
 def paralysis():

@@ -187,4 +187,3 @@ class Weather:
     RAIN      = 2
     HAIL      = 3
     SANDSTORM = 4
-    FOG      = 5
