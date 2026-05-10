@@ -8,234 +8,11 @@ MCTS expands the tree by adding child nodes representing possible future actions
 estimating its potential value.
 4. Backpropagation: The results of the simulation are then propagated up the tree…"""
 import math
-import builtins
 import random
-from typing import List, Tuple
-from types import SimpleNamespace
-import numpy as np
-from Models.idx_const import (
-    Pok, Field, POK_LEN, MOVE_STRIDE
-)
-from Models.helper import count_party
-from Models.trainer_ai import TrainerAI
-from Engine.new_battle import Battle
-from Engine.engine_helper import start_of_battle
+from typing import List
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node
-
-
-ActionType = SimpleNamespace(
-    MOVE = "move",
-    SWITCH = "switch"
-)
-
-
-BattlePhase = SimpleNamespace(
-    TURN_START = 0,
-    DEATH_END_OF_TURN = 1
-)
-
-
-
-class GameState():
-    """Screenshot of the current gamestate"""
-    __slots__ = (
-        'battle_array', 'my_active', 'opp_active', 'turn', 'phase', '_opp_ai', '_opp_move'
-    )
-    def __init__(self, battle_array, share_array=False):
-        if share_array:
-            self.battle_array = battle_array
-        else:
-            self.battle_array = np.copy(battle_array)
-        self.my_active = int(self.battle_array[Field.MY_POK])  # Index of 0..5
-        self.opp_active = int(self.battle_array[Field.OPP_POK])  # Index of 0..5
-        self.turn = self.battle_array[Field.TURN]
-        self.phase = self.battle_array[Field.PHASE]
-        self._opp_ai = None
-        self._opp_move = None
-
-    @property
-    def opp_ai(self):
-        """Only apply Trainer AI to states that are necessary"""
-        if self._opp_ai is None:
-            self._opp_ai = TrainerAI()
-        return self._opp_ai
-
-    @property
-    def opp_move(self):
-        """Only do opp ai moves when necessary"""
-        if self._opp_move is None and self.phase != BattlePhase.DEATH_END_OF_TURN:
-            self._opp_move = self.opp_move_choice()
-        return self._opp_move
-
-    @property
-    def my_pty(self):
-        """My party"""
-        return self.battle_array[0:(6 * POK_LEN)]
-
-    @property
-    def opp_pty(self):
-        """Opp party"""
-        return self.battle_array[(6 * POK_LEN):(12 * POK_LEN)]
-
-    def clone(self):
-        """Clone"""
-        return GameState(self.battle_array)
-
-    def get_my_pokemon(self, idx: int) -> np.ndarray:
-        """Get pokemon from my party by index (0-5)"""
-        start = idx * POK_LEN
-        end = (idx + 1) * POK_LEN
-        return self.battle_array[int(start):int(end)]
-
-    def get_opp_pokemon(self, idx: int) -> np.ndarray:
-        """Get pokemon from opponent party by index (0-5)"""
-        start = (6 + idx) * POK_LEN
-        end = (7 + idx) * POK_LEN
-        return self.battle_array[int(start):int(end)]
-
-    def get_my_active(self) -> np.ndarray:
-        """Get my active pokemon"""
-        return self.get_my_pokemon(self.my_active)
-
-    def get_opp_active(self) -> np.ndarray:
-        """Get opponent's active pokemon"""
-        return self.get_opp_pokemon(self.opp_active)
-
-    def is_terminal(self) -> bool:
-        """Check if battle is over"""
-        my_alive = count_party(self.my_pty)
-        opp_alive = count_party(self.opp_pty)
-        return my_alive == 0 or opp_alive == 0
-
-    def get_valid_actions(self, is_player: bool = True) -> List[Tuple[str, int]]:
-        """Get all valid actions for current player"""
-        actions = []
-
-        # Handle death phase first and return immediately
-        if self.phase == BattlePhase.DEATH_END_OF_TURN:
-            for i in range(6):
-                pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
-                if pokemon[Pok.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
-                    actions.append((ActionType.SWITCH, i))
-            return actions  # Return here to prevent adding move actions
-
-        # Normal turn phase - get active pokemon
-        if is_player:
-            active = self.get_my_active()
-        else:
-            active = self.get_opp_active()
-
-        # Check each move slot
-        for i in range(4):
-            move_id_idx = Pok.MOVE1_ID + (i * MOVE_STRIDE)
-            if active[move_id_idx] != 0:  # Move exists
-                actions.append((ActionType.MOVE, i))
-
-        # Add switch actions for normal turn
-        for i in range(6):
-            pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
-            # Can switch if pokemon is alive and not currently active
-            if pokemon[Pok.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
-                actions.append((ActionType.SWITCH, i))
-
-        return actions
-
-    def opp_move_choice(self) -> int:
-        """Uses the trainer AI to choose the move"""
-        opp_idx = self.opp_ai.return_idx(
-            self.get_opp_active(),
-            self.get_my_active(),
-            self.battle_array[0:(6 * POK_LEN)],
-            self.battle_array[(6 * POK_LEN):(12 * POK_LEN)],
-            self.turn
-        )
-        return opp_idx
-
-    def step(self, my_move_idx):
-        """Simulate the entire turn"""
-        new = self.clone()
-        if new.turn == 0:
-            start_of_battle(new.battle_array)
-        battle = Battle(
-            battle_array=new.battle_array
-        )
-        if new.phase == BattlePhase.DEATH_END_OF_TURN:
-            battle.end_of_turn(switch_idx=my_move_idx[1])
-            if my_move_idx[0] == "switch":
-                new.my_active = my_move_idx[1]
-                new.battle_array[Field.MY_POK] = my_move_idx[1]
-            else:
-                pass
-            new.phase = int(BattlePhase.TURN_START)
-            new.battle_array[Field.PHASE] = BattlePhase.TURN_START
-            return new
-        opp_move_idx = self.opp_move
-        orig_print = builtins.print
-        try:
-            builtins.print = lambda *a, **k: None
-            new.phase, opp_idx = battle.turn_sim(opp_move_idx, my_move_idx)
-            new.battle_array[Field.PHASE] = new.phase
-            if opp_idx:
-                new.opp_active = opp_idx
-            if my_move_idx[0] == 'switch':
-                new.my_active = my_move_idx[1]
-                new.battle_array[Field.MY_POK] = my_move_idx[1]
-            if new.my_active != new.battle_array[Field.MY_POK] or new.my_active >= 2:
-                pass
-        finally:
-            builtins.print = orig_print
-
-        return new
-
-
-class Node():
-    """
-    - Store: state, parent, children, visit count, total value, untried actions
-    - Key: nodes represent decision points, not chance outcomes
-    """
-    __slots__ = (
-        'state', 'parent', 'move', 'children', 'visits', 'total_value', 'legal_moves', 'wins', 'dead',
-        'depth', 'win_chance', 'dead_avg'
-    )
-    def __init__(self, state, parent=None, move=None):
-        self.state = state
-        self.parent = parent
-        self.move = move
-        self.children = {}
-        self.visits = 0
-        self.total_value = 0
-        self.legal_moves = state.get_valid_actions(is_player=True)
-        self.wins = 0
-        self.dead = 0
-        self.depth = 0
-        self.win_chance = 0.0
-        self.dead_avg = 0
-
-    def best_action(self, c=0.7):
-        """Best outcome using UCB; break ties and unvisited bias fairly."""
-        # prefer a random unvisited child to avoid insertion-order bias
-
-        best_key, best_node = None, None
-        best_val = -float("inf")
-
-        # guard: if parent visits is 0/1, exploration term becomes 0
-        log_parent_visits = math.log(self.visits) if self.visits > 1 else 0.0
-
-        for key, child in self.children.items():
-            # average value
-            c_total_value = 0
-            c_visits = 0
-            for chi in child:
-                c_total_value += chi.total_value
-                c_visits += chi.visits
-            avg = c_total_value / c_visits
-            # UCB: avg + c * sqrt(2 * ln(N) / n)
-            ucb_val = avg + c * math.sqrt(2 * (log_parent_visits) / c_visits)
-            if ucb_val > best_val or (ucb_val == best_val and random.getrandbits(1)):
-                best_val, best_key, best_node = ucb_val, key, child
-
-        return best_key, best_node
+from SearchEngine.models import BattlePhase, GameState, Node
 
 
 def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.3) -> float:
@@ -381,7 +158,7 @@ def print_best_path(root, depth=0, max_depth=50, min_visits=1):
         avg_dead = sum(n.dead_avg * getattr(n, "wins", 0) for n in nodes) / sum(getattr(n, "wins", 0) for n in nodes) if sum(getattr(n, "wins", 0) for n in nodes) > 0 else 0
 
         # For metric, just use avg_win directly since backprop already selected it
-        metric = avg_win - (0.01 * avg_dead)
+        metric = total_visits
 
         print(f"{indent}Action: {action}, visits: {total_visits}, "
             f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}")
@@ -412,7 +189,7 @@ def _select_expand(state: GameState, node: Node):
             new_state = state.step(action_key)
             new_node = multiple_nodes(child, new_state)
             if not new_node:
-                new_child = Node(new_state, parent=node, move=action_key)
+                new_child = Node(new_state)
                 child.append(new_child)
                 node = new_child
             else:
@@ -426,7 +203,7 @@ def _select_expand(state: GameState, node: Node):
     if not state.is_terminal() and untried_actions:
         action = random.choice(untried_actions)
         state = state.step(action)
-        child = Node(state, parent=node, move=action)
+        child = Node(state)
         if action not in node.children:
             node.children[action] = []
             node.children[action].append(child)
@@ -448,16 +225,13 @@ def _rollout(state: GameState):
 
 def _backprop(path: List, value: float, win: int, dead: int):
     """Phase 4 of MCTS"""
-    for depth, node in enumerate(reversed(path)):
+    for node in reversed(path):
         node.visits += 1
         node.total_value += value
         node.wins += win
         node.dead += dead if win else 0
         node.dead_avg = node.dead / node.wins if node.wins else 0
         node.win_chance = node.wins/ node.visits
-
-        if not hasattr(node, 'depth'):
-            node.depth = depth
 
 
 def mcts_loop(root: 'Node', root_state: GameState, max_iterations: int=50_000, terminal_iterations: int=1000):
@@ -472,11 +246,12 @@ def mcts_loop(root: 'Node', root_state: GameState, max_iterations: int=50_000, t
 
         # Cutoff when results are good enough
         if iterations % 100 == 0 and iterations > 0:
-            terminal_node, terminal_path = find_best_terminal_node(root)
-            if terminal_node.state.is_terminal() and terminal_node.visits >= terminal_iterations:
+            terminal_node, terminal_path, actions = find_best_terminal_node(root)
+            if terminal_node.snapshot.terminal and terminal_node.visits >= terminal_iterations:
                 print(f"Converged at {iterations} iterations, \n"
                     f"terminal depth {len(terminal_path)}, \n"
                     f"terminal visits {terminal_node.visits}")
+                print(f"Convergence path: {actions}")
                 break
 
 

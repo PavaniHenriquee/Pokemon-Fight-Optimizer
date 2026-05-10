@@ -4,6 +4,7 @@ import copy
 from DataBase.pok_sets import charmander, squirtle, bulbasaur
 from Utils.helper import to_battle_array
 from Models.idx_const import Pok
+from SearchEngine.models import Node, GameState, NodeSnapshot
 
 
 def create_random_initial_state():
@@ -23,76 +24,63 @@ def create_random_initial_state():
     return battle_array
 
 
-def multiple_nodes(child, new_state):
+def multiple_nodes(child: Node, new_state: GameState):
     """Check to see if the current state needs to create a new node"""
-    for c in child:
-        c_my_active = c.state.get_my_active()
-        c_opp_active = c.state.get_opp_active()
-        new_my = new_state.get_my_active()
-        new_opp = new_state.get_opp_active()
-        has_phase = False
-        has_same_opp = False
-        my_status = False
-        opp_status = False
-        my_vol = False
-        opp_vol = False
-        # my_stat = False
-        # opp_stat = False
-        # Check to see if already considered that my pok died
-        if c.state.phase == new_state.phase:
-            # c.state = new_state
-            # node = c
-            has_phase = True
-        # Check to see if already considered opp died
-        if c.state.opp_active == new_state.opp_active:
-            has_same_opp = True
-        # Check to see if i got a different status
-        if c_my_active[Pok.STATUS] == new_my[Pok.STATUS]:
-            my_status = True
-        # Check to see if the opp got a different status
-        if c_opp_active[Pok.STATUS] == new_opp[Pok.STATUS]:
-            opp_status = True
-        # Check to see if i got a different vol_status
-        if c_my_active[Pok.VOL_STATUS] == new_my[Pok.VOL_STATUS]:
-            my_vol = True
-        # Check to see if the opp got a different vol_status
-        if c_opp_active[Pok.VOL_STATUS] == new_opp[Pok.VOL_STATUS]:
-            opp_vol = True
-        '''# Check to see if i got a different stat change
-        if np.array_equal(
-            c_my_active[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE+1],
-            new_my[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE+1]
-        ):
-            my_stat = True
-        # Check to see if the opp got a different stat change
-        if np.array_equal(
-            c_opp_active[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE+1],
-            new_opp[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE+1]
-        ):
-            opp_stat = True'''
+    # Pre-compute everything from new_state ONCE, outside the loop
+    new_snap      = NodeSnapshot.from_state(new_state)
 
-        # Found Node that fits
-        if all((has_phase, has_same_opp, my_status, opp_status, opp_vol, my_vol)):
-            c.state = new_state
-            node = c
-            return node
+    # HP brackets pre-computed as ints — avoids recalculating per child
+    def _bracket(pct: float) -> int:
+        if pct >= .75:
+            return 3
+        if pct >= .50:
+            return 2
+        if pct >= .25:
+            return 1
+        return 0
+
+    new_my_brack  = _bracket(new_snap.my_slice[Pok.CURRENT_HP]  / new_snap.my_slice[Pok.MAX_HP])
+    new_opp_brack = _bracket(new_snap.opp_slice[Pok.CURRENT_HP] / new_snap.opp_slice[Pok.MAX_HP])
+
+    # .tobytes() → C-level bytes comparison, no temp arrays unlike array_equal
+    new_my_stages  = new_snap.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
+    new_opp_stages = new_snap.opp_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
+
+    for c in child:
+        # Cheapest checks first (scalar int comparisons) → bail early
+        s = c.snapshot
+        if s.phase      != new_snap.phase:      continue
+        if s.opp_active != new_snap.opp_active: continue
+        if s.my_slice[Pok.STATUS]    != new_snap.my_slice[Pok.STATUS]:  continue
+        if s.opp_slice[Pok.STATUS]   != new_snap.opp_slice[Pok.STATUS]: continue
+        if s.my_slice[Pok.VOL_STATUS]  != new_snap.my_slice[Pok.VOL_STATUS]: continue
+        if s.opp_slice[Pok.VOL_STATUS] != new_snap.opp_slice[Pok.VOL_STATUS]: continue
+        if _bracket(s.my_slice[Pok.CURRENT_HP]  / s.my_slice[Pok.MAX_HP])  != new_my_brack:  continue
+        if _bracket(s.opp_slice[Pok.CURRENT_HP] / s.opp_slice[Pok.MAX_HP]) != new_opp_brack: continue
+        if s.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()  != new_my_stages:  continue
+        if s.opp_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes() != new_opp_stages: continue
+
+        c.snapshot = new_snap
+        return c
 
     return None
 
-def find_best_terminal_node(root):
+def find_best_terminal_node(root: Node):
     """Follow the highest-visit path down to the deepest node"""
     node = root
     path = [node]
+    actions = []
 
     while node.children:
         # Pick the action with most total visits (the "committed" path)
-        _, best_children = max(
+        best_action, best_children = max(
             node.children.items(),
             key=lambda x: sum(n.visits for n in x[1])
         )
         # Pick the most visited outcome for that action
         best_child = max(best_children, key=lambda n: n.visits)
+        actions.append(best_action)
         node = best_child
         path.append(node)
 
-    return node, path
+    return node, path, actions

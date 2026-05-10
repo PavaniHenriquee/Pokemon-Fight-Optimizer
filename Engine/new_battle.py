@@ -202,23 +202,13 @@ class Battle():
         if move[Sec.CHANCE] and defender[Pok.CURRENT_HP] > 0:
             sec_effects(move, attacker, defender, damage, weather)
 
-    def end_of_turn(self, switch_idx=None):
+    def end_of_turn(self):
         """Does end of turn calculations like switch if dead, burn, poison, leech seed, ...,\n
         items like leftovers\n
         Weather damage like hail, sandstorm"""
         # TODO: weather
         # TODO: Abilities
         # TODO: Items
-
-        # TODO: This needs to be a separate function, there's no reason to it be in here
-        if isinstance(switch_idx, int):
-            self.battle_array[Field.MY_POK] = switch_idx
-            self.current_pokemon = self.my_pty[(switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)]
-            self.battle_array[Field.TURN] += 1
-            self.turn += 1
-            self.current_opp[Pok.TURNS] += 1
-            self.current_pokemon[Pok.TURNS] += 1
-            return
 
         # Calculate after turn status like burn, leech seed, curse
         if self.current_pokemon[Pok.CURRENT_HP] >= 0:
@@ -229,18 +219,30 @@ class Battle():
         # If Opponent is dead
         if self.current_opp[Pok.CURRENT_HP] <= 0:
             if count_party(self.opp_pty) == 0:
-                return
+                return None
             i = self.opp_ai.sub_after_death(
                 self.opp_pty, self.current_pokemon, self.current_opp
             )
             self.battle_array[Field.OPP_POK] = i
             self.current_opp = self.opp_pty[(i * self.pok_features):((i+1) * self.pok_features)]
             return i
+        return None
+
+    def switch_in_action(self, switch_idx: int):
+        """Grab the switch idx from MCTS and progress it"""
+        self.battle_array[Field.MY_POK] = switch_idx
+        self.current_pokemon = self.my_pty[
+            (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+        ]
+        self.battle_array[Field.TURN] += 1
+        self.turn += 1
+        self.current_opp[Pok.TURNS] += 1
+        self.current_pokemon[Pok.TURNS] += 1
 
 
     def turn_sim(self, opp_move, current_action):
         """One turn"""
-        from SearchEngine.my_mcts import BattlePhase
+        from SearchEngine.models import BattlePhase
         if current_action[0] == 'move':
             switch_idx = -1
             current_move = current_action[1]

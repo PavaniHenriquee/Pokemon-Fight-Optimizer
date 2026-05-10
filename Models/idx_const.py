@@ -1,23 +1,14 @@
 """Fast integer constants for array indexing - no enum overhead"""
 
+def _int_constants(cls):
+    return [value for name, value in cls.__dict__.items() if name.isupper() and isinstance(value, int)]
 
-# === EXTRACT AND CACHE LENGTHS AS PLAIN INTS ===
-POK_LEN       = 417 # len(PokArray)
-BASE_LEN      = 25  # len(BaseArray)
-AB_LEN        = 11  # len(AbilityIdx)
-BASE_MOVE_LEN = 45  # len(MoveArray)
-FLAGS_LEN     = 35  # len(MoveFlags)
-SEC_LEN       = 13  # len(SecondaryArray)
-FIELD_LEN     = 12  # len(Field)
-ITEM_LEN      = 9   # len(Item)
 
-# Pre-calculate common offsets
-OFFSET_MOVE = BASE_LEN + AB_LEN                    # 36 - where moves start in pokemon array
-OFFSET_SEC  = BASE_MOVE_LEN + FLAGS_LEN            # 80 - where secondary starts in move array
-MOVE_STRIDE = BASE_MOVE_LEN + FLAGS_LEN + SEC_LEN  # 93 - full size of one move
-OFFSET_ITEM = OFFSET_MOVE + (4 * MOVE_STRIDE)      # where item starts after 4 moves
+def _length(cls, start_offset=0):
+    values = _int_constants(cls)
+    return max(values) - start_offset + 1
 
-# === Pokemon Array Indices (plain integers) ===
+
 class Pok:
     """Pokemon array indices"""
     ID                        = 0
@@ -56,11 +47,7 @@ class Pok:
     AB_NO_TRACER              = AB_NO_RECEIVER + 1
     AB_NO_TRANSFORM           = AB_NO_TRACER + 1
     AB_SUPRESS_WEATHER        = AB_NO_TRANSFORM + 1
-    MOVE1_ID                  = OFFSET_MOVE
-    MOVE2_ID                  = MOVE1_ID + MOVE_STRIDE
-    MOVE3_ID                  = MOVE2_ID + MOVE_STRIDE
-    MOVE4_ID                  = MOVE3_ID + MOVE_STRIDE
-    ITEM_ID                   = MOVE4_ID + MOVE_STRIDE
+
 
 class Move:
     """Move array indices - pure integers"""
@@ -110,6 +97,10 @@ class Move:
     RECOIL           = SIDE_CONDITION + 1
     DRAIN            = RECOIL + 1
 
+
+BASE_MOVE_LEN = _length(Move)
+
+
 class Flags:
     """Move Flags indices - pure integers"""
     BYPASS_SUB       = BASE_MOVE_LEN
@@ -148,6 +139,11 @@ class Flags:
     SOUND            = SNATCHING + 1
     WIND             = SOUND + 1
 
+
+FLAGS_LEN = _length(Flags, BASE_MOVE_LEN)
+OFFSET_SEC = BASE_MOVE_LEN + FLAGS_LEN
+
+
 class Sec:
     """Secondary array indices - pure integers"""
     CHANCE      = OFFSET_SEC
@@ -163,6 +159,39 @@ class Sec:
     STATUS      = VOL_STATUS + 1
     CHANCE2     = STATUS + 1
     VOL_STATUS2 = CHANCE2 + 1
+
+
+SEC_LEN = _length(Sec, OFFSET_SEC)
+
+
+class Item:
+    """Index for Items"""
+    ID                 = 0
+    WHEN               = ID + 1
+    ITEM_TYPE          = WHEN + 1
+    FLING_POWER        = ITEM_TYPE + 1
+    FLING_STATUS       = FLING_POWER + 1
+    FLING_VOLATILE     = FLING_STATUS + 1
+    NATURAL_GIFT_POWER = FLING_VOLATILE + 1
+    NATURAL_GIFT_TYPE  = NATURAL_GIFT_POWER + 1
+    ITEM_USER          = NATURAL_GIFT_TYPE + 1
+
+
+ITEM_LEN      = _length(Item)
+BASE_LEN      = Pok.AB_ID
+AB_LEN        = Pok.AB_SUPRESS_WEATHER - Pok.AB_ID + 1
+MOVE_STRIDE   = BASE_MOVE_LEN + FLAGS_LEN + SEC_LEN
+OFFSET_MOVE   = BASE_LEN + AB_LEN
+OFFSET_ITEM   = OFFSET_MOVE + (4 * MOVE_STRIDE)
+
+Pok.MOVE1_ID = OFFSET_MOVE
+Pok.MOVE2_ID = Pok.MOVE1_ID + MOVE_STRIDE
+Pok.MOVE3_ID = Pok.MOVE2_ID + MOVE_STRIDE
+Pok.MOVE4_ID = Pok.MOVE3_ID + MOVE_STRIDE
+Pok.ITEM_ID  = Pok.MOVE4_ID + MOVE_STRIDE
+
+POK_LEN       = Pok.ITEM_ID + ITEM_LEN
+
 
 class Field:
     """Battlefield indices - pure integers"""
@@ -180,18 +209,7 @@ class Field:
     PHASE              = OPP_SCREEN_DURATION + 1
     OPP_MOVE           = PHASE + 1
 
-class Item:
-    """Index for Items"""
-
-    ID                 = 0
-    WHEN               = ID + 1
-    ITEM_TYPE          = WHEN + 1
-    FLING_POWER        = ITEM_TYPE + 1
-    FLING_STATUS       = FLING_POWER + 1
-    FLING_VOLATILE     = FLING_STATUS + 1
-    NATURAL_GIFT_POWER = FLING_VOLATILE + 1
-    NATURAL_GIFT_TYPE  = NATURAL_GIFT_POWER + 1
-    ITEM_USER          = NATURAL_GIFT_TYPE + 1
+FIELD_LEN = Field.OPP_MOVE + 1
 
 '''
 

@@ -1,9 +1,10 @@
 """Run MCTS loop in asynchronous way with a single tree, so it can run faster but smarter"""
 import multiprocessing as mp
 from SearchEngine.my_mcts import (
-    GameState, Node, mixed_rollout, _select_expand, _backprop,
+    mixed_rollout, _select_expand, _backprop,
     recursive_backup, print_best_path
 )
+from SearchEngine.models import GameState, Node
 from SearchEngine.mcts_eval import evaluate_terminal
 from SearchEngine.helper import find_best_terminal_node
 
@@ -31,8 +32,8 @@ def _async_worker(task_queue: mp.Queue, result_queue: mp.Queue):
 
 def mcts_async(
         root_state: GameState,
-        max_iterations: int=350_000,
-        terminal_iterations: int=1_000,
+        max_iterations: int=750_000,
+        terminal_iterations: int=2_000,
         num_workers: int=None
 ):
     """Main tree workflow"""
@@ -93,10 +94,11 @@ def mcts_async(
                 pass
 
             if iterations % 500 == 0 and iterations > 0:
-                terminal_node, terminal_path = find_best_terminal_node(root)
-                if terminal_node.state.is_terminal() and terminal_node.visits >= terminal_iterations:
+                terminal_node, terminal_path, actions = find_best_terminal_node(root)
+                if terminal_node.snapshot.terminal and terminal_node.visits >= terminal_iterations:
                     print(f"Converged at {iterations} iterations, "
                           f"depth {len(terminal_path)-1}, visits {terminal_node.visits}")
+                    print(f"Convergence path: {actions}")
                     break
     finally:
         for _ in workers:
