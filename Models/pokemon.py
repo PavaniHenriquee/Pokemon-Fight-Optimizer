@@ -124,7 +124,7 @@ class Pokemon:
             self.turns,
             gender,
             self.weight
-        ], dtype=np.float32)
+        ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 
         move_helper = Move(self.move1)
@@ -138,6 +138,6 @@ class Pokemon:
 
         item = item_to_np(self.item)
 
-        pok_array = np.concatenate([stats, ability, move1, move2, move3, move4, item], dtype=np.float32)  # pylint:disable=E1123
+        pok_array = np.concatenate([stats, ability, move1, move2, move3, move4, item], dtype=np.int32)
 
         return pok_array

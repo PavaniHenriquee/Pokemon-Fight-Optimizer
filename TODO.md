@@ -183,4 +183,5 @@ Pokemon
 
 Misc.
 []Trainer AI potion
-[]Weather
+[X]Weather
+[]PP Counter

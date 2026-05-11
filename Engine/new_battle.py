@@ -34,8 +34,8 @@ class Battle():
         self.turn = self.battle_array[Field.TURN]
 
         # current active Pokémon
-        opp_active = int(self.battle_array[Field.OPP_POK])
-        my_active = int(self.battle_array[Field.MY_POK])
+        opp_active = self.battle_array[Field.OPP_POK]
+        my_active = self.battle_array[Field.MY_POK]
         self.current_pokemon = self.battle_array[
             (my_active * self.pok_features):((my_active+1) * self.pok_features)
         ]
@@ -126,7 +126,8 @@ class Battle():
                 base_offset + (move_offset * (opp_move + 1))
             ],
             p1_switch,
-            p2_switch
+            p2_switch,
+            self.battle_array[Field.WEATHER]
         )
 
         for idx, (attacker, move, defender) in enumerate(order, start=1):
@@ -172,7 +173,7 @@ class Battle():
 
     def ps_moves(self, attacker, defender, move):
         """Physical or Special moves, where I need to calculate damage and secondary effects"""
-        ab_when = int(defender[Pok.AB_WHEN])
+        ab_when = defender[Pok.AB_WHEN]
         weather = self.battle_array[Field.WEATHER]
         if ab_when & AbilityActivation.ON_CRITICAL:
             crit = False
@@ -190,7 +191,7 @@ class Battle():
                 move[Move.POWER] != 0 and
                 attacker[Pok.AB_ID] != AbilityNames.DAMP
             ):
-                dmg = int(attacker[Pok.MAX_HP] / 4)
+                dmg = attacker[Pok.MAX_HP] // 4
                 if dmg <= attacker[Pok.CURRENT_HP:]:
                     attacker[Pok.CURRENT_HP] -= damage
                 else:
@@ -207,7 +208,6 @@ class Battle():
         """Does end of turn calculations like switch if dead, burn, poison, leech seed, ...,\n
         items like leftovers\n
         Weather damage like hail, sandstorm"""
-        # TODO: weather
         # TODO: Abilities
         # TODO: Items
         m_hp = self.current_pokemon[Pok.CURRENT_HP]

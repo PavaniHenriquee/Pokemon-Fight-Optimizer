@@ -35,8 +35,8 @@ class GameState():
             self.battle_array = battle_array
         else:
             self.battle_array = np.copy(battle_array)
-        self.my_active = int(self.battle_array[Field.MY_POK])  # Index of 0..5
-        self.opp_active = int(self.battle_array[Field.OPP_POK])  # Index of 0..5
+        self.my_active = self.battle_array[Field.MY_POK]  # Index of 0..5
+        self.opp_active = self.battle_array[Field.OPP_POK]  # Index of 0..5
         self.turn = self.battle_array[Field.TURN]
         self.phase = self.battle_array[Field.PHASE]
         self._opp_ai = None
@@ -74,13 +74,13 @@ class GameState():
         """Get pokemon from my party by index (0-5)"""
         start = idx * POK_LEN
         end = (idx + 1) * POK_LEN
-        return self.battle_array[int(start):int(end)]
+        return self.battle_array[start:end]
 
     def get_opp_pokemon(self, idx: int) -> np.ndarray:
         """Get pokemon from opponent party by index (0-5)"""
         start = (6 + idx) * POK_LEN
         end = (7 + idx) * POK_LEN
-        return self.battle_array[int(start):int(end)]
+        return self.battle_array[start:end]
 
     def get_my_active(self) -> np.ndarray:
         """Get my active pokemon"""
@@ -155,7 +155,7 @@ class GameState():
                 new.battle_array[Field.MY_POK] = my_move_idx[1]
             else:
                 pass
-            new.phase = int(BattlePhase.TURN_START)
+            new.phase = BattlePhase.TURN_START
             new.battle_array[Field.PHASE] = BattlePhase.TURN_START
             return new
         opp_move_idx = self.opp_move
@@ -183,8 +183,8 @@ class NodeSnapshot:
     def from_state(state: GameState) -> 'NodeSnapshot':
         """return the values"""
         return NodeSnapshot(
-            phase      = int(state.phase),
-            opp_active = int(state.opp_active),
+            phase      = state.phase,
+            opp_active = state.opp_active,
             my_slice   = state.get_my_active().copy(),
             opp_slice  = state.get_opp_active().copy(),
             terminal   = state.is_terminal()

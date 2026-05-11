@@ -14,26 +14,27 @@ SANDSTORM_IM = {Types.ROCK, Types.GROUND, Types.STEEL}
 
 def check_speed(p1, p2, weather):
     """Gives speed after modifications of stages, paralysis and Abilities"""
-    mult1 = 1
-    mult2 = 1
+    p1_speed = p1[Pok.SPEED]
+    p2_speed = p2[Pok.SPEED]
     if p1[Pok.STATUS] == Status.PARALYSIS:
-        mult1 = 0.25
+        p1_speed //= 4
     if p2[Pok.STATUS] == Status.PARALYSIS:
-        mult2 = 0.25
-    mult1 *= stage_to_multiplier(p1[Pok.SPEED_STAT_STAGE])
-    mult2 *= stage_to_multiplier(p2[Pok.SPEED_STAT_STAGE])
-    ab_w1 = int(p1[Pok.AB_WHEN])
-    ab_w2 = int(p2[Pok.AB_WHEN])
+        p2_speed //= 4
+    # Apply Stat stages if necessary
+    if p1[Pok.SPEED_STAT_STAGE] != 0:
+        p1_speed = stage_to_multiplier(p1[Pok.SPEED_STAT_STAGE], p1_speed)
+    if p2[Pok.SPEED_STAT_STAGE] != 0:
+        p2_speed = stage_to_multiplier(p2[Pok.SPEED_STAT_STAGE], p2_speed)
+    ab_w1 = p1[Pok.AB_WHEN]
+    ab_w2 = p2[Pok.AB_WHEN]
     if ab_w1 & AbilityActivation.ON_MODIFY_SPEED:
         ab = p1[Pok.AB_ID]
         if weather == Weather.SUN and ab == AbilityNames.CHLOROPHYLL:
-            mult1 *= 2
+            p1_speed *= 2
     if ab_w2 & AbilityActivation.ON_MODIFY_SPEED:
         ab = p2[Pok.AB_ID]
         if weather == Weather.SUN and ab == AbilityNames.CHLOROPHYLL:
-            mult2 *= 2
-    p1_speed = mult1 * p1[Pok.SPEED]
-    p2_speed = mult2 * p2[Pok.SPEED]
+            p2_speed *= 2
     return p1_speed, p2_speed
 
 
@@ -47,7 +48,7 @@ def move_speed_tie(p1, m1, p2, m2):
     return order
 
 
-def move_order(p1, move1, p2, move2, p1_switch, p2_switch):
+def move_order(p1, move1, p2, move2, p1_switch, p2_switch, weather):
     """Calculates the order which the what move should be played
     Returns:
 
@@ -60,7 +61,7 @@ def move_order(p1, move1, p2, move2, p1_switch, p2_switch):
     if p2_switch:
         return [(p1, move1, p2)]
 
-    p1_speed, p2_speed = check_speed(p1, p2)
+    p1_speed, p2_speed = check_speed(p1, p2, weather)
 
     if (
         (move1[Move.PRIORITY] != 0 or move2[Move.PRIORITY] != 0)
@@ -91,18 +92,23 @@ class MoveOutcome:
 def calculate_hit_miss(move, attacker, defender):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
+    move_acc = move[Move.ACCURACY]
 
     if get_type_effectiveness(move[Move.TYPE], defender[Pok.TYPE1], defender[Pok.TYPE2]) == 0:
         return MoveOutcome.INVULNERABLE
 
-    if move[Move.ACCURACY] == -1:
+    if move_acc == -1:
         return MoveOutcome.HIT
 
     acc_stage = attacker[Pok.ACCURACY_STAT_STAGE] - defender[Pok.EVASION_STAT_STAGE]
-    # Checking if it's an always hit move, if so it won't have an number on accuracy so it will always be 100 to hit
-    accuracy = move[Move.ACCURACY] * stage_to_multiplier(acc_stage, acc=True) / 100
+    if acc_stage > 0:
+        accuracy = move_acc*(acc_stage+3)/3
+    elif acc_stage < 0:
+        accuracy = move_acc*(3)/(3+acc_stage)
+    else:
+        accuracy = move_acc
 
-    if random.random() <= accuracy:
+    if random.random() <= accuracy/100:
         return MoveOutcome.HIT
     return MoveOutcome.MISS
 
@@ -198,12 +204,13 @@ def start_of_battle(array):
     # TODO: Switch in abilities like Intimidate, Drought etc.
     # Order of entry is in account for things like Drought against Drizzle
     current_pokemon = array[
-            (int(array[Field.MY_POK]) * POK_LEN):(int(array[Field.MY_POK]+1) * POK_LEN)
+            (array[Field.MY_POK] * POK_LEN):((array[Field.MY_POK]+1) * POK_LEN)
         ]
     current_opp = array[
-            ((int(array[Field.OPP_POK])+6) * POK_LEN):(int(array[Field.OPP_POK]+7) * POK_LEN)
+            ((array[Field.OPP_POK]+6) * POK_LEN):((array[Field.OPP_POK]+7) * POK_LEN)
         ]
-    p1_speed, p2_speed = check_speed(current_pokemon, current_opp)
+    weather = array[Field.WEATHER]
+    p1_speed, p2_speed = check_speed(current_pokemon, current_opp, weather)
     speed_tie_1 = False
     speed_tie_2 = False
     if p1_speed == p2_speed:

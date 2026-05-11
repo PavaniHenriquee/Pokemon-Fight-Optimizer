@@ -13,6 +13,13 @@ from Models.idx_const import (
 from Models.helper import MoveCategory, Types, Status, VolStatus, Gender, Target, count_party
 
 
+class _Effectiviness:
+    """Effectiviness helper, to check for how much"""
+    X2 = 1
+    X4 = 2
+    IM = 3
+
+
 def add_adjustment(arr, move_id, delta, chance):
     """Add a [delta, chance] pair to the first free slot."""
     # Find the first index where chance is NaN (unused)
@@ -51,7 +58,7 @@ class TrainerAI:
             move_first = random.choice([True, False])
         """
         # Check for immunity types
-        if move[Move.CATEGORY] != MoveCategory.STATUS and effectiveness == 0:
+        if move[Move.CATEGORY] != MoveCategory.STATUS and effectiveness == _Effectiviness.IM:
             return -10
         # Check for abilities
         if ai_pok[Pok.AB_ID] != AbilityNames.MOLD_BREAKER:
@@ -66,7 +73,8 @@ class TrainerAI:
             if move[Flags.SOUND] and ability == "SOUNDPROOF":
                 return -10
             if (
-                effectiveness < 2 and ability == "WONDER_GUARD"
+                (effectiveness != _Effectiviness.X2 or effectiveness != _Effectiviness.X4)
+                and ability == "WONDER_GUARD"
                 and move[Move.CATEGORY] != MoveCategory.STATUS
             ):
                 return -10
@@ -330,26 +338,26 @@ class TrainerAI:
             )
         ):
             add_adjustment(rand, idx, -2, 176)
-        if effectiveness == 4:
+        if effectiveness == _Effectiviness.X4:
             add_adjustment(rand, idx, 2, 176)
         return score, rand
 
-    def expert_flag(self, damage, eff, ai_pok, u_pok, move, ai_pt, u_pt, turn, idx, rand):  # pylint: disable=W0613
+    def expert_flag(self, damage, effective, ai_pok, u_pok, move, ai_pt, u_pt, turn, idx, rand):  # pylint: disable=W0613
         """
         It shows the incentives and disincentives for the best trainer ai out there, for ROM HACKS every trainer has it
         """
         score = 0
-        hp_pct_ai = int(ai_pok[Pok.CURRENT_HP] / ai_pok[Pok.MAX_HP] * 100)
-        hp_pct_u = int(u_pok[Pok.CURRENT_HP] / u_pok[Pok.MAX_HP] * 100)
+        hp_pct_ai = (ai_pok[Pok.CURRENT_HP]*100) // ai_pok[Pok.MAX_HP]
+        hp_pct_u = (u_pok[Pok.CURRENT_HP]*100) // u_pok[Pok.MAX_HP]
         # Check if move first (TODO add Trick room logic here)
         if (
-            ai_pok[Pok.SPEED] * stage_to_multiplier(ai_pok[Pok.SPEED_STAT_STAGE])
-            > u_pok[Pok.SPEED] * stage_to_multiplier(u_pok[Pok.SPEED_STAT_STAGE])
+            stage_to_multiplier(ai_pok[Pok.SPEED_STAT_STAGE], ai_pok[Pok.SPEED])
+            > stage_to_multiplier(u_pok[Pok.SPEED_STAT_STAGE], u_pok[Pok.SPEED])
         ):
             move_first = True
         elif (
-            ai_pok[Pok.SPEED] * stage_to_multiplier(ai_pok[Pok.SPEED_STAT_STAGE])
-            < u_pok[Pok.SPEED] * stage_to_multiplier(u_pok[Pok.SPEED_STAT_STAGE])
+            stage_to_multiplier(ai_pok[Pok.SPEED_STAT_STAGE], ai_pok[Pok.SPEED])
+            < stage_to_multiplier(u_pok[Pok.SPEED_STAT_STAGE], u_pok[Pok.SPEED])
         ):
             move_first = False
         else:
@@ -636,18 +644,27 @@ class TrainerAI:
                 break
             score = 0
             final_damage = calculate_damage(ai_pok, user_pok, move)
-            effectiveness = get_type_effectiveness(
+            effectiveness, den = get_type_effectiveness(
                 move[Move.TYPE],
                 user_pok[Pok.TYPE1],
                 user_pok[Pok.TYPE2]
             )
-            eval_atk, rand = self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
+            if effectiveness // den == 2:
+                effec = _Effectiviness.X2
+            elif effectiveness // den == 4:
+                effec = _Effectiviness.X4
+            elif effectiveness == 0:
+                effec = _Effectiviness.IM
+            else:
+                effec = 0
+            
+            eval_atk, rand = self.evaluate_attack_flag(final_damage, effec, user_pok, move, i, rand)
             score += eval_atk
             score += self.basic_flag(
-                move, ability, ai_pok, user_pok, effectiveness, user_party_alive, ai_party_alive, turn
+                move, ability, ai_pok, user_pok, effec, user_party_alive, ai_party_alive, turn
             )
             expert, rand = self.expert_flag(
-                final_damage, effectiveness, ai_pok, user_pok, move, ai_party_alive, user_party_alive, turn, i, rand
+                final_damage, effec, ai_pok, user_pok, move, ai_party_alive, user_party_alive, turn, i, rand
             )
             score += expert
 
@@ -732,7 +749,7 @@ class TrainerAI:
                 if mv_type == 0:
                     break
                 eff = get_type_effectiveness(mv_type, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
-                if eff > 1:
+                if eff == _Effectiviness.X2 or eff == _Effectiviness.X4:
                     has_se_move = True
                     break
             if has_se_move:
@@ -749,8 +766,10 @@ class TrainerAI:
                 type1 = mon[Pok.TYPE1]
                 # single-typed counted twice
                 type2 = mon[Pok.TYPE2] if mon[Pok.TYPE2] != 0 else mon[Pok.TYPE1]
-                total += get_type_effectiveness(type1, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
-                total += get_type_effectiveness(type2, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
+                effec, den = get_type_effectiveness(type1, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
+                total = effec/den
+                effec, den = get_type_effectiveness(type2, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
+                total += effec/den
                 if total == 8:
                     total = 1.75
                 scored.append({'index': idx, 'mon': mon, 'score': total})

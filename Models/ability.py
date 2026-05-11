@@ -7,7 +7,7 @@ from DataBase.AbilitiesDB import AbilityNames
 
 def ability_to_np(ability):
     """Basic array for ability"""
-    array = np.zeros(AB_LEN, dtype=np.int16)
+    array = np.zeros(AB_LEN, dtype=np.int32)
     if not ability:
         return array
 

@@ -161,10 +161,10 @@ def after_turn_status(pok):
     if status:
         if status in b_p:
             if badly >= 1:
-                dmg = int(max_hp * badly * (1 / 16))
+                dmg = max_hp * badly // 16
                 pok[Pok.BADLY_POISON] += 1
             else:
-                dmg = int(max_hp / 8)
+                dmg = max_hp // 8
             return dmg
     return 0
 

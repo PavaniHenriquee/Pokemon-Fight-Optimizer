@@ -12,7 +12,7 @@ class Move():
 
     def base_move(self):
         """Populating the array for the base move"""
-        base_move_array = np.zeros(BASE_MOVE_LEN, dtype=np.int16)
+        base_move_array = np.zeros(BASE_MOVE_LEN, dtype=np.int32)
         if self.move is None:
             return base_move_array
 
@@ -105,7 +105,7 @@ class Move():
 
     def move_flags(self):
         """Array for move flags"""
-        move_flags_array = np.zeros(FLAGS_LEN, dtype=np.bool_)
+        move_flags_array = np.zeros(FLAGS_LEN, dtype=np.int32)
         if self.move is None:
             return move_flags_array
         flags = self.move.get('flags', {})
@@ -149,7 +149,7 @@ class Move():
 
     def sec_effect(self):
         """Array for secondary effects"""
-        sec_array = np.zeros(SEC_LEN, dtype=np.int16)
+        sec_array = np.zeros(SEC_LEN, dtype=np.int32)
         if self.move is None:
             return sec_array
         secondary2 = {}

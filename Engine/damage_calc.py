@@ -9,7 +9,7 @@ from Models.move import Move as Move_
 from DataBase.AbilitiesDB import AbilityNames
 
 
-MULTIPLIERS = [i / 100 for i in range(85, 101)]
+MULTIPLIERS = [i for i in range(85, 101)]
 STARTER_AB = {AbilityNames.BLAZE, AbilityNames.TORRENT, AbilityNames.OVERGROW}
 
 
@@ -17,8 +17,8 @@ def base_power_ability(attacker, defender, move) -> float:  # pylint: disable=W0
     """Calculate what the ability does in relation to damage
     Returns:
         1 if nothing happens\n
-        multiplier if it does something, like Blaze"""
-    mult = 1
+        multiplier based on 4096 if it does something, like Blaze"""
+    mult = 4096
     att_ab = attacker[Pok.AB_ID]
 
     # Starter Abilities
@@ -27,16 +27,16 @@ def base_power_ability(attacker, defender, move) -> float:  # pylint: disable=W0
         and attacker[Pok.CURRENT_HP] / attacker[Pok.MAX_HP] <= 1 / 3
     ):
         if att_ab == AbilityNames.BLAZE and move[Move.TYPE] == Types.FIRE:
-            mult = 1.5
+            mult = 6144  # 1.5
         if att_ab == AbilityNames.TORRENT and move[Move.TYPE] == Types.WATER:
-            mult = 1.5
+            mult = 6144  # 1.5
         if att_ab == AbilityNames.OVERGROW and move[Move.TYPE] == Types.GRASS:
-            mult = 1.5
+            mult = 6144  # 1.5
         return mult
 
     # Iron Fist
     if att_ab == AbilityNames.IRON_FIST and move[Flags.PUNCH]:
-        mult = 1.199951172  # 4915/4096 because there isn't 1.2 in game engine
+        mult = 4915  # 1.2
 
     return mult
 
@@ -90,22 +90,22 @@ def multipliers(
     # Roll Multiplier
     if roll_mult is None:
         roll_mult = MULTIPLIERS[random.getrandbits(4)]
-    damage = int(roll_mult * damage)
+    damage = (damage * roll_mult) // 100
 
     # STAB
     if m_type == atk_type1 or m_type == atk_type2:  # pylint: disable=R1714
         damage = (damage*3) // 2
 
     # Effectiveness type 1
-    effectiveness = get_type_effectiveness(m_type, defender[Pok.TYPE1], 0)
-    if effectiveness != 1:
-        damage = int(effectiveness * damage)
+    effectiveness, _ = get_type_effectiveness(m_type, defender[Pok.TYPE1], 0)
+    if effectiveness != 2:
+        damage = (effectiveness * damage)//2
 
     # Effectiveness type 2
     if def_type2:
-        effectiveness2 = get_type_effectiveness(m_type, def_type2, 0)
-        if effectiveness2 != 1:
-            damage = int(effectiveness2 * damage)
+        effectiveness2, _ = get_type_effectiveness(m_type, def_type2, 0)
+        if effectiveness2 != 2:
+            damage = (effectiveness2 * damage)//2
 
     # TODO: Solid Rock and Filter
 
@@ -152,23 +152,29 @@ def calculate_damage(
         atk_stage = max(atk_stage, 0)
 
     # apply stage multipliers
-    attack = int(raw_attack * stage_to_multiplier(atk_stage))
-    defense = int(raw_defense * stage_to_multiplier(def_stage))
+    if atk_stage != 0:
+        attack =  stage_to_multiplier(atk_stage, raw_attack)
+    else:
+        attack = raw_attack
+    if def_stage != 0:
+        defense = stage_to_multiplier(def_stage, raw_defense)
+    else:
+        defense = raw_defense
 
     # Ability TODO: change everything to accomodate activation changes
     power = mv[Move.POWER]
     if atk[Pok.AB_WHEN] == AbilityActivation.ON_BASE_POWER:
-        power *= base_power_ability(atk, defn, mv)
+        power = (base_power_ability(atk, defn, mv)*power) // 4096
 
     level = atk[Pok.LEVEL]
 
     # Base damage formula
-    damage = int((((2 * level / 5) + 2) * power * (attack / defense)) / 50)
+    damage = (((2 * level / 5) + 2) * power * (attack / defense)) // 50
     if damage < 0:
         raise ValueError("There shouldn't be negative damage")
 
-    damage = multipliers(mv, atk, defn, weather, crit, roll_multiplier, damage)
-    return damage
+    
+    return multipliers(mv, atk, defn, weather, crit, roll_multiplier, damage)
 
 
 def calculate_damage_confusion(pok):
@@ -178,10 +184,16 @@ def calculate_damage_confusion(pok):
     atk_stage = pok[Pok.ATTACK_STAT_STAGE]
     def_stage = pok[Pok.DEFENSE_STAT_STAGE]
     # apply stage multipliers
-    attack = int(raw_attack * stage_to_multiplier(atk_stage))
-    defense = int(raw_defense * stage_to_multiplier(def_stage))
+    if atk_stage != 0:
+        attack =  stage_to_multiplier(atk_stage, raw_attack)
+    else:
+        attack = raw_attack
+    if def_stage != 0:
+        defense = stage_to_multiplier(def_stage, raw_defense)
+    else:
+        defense = raw_defense
     # Base damage formula, confusion counts as a 40 power move
-    damage = int(((2 * pok[Pok.LEVEL] / 5) + 2) * 40 * (attack / defense)) // 50 + 2
+    damage = ((2 * pok[Pok.LEVEL] / 5) + 2) * 40 * (attack / defense) // 50 + 2
     if pok[Pok.STATUS] == Status.BURN:
         damage //= 2
     return damage
