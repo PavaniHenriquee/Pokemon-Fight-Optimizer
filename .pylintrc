@@ -1,2 +1,14 @@
 [MESSAGES CONTROL]
-disable=fixme, pointless-string-statement, broad-exception-caught, unspecified-encoding, too-many-instance-attributes, too-many-function-args, invalid-name, multiple-statements, import-outside-toplevel
+disable=
+    fixme,
+    pointless-string-statement,
+    broad-exception-caught,
+    unspecified-encoding,
+    too-many-instance-attributes,
+    too-many-function-args,
+    invalid-name,
+    multiple-statements,
+    import-outside-toplevel,
+    unexpected-keyword-arg
+
+max-line-length = 110

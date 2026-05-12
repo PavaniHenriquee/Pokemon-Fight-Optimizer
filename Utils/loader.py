@@ -1,8 +1,6 @@
 """Natures and type chart"""
-import numpy as np
 import json
 import os
-from Models.helper import Types
 
 
 def load_utils(file_name):

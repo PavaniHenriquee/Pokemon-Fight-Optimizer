@@ -3,7 +3,8 @@
 
 class AbilityNames:
     """Abilty indexes for check"""
-    AFTERMATH    = 1
+    ADAPTABILITY = 1
+    AFTERMATH    = ADAPTABILITY + 1
     BATTLE_ARMOR = AFTERMATH + 1
     BLAZE        = BATTLE_ARMOR + 1
     CHLOROPHYLL  = BLAZE + 1

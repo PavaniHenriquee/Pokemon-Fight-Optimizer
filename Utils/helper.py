@@ -7,7 +7,7 @@ from Models.idx_const import POK_LEN, FIELD_LEN
 
 def stage_to_multiplier(stages, stat) -> int:
     """Check how the stages are affecting the stats"""
-    
+
     if stages >= 0:
         res = stat * (2 + stages) // 2
     else:
@@ -31,9 +31,9 @@ def get_type_effectiveness(atk_type, def_type1, def_type2):
 
 def batch_independent_score_from_rand(rand, idx):
     """
-    Rand is a three dim array, where i'm getting the index of the move, so i'm checking the 
-    x by 2 array where on the 'col' is how much score and the number out of 255 that is the percentage
-    of chance of it adding it or not to the return
+    Rand is an array, where i'm getting the index of the move, so i'm checking the 
+    x by 2 array where on the 'col' is how much score and the number out of 255 that is the
+    percentage of chance of it adding it or not to the return
     """
     total = 0
     r = random.getrandbits

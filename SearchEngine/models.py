@@ -139,7 +139,6 @@ class GameState():
             self.get_opp_active(),
             self.get_my_active(),
             self.battle_array[0:(6 * POK_LEN)],
-            self.battle_array[(6 * POK_LEN):(12 * POK_LEN)],
             self.turn
         )
         return opp_idx

@@ -30,88 +30,96 @@ Abilities
 []Unburden !
 []Water Absorb
 
+[]Shadow Tag
+[]Magnet Pull
+[]Arena Trap
+[]Forewarn
+[]Adaptability
+
 Moves
-[]Water Sport
 []Absorb
-[]Taunt
-[]Fury Swipes
-[]Quick Attack
-[]Defense Curl
-[]Foresight
-[]Hypnosis
-[]Peck
-[]Covet
-[]Sand Attack
-[]Hidden Power
-[]Bug Bite
-[]Protect
-[]Howl
-[]Roar
-[]Confusion
-[]Vine Whip
-[]Gust
-[]Poison Sting
-[]Flail
-[]Splash
-[]Wrap
 []Acid
-[]Growth
-[]Sweet Scent
-[]Metronome!!!!!!
 []Amnesia
-[]Rock Tomb
-[]Wing Attack
-[]Water Pulse
-[]Curse
-[]Bite
-[]Astonish
-[]Supersonic
-[]String Shot
-[]Bide
-[]Bulldoze
-[]Rollout
-[]Spark
-[]Karate Chop
-[]Focus Energy
-[]Fake Out
+[]Aqua Jet
 []Arm Thrust
-[]Charm
-[]Bubble
-[]Headbutt
-[]Sing
+[]Astonish
+[]Bide
+[]Bite
 []Bone Club
-[]Pursuit
-[]Mega Drain
-[]Grass Whistle
-[]Ingrain
-[]Mud-Slap
-[]Nature Power
+[]Brick Break
+[]Bubble
+[]Bug Bite
+[]Bulldoze
 []Bullet Seed
+[]Charm
+[]Confuse Ray
+[]Confusion
+[]Counter
+[]Covet
+[]Curse
+[]Defense Curl
+[]Disarming Voice
+[]Fake Out
+[]Fire Punch
+[]Flail
+[]Focus Energy
+[]Force Palm
+[]Foresight
+[]Fury Cutter
+[]Fury Swipes
+[]Grass Whistle
+[]Growth
+[]Gust
 []Harden
-[]Slam
+[]Headbutt
+[]Hidden Power
+[]Howl
+[]Hypnosis
+[]Ingrain
+[]Karate Chop
+[]Low Kick
+[]Mega Drain
+[]Metal Claw
+[]Metronome!!!!!!
 []Mud Shot
 []Mud Sport
-[]Uproar
-[]Disarming Voice
-[]Force Palm
-[]Counter
-[]Low Kick
-[]Metal Claw
+[]Mud-Slap
+[]Nature Power
+[]Peck
+[]Poison Sting
+[]Protect
+[]Pursuit
+[]Quick Attack
+[]Roar
 []Rock Polish
 []Rock Throw
-[]Aqua Jet
-[]Scary Face
-[]Stomp
-[]Confuse Ray
-[]Fury Cutter
-[]Zen Headbutt
-[]Thunder Punch
-[]Stealth Rock
+[]Rock Tomb
+[]Rollout
+[]Sand Attack
 []Sandstorm
-[]Fire Punch
-[]Brick Break
-[]Thunder Wave
+[]Scary Face
 []Schock Wave
+[]Sing
+[]Slam
+[]Spark
+[]Splash
+[]Stealth Rock
+[]Stomp
+[]String Shot
+[]Supersonic
+[]Sweet Scent
+[]Taunt
+[]Thunder Punch
+[]Thunder Wave
+[]Uproar
+[]Vine Whip
+[]Water Pulse
+[]Water Sport
+[]Wing Attack
+[]Wrap
+[]Zen Headbutt
+
+[]Sleep Talk
 
 Items
 []Oran Berry
@@ -121,6 +129,8 @@ Items
 []Muscle Band
 []Flame Orb
 []Sitrus Berry
+
+[]Quick Claw
 
 Pokemon
 []Chimchar

@@ -32,19 +32,16 @@ class TrainerAI:
     Trainer AI, where it is used by using the def where it
     returns what the original ai would have done
     """
-    def __init__(self, difficulty=None, gen=4):
-        self.gen = gen
-        self.difficulty = difficulty
-        self.current_pok_ab = False
 
     def basic_flag(
-            self, move, ability, ai_pok, user_pok, effectiveness, user_party_alive,
-            ai_party_alive, turn  # pylint: disable=W0613
+            self, move, ability, ai_pok, user_pok, effectiveness, user_party_alive
     ) -> int:
         """
         Basic Flag, every trainer has this,
         it discourages moves that would have no effect or that would make no sense
         """
+
+        move_category = move[Move.CATEGORY]
         """
         # Check if move first (TODO add Trick room logic here)
         if (
@@ -61,27 +58,28 @@ class TrainerAI:
             move_first = random.choice([True, False])
         """
         # Check for immunity types
-        if move[Move.CATEGORY] != MoveCategory.STATUS and effectiveness == _Effectiviness.IM:
+        if move_category != MoveCategory.STATUS and effectiveness == _Effectiviness.IM:
             return -10
         # Check for abilities
         if ai_pok[Pok.AB_ID] != AbilityNames.MOLD_BREAKER:
-            if move[Move.TYPE] == Types.ELECTRIC and ability in ("VOLT_ABSORB", "MOTOR_DRIVE"):
+            move_type = move[Move.TYPE]
+            if move_type == Types.ELECTRIC and ability in ("VOLT_ABSORB", "MOTOR_DRIVE"):
                 return -10
-            if move[Move.TYPE] == Types.WATER and ability == "WATER_ABSORB":
+            if move_type == Types.WATER and ability == "WATER_ABSORB":
                 return -10
-            if move[Move.TYPE] == Types.FIRE and ability == "FLASH_FIRE":
+            if move_type == Types.FIRE and ability == "FLASH_FIRE":
                 return -10
-            if move[Move.TYPE] == Types.GROUND and ability == "LEVITATE":
+            if move_type == Types.GROUND and ability == "LEVITATE":
                 return -10
             if move[Flags.SOUND] and ability == "SOUNDPROOF":
                 return -10
             if (
                 (effectiveness != _Effectiviness.X2 or effectiveness != _Effectiviness.X4)
                 and ability == "WONDER_GUARD"
-                and move[Move.CATEGORY] != MoveCategory.STATUS
+                and move_category != MoveCategory.STATUS
             ):
                 return -10
-        if move[Move.CATEGORY] == MoveCategory.STATUS:
+        if move_category == MoveCategory.STATUS:
             # TODO: Safeguard for all conditions
             if move[Move.STATUS] != 0:
                 # Sleep
@@ -353,7 +351,7 @@ class TrainerAI:
             add_adjustment(rand, idx, 2, 176)
         return score, rand
 
-    def expert_flag(self, damage, effective, ai_pok, u_pok, move, ai_pt, u_pt, turn, idx, rand):  # pylint: disable=W0613
+    def expert_flag(self, ai_pok, u_pok, move, turn, idx, rand):
         """
         It shows the incentives and disincentives for the best trainer ai out there,
         for ROM HACKS every trainer has it
@@ -611,7 +609,6 @@ class TrainerAI:
             ai_pok,
             user_pok,
             user_party_alive,
-            ai_party_alive,
             turn
     ):
         """
@@ -644,7 +641,7 @@ class TrainerAI:
         or Arena Trap preventing it from switching.
 
         The AI always knows the attack order of all Pokémon on the field, barring speed ties or
-        Quick Claws. It knows if there will be aspeed tie, but does not know who will win it.
+        Quick Claws. It knows if there will be a speed tie, but does not know who will win it.
         If the AI is checking if it will attack before or after another target, and there is a
         speed tie, it will randomly guess the outcome of the tie. For any Pokémon on the field
         with a Quick Claw, it will randomly guess the Quick Claw will activate 20% of the time,
@@ -657,7 +654,9 @@ class TrainerAI:
         move3 = ai_pok[Pok.MOVE3_ID:Pok.MOVE4_ID]
         move4 = ai_pok[Pok.MOVE4_ID:Pok.ITEM_ID]
         move_scores = {}
-        if self.current_pok_ab is True:
+
+        # TODO
+        if ai_pok:
             ability = getattr(AbilityNames, user_pok[Pok.AB_ID])
         else:
             try:
@@ -701,11 +700,11 @@ class TrainerAI:
             eval_atk, rand = self.evaluate_attack_flag(final_damage, effec, user_pok, move, i, rand)
             score += eval_atk
             score += self.basic_flag(
-                move, ability, ai_pok, user_pok, effec, user_party_alive, ai_party_alive, turn
+                move, ability, ai_pok, user_pok, effec, user_party_alive
             )
             expert, rand = self.expert_flag(
-                final_damage, effec, ai_pok, user_pok, move,
-                ai_party_alive, user_party_alive, turn, i, rand
+                ai_pok, user_pok, move,
+                turn, i, rand
             )
             score += expert
 
@@ -733,12 +732,12 @@ class TrainerAI:
 
         return move_scores
 
-    def return_idx(self, ai_pok, user_pok, user_party, ai_party, turn):
+    def return_idx(self, ai_pok, user_pok, user_party, turn):
         """
         It transform the highest moving score to the index of the move
         """
         move_scores= self.choose_move(
-            ai_pok, user_pok, user_party, ai_party, turn
+            ai_pok, user_pok, user_party, turn
         )
         max_score = max(info["score"] for info in move_scores.values())
         best_moves = [info for info in move_scores.values() if info["score"] == max_score]

@@ -142,11 +142,14 @@ class AbilityActivation:
     ON_MODIFY_ACC   = 1024
     ON_RESIDUAL     = 2048
 
-MoveCategory = SimpleNamespace(
-    PHYSICAL = 1,
-    SPECIAL = 2,
+class MoveCategory:
+    """
+    Physical, Special, Status
+    """
+    PHYSICAL = 1
+    SPECIAL = 2
     STATUS = 3
-)
+
 
 
 ItemType = SimpleNamespace(
@@ -187,3 +190,15 @@ class Weather:
     RAIN      = 2
     HAIL      = 3
     SANDSTORM = 4
+
+
+class Enemy_AI_Knows:
+    """
+    Bit allocation for if the ai knows the moves and the ability
+    of facing Pokemon
+    """
+    ABILITY = 1
+    MOVE1 = 2
+    MOVE2 = 4
+    MOVE3 = 8
+    MOVE4 = 16
