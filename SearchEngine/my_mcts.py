@@ -155,7 +155,13 @@ def print_best_path(root, depth=0, max_depth=50, min_visits=1):
 
         # Use the backpropagated values directly
         avg_win = sum(n.win_chance * getattr(n, "visits", 0) for n in nodes) / total_visits
-        avg_dead = sum(n.dead_avg * getattr(n, "wins", 0) for n in nodes) / sum(getattr(n, "wins", 0) for n in nodes) if sum(getattr(n, "wins", 0) for n in nodes) > 0 else 0
+        if sum(getattr(n, "wins", 0) for n in nodes) > 0:
+            avg_dead = (
+                sum(n.dead_avg * getattr(n, "wins", 0) for n in nodes)
+                / sum(getattr(n, "wins", 0) for n in nodes)
+            )
+        else:
+            avg_dead = 0
 
         # For metric, just use avg_win directly since backprop already selected it
         metric = total_visits
@@ -234,7 +240,10 @@ def _backprop(path: List, value: float, win: int, dead: int):
         node.win_chance = node.wins/ node.visits
 
 
-def mcts_loop(root: 'Node', root_state: GameState, max_iterations: int=50_000, terminal_iterations: int=1000):
+def mcts_loop(
+        root: 'Node', root_state: GameState,
+        max_iterations: int=50_000, terminal_iterations: int=1000
+):
     """MCTS"""
 
     for iterations in range(max_iterations):
@@ -256,7 +265,9 @@ def mcts_loop(root: 'Node', root_state: GameState, max_iterations: int=50_000, t
 
 
 def mcts(root_state: GameState, max_iterations: int = 50_000, terminal_iterations: int = 1000):
-    """Runs the loop uses the tree to give only the best answers back the path the prints the path"""
+    """
+    Runs the loop uses the tree to give only the best answers back the path the prints the path
+    """
     root = Node(root_state)
     mcts_loop(root, root_state, max_iterations, terminal_iterations)
     recursive_backup(root)

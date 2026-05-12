@@ -2,11 +2,11 @@
 import math
 import random
 from dataclasses import dataclass
-import numpy as np
 from types import SimpleNamespace
 from typing import List, Tuple
+import numpy as np
 from Models.idx_const import (
-    Pok, Field, POK_LEN, MOVE_STRIDE
+    Pok, Field, POK_LEN, MOVE_STRIDE, Move
 )
 from Models.trainer_ai import TrainerAI
 from Models.helper import count_party
@@ -96,35 +96,39 @@ class GameState():
         opp_alive = count_party(self.opp_pty)
         return my_alive == 0 or opp_alive == 0
 
-    def get_valid_actions(self, is_player: bool = True) -> List[Tuple[str, int]]:
+    def get_valid_actions(self) -> List[Tuple[str, int]]:
         """Get all valid actions for current player"""
         actions = []
 
         # Handle death phase first and return immediately
         if self.phase == BattlePhase.DEATH_END_OF_TURN:
             for i in range(6):
-                pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
-                if pokemon[Pok.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
+                pokemon = self.get_my_pokemon(i)
+                if (
+                    pokemon[Pok.CURRENT_HP] > 0
+                    and i != (self.my_active)
+                ):
                     actions.append((ActionType.SWITCH, i))
             return actions  # Return here to prevent adding move actions
 
         # Normal turn phase - get active pokemon
-        if is_player:
-            active = self.get_my_active()
-        else:
-            active = self.get_opp_active()
+        active = self.get_my_active()
 
         # Check each move slot
         for i in range(4):
             move_id_idx = Pok.MOVE1_ID + (i * MOVE_STRIDE)
-            if active[move_id_idx] != 0:  # Move exists
+            move_pp = move_id_idx + Move.PP
+            if active[move_id_idx] != 0 or active[move_pp] > 0:  # Move exists
                 actions.append((ActionType.MOVE, i))
 
         # Add switch actions for normal turn
         for i in range(6):
-            pokemon = self.get_my_pokemon(i) if is_player else self.get_opp_pokemon(i)
+            pokemon = self.get_my_pokemon(i)
             # Can switch if pokemon is alive and not currently active
-            if pokemon[Pok.CURRENT_HP] > 0 and i != (self.my_active if is_player else self.opp_active):
+            if (
+                pokemon[Pok.CURRENT_HP] > 0
+                and i != (self.my_active)
+            ):
                 actions.append((ActionType.SWITCH, i))
 
         return actions

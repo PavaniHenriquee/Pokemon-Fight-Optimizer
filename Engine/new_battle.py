@@ -10,15 +10,16 @@ from Engine.engine_helper import (
     MoveOutcome,
     flinch_checker,
     thaw,
-    after_turn_damage
+    after_turn_damage,
+    early_returns
 )
-from Engine.status_calc import paralysis, sec_effects, calculate_effects, after_turn_status, freeze
+from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage
 from Models.trainer_ai import TrainerAI
 from Models.idx_const import (
     Pok, Field, Move, Flags, Sec, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 )
-from Models.helper import count_party, Status, VolStatus, MoveCategory, AbilityActivation
+from Models.helper import count_party, Status, MoveCategory, AbilityActivation
 from DataBase.AbilitiesDB import AbilityNames
 
 
@@ -54,7 +55,9 @@ class Battle():
             opp_switch = self.opp_pty[(i * self.pok_features):((i+1) * self.pok_features)]
 
         if switch_idx >= 0 and opp_move == 's':
-            my_s, opp_s = check_speed(self.current_pokemon, self.current_opp)
+            my_s, opp_s = check_speed(
+                self.current_pokemon, self.current_opp, self.battle_array[Field.WEATHER]
+            )
             speed_tie_1 = False
             speed_tie_2 = False
             if my_s == opp_s:
@@ -67,7 +70,9 @@ class Battle():
                 # My Pokemon
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
-                self.current_pokemon = self.my_pty[(switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)]
+                self.current_pokemon = self.my_pty[
+                    (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+                ]
                 # Opponent Pokemon
                 reset_switch_out(self.current_opp)
                 self.current_opp = opp_switch
@@ -81,7 +86,9 @@ class Battle():
                 # My Pokemon
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
-                self.current_pokemon = self.my_pty[(switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)]
+                self.current_pokemon = self.my_pty[
+                    (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+                ]
             return
 
         if opp_switch:
@@ -94,7 +101,9 @@ class Battle():
             # TODO: Switch in abilities and terrain hazards
             reset_switch_out(self.current_pokemon)
             self.battle_array[Field.MY_POK] = switch_idx
-            self.current_pokemon = self.my_pty[(switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)]
+            self.current_pokemon = self.my_pty[
+                (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+            ]
 
     def action(self, current_move, opp_move):
         """Where the moves are calculated"""
@@ -132,41 +141,17 @@ class Battle():
 
         for idx, (attacker, move, defender) in enumerate(order, start=1):
             # If attacker slower and died before could attack
-            if attacker[Pok.CURRENT_HP] <= 0:
-                continue
-            # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
-            if attacker[Pok.STATUS] == Status.SLEEP:
-                if attacker[Pok.SLEEP_COUNTER] > 0:
-                    attacker[Pok.SLEEP_COUNTER] -= 1
-                    continue
-                attacker[Pok.STATUS] = 0
-            # Check for Paralysis
-            if attacker[Pok.STATUS] == Status.PARALYSIS and paralysis():
-                continue
-            # Freeze
-            if attacker[Pok.STATUS] == Status.FREEZE:
-                if freeze():
-                    continue
-                attacker[Pok.STATUS] = 0
-            # Flinch
-            if idx >= 2 and flinch is True:
-                continue
-            # Volatile Status early returns, only not fully implemented confusion for now
-            if attacker[Pok.VOL_STATUS] != 0 and attacker[Pok.VOL_STATUS] & VolStatus.CONFUSION:
-                if random.getrandbits(1):
-                    continue
-            # In cases like after recoil damage, selfdestruct, etc.
-            if defender[Pok.CURRENT_HP] <= 0:
-                #TODO: Some moves still go through, like self buff, dig, future sight
+            if attacker[Pok.CURRENT_HP] <= 0 or early_returns(attacker, defender, idx, flinch):
                 continue
 
+            move[Move.PP] -= 1
             move_hit = calculate_hit_miss(move, attacker, defender)
 
             if move_hit is MoveOutcome.HIT:
                 if move[Move.CATEGORY] in [MoveCategory.PHYSICAL, MoveCategory.SPECIAL]:
                     self.ps_moves(attacker, defender, move)
                     flinch = flinch_checker(move)
-                    if attacker[Pok.STATUS] == Status.FREEZE:
+                    if defender[Pok.STATUS] == Status.FREEZE:
                         thaw(move, defender)
                 else:
                     calculate_effects(attacker, defender, move, self.battle_array[Field.WEATHER])
@@ -186,10 +171,10 @@ class Battle():
             defender[Pok.CURRENT_HP] = 0
             # Aftermath damage after kill
             if (
-                defender[Pok.AB_ID] == AbilityNames.AFTERMATH and
-                move[Flags.CONTACT] and
-                move[Move.POWER] != 0 and
-                attacker[Pok.AB_ID] != AbilityNames.DAMP
+                defender[Pok.AB_ID] == AbilityNames.AFTERMATH
+                and move[Flags.CONTACT]
+                and move[Move.POWER] != 0  # Becuase of moves like counter
+                and attacker[Pok.AB_ID] != AbilityNames.DAMP
             ):
                 dmg = attacker[Pok.MAX_HP] // 4
                 if dmg <= attacker[Pok.CURRENT_HP:]:

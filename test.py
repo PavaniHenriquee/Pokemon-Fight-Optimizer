@@ -1,11 +1,11 @@
 """test"""
 from Models.pokemon import Pokemon
 from Models.idx_const import POK_LEN, Pok, MOVE_STRIDE
-from Utils.helper import to_battle_array, TYPE_CHART_ARRAY
 from Engine.damage_calc import calculate_damage
+from Utils.helper import to_battle_array
 
 
-charmander = Pokemon("Charmander", "Male", 100, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"])
+charmander = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"])
 squirtle = Pokemon("Squirtle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail Whip"])
 bulbasaur = Pokemon("Bulbasaur", "Male", 5, "Overgrow", "Hardy", ["Pound", "Leer", "Razor Leaf"])
 squirtle1 = Pokemon("Squirtle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail Whip"])
@@ -18,8 +18,8 @@ array = to_battle_array(my_party, opp_party)
 pok = array[0:POK_LEN]
 opp = array[POK_LEN*6:POK_LEN*7]
 opp[Pok.SPECIAL_DEFENSE_STAT_STAGE] = -1
-pok[Pok.CURRENT_HP] = 3
-move = pok[Pok.MOVE3_ID:(Pok.MOVE3_ID + MOVE_STRIDE)]
+pok[Pok.ATTACK_STAT_STAGE] = -3
+move = pok[Pok.MOVE1_ID:(Pok.MOVE1_ID + MOVE_STRIDE)]
 print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=85))
 print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=86))
 print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=87))

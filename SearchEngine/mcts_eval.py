@@ -62,11 +62,15 @@ def rollout_pref(c_pok, o_pok, o_idx, actions) -> tuple:
     ev = []
 
     for a in actions:
-        o_move = o_pok[OFFSET_MOVE + o_idx * MOVE_STRIDE: OFFSET_MOVE + o_idx * MOVE_STRIDE + MOVE_STRIDE]
+        o_move = o_pok[
+            OFFSET_MOVE + o_idx * MOVE_STRIDE: OFFSET_MOVE + o_idx * MOVE_STRIDE + MOVE_STRIDE
+        ]
         o_dmg = calculate_damage(o_pok, c_pok, o_move)
         weight = 1
         if a[0] == 'move':
-            move = c_pok[OFFSET_MOVE + a[1] * MOVE_STRIDE: OFFSET_MOVE + a[1] * MOVE_STRIDE + MOVE_STRIDE]
+            move = c_pok[
+                OFFSET_MOVE + a[1] * MOVE_STRIDE: OFFSET_MOVE + a[1] * MOVE_STRIDE + MOVE_STRIDE
+            ]
             dmg = calculate_damage(c_pok, o_pok, move)
             if (
                 dmg >= o_pok[Pok.CURRENT_HP]

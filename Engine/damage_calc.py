@@ -44,7 +44,7 @@ def base_power_ability(attacker, defender, move) -> float:  # pylint: disable=W0
 def multipliers(
         move: np.float32, attacker: np.float32, defender: np.float32,
         weather:int, crit: bool, roll_mult: int, damage
-):
+) -> int:
     """Calc Multiplers for bas formula damage"""
     m_type = move[Move.TYPE]
     atk_type1 = attacker[Pok.TYPE1]
@@ -122,7 +122,7 @@ def calculate_damage(
         attacker: Pokemon, defender: Pokemon, move: Move_,
         weather: int=0,
         crit: bool=False,
-        roll_multiplier: float=None
+        roll_multiplier: float=None,
 ) -> int:
     """Calculate damage based on current stats of the attacker and the defender,
        giving back the damage and its effectiveness"""
@@ -144,10 +144,16 @@ def calculate_damage(
         raw_defense = defn[Pok.SPECIAL_DEFENSE]
         atk_stage = atk[Pok.SPECIAL_ATTACK_STAT_STAGE]
         def_stage = defn[Pok.SPECIAL_DEFENSE_STAT_STAGE]
-        if weather == Weather.SANDSTORM and (atk[Pok.TYPE1] == Types.Rock or atk[Pok.TYPE2] == Types.ROCK):
+        if (
+            weather == Weather.SANDSTORM
+            and (
+                atk[Pok.TYPE1] == Types.ROCK or  #pylint: disable=consider-using-in
+                atk[Pok.TYPE2] == Types.ROCK
+            )
+        ):
             raw_defense = (raw_defense*3)//2
 
-    if crit is True:
+    if crit:
         def_stage = min(def_stage, 0)
         atk_stage = max(atk_stage, 0)
 
@@ -173,8 +179,8 @@ def calculate_damage(
     if damage < 0:
         raise ValueError("There shouldn't be negative damage")
 
-    
-    return multipliers(mv, atk, defn, weather, crit, roll_multiplier, damage)
+    damage = multipliers(mv, atk, defn, weather, crit, roll_multiplier, damage)
+    return damage
 
 
 def calculate_damage_confusion(pok):
@@ -197,3 +203,14 @@ def calculate_damage_confusion(pok):
     if pok[Pok.STATUS] == Status.BURN:
         damage //= 2
     return damage
+
+
+def struggle(attacker, defender):
+    """
+    Struggle damage for the opponent and recoil
+    Not implemented
+    """
+    atk = attacker[Pok.ATTACK]
+    defense = defender[Pok.DEFENSE]
+    power = 50
+    return atk, defense, power

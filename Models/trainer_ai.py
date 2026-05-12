@@ -2,7 +2,9 @@
 import random
 import numpy as np
 from Engine.damage_calc import calculate_damage
-from Utils.helper import get_type_effectiveness, batch_independent_score_from_rand, stage_to_multiplier
+from Utils.helper import (
+    get_type_effectiveness, batch_independent_score_from_rand, stage_to_multiplier
+)
 from DataBase.loader import pkDB
 from DataBase.MoveDB import MoveName
 from DataBase.AbilitiesDB import AbilityNames
@@ -27,7 +29,8 @@ def add_adjustment(arr, move_id, delta, chance):
 
 class TrainerAI:
     """
-    Trainer AI, where it is used by using the def where it returns what the original ai would have done
+    Trainer AI, where it is used by using the def where it
+    returns what the original ai would have done
     """
     def __init__(self, difficulty=None, gen=4):
         self.gen = gen
@@ -309,7 +312,9 @@ class TrainerAI:
 
         return 0
 
-    def evaluate_attack_flag(self, final_damage, effectiveness, user_pok, move, idx, rand) -> tuple[int, dict]:
+    def evaluate_attack_flag(
+            self, final_damage, effectiveness, user_pok, move, idx, rand
+    ) -> tuple[int, dict]:
         """
         For damage moves it sees if it kill and some move exceptions then add to score
         For non-damaging moves it checks if its 4x effective, for some reason
@@ -317,9 +322,15 @@ class TrainerAI:
         score = 0
         # Check for kill
         if final_damage >= user_pok[Pok.CURRENT_HP]:
-            if move[Move.ID] in (MoveName.EXPLOSION, MoveName.SELFDESTRUCT):
+            if (
+                move[Move.ID]
+                in (MoveName.EXPLOSION, MoveName.SELFDESTRUCT)
+            ):
                 score += 0
-            elif move[Move.ID] in (MoveName.SUCKER_PUNCH, MoveName.FOCUS_PUNCH, MoveName.FUTURE_SIGHT):
+            elif (
+                move[Move.ID]
+                in (MoveName.SUCKER_PUNCH, MoveName.FOCUS_PUNCH, MoveName.FUTURE_SIGHT)
+            ):
                 add_adjustment(rand, idx, 4, 85)
                 return score, rand
             elif move[Move.PRIORITY] >= 1 and move[Move.ID] != MoveName.FAKE_OUT:
@@ -344,7 +355,8 @@ class TrainerAI:
 
     def expert_flag(self, damage, effective, ai_pok, u_pok, move, ai_pt, u_pt, turn, idx, rand):  # pylint: disable=W0613
         """
-        It shows the incentives and disincentives for the best trainer ai out there, for ROM HACKS every trainer has it
+        It shows the incentives and disincentives for the best trainer ai out there,
+        for ROM HACKS every trainer has it
         """
         score = 0
         hp_pct_ai = (ai_pok[Pok.CURRENT_HP]*100) // ai_pok[Pok.MAX_HP]
@@ -438,9 +450,18 @@ class TrainerAI:
                     if any(move[Move.BOOST_ATK: Move.BOOST_SPDEF + 1]):
                         if (
                             (move[Move.BOOST_ATK] and ai_pok[Pok.ATTACK_STAT_STAGE]>= 3)
-                            or (move[Move.BOOST_SPATK] and ai_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]>= 3)
-                            or (move[Move.BOOST_DEF] and ai_pok[Pok.DEFENSE_STAT_STAGE]>= 3)
-                            or (move[Move.BOOST_SPDEF] and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]>= 3)
+                            or (
+                                move[Move.BOOST_SPATK]
+                                and ai_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]>= 3
+                            )
+                            or (
+                                move[Move.BOOST_DEF]
+                                and ai_pok[Pok.DEFENSE_STAT_STAGE]>= 3
+                            )
+                            or (
+                                move[Move.BOOST_SPDEF]
+                                and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]>= 3
+                            )
                         ):
                             add_adjustment(rand, idx, -1, 156)
                         if hp_pct_ai >= 100:
@@ -499,12 +520,16 @@ class TrainerAI:
                             score += -1
                         if (
                             (move[Move.BOOST_ATK] and u_pok[Pok.ATTACK_STAT_STAGE]<= -3)
-                            or (move[Move.BOOST_SPATK] and u_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]<= -3)
+                            or (
+                                move[Move.BOOST_SPATK]
+                                and u_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]<= -3
+                            )
                         ):
                             add_adjustment(rand, idx, -2, 206)
                         if hp_pct_u <= 70:
                             score += -2
-                        # TODO: Last move check: If the move last used by the target was not of the corresponding
+                        # TODO: Last move check:
+                        # If the move last used by the target was not of the corresponding
                         # class (Physical/Special), 50% chance of score -2.
                         return score, rand
                     # Defense and Special Defense
@@ -513,7 +538,10 @@ class TrainerAI:
                             add_adjustment(rand, idx, -2, 206)
                         if (
                             (move[Move.BOOST_DEF] and ai_pok[Pok.DEFENSE_STAT_STAGE]<= -3)
-                            or (move[Move.BOOST_SPDEF] and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]<= -3)
+                            or (
+                                move[Move.BOOST_SPDEF]
+                                and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]<= -3
+                            )
                         ):
                             add_adjustment(rand, idx, -2, 206)
                         if hp_pct_u < 70:
@@ -558,7 +586,7 @@ class TrainerAI:
                         return score, rand
 
         # Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
-        if move[Move.ACCURACY] == -1:  # -1 is how always hit moves is represented, being equal to acc: true
+        if move[Move.ACCURACY] == -1:  # -1 is how always hit moves is represented
             if ai_pok[Pok.ACCURACY_STAT_STAGE] <= -5 or u_pok[Pok.EVASION_STAT_STAGE] >= 5:
                 score += 1
             if ai_pok[Pok.ACCURACY_STAT_STAGE] <= -3 or u_pok[Pok.EVASION_STAT_STAGE] >= 3:
@@ -588,31 +616,39 @@ class TrainerAI:
     ):
         """
         Calculates the score of the moves and sees what has the highest score
-        search is used for me to get the raw values of score and rand, so i can see what percentage of chance each move has
+        search is used for me to get the raw values of score and rand,
+        so i can see what percentage of chance each move has
         """
         """The AI always knows what item you're holding. It cheats to see it.
 
         The AI always knows your exact current HP and max HP.
 
-        The AI does not know your moves until it sees you use them. Other methods that expose moves, such as Sleep Talk or the Forewarn
-        ability, do not count.
+        The AI does not know your moves until it sees you use them. Other methods that expose moves,
+        such as Sleep Talk or the Forewarn ability, do not count.
 
-        The AI does not know your ability until it sees a text box with the ability name, such as: "... makes ground moves miss using LEVITATE"
-        , or "... FLASH FIRE made Flamethrower useless". If the AI does not know your ability, then most times it tries to check what your
-        ability is, it will randomly guess one of the possible abilities your Pokémon's species can normally have. Abilities that modify
-        damage but do not generate text, like Heatproof or Solid Rock, are not known to the AI even after damage is dealt. However, the AI
-        is aware of the reduced damage that will be inflicted (e.g., for a Heatproof Bronzong, it will assume Levitate 50% of the time, but
-        also will know that the Bronzong may survive a high-damage Fire attack that would KO if it had Levitate).
+        The AI does not know your ability until it sees a text box with the ability name, such as:
+        "... makes ground moves miss using LEVITATE", or "... FLASH FIRE made Flamethrower useless".
+        If the AI does not know your ability, then most times it tries to check what your ability
+        is, it will randomly guess one of the possible abilities your Pokémon's species can
+        normally have. Abilities that modify damage but do not generate text, like Heatproof or
+        Solid Rock, are not known to the AI even after damage is dealt. However, the AI is aware of
+        the reduced damage that will be inflicted (e.g., for a Heatproof Bronzong, it will assume
+        Levitate 50% of the time, but also will know that the Bronzong may survive a high-damage
+        Fire attack that would KO if it had Levitate).
 
-        Rarely, the AI must specifically see your ability, or your species must not have any other possible ability, in order for a check to
-        succeed; these cases are worded as "If the target's ability is certainly...".
+        Rarely, the AI must specifically see your ability, or your species must not have any other
+        possible ability, in order for a check to succeed;
+        these cases are worded as "If the target's ability is certainly...".
 
-        There is one exception to this: the AI knows if your ability is Shadow Tag, Magnet Pull, or Arena Trap preventing it from switching.
+        There is one exception to this: the AI knows if your ability is Shadow Tag, Magnet Pull,
+        or Arena Trap preventing it from switching.
 
-        The AI always knows the attack order of all Pokémon on the field, barring speed ties or Quick Claws. It knows if there will be a
-        speed tie, but does not know who will win it. If the AI is checking if it will attack before or after another target, and there
-        is a speed tie, it will randomly guess the outcome of the tie. For any Pokémon on the field with a Quick Claw, it will randomly
-        guess the Quick Claw will activate 20% of the time, independent of if the Quick Claw will actually activate.
+        The AI always knows the attack order of all Pokémon on the field, barring speed ties or
+        Quick Claws. It knows if there will be aspeed tie, but does not know who will win it.
+        If the AI is checking if it will attack before or after another target, and there is a
+        speed tie, it will randomly guess the outcome of the tie. For any Pokémon on the field
+        with a Quick Claw, it will randomly guess the Quick Claw will activate 20% of the time,
+        independent of if the Quick Claw will actually activate.
 
         If you switch out, the AI will forget its knowledge of your moves and abilities.
         """
@@ -625,23 +661,27 @@ class TrainerAI:
             ability = getattr(AbilityNames, user_pok[Pok.AB_ID])
         else:
             try:
-                ability = random.choice(pkDB[PokIdToName[user_pok[Pok.ID]].capitalize()]['abilities']).upper()
+                ability = random.choice(
+                    pkDB[PokIdToName[user_pok[Pok.ID]].capitalize()]['abilities']
+                ).upper()
             except Exception:
                 ability = getattr(AbilityNames, user_pok[Pok.AB_ID])
         rand = [[] for _ in range(4)]
         max_damage = 0
         # Moves to not consider in damage calc
         # mov_excep = ['Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
-        #             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Superpower', 'Eruption', 'Water Spout',
-        #             'Head Smash']
-        # mov_excep = [0, MoveName.EXPLOSION, MoveName.SELFDESTRUCT, MoveName.DREAM_EATER, MoveName.FOCUS_PUNCH,
-        #              MoveName.SUCKER_PUNCH]
+        #             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Superpower', 'Eruption',
+        #             'Water Spout','Head Smash']
+        # mov_excep = [0, MoveName.EXPLOSION, MoveName.SELFDESTRUCT, MoveName.DREAM_EATER,
+        #              MoveName.FOCUS_PUNCH, MoveName.SUCKER_PUNCH]
         mov_excep = [0]
 
         for i, move in enumerate((move1, move2, move3, move4)):
 
             if move[Move.ID] == 0:
                 break
+            if move[Move.PP] <= 0:
+                continue
             score = 0
             final_damage = calculate_damage(ai_pok, user_pok, move)
             effectiveness, den = get_type_effectiveness(
@@ -657,14 +697,15 @@ class TrainerAI:
                 effec = _Effectiviness.IM
             else:
                 effec = 0
-            
+
             eval_atk, rand = self.evaluate_attack_flag(final_damage, effec, user_pok, move, i, rand)
             score += eval_atk
             score += self.basic_flag(
                 move, ability, ai_pok, user_pok, effec, user_party_alive, ai_party_alive, turn
             )
             expert, rand = self.expert_flag(
-                final_damage, effec, ai_pok, user_pok, move, ai_party_alive, user_party_alive, turn, i, rand
+                final_damage, effec, ai_pok, user_pok, move,
+                ai_party_alive, user_party_alive, turn, i, rand
             )
             score += expert
 
@@ -679,7 +720,11 @@ class TrainerAI:
 
         # Apply penalty for moves that don't reach max damage
         for i, move in enumerate((move1, move2, move3, move4)):
-            if move[Move.ID] not in mov_excep and move[Move.CATEGORY] != MoveCategory.STATUS:
+            if (
+                move[Move.ID] not in mov_excep
+                and move[Move.CATEGORY] != MoveCategory.STATUS
+                and move[Move.PP] > 0
+            ):
                 if (
                     move_scores[i]['dmg'] < max_damage
                     and not move_scores[i]['dmg'] >= user_pok[Pok.CURRENT_HP]
@@ -718,8 +763,9 @@ class TrainerAI:
 
         Phase 2:
         ---------
-          * If no Phase 1 candidate, for each non-fainted teammate compute the max damage any of its moves would do to user_pok
-          (use calculate_damage). Apply the "255 overflow" rule: if damage > 255 -> damage = damage - 255.
+          * If no Phase 1 candidate, for each non-fainted teammate compute the max damage any
+          of its moves would do to user_pok (use calculate_damage). Apply the "255 overflow"
+          rule: if damage > 255 -> damage = damage - 255.
           * Choose teammate with highest such max move damage. Ties broken by party order.
 
         Returns:
@@ -778,7 +824,8 @@ class TrainerAI:
             best = max(scored, key=lambda x: (x['score'], -x['index']))
             return best['index']
 
-        # Phase 2: simulate moves as if used on the (full) user pok and pick mon with max single-move damage
+        # Phase 2: simulate moves as if used on the (full)
+        # user pok and pick mon with max single-move damage
 
         scored_phase2 = []
         for idx in candidates:
@@ -801,7 +848,10 @@ class TrainerAI:
             scored_phase2.append({'index': idx, 'max_dmg': max_move_dmg})
 
         if not scored_phase2:  # Defensive, shouldn't get here
-            raise ValueError("Shouldn't get here, check flow of code, because at least one pok should be avaliable")
+            raise ValueError(
+                "Shouldn't get here, check flow of code," \
+                "because at least one pok should be avaliable"
+            )
 
         # choose highest max_dmg, tie-break by party order (lower index wins)
         best2 = max(scored_phase2, key=lambda x: (x['max_dmg'], -x['index']))

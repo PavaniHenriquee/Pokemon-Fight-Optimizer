@@ -2,7 +2,7 @@
 import random
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
-from Engine.status_calc import after_turn_status
+from Engine.status_calc import after_turn_status, freeze, paralysis
 from Models.idx_const import Pok, Move, Sec, Field, POK_LEN
 from Models.helper import Status, VolStatus, Types, Weather, AbilityActivation
 from DataBase.PkDB import PokemonName
@@ -238,5 +238,36 @@ def after_turn_damage(pokemon, weather: int) -> int:
         dmg += max_hp // 16
     elif weather == Weather.HAIL and not Types.ICE in type1_2:
         dmg += max_hp // 16
-    
+
     return dmg
+
+
+def early_returns(attacker, defender, idx: int, flinch: bool) -> bool:  # pylint: disable=too-many-return-statements
+    """Early returns to see if an attack goes through or not"""
+    atker_status = attacker[Pok.STATUS]
+    # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
+    if atker_status == Status.SLEEP:
+        if attacker[Pok.SLEEP_COUNTER] > 0:
+            attacker[Pok.SLEEP_COUNTER] -= 1
+            return True
+        attacker[Pok.STATUS] = 0
+    # Check for Paralysis
+    if atker_status == Status.PARALYSIS and paralysis():
+        return True
+    # Freeze
+    if atker_status == Status.FREEZE:
+        if freeze():
+            return True
+        attacker[Pok.STATUS] = 0
+    # Flinch
+    if idx >= 2 and flinch:
+        return True
+    # Volatile Status early returns, only not implemented confusion for now
+    if attacker[Pok.VOL_STATUS] != 0 and attacker[Pok.VOL_STATUS] & VolStatus.CONFUSION:
+        if random.getrandbits(1):
+            return True
+    # In cases like after recoil damage, selfdestruct, etc.
+    if defender[Pok.CURRENT_HP] <= 0:
+        #TODO: Some moves still go through, like self buff, dig, future sight
+        return True
+    return False
