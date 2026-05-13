@@ -12,7 +12,17 @@ from DataBase.PkDB import PokIdToName
 from Models.idx_const import (
     Pok, Move, Flags, POK_LEN
 )
-from Models.helper import MoveCategory, Types, Status, VolStatus, Gender, Target, count_party
+from Models.helper import (
+    MoveCategory, Types, Status, VolStatus, Gender, Target, count_party, Weather
+)
+
+
+ELEC_AB_IM = {AbilityNames.VOLT_ABSORB, AbilityNames.MOTOR_DRIVE}
+POISON_AB_IM = {AbilityNames.IMMUNITY, AbilityNames.MAGIC_GUARD, AbilityNames.POISON_POINT}
+PARA_AB_IM = {AbilityNames.LIMBER, AbilityNames.MAGIC_GUARD}
+BURN_AB_IM = {AbilityNames.WATER_VEIL, AbilityNames.MAGIC_GUARD}
+STAT_AB_IM = {AbilityNames.CLEAR_BODY, AbilityNames.WHITE_SMOKE}
+STEEL_POISON = {Types.STEEL, Types.POISON}
 
 
 class _Effectiviness:
@@ -34,7 +44,8 @@ class TrainerAI:
     """
 
     def basic_flag(
-            self, move, ability, ai_pok, user_pok, effectiveness, user_party_alive
+            self, move, ability, ai_pok, user_pok, effectiveness, user_party_alive,
+            weather
     ) -> int:
         """
         Basic Flag, every trainer has this,
@@ -63,46 +74,58 @@ class TrainerAI:
         # Check for abilities
         if ai_pok[Pok.AB_ID] != AbilityNames.MOLD_BREAKER:
             move_type = move[Move.TYPE]
-            if move_type == Types.ELECTRIC and ability in ("VOLT_ABSORB", "MOTOR_DRIVE"):
+            if move_type == Types.ELECTRIC and ability in ELEC_AB_IM:
                 return -10
-            if move_type == Types.WATER and ability == "WATER_ABSORB":
+            if move_type == Types.WATER and ability == AbilityNames.WATER_ABSORB:
                 return -10
-            if move_type == Types.FIRE and ability == "FLASH_FIRE":
+            if move_type == Types.FIRE and ability == AbilityNames.FLASH_FIRE:
                 return -10
-            if move_type == Types.GROUND and ability == "LEVITATE":
+            if move_type == Types.GROUND and ability == AbilityNames.LEVITATE:
                 return -10
-            if move[Flags.SOUND] and ability == "SOUNDPROOF":
+            if move[Flags.SOUND] and ability == AbilityNames.SOUNDPROOF:
                 return -10
             if (
                 (effectiveness != _Effectiviness.X2 or effectiveness != _Effectiviness.X4)
-                and ability == "WONDER_GUARD"
+                and ability == AbilityNames.WONDER_GUARD
                 and move_category != MoveCategory.STATUS
             ):
                 return -10
         if move_category == MoveCategory.STATUS:
             # TODO: Safeguard for all conditions
             if move[Move.STATUS] != 0:
+                u_type12 = {user_pok[Pok.TYPE1],user_pok[Pok.TYPE2]}
+
                 # Sleep
                 if (
                     move[Move.STATUS] == Status.SLEEP
                     and (
                         user_pok[Pok.STATUS] != 0
-                        or ability == "VITAL_SPIRIT"
+                        or ability == AbilityNames.VITAL_SPIRIT
                     )
                 ):
                     return -10
                 # Poison
                 if (
                     move[Move.STATUS] in (Status.POISON, Status.TOXIC)
-                    and (
-                        user_pok[Pok.STATUS] != 0
-                        or ability in ("IMMUNITY", "MAGIC_GUARD", "POISON_HEAL")
-                        or Types.STEEL in (user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
-                        or Types.POISON in (user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
-                    )
                 ):
-                    # TODO: weather
-                    return -10
+                    if not u_type12.isdisjoint(STEEL_POISON):
+                        return -10
+                    if ability in POISON_AB_IM:
+                        return -10
+                    if weather:
+                        if (
+                            weather == Weather.SUN
+                            and ability == AbilityNames.LEAF_GUARD
+                        ):
+                            return -10
+                        if (
+                            weather == Weather.RAIN
+                            and ability == AbilityNames.HYDRATION
+                        ):
+                            return -10
+                    if user_pok[Pok.STATUS] != 0:
+                        return -10
+                    # TODO: safeguard
                 # Paralysis
                 if (
                     move[Move.STATUS] == Status.PARALYSIS
@@ -111,14 +134,14 @@ class TrainerAI:
                         or (
                             move[Move.TYPE] == Types.ELECTRIC
                             and (
-                                Types.GROUND in (user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
+                                Types.GROUND in u_type12
                                 or (
-                                    ability in ('VOLT_ABSORB', 'MOTOR_DRIVE')
+                                    ability in ELEC_AB_IM
                                     and ai_pok[Pok.AB_ID] != AbilityNames.MOLD_BREAKER
                                 )
                             )
                         )
-                        or ability in ('LIMBER', 'MAGIC_GUARD')
+                        or ability in PARA_AB_IM
                     )
                 ):
                     return -10
@@ -127,8 +150,8 @@ class TrainerAI:
                     move[Move.STATUS] == Status.BURN
                     and (
                         user_pok[Pok.STATUS] != 0
-                        or ability in ("WATER_VEIL", "MAGIC_GUARD")
-                        or Types.FIRE in (user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
+                        or ability in BURN_AB_IM
+                        or Types.FIRE in u_type12
                     )
                 ):
                     return -10
@@ -137,13 +160,13 @@ class TrainerAI:
                 if move[Move.VOL_STATUS] == VolStatus.CONFUSION:
                     if user_pok[Pok.VOL_STATUS] & VolStatus.CONFUSION:
                         return -5
-                    if ability == "OWN_TEMPO":
+                    if ability == AbilityNames.OWN_TEMPO:
                         return -10
                 # Attract
                 if move[Move.VOL_STATUS] == VolStatus.ATTRACT:
                     if (
                         user_pok[Pok.VOL_STATUS] & VolStatus.ATTRACT
-                        or ability == "OBLIVIOUS"
+                        or ability == AbilityNames.OBLIVIOUS
                         or (
                             user_pok[Pok.GENDER] == ai_pok[Pok.GENDER]
                             or user_pok[Pok.GENDER] == Gender.GENDERLESS
@@ -207,18 +230,18 @@ class TrainerAI:
                     Target.SCRIPTED
                 ):
                     # TODO Trick Room
-                    if move[Move.BOOST_ATK] and ability == "HYPER_CUTTER":
+                    if move[Move.BOOST_ATK] and ability == AbilityNames.HYPER_CUTTER:
                         return -10
-                    if move[Move.BOOST_SPEED] and ability == "SPEED_BOOST":
+                    if move[Move.BOOST_SPEED] and ability == AbilityNames.SPEED_BOOST:
                         return -10
                     if (
                         (move[Move.BOOST_ACC] or move[Move.BOOST_EV])
-                        and (ability == "NO_GUARD" or ai_pok[Pok.AB_ID] == AbilityNames.NO_GUARD)
+                        and (ability == AbilityNames.NO_GUARD or ai_pok[Pok.AB_ID] == AbilityNames.NO_GUARD)
                     ):
                         return -10
                     if move[Move.BOOST_ACC] and ai_pok[Pok.AB_ID] == AbilityNames.KEEN_EYE:
                         return -10
-                    if ability in ("CLEAR_BODY", "WHITE_SMOKE"):
+                    if ability in STAT_AB_IM:
                         return -10
                     if move[Move.BOOST_ATK] < 0 and user_pok[Pok.ATTACK_STAT_STAGE] == -6:
                         return -10
@@ -240,7 +263,7 @@ class TrainerAI:
                 and (
                     count_party(user_party_alive) > 1
                     or (
-                        ability == 'SUCTION_CUPS'
+                        ability == AbilityNames.SUCTION_CUPS
                         and ai_pok[Pok.AB_ID] == AbilityNames.MOLD_BREAKER
                     )
                 )
@@ -255,7 +278,7 @@ class TrainerAI:
                 and (
                     user_pok[Pok.LEVEL] > ai_pok[Pok.LEVEL]
                     or (
-                        ability == "STURDY" and ai_pok[Pok.AB_ID] == AbilityNames.MOLD_BREAKER
+                        ability == AbilityNames.STURDY and ai_pok[Pok.AB_ID] == AbilityNames.MOLD_BREAKER
                     )
                 )
             ):
@@ -609,7 +632,8 @@ class TrainerAI:
             ai_pok,
             user_pok,
             user_party_alive,
-            turn
+            turn,
+            weather
     ):
         """
         Calculates the score of the moves and sees what has the highest score
@@ -656,8 +680,8 @@ class TrainerAI:
         move_scores = {}
 
         # TODO
-        if ai_pok:
-            ability = getattr(AbilityNames, user_pok[Pok.AB_ID])
+        if True:
+            ability = user_pok[Pok.AB_ID]
         else:
             try:
                 ability = random.choice(
@@ -700,7 +724,7 @@ class TrainerAI:
             eval_atk, rand = self.evaluate_attack_flag(final_damage, effec, user_pok, move, i, rand)
             score += eval_atk
             score += self.basic_flag(
-                move, ability, ai_pok, user_pok, effec, user_party_alive
+                move, ability, ai_pok, user_pok, effec, user_party_alive, weather
             )
             expert, rand = self.expert_flag(
                 ai_pok, user_pok, move,
@@ -732,12 +756,12 @@ class TrainerAI:
 
         return move_scores
 
-    def return_idx(self, ai_pok, user_pok, user_party, turn):
+    def return_idx(self, ai_pok, user_pok, user_party, turn, weather):
         """
         It transform the highest moving score to the index of the move
         """
         move_scores= self.choose_move(
-            ai_pok, user_pok, user_party, turn
+            ai_pok, user_pok, user_party, turn, weather
         )
         max_score = max(info["score"] for info in move_scores.values())
         best_moves = [info for info in move_scores.values() if info["score"] == max_score]

@@ -4,14 +4,50 @@ import numpy as np
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Models.idx_const import Pok, Move, Flags
 from Models.helper import MoveCategory, Status, Types, AbilityActivation, Weather
-from Models.pokemon import Pokemon
-from Models.move import Move as Move_
 from DataBase.AbilitiesDB import AbilityNames
 
 
 MULTIPLIERS = [i for i in range(85, 101)]
 STARTER_AB = {AbilityNames.BLAZE, AbilityNames.TORRENT, AbilityNames.OVERGROW}
 
+
+def raw_atk_def(move, attacker, defender, weather, crit=False):
+    """
+    Getting the right attack and defense and applying the right modifiers
+    """
+    if move[Move.CATEGORY] == MoveCategory.PHYSICAL:
+        raw_attack = attacker[Pok.ATTACK]
+        raw_defense = defender[Pok.DEFENSE]
+        atk_stage = attacker[Pok.ATTACK_STAT_STAGE]
+        def_stage = defender[Pok.DEFENSE_STAT_STAGE]
+    else:
+        raw_attack = attacker[Pok.SPECIAL_ATTACK]
+        raw_defense = defender[Pok.SPECIAL_DEFENSE]
+        atk_stage = attacker[Pok.SPECIAL_ATTACK_STAT_STAGE]
+        def_stage = defender[Pok.SPECIAL_DEFENSE_STAT_STAGE]
+        if (
+            weather == Weather.SANDSTORM
+            and (
+                attacker[Pok.TYPE1] == Types.ROCK or  #pylint: disable=consider-using-in
+                attacker[Pok.TYPE2] == Types.ROCK
+            )
+        ):
+            raw_defense = (raw_defense*3)//2
+    if crit:
+        def_stage = min(def_stage, 0)
+        atk_stage = max(atk_stage, 0)
+    # apply stage multipliers
+    if atk_stage != 0:
+        attack =  stage_to_multiplier(atk_stage, raw_attack)
+    else:
+        attack = raw_attack
+    if def_stage != 0:
+        defense = stage_to_multiplier(def_stage, raw_defense)
+    else:
+        defense = raw_defense
+
+
+    return attack, defense
 
 def base_power_ability(attacker, defender, move) -> float:  # pylint: disable=W0613
     """Calculate what the ability does in relation to damage
@@ -119,7 +155,7 @@ def multipliers(
 
 
 def calculate_damage(
-        attacker: Pokemon, defender: Pokemon, move: Move_,
+        attacker, defender, move,
         weather: int=0,
         crit: bool=False,
         roll_multiplier: float=None,
@@ -130,56 +166,21 @@ def calculate_damage(
         # Status moves don't deal damage(Trainer AI needs this)
         return 0
 
-    atk = attacker
-    defn = defender
-    mv = move
-
-    if mv[Move.CATEGORY] == MoveCategory.PHYSICAL:
-        raw_attack = atk[Pok.ATTACK]
-        raw_defense = defn[Pok.DEFENSE]
-        atk_stage = atk[Pok.ATTACK_STAT_STAGE]
-        def_stage = defn[Pok.DEFENSE_STAT_STAGE]
-    else:
-        raw_attack = atk[Pok.SPECIAL_ATTACK]
-        raw_defense = defn[Pok.SPECIAL_DEFENSE]
-        atk_stage = atk[Pok.SPECIAL_ATTACK_STAT_STAGE]
-        def_stage = defn[Pok.SPECIAL_DEFENSE_STAT_STAGE]
-        if (
-            weather == Weather.SANDSTORM
-            and (
-                atk[Pok.TYPE1] == Types.ROCK or  #pylint: disable=consider-using-in
-                atk[Pok.TYPE2] == Types.ROCK
-            )
-        ):
-            raw_defense = (raw_defense*3)//2
-
-    if crit:
-        def_stage = min(def_stage, 0)
-        atk_stage = max(atk_stage, 0)
-
-    # apply stage multipliers
-    if atk_stage != 0:
-        attack =  stage_to_multiplier(atk_stage, raw_attack)
-    else:
-        attack = raw_attack
-    if def_stage != 0:
-        defense = stage_to_multiplier(def_stage, raw_defense)
-    else:
-        defense = raw_defense
+    attack, defense = raw_atk_def(move, attacker, defender, weather, crit)
 
     # Ability TODO: change everything to accomodate activation changes
-    power = mv[Move.POWER]
-    if atk[Pok.AB_WHEN] == AbilityActivation.ON_BASE_POWER:
-        power = (base_power_ability(atk, defn, mv)*power) // 4096
+    power = move[Move.POWER]
+    if attacker[Pok.AB_WHEN] == AbilityActivation.ON_BASE_POWER:
+        power = (base_power_ability(attacker, defender, move)*power) // 4096
 
-    level = atk[Pok.LEVEL]
+    level = attacker[Pok.LEVEL]
 
     # Base damage formula
     damage = (((2 * level / 5) + 2) * power * (attack / defense)) // 50
     if damage < 0:
         raise ValueError("There shouldn't be negative damage")
 
-    damage = multipliers(mv, atk, defn, weather, crit, roll_multiplier, damage)
+    damage = multipliers(move, attacker, defender, weather, crit, roll_multiplier, damage)
     return damage
 
 

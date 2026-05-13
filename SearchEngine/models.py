@@ -139,7 +139,8 @@ class GameState():
             self.get_opp_active(),
             self.get_my_active(),
             self.battle_array[0:(6 * POK_LEN)],
-            self.turn
+            self.turn,
+            self.battle_array[Field.WEATHER]
         )
         return opp_idx
 

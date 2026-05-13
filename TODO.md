@@ -35,6 +35,23 @@ Abilities
 []Arena Trap
 []Forewarn
 []Adaptability
+[]Volt Absorb
+[]Motor Drive
+[]Flash Fire
+[]Levitate
+[]Wonder Guard
+[]Vital Spirit
+[]Immunity
+[]Poison Heal
+[]Leaf Guard
+[]Hydration
+[]Limber
+[]Water Veil
+[]Own Tempo
+[]Oblivious
+[]Hyper Cutter
+[]Clear Body
+[]White Smoke
 
 Moves
 []Absorb
