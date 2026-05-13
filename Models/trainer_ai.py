@@ -1,7 +1,7 @@
 """Gives the class for the trainer Ai to be what the game would do"""
 import random
 import numpy as np
-from Engine.damage_calc import calculate_damage
+from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
 from Utils.helper import (
     get_type_effectiveness, batch_independent_score_from_rand, stage_to_multiplier
 )
@@ -15,6 +15,7 @@ from Models.idx_const import (
 from Models.helper import (
     MoveCategory, Types, Status, VolStatus, Gender, Target, count_party, Weather
 )
+from Models.trainer_ai_helper import trainer_ai_effectiveness
 
 
 ELEC_AB_IM = {AbilityNames.VOLT_ABSORB, AbilityNames.MOTOR_DRIVE}
@@ -23,13 +24,6 @@ PARA_AB_IM = {AbilityNames.LIMBER, AbilityNames.MAGIC_GUARD}
 BURN_AB_IM = {AbilityNames.WATER_VEIL, AbilityNames.MAGIC_GUARD}
 STAT_AB_IM = {AbilityNames.CLEAR_BODY, AbilityNames.WHITE_SMOKE}
 STEEL_POISON = {Types.STEEL, Types.POISON}
-
-
-class _Effectiviness:
-    """Effectiviness helper, to check for how much"""
-    X2 = 1
-    X4 = 2
-    IM = 3
 
 
 def add_adjustment(arr, move_id, delta, chance):
@@ -69,7 +63,7 @@ class TrainerAI:
             move_first = random.choice([True, False])
         """
         # Check for immunity types
-        if move_category != MoveCategory.STATUS and effectiveness == _Effectiviness.IM:
+        if move_category != MoveCategory.STATUS and effectiveness == 0:
             return -10
         # Check for abilities
         if ai_pok[Pok.AB_ID] != AbilityNames.MOLD_BREAKER:
@@ -85,9 +79,9 @@ class TrainerAI:
             if move[Flags.SOUND] and ability == AbilityNames.SOUNDPROOF:
                 return -10
             if (
-                (effectiveness != _Effectiviness.X2 or effectiveness != _Effectiviness.X4)
-                and ability == AbilityNames.WONDER_GUARD
+                ability == AbilityNames.WONDER_GUARD
                 and move_category != MoveCategory.STATUS
+                and get_type_effectiveness(move_type, user_pok[Pok.TYPE1],user_pok[Pok.TYPE2]) >= 2
             ):
                 return -10
         if move_category == MoveCategory.STATUS:
@@ -353,13 +347,11 @@ class TrainerAI:
                 in (MoveName.SUCKER_PUNCH, MoveName.FOCUS_PUNCH, MoveName.FUTURE_SIGHT)
             ):
                 add_adjustment(rand, idx, 4, 85)
-                return score, rand
             elif move[Move.PRIORITY] >= 1 and move[Move.ID] != MoveName.FAKE_OUT:
                 score = 6
-                return score, rand
             else:
                 score = 4
-                return score, rand
+            return score, rand
 
         if (
             move[Move.ID] in (
@@ -370,7 +362,7 @@ class TrainerAI:
             )
         ):
             add_adjustment(rand, idx, -2, 176)
-        if effectiveness == _Effectiviness.X4:
+        if effectiveness >= 4:
             add_adjustment(rand, idx, 2, 176)
         return score, rand
 
@@ -706,25 +698,16 @@ class TrainerAI:
             if move[Move.PP] <= 0:
                 continue
             score = 0
-            final_damage = calculate_damage(ai_pok, user_pok, move)
-            effectiveness, den = get_type_effectiveness(
-                move[Move.TYPE],
-                user_pok[Pok.TYPE1],
-                user_pok[Pok.TYPE2]
-            )
-            if effectiveness // den == 2:
-                effec = _Effectiviness.X2
-            elif effectiveness // den == 4:
-                effec = _Effectiviness.X4
-            elif effectiveness == 0:
-                effec = _Effectiviness.IM
+            effectiveness = trainer_ai_effectiveness(move, ai_pok, user_pok)
+            if move[Move.CATEGORY] != MoveCategory.STATUS:
+                final_damage = calculate_ai_logic_damage(effectiveness, ai_pok, user_pok, move, weather)
             else:
-                effec = 0
+                final_damage = 0
 
-            eval_atk, rand = self.evaluate_attack_flag(final_damage, effec, user_pok, move, i, rand)
+            eval_atk, rand = self.evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
             score += eval_atk
             score += self.basic_flag(
-                move, ability, ai_pok, user_pok, effec, user_party_alive, weather
+                move, ability, ai_pok, user_pok, effectiveness, user_party_alive, weather
             )
             expert, rand = self.expert_flag(
                 ai_pok, user_pok, move,
@@ -817,8 +800,8 @@ class TrainerAI:
                 mv_type = mv[Move.TYPE]
                 if mv_type == 0:
                     break
-                eff = get_type_effectiveness(mv_type, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
-                if eff == _Effectiviness.X2 or eff == _Effectiviness.X4:
+                eff, den = get_type_effectiveness(mv_type, user_pok[Pok.TYPE1], user_pok[Pok.TYPE2])
+                if eff//den >= 2:
                     has_se_move = True
                     break
             if has_se_move:

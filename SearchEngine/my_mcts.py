@@ -13,6 +13,7 @@ from typing import List
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node
 from SearchEngine.models import BattlePhase, GameState, Node
+from Models.idx_const import Field
 
 
 def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.3) -> float:
@@ -34,6 +35,7 @@ def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.3) -> float:
                 sim_state.get_my_active(),
                 sim_state.get_opp_active(),
                 sim_state.opp_move,
+                sim_state.battle_array[Field.WEATHER],
                 valid_actions
             )
         else:

@@ -6,7 +6,7 @@
     "target": "normal",
     "power": 40,
     "accuracy": 100,
-    "pp": 35,
+    "pp": 55,
     "flags": {
       "contact": true,
       "protect": true,
@@ -20,7 +20,7 @@
     "type": "Normal",
     "target": "all_adjacent_foes",
     "accuracy": 100,
-    "pp": 40,
+    "pp": 60,
     "flags": {
       "protect": true,
       "reflectable": true,
@@ -38,7 +38,7 @@
     "target": "normal",
     "power": 40,
     "accuracy": 100,
-    "pp": 35,
+    "pp": 65,
     "flags": {
       "contact": true,
       "protect": true,
@@ -52,7 +52,7 @@
     "type": "Normal",
     "target": "all_adjacent_foes",
     "accuracy": 100,
-    "pp": 30,
+    "pp": 60,
     "flags": {
       "protect": true,
       "reflectable": true,

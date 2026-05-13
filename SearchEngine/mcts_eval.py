@@ -1,10 +1,11 @@
 """Evaluation of terminal and current state"""
 import random
 from Models.idx_const import(
-    Pok, Sec, POK_LEN, OFFSET_MOVE, MOVE_STRIDE
+    Pok, Sec, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, Move
 )
-from Models.helper import count_party, count_Id
+from Models.helper import count_party, count_Id, MoveCategory
 from Engine.damage_calc import calculate_damage
+from Utils.helper import get_type_effectiveness
 
 
 def party_hp_fraction(battle_array, offset, maxp):
@@ -57,40 +58,102 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     #  raise ValueError("Shouldn't get here")
 
 
-def rollout_pref(c_pok, o_pok, o_idx, actions) -> tuple:
-    """Prefer certain moves to reduce noise"""
+def rollout_pref(c_pok, o_pok, o_idx, weather, actions) -> tuple:
+    """
+    Prefer certain moves to reduce noise
+    """
+    o_move = o_pok[OFFSET_MOVE + o_idx * MOVE_STRIDE: OFFSET_MOVE + (o_idx + 1) * MOVE_STRIDE]
+    o_dmg = calculate_damage(o_pok, c_pok, o_move, weather)  # still worth it for 1 calc
+    opp_hp_ratio = o_pok[Pok.CURRENT_HP] * 4 // o_pok[Pok.MAX_HP]
+    faster = c_pok[Pok.SPEED] > o_pok[Pok.SPEED]
+    can_survive = o_dmg < c_pok[Pok.CURRENT_HP]
     ev = []
 
     for a in actions:
-        o_move = o_pok[
-            OFFSET_MOVE + o_idx * MOVE_STRIDE: OFFSET_MOVE + o_idx * MOVE_STRIDE + MOVE_STRIDE
-        ]
-        o_dmg = calculate_damage(o_pok, c_pok, o_move)
         weight = 1
-        if a[0] == 'move':
-            move = c_pok[
-                OFFSET_MOVE + a[1] * MOVE_STRIDE: OFFSET_MOVE + a[1] * MOVE_STRIDE + MOVE_STRIDE
-            ]
-            dmg = calculate_damage(c_pok, o_pok, move)
-            if (
-                dmg >= o_pok[Pok.CURRENT_HP]
-                and (
-                    c_pok[Pok.SPEED] > o_pok[Pok.SPEED]
-                    or o_dmg < c_pok[Pok.CURRENT_HP]
-                )
-            ):
-                weight += 100
-            if move[Sec.CHANCE]:
-                weight += 10
-        else:
-            # Need to work on that, because it needs to be way more complex, maybe??
-            if (
-                o_dmg >= c_pok[Pok.CURRENT_HP]
-                and (
-                    o_pok[Pok.SPEED] >= c_pok[Pok.SPEED]
-                )
-            ):
-                weight += 50
-        ev.append((a, weight))
 
-    return random.choices([e[0] for e in ev], weights=[e[1] for e in ev])[0]
+        if a[0] == 'move':
+            move = c_pok[OFFSET_MOVE + a[1] * MOVE_STRIDE: OFFSET_MOVE + (a[1] + 1) * MOVE_STRIDE]
+            cat = move[Move.CATEGORY]
+
+            if cat == MoveCategory.STATUS:
+                # Status moves: give a small base weight so they're not excluded
+                weight = 1
+
+            else:
+                # Cheap type effectiveness first — no damage calc
+                eff, den = get_type_effectiveness(move[Move.TYPE], o_pok[Pok.TYPE1], o_pok[Pok.TYPE2])
+                eff_ratio = eff // den  # 0, 1, 2, or 4
+
+                if eff_ratio == 0:
+                    weight = 0  # immune — never pick this
+                else:
+                    # STAB bonus
+                    stab = move[Move.TYPE] in (c_pok[Pok.TYPE1], c_pok[Pok.TYPE2])
+
+                    # Only do full damage calc if it looks like a KO candidate
+                    likely_strong = (
+                        eff_ratio >= 2                          # super effective
+                        or (stab and move[Move.POWER] >= 60)   # strong STAB
+                        or (opp_hp_ratio == 0 and eff_ratio >= 1)   # <25% HP, any non-resisted
+                        or (opp_hp_ratio == 1 and eff_ratio >= 1 and stab)  # <50% HP, STAB neutral
+                    )
+
+                    if likely_strong:
+                        dmg = calculate_damage(c_pok, o_pok, move, weather)
+                        if dmg >= o_pok[Pok.CURRENT_HP] and (faster or can_survive):
+                            weight = 100  # KO when safe to do so
+                        elif eff_ratio == 4:
+                            weight = 20
+                        elif eff_ratio == 2:
+                            weight = 8
+                        elif stab:
+                            weight = 4
+                    else:
+                        # Resisted or neutral, no calc — rough signal only
+                        if eff_ratio == 1:
+                            weight = 2 if stab else 1
+                        else:  # 0.5x
+                            weight = 1
+
+                    # Secondary effect scaled by chance
+                    if move[Sec.CHANCE]:
+                        weight += move[Sec.CHANCE] // 10
+
+        else:  # switch
+            if o_dmg >= c_pok[Pok.CURRENT_HP] and not faster:
+                weight = 50
+
+        if weight > 0:
+            ev.append((a, weight))
+
+    if not ev:  # fallback if everything was immune or list empty
+        return random.choice(actions)
+
+    def _weighted_choice(ev):
+        """
+        Fast path: single dominant action (very common case)
+        Avoids full scan most of the time
+        """
+        best_action, best_weight = ev[0]
+        total = best_weight
+        for action, weight in ev[1:]:
+            total += weight
+            if weight > best_weight:
+                best_weight = weight
+                best_action = action
+
+        # If one action is overwhelmingly dominant, pick it directly
+        # 100 vs rest-at-1: e.g. 4 actions → total ~103, dominant has 97% chance anyway
+        if best_weight >= total * 0.90:
+            return best_action
+
+        # Otherwise do the proper weighted draw
+        r = random.randrange(total)
+        cumulative = 0
+        for action, weight in ev:
+            cumulative += weight
+            if r < cumulative:
+                return action
+
+    return _weighted_choice(ev)
