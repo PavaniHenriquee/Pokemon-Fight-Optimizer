@@ -70,6 +70,7 @@ class Battle():
                 # My Pokemon
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
+                self.battle_array[Field.AI_KNOWS] = 0
                 self.current_pokemon = self.my_pty[
                     (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
                 ]
@@ -86,6 +87,7 @@ class Battle():
                 # My Pokemon
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
+                self.battle_array[Field.AI_KNOWS] = 0
                 self.current_pokemon = self.my_pty[
                     (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
                 ]
@@ -101,6 +103,7 @@ class Battle():
             # TODO: Switch in abilities and terrain hazards
             reset_switch_out(self.current_pokemon)
             self.battle_array[Field.MY_POK] = switch_idx
+            self.battle_array[Field.AI_KNOWS] = 0
             self.current_pokemon = self.my_pty[
                 (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
             ]
@@ -208,8 +211,10 @@ class Battle():
         if opp_hp >= 0:
             dmg = after_turn_damage(self.current_opp, weather)
             if dmg > opp_hp:
-                dmg = opp_hp
-            self.current_opp[Pok.CURRENT_HP] -= dmg
+                opp_hp = 0
+            else:
+                opp_hp -= dmg
+            self.current_opp[Pok.CURRENT_HP] = opp_hp
 
         # If Opponent is dead
         if opp_hp <= 0:

@@ -5,15 +5,14 @@ from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
 from Utils.helper import (
     get_type_effectiveness, batch_independent_score_from_rand, stage_to_multiplier
 )
-from DataBase.loader import pkDB
 from DataBase.MoveDB import MoveName
 from DataBase.AbilitiesDB import AbilityNames
-from DataBase.PkDB import PokIdToName
+from DataBase.PkDB import POKEMON_ABILITY_POOL
 from Models.idx_const import (
     Pok, Move, Flags, POK_LEN
 )
 from Models.helper import (
-    MoveCategory, Types, Status, VolStatus, Gender, Target, count_party, Weather
+    MoveCategory, Types, Status, VolStatus, Gender, Target, count_party, Weather, Enemy_AI_Knows
 )
 from Models.trainer_ai_helper import trainer_ai_effectiveness
 
@@ -47,21 +46,6 @@ class TrainerAI:
         """
 
         move_category = move[Move.CATEGORY]
-        """
-        # Check if move first (TODO add Trick room logic here)
-        if (
-            ai_pok[PokArray.SPEED] * stage_to_multiplier(ai_pok[PokArray.SPEED_STAT_STAGE])
-            > user_pok[PokArray.SPEED] * stage_to_multiplier(user_pok[PokArray.SPEED_STAT_STAGE])
-        ):
-            move_first = True
-        elif (
-            ai_pok[PokArray.SPEED] * stage_to_multiplier(ai_pok[PokArray.SPEED_STAT_STAGE])
-            < user_pok[PokArray.SPEED] * stage_to_multiplier(user_pok[PokArray.SPEED_STAT_STAGE])
-        ):
-            move_first = False
-        else:
-            move_first = random.choice([True, False])
-        """
         # Check for immunity types
         if move_category != MoveCategory.STATUS and effectiveness == 0:
             return -10
@@ -625,7 +609,8 @@ class TrainerAI:
             user_pok,
             user_party_alive,
             turn,
-            weather
+            weather,
+            ai_know
     ):
         """
         Calculates the score of the moves and sees what has the highest score
@@ -672,15 +657,10 @@ class TrainerAI:
         move_scores = {}
 
         # TODO
-        if True:
+        if ai_know & Enemy_AI_Knows.ABILITY:
             ability = user_pok[Pok.AB_ID]
         else:
-            try:
-                ability = random.choice(
-                    pkDB[PokIdToName[user_pok[Pok.ID]].capitalize()]['abilities']
-                ).upper()
-            except Exception:
-                ability = getattr(AbilityNames, user_pok[Pok.AB_ID])
+            ability = random.choice(POKEMON_ABILITY_POOL[user_pok[Pok.ID]])
         rand = [[] for _ in range(4)]
         max_damage = 0
         # Moves to not consider in damage calc
@@ -739,12 +719,12 @@ class TrainerAI:
 
         return move_scores
 
-    def return_idx(self, ai_pok, user_pok, user_party, turn, weather):
+    def return_idx(self, ai_pok, user_pok, user_party, turn, weather, ai_know):
         """
         It transform the highest moving score to the index of the move
         """
         move_scores= self.choose_move(
-            ai_pok, user_pok, user_party, turn, weather
+            ai_pok, user_pok, user_party, turn, weather, ai_know
         )
         max_score = max(info["score"] for info in move_scores.values())
         best_moves = [info for info in move_scores.values() if info["score"] == max_score]

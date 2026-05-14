@@ -81,7 +81,7 @@
       "Special Defense": 64,
       "Speed": 43
     },
-    "abilities": ["Torrent", "Raind Dish"]
+    "abilities": ["Torrent", "Rain Dish"]
   },
   "Wartortle": {
     "type": ["Water"],
@@ -93,7 +93,7 @@
       "Special Defense": 80,
       "Speed": 58
     },
-    "abilities": ["Torrent", "Raind Dish"]
+    "abilities": ["Torrent", "Rain Dish"]
   },
   "Blastoise": {
     "type": ["Water"],

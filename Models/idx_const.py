@@ -208,6 +208,7 @@ class Field:
     OPP_SCREEN_DURATION= OPP_SCREEN + 1
     PHASE              = OPP_SCREEN_DURATION + 1
     OPP_MOVE           = PHASE + 1
+    AI_KNOWS           = OPP_MOVE + 1
 
 FIELD_LEN = Field.OPP_MOVE + 1
 
