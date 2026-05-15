@@ -16,7 +16,7 @@ STAGES_TABLE = (
 )
 
 
-def raw_atk_def(move, attacker, defender, weather, crit=False):
+def raw_atk_def(move, attacker, defender, weather=0, crit=False):
     """
     Getting the right attack and defense and applying the right modifiers
     """
@@ -80,7 +80,7 @@ def base_power_ability(attacker, move) -> float:
 
 
 def multipliers(
-        move: np.float32, attacker: np.float32, defender: np.float32,
+        move: np.int32, attacker: np.int32, defender: np.int32,
         weather:int, crit: bool, roll_mult: int, damage
 ) -> int:
     """Calc Multiplers for bas formula damage"""
@@ -212,10 +212,45 @@ def struggle(attacker, defender):
     Struggle damage for the opponent and recoil
     Not implemented
     """
-    atk = attacker[Pok.ATTACK]
+    attack = attacker[Pok.ATTACK]
     defense = defender[Pok.DEFENSE]
-    power = 50
-    return atk, defense, power
+    def_stage = defender[Pok.DEFENSE_STAT_STAGE]
+    atk_stage = attacker[Pok.ATTACK_STAT_STAGE]
+    level = attacker[Pok.LEVEL]
+    atk_max_hp = attacker[Pok.MAX_HP]
+    cur_hup = attacker[Pok.CURRENT_HP]
+
+    if random.random() < 0.0625:
+        def_stage = min(def_stage, 0)
+        atk_stage = max(atk_stage, 0)
+
+    # apply stage multipliers
+    if atk_stage | def_stage:
+        table = STAGES_TABLE
+        n_atk, d_atk = table[atk_stage + 6]
+        n_def, d_def = table[def_stage + 6]
+        attack = (attack * n_atk) // d_atk
+        defense = (defense * n_def) // d_def
+
+    # Base damage formula for Struggle with power 50
+    damage = (((2 * level / 5) + 2) * 50 * (attack / defense)) // 50
+
+    # Burn
+    if attacker[Pok.STATUS] == Status.BURN:
+        damage //= 2
+
+    # TODO: Screen
+
+    # Adding 2 after the above
+    damage += 2
+
+    recoil = atk_max_hp//4
+    if recoil >= cur_hup:
+        attacker[Pok.CURRENT_HP] = 0
+    else:
+        attacker[Pok.CURRENT_HP] -= recoil
+
+    return damage
 
 
 def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather):
