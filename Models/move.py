@@ -1,6 +1,11 @@
 """Normalize moves into numpy Arrays"""
 import numpy as np
-from Models.idx_const import BASE_MOVE_LEN, SEC_LEN, FLAGS_LEN, Move as MoveA, Flags as MoveFlags, Sec as SecondaryArray, OFFSET_SEC
+from Models.idx_const import (
+    BASE_MOVE_LEN, SEC_LEN, FLAGS_LEN, OFFSET_SEC,
+    Move as MoveA,
+    Flags as MoveFlags,
+    Sec as SecondaryArray
+)
 from Models.helper import Types, Target, Stat, SideCondition, Status, VolStatus, MoveCategory
 from DataBase.MoveDB import MoveName
 
@@ -170,7 +175,7 @@ class Move():
 
         sec_array[SecondaryArray.CHANCE - off] = secondary.get('chance', 0) if secondary else 0
         sec_array[SecondaryArray.TARGET - off] = (
-            Target[secondary.get('target', 'any').upper()]
+            getattr(Target,secondary.get('target', 'any').upper())
             if secondary and secondary.get('target', None)
             else -1
         )

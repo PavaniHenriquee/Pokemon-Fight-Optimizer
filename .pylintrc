@@ -9,6 +9,7 @@ disable=
     invalid-name,
     multiple-statements,
     import-outside-toplevel,
-    unexpected-keyword-arg
+    unexpected-keyword-arg,
+    too-many-return-statements
 
 max-line-length = 110

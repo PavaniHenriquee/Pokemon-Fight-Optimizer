@@ -75,11 +75,12 @@ class SideCondition:
     AURORA_VEIL = 64
 
 
-Gender = SimpleNamespace(
-    GENDERLESS = 0,
-    MALE = 1,
+class Gender:
+    """Gender to numbers"""
+    GENDERLESS = 0
+    MALE = 1
     FEMALE = 2
-)
+
 
 
 def type_to_number(types: list):
@@ -108,23 +109,24 @@ def vol_status():
     return 0
 
 
-Target = SimpleNamespace(
-    NORMAL = 0,
-    ADJACENT_ALLY = 1,
-    ADJACENT_ALLY_OR_SELF = 2,
-    ADJACENT_FOE = 3,
-    ALL = 4,
-    ALL_ADJACENT = 5,
-    ALL_ADJACENT_FOES = 6,
-    ALLIES = 7,
-    ALLY_SIDE = 8,
-    ALLY_TEAM = 9,
-    ANY = 10,
-    FOE_SIDE = 11,
-    RANDOM_NORMAL = 12,
-    SCRIPTED = 13,
+class Target:
+    """Target to numbers"""
+    NORMAL = 0
+    ADJACENT_ALLY = 1
+    ADJACENT_ALLY_OR_SELF = 2
+    ADJACENT_FOE = 3
+    ALL = 4
+    ALL_ADJACENT = 5
+    ALL_ADJACENT_FOES = 6
+    ALLIES = 7
+    ALLY_SIDE = 8
+    ALLY_TEAM = 9
+    ANY = 10
+    FOE_SIDE = 11
+    RANDOM_NORMAL = 12
+    SCRIPTED = 13
     SELF = 14
-)
+
 
 
 class AbilityActivation:

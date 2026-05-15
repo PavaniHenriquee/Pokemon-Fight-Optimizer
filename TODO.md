@@ -137,6 +137,11 @@ Moves
 []Zen Headbutt
 
 []Sleep Talk
+[]Selfdestruct
+[]Explosion
+[]Sucker Punch
+[]Focus Punch
+[]Future Sight
 
 Items
 []Oran Berry

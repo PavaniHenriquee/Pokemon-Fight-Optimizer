@@ -1,11 +1,54 @@
 """
 Helper to make the trainer ai more readable and everthing more organized
 """
-from Models.idx_const import Pok, Move
-from Models.helper import MoveCategory
+from Models.idx_const import Pok, Move, Flags
+from Models.helper import MoveCategory, Types, Status, Weather, VolStatus, Gender, Target
 from Utils.loader import TYPE_CHART
+from Utils.helper import get_type_effectiveness
 from DataBase.AbilitiesDB import AbilityNames
+from DataBase.PkDB import POKEMON_ABILITY_POOL
+from DataBase.MoveDB import MoveName
+from DataBase.loader import abDB
 
+
+ELEC_AB_IM = {AbilityNames.VOLT_ABSORB, AbilityNames.MOTOR_DRIVE}
+POISON_AB_IM = {AbilityNames.IMMUNITY, AbilityNames.MAGIC_GUARD, AbilityNames.POISON_POINT}
+PARA_AB_IM = {AbilityNames.LIMBER, AbilityNames.MAGIC_GUARD}
+BURN_AB_IM = {AbilityNames.WATER_VEIL, AbilityNames.MAGIC_GUARD}
+STAT_AB_IM = {AbilityNames.CLEAR_BODY, AbilityNames.WHITE_SMOKE}
+ABILITY_BASIC_FLAG = {
+    AbilityNames.VOLT_ABSORB, AbilityNames.MOTOR_DRIVE, AbilityNames.WATER_ABSORB,
+    AbilityNames.FLASH_FIRE, AbilityNames.LEVITATE, AbilityNames.SOUNDPROOF,
+    AbilityNames.WONDER_GUARD
+}
+
+STEEL_POISON = {Types.STEEL, Types.POISON}
+
+TARGET_SELF_SIDE = {
+    Target.ADJACENT_ALLY,
+    Target.ADJACENT_ALLY_OR_SELF,
+    Target.ALLIES,
+    Target.ALLY_SIDE,
+    Target.SELF
+}
+TARGET_OPP_SIDE = {
+    Target.NORMAL,
+    Target.ADJACENT_FOE,
+    Target.ALL_ADJACENT_FOES,
+    Target.ANY,
+    Target.FOE_SIDE,
+    Target.RANDOM_NORMAL,
+    Target.SCRIPTED
+}
+
+SELF_KILL_MOVE = {MoveName.EXPLOSION, MoveName.SELFDESTRUCT}
+WEIRD_PRIO_MOVE = {MoveName.SUCKER_PUNCH, MoveName.FOCUS_PUNCH, MoveName.FUTURE_SIGHT}
+MAYBE_BAD_MOVES = {
+    MoveName.SUCKER_PUNCH,
+    MoveName.FOCUS_PUNCH,
+    MoveName.EXPLOSION,
+    MoveName.SELFDESTRUCT
+}
 
 STAB_CORRECTNESS = {
     0.375: 0.25,
@@ -15,6 +58,71 @@ STAB_CORRECTNESS = {
 }
 STAB_C = {0.375, 0.75, 3.0, 6.0}
 
+# --- Abilities explicitly checked in basic_flag / expert_flag ---
+_EXPLICIT_RELEVANT: frozenset = frozenset({
+    AbilityNames.VOLT_ABSORB,
+    AbilityNames.MOTOR_DRIVE,
+    AbilityNames.WATER_ABSORB,
+    AbilityNames.FLASH_FIRE,
+    AbilityNames.LEVITATE,
+    AbilityNames.SOUNDPROOF,
+    AbilityNames.WONDER_GUARD,
+    AbilityNames.VITAL_SPIRIT,
+    AbilityNames.IMMUNITY,
+    AbilityNames.MAGIC_GUARD,
+    AbilityNames.POISON_POINT,
+    AbilityNames.LEAF_GUARD,
+    AbilityNames.HYDRATION,
+    AbilityNames.LIMBER,
+    AbilityNames.WATER_VEIL,
+    AbilityNames.CLEAR_BODY,
+    AbilityNames.WHITE_SMOKE,
+    AbilityNames.OWN_TEMPO,
+    AbilityNames.OBLIVIOUS,
+    AbilityNames.SUCTION_CUPS,
+    AbilityNames.STURDY,
+    AbilityNames.HYPER_CUTTER,
+    AbilityNames.SPEED_BOOST,
+    AbilityNames.NO_GUARD,
+    AbilityNames.KEEN_EYE,
+    AbilityNames.SIMPLE,
+})
+
+# --- Abilities that will affect damage calc / effectiveness---
+# Derived from abDB using their `when` activation strings
+_DAMAGE_RELEVANT_WHEN: frozenset = frozenset({
+    "on_try_move"       # DAMP, SOUNDPROOF, WATER_ABSORB, STURDY, ...
+})
+
+_activation_relevant: set = set()
+for ab_name, ab_data in abDB.items():
+    when = ab_data.get("when")
+    if not when:
+        continue
+    whens = when if isinstance(when, list) else [when]
+    if any(w in _DAMAGE_RELEVANT_WHEN for w in whens):
+        try:
+            _activation_relevant.add(
+                getattr(AbilityNames, ab_name.upper().replace(" ", "_"))
+            )
+        except AttributeError:
+            pass  # ability in DB not yet in AbilityNames, skip
+
+RELEVANT_ABILITIES: frozenset = _EXPLICIT_RELEVANT | _activation_relevant
+
+
+# --- Pre-compute per pokemon whether ANY of its pool abilities are relevant ---
+POKEMON_HAS_RELEVANT_ABILITY: tuple = tuple(
+    any(ab_id in RELEVANT_ABILITIES for ab_id in pool)
+    for pool in POKEMON_ABILITY_POOL  # reuses the tuple you already built
+)
+
+
+def add_adjustment(arr, move_id, delta, chance):
+    """Add a [delta, chance] pair to the first free slot."""
+    # Find the first index where chance is NaN (unused)
+    arr[move_id].append((delta, chance))
+
 
 def trainer_ai_effectiveness(move, ai_pok, user_pok):
     """
@@ -22,6 +130,10 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
     how it usually goes
     """
 
+
+    """If the user has the ability Normalize, the move's type is changed to Normal.
+    Otherwise, if the move is Natural Gift, Hidden Power, Judgment, or Weather Ball,
+    the move is adjusted to its correct type."""
     effectiveness = 1.0
     move_type = move[Move.TYPE]
     move_cat = move[Move.CATEGORY]
@@ -54,3 +166,332 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
         effectiveness = STAB_CORRECTNESS[effectiveness]
 
     return effectiveness
+
+
+def basic_ability(move, ability, user_pok, move_category) -> bool:
+    """
+    Checks to see if ability triggers on basic flag
+    """
+    move_type = move[Move.TYPE]
+    if move_type == Types.ELECTRIC and ability in ELEC_AB_IM:
+        return True
+    if move_type == Types.WATER and ability == AbilityNames.WATER_ABSORB:
+        return True
+    if move_type == Types.FIRE and ability == AbilityNames.FLASH_FIRE:
+        return True
+    if move_type == Types.GROUND and ability == AbilityNames.LEVITATE:
+        return True
+    if move[Flags.SOUND] and ability == AbilityNames.SOUNDPROOF:
+        return True
+    if (
+        ability == AbilityNames.WONDER_GUARD
+        and move_category != MoveCategory.STATUS
+        and get_type_effectiveness(move_type, user_pok[Pok.TYPE1],user_pok[Pok.TYPE2]) >= 2
+    ):
+        return True
+    return False
+
+
+def basic_move_status(move, ability, user_pok, ai_pok, weather):
+    """
+    Checks to see if any of the conditions for move status being irrelevant comes back as true
+    """
+    # TODO: Safeguard
+    u_type12 = (user_pok[Pok.TYPE1],user_pok[Pok.TYPE2])
+    move_status = move[Move.STATUS]
+    user_status = user_pok[Pok.STATUS] != 0
+
+    if user_status:
+        return True
+
+    # Sleep
+    if (
+        move_status == Status.SLEEP
+        and ability == AbilityNames.VITAL_SPIRIT
+    ):
+        return True
+
+    # Poison
+    if (
+        move_status in (Status.POISON, Status.TOXIC)
+    ):
+        if not STEEL_POISON.isdisjoint(u_type12):
+            return True
+        elif ability in POISON_AB_IM:
+            return True
+        elif weather:
+            if (
+                weather == Weather.SUN
+                and ability == AbilityNames.LEAF_GUARD
+            ):
+                return True
+            elif (
+                weather == Weather.RAIN
+                and ability == AbilityNames.HYDRATION
+            ):
+                return True
+
+    # Paralysis
+    if move_status == Status.PARALYSIS:
+        has_para_immunity = ability in PARA_AB_IM
+        # Electric-specific immunities
+        is_electric_fail = False
+        if move[Move.TYPE] == Types.ELECTRIC:
+            is_ground = Types.GROUND in u_type12
+            is_elec_immune_ability = (
+                ability in ELEC_AB_IM
+                and ai_pok[Pok.AB_ID] != AbilityNames.MOLD_BREAKER
+            )
+            is_electric_fail = is_ground or is_elec_immune_ability
+
+        if has_para_immunity or is_electric_fail:
+            return True
+
+    # Burn
+    if (
+        move_status == Status.BURN
+        and (
+            ability in BURN_AB_IM
+            or Types.FIRE in u_type12
+        )
+    ):
+        return True
+
+    return False
+
+
+def basic_move_vol_status(move, ability, user_pok, ai_pok):
+    """
+    Checks to see if any of the conditions for a move that has volatile status
+    is irrelevant
+    """
+    # TODO: Every volatile status
+    vol_status = move[Move.VOL_STATUS]
+    user_vol_status = user_pok[Pok.VOL_STATUS]
+
+    if vol_status == VolStatus.CONFUSION:
+        if user_vol_status & VolStatus.CONFUSION:
+            return -5
+        if ability == AbilityNames.OWN_TEMPO:
+            return -10
+    # Attract
+    elif vol_status == VolStatus.ATTRACT:
+        if (
+            user_vol_status & VolStatus.ATTRACT
+            or ability == AbilityNames.OBLIVIOUS
+            or (
+                user_pok[Pok.GENDER] == ai_pok[Pok.GENDER]
+                or user_pok[Pok.GENDER] == Gender.GENDERLESS
+            )
+        ):
+            return -10
+
+    return 0
+
+
+def basic_stat_change(move, ability, user_pok, ai_pok) -> bool:
+    """
+    Checks to see if any of the bad uses for a buff or debuff stat move
+    happens and returns the check if the do
+    """
+    # TODO: Trick room
+    b_atk   = move[Move.BOOST_ATK]
+    b_def   = move[Move.BOOST_DEF]
+    b_spatk = move[Move.BOOST_SPATK]
+    b_spdef = move[Move.BOOST_SPDEF]
+    b_spe   = move[Move.BOOST_SPEED]
+    b_acc   = move[Move.BOOST_ACC]
+    b_ev    = move[Move.BOOST_EV]
+    if move[Move.TARGET] in TARGET_SELF_SIDE:  # your already-extracted set
+        s_atk   = ai_pok[Pok.ATTACK_STAT_STAGE]
+        s_def   = ai_pok[Pok.DEFENSE_STAT_STAGE]
+        s_spatk = ai_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]
+        s_spdef = ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]
+        s_spe   = ai_pok[Pok.SPEED_STAT_STAGE]
+        s_acc   = ai_pok[Pok.ACCURACY_STAT_STAGE]
+        s_ev    = ai_pok[Pok.EVASION_STAT_STAGE]
+
+        # Unify Simple (cap=3) and normal (cap=6) into one threshold
+        cap = 3 if ai_pok[Pok.AB_ID] == AbilityNames.SIMPLE else 6
+
+        if (b_atk   > 0 and s_atk   >= cap) \
+        or (b_def   > 0 and s_def   >= cap) \
+        or (b_spatk > 0 and s_spatk >= cap) \
+        or (b_spdef > 0 and s_spdef >= cap) \
+        or (b_spe   > 0 and s_spe   >= cap) \
+        or (b_acc   > 0 and s_acc   >= cap) \
+        or (b_ev    > 0 and s_ev    >= cap):
+            return True
+
+    elif move[Move.TARGET] in TARGET_OPP_SIDE:  # your already-extracted set
+        s_atk   = user_pok[Pok.ATTACK_STAT_STAGE]
+        s_def   = user_pok[Pok.DEFENSE_STAT_STAGE]
+        s_spatk = user_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]
+        s_spdef = user_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]
+        s_spe   = user_pok[Pok.SPEED_STAT_STAGE]
+        s_acc   = user_pok[Pok.ACCURACY_STAT_STAGE]
+        s_ev    = user_pok[Pok.EVASION_STAT_STAGE]
+
+        if (b_atk   < 0 and s_atk   == -6) \
+        or (b_def   < 0 and s_def   == -6) \
+        or (b_spatk < 0 and s_spatk == -6) \
+        or (b_spdef < 0 and s_spdef == -6) \
+        or (b_spe   < 0 and s_spe   == -6) \
+        or (b_acc   < 0 and s_acc   == -6) \
+        or (b_ev    < 0 and s_ev    == -6):
+            return True
+
+        # Ability immunity checks (HYPER_CUTTER, KEEN_EYE etc.) use local b_* from above
+        if b_atk  and ability == AbilityNames.HYPER_CUTTER:  return True
+        if b_spe  and ability == AbilityNames.SPEED_BOOST:   return True
+        if ability in STAT_AB_IM:                             return True
+        if (b_acc or b_ev) and (
+            ability == AbilityNames.NO_GUARD
+            or ai_pok[Pok.AB_ID] == AbilityNames.NO_GUARD
+        ):
+            return True
+        if b_acc and ai_pok[Pok.AB_ID] == AbilityNames.KEEN_EYE: return True
+    return False
+
+
+def basic_flag(
+            move, ability, ai_pok, user_pok, effectiveness,
+            weather
+    ) -> int:
+    """
+    Basic Flag, every trainer has this,
+    it discourages moves that would have no effect or that would make no sense
+    """
+
+    move_category = move[Move.CATEGORY]
+    # Check for immunity types
+    if move_category != MoveCategory.STATUS and effectiveness == 0:
+        return -10
+    # Check for abilities
+    if ai_pok[Pok.AB_ID] != AbilityNames.MOLD_BREAKER and ability in ABILITY_BASIC_FLAG:
+        if basic_ability(move, ability, user_pok, move_category):
+            return -10
+    if move_category == MoveCategory.STATUS:
+        # TODO: Safeguard for all conditions
+        if move[Move.STATUS] != 0:
+            if basic_move_status(move, ability, user_pok, ai_pok, weather):
+                return -10
+        if move[Move.VOL_STATUS] != 0:
+            vol_status = basic_move_vol_status(move, ability, user_pok, ai_pok)
+            if vol_status:
+                return vol_status
+        boost_slice = move[Move.BOOST_ATK: Move.BOOST_EV + 1]
+        if boost_slice.any():
+            if basic_stat_change(move, ability, user_pok, ai_pok):
+                return -10
+
+    '''
+    TODO:
+    Captivate
+    Worry Seed (need to implement if know about Snore and Sleep Talk)
+    Guard Swap
+    Power Swap
+    Copycat
+    Metal Burst
+    Acupressure
+    Tickle
+    Refresh
+    Trick / Switcheroo / Knock Off
+    Helping Hand
+    Baton Pass
+    Curse
+    Snore / Sleep Talk
+    Leech Seed
+    Substitute
+    Belly Drum
+    Dream Eater
+    Explosion / Selfdestruct
+    Stat Stage Resetting/Copying/Swapping Moves
+    Nightmare,
+    Reflect / Light Screen / Mist / Safeguard,
+    Focus Energy / Ingrain / Mud Sport / Water Sport / Camouflage / Power Trick / Lucky Chant / Aqua Ring / Magnet Rise
+    Disable / Encore
+    Lock On / Mean Look / Foresight / Perish Song / Torment / Miracle Eye / Heal Block / Gastro Acid
+    Hazard-Setting Moves (Spikes, Toxic Spikes, Stealth Rock)
+    Weather-Setting Moves (Sandstorm, Rain Dance, Sunny Day, Hail)
+    Future Sight / Doom Desire
+    Fake Out
+    Stockpile
+    Spit UP / Swallow
+    Memento
+    Imprison
+    Cosmic Power / Bulk Up / Calm Mind / Dragon Dance
+    Gravity / Tailwind
+    Trick Room
+    Healing Wish / Lunar Dance
+    Natural Gift
+    Embargo
+    Fling
+    Psycho Shift
+    Last Resort
+    Defog
+    # Moves Which Force Switches
+    if (
+        move[Move.FORCE_SWITCH]
+        and (
+            count_party(user_party_alive) > 1
+            or (
+                ability == AbilityNames.SUCTION_CUPS
+                and ai_pok[Pok.AB_ID] == AbilityNames.MOLD_BREAKER
+            )
+        )
+    ):
+        return -10
+    # Recovery Moves
+    if move[Flags.HEAL] and ai_pok[Pok.CURRENT_HP] == ai_pok[Pok.MAX_HP]:
+        return -10
+    # OH-KO
+    if (
+        move[Move.OH_KO]
+        and (
+            user_pok[Pok.LEVEL] > ai_pok[Pok.LEVEL]
+            or (
+                ability == AbilityNames.STURDY and ai_pok[Pok.AB_ID] == AbilityNames.MOLD_BREAKER
+            )
+        )
+    ):
+        return -10
+    '''
+
+    return 0
+
+
+def evaluate_attack_flag(
+            final_damage, effectiveness, user_pok, move, idx, rand
+    ) -> tuple[int, dict]:
+    """
+    For damage moves it sees if it kill and some move exceptions then add to score
+    For non-damaging moves it checks if its 4x effective, for some reason
+    """
+    score = 0
+    move_id = move[Move.ID]
+    # Check for kill
+    if final_damage >= user_pok[Pok.CURRENT_HP]:
+        if (
+            move_id
+            in SELF_KILL_MOVE
+        ):
+            score += 0
+        elif (
+            move_id
+            in WEIRD_PRIO_MOVE
+        ):
+            add_adjustment(rand, idx, 4, 85)
+        elif move[Move.PRIORITY] >= 1 and move_id != MoveName.FAKE_OUT:
+            score = 6
+        else:
+            score = 4
+        return score, rand
+
+    if (
+        move_id in MAYBE_BAD_MOVES
+    ):
+        add_adjustment(rand, idx, -2, 176)
+    if effectiveness >= 4:
+        add_adjustment(rand, idx, 2, 176)
+    return score, rand
