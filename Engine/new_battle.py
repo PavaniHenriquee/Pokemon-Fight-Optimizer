@@ -14,10 +14,10 @@ from Engine.engine_helper import (
     early_returns
 )
 from Engine.status_calc import sec_effects, calculate_effects
-from Engine.damage_calc import calculate_damage
+from Engine.damage_calc import calculate_damage, struggle
 from Models.trainer_ai import TrainerAI
 from Models.idx_const import (
-    Pok, Field, Move, Flags, Sec, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
+    Pok, Field, Move, Flags, Sec, POK_LEN
 )
 from Models.helper import count_party, Status, MoveCategory, AbilityActivation
 from DataBase.AbilitiesDB import AbilityNames
@@ -118,25 +118,14 @@ class Battle():
         if current_move < 0:
             p1_switch = True
         if not isinstance(opp_move, int):
-            # TODO: Check everything if opponent switches, especially if they die on entering
+            # TODO: Check everything if opponent switches, specially if they die on entering
             p2_switch = True
-            opp_move = 0  # Just so i don't break the move_order def call being ->
-            # self.current_opp.moves[opp_move] this need to be a number
-
-        move_offset = MOVE_STRIDE
-        base_offset = OFFSET_MOVE
 
         order = move_order(
             self.current_pokemon,
-            self.current_pokemon[
-                base_offset + (move_offset * current_move):
-                base_offset + (move_offset * (current_move + 1))
-            ],
+            current_move,
             self.current_opp,
-            self.current_opp[
-                base_offset + (move_offset * opp_move):
-                base_offset + (move_offset * (opp_move + 1))
-            ],
+            opp_move,
             p1_switch,
             p2_switch,
             self.battle_array[Field.WEATHER]
@@ -147,11 +136,14 @@ class Battle():
             if attacker[Pok.CURRENT_HP] <= 0 or early_returns(attacker, defender, idx, flinch):
                 continue
 
-            move[Move.PP] -= 1
+            if not isinstance(move, int):
+                move[Move.PP] -= 1
             move_hit = calculate_hit_miss(move, attacker, defender)
 
             if move_hit is MoveOutcome.HIT:
-                if move[Move.CATEGORY] in [MoveCategory.PHYSICAL, MoveCategory.SPECIAL]:
+                if isinstance(move, int):
+                    struggle(attacker, defender)
+                elif move[Move.CATEGORY] in [MoveCategory.PHYSICAL, MoveCategory.SPECIAL]:
                     self.ps_moves(attacker, defender, move)
                     flinch = flinch_checker(move)
                     if defender[Pok.STATUS] == Status.FREEZE:
@@ -242,8 +234,8 @@ class Battle():
 
     def turn_sim(self, opp_move, current_action):
         """One turn"""
-        from SearchEngine.models import BattlePhase
-        if current_action[0] == 'move':
+        from SearchEngine.models import BattlePhase, ActionType
+        if current_action[0] == ActionType.MOVE:
             switch_idx = -1
             current_move = current_action[1]
         else:
@@ -255,7 +247,6 @@ class Battle():
         self.action(current_move, opp_move)
         opp_idx = self.end_of_turn()
         self.battle_array[Field.TURN] += 1
-        self.turn += 1
         self.current_opp[Pok.TURNS] += 1
         self.current_pokemon[Pok.TURNS] += 1
         if not opp_idx:

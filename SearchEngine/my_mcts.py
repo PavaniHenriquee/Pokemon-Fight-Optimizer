@@ -12,7 +12,7 @@ import random
 from typing import List
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node
-from SearchEngine.models import BattlePhase, GameState, Node
+from SearchEngine.models import BattlePhase, GameState, Node, ActionType
 from Models.idx_const import Field
 
 
@@ -151,8 +151,9 @@ def print_best_path(root, depth=0, max_depth=50, min_visits=1):
 
     for action, nodes in sorted(root.children.items(), key=lambda x: (x[0][0], x[0][1])):
         total_visits = sum(getattr(n, "visits", 0) for n in nodes)
+        act_type = "Move" if action[0] == ActionType.MOVE else "Switch"
         if total_visits < min_visits:
-            print(f"{indent}Action: {action} (skipped, visits={total_visits})")
+            print(f"{indent}Action: {(act_type, action[1])} (skipped, visits={total_visits})")
             continue
 
         # Use the backpropagated values directly
@@ -168,7 +169,7 @@ def print_best_path(root, depth=0, max_depth=50, min_visits=1):
         # For metric, just use avg_win directly since backprop already selected it
         metric = total_visits
 
-        print(f"{indent}Action: {action}, visits: {total_visits}, "
+        print(f"{indent}Action: {(act_type, action[1])}, visits: {total_visits}, "
             f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}")
 
         if metric > best_metric:
@@ -177,7 +178,8 @@ def print_best_path(root, depth=0, max_depth=50, min_visits=1):
             best_node = max(nodes, key=lambda n: getattr(n, "visits", 0))
 
     if best_node:
-        print(f"{indent}==> Best action at depth {depth}: {best_action}")
+        best_act_type = "Move" if best_action[0] == ActionType.MOVE else "Switch"
+        print(f"{indent}==> Best action at depth {depth}: {(best_act_type,best_action[1])}")
         print_best_path(best_node, depth + 1, max_depth, min_visits)
 
 

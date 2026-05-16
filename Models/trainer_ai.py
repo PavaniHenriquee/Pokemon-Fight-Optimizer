@@ -433,7 +433,7 @@ class TrainerAI:
 
         # Fallback in case no moves are valid (prevents random.choice index errors)
         if not best_moves:
-            return 0 # TODO: Struggle(will probably be -1)
+            return 10 # Struggle
 
         if len(best_moves) == 1:
             return best_moves[0]

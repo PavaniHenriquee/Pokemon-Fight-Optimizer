@@ -207,7 +207,7 @@ def calculate_damage_confusion(pok):
     return damage
 
 
-def struggle(attacker, defender):
+def struggle(attacker, defender, rec=True):
     """
     Struggle damage for the opponent and recoil
     Not implemented
@@ -244,11 +244,12 @@ def struggle(attacker, defender):
     # Adding 2 after the above
     damage += 2
 
-    recoil = atk_max_hp//4
-    if recoil >= cur_hup:
-        attacker[Pok.CURRENT_HP] = 0
-    else:
-        attacker[Pok.CURRENT_HP] -= recoil
+    if rec:
+        recoil = atk_max_hp//4
+        if recoil >= cur_hup:
+            attacker[Pok.CURRENT_HP] = 0
+        else:
+            attacker[Pok.CURRENT_HP] -= recoil
 
     return damage
 

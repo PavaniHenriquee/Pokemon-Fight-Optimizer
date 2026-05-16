@@ -13,10 +13,13 @@ from Models.helper import count_party
 from Engine.new_battle import Battle
 from Engine.engine_helper import start_of_battle
 
-ActionType = SimpleNamespace(
-    MOVE = "move",
-    SWITCH = "switch"
-)
+class ActionType:
+    """
+    Actions
+    """
+    MOVE = 1
+    SWITCH = 2
+
 
 
 BattlePhase = SimpleNamespace(
@@ -115,11 +118,19 @@ class GameState():
         active = self.get_my_active()
 
         # Check each move slot
+        usable_moves = False
         for i in range(4):
             move_id_idx = Pok.MOVE1_ID + (i * MOVE_STRIDE)
             move_pp = move_id_idx + Move.PP
-            if active[move_id_idx] != 0 or active[move_pp] > 0:  # Move exists
-                actions.append((ActionType.MOVE, i))
+            if active[move_id_idx] != 0:
+                if active[move_pp] > 0:  # Move can be used
+                    actions.append((ActionType.MOVE, i))
+                    usable_moves = True
+                else:
+                    break
+
+        if not usable_moves:
+            actions.append((ActionType.MOVE, 10))
 
         # Add switch actions for normal turn
         for i in range(6):
@@ -154,7 +165,7 @@ class GameState():
         )
         if new.phase == BattlePhase.DEATH_END_OF_TURN:
             battle.switch_in_action(my_move_idx[1])
-            if my_move_idx[0] == "switch":
+            if my_move_idx[0] == ActionType.SWITCH:
                 new.my_active = my_move_idx[1]
                 new.battle_array[Field.MY_POK] = my_move_idx[1]
             else:
@@ -167,7 +178,7 @@ class GameState():
         new.battle_array[Field.PHASE] = new.phase
         if opp_idx:
             new.opp_active = opp_idx
-        if my_move_idx[0] == 'switch':
+        if my_move_idx[0] == ActionType.SWITCH:
             new.my_active = my_move_idx[1]
             new.battle_array[Field.MY_POK] = my_move_idx[1]
 

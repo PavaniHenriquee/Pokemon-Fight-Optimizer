@@ -4,8 +4,9 @@ from Models.idx_const import(
     Pok, Sec, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, Move
 )
 from Models.helper import count_party, count_Id, MoveCategory
-from Engine.damage_calc import calculate_damage
+from Engine.damage_calc import calculate_damage, struggle
 from Utils.helper import get_type_effectiveness
+from SearchEngine.models import ActionType
 
 
 def party_hp_fraction(battle_array, offset, maxp):
@@ -62,8 +63,12 @@ def rollout_pref(c_pok, o_pok, o_idx, weather, actions) -> tuple:
     """
     Prefer certain moves to reduce noise
     """
-    o_move = o_pok[OFFSET_MOVE + o_idx * MOVE_STRIDE: OFFSET_MOVE + (o_idx + 1) * MOVE_STRIDE]
-    o_dmg = calculate_damage(o_pok, c_pok, o_move, weather)  # still worth it for 1 calc
+    # TODO: Opponent possible switch
+    if o_idx != 10:
+        o_move = o_pok[OFFSET_MOVE + o_idx * MOVE_STRIDE: OFFSET_MOVE + (o_idx + 1) * MOVE_STRIDE]
+        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather)  # still worth it for 1 calc
+    else:
+        o_dmg = struggle(o_pok, c_pok, rec=False)
     opp_hp_ratio = o_pok[Pok.CURRENT_HP] * 4 // o_pok[Pok.MAX_HP]
     faster = c_pok[Pok.SPEED] > o_pok[Pok.SPEED]
     can_survive = o_dmg < c_pok[Pok.CURRENT_HP]
@@ -72,7 +77,9 @@ def rollout_pref(c_pok, o_pok, o_idx, weather, actions) -> tuple:
     for a in actions:
         weight = 1
 
-        if a[0] == 'move':
+        if a[0] == ActionType.MOVE:
+            if a[1] == 10:
+                continue
             move = c_pok[OFFSET_MOVE + a[1] * MOVE_STRIDE: OFFSET_MOVE + (a[1] + 1) * MOVE_STRIDE]
             cat = move[Move.CATEGORY]
 

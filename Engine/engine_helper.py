@@ -3,7 +3,7 @@ import random
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
 from Engine.status_calc import after_turn_status, freeze, paralysis
-from Models.idx_const import Pok, Move, Sec, Field, POK_LEN
+from Models.idx_const import Pok, Move, Sec, Field, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 from Models.helper import Status, VolStatus, Types, Weather, AbilityActivation
 from DataBase.PkDB import PokemonName
 from DataBase.AbilitiesDB import AbilityNames
@@ -40,15 +40,12 @@ def check_speed(p1, p2, weather):
 
 def move_speed_tie(p1, m1, p2, m2):
     """Get at random the order"""
-    speedtie = random.getrandbits(1)
-    if speedtie == 1:
-        order = [(p1, m1, p2), (p2, m2, p1)]
-    else:
-        order = [(p2, m2, p1), (p1, m1, p2)]
-    return order
+    if random.getrandbits(1):
+        return [(p1, m1, p2), (p2, m2, p1)]
+    return [(p2, m2, p1), (p1, m1, p2)]
 
 
-def move_order(p1, move1, p2, move2, p1_switch, p2_switch, weather):
+def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
     """Calculates the order which the what move should be played
     Returns:
 
@@ -56,18 +53,52 @@ def move_order(p1, move1, p2, move2, p1_switch, p2_switch, weather):
         ('Slower Pokemon, 'Move of Slower Pokemon', 'Faster Pokemon')]"""
     if p1_switch and p2_switch:
         return []
+
+    move_offset = MOVE_STRIDE
+    base_offset = OFFSET_MOVE
+
     if p1_switch:
+        move2 = p2[
+            base_offset + (move_offset * opp_move):
+            base_offset + (move_offset * (opp_move + 1))
+        ] if opp_move != 10 else 10
         return [(p2, move2, p1)]
     if p2_switch:
+        move1 = p1[
+            base_offset + (move_offset * my_move):
+            base_offset + (move_offset * (my_move + 1))
+        ] if opp_move != 10 else 10
         return [(p1, move1, p2)]
+
+    strug1 = False
+    strug2 = False
+    if my_move < 4:
+        move1 = p1[
+            base_offset + (move_offset * my_move):
+            base_offset + (move_offset * (my_move + 1))
+        ]
+    else:
+        move1 = my_move
+        strug1 = True
+    if opp_move < 4:
+        move2 = p2[
+            base_offset + (move_offset * opp_move):
+            base_offset + (move_offset * (opp_move + 1))
+        ]
+    else:
+        move2 = opp_move
+        strug2 = True
 
     p1_speed, p2_speed = check_speed(p1, p2, weather)
 
+    move1_prio = move1[Move.PRIORITY] if not strug1 else 0
+    move2_prio = move2[Move.PRIORITY] if not strug2 else 0
+
     if (
-        (move1[Move.PRIORITY] != 0 or move2[Move.PRIORITY] != 0)
-        and move1[Move.PRIORITY] != move2[Move.PRIORITY]
+        (move1_prio != 0 or move2_prio != 0)
+        and move1_prio != move2_prio
     ):
-        if move1[Move.PRIORITY] > move2[Move.PRIORITY]:
+        if move1_prio > move2_prio:
             order = [(p1, move1, p2), (p2, move2, p1)]
         else:
             order = [(p2, move2, p1), (p1, move1, p2)]
@@ -78,6 +109,7 @@ def move_order(p1, move1, p2, move2, p1_switch, p2_switch, weather):
             order = [(p2, move2, p1), (p1, move1, p2)]
         else:
             order = move_speed_tie(p1, move1, p2, move2)
+
     return order
 
 
@@ -92,6 +124,8 @@ class MoveOutcome:
 def calculate_hit_miss(move, attacker, defender):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
+    if isinstance(move, int):
+        return MoveOutcome.HIT
     move_acc = move[Move.ACCURACY]
 
     if get_type_effectiveness(move[Move.TYPE], defender[Pok.TYPE1], defender[Pok.TYPE2]) == 0:
