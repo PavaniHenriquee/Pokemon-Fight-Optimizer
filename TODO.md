@@ -2,15 +2,15 @@ Abilities
 [X]Aftermath
 [X]Battle Armor
 [X]Chlorophyll
-[]Damp
-[]Guts
-[]Huge Power
-[]Hustle
-[]Inner Focus
+[X]Damp
+[X]Guts
+[X]Huge Power
+[X]Hustle
+[X]Inner Focus
 []Intimidate
 []Keen Eye
 []Magic Guard !
-[]Pickup # Difference in other gens, define how to do it
+[]Pickup
 []Poison Point
 []Rain Dish
 []Reckless

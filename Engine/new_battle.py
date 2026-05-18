@@ -11,7 +11,8 @@ from Engine.engine_helper import (
     flinch_checker,
     thaw,
     after_turn_damage,
-    early_returns
+    early_returns,
+    switch_in
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage, struggle
@@ -66,7 +67,6 @@ class Battle():
                 else:
                     speed_tie_2 = True
             if my_s > opp_s or speed_tie_1:
-                # TODO: Switch in abilities and terrain hazards
                 # My Pokemon
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
@@ -74,16 +74,18 @@ class Battle():
                 self.current_pokemon = self.my_pty[
                     (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
                 ]
+                switch_in(self.current_pokemon, self.current_opp)
                 # Opponent Pokemon
                 reset_switch_out(self.current_opp)
                 self.current_opp = opp_switch
                 self.battle_array[Field.OPP_POK] = opp_switch
+                switch_in(self.current_opp, self.current_pokemon)
             elif my_s < opp_s or speed_tie_2:
-                # TODO: Switch in abilities and terrain hazards
                 # Opponent Pokemon
                 reset_switch_out(self.current_opp)
                 self.battle_array[Field.OPP_POK] = opp_switch
                 self.current_opp = opp_switch
+                switch_in(self.current_opp, self.current_pokemon)
                 # My Pokemon
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
@@ -91,22 +93,23 @@ class Battle():
                 self.current_pokemon = self.my_pty[
                     (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
                 ]
+                switch_in(self.current_pokemon, self.current_opp)
             return
 
         if opp_switch:
-            # TODO: Switch in abilities and terrain hazards
             reset_switch_out(self.current_opp)
             self.current_opp = opp_switch
             self.battle_array[Field.OPP_POK] = opp_switch
+            switch_in(self.current_opp, self.current_pokemon)
 
         if switch_idx >= 0:
-            # TODO: Switch in abilities and terrain hazards
             reset_switch_out(self.current_pokemon)
             self.battle_array[Field.MY_POK] = switch_idx
             self.battle_array[Field.AI_KNOWS] = 0
             self.current_pokemon = self.my_pty[
                 (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
             ]
+            switch_in(self.current_pokemon, self.current_opp)
 
     def action(self, current_move, opp_move):
         """Where the moves are calculated"""
@@ -145,7 +148,7 @@ class Battle():
                     struggle(attacker, defender)
                 elif move[Move.CATEGORY] in [MoveCategory.PHYSICAL, MoveCategory.SPECIAL]:
                     self.ps_moves(attacker, defender, move)
-                    flinch = flinch_checker(move)
+                    flinch = flinch_checker(move, defender)
                     if defender[Pok.STATUS] == Status.FREEZE:
                         thaw(move, defender)
                 else:

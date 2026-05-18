@@ -135,7 +135,7 @@ class AbilityActivation:
     ON_BASE_POWER   = 2
     ON_CHANGE_STAT  = 4
     ON_DAMAGE       = 8
-    ON_START        = 16
+    ON_SWITCH_IN    = 16
     ON_CRITICAL     = 32
     ON_TRY_MOVE     = 64
     ON_SET_STATUS   = 128

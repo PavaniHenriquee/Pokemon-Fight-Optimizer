@@ -30,19 +30,18 @@
   },
   "Hustle": {
     "name": "hustle",
-    "when": "on_modify_stat"
+    "when": ["on_modify_stat", "on_try_move"]
   },
   "Illuminate": {
     "name": "illuminate"
   },
   "Inner Focus": {
     "breakable": true,
-    "name": "inner_focus",
-    "when": ["on_change_stat", "on_set_status"]
+    "name": "inner_focus"
   },
   "Intimidate": {
     "name": "intimidate",
-    "when": "on_start"
+    "when": "on_switch_in"
   },
   "Iron Fist": {
     "name": "iron_fist",

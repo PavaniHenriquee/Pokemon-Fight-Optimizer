@@ -4,12 +4,14 @@ from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
 from Engine.status_calc import after_turn_status, freeze, paralysis
 from Models.idx_const import Pok, Move, Sec, Field, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
-from Models.helper import Status, VolStatus, Types, Weather, AbilityActivation
+from Models.helper import Status, VolStatus, Types, Weather, AbilityActivation, MoveCategory
 from DataBase.PkDB import PokemonName
 from DataBase.AbilitiesDB import AbilityNames
+from DataBase.MoveDB import MoveName
 
 
 SANDSTORM_IM = {Types.ROCK, Types.GROUND, Types.STEEL}
+DAMP_IGNORES = {MoveName.EXPLOSION, MoveName.SELFDESTRUCT}
 
 
 def check_speed(p1, p2, weather):
@@ -121,6 +123,27 @@ class MoveOutcome:
     SEMI_INVULNERABLE = 4
 
 
+def ab_on_try_move(move, attacker, defender, accuracy) -> bool:
+    """
+    Check to see if the ability changes the probabilty of a move hitting
+    """
+    atk_ab = attacker[Pok.AB_ID]
+    def_ab = defender[Pok.AB_ID]
+    if move in DAMP_IGNORES and (
+        atk_ab == AbilityNames.DAMP  #pylint: disable=consider-using-in
+        or def_ab == AbilityNames.DAMP
+    ):
+        return 0
+    if (
+        atk_ab == AbilityNames.HUSTLE
+        and move[Move.CATEGORY] == MoveCategory.PHYSICAL
+        and not move[Move.OH_KO]
+    ):
+        return (accuracy*3277)//4096
+
+    return accuracy
+
+
 def calculate_hit_miss(move, attacker, defender):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
@@ -128,11 +151,18 @@ def calculate_hit_miss(move, attacker, defender):
         return MoveOutcome.HIT
     move_acc = move[Move.ACCURACY]
 
+    ab_a = attacker[Pok.AB_WHEN]
+    ab_d = defender[Pok.AB_WHEN]
+    if ab_a & AbilityActivation.ON_TRY_MOVE or ab_d & AbilityActivation.ON_TRY_MOVE:
+        move_acc = ab_on_try_move(move, attacker, defender, move_acc)
+
     if get_type_effectiveness(move[Move.TYPE], defender[Pok.TYPE1], defender[Pok.TYPE2]) == 0:
         return MoveOutcome.INVULNERABLE
 
     if move_acc == -1:
         return MoveOutcome.HIT
+    if move_acc == 0:
+        return MoveOutcome.MISS
 
     acc_stage = attacker[Pok.ACCURACY_STAT_STAGE] - defender[Pok.EVASION_STAT_STAGE]
     if acc_stage > 0:
@@ -173,11 +203,13 @@ def reset_switch_out(pok):
     pok[Pok.BADLY_POISON]               = 1
 
 
-def flinch_checker(move):
+def flinch_checker(move, defender):
     """Returns true or false if move has a flinch percent and it should flinch"""
     flinch = move[Sec.VOL_STATUS]
     chance = move[Sec.CHANCE] / 100
     if flinch != 0 and flinch & VolStatus.FLINCH:
+        if defender[Pok.AB_ID] == AbilityNames.INNER_FOCUS:
+            return False
         if random.random() <= chance:
             return True
 
@@ -305,3 +337,13 @@ def early_returns(attacker, defender, idx: int, flinch: bool) -> bool:  # pylint
         #TODO: Some moves still go through, like self buff, dig, future sight
         return True
     return False
+
+
+def switch_in(attacker, defender):
+    """
+    What happens when a pokemon switches in so, abilities, hazards
+    """
+    if attacker[Pok.AB_WHEN] & AbilityActivation.ON_SWITCH_IN:
+        ability = attacker[Pok.AB_ID]
+        if ability == AbilityNames.INTIMIDATE:
+            defender[Pok.ATTACK_STAT_STAGE] -= 1

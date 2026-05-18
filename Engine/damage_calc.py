@@ -16,11 +16,27 @@ STAGES_TABLE = (
 )
 
 
+def ab_modify_stat(attacker, atk, physical, move):
+    """
+    Applies base stat changes
+    """
+    atk_ab = attacker[Pok.AB_ID]
+    if physical:
+        if atk_ab == AbilityNames.GUTS and attacker[Pok.STATUS] != 0:
+            atk = (atk*3)//2
+        elif atk_ab == AbilityNames.HUGE_POWER:
+            atk *= 2
+        elif atk_ab == AbilityNames.HUSTLE and not move[Move.OH_KO]:
+            atk = (atk*3)//2
+    return atk
+
+
 def raw_atk_def(move, attacker, defender, weather=0, crit=False):
     """
     Getting the right attack and defense and applying the right modifiers
     """
-    if move[Move.CATEGORY] == MoveCategory.PHYSICAL:
+    physical = move[Move.CATEGORY] == MoveCategory.PHYSICAL
+    if physical:
         raw_attack = attacker[Pok.ATTACK]
         raw_defense = defender[Pok.DEFENSE]
         atk_stage = attacker[Pok.ATTACK_STAT_STAGE]
@@ -41,6 +57,12 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
     if crit:
         def_stage = min(def_stage, 0)
         atk_stage = max(atk_stage, 0)
+
+    if (
+        attacker[Pok.AB_WHEN] & AbilityActivation.ON_MODIFY_STAT
+        or defender[Pok.AB_WHEN] & AbilityActivation.ON_MODIFY_STAT
+    ):
+        raw_attack = ab_modify_stat(attacker, raw_attack, physical, move)
     # apply stage multipliers
     if not atk_stage | def_stage:
         return raw_attack, raw_defense
@@ -80,8 +102,9 @@ def base_power_ability(attacker, move) -> float:
 
 
 def multipliers(
-        move: np.int32, attacker: np.int32, defender: np.int32,
-        weather:int, crit: bool, roll_mult: int, damage
+        move: np.ndarray[1, np.int32], attacker: np.ndarray[1, np.int32],
+        defender: np.ndarray[1, np.int32],
+        weather:int, crit: bool, roll_mult: int, damage: int
 ) -> int:
     """Calc Multiplers for bas formula damage"""
     m_type = move[Move.TYPE]
@@ -91,7 +114,10 @@ def multipliers(
 
     # Burn
     if attacker[Pok.STATUS] == Status.BURN:
-        if move[Move.CATEGORY] == MoveCategory.PHYSICAL:
+        if (
+            move[Move.CATEGORY] == MoveCategory.PHYSICAL
+            and attacker[Pok.AB_ID] != AbilityNames.GUTS
+        ):
             damage //= 2
 
     # TODO: Screen

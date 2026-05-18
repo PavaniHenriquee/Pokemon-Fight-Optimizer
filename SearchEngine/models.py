@@ -2,7 +2,6 @@
 import math
 import random
 from dataclasses import dataclass
-from types import SimpleNamespace
 from typing import List, Tuple
 import numpy as np
 from Models.idx_const import (
@@ -22,11 +21,18 @@ class ActionType:
 
 
 
-BattlePhase = SimpleNamespace(
-    TURN_START = 0,
+class BattlePhase:
+    """
+    Where i'm at in the battle
+    """
+    TURN_START = 0
     DEATH_END_OF_TURN = 1
-)
 
+
+
+_MOVE_ID_IDXS = tuple(Pok.MOVE1_ID + i * MOVE_STRIDE for i in range(4))
+_MOVE_PP_IDXS = tuple(idx + Move.PP for idx in _MOVE_ID_IDXS)
+_POK_HP_OFFSETS = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
 
 class GameState():
     """Screenshot of the current gamestate"""
@@ -102,44 +108,32 @@ class GameState():
     def get_valid_actions(self) -> List[Tuple[str, int]]:
         """Get all valid actions for current player"""
         actions = []
+        ba = self.battle_array
+        my_active = self.my_active
 
-        # Handle death phase first and return immediately
         if self.phase == BattlePhase.DEATH_END_OF_TURN:
-            for i in range(6):
-                pokemon = self.get_my_pokemon(i)
-                if (
-                    pokemon[Pok.CURRENT_HP] > 0
-                    and i != (self.my_active)
-                ):
+            for i, hp_off in enumerate(_POK_HP_OFFSETS):
+                if ba[hp_off] > 0 and i != my_active:
                     actions.append((ActionType.SWITCH, i))
-            return actions  # Return here to prevent adding move actions
+            return actions
 
-        # Normal turn phase - get active pokemon
-        active = self.get_my_active()
-
-        # Check each move slot
+        pok_start = my_active * POK_LEN
         usable_moves = False
-        for i in range(4):
-            move_id_idx = Pok.MOVE1_ID + (i * MOVE_STRIDE)
-            move_pp = move_id_idx + Move.PP
-            if active[move_id_idx] != 0:
-                if active[move_pp] > 0:  # Move can be used
+        for i, (mid, mpp) in enumerate(zip(_MOVE_ID_IDXS, _MOVE_PP_IDXS)):
+            if ba[pok_start + mid] != 0:
+                if ba[pok_start + mpp] > 0:
                     actions.append((ActionType.MOVE, i))
                     usable_moves = True
                 else:
                     break
+            else:
+                break
 
         if not usable_moves:
             actions.append((ActionType.MOVE, 10))
 
-        # Add switch actions for normal turn
-        for i in range(6):
-            pokemon = self.get_my_pokemon(i)
-            # Can switch if pokemon is alive and not currently active
-            if (
-                pokemon[Pok.CURRENT_HP] > 0
-                and i != (self.my_active)
-            ):
+        for i, hp_off in enumerate(_POK_HP_OFFSETS):
+            if ba[hp_off] > 0 and i != my_active:
                 actions.append((ActionType.SWITCH, i))
 
         return actions
@@ -165,11 +159,8 @@ class GameState():
         )
         if new.phase == BattlePhase.DEATH_END_OF_TURN:
             battle.switch_in_action(my_move_idx[1])
-            if my_move_idx[0] == ActionType.SWITCH:
-                new.my_active = my_move_idx[1]
-                new.battle_array[Field.MY_POK] = my_move_idx[1]
-            else:
-                pass
+            new.my_active = my_move_idx[1]
+            new.battle_array[Field.MY_POK] = my_move_idx[1]
             new.phase = BattlePhase.TURN_START
             new.battle_array[Field.PHASE] = BattlePhase.TURN_START
             return new
