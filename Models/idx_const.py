@@ -1,4 +1,5 @@
 """Fast integer constants for array indexing - no enum overhead"""
+from dataclasses import dataclass
 
 def _int_constants(cls):
     return [value for name, value in cls.__dict__.items() if name.isupper() and isinstance(value, int)]
@@ -9,6 +10,7 @@ def _length(cls, start_offset=0):
     return max(values) - start_offset + 1
 
 
+@dataclass(slots=True)
 class Pok:
     """Pokemon array indices"""
     ID                        = 0
@@ -49,6 +51,7 @@ class Pok:
     AB_SUPRESS_WEATHER        = AB_NO_TRANSFORM + 1
 
 
+@dataclass(slots=True)
 class Move:
     """Move array indices - pure integers"""
     ID               = 0
@@ -101,6 +104,7 @@ class Move:
 BASE_MOVE_LEN = _length(Move)
 
 
+@dataclass(slots=True)
 class Flags:
     """Move Flags indices - pure integers"""
     BYPASS_SUB       = BASE_MOVE_LEN
@@ -144,6 +148,7 @@ FLAGS_LEN = _length(Flags, BASE_MOVE_LEN)
 OFFSET_SEC = BASE_MOVE_LEN + FLAGS_LEN
 
 
+@dataclass(slots=True)
 class Sec:
     """Secondary array indices - pure integers"""
     CHANCE      = OFFSET_SEC
@@ -164,6 +169,7 @@ class Sec:
 SEC_LEN = _length(Sec, OFFSET_SEC)
 
 
+@dataclass(slots=True)
 class Item:
     """Index for Items"""
     ID                 = 0
@@ -193,6 +199,7 @@ Pok.ITEM_ID  = Pok.MOVE4_ID + MOVE_STRIDE
 POK_LEN       = Pok.ITEM_ID + ITEM_LEN
 
 
+@dataclass(slots=True)
 class Field:
     """Battlefield indices - pure integers"""
     MY_POK             = POK_LEN * 12
@@ -210,7 +217,7 @@ class Field:
     OPP_MOVE           = PHASE + 1
     AI_KNOWS           = OPP_MOVE + 1
 
-FIELD_LEN = Field.OPP_MOVE + 1
+FIELD_LEN = Field.AI_KNOWS + 1
 
 '''
 

@@ -3,36 +3,24 @@ import random
 import numpy as np
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
 from Utils.helper import (
-    get_type_effectiveness, batch_independent_score_from_rand, stage_to_multiplier
+    get_type_effectiveness, batch_independent_score_from_rand
 )
 from DataBase.MoveDB import MoveName
-from DataBase.AbilitiesDB import AbilityNames
 from DataBase.PkDB import POKEMON_ABILITY_POOL
 from Models.idx_const import (
     Pok, Move, POK_LEN
 )
 from Models.helper import (
-    MoveCategory, Types, Status, VolStatus, Target,Enemy_AI_Knows
+    MoveCategory, Enemy_AI_Knows
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
     POKEMON_HAS_RELEVANT_ABILITY,
     basic_flag,
-    evaluate_attack_flag
+    evaluate_attack_flag,
+    expert_flag
 )
 
-
-ELEC_AB_IM = {AbilityNames.VOLT_ABSORB, AbilityNames.MOTOR_DRIVE}
-POISON_AB_IM = {AbilityNames.IMMUNITY, AbilityNames.MAGIC_GUARD, AbilityNames.POISON_POINT}
-PARA_AB_IM = {AbilityNames.LIMBER, AbilityNames.MAGIC_GUARD}
-BURN_AB_IM = {AbilityNames.WATER_VEIL, AbilityNames.MAGIC_GUARD}
-STAT_AB_IM = {AbilityNames.CLEAR_BODY, AbilityNames.WHITE_SMOKE}
-STEEL_POISON = {Types.STEEL, Types.POISON}
-ABILITY_BASIC_FLAG = {
-    AbilityNames.VOLT_ABSORB, AbilityNames.MOTOR_DRIVE, AbilityNames.WATER_ABSORB,
-    AbilityNames.FLASH_FIRE, AbilityNames.LEVITATE, AbilityNames.SOUNDPROOF,
-    AbilityNames.WONDER_GUARD
-}
 # mov_excep = ['Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
 #             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Superpower', 'Eruption',
 #             'Water Spout','Head Smash']
@@ -52,259 +40,6 @@ class TrainerAI:
     Trainer AI, where it is used by using the def where it
     returns what the original ai would have done
     """
-
-    def expert_flag(self, ai_pok, u_pok, move, turn, idx, rand):
-        """
-        It shows the incentives and disincentives for the best trainer ai out there,
-        for ROM HACKS every trainer has it
-        """
-        score = 0
-        hp_pct_ai = (ai_pok[Pok.CURRENT_HP]*100) // ai_pok[Pok.MAX_HP]
-        hp_pct_u = (u_pok[Pok.CURRENT_HP]*100) // u_pok[Pok.MAX_HP]
-        # Check if move first (TODO add Trick room logic here)
-        if (
-            stage_to_multiplier(ai_pok[Pok.SPEED_STAT_STAGE], ai_pok[Pok.SPEED])
-            > stage_to_multiplier(u_pok[Pok.SPEED_STAT_STAGE], u_pok[Pok.SPEED])
-        ):
-            move_first = True
-        elif (
-            stage_to_multiplier(ai_pok[Pok.SPEED_STAT_STAGE], ai_pok[Pok.SPEED])
-            < stage_to_multiplier(u_pok[Pok.SPEED_STAT_STAGE], u_pok[Pok.SPEED])
-        ):
-            move_first = False
-        else:
-            move_first = random.choice([True, False])
-
-        if move[Move.CATEGORY] == MoveCategory.STATUS:
-            if move[Move.STATUS] != 0:
-                # Poison-Inducing
-                if (
-                    move[Move.STATUS] == Status.POISON
-                    and (hp_pct_ai < 50 or hp_pct_u <= 50)
-                ):
-                    score = -1
-                    return score, rand
-                    # Sleep-Inducing
-                if (
-                    move[Move.STATUS] == Status.SLEEP
-                    and any(
-                        m in [MoveName.DREAM_EATER, MoveName.NIGHTMARE]
-                        for m in [
-                            ai_pok[Pok.MOVE1_ID],
-                            ai_pok[Pok.MOVE2_ID],
-                            ai_pok[Pok.MOVE3_ID],
-                            ai_pok[Pok.MOVE4_ID],
-                        ]
-                    )
-                ):
-                    add_adjustment(rand, idx, 1, 128)
-                    return score, rand
-                # Paralyzing-Inducing
-                if move[Move.STATUS] == Status.PARALYSIS and not move_first:
-                    add_adjustment(rand, idx, 3, 236)
-                    return score, rand
-            if move[Move.VOL_STATUS]:
-                # Confusion-Inducing
-                if move[Move.VOL_STATUS] == VolStatus.CONFUSION:
-                    if move[Move.ID] == MoveName.SWAGGER:
-                        psych_up = False
-                        if any(
-                            m == MoveName.PSYCH_UP
-                            for m in [
-                                ai_pok[Pok.MOVE1_ID],
-                                ai_pok[Pok.MOVE2_ID],
-                                ai_pok[Pok.MOVE3_ID],
-                                ai_pok[Pok.MOVE4_ID],
-                            ]
-                        ):
-                            psych_up = True
-                        if psych_up:
-                            if u_pok[Pok.ATTACK_STAT_STAGE] <= -3:
-                                if turn == 1:
-                                    score += 5
-                                else:
-                                    score += 3
-                            else:
-                                score += -5
-                            return score, rand
-                    if move[Move.ID] in (MoveName.SWAGGER, MoveName.FLATTER):
-                        add_adjustment(rand, idx, -1, 128)
-                    if hp_pct_u <= 70:
-                        add_adjustment(rand, idx, -1, 128)
-                        if hp_pct_u <= 30:
-                            score += -1
-                        if hp_pct_u <= 50:
-                            score += -1
-                    return score, rand
-            if any(move[Move.BOOST_ATK: Move.BOOST_EV + 1]):
-                # Stat-Boosting moves
-                # atk = ['Attack', 'Special Attack']
-                # de = ['Defense', 'Special Defense']
-                if move[Move.TARGET] in (
-                    Target.ADJACENT_ALLY,
-                    Target.ADJACENT_ALLY_OR_SELF,
-                    Target.ALLIES,
-                    Target.ALLY_SIDE,
-                    Target.SELF
-                ):
-                    if any(move[Move.BOOST_ATK: Move.BOOST_SPDEF + 1]):
-                        if (
-                            (move[Move.BOOST_ATK] and ai_pok[Pok.ATTACK_STAT_STAGE]>= 3)
-                            or (
-                                move[Move.BOOST_SPATK]
-                                and ai_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]>= 3
-                            )
-                            or (
-                                move[Move.BOOST_DEF]
-                                and ai_pok[Pok.DEFENSE_STAT_STAGE]>= 3
-                            )
-                            or (
-                                move[Move.BOOST_SPDEF]
-                                and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]>= 3
-                            )
-                        ):
-                            add_adjustment(rand, idx, -1, 156)
-                        if hp_pct_ai >= 100:
-                            add_adjustment(rand, idx, 2, 128)
-                        elif hp_pct_ai >= 71:
-                            pass
-                        elif hp_pct_ai > 39:
-                            add_adjustment(rand, idx, -2, 186)
-                        else:
-                            score += -2
-                        return score, rand
-                    if move[Move.BOOST_SPEED] and move[Move.ID] != MoveName.DRAGON_DANCE:
-                        if move_first:
-                            score += -3
-                        else:
-                            add_adjustment(rand, idx, 3, 186)
-                        return score, rand
-                    if move[Move.BOOST_EV]:
-                        if hp_pct_ai > 89:
-                            add_adjustment(rand, idx, 3, 186)
-                        if ai_pok[Pok.EVASION_STAT_STAGE]>= 3:
-                            add_adjustment(rand, idx, -1, 128)
-                        if u_pok[Pok.STATUS] == Status.TOXIC:
-                            if hp_pct_ai > 50:
-                                add_adjustment(rand, idx, 3, 206)
-                            else:
-                                add_adjustment(rand, idx, 3, 142)
-                        if u_pok[Pok.VOL_STATUS] & VolStatus.LEECH_SEED:
-                            add_adjustment(rand, idx, 3, 186)
-                        if u_pok[Pok.VOL_STATUS] & VolStatus.CURSE:
-                            add_adjustment(rand, idx, 3, 186)
-                        if hp_pct_ai > 70 or u_pok[Pok.EVASION_STAT_STAGE] == 0:
-                            return score, rand
-                        if hp_pct_ai < 40 or hp_pct_u < 40:
-                            score += -2
-                            return score, rand
-                        add_adjustment(rand, idx, -2, 186)
-                        # TODO: Ingrain, Aqua Ring
-                if move[Move.TARGET] in (
-                    Target.NORMAL,
-                    Target.ADJACENT_FOE,
-                    Target.ALL_ADJACENT_FOES,
-                    Target.ANY,
-                    Target.FOE_SIDE,
-                    Target.RANDOM_NORMAL,
-                    Target.SCRIPTED
-                ):
-                    # Attack and Special Attack
-                    if move[Move.BOOST_ATK] or move[Move.BOOST_SPATK]:
-                        if (
-                            (move[Move.BOOST_ATK]< 0 and u_pok[Pok.ATTACK_STAT_STAGE]!= 0)
-                            or (move[Move.BOOST_SPATK] and u_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]!= 0)
-                        ):
-                            score += -1
-                        if hp_pct_ai <= 90:
-                            score += -1
-                        if (
-                            (move[Move.BOOST_ATK] and u_pok[Pok.ATTACK_STAT_STAGE]<= -3)
-                            or (
-                                move[Move.BOOST_SPATK]
-                                and u_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]<= -3
-                            )
-                        ):
-                            add_adjustment(rand, idx, -2, 206)
-                        if hp_pct_u <= 70:
-                            score += -2
-                        # TODO: Last move check:
-                        # If the move last used by the target was not of the corresponding
-                        # class (Physical/Special), 50% chance of score -2.
-                        return score, rand
-                    # Defense and Special Defense
-                    if move[Move.BOOST_DEF] or move[Move.BOOST_SPDEF]:
-                        if hp_pct_ai < 70:
-                            add_adjustment(rand, idx, -2, 206)
-                        if (
-                            (move[Move.BOOST_DEF] and ai_pok[Pok.DEFENSE_STAT_STAGE]<= -3)
-                            or (
-                                move[Move.BOOST_SPDEF]
-                                and ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE]<= -3
-                            )
-                        ):
-                            add_adjustment(rand, idx, -2, 206)
-                        if hp_pct_u < 70:
-                            score += -2
-                        return score, rand
-                    # Speed
-                    if move[Move.BOOST_SPEED]:
-                        if not move_first:
-                            add_adjustment(rand, idx, 2, 186)
-                        else:
-                            score += -3
-                        return score, rand
-                    # Accuracy
-                    if move[Move.BOOST_ACC]:
-                        # Check this, think it's wrong
-                        if hp_pct_u <= 70 and not hp_pct_ai >= 70:
-                            add_adjustment(rand, idx, -1, 156)
-                        if ai_pok[Pok.ACCURACY_STAT_STAGE] <= -2:
-                            add_adjustment(rand, idx, 2, 176)
-                        if u_pok[Pok.STATUS] == Status.TOXIC:
-                            add_adjustment(rand, idx, 2, 186)
-                        if u_pok[Pok.VOL_STATUS] & VolStatus.LEECH_SEED:
-                            add_adjustment(rand, idx, 2, 186)
-                        if u_pok[Pok.VOL_STATUS] & VolStatus.CURSE:
-                            add_adjustment(rand, idx, 2, 186)
-                        if hp_pct_ai >= 70 or ai_pok[Pok.ACCURACY_STAT_STAGE] == 0:
-                            return score, rand
-                        if hp_pct_ai <= 40 or hp_pct_u <= 40:
-                            score += -2
-                        else:
-                            add_adjustment(rand, idx, -2, 186)
-                        return score, rand
-                        # TODO: Ingrain, Aqua Ring
-                    # Evasion
-                    if move[Move.BOOST_EV]:
-                        if hp_pct_ai < 70:
-                            add_adjustment(rand, idx, -2, 206)
-                        if u_pok.stat_stages['Evasion'] <= -3:
-                            add_adjustment(rand, idx, -2, 206)
-                        if hp_pct_u <= 70:
-                            score += -2
-                        return score, rand
-
-        # Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
-        if move[Move.ACCURACY] == -1:  # -1 is how always hit moves is represented
-            if ai_pok[Pok.ACCURACY_STAT_STAGE] <= -5 or u_pok[Pok.EVASION_STAT_STAGE] >= 5:
-                score += 1
-            if ai_pok[Pok.ACCURACY_STAT_STAGE] <= -3 or u_pok[Pok.EVASION_STAT_STAGE] >= 3:
-                add_adjustment(rand, idx, 1, 156)
-            return score, rand
-
-
-        """
-        TODO:
-            Draining Attacks
-            Mirror Move
-            Selfdestruct, explosion, memento
-            Healing Wish, Lunar Dance
-            Dragon Dance
-            Acupressure
-
-        """
-        return score, rand
 
     def choose_move(
             self,
@@ -389,7 +124,7 @@ class TrainerAI:
             eval_atk, rand = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
             score = eval_atk + basic_flag(move, ability, ai_pok, user_pok, effectiveness, weather)
 
-            expert, rand = self.expert_flag(ai_pok, user_pok, move, turn, i, rand)
+            expert, rand = expert_flag(ai_pok, user_pok, move, turn, i, rand, weather)
             score += expert
 
             # Check exceptions once

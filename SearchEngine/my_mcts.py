@@ -13,7 +13,9 @@ from typing import List
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node
 from SearchEngine.models import BattlePhase, GameState, Node, ActionType
-from Models.idx_const import Field
+from Models.idx_const import Pok, Field, POK_LEN, MOVE_STRIDE, Move
+from DataBase.MoveDB import MoveIdToName
+from DataBase.PkDB import PokIdToName
 
 
 def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.3) -> float:
@@ -44,6 +46,8 @@ def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.3) -> float:
 
         sim_state = sim_state.step(action)
         depth += 1
+    if depth >= 99:
+        pass
     return sim_state
 
 
@@ -135,9 +139,9 @@ def recursive_backup(node, min_visits=70):
     return node.win_chance, node.dead_avg
 
 
-def print_best_path(root, depth=0, max_depth=50, min_visits=1):
+def print_best_path(root, battle_array, depth=0, max_depth=50, min_visits=1):
     """
-    Print best path using backpropagated values.
+    Print the best path that MCTS found, following the most visits
     """
     if depth > max_depth or not getattr(root, "children", None):
         return
@@ -151,12 +155,22 @@ def print_best_path(root, depth=0, max_depth=50, min_visits=1):
 
     for action, nodes in sorted(root.children.items(), key=lambda x: (x[0][0], x[0][1])):
         total_visits = sum(getattr(n, "visits", 0) for n in nodes)
-        act_type = "Move" if action[0] == ActionType.MOVE else "Switch"
+
+        # Resolve human-readable label
+        if action[0] == ActionType.MOVE:
+            if action[1] == 10:
+                label = "Struggle"
+            else:
+                move_id = root.snapshot.my_slice[Pok.MOVE1_ID + action[1] * MOVE_STRIDE + Move.ID]
+                label = f"Move: {MoveIdToName.get(move_id, f'Unknown#{move_id}').replace('_', ' ').title()}"
+        else:
+            pok_id = int(battle_array[action[1] * POK_LEN + Pok.ID])
+            label = f"Switch → {PokIdToName.get(pok_id, f'Unknown#{pok_id}').capitalize()}"
+
         if total_visits < min_visits:
-            print(f"{indent}Action: {(act_type, action[1])} (skipped, visits={total_visits})")
+            print(f"{indent}{label} (skipped, visits={total_visits})")
             continue
 
-        # Use the backpropagated values directly
         avg_win = sum(n.win_chance * getattr(n, "visits", 0) for n in nodes) / total_visits
         if sum(getattr(n, "wins", 0) for n in nodes) > 0:
             avg_dead = (
@@ -166,11 +180,9 @@ def print_best_path(root, depth=0, max_depth=50, min_visits=1):
         else:
             avg_dead = 0
 
-        # For metric, just use avg_win directly since backprop already selected it
         metric = total_visits
-
-        print(f"{indent}Action: {(act_type, action[1])}, visits: {total_visits}, "
-            f"avg_win: {round(avg_win*100,2)}%, avg_dead: {round(avg_dead,2)}")
+        print(f"{indent}{label} | visits: {total_visits}, "
+              f"win: {round(avg_win*100, 2)}%, dead: {round(avg_dead, 2)}")
 
         if metric > best_metric:
             best_metric = metric
@@ -178,9 +190,18 @@ def print_best_path(root, depth=0, max_depth=50, min_visits=1):
             best_node = max(nodes, key=lambda n: getattr(n, "visits", 0))
 
     if best_node:
-        best_act_type = "Move" if best_action[0] == ActionType.MOVE else "Switch"
-        print(f"{indent}==> Best action at depth {depth}: {(best_act_type,best_action[1])}")
-        print_best_path(best_node, depth + 1, max_depth, min_visits)
+        if best_action[0] == ActionType.MOVE:
+            if best_action[1] == 10:
+                best_label = "Struggle"
+            else:
+                move_id = root.snapshot.my_slice[Pok.MOVE1_ID + best_action[1] * MOVE_STRIDE + Move.ID]
+                best_label = MoveIdToName.get(move_id, f'Unknown#{move_id}').replace('_', ' ').title()
+        else:
+            pok_id = int(battle_array[best_action[1] * POK_LEN + Pok.ID])
+            best_label = PokIdToName.get(pok_id, f'Unknown#{pok_id}').capitalize()
+
+        print(f"{indent}==> Best at depth {depth}: {best_label}")
+        print_best_path(best_node, battle_array, depth + 1, max_depth, min_visits)
 
 
 def _select_expand(state: GameState, node: Node):
@@ -275,4 +296,4 @@ def mcts(root_state: GameState, max_iterations: int = 50_000, terminal_iteration
     root = Node(root_state)
     mcts_loop(root, root_state, max_iterations, terminal_iterations)
     recursive_backup(root)
-    print_best_path(root)
+    print_best_path(root, root_state.battle_array)

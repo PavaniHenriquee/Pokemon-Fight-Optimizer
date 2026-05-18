@@ -59,6 +59,34 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     #  raise ValueError("Shouldn't get here")
 
 
+def _weighted_choice(ev):
+    """
+    Fast path: single dominant action (very common case)
+    Avoids full scan most of the time
+    """
+    best_action, best_weight = ev[0]
+    total = best_weight
+    for action, weight in ev[1:]:
+        total += weight
+        if weight > best_weight:
+            best_weight = weight
+            best_action = action
+
+    # If one action is overwhelmingly dominant, pick it directly
+    # 100 vs rest-at-1: e.g. 4 actions → total ~103, dominant has 97% chance anyway
+    if best_weight >= total * 0.90:
+        return best_action
+
+    # Otherwise do the proper weighted draw
+    r = random.randrange(total)
+    cumulative = 0
+    for action, weight in ev:
+        cumulative += weight
+        if r < cumulative:
+            return action
+    raise ValueError("Broken")
+
+
 def rollout_pref(c_pok, o_pok, o_idx, weather, actions) -> tuple:
     """
     Prefer certain moves to reduce noise
@@ -136,31 +164,5 @@ def rollout_pref(c_pok, o_pok, o_idx, weather, actions) -> tuple:
 
     if not ev:  # fallback if everything was immune or list empty
         return random.choice(actions)
-
-    def _weighted_choice(ev):
-        """
-        Fast path: single dominant action (very common case)
-        Avoids full scan most of the time
-        """
-        best_action, best_weight = ev[0]
-        total = best_weight
-        for action, weight in ev[1:]:
-            total += weight
-            if weight > best_weight:
-                best_weight = weight
-                best_action = action
-
-        # If one action is overwhelmingly dominant, pick it directly
-        # 100 vs rest-at-1: e.g. 4 actions → total ~103, dominant has 97% chance anyway
-        if best_weight >= total * 0.90:
-            return best_action
-
-        # Otherwise do the proper weighted draw
-        r = random.randrange(total)
-        cumulative = 0
-        for action, weight in ev:
-            cumulative += weight
-            if r < cumulative:
-                return action
 
     return _weighted_choice(ev)

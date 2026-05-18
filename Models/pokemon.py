@@ -4,7 +4,7 @@ import numpy as np
 from Utils.loader import natures
 from DataBase.loader import pkDB, abDB, itemDB, moveDB
 from DataBase.PkDB import PokemonName
-from Models.helper import type_to_number, Status, gender_to_number, vol_status
+from Models.helper import type_to_number, Status, gender_to_number
 from Models.move import Move
 from Models.ability import ability_to_np
 from Models.item import item_to_np
@@ -12,7 +12,19 @@ from Models.item import item_to_np
 
 class Pokemon:
     """Pokemon class, so i can follow everything related to each pokemon"""
-    def __init__(self, name: str, gender, level, ability, nature, moves, ivs=None, evs=None, status=0, item=None):
+    def __init__(
+            self,
+            name: str,
+            gender,
+            level,
+            ability,
+            nature,
+            moves,
+            ivs=None,
+            evs=None,
+            status=0,
+            item=None
+    ):
         self.name = name
         self.base_data = pkDB[name]
         self.gender = gender  # Male, Female, None
@@ -118,7 +130,7 @@ class Pokemon:
             self.stat_stages['Accuracy'],
             self.stat_stages['Evasion'],
             status_val,
-            vol_status(),
+            0,  # this is for vol_status, which can't start a battle with any
             self.sleep_counter,
             self.badly_poison,
             self.turns,

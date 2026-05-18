@@ -107,4 +107,4 @@ def mcts_async(
             w.join()
 
     recursive_backup(root)
-    print_best_path(root)
+    print_best_path(root, root_state.battle_array)

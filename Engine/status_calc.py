@@ -5,6 +5,8 @@ from Models.idx_const import Pok, Move, Sec
 from Models.helper import Status, MoveCategory, Target, Weather
 
 
+B_P = {Status.BURN, Status.POISON, Status.TOXIC}
+
 def apply_status(move, pok, weather, sec=False):
     """Apply status effects"""
     pok_status = pok[Pok.STATUS]
@@ -155,11 +157,10 @@ def after_turn_status(pok):
     """Calculate damage after turn like burn, poison, volatile status"""
     # TODO: Magic Guard
     status = pok[Pok.STATUS]
-    b_p = {Status.BURN, Status.POISON}
     badly = pok[Pok.BADLY_POISON]
     max_hp = pok[Pok.MAX_HP]
     if status:
-        if status in b_p:
+        if status in B_P:
             if badly >= 1:
                 dmg = max_hp * badly // 16
                 pok[Pok.BADLY_POISON] += 1

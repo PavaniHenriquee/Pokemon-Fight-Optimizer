@@ -4,7 +4,9 @@ from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.damage_calc import calculate_damage_confusion
 from Engine.status_calc import after_turn_status, freeze, paralysis
 from Models.idx_const import Pok, Move, Sec, Field, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
-from Models.helper import Status, VolStatus, Types, Weather, AbilityActivation, MoveCategory
+from Models.helper import (
+    Status, VolStatus, Types, Weather, AbilityActivation, MoveCategory, TARGET_SELF_SIDE
+)
 from DataBase.PkDB import PokemonName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.MoveDB import MoveName
@@ -12,6 +14,7 @@ from DataBase.MoveDB import MoveName
 
 SANDSTORM_IM = {Types.ROCK, Types.GROUND, Types.STEEL}
 DAMP_IGNORES = {MoveName.EXPLOSION, MoveName.SELFDESTRUCT}
+WEATHER_NOT_END_OF_TURN = {0, Weather.SUN, Weather.RAIN}
 
 
 def check_speed(p1, p2, weather):
@@ -184,23 +187,11 @@ def calculate_crit():
     return iscrit
 
 
-def get_non_fainted_pokemon(party):
-    """Only non fainted pokemon list"""
-    return [pokemon for pokemon in party if not getattr(pokemon, 'fainted', False)]
-
-
 def reset_switch_out(pok):
     """If a pokemon swithces out it needs to reset these conditions"""
-    pok[Pok.ATTACK_STAT_STAGE]          = 0
-    pok[Pok.DEFENSE_STAT_STAGE]         = 0
-    pok[Pok.SPECIAL_ATTACK_STAT_STAGE]  = 0
-    pok[Pok.SPECIAL_DEFENSE_STAT_STAGE] = 0
-    pok[Pok.SPEED_STAT_STAGE]           = 0
-    pok[Pok.ACCURACY_STAT_STAGE]        = 0
-    pok[Pok.EVASION_STAT_STAGE]         = 0
-    pok[Pok.VOL_STATUS]                 = 0
-    pok[Pok.TURNS]                      = 0
-    pok[Pok.BADLY_POISON]               = 1
+    pok[Pok.ATTACK_STAT_STAGE : Pok.EVASION_STAT_STAGE + 1] = 0
+    pok[Pok.VOL_STATUS] = 0
+    pok[Pok.BADLY_POISON] = 1 if pok[Pok.STATUS] == Status.TOXIC else 0
 
 
 def flinch_checker(move, defender):
@@ -296,19 +287,21 @@ def start_of_battle(array):
 
 def after_turn_damage(pokemon, weather: int) -> int:
     """Calculate all damage sources that comes at the end of turns"""
+    if weather in WEATHER_NOT_END_OF_TURN and pokemon[Pok.STATUS] == 0:
+        return 0
     dmg = 0
     max_hp = pokemon[Pok.MAX_HP]
     dmg += after_turn_status(pokemon)
-    type1_2= {pokemon[Pok.TYPE1],pokemon[Pok.TYPE2]}
-    if weather == Weather.SANDSTORM and not type1_2.isdisjoint(SANDSTORM_IM):
+    type1_2= (pokemon[Pok.TYPE1],pokemon[Pok.TYPE2])
+    if weather == Weather.SANDSTORM and not SANDSTORM_IM.isdisjoint(type1_2):
         dmg += max_hp // 16
-    elif weather == Weather.HAIL and not Types.ICE in type1_2:
+    elif weather == Weather.HAIL and Types.ICE not in type1_2:
         dmg += max_hp // 16
 
     return dmg
 
 
-def early_returns(attacker, defender, idx: int, flinch: bool) -> bool:  # pylint: disable=too-many-return-statements
+def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # pylint: disable=too-many-return-statements
     """Early returns to see if an attack goes through or not"""
     atker_status = attacker[Pok.STATUS]
     # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
@@ -334,7 +327,9 @@ def early_returns(attacker, defender, idx: int, flinch: bool) -> bool:  # pylint
             return True
     # In cases like after recoil damage, selfdestruct, etc.
     if defender[Pok.CURRENT_HP] <= 0:
-        #TODO: Some moves still go through, like self buff, dig, future sight
+        if move[Move.TARGET] in TARGET_SELF_SIDE:
+            return False
+        #TODO: Some moves still go through, like dig, future sight
         return True
     return False
 
@@ -343,6 +338,9 @@ def switch_in(attacker, defender):
     """
     What happens when a pokemon switches in so, abilities, hazards
     """
+    # TODO: Hazards damage, take in consideration that the pokemon needs to
+    # be alive to activiate the ability so before the ability do something like
+    # if attacker[Pok.CURRENT_HP] > 0:
     if attacker[Pok.AB_WHEN] & AbilityActivation.ON_SWITCH_IN:
         ability = attacker[Pok.AB_ID]
         if ability == AbilityNames.INTIMIDATE:

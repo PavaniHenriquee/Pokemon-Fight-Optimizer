@@ -1,6 +1,8 @@
 """Database for abilities in python, where it gives everything a move does""" 
+from dataclasses import dataclass
 
 
+@dataclass(slots=True)
 class AbilityNames:
     """Abilty indexes for check"""
     ADAPTABILITY = 1

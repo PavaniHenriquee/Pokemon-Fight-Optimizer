@@ -1,6 +1,8 @@
 """Database for moves in python, where it gives everything a move does"""
+from dataclasses import dataclass
 
 
+@dataclass(slots=True)
 class MoveName:
     """
     Move names to number
@@ -26,3 +28,6 @@ class MoveName:
     PSYCH_UP = 19
     FLATTER = 20
     DRAGON_DANCE = 21
+
+
+MoveIdToName = {v: k for k, v in MoveName.__dict__.items() if not k.startswith("__")}

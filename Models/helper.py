@@ -1,9 +1,11 @@
 """Helper for transformation of Names to number, so i can use Numpy efficiently"""
 from types import SimpleNamespace
+from dataclasses import dataclass
 import numpy as np
 from Models.idx_const import Pok, POK_LEN
 
 
+@dataclass(slots=True)
 class Types:
     """Types to numbers"""
     NORMAL = 1
@@ -26,9 +28,6 @@ class Types:
     FAIRY = 18
 
 
-TypesIdToName = {v: k for k, v in Types.__dict__.items() if not k.startswith("__")}
-
-
 Stat = SimpleNamespace(
     ATTACK = 0,
     DEFENSE = 1,
@@ -38,6 +37,7 @@ Stat = SimpleNamespace(
 )
 
 
+@dataclass(slots=True)
 class Status:
     """Status to numbers"""
     SLEEP = 1
@@ -48,9 +48,7 @@ class Status:
     TOXIC = 6
 
 
-StatusIdToName = {v: k for k, v in Status.__dict__.items() if not k.startswith("__")}
-
-
+@dataclass(slots=True)
 class VolStatus:
     """Volatile status to numbers, using bitmap"""
     FLINCH = 1
@@ -64,6 +62,7 @@ class VolStatus:
     ATTRACT = 256
 
 
+@dataclass(slots=True)
 class SideCondition:
     """Side condition to numbers"""
     STEALTH_ROCK = 1
@@ -75,12 +74,12 @@ class SideCondition:
     AURORA_VEIL = 64
 
 
+@dataclass(slots=True)
 class Gender:
     """Gender to numbers"""
     GENDERLESS = 0
     MALE = 1
     FEMALE = 2
-
 
 
 def type_to_number(types: list):
@@ -104,11 +103,7 @@ def gender_to_number(gender):
     return getattr(Gender, g.upper())
 
 
-def vol_status():
-    """returns 0, because you can't start a battle with any volatile status"""
-    return 0
-
-
+@dataclass(slots=True)
 class Target:
     """Target to numbers"""
     NORMAL = 0
@@ -128,7 +123,7 @@ class Target:
     SELF = 14
 
 
-
+@dataclass(slots=True)
 class AbilityActivation:
     """When will the ability be used"""
     ON_MODIFY_STAT  = 1
@@ -144,6 +139,8 @@ class AbilityActivation:
     ON_MODIFY_ACC   = 1024
     ON_RESIDUAL     = 2048
 
+
+@dataclass(slots=True)
 class MoveCategory:
     """
     Physical, Special, Status
@@ -151,7 +148,6 @@ class MoveCategory:
     PHYSICAL = 1
     SPECIAL = 2
     STATUS = 3
-
 
 
 ItemType = SimpleNamespace(
@@ -163,6 +159,7 @@ ItemType = SimpleNamespace(
 )
 
 
+@dataclass(slots=True)
 class ItemActivation:
     """When will the ability be used"""
     SWITCH_IN         = 1
@@ -186,6 +183,7 @@ def count_Id(pty):
     return np.count_nonzero(pty[Pok.ID :: pok_features] > 0)
 
 
+@dataclass(slots=True)
 class Weather:
     """Types of Weather"""
     SUN       = 1
@@ -194,6 +192,7 @@ class Weather:
     SANDSTORM = 4
 
 
+@dataclass(slots=True)
 class Enemy_AI_Knows:
     """
     Bit allocation for if the ai knows the moves and the ability
@@ -204,3 +203,39 @@ class Enemy_AI_Knows:
     MOVE2 = 4
     MOVE3 = 8
     MOVE4 = 16
+
+
+@dataclass(slots=True)
+class ActionType:
+    """
+    Actions
+    """
+    MOVE = 1
+    SWITCH = 2
+
+
+@dataclass(slots=True)
+class BattlePhase:
+    """
+    Where i'm at in the battle
+    """
+    TURN_START = 0
+    DEATH_END_OF_TURN = 1
+
+
+TARGET_SELF_SIDE = {
+    Target.ADJACENT_ALLY,
+    Target.ADJACENT_ALLY_OR_SELF,
+    Target.ALLIES,
+    Target.ALLY_SIDE,
+    Target.SELF
+}
+TARGET_OPP_SIDE = {
+    Target.NORMAL,
+    Target.ADJACENT_FOE,
+    Target.ALL_ADJACENT_FOES,
+    Target.ANY,
+    Target.FOE_SIDE,
+    Target.RANDOM_NORMAL,
+    Target.SCRIPTED
+}

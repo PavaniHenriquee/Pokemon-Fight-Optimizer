@@ -8,26 +8,9 @@ from Models.idx_const import (
     Pok, Field, POK_LEN, MOVE_STRIDE, Move
 )
 from Models.trainer_ai import TrainerAI
-from Models.helper import count_party
+from Models.helper import count_party, ActionType, BattlePhase
 from Engine.new_battle import Battle
 from Engine.engine_helper import start_of_battle
-
-class ActionType:
-    """
-    Actions
-    """
-    MOVE = 1
-    SWITCH = 2
-
-
-
-class BattlePhase:
-    """
-    Where i'm at in the battle
-    """
-    TURN_START = 0
-    DEATH_END_OF_TURN = 1
-
 
 
 _MOVE_ID_IDXS = tuple(Pok.MOVE1_ID + i * MOVE_STRIDE for i in range(4))
@@ -160,7 +143,6 @@ class GameState():
         if new.phase == BattlePhase.DEATH_END_OF_TURN:
             battle.switch_in_action(my_move_idx[1])
             new.my_active = my_move_idx[1]
-            new.battle_array[Field.MY_POK] = my_move_idx[1]
             new.phase = BattlePhase.TURN_START
             new.battle_array[Field.PHASE] = BattlePhase.TURN_START
             return new
@@ -171,7 +153,6 @@ class GameState():
             new.opp_active = opp_idx
         if my_move_idx[0] == ActionType.SWITCH:
             new.my_active = my_move_idx[1]
-            new.battle_array[Field.MY_POK] = my_move_idx[1]
 
         return new
 

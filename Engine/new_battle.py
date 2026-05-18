@@ -20,20 +20,20 @@ from Models.trainer_ai import TrainerAI
 from Models.idx_const import (
     Pok, Field, Move, Flags, Sec, POK_LEN
 )
+from Models.helper import ActionType, BattlePhase
 from Models.helper import count_party, Status, MoveCategory, AbilityActivation
 from DataBase.AbilitiesDB import AbilityNames
 
 
 class Battle():
     """Battle class, where i calculate all the battle, following the flow of battle"""
-    def __init__(self, battle_array=None):
+    def __init__(self, battle_array):
         # Make the normalized battle array
         self.battle_array = battle_array
         self.pok_features = POK_LEN
         self.my_pty = self.battle_array[0:(6 * self.pok_features)]
         self.opp_pty = self.battle_array[(6 * self.pok_features):(12 * self.pok_features)]
         self.opp_ai = TrainerAI()
-        self.turn = self.battle_array[Field.TURN]
 
         # current active Pokémon
         opp_active = self.battle_array[Field.OPP_POK]
@@ -56,31 +56,29 @@ class Battle():
             opp_switch = self.opp_pty[(i * self.pok_features):((i+1) * self.pok_features)]
 
         if switch_idx >= 0 and opp_move == 's':
+            my_switch = self.my_pty[
+                (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+            ]
             my_s, opp_s = check_speed(
                 self.current_pokemon, self.current_opp, self.battle_array[Field.WEATHER]
             )
-            speed_tie_1 = False
-            speed_tie_2 = False
+            speed_tie = False
             if my_s == opp_s:
                 if random.getrandbits(1):
-                    speed_tie_1 = True
-                else:
-                    speed_tie_2 = True
-            if my_s > opp_s or speed_tie_1:
+                    speed_tie = True
+            if my_s > opp_s or speed_tie:
                 # My Pokemon
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.battle_array[Field.AI_KNOWS] = 0
-                self.current_pokemon = self.my_pty[
-                    (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
-                ]
+                self.current_pokemon = my_switch
                 switch_in(self.current_pokemon, self.current_opp)
                 # Opponent Pokemon
                 reset_switch_out(self.current_opp)
                 self.current_opp = opp_switch
                 self.battle_array[Field.OPP_POK] = opp_switch
                 switch_in(self.current_opp, self.current_pokemon)
-            elif my_s < opp_s or speed_tie_2:
+            elif my_s < opp_s:
                 # Opponent Pokemon
                 reset_switch_out(self.current_opp)
                 self.battle_array[Field.OPP_POK] = opp_switch
@@ -90,9 +88,7 @@ class Battle():
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.battle_array[Field.AI_KNOWS] = 0
-                self.current_pokemon = self.my_pty[
-                    (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
-                ]
+                self.current_pokemon = my_switch
                 switch_in(self.current_pokemon, self.current_opp)
             return
 
@@ -136,7 +132,7 @@ class Battle():
 
         for idx, (attacker, move, defender) in enumerate(order, start=1):
             # If attacker slower and died before could attack
-            if attacker[Pok.CURRENT_HP] <= 0 or early_returns(attacker, defender, idx, flinch):
+            if attacker[Pok.CURRENT_HP] <= 0 or early_returns(attacker, defender, idx, flinch, move):
                 continue
 
             if not isinstance(move, int):
@@ -198,21 +194,25 @@ class Battle():
         weather = self.battle_array[Field.WEATHER]
 
         # Calculate after turn status like burn, leech seed, curse
-        if m_hp >= 0:
+        if m_hp > 0:
             dmg = after_turn_damage(self.current_pokemon, weather)
-            if dmg > m_hp:
-                dmg = m_hp
-            self.current_pokemon[Pok.CURRENT_HP] -= dmg
-        if opp_hp >= 0:
+            if dmg != 0:
+                if dmg > m_hp:
+                    m_hp = 0
+                else:
+                    m_hp -= dmg
+                self.current_opp[Pok.CURRENT_HP] = m_hp
+        if opp_hp > 0:
             dmg = after_turn_damage(self.current_opp, weather)
-            if dmg > opp_hp:
-                opp_hp = 0
-            else:
-                opp_hp -= dmg
-            self.current_opp[Pok.CURRENT_HP] = opp_hp
+            if dmg != 0:
+                if dmg > opp_hp:
+                    opp_hp = 0
+                else:
+                    opp_hp -= dmg
+                self.current_opp[Pok.CURRENT_HP] = opp_hp
 
         # If Opponent is dead
-        if opp_hp <= 0:
+        if opp_hp == 0 and m_hp != 0:
             if count_party(self.opp_pty) == 0:
                 return None
             i = self.opp_ai.sub_after_death(
@@ -220,41 +220,94 @@ class Battle():
             )
             self.battle_array[Field.OPP_POK] = i
             self.current_opp = self.opp_pty[(i * self.pok_features):((i+1) * self.pok_features)]
+            switch_in(self.current_pokemon, self.current_opp)
             return i
         return None
 
     def switch_in_action(self, switch_idx: int):
         """Grab the switch idx from MCTS and progress it"""
+        if self.current_opp[Pok.CURRENT_HP] <= 0:
+            i = self.opp_ai.sub_after_death(
+                self.opp_pty, self.current_pokemon, self.current_opp
+            )
+            opp_switch = self.opp_pty[(i * self.pok_features):((i+1) * self.pok_features)]
+            my_switch = self.my_pty[
+                (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+            ]
+
+            my_s, opp_s = check_speed(
+                my_switch, opp_switch, self.battle_array[Field.WEATHER]
+            )
+            speed_tie= False
+            if my_s == opp_s:
+                if random.getrandbits(1):
+                    speed_tie = True
+
+            if my_s > opp_s or speed_tie:
+                # My Pokemon
+                self.battle_array[Field.MY_POK] = switch_idx
+                self.battle_array[Field.AI_KNOWS] = 0
+                self.current_pokemon = self.my_pty[
+                    (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+                ]
+
+                # Opponent Pokemon
+                self.current_opp = opp_switch
+                self.battle_array[Field.OPP_POK] = opp_switch
+
+                # Switch in effects after they are already switched
+                switch_in(self.current_pokemon, self.current_opp)
+                switch_in(self.current_opp, self.current_pokemon)
+                self.battle_array[Field.TURN] += 1
+                self.current_opp[Pok.TURNS] += 1
+                self.current_pokemon[Pok.TURNS] += 1
+            elif my_s < opp_s:
+                # Opponent Pokemon
+                self.battle_array[Field.OPP_POK] = opp_switch
+                self.current_opp = opp_switch
+
+                # My Pokemon
+                self.battle_array[Field.MY_POK] = switch_idx
+                self.battle_array[Field.AI_KNOWS] = 0
+                self.current_pokemon = self.my_pty[
+                    (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+                ]
+
+                # Switch in effects after they are already switched
+                switch_in(self.current_opp, self.current_pokemon)
+                switch_in(self.current_pokemon, self.current_opp)
+                self.battle_array[Field.TURN] += 1
+                self.current_opp[Pok.TURNS] += 1
+                self.current_pokemon[Pok.TURNS] += 1
+            return
         self.battle_array[Field.MY_POK] = switch_idx
         self.current_pokemon = self.my_pty[
             (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
         ]
         self.battle_array[Field.TURN] += 1
-        self.turn += 1
         self.current_opp[Pok.TURNS] += 1
         self.current_pokemon[Pok.TURNS] += 1
+        self.battle_array[Field.AI_KNOWS] = 0
 
 
     def turn_sim(self, opp_move, current_action):
         """One turn"""
-        from SearchEngine.models import BattlePhase, ActionType
         if current_action[0] == ActionType.MOVE:
             switch_idx = -1
             current_move = current_action[1]
         else:
             current_move = -1
             switch_idx = current_action[1]
-        if self.current_opp[0] == 0 or self.current_pokemon[0] == 0:
-            pass
         self.start_of_turn(opp_move, switch_idx)
         self.action(current_move, opp_move)
         opp_idx = self.end_of_turn()
-        self.battle_array[Field.TURN] += 1
-        self.current_opp[Pok.TURNS] += 1
-        self.current_pokemon[Pok.TURNS] += 1
+
         if not opp_idx:
             opp_idx = self.battle_array[Field.OPP_POK]
         if self.current_pokemon[Pok.CURRENT_HP] <= 0:
             return BattlePhase.DEATH_END_OF_TURN, opp_idx
 
+        self.battle_array[Field.TURN] += 1
+        self.current_opp[Pok.TURNS] += 1
+        self.current_pokemon[Pok.TURNS] += 1
         return BattlePhase.TURN_START, opp_idx
