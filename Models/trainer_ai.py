@@ -1,4 +1,5 @@
 """Gives the class for the trainer Ai to be what the game would do"""
+from dataclasses import dataclass
 import random
 import numpy as np
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
@@ -35,6 +36,8 @@ def add_adjustment(arr, move_id, delta, chance):
     # Find the first index where chance is NaN (unused)
     arr[move_id].append((delta, chance))
 
+
+@dataclass(slots=True)
 class TrainerAI:
     """
     Trainer AI, where it is used by using the def where it
@@ -47,7 +50,8 @@ class TrainerAI:
             user_pok,
             turn,
             weather,
-            ai_know
+            ai_know,
+            my_last_move
     ):
         """
         Calculates the score of the moves and sees what has the highest score
@@ -124,7 +128,7 @@ class TrainerAI:
             eval_atk, rand = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, rand)
             score = eval_atk + basic_flag(move, ability, ai_pok, user_pok, effectiveness, weather)
 
-            expert, rand = expert_flag(ai_pok, user_pok, move, turn, i, rand, weather)
+            expert, rand = expert_flag(ai_pok, user_pok, move, turn, i, rand, weather, my_last_move)
             score += expert
 
             # Check exceptions once
@@ -148,11 +152,11 @@ class TrainerAI:
 
         return evaluated_moves
 
-    def return_idx(self, ai_pok, user_pok, turn, weather, ai_know):
+    def return_idx(self, ai_pok, user_pok, turn, weather, ai_know, my_last_move):
         """
         It transform the highest moving score to the index of the move
         """
-        move_scores = self.choose_move(ai_pok, user_pok, turn, weather, ai_know)
+        move_scores = self.choose_move(ai_pok, user_pok, turn, weather, ai_know, my_last_move)
 
         # Single-pass max check and collection (eliminates generator and list comprehensions)
         max_score = -float('inf')

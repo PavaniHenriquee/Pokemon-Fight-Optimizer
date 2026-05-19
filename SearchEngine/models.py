@@ -84,9 +84,7 @@ class GameState():
 
     def is_terminal(self) -> bool:
         """Check if battle is over"""
-        my_alive = count_party(self.my_pty)
-        opp_alive = count_party(self.opp_pty)
-        return my_alive == 0 or opp_alive == 0
+        return count_party(self.my_pty) == 0 or count_party(self.opp_pty) == 0
 
     def get_valid_actions(self) -> List[Tuple[str, int]]:
         """Get all valid actions for current player"""
@@ -128,7 +126,8 @@ class GameState():
             self.get_my_active(),
             self.turn,
             self.battle_array[Field.WEATHER],
-            self.battle_array[Field.AI_KNOWS]
+            self.battle_array[Field.AI_KNOWS],
+            self.battle_array[Field.MY_LAST_MOVE]
         )
         return opp_idx
 
@@ -197,7 +196,7 @@ class Node():
         self.win_chance = 0.0
         self.dead_avg = 0
 
-    def best_action(self, c=0.6):
+    def best_action(self, c=0.55):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
         # prefer a random unvisited child to avoid insertion-order bias
 

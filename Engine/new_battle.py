@@ -71,6 +71,7 @@ class Battle():
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.battle_array[Field.AI_KNOWS] = 0
+                self.battle_array[Field.MY_LAST_MOVE] = 0
                 self.current_pokemon = my_switch
                 switch_in(self.current_pokemon, self.current_opp)
                 # Opponent Pokemon
@@ -88,6 +89,7 @@ class Battle():
                 reset_switch_out(self.current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.battle_array[Field.AI_KNOWS] = 0
+                self.battle_array[Field.MY_LAST_MOVE] = 0
                 self.current_pokemon = my_switch
                 switch_in(self.current_pokemon, self.current_opp)
             return
@@ -102,6 +104,7 @@ class Battle():
             reset_switch_out(self.current_pokemon)
             self.battle_array[Field.MY_POK] = switch_idx
             self.battle_array[Field.AI_KNOWS] = 0
+            self.battle_array[Field.MY_LAST_MOVE] = 0
             self.current_pokemon = self.my_pty[
                 (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
             ]
@@ -135,8 +138,13 @@ class Battle():
             if attacker[Pok.CURRENT_HP] <= 0 or early_returns(attacker, defender, idx, flinch, move):
                 continue
 
-            if not isinstance(move, int):
+            if not isinstance(move, int):  # This is to check for Struggle since it's not a np.array
                 move[Move.PP] -= 1
+                if attacker is self.current_pokemon:
+                    self.battle_array[Field.MY_LAST_MOVE] = move[Move.ID]
+            else:
+                self.battle_array[Field.MY_LAST_MOVE] = -1  # -1 to be Struggle
+
             move_hit = calculate_hit_miss(move, attacker, defender)
 
             if move_hit is MoveOutcome.HIT:
@@ -247,6 +255,7 @@ class Battle():
                 # My Pokemon
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.battle_array[Field.AI_KNOWS] = 0
+                self.battle_array[Field.MY_LAST_MOVE] = 0
                 self.current_pokemon = self.my_pty[
                     (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
                 ]
@@ -269,6 +278,7 @@ class Battle():
                 # My Pokemon
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.battle_array[Field.AI_KNOWS] = 0
+                self.battle_array[Field.MY_LAST_MOVE] = 0
                 self.current_pokemon = self.my_pty[
                     (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
                 ]
@@ -288,6 +298,7 @@ class Battle():
         self.current_opp[Pok.TURNS] += 1
         self.current_pokemon[Pok.TURNS] += 1
         self.battle_array[Field.AI_KNOWS] = 0
+        self.battle_array[Field.MY_LAST_MOVE] = 0
 
 
     def turn_sim(self, opp_move, current_action):

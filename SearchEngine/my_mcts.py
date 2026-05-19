@@ -18,7 +18,7 @@ from DataBase.MoveDB import MoveIdToName
 from DataBase.PkDB import PokIdToName
 
 
-def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.3) -> float:
+def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.32) -> float:
     """
     Mixed rollout: sometimes use heuristics, sometimes pure random
     This reduces bias while still getting some benefit from domain knowledge

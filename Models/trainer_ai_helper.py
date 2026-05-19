@@ -11,7 +11,7 @@ from Utils.loader import TYPE_CHART
 from Utils.helper import get_type_effectiveness
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.PkDB import POKEMON_ABILITY_POOL
-from DataBase.MoveDB import MoveName
+from DataBase.MoveDB import MoveName, PHYSICAL, SPECIAL
 from DataBase.loader import abDB
 from Engine.engine_helper import check_speed
 
@@ -576,7 +576,7 @@ def expert_vol_status(move, ai_pok, u_pok, turn, rand, idx, hp_pct_u):
 
 def expert_stat(
         move, ai_pok, rand, idx, hp_pct_ai,
-        move_first, u_pok, hp_pct_u
+        move_first, u_pok, hp_pct_u, my_last_move
 ):
     """
     Moves that changes stat
@@ -594,9 +594,11 @@ def expert_stat(
                     return 0, rand
             if hp_pct_ai < 40:
                 return -2, rand
-            # TODO: If the last move used by the foe was nondamaging,
-            # or the foe has not yet used a move
-            # TODO: If the last move used by the foe was special
+            if my_last_move in SPECIAL:
+                return -2, rand
+            if my_last_move not in PHYSICAL:
+                add_adjustment(rand, idx, -2, 196)
+                return 0, rand
             add_adjustment(rand, idx, -2, 150)
             return 0, rand
 
@@ -610,9 +612,11 @@ def expert_stat(
                     return 0, rand
             if hp_pct_ai < 40:
                 return -2, rand
-            # TODO: If the last move used by the foe was nondamaging,
-            # or the foe has not yet used a move
-            # TODO: If the last move used by the foe was physical
+            if my_last_move in PHYSICAL:
+                return -2, rand
+            if my_last_move not in SPECIAL:
+                add_adjustment(rand, idx, -2, 196)
+                return 0, rand
             add_adjustment(rand, idx, -2, 150)
             return 0, rand
 
@@ -683,15 +687,16 @@ def expert_stat(
                 add_adjustment(rand, idx, -2, 206)
             if hp_pct_u < 71:
                 score += -2
-            # TODO: Last move check:
-            # If the move last used by the target was special
+            if my_last_move in SPECIAL:
+                add_adjustment(rand, idx, -2, 128)
+                return score, rand
             return score, rand
 
         # No moves that are status and also reduce SP.Atk
 
         if move[Move.BOOST_DEF]:
             score = 0
-            if hp_pct_ai < 70 or ai_pok[Pok.DEFENSE_STAT_STAGE] <= -3:
+            if hp_pct_ai < 70 or u_pok[Pok.DEFENSE_STAT_STAGE] <= -3:
                 add_adjustment(rand, idx, -2, 206)
             if hp_pct_u < 71:
                 score += -2
@@ -741,7 +746,7 @@ def expert_stat(
     raise ValueError("Target no accounted for")
 
 
-def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather):
+def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it
@@ -773,7 +778,7 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather):
         if boost_slice.any():
             return expert_stat(
                 move, ai_pok, rand, idx, hp_pct_ai,
-                move_first, u_pok, hp_pct_u
+                move_first, u_pok, hp_pct_u, my_last_move
             )
 
     # Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
