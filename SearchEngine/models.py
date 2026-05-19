@@ -7,7 +7,7 @@ import numpy as np
 from Models.idx_const import (
     Pok, Field, POK_LEN, MOVE_STRIDE, Move
 )
-from Models.trainer_ai import TrainerAI
+from Models.trainer_ai import return_idx
 from Models.helper import count_party, ActionType, BattlePhase
 from Engine.new_battle import Battle
 from Engine.engine_helper import start_of_battle
@@ -33,13 +33,6 @@ class GameState():
         self.phase = self.battle_array[Field.PHASE]
         self._opp_ai = None
         self._opp_move = None
-
-    @property
-    def opp_ai(self):
-        """Only apply Trainer AI to states that are necessary"""
-        if self._opp_ai is None:
-            self._opp_ai = TrainerAI()
-        return self._opp_ai
 
     @property
     def opp_move(self):
@@ -121,7 +114,7 @@ class GameState():
 
     def opp_move_choice(self) -> int:
         """Uses the trainer AI to choose the move"""
-        opp_idx = self.opp_ai.return_idx(
+        opp_idx = return_idx(
             self.get_opp_active(),
             self.get_my_active(),
             self.turn,

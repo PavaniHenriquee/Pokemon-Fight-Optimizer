@@ -28,15 +28,6 @@ class Types:
     FAIRY = 18
 
 
-Stat = SimpleNamespace(
-    ATTACK = 0,
-    DEFENSE = 1,
-    SPECIAL_ATTACK = 2,
-    SPECIAL_DEFENSE = 3,
-    SPEED = 4
-)
-
-
 @dataclass(slots=True)
 class Status:
     """Status to numbers"""
@@ -140,7 +131,6 @@ class AbilityActivation:
     ON_RESIDUAL     = 2048
 
 
-@dataclass(slots=True)
 class MoveCategory:
     """
     Physical, Special, Status
@@ -148,6 +138,9 @@ class MoveCategory:
     PHYSICAL = 1
     SPECIAL = 2
     STATUS = 3
+
+
+PHYSICAL_SPECIAL = {MoveCategory.PHYSICAL, MoveCategory.SPECIAL}
 
 
 ItemType = SimpleNamespace(

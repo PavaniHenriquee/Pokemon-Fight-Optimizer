@@ -5,7 +5,7 @@ from Utils.loader import natures
 from DataBase.loader import pkDB, abDB, itemDB, moveDB
 from DataBase.PkDB import PokemonName
 from Models.helper import type_to_number, Status, gender_to_number
-from Models.move import Move
+from Models.move import Moves
 from Models.ability import ability_to_np
 from Models.item import item_to_np
 
@@ -139,13 +139,13 @@ class Pokemon:
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 
-        move_helper = Move(self.move1)
+        move_helper = Moves(self.move1)
         move1 = move_helper.to_array()
-        move_helper = Move(self.move2)
+        move_helper = Moves(self.move2)
         move2 = move_helper.to_array()
-        move_helper = Move(self.move3)
+        move_helper = Moves(self.move3)
         move3 = move_helper.to_array()
-        move_helper = Move(self.move4)
+        move_helper = Moves(self.move4)
         move4 = move_helper.to_array()
 
         item = item_to_np(self.item)

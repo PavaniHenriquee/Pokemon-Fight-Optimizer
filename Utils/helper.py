@@ -1,6 +1,7 @@
 """Helper functions"""
 import random
 import numpy as np
+from numba import njit
 from Utils.loader import TYPE_CHART
 from Models.idx_const import POK_LEN, FIELD_LEN, Field
 from Models.helper import Enemy_AI_Knows
@@ -17,6 +18,7 @@ def stage_to_multiplier(stages, stat) -> int:
     return res
 
 
+@njit
 def get_type_effectiveness(atk_type, def_type1, def_type2):
     """Get how effective the type is against its target"""
     atk = atk_type

@@ -50,7 +50,6 @@ class Pok:
     AB_NO_TRANSFORM           = AB_NO_TRACER + 1
     AB_SUPRESS_WEATHER        = AB_NO_TRANSFORM + 1
 
-
 @dataclass(slots=True)
 class Move:
     """Move array indices - pure integers"""

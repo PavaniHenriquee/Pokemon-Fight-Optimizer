@@ -292,7 +292,7 @@ def basic_stat_change(move, ability, user_pok, ai_pok) -> bool:
     b_spe   = move[Move.BOOST_SPEED]
     b_acc   = move[Move.BOOST_ACC]
     b_ev    = move[Move.BOOST_EV]
-    if move[Move.TARGET] in TARGET_SELF_SIDE:  # your already-extracted set
+    if move[Move.TARGET] in TARGET_SELF_SIDE:
         s_atk   = ai_pok[Pok.ATTACK_STAT_STAGE]
         s_def   = ai_pok[Pok.DEFENSE_STAT_STAGE]
         s_spatk = ai_pok[Pok.SPECIAL_ATTACK_STAT_STAGE]
@@ -332,9 +332,10 @@ def basic_stat_change(move, ability, user_pok, ai_pok) -> bool:
             return True
 
         # Ability immunity checks (HYPER_CUTTER, KEEN_EYE etc.) use local b_* from above
+        # TODO: Clear Body, White smoke
         if b_atk  and ability == AbilityNames.HYPER_CUTTER:  return True
         if b_spe  and ability == AbilityNames.SPEED_BOOST:   return True
-        if ability in STAT_AB_IM:                             return True
+        if ability in STAT_AB_IM:                            return True
         if (b_acc or b_ev) and (
             ability == AbilityNames.NO_GUARD
             or ai_pok[Pok.AB_ID] == AbilityNames.NO_GUARD

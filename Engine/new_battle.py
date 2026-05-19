@@ -16,12 +16,14 @@ from Engine.engine_helper import (
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage, struggle
-from Models.trainer_ai import TrainerAI
+from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
     Pok, Field, Move, Flags, Sec, POK_LEN
 )
-from Models.helper import ActionType, BattlePhase
-from Models.helper import count_party, Status, MoveCategory, AbilityActivation
+from Models.helper import (
+    count_party, Status, AbilityActivation,
+    ActionType, BattlePhase, PHYSICAL_SPECIAL
+)
 from DataBase.AbilitiesDB import AbilityNames
 
 
@@ -30,19 +32,17 @@ class Battle():
     def __init__(self, battle_array):
         # Make the normalized battle array
         self.battle_array = battle_array
-        self.pok_features = POK_LEN
-        self.my_pty = self.battle_array[0:(6 * self.pok_features)]
-        self.opp_pty = self.battle_array[(6 * self.pok_features):(12 * self.pok_features)]
-        self.opp_ai = TrainerAI()
+        self.my_pty = battle_array[0:(6 * POK_LEN)]
+        self.opp_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
 
         # current active Pokémon
-        opp_active = self.battle_array[Field.OPP_POK]
-        my_active = self.battle_array[Field.MY_POK]
-        self.current_pokemon = self.battle_array[
-            (my_active * self.pok_features):((my_active+1) * self.pok_features)
+        opp_active = battle_array[Field.OPP_POK]
+        my_active = battle_array[Field.MY_POK]
+        self.current_pokemon = battle_array[
+            (my_active * POK_LEN):((my_active+1) * POK_LEN)
         ]
-        self.current_opp = self.battle_array[
-            ((opp_active+6) * self.pok_features):((opp_active+7) * self.pok_features)
+        self.current_opp = battle_array[
+            ((opp_active+6) * POK_LEN):((opp_active+7) * POK_LEN)
         ]
 
     def start_of_turn(self, opp_move, switch_idx):
@@ -50,14 +50,14 @@ class Battle():
         # TODO: Opponent Items
         opp_switch = None
         if opp_move == 's':
-            i = self.opp_ai.sub_after_death(
+            i = sub_after_death(
                 self.opp_pty, self.current_pokemon, self.current_opp
             )
-            opp_switch = self.opp_pty[(i * self.pok_features):((i+1) * self.pok_features)]
+            opp_switch = self.opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
 
         if switch_idx >= 0 and opp_move == 's':
             my_switch = self.my_pty[
-                (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+                (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
             ]
             my_s, opp_s = check_speed(
                 self.current_pokemon, self.current_opp, self.battle_array[Field.WEATHER]
@@ -106,7 +106,7 @@ class Battle():
             self.battle_array[Field.AI_KNOWS] = 0
             self.battle_array[Field.MY_LAST_MOVE] = 0
             self.current_pokemon = self.my_pty[
-                (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+                (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
             ]
             switch_in(self.current_pokemon, self.current_opp)
 
@@ -150,7 +150,7 @@ class Battle():
             if move_hit is MoveOutcome.HIT:
                 if isinstance(move, int):
                     struggle(attacker, defender)
-                elif move[Move.CATEGORY] in [MoveCategory.PHYSICAL, MoveCategory.SPECIAL]:
+                elif move[Move.CATEGORY] in PHYSICAL_SPECIAL:
                     self.ps_moves(attacker, defender, move)
                     flinch = flinch_checker(move, defender)
                     if defender[Pok.STATUS] == Status.FREEZE:
@@ -223,11 +223,11 @@ class Battle():
         if opp_hp == 0 and m_hp != 0:
             if count_party(self.opp_pty) == 0:
                 return None
-            i = self.opp_ai.sub_after_death(
+            i = sub_after_death(
                 self.opp_pty, self.current_pokemon, self.current_opp
             )
             self.battle_array[Field.OPP_POK] = i
-            self.current_opp = self.opp_pty[(i * self.pok_features):((i+1) * self.pok_features)]
+            self.current_opp = self.opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
             switch_in(self.current_pokemon, self.current_opp)
             return i
         return None
@@ -235,12 +235,12 @@ class Battle():
     def switch_in_action(self, switch_idx: int):
         """Grab the switch idx from MCTS and progress it"""
         if self.current_opp[Pok.CURRENT_HP] <= 0:
-            i = self.opp_ai.sub_after_death(
+            i = sub_after_death(
                 self.opp_pty, self.current_pokemon, self.current_opp
             )
-            opp_switch = self.opp_pty[(i * self.pok_features):((i+1) * self.pok_features)]
+            opp_switch = self.opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
             my_switch = self.my_pty[
-                (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+                (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
             ]
 
             my_s, opp_s = check_speed(
@@ -257,7 +257,7 @@ class Battle():
                 self.battle_array[Field.AI_KNOWS] = 0
                 self.battle_array[Field.MY_LAST_MOVE] = 0
                 self.current_pokemon = self.my_pty[
-                    (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+                    (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
                 ]
 
                 # Opponent Pokemon
@@ -280,7 +280,7 @@ class Battle():
                 self.battle_array[Field.AI_KNOWS] = 0
                 self.battle_array[Field.MY_LAST_MOVE] = 0
                 self.current_pokemon = self.my_pty[
-                    (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+                    (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
                 ]
 
                 # Switch in effects after they are already switched
@@ -292,7 +292,7 @@ class Battle():
             return
         self.battle_array[Field.MY_POK] = switch_idx
         self.current_pokemon = self.my_pty[
-            (switch_idx * self.pok_features):((switch_idx+1) * self.pok_features)
+            (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
         ]
         self.battle_array[Field.TURN] += 1
         self.current_opp[Pok.TURNS] += 1

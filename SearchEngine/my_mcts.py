@@ -46,10 +46,7 @@ def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.32) -> float
 
         sim_state = sim_state.step(action)
         depth += 1
-    if depth >= 99:
-        pass
     return sim_state
-
 
 
 def wilson_lower_bound(wins, total, confidence=0.95):

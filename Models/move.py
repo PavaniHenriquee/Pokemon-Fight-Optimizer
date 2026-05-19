@@ -1,16 +1,28 @@
 """Normalize moves into numpy Arrays"""
+from types import SimpleNamespace
 import numpy as np
 from Models.idx_const import (
     BASE_MOVE_LEN, SEC_LEN, FLAGS_LEN, OFFSET_SEC,
-    Move as MoveA,
+    Move,
     Flags as MoveFlags,
     Sec as SecondaryArray
 )
-from Models.helper import Types, Target, Stat, SideCondition, Status, VolStatus, MoveCategory
+from Models.helper import Types, Target,SideCondition, Status, VolStatus, MoveCategory
 from DataBase.MoveDB import MoveName
 
 
-class Move():
+
+
+Stat = SimpleNamespace(
+    ATTACK = 0,
+    DEFENSE = 1,
+    SPECIAL_ATTACK = 2,
+    SPECIAL_DEFENSE = 3,
+    SPEED = 4
+)
+
+
+class Moves():
     """Move class"""
     def __init__(self, move: dict):
         self.move = move
@@ -29,83 +41,83 @@ class Move():
         else:
             dmg_result = -1
 
-        base_move_array[MoveA.ID]       = getattr(MoveName, self.move['name'].upper())
-        base_move_array[MoveA.CATEGORY] = getattr(MoveCategory, self.move['category'].upper())
-        base_move_array[MoveA.TYPE]     = getattr(Types,self.move['type'].upper())
-        base_move_array[MoveA.TARGET]   = getattr(Target,self.move['target'].upper())
-        base_move_array[MoveA.POWER]    = (
+        base_move_array[Move.ID]       = getattr(MoveName, self.move['name'].upper())
+        base_move_array[Move.CATEGORY] = getattr(MoveCategory, self.move['category'].upper())
+        base_move_array[Move.TYPE]     = getattr(Types,self.move['type'].upper())
+        base_move_array[Move.TARGET]   = getattr(Target,self.move['target'].upper())
+        base_move_array[Move.POWER]    = (
             self.move.get('power', 0) if self.move.get('power', 0) is not None
             else 0
         )
-        base_move_array[MoveA.ACCURACY] = (
+        base_move_array[Move.ACCURACY] = (
             -1 if self.move.get('accuracy', True) is True
             else self.move.get('accuracy', 0) if self.move.get('accuracy', 0) is not None
             else 0
         )
-        base_move_array[MoveA.CRIT_RATIO]  = self.move.get('crit_ratio', 1)
-        base_move_array[MoveA.WILL_CRIT]   = int(self.move.get('will_crit', False))
-        base_move_array[MoveA.OH_KO]       = int(self.move.get('oh_ko', False))
-        base_move_array[MoveA.SHEER_FORCE] = int(self.move.get('sheer_force', False))
-        base_move_array[MoveA.PRIORITY]    = self.move.get('priority', 0)
-        base_move_array[MoveA.OVERRIDE_OFF_POK] = (
+        base_move_array[Move.CRIT_RATIO]  = self.move.get('crit_ratio', 1)
+        base_move_array[Move.WILL_CRIT]   = int(self.move.get('will_crit', False))
+        base_move_array[Move.OH_KO]       = int(self.move.get('oh_ko', False))
+        base_move_array[Move.SHEER_FORCE] = int(self.move.get('sheer_force', False))
+        base_move_array[Move.PRIORITY]    = self.move.get('priority', 0)
+        base_move_array[Move.OVERRIDE_OFF_POK] = (
             1 if self.move.get('override_off_pok', None) == 'target'
             else 0
         )
-        base_move_array[MoveA.OVERRIDE_OFF_STAT] = (
+        base_move_array[Move.OVERRIDE_OFF_STAT] = (
             getattr(Stat, self.move.get('override_off_stat', 'Attack').upper())
             if self.move.get('override_off_stat', None)
             else -1
         )
-        base_move_array[MoveA.OVERRIDE_DEF_STAT] = (
+        base_move_array[Move.OVERRIDE_DEF_STAT] = (
             getattr(Stat, self.move.get('override_def_stat', 'Defense').upper())
             if self.move.get('override_def_stat', None)
             else -1
         )
-        base_move_array[MoveA.IGNORE_DEF]      = int(self.move.get('ignore_def', False))
-        base_move_array[MoveA.IGNORE_IMMUNITY] = int(self.move.get('ignore_immunity', False))
-        base_move_array[MoveA.PP]              = self.move.get('pp', 5)
-        base_move_array[MoveA.PP_UP]           = 0  # Move wont tell pp up, need to manually tell
-        base_move_array[MoveA.MULTI_HIT_MIN]   = (
+        base_move_array[Move.IGNORE_DEF]      = int(self.move.get('ignore_def', False))
+        base_move_array[Move.IGNORE_IMMUNITY] = int(self.move.get('ignore_immunity', False))
+        base_move_array[Move.PP]              = self.move.get('pp', 5)
+        base_move_array[Move.PP_UP]           = 0  # Move wont tell pp up, need to manually tell
+        base_move_array[Move.MULTI_HIT_MIN]   = (
             self.move.get('multi_hit', 1) if isinstance(self.move.get('multi_hit', 1), int)
             else self.move.get('multi_hit', [1, 1])[0]
         )
-        base_move_array[MoveA.MULTI_HIT_MAX] = (
+        base_move_array[Move.MULTI_HIT_MAX] = (
             self.move.get('multi_hit', 1) if isinstance(self.move.get('multi_hit', 1), int)
             else self.move.get('multi_hit', [1, 1])[1]
         )
-        base_move_array[MoveA.SELF_SWITCH]  = int(self.move.get('self_switch', False))
-        base_move_array[MoveA.FORCE_SWITCH] = int(self.move.get('self_switch', False))
-        base_move_array[MoveA.NON_GHOST]    = 1 if self.move.get('non_ghost', None) == 'self' else 0
-        base_move_array[MoveA.IGNORE_AB]    = int(self.move.get('ignore_ab', False))
-        base_move_array[MoveA.DAMAGE]       = dmg_result
-        base_move_array[MoveA.SPREAD_HIT]   = int(self.move.get('spread_hit', False))
-        base_move_array[MoveA.SPREAD_MOD]   = self.move.get('spread_mod', 100)
-        base_move_array[MoveA.FORCE_STAB]   = 1 if self.move.get('force_stab', False) else 0
-        base_move_array[MoveA.STATUS]       = (
+        base_move_array[Move.SELF_SWITCH]  = int(self.move.get('self_switch', False))
+        base_move_array[Move.FORCE_SWITCH] = int(self.move.get('self_switch', False))
+        base_move_array[Move.NON_GHOST]    = 1 if self.move.get('non_ghost', None) == 'self' else 0
+        base_move_array[Move.IGNORE_AB]    = int(self.move.get('ignore_ab', False))
+        base_move_array[Move.DAMAGE]       = dmg_result
+        base_move_array[Move.SPREAD_HIT]   = int(self.move.get('spread_hit', False))
+        base_move_array[Move.SPREAD_MOD]   = self.move.get('spread_mod', 100)
+        base_move_array[Move.FORCE_STAB]   = 1 if self.move.get('force_stab', False) else 0
+        base_move_array[Move.STATUS]       = (
             getattr(Status, self.move.get('status', 'None').upper()) if self.move.get('status', None)
             else 0
         )
-        base_move_array[MoveA.VOL_STATUS] = (
+        base_move_array[Move.VOL_STATUS] = (
             self.move.get('vol_status', 0) if self.move.get('vol_status', 0) is not None
             else 0
         )
-        base_move_array[MoveA.HAS_CRASH_DAMAGE] = int(self.move.get('has_crash_damage', False))
-        base_move_array[MoveA.SLEEP_USABLE]     = int(self.move.get('sleep_usable', False))
-        base_move_array[MoveA.SMART_TARGET]     = int(self.move.get('smart_target', False))
-        base_move_array[MoveA.BOOST_ATK]        = self.move.get('boost_atk', 0)
-        base_move_array[MoveA.BOOST_DEF]        = self.move.get('boost_def', 0)
-        base_move_array[MoveA.BOOST_SPATK]      = self.move.get('boost_spatk', 0)
-        base_move_array[MoveA.BOOST_SPDEF]      = self.move.get('boost_sp def', 0)
-        base_move_array[MoveA.BOOST_SPEED]      = self.move.get('boost_speed', 0)
-        base_move_array[MoveA.BOOST_ACC]        = self.move.get('boost_acc', 0)
-        base_move_array[MoveA.BOOST_EV]         = self.move.get('boost_ev', 0)
-        base_move_array[MoveA.SIDE_CONDITION]   = (
+        base_move_array[Move.HAS_CRASH_DAMAGE] = int(self.move.get('has_crash_damage', False))
+        base_move_array[Move.SLEEP_USABLE]     = int(self.move.get('sleep_usable', False))
+        base_move_array[Move.SMART_TARGET]     = int(self.move.get('smart_target', False))
+        base_move_array[Move.BOOST_ATK]        = self.move.get('boost_atk', 0)
+        base_move_array[Move.BOOST_DEF]        = self.move.get('boost_def', 0)
+        base_move_array[Move.BOOST_SPATK]      = self.move.get('boost_spatk', 0)
+        base_move_array[Move.BOOST_SPDEF]      = self.move.get('boost_sp def', 0)
+        base_move_array[Move.BOOST_SPEED]      = self.move.get('boost_speed', 0)
+        base_move_array[Move.BOOST_ACC]        = self.move.get('boost_acc', 0)
+        base_move_array[Move.BOOST_EV]         = self.move.get('boost_ev', 0)
+        base_move_array[Move.SIDE_CONDITION]   = (
             getattr(SideCondition, self.move.get('side_condition', 'None').upper())
             if self.move.get('side_condition', None)
             else -1
         )
-        base_move_array[MoveA.RECOIL] = self.move.get('recoil', 0)
-        base_move_array[MoveA.DRAIN]  = self.move.get('drain', 0)
+        base_move_array[Move.RECOIL] = self.move.get('recoil', 0)
+        base_move_array[Move.DRAIN]  = self.move.get('drain', 0)
         return base_move_array
 
     def move_flags(self):
