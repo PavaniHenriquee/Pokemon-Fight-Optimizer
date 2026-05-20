@@ -29,7 +29,6 @@ class GameState():
             self.battle_array = np.copy(battle_array)
         self.my_active = self.battle_array[Field.MY_POK]  # Index of 0..5
         self.opp_active = self.battle_array[Field.OPP_POK]  # Index of 0..5
-        self.turn = self.battle_array[Field.TURN]
         self.phase = self.battle_array[Field.PHASE]
         self._opp_ai = None
         self._opp_move = None
@@ -117,17 +116,18 @@ class GameState():
         opp_idx = return_idx(
             self.get_opp_active(),
             self.get_my_active(),
-            self.turn,
+            self.battle_array[Field.TURN],
             self.battle_array[Field.WEATHER],
             self.battle_array[Field.AI_KNOWS],
-            self.battle_array[Field.MY_LAST_MOVE]
+            self.battle_array[Field.MY_LAST_MOVE],
+            self.opp_pty
         )
         return opp_idx
 
     def step(self, my_move_idx):
         """Simulate the entire turn"""
         new = self.clone()
-        if new.turn == 0:
+        if new.battle_array[Field.TURN] == 0:
             start_of_battle(new.battle_array)
         battle = Battle(
             battle_array=new.battle_array

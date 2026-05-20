@@ -14,14 +14,15 @@ from Models.idx_const import (
 from Models.constants import (
     _POK_MOVE1_ID, _POK_ITEM_ID, _POK_ID, _POK_AB_ID, _POK_CURRENT_HP, _POK_TYPE1,
     _POK_TYPE2, _ENEMY_AI_KNOWS_ABILITY, _MOVE_ID, _MOVE_PP, _MOVE_CATEGORY,
-    _MOVECATEGORY_STATUS, _MOVE_TYPE
+    _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
     POKEMON_HAS_RELEVANT_ABILITY,
     basic_flag,
     evaluate_attack_flag,
-    expert_flag
+    expert_flag,
+    check_super_ef_move_pty
 )
 
 # mov_excep = ['Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
@@ -40,7 +41,8 @@ def choose_move(
         turn,
         weather,
         ai_know,
-        my_last_move
+        my_last_move,
+        ai_pty
 ):
     """
     Calculates the score of the moves and sees what has the highest score
@@ -80,10 +82,25 @@ def choose_move(
 
     If you switch out, the AI will forget its knowledge of your moves and abilities.
     """
+    # TODO: withdraw checks
+    # 1. Perish Song about to hit 0
+    # 3. More than 2 damaging moves and All of them do not affect the target
+    # 4. The last move the active Pokémon was hit by in the last turn was Fire, Water, or Electric-type,
+    # and a party Pokémon has the ability Flash Fire, Water Absorb, or Volt Absorb, respectively
+    # 5. The active Pokémon is asleep and has the ability Natural Cure
+    # Before checking the final two situations to switch, check if:
+    # . The current active Pokémon is able to damage at least one foe supereffectively.
+    # This is checked by the move selection effectiveness check, with variable-type moves using
+    # their correct types. Only damaging moves count.
+    # . The total number of positive stat boosts that the active Pokémon has is greater than or equal to 4.
+    # 6. A party member is immune to the previous attack and can hit the foe supereffectively
+    # 7. A party member resists the previous attack and can hit the foe supereffectively
+
     moves = ai_pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
 
+    ab=user_pok[_POK_AB_ID]
     if not POKEMON_HAS_RELEVANT_ABILITY[user_pok[_POK_ID]] or (ai_know & _ENEMY_AI_KNOWS_ABILITY):
-        ability = user_pok[_POK_AB_ID]
+        ability = ab
     else:
         pool_row = POKEMON_ABILITY_POOL[user_pok[_POK_ID]]
         ability = pool_row[random.getrandbits(1)]
@@ -92,6 +109,7 @@ def choose_move(
     max_damage = 0
 
     evaluated_moves = []
+    s_e = False
 
     for i, move in enumerate(moves):
         # Cache NumPy scalar extractions locally to prevent repeated C-API calls
@@ -100,16 +118,18 @@ def choose_move(
             break
 
         move_pp = move[_MOVE_PP]
-        if move_pp <= 0:
+        if move_pp < 1:
             continue
 
         move_category = move[_MOVE_CATEGORY]
         move_is_status = move_category == _MOVECATEGORY_STATUS
 
-        effectiveness = trainer_ai_effectiveness(move, ai_pok, user_pok)
+        effectiveness, s_e_check = trainer_ai_effectiveness(move, ai_pok, user_pok)
 
         if not move_is_status:
             final_damage = calculate_ai_logic_damage(effectiveness, ai_pok, user_pok, move, weather)
+            if s_e_check:
+                s_e = True
         else:
             final_damage = 0
 
@@ -128,6 +148,15 @@ def choose_move(
         # Append only what is necessary for the next step
         evaluated_moves.append([i, score, final_damage, is_damaging])
 
+    if ab == _ABILITYNAMES_WONDER_GUARD and not s_e:
+        cand = check_super_ef_move_pty(ai_pty, user_pok)
+        if cand:
+            for i in cand:
+                if random.random() < 0.66666:
+                    return [[i-6,0,0,False]]
+
+
+
     # Apply penalty only to the already-filtered valid moves
     current_hp = user_pok[_POK_CURRENT_HP]
     for info in evaluated_moves:
@@ -141,15 +170,20 @@ def choose_move(
 
 
 @njit
-def return_idx(ai_pok, user_pok, turn, weather, ai_know, my_last_move):
+def return_idx(ai_pok, user_pok, turn, weather, ai_know, my_last_move, ai_pty):
     """
     It transform the highest moving score to the index of the move
     """
-    move_scores = choose_move(ai_pok, user_pok, turn, weather, ai_know, my_last_move)
+    move_scores = choose_move(ai_pok, user_pok, turn, weather, ai_know, my_last_move, ai_pty)
 
     max_score = -999999
     best_moves = np.zeros(4, dtype=np.int32)
     n_best = 0
+
+    if len(move_scores) == 0:
+        return 10  # Struggle
+    if len(move_scores) == 1:
+        return move_scores[0][0]
 
     for info in move_scores:
         score = info[1]
@@ -161,8 +195,6 @@ def return_idx(ai_pok, user_pok, turn, weather, ai_know, my_last_move):
             best_moves[n_best] = info[0]
             n_best += 1
 
-    if n_best == 0:
-        return 10  # Struggle
 
     if n_best == 1:
         return best_moves[0]
@@ -170,7 +202,7 @@ def return_idx(ai_pok, user_pok, turn, weather, ai_know, my_last_move):
     return best_moves[random.randint(0, n_best - 1)]
 
 
-def sub_after_death(ai_party, user_pok, deadmon) -> int:
+def sub_after_death(ai_party, user_pok, deadmon):
     """
     Implements the switch-in logic
 
@@ -197,8 +229,6 @@ def sub_after_death(ai_party, user_pok, deadmon) -> int:
     off = POK_LEN
     # filter non-fainted teammates and keep original party indices for tie-breaks
     candidates = np.where(ai_party[_POK_CURRENT_HP:: off] > 0)[0]
-    if not candidates.size > 0:
-        return None
     if len(candidates) == 1:
         return candidates[0]
 
@@ -238,11 +268,11 @@ def sub_after_death(ai_party, user_pok, deadmon) -> int:
             total += effec/den
             if total == 8:
                 total = 1.75
-            scored.append({'index': idx, 'mon': mon, 'score': total})
+            scored.append([idx, total])
 
         # choose highest score, tie-break by party order (lower index wins)
-        best = max(scored, key=lambda x: (x['score'], -x['index']))
-        return best['index']
+        best = max(scored, key=lambda x: (x[1], -x[0]))
+        return best[0]
 
     # Phase 2: simulate moves as if used on the (full)
     # user pok and pick mon with max single-move damage
@@ -258,7 +288,7 @@ def sub_after_death(ai_party, user_pok, deadmon) -> int:
                 break
             # build move object shape expected by calculate_damage
             try:
-                raw_dmg = calculate_damage(deadmon, user_pok, mv, roll_multiplier=1)
+                raw_dmg = calculate_damage(deadmon, user_pok, mv, 0, False, 1)
             except Exception:
                 # if damage calc fails, skip move
                 continue
@@ -266,8 +296,8 @@ def sub_after_death(ai_party, user_pok, deadmon) -> int:
             dmg = raw_dmg - 255 if raw_dmg > 255 else raw_dmg
             dmg = min(dmg, user_hp)
             max_move_dmg = max(max_move_dmg, dmg)
-        scored_phase2.append({'index': idx, 'max_dmg': max_move_dmg})
+        scored_phase2.append((idx, max_move_dmg))
 
     # choose highest max_dmg, tie-break by party order (lower index wins)
-    best2 = max(scored_phase2, key=lambda x: (x['max_dmg'], -x['index']))
-    return best2['index']
+    best2 = max(scored_phase2, key=lambda x: (x[1], -x[0]))
+    return best2[0]

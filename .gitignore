@@ -1,33 +1,14 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
-*$py.class
-*.pyc
 
 # Virtual environment
 .venv/
-env/
-venv/
-ENV/
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Jupyter Notebook checkpoints (if you ever use notebooks)
-.ipynb_checkpoints/
 
 # VSCode settings
 .vscode/
 
 # Node
 node_modules/
-frontend/dist/
+
+# Profile results (can get too big)
+flamegraph.speedscope.json

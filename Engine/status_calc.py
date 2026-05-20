@@ -18,7 +18,7 @@ def apply_status(move, pok, weather, sec=False):
         if pok_status == 0:
             if m_status == Status.FREEZE and weather == Weather.SUN:
                 return
-            pok_status = m_status
+            pok[Pok.STATUS] = m_status
             if m_status == Status.TOXIC:
                 pok[Pok.BADLY_POISON] = 1
             return

@@ -75,7 +75,7 @@ class Moves():
         )
         base_move_array[Move.IGNORE_DEF]      = int(self.move.get('ignore_def', False))
         base_move_array[Move.IGNORE_IMMUNITY] = int(self.move.get('ignore_immunity', False))
-        base_move_array[Move.PP]              = self.move.get('pp', 5)
+        base_move_array[Move.PP]              = self.move['pp']
         base_move_array[Move.PP_UP]           = 0  # Move wont tell pp up, need to manually tell
         base_move_array[Move.MULTI_HIT_MIN]   = (
             self.move.get('multi_hit', 1) if isinstance(self.move.get('multi_hit', 1), int)
@@ -118,6 +118,8 @@ class Moves():
         )
         base_move_array[Move.RECOIL] = self.move.get('recoil', 0)
         base_move_array[Move.DRAIN]  = self.move.get('drain', 0)
+        if base_move_array[Move.PP] == 0:
+            raise ValueError("ove doesn't have PP")
         return base_move_array
 
     def move_flags(self):

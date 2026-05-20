@@ -49,18 +49,21 @@ class Battle():
         """What happens before everything in the turn order, so switches and trainer items"""
         # TODO: Opponent Items
         opp_switch = None
+        opp_pty = self.opp_pty
+        current_pokemon = self.current_pokemon
+        current_opp = self.current_opp
         if opp_move == 's':
             i = sub_after_death(
-                self.opp_pty, self.current_pokemon, self.current_opp
+                opp_pty, current_pokemon, current_opp
             )
-            opp_switch = self.opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
+            opp_switch = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
 
         if switch_idx >= 0 and opp_move == 's':
             my_switch = self.my_pty[
                 (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
             ]
             my_s, opp_s = check_speed(
-                self.current_pokemon, self.current_opp, self.battle_array[Field.WEATHER]
+                current_pokemon, current_opp, self.battle_array[Field.WEATHER]
             )
             speed_tie = False
             if my_s == opp_s:
@@ -68,58 +71,58 @@ class Battle():
                     speed_tie = True
             if my_s > opp_s or speed_tie:
                 # My Pokemon
-                reset_switch_out(self.current_pokemon)
+                reset_switch_out(current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.battle_array[Field.AI_KNOWS] = 0
                 self.battle_array[Field.MY_LAST_MOVE] = 0
                 self.current_pokemon = my_switch
-                switch_in(self.current_pokemon, self.current_opp)
+                switch_in(current_pokemon, current_opp)
                 # Opponent Pokemon
                 reset_switch_out(self.current_opp)
                 self.current_opp = opp_switch
                 self.battle_array[Field.OPP_POK] = opp_switch
-                switch_in(self.current_opp, self.current_pokemon)
+                switch_in(current_opp, current_pokemon)
             elif my_s < opp_s:
                 # Opponent Pokemon
-                reset_switch_out(self.current_opp)
+                reset_switch_out(current_opp)
                 self.battle_array[Field.OPP_POK] = opp_switch
                 self.current_opp = opp_switch
-                switch_in(self.current_opp, self.current_pokemon)
+                switch_in(current_opp, current_pokemon)
                 # My Pokemon
-                reset_switch_out(self.current_pokemon)
+                reset_switch_out(current_pokemon)
                 self.battle_array[Field.MY_POK] = switch_idx
                 self.battle_array[Field.AI_KNOWS] = 0
                 self.battle_array[Field.MY_LAST_MOVE] = 0
                 self.current_pokemon = my_switch
-                switch_in(self.current_pokemon, self.current_opp)
+                switch_in(current_pokemon, current_opp)
             return
 
         if opp_switch:
-            reset_switch_out(self.current_opp)
+            reset_switch_out(current_opp)
             self.current_opp = opp_switch
             self.battle_array[Field.OPP_POK] = opp_switch
-            switch_in(self.current_opp, self.current_pokemon)
+            switch_in(current_opp, current_pokemon)
 
         if switch_idx >= 0:
-            reset_switch_out(self.current_pokemon)
+            reset_switch_out(current_pokemon)
             self.battle_array[Field.MY_POK] = switch_idx
             self.battle_array[Field.AI_KNOWS] = 0
             self.battle_array[Field.MY_LAST_MOVE] = 0
             self.current_pokemon = self.my_pty[
                 (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
             ]
-            switch_in(self.current_pokemon, self.current_opp)
+            switch_in(current_pokemon, current_opp)
 
     def action(self, current_move, opp_move):
         """Where the moves are calculated"""
         p1_switch = False
         p2_switch = False
         flinch = False
-        if current_move < 0 and not isinstance(opp_move, int):
+        if current_move < 0 and opp_move < 0:
             return  # Check if neither used an action, if so early return
         if current_move < 0:
             p1_switch = True
-        if not isinstance(opp_move, int):
+        if opp_move < 0:  # Switches mid battle are (-6..-1)
             # TODO: Check everything if opponent switches, specially if they die on entering
             p2_switch = True
 
@@ -220,25 +223,31 @@ class Battle():
                 self.current_opp[Pok.CURRENT_HP] = opp_hp
 
         # If Opponent is dead
+        opp_pty = self.opp_pty
+        current_pokemon = self.current_pokemon
+        current_opp = self.current_opp
         if opp_hp == 0 and m_hp != 0:
-            if count_party(self.opp_pty) == 0:
+            if count_party(opp_pty) == 0:
                 return None
             i = sub_after_death(
-                self.opp_pty, self.current_pokemon, self.current_opp
+                opp_pty, current_pokemon, current_opp
             )
             self.battle_array[Field.OPP_POK] = i
-            self.current_opp = self.opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
-            switch_in(self.current_pokemon, self.current_opp)
+            self.current_opp = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
+            switch_in(current_pokemon, current_opp)
             return i
         return None
 
     def switch_in_action(self, switch_idx: int):
         """Grab the switch idx from MCTS and progress it"""
         if self.current_opp[Pok.CURRENT_HP] <= 0:
+            opp_pty = self.opp_pty
+            current_pokemon = self.current_pokemon
+            current_opp = self.current_opp
             i = sub_after_death(
-                self.opp_pty, self.current_pokemon, self.current_opp
+                opp_pty, current_pokemon, current_opp
             )
-            opp_switch = self.opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
+            opp_switch = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
             my_switch = self.my_pty[
                 (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
             ]
@@ -262,17 +271,14 @@ class Battle():
 
                 # Opponent Pokemon
                 self.current_opp = opp_switch
-                self.battle_array[Field.OPP_POK] = opp_switch
+                self.battle_array[Field.OPP_POK] = i
 
                 # Switch in effects after they are already switched
-                switch_in(self.current_pokemon, self.current_opp)
-                switch_in(self.current_opp, self.current_pokemon)
-                self.battle_array[Field.TURN] += 1
-                self.current_opp[Pok.TURNS] += 1
-                self.current_pokemon[Pok.TURNS] += 1
+                switch_in(current_pokemon, current_opp)
+                switch_in(current_opp, current_pokemon)
             elif my_s < opp_s:
                 # Opponent Pokemon
-                self.battle_array[Field.OPP_POK] = opp_switch
+                self.battle_array[Field.OPP_POK] = i
                 self.current_opp = opp_switch
 
                 # My Pokemon
@@ -284,11 +290,12 @@ class Battle():
                 ]
 
                 # Switch in effects after they are already switched
-                switch_in(self.current_opp, self.current_pokemon)
-                switch_in(self.current_pokemon, self.current_opp)
-                self.battle_array[Field.TURN] += 1
-                self.current_opp[Pok.TURNS] += 1
-                self.current_pokemon[Pok.TURNS] += 1
+                switch_in(current_opp, current_pokemon)
+                switch_in(current_pokemon, current_opp)
+
+            self.battle_array[Field.TURN] += 1
+            self.current_opp[Pok.TURNS] += 1
+            self.current_pokemon[Pok.TURNS] += 1
             return
         self.battle_array[Field.MY_POK] = switch_idx
         self.current_pokemon = self.my_pty[

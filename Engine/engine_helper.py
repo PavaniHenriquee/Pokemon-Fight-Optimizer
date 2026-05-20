@@ -13,7 +13,6 @@ from Models.constants import (
     _ABILITYACTIVATION_ON_MODIFY_SPEED, _WEATHER_SUN,_ABILITYNAMES_CHLOROPHYLL,
     _POK_AB_ID
 )
-from DataBase.PkDB import PokemonName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.MoveDB import MoveName
 
@@ -257,9 +256,21 @@ def thaw(move, defender):
     """Check if a move thaws"""
     if move[Move.TYPE] == Types.FIRE:
         defender[_POK_STATUS] = 0
-        print(f"{PokemonName(defender[Pok.ID]).name.capitalize()} has thawed out!")
         return True
     return False
+
+
+def switch_in(attacker, defender):
+    """
+    What happens when a pokemon switches in so, abilities, hazards
+    """
+    # TODO: Hazards damage, take in consideration that the pokemon needs to
+    # be alive to activiate the ability so before the ability do something like
+    # if attacker[Pok.CURRENT_HP] > 0:
+    if attacker[_POK_AB_WHEN] & AbilityActivation.ON_SWITCH_IN:
+        ability = attacker[_POK_AB_ID]
+        if ability == AbilityNames.INTIMIDATE:
+            defender[Pok.ATTACK_STAT_STAGE] -= 1
 
 
 def start_of_battle(array):
@@ -275,21 +286,18 @@ def start_of_battle(array):
         ]
     weather = array[Field.WEATHER]
     p1_speed, p2_speed = check_speed(current_pokemon, current_opp, weather)
-    speed_tie_1 = False
-    speed_tie_2 = False
+    speed_tie = 0
     if p1_speed == p2_speed:
-        if random.getrandbits(1):
-            speed_tie_1 = True
-        else:
-            speed_tie_2 = True
-    if speed_tie_1 or p1_speed > p2_speed:
-        pass
-    elif speed_tie_2 or p2_speed > p1_speed:
-        pass
+        speed_tie = random.getrandbits(1)
+    if speed_tie or p1_speed > p2_speed:
+        switch_in(current_pokemon, current_opp)
+        switch_in(current_opp, current_pokemon)
     else:
-        raise ValueError("Shouldn't get here")
+        switch_in(current_opp, current_pokemon)
+        switch_in(current_pokemon, current_opp)
     current_pokemon[Pok.TURNS] = 1
     current_opp[Pok.TURNS] = 1
+    array[Field.TURN] = 1
 
 
 def after_turn_damage(pokemon, weather: int) -> int:
@@ -339,16 +347,3 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # 
         #TODO: Some moves still go through, like dig, future sight
         return True
     return False
-
-
-def switch_in(attacker, defender):
-    """
-    What happens when a pokemon switches in so, abilities, hazards
-    """
-    # TODO: Hazards damage, take in consideration that the pokemon needs to
-    # be alive to activiate the ability so before the ability do something like
-    # if attacker[Pok.CURRENT_HP] > 0:
-    if attacker[_POK_AB_WHEN] & AbilityActivation.ON_SWITCH_IN:
-        ability = attacker[_POK_AB_ID]
-        if ability == AbilityNames.INTIMIDATE:
-            defender[Pok.ATTACK_STAT_STAGE] -= 1

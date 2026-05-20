@@ -11,6 +11,7 @@ from DataBase.MoveDB import PHYSICAL, SPECIAL
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
 from Engine.engine_helper import check_speed
+from Models.idx_const import POK_LEN
 from Models.helper import TARGET_SELF_SIDE, TARGET_OPP_SIDE
 from Models.constants import (
     _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE, _ABILITYNAMES_IMMUNITY,
@@ -36,7 +37,7 @@ from Models.constants import (
     _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _MOVE_ID, _POK_CURRENT_HP,
     _MOVE_PRIORITY, _MOVENAME_FAKE_OUT, _POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID,
     _POK_MOVE4_ID, _MOVENAME_PSYCH_UP, _MOVENAME_DRAGON_DANCE, _VOLSTATUS_LEECH_SEED,
-    _VOLSTATUS_CURSE, _POK_MAX_HP, _MOVE_ACCURACY
+    _VOLSTATUS_CURSE, _POK_MAX_HP, _MOVE_ACCURACY, _POK_ITEM_ID
 )
 
 
@@ -176,9 +177,17 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
     # TODO: Scrappy, Mold Breaker, Odor Sleuth, Foresight,
     # Gastro Acid, Miracle Eye, Iron Ball
     # Gravity, Magnet Rise, Levitate, Wonder Guard, more...
-    effectiveness *= TYPE_CHART[(move_type*19)+user_type1] / 2
+    s_e = False
+    ef_t1 = TYPE_CHART[(move_type*19)+user_type1] / 2
+    effectiveness *= ef_t1
     if user_type2:
-        effectiveness *= TYPE_CHART[(move_type*19)+user_type2] / 4
+        ef_t2 = TYPE_CHART[(move_type*19)+user_type2] / 4
+        effectiveness *= ef_t2
+        if ef_t1*ef_t2 >= 2:
+            s_e = True
+    elif ef_t1 == 2:
+        s_e = True
+
 
     if move_cat != _MOVECATEGORY_STATUS:
         # TODO: Tinted Lens, Filter/Solid Rock, Expert Belt
@@ -196,7 +205,7 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
     elif effectiveness == 6.0:
         effectiveness = 4.0
 
-    return effectiveness
+    return effectiveness, s_e
 
 
 @njit
@@ -865,3 +874,29 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
 
     """
     return 0, rand
+
+
+@njit
+def check_super_ef_move_pty(ai_party, user_pok):
+    """
+    Check if party has any supper effective move
+    """
+    alive = np.where(ai_party[_POK_CURRENT_HP:: POK_LEN] > 0)[0]
+
+    # Phase 1: find mons that have at least one move that is SE (>1) vs user_pok
+    candidates = []
+    user_t1 = user_pok[_POK_TYPE1]
+    user_t2 = user_pok[_POK_TYPE2]
+    for idx in alive:
+        pok = ai_party[(POK_LEN*idx):(POK_LEN*(idx + 1))]
+        has_se_move = False
+        moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
+        for mv in moves:
+            mv_type = mv[_MOVE_TYPE]
+            eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
+            if eff//den >= 2:
+                has_se_move = True
+                break
+        if has_se_move:
+            candidates.append(idx)
+    return candidates
