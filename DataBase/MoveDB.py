@@ -47,6 +47,6 @@ def _build_category_sets():
             physical.add(move_id)
         elif category == "Special":
             special.add(move_id)
-    return frozenset(physical), frozenset(special)
+    return tuple(physical), tuple(special)
 
 PHYSICAL, SPECIAL = _build_category_sets()

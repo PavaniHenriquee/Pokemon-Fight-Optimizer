@@ -1,6 +1,7 @@
 """Gives the class for the trainer Ai to be what the game would do"""
 import random
 import numpy as np
+from numba import njit
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
 from Utils.helper import (
     get_type_effectiveness, batch_independent_score_from_rand
@@ -8,10 +9,12 @@ from Utils.helper import (
 from DataBase.MoveDB import MoveName
 from DataBase.PkDB import POKEMON_ABILITY_POOL
 from Models.idx_const import (
-    Pok, Move, POK_LEN
+    POK_LEN
 )
-from Models.helper import (
-    MoveCategory, Enemy_AI_Knows
+from Models.constants import (
+    _POK_MOVE1_ID, _POK_ITEM_ID, _POK_ID, _POK_AB_ID, _POK_CURRENT_HP, _POK_TYPE1,
+    _POK_TYPE2, _ENEMY_AI_KNOWS_ABILITY, _MOVE_ID, _MOVE_PP, _MOVE_CATEGORY,
+    _MOVECATEGORY_STATUS, _MOVE_TYPE
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -24,18 +27,13 @@ from Models.trainer_ai_helper import (
 # mov_excep = ['Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
 #             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Superpower', 'Eruption',
 #             'Water Spout','Head Smash']
-MOVE_EXCEP = [
+MOVE_EXCEP = (
     0, MoveName.EXPLOSION, MoveName.SELFDESTRUCT, MoveName.DREAM_EATER,
     MoveName.FOCUS_PUNCH, MoveName.SUCKER_PUNCH
-]
+)
 
 
-def add_adjustment(arr, move_id, delta, chance):
-    """Add a [delta, chance] pair to the first free slot."""
-    # Find the first index where chance is NaN (unused)
-    arr[move_id].append((delta, chance))
-
-
+@njit
 def choose_move(
         ai_pok,
         user_pok,
@@ -82,30 +80,31 @@ def choose_move(
 
     If you switch out, the AI will forget its knowledge of your moves and abilities.
     """
-    moves = ai_pok[Pok.MOVE1_ID:Pok.ITEM_ID].reshape(4, -1)
+    moves = ai_pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
 
-    if not POKEMON_HAS_RELEVANT_ABILITY[user_pok[Pok.ID]] or (ai_know & Enemy_AI_Knows.ABILITY):
-        ability = user_pok[Pok.AB_ID]
+    if not POKEMON_HAS_RELEVANT_ABILITY[user_pok[_POK_ID]] or (ai_know & _ENEMY_AI_KNOWS_ABILITY):
+        ability = user_pok[_POK_AB_ID]
     else:
-        ability = random.choice(POKEMON_ABILITY_POOL[user_pok[Pok.ID]])
+        pool_row = POKEMON_ABILITY_POOL[user_pok[_POK_ID]]
+        ability = pool_row[random.getrandbits(1)]
 
-    rand = [[] for _ in range(4)]
+    rand = np.zeros((4, 5, 2), dtype=np.int64)
     max_damage = 0
 
     evaluated_moves = []
 
     for i, move in enumerate(moves):
         # Cache NumPy scalar extractions locally to prevent repeated C-API calls
-        move_id = move[Move.ID]
+        move_id = move[_MOVE_ID]
         if move_id == 0:
             break
 
-        move_pp = move[Move.PP]
+        move_pp = move[_MOVE_PP]
         if move_pp <= 0:
             continue
 
-        move_category = move[Move.CATEGORY]
-        move_is_status = move_category == MoveCategory.STATUS
+        move_category = move[_MOVE_CATEGORY]
+        move_is_status = move_category == _MOVECATEGORY_STATUS
 
         effectiveness = trainer_ai_effectiveness(move, ai_pok, user_pok)
 
@@ -130,7 +129,7 @@ def choose_move(
         evaluated_moves.append([i, score, final_damage, is_damaging])
 
     # Apply penalty only to the already-filtered valid moves
-    current_hp = user_pok[Pok.CURRENT_HP]
+    current_hp = user_pok[_POK_CURRENT_HP]
     for info in evaluated_moves:
         # info[3] is is_damaging_excep
         if info[3]:
@@ -140,32 +139,36 @@ def choose_move(
 
     return evaluated_moves
 
+
+@njit
 def return_idx(ai_pok, user_pok, turn, weather, ai_know, my_last_move):
     """
     It transform the highest moving score to the index of the move
     """
     move_scores = choose_move(ai_pok, user_pok, turn, weather, ai_know, my_last_move)
 
-    # Single-pass max check and collection (eliminates generator and list comprehensions)
-    max_score = -float('inf')
-    best_moves = []
+    max_score = -999999
+    best_moves = np.zeros(4, dtype=np.int32)
+    n_best = 0
 
     for info in move_scores:
         score = info[1]
         if score > max_score:
             max_score = score
-            best_moves = [info[0]]
+            best_moves[0] = info[0]
+            n_best = 1
         elif score == max_score:
-            best_moves.append(info[0])
+            best_moves[n_best] = info[0]
+            n_best += 1
 
-    # Fallback in case no moves are valid (prevents random.choice index errors)
-    if not best_moves:
-        return 10 # Struggle
+    if n_best == 0:
+        return 10  # Struggle
 
-    if len(best_moves) == 1:
+    if n_best == 1:
         return best_moves[0]
 
-    return random.choice(best_moves)
+    return best_moves[random.randint(0, n_best - 1)]
+
 
 def sub_after_death(ai_party, user_pok, deadmon) -> int:
     """
@@ -193,7 +196,7 @@ def sub_after_death(ai_party, user_pok, deadmon) -> int:
     """
     off = POK_LEN
     # filter non-fainted teammates and keep original party indices for tie-breaks
-    candidates = np.where(ai_party[Pok.CURRENT_HP:: off] > 0)[0]
+    candidates = np.where(ai_party[_POK_CURRENT_HP:: off] > 0)[0]
     if not candidates.size > 0:
         return None
     if len(candidates) == 1:
@@ -201,14 +204,14 @@ def sub_after_death(ai_party, user_pok, deadmon) -> int:
 
     # Phase 1: find mons that have at least one move that is SE (>1) vs user_pok
     phase1 = []
-    user_t1 = user_pok[Pok.TYPE1]
-    user_t2 = user_pok[Pok.TYPE2]
+    user_t1 = user_pok[_POK_TYPE1]
+    user_t2 = user_pok[_POK_TYPE2]
     for idx in candidates:
         pok = ai_party[(off*idx):(off*(idx + 1))]
         has_se_move = False
-        moves = pok[Pok.MOVE1_ID:Pok.ITEM_ID].reshape(4, -1)
+        moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
-            mv_type = mv[Move.TYPE]
+            mv_type = mv[_MOVE_TYPE]
             if mv_type == 0:
                 break
             eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
@@ -226,9 +229,9 @@ def sub_after_death(ai_party, user_pok, deadmon) -> int:
             return phase1[0][0]
         scored = []
         for idx, mon in phase1:
-            type1 = mon[Pok.TYPE1]
+            type1 = mon[_POK_TYPE1]
             # single-typed counted twice
-            type2 = mon[Pok.TYPE2] if mon[Pok.TYPE2] != 0 else mon[Pok.TYPE1]
+            type2 = mon[_POK_TYPE2] if mon[_POK_TYPE2] != 0 else mon[_POK_TYPE1]
             effec, den = get_type_effectiveness(type1, user_t1, user_t2)
             total = effec/den
             effec, den = get_type_effectiveness(type2, user_t1, user_t2)
@@ -245,13 +248,13 @@ def sub_after_death(ai_party, user_pok, deadmon) -> int:
     # user pok and pick mon with max single-move damage
 
     scored_phase2 = []
-    user_hp = user_pok[Pok.CURRENT_HP]
+    user_hp = user_pok[_POK_CURRENT_HP]
     for idx in candidates:
         mon = ai_party[(off*idx):(off*(idx + 1))]
         max_move_dmg = 0
-        moves = mon[Pok.MOVE1_ID:Pok.ITEM_ID].reshape(4, -1)
+        moves = mon[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
-            if mv[Move.ID] == 0:
+            if mv[_MOVE_ID] == 0:
                 break
             # build move object shape expected by calculate_damage
             try:

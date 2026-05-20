@@ -19,37 +19,42 @@ def build_battle():
     return to_battle_array(my_party, opp_party)
 
 
-def run_single(battle1):
+def run_single():
     """Run slower but can profile"""
     import os
     os.environ['NUMBA_DISABLE_JIT'] = '1'
     from cProfile import Profile
     from pstats import Stats, SortKey
     from SearchEngine.my_mcts import mcts, GameState
-    root = GameState(battle1)
+    battle = build_battle()
+    root = GameState(battle)
     with Profile() as profile:
         mcts(root, max_iterations=10000)
         Stats(profile).strip_dirs().sort_stats(SortKey.TIME).print_stats()
 
 
-def run_parallel(battle1):
+def run_parallel():
     """Run Faster but can't debug or profile"""
+    #import os
+    #os.environ['NUMBA_DISABLE_JIT'] = '1'
     import time
     from SearchEngine.mcts_async import mcts_async, GameState
-    root = GameState(battle1)
+    battle = build_battle()
+    root = GameState(battle)
     s_time = time.perf_counter()
     mcts_async(root)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
 
 
-def run_jit(battle1):
+def run_jit():
     """Run Faster but can't debug or profile"""
     #import os
     #os.environ['NUMBA_DISABLE_JIT'] = '1'
     from SearchEngine.my_mcts import mcts, GameState
     import time
-    root = GameState(battle1)
+    battle = build_battle()
+    root = GameState(battle)
     s_time = time.perf_counter()
     mcts(root, max_iterations=10000)
     e_time = time.perf_counter()
@@ -62,7 +67,6 @@ if __name__ =='__main__':
     random.seed(SEED)
     np.random.seed(SEED)
 
-    battle = build_battle()
-    # run_single(battle)
-    # run_parallel(battle)
-    run_jit(battle)
+    # run_single()
+    run_parallel()
+    # run_jit()

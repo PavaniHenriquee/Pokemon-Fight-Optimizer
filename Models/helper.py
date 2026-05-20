@@ -164,11 +164,11 @@ class ItemActivation:
     ON_SELECTION      = 64
 
 
-_POK_HP_OFFSETS = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
+_HP_OFFSETS_NP = np.array([i * POK_LEN + Pok.CURRENT_HP for i in range(6)])
 
 def count_party(pty):
     """How many pok are alive"""
-    return sum(1 for off in _POK_HP_OFFSETS if pty[off] > 0)
+    return int(np.count_nonzero(pty[_HP_OFFSETS_NP]))
 
 def count_Id(pty):
     """Pokemon in party, no matter if alive or dead"""
@@ -216,14 +216,14 @@ class BattlePhase:
     DEATH_END_OF_TURN = 1
 
 
-TARGET_SELF_SIDE = {
+TARGET_SELF_SIDE = (
     Target.ADJACENT_ALLY,
     Target.ADJACENT_ALLY_OR_SELF,
     Target.ALLIES,
     Target.ALLY_SIDE,
     Target.SELF
-}
-TARGET_OPP_SIDE = {
+)
+TARGET_OPP_SIDE = (
     Target.NORMAL,
     Target.ADJACENT_FOE,
     Target.ALL_ADJACENT_FOES,
@@ -231,4 +231,4 @@ TARGET_OPP_SIDE = {
     Target.FOE_SIDE,
     Target.RANDOM_NORMAL,
     Target.SCRIPTED
-}
+)

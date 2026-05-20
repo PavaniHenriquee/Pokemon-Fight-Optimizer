@@ -7,6 +7,8 @@ from Models.idx_const import POK_LEN, FIELD_LEN, Field
 from Models.helper import Enemy_AI_Knows
 
 
+
+@njit
 def stage_to_multiplier(stages, stat) -> int:
     """Check how the stages are affecting the stats"""
 
@@ -32,6 +34,7 @@ def get_type_effectiveness(atk_type, def_type1, def_type2):
     return result, den
 
 
+@njit
 def batch_independent_score_from_rand(rand, idx):
     """
     Rand is an array, where i'm getting the index of the move, so i'm checking the 
@@ -39,11 +42,13 @@ def batch_independent_score_from_rand(rand, idx):
     percentage of chance of it adding it or not to the return
     """
     total = 0
-    r = random.getrandbits
-    for score, chance in rand[idx]:
-        if r(8) < chance:
+    for i in range(5):
+        chance = rand[idx, i, 1]
+        if chance == 0:
+            break
+        score = rand[idx, i, 0]
+        if random.getrandbits(8) < chance:
             total += score
-
     return total
 
 

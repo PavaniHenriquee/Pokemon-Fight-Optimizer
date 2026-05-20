@@ -296,6 +296,7 @@ def struggle(attacker, defender, rec=True):
     return damage
 
 
+@njit
 def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather):
     """
     AI calculates damges from its damage a little differente, so here i do it
