@@ -32,7 +32,7 @@ def _async_worker(task_queue: mp.Queue, result_queue: mp.Queue):
 
 def mcts_async(
         root_state: GameState,
-        max_iterations: int=750_000,
+        max_iterations: int=1_250_000,
         terminal_iterations: int=2_000,
         num_workers: int=None
 ):

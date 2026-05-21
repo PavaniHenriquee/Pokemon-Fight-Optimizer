@@ -2,7 +2,7 @@
 import random
 import numpy as np
 # Profile command
-# py-spy record -s -f speedscope -o flamegraph.speedscope.json -- python main.py
+# py-spy record -s -f speedscope -r 250 -o flamegraph.speedscope.json -- python main.py
 
 
 def build_battle():
@@ -80,7 +80,7 @@ if __name__ =='__main__':
     random.seed(SEED)
     np.random.seed(SEED)
 
-    run_single()
-    #run_parallel()
+    #run_single()
+    run_parallel()
     #run_jit()
     #run_jit_base_time()

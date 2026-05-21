@@ -2,11 +2,11 @@
 import random
 from numba import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
-from Engine.damage_calc import calculate_damage_confusion
 from Engine.status_calc import after_turn_status, freeze, paralysis
 from Models.idx_const import Pok, Move, Sec, Field, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 from Models.helper import (
-    Status, VolStatus, Types, Weather, AbilityActivation, MoveCategory, TARGET_SELF_SIDE
+    Status, VolStatus, Types, Weather, AbilityActivation, MoveCategory, TARGET_SELF_SIDE,
+    STEEL_POISON
 )
 from Models.constants import (
     _POK_SPEED, _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
@@ -132,7 +132,7 @@ class MoveOutcome:
     SEMI_INVULNERABLE = 4
 
 
-def ab_on_try_move(move, attacker, defender, accuracy) -> bool:
+def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
     """
     Check to see if the ability changes the probabilty of a move hitting
     """
@@ -149,11 +149,16 @@ def ab_on_try_move(move, attacker, defender, accuracy) -> bool:
         and not move[Move.OH_KO]
     ):
         return (accuracy*3277)//4096
+    if (
+        def_ab == AbilityNames.SAND_VEIL
+        and weather == Weather.SANDSTORM
+    ):
+        return (accuracy*3277)//4096
 
     return accuracy
 
 
-def calculate_hit_miss(move, attacker, defender):
+def calculate_hit_miss(move, attacker, defender, weather):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
     if isinstance(move, int):
@@ -163,7 +168,7 @@ def calculate_hit_miss(move, attacker, defender):
     ab_a = attacker[_POK_AB_WHEN]
     ab_d = defender[_POK_AB_WHEN]
     if ab_a & AbilityActivation.ON_TRY_MOVE or ab_d & AbilityActivation.ON_TRY_MOVE:
-        move_acc = ab_on_try_move(move, attacker, defender, move_acc)
+        move_acc = ab_on_try_move(move, attacker, defender, move_acc, weather)
 
     if get_type_effectiveness(move[Move.TYPE], defender[Pok.TYPE1], defender[Pok.TYPE2]) == 0:
         return MoveOutcome.INVULNERABLE
@@ -188,9 +193,7 @@ def calculate_hit_miss(move, attacker, defender):
 
 def calculate_crit():
     """Returns a boolean if the move passed the crit check"""
-    crit_roll = random.getrandbits(4) + 1  # 1/16 chance of a crit
-    iscrit = crit_roll == 1
-    return iscrit
+    return random.getrandbits(4) + 1 == 1
 
 
 def reset_switch_out(pok):
@@ -203,52 +206,12 @@ def reset_switch_out(pok):
 def flinch_checker(move, defender):
     """Returns true or false if move has a flinch percent and it should flinch"""
     flinch = move[Sec.VOL_STATUS]
-    chance = move[Sec.CHANCE] / 100
     if flinch != 0 and flinch & VolStatus.FLINCH:
         if defender[_POK_AB_ID] == AbilityNames.INNER_FOCUS:
             return False
-        if random.random() <= chance:
+        if random.random()*100 < move[Sec.CHANCE]:
             return True
 
-    return False
-
-
-def confusion(attacker, my_pok):
-    """Calculates confusion turn"""
-    if attacker == my_pok:
-        print(f"{attacker.name} is confused!")
-    else:
-        print(f'Enemy {attacker.name} is confused!')
-    if random.getrandbits(1):
-        print('it hurt itself in its confusion!')
-        dmg = calculate_damage_confusion(attacker)
-        attacker.current_hp -= dmg
-        print(f'{attacker.name} lost {dmg} HP')
-        if attacker.current_hp <= 0:
-            attacker.fainted = True
-            if attacker == my_pok:
-                print(f"{attacker.name} fainted!")
-            else:
-                print(f"Enemy {attacker.name} fainted!")
-        return True
-    return False
-
-
-def vol_early_returns(attacker, my_pok):
-    """If any volatile condition stops the move, like confusion, attract, charge moves"""
-    new_status = []
-    for v in attacker.vol_status:
-        status = v.get('name', 0)
-        turns = v.get('turns', 0)
-        if status == 'confusion':
-            if turns > 0:
-                v['turns'] -= 1
-                return confusion(attacker, my_pok)
-            print('Confusion has faded.')
-        else:
-            new_status.append(v)
-
-    attacker.vol_status = new_status
     return False
 
 
@@ -302,13 +265,20 @@ def start_of_battle(array):
 
 def after_turn_damage(pokemon, weather: int) -> int:
     """Calculate all damage sources that comes at the end of turns"""
-    if weather in WEATHER_NOT_END_OF_TURN and pokemon[_POK_STATUS] == 0:
+    if (
+        (weather in WEATHER_NOT_END_OF_TURN and pokemon[_POK_STATUS] == 0)
+        or pokemon[Pok.AB_ID] == AbilityNames.MAGIC_GUARD
+    ):
         return 0
     dmg = 0
     max_hp = pokemon[Pok.MAX_HP]
     dmg += after_turn_status(pokemon)
     type1_2= (pokemon[Pok.TYPE1],pokemon[Pok.TYPE2])
-    if weather == Weather.SANDSTORM and not SANDSTORM_IM.isdisjoint(type1_2):
+    if (
+        weather == Weather.SANDSTORM
+        and not SANDSTORM_IM.isdisjoint(type1_2)
+        and pokemon[Pok.AB_ID] != AbilityNames.SAND_VEIL
+    ):
         dmg += max_hp // 16
     elif weather == Weather.HAIL and Types.ICE not in type1_2:
         dmg += max_hp // 16
@@ -326,7 +296,11 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # 
             return True
         attacker[_POK_STATUS] = 0
     # Check for Paralysis
-    if atker_status == _STATUS_PARALYSIS and paralysis():
+    if (
+        atker_status == _STATUS_PARALYSIS
+        and paralysis()
+        and defender[Pok.AB_ID] != AbilityNames.MAGIC_GUARD  #Gen 4 exclusive
+    ):
         return True
     # Freeze
     if atker_status == Status.FREEZE:
@@ -347,3 +321,34 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # 
         #TODO: Some moves still go through, like dig, future sight
         return True
     return False
+
+
+def contact_ability(attacker, defender):
+    """
+    Abilities that activate with contact
+    """
+    if defender[Pok.AB_ID] == AbilityNames.POISON_POINT:
+        if (
+            attacker[Pok.STATUS] == 0
+            and (
+                attacker[Pok.TYPE1] not in STEEL_POISON
+                or attacker[Pok.TYPE2] not in STEEL_POISON
+            )
+            and random.random() < .30
+        ):
+            attacker[Pok.STATUS] = Status.POISON
+
+
+def heal_end_turn(self_, weather):
+    """
+    Heals after turns, from items, abilities and volatile conditions
+    """
+    heal = 0
+    max_hp = self_[Pok.MAX_HP]
+    if self_[Pok.AB_ID] == AbilityNames.RAIN_DISH and weather == Weather.RAIN:
+        heal += max_hp//16
+
+    if heal:
+        hp_missing = max_hp - self_[Pok.CURRENT_HP]
+        heal = min(heal,hp_missing)
+        self_[Pok.CURRENT_HP] += heal

@@ -7,15 +7,15 @@ Abilities
 [X]Huge Power
 [X]Hustle
 [X]Inner Focus
-[]Intimidate
-[]Keen Eye
-[]Magic Guard !
-[]Pickup
-[]Poison Point
-[]Rain Dish
-[]Reckless
-[]Rock Head
-[]Sand Veil
+[X]Intimidate
+[X]Keen Eye
+[]Magic Guard (Needs a lot of other implementations first, but half done)
+[X]Pickup
+[X]Poison Point
+[X]Rain Dish
+[X]Reckless
+[]Rock Head (Need to implement recoil)
+[X]Sand Veil
 []Simple
 []Solar Power
 []Soundproof

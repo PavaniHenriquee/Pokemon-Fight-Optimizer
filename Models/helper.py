@@ -27,6 +27,8 @@ class Types:
     DARK = 17
     FAIRY = 18
 
+STEEL_POISON = (Types.STEEL, Types.POISON)
+
 
 @dataclass(slots=True)
 class Status:
@@ -119,7 +121,7 @@ class AbilityActivation:
     """When will the ability be used"""
     ON_MODIFY_STAT  = 1
     ON_BASE_POWER   = 2
-    ON_CHANGE_STAT  = 4
+    ON_CONTACT      = 4
     ON_DAMAGE       = 8
     ON_SWITCH_IN    = 16
     ON_CRITICAL     = 32

@@ -13,7 +13,8 @@ from Models.constants import (
     _POK_TYPE2, _POK_AB_WHEN, _ABILITYACTIVATION_ON_MODIFY_STAT, _POK_CURRENT_HP,
     _POK_MAX_HP, _MOVE_TYPE, _TYPES_FIRE, _TYPES_WATER, _TYPES_GRASS, _ABILITYNAMES_IRON_FIST,
     _FLAGS_PUNCH, _STATUS_BURN, _WEATHER_SUN, _WEATHER_RAIN, _MOVE_POWER,
-    _ABILITYACTIVATION_ON_BASE_POWER, _POK_LEVEL
+    _ABILITYACTIVATION_ON_BASE_POWER, _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
+    _MOVE_HAS_CRASH_DAMAGE
 )
 
 
@@ -111,6 +112,12 @@ def base_power_ability(attacker, move) -> float:
     # Iron Fist
     if att_ab == _ABILITYNAMES_IRON_FIST and move[_FLAGS_PUNCH]:
         return 4915  # 1.2
+
+    if (
+        att_ab == _ABILITYNAMES_RECKLESS
+        and (move[_MOVE_RECOIL] or _MOVE_HAS_CRASH_DAMAGE)
+    ):
+        return 4915  #1.2
 
     return 0.0
 

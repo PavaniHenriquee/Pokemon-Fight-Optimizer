@@ -49,12 +49,10 @@
   },
   "Keen Eye": {
     "breakable": true,
-    "name": "keen_eye",
-    "when": "on_change_stat"
+    "name": "keen_eye"
   },
   "Magic Guard": {
-    "name": "magic_guard",
-    "when": "on_damage"
+    "name": "magic_guard"
   },
   "Overgrow": {
     "name": "overgrow",
@@ -65,11 +63,10 @@
   },
   "Poison Point": {
     "name": "poison_point",
-    "when": "on_damage"
+    "when": "on_contact"
   },
   "Rain Dish": {
-    "name": "rain_dish",
-    "when": "on_weather"
+    "name": "rain_dish"
   },
   "Reckless": {
     "name": "reckless",
@@ -85,12 +82,11 @@
   "Sand Veil": {
     "breakable": true,
     "name": "sand_veil",
-    "when": ["on_modify_acc", "on_weather"]
+    "when": "on_modify_acc"
   },
   "Simple": {
     "breakable": true,
-    "name": "simple",
-    "when": "on_change_stat"
+    "name": "simple"
   },
   "Solar Power": {
     "name": "solar_power",

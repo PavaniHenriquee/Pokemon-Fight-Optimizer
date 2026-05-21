@@ -1,8 +1,8 @@
 """Calculate Status effects moves"""
 import random
-import numpy as np
 from Models.idx_const import Pok, Move, Sec
-from Models.helper import Status, MoveCategory, Target, Weather
+from Models.helper import Status, MoveCategory, Weather, TARGET_OPP_SIDE, TARGET_SELF_SIDE
+from DataBase.AbilitiesDB import AbilityNames
 
 
 B_P = {Status.BURN, Status.POISON, Status.TOXIC}
@@ -32,11 +32,12 @@ def apply_status(move, pok, weather, sec=False):
 
 def drain_effect(attacker, dmg, drain_amount):
     """Calculates how much should it drain"""
-    drain_hp = np.floor(dmg * drain_amount)
+    drain_hp = int(dmg * drain_amount)
+    max_hp = attacker[Pok.MAX_HP]
     if drain_hp <= 0:
         drain_hp = 1
-    if attacker[Pok.CURRENT_HP] + drain_hp > attacker[Pok.MAX_HP]:
-        drain_hp = attacker[Pok.MAX_HP] - attacker[Pok.CURRENT_HP]
+    if attacker[Pok.CURRENT_HP] + drain_hp > max_hp:
+        attacker[Pok.CURRENT_HP] = max_hp
     if drain_hp <= 0:
         return
     attacker[Pok.CURRENT_HP] += drain_hp
@@ -48,63 +49,56 @@ def calculate_effects(attacker, defender, move, weather):
         return
 
     # Stat boost and reducing
-    if any(move[Move.BOOST_ATK: Move.BOOST_EV + 1]):
-        if move[Move.TARGET] in (
-            Target.ADJACENT_ALLY,
-            Target.ADJACENT_ALLY_OR_SELF,
-            Target.ALLIES,
-            Target.ALLY_SIDE,
-            Target.SELF
-        ):
-            if move[Move.BOOST_ATK]:
-                attacker[Pok.ATTACK_STAT_STAGE] += move[Move.BOOST_ATK]
-            if move[Move.BOOST_DEF]:
-                attacker[Pok.DEFENSE_STAT_STAGE] += move[Move.BOOST_DEF]
-            if move[Move.BOOST_SPATK]:
-                attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += move[Move.BOOST_SPATK]
-            if move[Move.BOOST_SPDEF]:
-                attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += move[Move.BOOST_SPDEF]
-            if move[Move.BOOST_SPEED]:
-                attacker[Pok.SPEED_STAT_STAGE] += move[Move.BOOST_SPEED]
-            if move[Move.BOOST_ACC]:
-                attacker[Pok.ACCURACY_STAT_STAGE] += move[Move.BOOST_ACC]
-            if move[Move.BOOST_EV]:
-                attacker[Pok.EVASION_STAT_STAGE] += move[Move.BOOST_EV]
+    b_atk = move[Move.BOOST_ATK]
+    b_def = move[Move.BOOST_DEF]
+    b_spatk = move[Move.BOOST_SPATK]
+    b_spdef = move[Move.BOOST_SPDEF]
+    b_speed = move[Move.BOOST_SPEED]
+    b_acc = move[Move.BOOST_ACC]
+    b_ev = move[Move.BOOST_EV]
+    if (b_atk
+        or b_def
+        or b_spatk
+        or b_spdef
+        or b_speed
+        or b_acc
+        or b_ev
+    ):
+        m_target = move[Move.TARGET]
+        if m_target in TARGET_SELF_SIDE:
+            if b_atk:
+                attacker[Pok.ATTACK_STAT_STAGE] += b_atk
+            if b_def:
+                attacker[Pok.DEFENSE_STAT_STAGE] += b_def
+            if b_spatk:
+                attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += b_spatk
+            if b_spdef:
+                attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += b_spdef
+            if b_speed:
+                attacker[Pok.SPEED_STAT_STAGE] += b_speed
+            if b_acc:
+                attacker[Pok.ACCURACY_STAT_STAGE] += b_acc
+            if b_ev:
+                attacker[Pok.EVASION_STAT_STAGE] += b_ev
 
-        if move[Move.TARGET] in (
-            Target.NORMAL,
-            Target.ADJACENT_FOE,
-            Target.ALL_ADJACENT_FOES,
-            Target.ANY,
-            Target.FOE_SIDE,
-            Target.RANDOM_NORMAL,
-            Target.SCRIPTED
-        ):
-            if move[Move.BOOST_ATK]:
-                defender[Pok.ATTACK_STAT_STAGE] += move[Move.BOOST_ATK]
-            if move[Move.BOOST_DEF]:
-                defender[Pok.DEFENSE_STAT_STAGE] += move[Move.BOOST_DEF]
-            if move[Move.BOOST_SPATK]:
-                defender[Pok.SPECIAL_ATTACK_STAT_STAGE] += move[Move.BOOST_SPATK]
-            if move[Move.BOOST_SPDEF]:
-                defender[Pok.SPECIAL_DEFENSE_STAT_STAGE] += move[Move.BOOST_SPDEF]
-            if move[Move.BOOST_SPEED]:
-                defender[Pok.SPEED_STAT_STAGE] += move[Move.BOOST_SPEED]
-            if move[Move.BOOST_ACC]:
-                defender[Pok.ACCURACY_STAT_STAGE] += move[Move.BOOST_ACC]
-            if move[Move.BOOST_EV]:
-                defender[Pok.EVASION_STAT_STAGE] += move[Move.BOOST_EV]
+        if m_target in TARGET_OPP_SIDE:
+            if b_atk:
+                defender[Pok.ATTACK_STAT_STAGE] += b_atk
+            if b_def:
+                defender[Pok.DEFENSE_STAT_STAGE] += b_def
+            if b_spatk:
+                defender[Pok.SPECIAL_ATTACK_STAT_STAGE] += b_spatk
+            if b_spdef:
+                defender[Pok.SPECIAL_DEFENSE_STAT_STAGE] += b_spdef
+            if b_speed:
+                defender[Pok.SPEED_STAT_STAGE] += b_speed
+            if b_acc and defender[Pok.AB_ID] == AbilityNames.KEEN_EYE:
+                defender[Pok.ACCURACY_STAT_STAGE] += b_acc
+            if b_ev:
+                defender[Pok.EVASION_STAT_STAGE] += b_ev
     # Status
     if move[Move.STATUS] != 0:
-        if move[Move.TARGET] in (
-            Target.NORMAL,
-            Target.ADJACENT_FOE,
-            Target.ALL_ADJACENT_FOES,
-            Target.ANY,
-            Target.FOE_SIDE,
-            Target.RANDOM_NORMAL,
-            Target.SCRIPTED
-        ):
+        if move[Move.TARGET] in TARGET_OPP_SIDE:
             apply_status(move, defender, weather)
         raise ValueError("Shouldn't have self status change")
 
@@ -112,43 +106,43 @@ def calculate_effects(attacker, defender, move, weather):
 def sec_effects(move, attacker, defender, dmg, weather):
     """Calculate the secondary effects, like 10% of burning,
     30% of increasing attacking, Drain moves etc."""
-    chance = move[Sec.CHANCE] / 100
-    roll = random.random() if chance < 1 else 0
+    chance = move[Sec.CHANCE]
+    roll = random.random()*100 if chance < 1 else 0
     if roll <= chance:
-        if move[Move.TARGET] in (
-            Target.NORMAL,
-            Target.ADJACENT_FOE,
-            Target.ALL_ADJACENT_FOES,
-            Target.ANY,
-            Target.FOE_SIDE,
-            Target.RANDOM_NORMAL,
-            Target.SCRIPTED
-        ):
-            a = move[Sec.STATUS]
-            if a != 0:
+        m_target = move[Move.TARGET]
+        if m_target in TARGET_OPP_SIDE:
+            if move[Sec.STATUS] != 0:
                 apply_status(move, defender, weather, sec=True)
-        if move[Move.TARGET] in (
-            Target.ADJACENT_ALLY,
-            Target.ADJACENT_ALLY_OR_SELF,
-            Target.ALLIES,
-            Target.ALLY_SIDE,
-            Target.SELF
-        ):
-            if any(move[Sec.BOOST_ATK: Sec.BOOST_EV + 1]):
-                if move[Sec.BOOST_ATK]:
-                    attacker[Pok.ATTACK_STAT_STAGE] += move[Sec.BOOST_ATK]
-                if move[Sec.BOOST_DEF]:
-                    attacker[Pok.DEFENSE_STAT_STAGE] += move[Sec.BOOST_DEF]
-                if move[Sec.BOOST_SPATK]:
-                    attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += move[Sec.BOOST_SPATK]
-                if move[Sec.BOOST_SPDEF]:
-                    attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += move[Sec.BOOST_SPDEF]
-                if move[Sec.BOOST_SPEED]:
-                    attacker[Pok.SPEED_STAT_STAGE] += move[Sec.BOOST_SPEED]
-                if move[Sec.BOOST_ACC]:
-                    attacker[Pok.ACCURACY_STAT_STAGE] += move[Sec.BOOST_ACC]
-                if move[Sec.BOOST_EV]:
-                    attacker[Pok.EVASION_STAT_STAGE] += move[Sec.BOOST_EV]
+        if m_target in TARGET_SELF_SIDE:
+            b_atk = move[Move.BOOST_ATK]
+            b_def = move[Move.BOOST_DEF]
+            b_spatk = move[Move.BOOST_SPATK]
+            b_spdef = move[Move.BOOST_SPDEF]
+            b_speed = move[Move.BOOST_SPEED]
+            b_acc = move[Move.BOOST_ACC]
+            b_ev = move[Move.BOOST_EV]
+            if (b_atk
+                or b_def
+                or b_spatk
+                or b_spdef
+                or b_speed
+                or b_acc
+                or b_ev
+            ):
+                if b_atk:
+                    attacker[Pok.ATTACK_STAT_STAGE] += b_atk
+                if b_def:
+                    attacker[Pok.DEFENSE_STAT_STAGE] += b_def
+                if b_spatk:
+                    attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += b_spatk
+                if b_spdef:
+                    attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += b_spdef
+                if b_speed:
+                    attacker[Pok.SPEED_STAT_STAGE] += b_speed
+                if b_acc:
+                    attacker[Pok.ACCURACY_STAT_STAGE] += b_acc
+                if b_ev:
+                    attacker[Pok.EVASION_STAT_STAGE] += b_ev
             if move[Move.DRAIN]:
                 drain_effect(attacker, dmg, move[Move.DRAIN])
 
@@ -159,20 +153,22 @@ def after_turn_status(pok):
     status = pok[Pok.STATUS]
     badly = pok[Pok.BADLY_POISON]
     max_hp = pok[Pok.MAX_HP]
+    dmg = 0
     if status:
         if status in B_P:
             if badly >= 1:
-                dmg = max_hp * badly // 16
+                if pok[Pok.AB_ID] != AbilityNames.MAGIC_GUARD:
+                    dmg = max_hp * badly // 16
                 pok[Pok.BADLY_POISON] += 1
-            else:
+            elif pok[Pok.AB_ID] != AbilityNames.MAGIC_GUARD:
                 dmg = max_hp // 8
             return dmg
-    return 0
+    return dmg
 
 
 def paralysis():
     """Check if Pokemon is fully paralysed"""
-    if random.getrandbits(2):
+    if random.getrandbits(2):  #25%
         return True
     return False
 

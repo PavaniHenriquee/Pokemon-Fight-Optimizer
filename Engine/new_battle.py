@@ -12,7 +12,9 @@ from Engine.engine_helper import (
     thaw,
     after_turn_damage,
     early_returns,
-    switch_in
+    switch_in,
+    contact_ability,
+    heal_end_turn
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage, struggle
@@ -148,7 +150,7 @@ class Battle():
             else:
                 self.battle_array[Field.MY_LAST_MOVE] = -1  # -1 to be Struggle
 
-            move_hit = calculate_hit_miss(move, attacker, defender)
+            move_hit = calculate_hit_miss(move, attacker, defender, self.battle_array[Field.WEATHER])
 
             if move_hit is MoveOutcome.HIT:
                 if isinstance(move, int):
@@ -172,6 +174,14 @@ class Battle():
         damage = calculate_damage(attacker, defender, move, weather, crit)
         if damage <= defender[Pok.CURRENT_HP]:
             defender[Pok.CURRENT_HP] -= damage
+            if (
+                move[Flags.CONTACT]
+                and (
+                    attacker[Pok.AB_ID] & AbilityActivation.ON_CONTACT
+                    or defender[Pok.AB_ID] & AbilityActivation.ON_CONTACT
+                )
+            ):
+                contact_ability(attacker, defender)
         else:
             defender[Pok.CURRENT_HP] = 0
             # Aftermath damage after kill
@@ -206,6 +216,7 @@ class Battle():
 
         # Calculate after turn status like burn, leech seed, curse
         if m_hp > 0:
+            heal_end_turn(self.current_pokemon, weather)
             dmg = after_turn_damage(self.current_pokemon, weather)
             if dmg != 0:
                 if dmg > m_hp:
@@ -214,6 +225,7 @@ class Battle():
                     m_hp -= dmg
                 self.current_opp[Pok.CURRENT_HP] = m_hp
         if opp_hp > 0:
+            heal_end_turn(self.current_opp, weather)
             dmg = after_turn_damage(self.current_opp, weather)
             if dmg != 0:
                 if dmg > opp_hp:
