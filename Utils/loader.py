@@ -10,7 +10,6 @@ def load_utils(file_name):
         return json.load(f)
 
 
-type_chart = load_utils("TypeChart.json")
 natures = load_utils("Nature.json")
 
 # Pre Calc type chart into a tuple considering only integers

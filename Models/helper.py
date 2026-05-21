@@ -166,11 +166,15 @@ class ItemActivation:
     ON_SELECTION      = 64
 
 
-_HP_OFFSETS_NP = np.array([i * POK_LEN + Pok.CURRENT_HP for i in range(6)])
+_HP_RAW = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
 
-def count_party(pty):
+def count_party(pty) -> int:
     """How many pok are alive"""
-    return int(np.count_nonzero(pty[_HP_OFFSETS_NP]))
+    n = 0
+    for off in _HP_RAW:
+        if pty[off] > 0:
+            n += 1
+    return n
 
 def count_Id(pty):
     """Pokemon in party, no matter if alive or dead"""

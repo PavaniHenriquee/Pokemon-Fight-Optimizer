@@ -9,36 +9,33 @@ from Models.idx_const import (
 )
 from Models.trainer_ai import return_idx
 from Models.helper import count_party, ActionType, BattlePhase
-from Engine.new_battle import Battle
-from Engine.engine_helper import start_of_battle
+from Engine.battle import turn_sim, switch_in_action
 
 
 _MOVE_ID_IDXS = tuple(Pok.MOVE1_ID + i * MOVE_STRIDE for i in range(4))
 _MOVE_PP_IDXS = tuple(idx + Move.PP for idx in _MOVE_ID_IDXS)
 _POK_HP_OFFSETS = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
 
+
 class GameState():
     """Screenshot of the current gamestate"""
     __slots__ = (
-        'battle_array', 'my_active', 'opp_active', 'turn', 'phase', '_opp_ai', '_opp_move'
+        'battle_array', 'my_active', 'opp_active', 'turn', 'phase', '_opp_ai', 'opp_move_cache'
     )
-    def __init__(self, battle_array, share_array=False):
-        if share_array:
-            self.battle_array = battle_array
-        else:
-            self.battle_array = np.copy(battle_array)
+    def __init__(self, battle_array):
+        self.battle_array = np.copy(battle_array)
         self.my_active = self.battle_array[Field.MY_POK]  # Index of 0..5
         self.opp_active = self.battle_array[Field.OPP_POK]  # Index of 0..5
         self.phase = self.battle_array[Field.PHASE]
         self._opp_ai = None
-        self._opp_move = None
+        self.opp_move_cache = None
 
     @property
     def opp_move(self):
         """Only do opp ai moves when necessary"""
-        if self._opp_move is None and self.phase != BattlePhase.DEATH_END_OF_TURN:
-            self._opp_move = self.opp_move_choice()
-        return self._opp_move
+        if self.opp_move_cache is None and self.phase != BattlePhase.DEATH_END_OF_TURN:
+            self.opp_move_cache = self.opp_move_choice()
+        return self.opp_move_cache
 
     @property
     def my_pty(self):
@@ -78,7 +75,7 @@ class GameState():
         """Check if battle is over"""
         return count_party(self.my_pty) == 0 or count_party(self.opp_pty) == 0
 
-    def get_valid_actions(self) -> List[Tuple[str, int]]:
+    def get_valid_actions(self) -> List[Tuple[int, int]]:
         """Get all valid actions for current player"""
         actions = []
         ba = self.battle_array
@@ -126,27 +123,22 @@ class GameState():
 
     def step(self, my_move_idx):
         """Simulate the entire turn"""
-        new = self.clone()
-        if new.battle_array[Field.TURN] == 0:
-            start_of_battle(new.battle_array)
-        battle = Battle(
-            battle_array=new.battle_array
-        )
-        if new.phase == BattlePhase.DEATH_END_OF_TURN:
-            battle.switch_in_action(my_move_idx[1])
-            new.my_active = my_move_idx[1]
-            new.phase = BattlePhase.TURN_START
-            new.battle_array[Field.PHASE] = BattlePhase.TURN_START
-            return new
+        if self.phase == BattlePhase.DEATH_END_OF_TURN:
+            switch_in_action(self.battle_array, my_move_idx[1])
+            self.my_active = my_move_idx[1]
+            self.phase = BattlePhase.TURN_START
+            self.battle_array[Field.PHASE] = BattlePhase.TURN_START
+            return self
         opp_move_idx = self.opp_move
-        new.phase, opp_idx = battle.turn_sim(opp_move_idx, my_move_idx)
-        new.battle_array[Field.PHASE] = new.phase
+        self.phase, opp_idx = turn_sim(opp_move_idx, my_move_idx, self.battle_array)
+        self.battle_array[Field.PHASE] = self.phase
         if opp_idx:
-            new.opp_active = opp_idx
+            self.opp_active = opp_idx
         if my_move_idx[0] == ActionType.SWITCH:
-            new.my_active = my_move_idx[1]
+            self.my_active = my_move_idx[1]
 
-        return new
+        self.opp_move_cache = None # Needs to clear the cache so it picks a new one next time
+        return self
 
 
 @dataclass(slots=True)

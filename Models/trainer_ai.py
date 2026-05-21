@@ -202,6 +202,7 @@ def return_idx(ai_pok, user_pok, turn, weather, ai_know, my_last_move, ai_pty):
     return best_moves[random.randint(0, n_best - 1)]
 
 
+@njit
 def sub_after_death(ai_party, user_pok, deadmon):
     """
     Implements the switch-in logic
@@ -227,77 +228,73 @@ def sub_after_death(ai_party, user_pok, deadmon):
 
     """
     off = POK_LEN
-    # filter non-fainted teammates and keep original party indices for tie-breaks
-    candidates = np.where(ai_party[_POK_CURRENT_HP:: off] > 0)[0]
+    candidates = np.where(ai_party[_POK_CURRENT_HP::off] > 0)[0]
     if len(candidates) == 1:
         return candidates[0]
 
-    # Phase 1: find mons that have at least one move that is SE (>1) vs user_pok
-    phase1 = []
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
+
+    # Phase 1: collect indices of mons with at least one SE move
+    phase1_indices = []
     for idx in candidates:
-        pok = ai_party[(off*idx):(off*(idx + 1))]
-        has_se_move = False
+        pok = ai_party[off * idx: off * (idx + 1)]
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
             mv_type = mv[_MOVE_TYPE]
             if mv_type == 0:
                 break
             eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
-            if eff//den >= 2:
-                has_se_move = True
+            if eff // den >= 2:
+                phase1_indices.append(idx)
                 break
-        if has_se_move:
-            phase1.append((idx, pok))
 
-    if phase1:
+    if len(phase1_indices) > 0:
         # TODO: Check bugged list of Pokemon in document:
         # https://drive.google.com/file/d/1MpWJWc4wNTz2oA6QiPMmstLpSwHBlpRk/view
         # Score each mon by summing the effectiveness of each of its types vs user_pok
-        if len(phase1) == 1:
-            return phase1[0][0]
-        scored = []
-        for idx, mon in phase1:
-            type1 = mon[_POK_TYPE1]
+        if len(phase1_indices) == 1:
+            return phase1_indices[0]
+
+        # Score by type effectiveness, manual max (no key= in njit)
+        best_idx = phase1_indices[0]
+        best_score = -1.0
+        for idx in phase1_indices:
+            mon = ai_party[off * idx: off * (idx + 1)]
+            t1 = mon[_POK_TYPE1]
             # single-typed counted twice
-            type2 = mon[_POK_TYPE2] if mon[_POK_TYPE2] != 0 else mon[_POK_TYPE1]
-            effec, den = get_type_effectiveness(type1, user_t1, user_t2)
-            total = effec/den
-            effec, den = get_type_effectiveness(type2, user_t1, user_t2)
-            total += effec/den
-            if total == 8:
+            t2 = mon[_POK_TYPE2] if mon[_POK_TYPE2] != 0 else mon[_POK_TYPE1]
+            e1, d1 = get_type_effectiveness(t1, user_t1, user_t2)
+            e2, d2 = get_type_effectiveness(t2, user_t1, user_t2)
+            total = e1 / d1 + e2 / d2
+            if total == 8.0:
                 total = 1.75
-            scored.append([idx, total])
+            # Higher score wins; tie-break: lower index wins (idx < best_idx)
+            if total > best_score or (total == best_score and idx < best_idx):
+                best_score = total
+                best_idx = idx
+        return best_idx
 
-        # choose highest score, tie-break by party order (lower index wins)
-        best = max(scored, key=lambda x: (x[1], -x[0]))
-        return best[0]
-
-    # Phase 2: simulate moves as if used on the (full)
-    # user pok and pick mon with max single-move damage
-
-    scored_phase2 = []
+    # Phase 2: pick mon with highest single-move damage
     user_hp = user_pok[_POK_CURRENT_HP]
+    best_idx2 = candidates[0]
+    best_dmg = -1
     for idx in candidates:
-        mon = ai_party[(off*idx):(off*(idx + 1))]
-        max_move_dmg = 0
+        mon = ai_party[off * idx: off * (idx + 1)]
         moves = mon[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
+        max_move_dmg = 0
         for mv in moves:
             if mv[_MOVE_ID] == 0:
                 break
-            # build move object shape expected by calculate_damage
-            try:
-                raw_dmg = calculate_damage(deadmon, user_pok, mv, 0, False, 1)
-            except Exception:
-                # if damage calc fails, skip move
+            if mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
                 continue
-            # apply overflow bug: if damage > 255, it overflows by subtracting 255
+            raw_dmg = calculate_damage(deadmon, user_pok, mv, 0, False, 1)
+            #overflow bug:
             dmg = raw_dmg - 255 if raw_dmg > 255 else raw_dmg
             dmg = min(dmg, user_hp)
-            max_move_dmg = max(max_move_dmg, dmg)
-        scored_phase2.append((idx, max_move_dmg))
-
-    # choose highest max_dmg, tie-break by party order (lower index wins)
-    best2 = max(scored_phase2, key=lambda x: (x[1], -x[0]))
-    return best2[0]
+            if dmg > max_move_dmg:
+                max_move_dmg = dmg
+        if max_move_dmg > best_dmg or (max_move_dmg == best_dmg and idx < best_idx2):
+            best_dmg = max_move_dmg
+            best_idx2 = idx
+    return best_idx2

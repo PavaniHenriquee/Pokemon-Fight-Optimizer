@@ -23,7 +23,7 @@ def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.32) -> float
     Mixed rollout: sometimes use heuristics, sometimes pure random
     This reduces bias while still getting some benefit from domain knowledge
     """
-    sim_state = state.clone()
+    sim_state = state
     depth = 0
 
     while not sim_state.is_terminal() and depth < max_depth:
@@ -145,6 +145,25 @@ def print_best_path(root, battle_array, depth=0, max_depth=50, min_visits=1):
 
     indent = " " * depth
     print(f"\n{indent}------ Depth {depth} ------")
+
+    # Print current state of the battle
+    print(f"{indent}                   Opponent")
+    pok_idd = int(root.snapshot.opp_slice[Pok.ID])
+    pok_HP  = int(root.snapshot.opp_slice[Pok.CURRENT_HP])
+    pok_max_HP =  int(root.snapshot.opp_slice[Pok.MAX_HP])
+    print(
+        f"{indent}                {PokIdToName.get(pok_idd, "").capitalize()}"
+        f"- {pok_HP}/{pok_max_HP}"
+    )
+    print(f"{indent}                      vs.")
+    print(f"{indent}                   Trainer")
+    pok_idd = int(root.snapshot.my_slice[Pok.ID])
+    pok_HP  = int(root.snapshot.my_slice[Pok.CURRENT_HP])
+    pok_max_HP =  int(root.snapshot.my_slice[Pok.MAX_HP])
+    print(
+        f"{indent}                {PokIdToName.get(pok_idd, "").capitalize()}"
+        f" - {pok_HP}/{pok_max_HP}\n"
+    )
 
     best_action = None
     best_metric = -float("inf")

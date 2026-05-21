@@ -93,7 +93,6 @@ def base_power_ability(attacker, move) -> float:
     Returns:
         1 if nothing happens\n
         multiplier based on 4096 if it does something, like Blaze"""
-    mult = 4096
     att_ab = attacker[_POK_AB_ID]
 
     # Starter Abilities
@@ -101,11 +100,12 @@ def base_power_ability(attacker, move) -> float:
         att_ab in STARTER_AB
         and attacker[_POK_CURRENT_HP] / attacker[_POK_MAX_HP] <= 1 / 3
     ):
+        mult = 4096
         if att_ab == _ABILITYNAMES_BLAZE and move[_MOVE_TYPE] == _TYPES_FIRE:
             mult = 6144  # 1.5
-        if att_ab == _ABILITYNAMES_TORRENT and move[_MOVE_TYPE] == _TYPES_WATER:
+        elif att_ab == _ABILITYNAMES_TORRENT and move[_MOVE_TYPE] == _TYPES_WATER:
             mult = 6144  # 1.5
-        if att_ab == _ABILITYNAMES_OVERGROW and move[_MOVE_TYPE] == _TYPES_GRASS:
+        elif att_ab == _ABILITYNAMES_OVERGROW and move[_MOVE_TYPE] == _TYPES_GRASS:
             mult = 6144  # 1.5
         return mult
 
@@ -119,7 +119,7 @@ def base_power_ability(attacker, move) -> float:
     ):
         return 4915  #1.2
 
-    return 0.0
+    return 0
 
 
 @njit

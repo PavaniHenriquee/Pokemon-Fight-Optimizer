@@ -24,20 +24,21 @@ def create_random_initial_state():
     return battle_array
 
 
+def _bracket(pct: float) -> int:
+    """HP brackets pre-computed as ints — avoids recalculating per child"""
+    if pct >= .75:
+        return 3
+    if pct >= .50:
+        return 2
+    if pct >= .25:
+        return 1
+    return 0
+
+
 def multiple_nodes(child: Node, new_state: GameState):
     """Check to see if the current state needs to create a new node"""
     # Pre-compute everything from new_state ONCE, outside the loop
     new_snap      = NodeSnapshot.from_state(new_state)
-
-    # HP brackets pre-computed as ints — avoids recalculating per child
-    def _bracket(pct: float) -> int:
-        if pct >= .75:
-            return 3
-        if pct >= .50:
-            return 2
-        if pct >= .25:
-            return 1
-        return 0
 
     new_my_brack  = _bracket(new_snap.my_slice[Pok.CURRENT_HP]  / new_snap.my_slice[Pok.MAX_HP])
     new_opp_brack = _bracket(new_snap.opp_slice[Pok.CURRENT_HP] / new_snap.opp_slice[Pok.MAX_HP])

@@ -1,7 +1,7 @@
 """Evaluation of terminal and current state"""
 import random
 from Models.idx_const import(
-    Pok, Sec, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, Move
+    Pok, Sec, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, Move, Field
 )
 from Models.helper import count_party, count_Id, MoveCategory
 from Engine.damage_calc import calculate_damage, struggle
@@ -50,7 +50,9 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
         win_value = 1.0
 
     if opp_alive == 0 and my_alive > 0:
-        return win_value, 1, dead
+        turn = sim_state.battle_array[Field.TURN]
+        turn_penalty = min(0.15, turn * 0.002)  # caps at 0.15, never flips a win
+        return win_value-turn_penalty, 1, dead
     if my_alive == 0:
         return 0.0, 0, dead
 

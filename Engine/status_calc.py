@@ -30,19 +30,6 @@ def apply_status(move, pok, weather, sec=False):
     return
 
 
-def drain_effect(attacker, dmg, drain_amount):
-    """Calculates how much should it drain"""
-    drain_hp = int(dmg * drain_amount)
-    max_hp = attacker[Pok.MAX_HP]
-    if drain_hp <= 0:
-        drain_hp = 1
-    if attacker[Pok.CURRENT_HP] + drain_hp > max_hp:
-        attacker[Pok.CURRENT_HP] = max_hp
-    if drain_hp <= 0:
-        return
-    attacker[Pok.CURRENT_HP] += drain_hp
-
-
 def calculate_effects(attacker, defender, move, weather):
     """Calculate the effect parts of the moves"""
     if move[Move.CATEGORY] != MoveCategory.STATUS:
@@ -103,11 +90,11 @@ def calculate_effects(attacker, defender, move, weather):
         raise ValueError("Shouldn't have self status change")
 
 
-def sec_effects(move, attacker, defender, dmg, weather):
+def sec_effects(move, attacker, defender, weather):
     """Calculate the secondary effects, like 10% of burning,
     30% of increasing attacking, Drain moves etc."""
     chance = move[Sec.CHANCE]
-    roll = random.random()*100 if chance < 1 else 0
+    roll = random.random()*100 if chance < 100 else 0
     if roll <= chance:
         m_target = move[Move.TARGET]
         if m_target in TARGET_OPP_SIDE:
@@ -143,8 +130,6 @@ def sec_effects(move, attacker, defender, dmg, weather):
                     attacker[Pok.ACCURACY_STAT_STAGE] += b_acc
                 if b_ev:
                     attacker[Pok.EVASION_STAT_STAGE] += b_ev
-            if move[Move.DRAIN]:
-                drain_effect(attacker, dmg, move[Move.DRAIN])
 
 
 def after_turn_status(pok):
