@@ -42,10 +42,9 @@ def start_of_turn(opp_move, switch_idx, battle_array):
     current_opp = battle_array[
         ((opp_active+6) * POK_LEN):((opp_active+7) * POK_LEN)
     ]
+    battle_array[Field.AI_TOOK_DMG_LAST_TURN] = 0
     if opp_move < 0:
-        i = sub_after_death(
-            opp_pty, current_pokemon, current_opp
-        )
+        i = opp_move + 6  #Before i subtracted -6 from idx that's why add 6 so it's 0..5
         opp_switch = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
 
     if switch_idx >= 0 > opp_move:
@@ -203,6 +202,8 @@ def action(current_move, opp_move, battle_array):
                 struggle(attacker, defender)
             elif move[Move.CATEGORY] in PHYSICAL_SPECIAL:
                 ps_moves(attacker, defender, move, weather)
+                if defender is current_opp:
+                    battle_array[Field.AI_TOOK_DMG_LAST_TURN] = move[Move.TYPE]
                 flinch = flinch_checker(move, defender)
                 if defender[Pok.STATUS] == Status.FREEZE:
                     thaw(move, defender)

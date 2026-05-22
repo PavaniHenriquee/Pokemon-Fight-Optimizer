@@ -215,6 +215,7 @@ class Field:
     PHASE              = OPP_SCREEN_DURATION + 1
     OPP_MOVE           = PHASE + 1
     MY_LAST_MOVE       = OPP_MOVE + 1
-    AI_KNOWS           = MY_LAST_MOVE + 1
+    AI_TOOK_DMG_LAST_TURN = MY_LAST_MOVE + 1
+    AI_KNOWS           = AI_TOOK_DMG_LAST_TURN + 1
 
 FIELD_LEN = Field.AI_KNOWS + 1

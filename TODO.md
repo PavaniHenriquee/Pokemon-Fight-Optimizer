@@ -52,6 +52,7 @@ Abilities
 []Hyper Cutter
 []Clear Body
 []White Smoke
+[]Natural Cure
 
 Moves
 []Absorb

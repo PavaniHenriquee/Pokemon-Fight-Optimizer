@@ -117,6 +117,7 @@ class GameState():
             self.battle_array[Field.WEATHER],
             self.battle_array[Field.AI_KNOWS],
             self.battle_array[Field.MY_LAST_MOVE],
+            self.battle_array[Field.AI_TOOK_DMG_LAST_TURN],
             self.opp_pty
         )
         return opp_idx

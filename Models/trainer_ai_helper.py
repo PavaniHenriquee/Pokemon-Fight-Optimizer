@@ -7,7 +7,7 @@ from numba import njit
 from Utils.loader import TYPE_CHART
 from Utils.helper import get_type_effectiveness
 from DataBase.PkDB import POKEMON_ABILITY_POOL, POKEMON_LENGTH
-from DataBase.MoveDB import PHYSICAL, SPECIAL
+from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC_MOVES
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
 from Engine.engine_helper import check_speed
@@ -51,6 +51,9 @@ ABILITY_BASIC_FLAG = (
     _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE, _ABILITYNAMES_WATER_ABSORB,
     _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_LEVITATE, _ABILITYNAMES_SOUNDPROOF,
     _ABILITYNAMES_WONDER_GUARD
+)
+ABSORB_ABI = (
+    _ABILITYNAMES_WATER_ABSORB, _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_FLASH_FIRE
 )
 
 SELF_KILL_MOVE = (_MOVENAME_EXPLOSION, _MOVE_SELFDESTRUCT)
@@ -122,6 +125,7 @@ for pk_id in range(POKEMON_LENGTH + 1):
             POKEMON_HAS_RELEVANT_ABILITY[pk_id] = True
             break
 
+BUF = np.zeros(6,dtype=np.int16)
 
 @njit
 def match_2tuple_any(tup1, tup2):
@@ -399,7 +403,7 @@ def basic_stat_change(move, ability, user_pok, ai_pok) -> bool:
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
             weather
-    ) -> int:
+    ):
     """
     Basic Flag, every trainer has this,
     it discourages moves that would have no effect or that would make no sense
@@ -536,7 +540,7 @@ def evaluate_attack_flag(
             score = 6
         else:
             score = 4
-        return score, rand
+        return score
 
     if (
         move_id in MAYBE_BAD_MOVES
@@ -544,7 +548,7 @@ def evaluate_attack_flag(
         add_adjustment(rand, idx, -2, 176)
     if effectiveness >= 4:
         add_adjustment(rand, idx, 2, 176)
-    return score, rand
+    return score
 
 @njit
 def expert_status(
@@ -563,23 +567,23 @@ def expert_status(
 
     # Burn
     if m_status == _STATUS_BURN:
-        return 0, rand
+        return 0
 
     # Poison, but not badly poison
     if (
         m_status == _STATUS_POISON
         and (hp_pct_ai < 50 or hp_pct_u < 51)
     ):
-        return -1, rand
+        return -1
 
     # Paralyzing-Inducing
     if m_status == _STATUS_PARALYSIS and not move_first:
         add_adjustment(rand, idx, 3, 236)
-        return 0, rand
+        return 0
 
     # TODO: Badly poison
     if m_status == _STATUS_TOXIC:
-        return 0, rand
+        return 0
 
     # Sleep-Inducing
     if (
@@ -592,7 +596,7 @@ def expert_status(
         )
     ):
         add_adjustment(rand, idx, 1, 128)
-        return 0, rand
+        return 0
 
     raise ValueError("Expert Status is receiving a improper status condition")
 
@@ -622,7 +626,7 @@ def expert_vol_status(move, ai_pok, u_pok, turn, rand, idx, hp_pct_u):
                         score += 3
                 else:
                     score += -5
-                return score, rand
+                return score
         if move[_MOVE_ID] in CONFUSE_SPECIAL_CASES:
             add_adjustment(rand, idx, 1, 128)
         if hp_pct_u <= 70:
@@ -631,7 +635,7 @@ def expert_vol_status(move, ai_pok, u_pok, turn, rand, idx, hp_pct_u):
                 score += -1
             if hp_pct_u < 51:
                 score += -1
-        return score, rand
+        return score
     raise ValueError("Need implementation")
 
 
@@ -653,16 +657,16 @@ def expert_stat(
                 add_adjustment(rand, idx, 2, 128)
             if hp_pct_ai>69:
                 if random.getrandbits(8) < 200:
-                    return 0, rand
+                    return 0
             if hp_pct_ai < 40:
-                return -2, rand
+                return -2
             if my_last_move in SPECIAL:
-                return -2, rand
+                return -2
             if my_last_move not in PHYSICAL:
                 add_adjustment(rand, idx, -2, 196)
-                return 0, rand
+                return 0
             add_adjustment(rand, idx, -2, 150)
-            return 0, rand
+            return 0
 
         if move[_MOVE_BOOST_SPDEF]:
             if ai_pok[_POK_SPECIAL_DEFENSE_STAT_STAGE]>= 3:
@@ -671,16 +675,16 @@ def expert_stat(
                 add_adjustment(rand, idx, 2, 128)
             if hp_pct_ai>69:
                 if random.getrandbits(8) < 200:
-                    return 0, rand
+                    return 0
             if hp_pct_ai < 40:
-                return -2, rand
+                return -2
             if my_last_move in PHYSICAL:
-                return -2, rand
+                return -2
             if my_last_move not in SPECIAL:
                 add_adjustment(rand, idx, -2, 196)
-                return 0, rand
+                return 0
             add_adjustment(rand, idx, -2, 150)
-            return 0, rand
+            return 0
 
         if move[_MOVE_BOOST_ATK] and move[_MOVE_ID] != _MOVENAME_DRAGON_DANCE:
             if ai_pok[_POK_ATTACK_STAT_STAGE]>= 3:
@@ -689,10 +693,10 @@ def expert_stat(
                 add_adjustment(rand, idx, 2, 128)
             if 39<hp_pct_ai<71:
                 add_adjustment(rand, idx, -2, 216)
-                return 0, rand
+                return 0
             if hp_pct_ai < 40:
-                return -2, rand
-            return 0, rand
+                return -2
+            return 0
 
         if move[_MOVE_BOOST_SPATK]:
             if ai_pok[_POK_SPECIAL_ATTACK_STAT_STAGE]>= 3:
@@ -701,16 +705,16 @@ def expert_stat(
                 add_adjustment(rand, idx, 2, 128)
             if 39<hp_pct_ai<71:
                 add_adjustment(rand, idx, -2, 186)
-                return 0, rand
+                return 0
             if hp_pct_ai < 40:
-                return -2, rand
-            return 0, rand
+                return -2
+            return 0
 
         if move[_MOVE_BOOST_SPEED] and move[_MOVE_ID] != _MOVENAME_DRAGON_DANCE:
             if move_first:
-                return -3, rand
+                return -3
             add_adjustment(rand, idx, 3, 186)
-            return 0, rand
+            return 0
 
         if move[_MOVE_BOOST_EV]:
             # TODO: Ingrain, Aqua Ring
@@ -730,11 +734,11 @@ def expert_stat(
             if u_pok_vol_stat & _VOLSTATUS_CURSE:
                 add_adjustment(rand, idx, 3, 186)
             if hp_pct_ai > 70 or ai_ev_stage == 0:
-                return 0, rand
+                return 0
             if hp_pct_ai < 40 or hp_pct_u < 40:
-                return -2, rand
+                return -2
             add_adjustment(rand, idx, -2, 186)
-            return 0, rand
+            return 0
         raise ValueError("Target self missing something")
 
     if move_target in TARGET_OPP_SIDE:
@@ -751,8 +755,8 @@ def expert_stat(
                 score += -2
             if my_last_move in SPECIAL:
                 add_adjustment(rand, idx, -2, 128)
-                return score, rand
-            return score, rand
+                return score
+            return score
 
         # No moves that are status and also reduce SP.Atk
 
@@ -762,7 +766,7 @@ def expert_stat(
                 add_adjustment(rand, idx, -2, 206)
             if hp_pct_u < 71:
                 score += -2
-            return score, rand
+            return score
 
         if move[_MOVE_BOOST_SPDEF]:
             score = 0
@@ -770,13 +774,13 @@ def expert_stat(
                 add_adjustment(rand, idx, -2, 206)
             if hp_pct_u < 71:
                 score += -2
-            return score, rand
+            return score
 
         if move[_MOVE_BOOST_SPEED]:
             if move_first:
-                return -3, rand
+                return -3
             add_adjustment(rand, idx, 2, 186)
-            return 0, rand
+            return 0
 
         if move[_MOVE_BOOST_ACC]:
             if hp_pct_ai < 70 or hp_pct_u < 71:
@@ -790,11 +794,11 @@ def expert_stat(
             if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
                 add_adjustment(rand, idx, 2, 186)
             if hp_pct_ai >= 70 or ai_pok[_POK_ACCURACY_STAT_STAGE] == 0:
-                return 0, rand
+                return 0
             if hp_pct_ai < 40 or hp_pct_u < 40:
-                return -2, rand
+                return -2
             add_adjustment(rand, idx, -2, 186)
-            return 0, rand
+            return 0
             # TODO: Ingrain, Aqua Ring
 
         if move[_MOVE_BOOST_EV]:
@@ -803,7 +807,7 @@ def expert_stat(
                 add_adjustment(rand, idx, -2, 206)
             if hp_pct_u < 71:
                 score += -2
-            return score, rand
+            return score
         raise ValueError("Target enemy missing something")
     raise ValueError("Target no accounted for")
 
@@ -858,7 +862,7 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
             score += 1
         if ai_acc <= -3 or u_ev >= 3:
             add_adjustment(rand, idx, 1, 156)
-        return score, rand
+        return score
 
 
     """
@@ -871,30 +875,151 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
         Acupressure
 
     """
-    return 0, rand
+    return 0
 
 
 @njit
 def check_super_ef_move_pty(ai_party, user_pok):
     """
-    Check if party has any supper effective move
+    Check if there's any pokemon with super effective move
     """
-    alive = np.where(ai_party[_POK_CURRENT_HP:: POK_LEN] > 0)[0]
+    BUF.fill(0)
+    n = 0
 
-    # Phase 1: find mons that have at least one move that is SE (>1) vs user_pok
-    candidates = []
+    alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
+    if len(alive) <= 1:
+        return BUF[:0]
+
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
     for idx in alive:
-        pok = ai_party[(POK_LEN*idx):(POK_LEN*(idx + 1))]
-        has_se_move = False
+        pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
             mv_type = mv[_MOVE_TYPE]
             eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
-            if eff//den >= 2:
-                has_se_move = True
+            if eff // den >= 2:
+                BUF[n] = idx
+                n += 1
                 break
-        if has_se_move:
-            candidates.append(idx)
-    return candidates
+    return BUF[:n]
+
+
+@njit
+def check_any_damaging_move_pty(ai_party, user_pok):
+    """
+    Check party for any damaging move
+    """
+    BUF.fill(0)
+    n = 0
+
+    alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
+    if len(alive) <= 1:
+        return BUF[:0]
+
+    user_t1 = user_pok[_POK_TYPE1]
+    user_t2 = user_pok[_POK_TYPE2]
+    for idx in alive:
+        pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
+        moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
+        for mv in moves:
+            mv_type = mv[_MOVE_TYPE]
+            eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
+            if eff / den != 0:
+                BUF[n] = idx
+                n += 1
+                break
+    return BUF[:n]
+
+
+@njit
+def check_absorb_abi_pty(ai_party, my_last_move):
+    """
+    Check if party has any pokemon with ability that absorbs types
+    """
+    BUF.fill(0)
+    n = 0
+
+    alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
+    if len(alive) <= 1:
+        return BUF[:0]
+
+    for idx in alive:
+        pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
+        pok_ab = pok[_POK_AB_ID]
+        if pok_ab not in ABSORB_ABI:
+            continue
+        if my_last_move in FIRE_MOVES and pok_ab == _ABILITYNAMES_FLASH_FIRE:
+            BUF[n] = idx
+            n += 1
+        elif my_last_move in WATER_MOVES and pok_ab == _ABILITYNAMES_WATER_ABSORB:
+            BUF[n] = idx
+            n += 1
+        elif my_last_move in ELECTRIC_MOVES and pok_ab == _ABILITYNAMES_VOLT_ABSORB:
+            BUF[n] = idx
+            n += 1
+    return BUF[:n]
+
+
+@njit
+def check_immunity_pty(ai_party, user_pok, last_move_type):
+    """
+    Check if there's any pokemon with super effective move
+    """
+    BUF.fill(0)
+    n = 0
+
+    alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
+    if len(alive) <= 1:
+        return BUF[:0]
+
+    user_t1 = user_pok[_POK_TYPE1]
+    user_t2 = user_pok[_POK_TYPE2]
+    for idx in alive:
+        pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
+        ef, de = get_type_effectiveness(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2])
+        if ef/de == 0:
+            moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
+            for mv in moves:
+                mv_type = mv[_MOVE_TYPE]
+                eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
+                if eff // den >= 2:
+                    BUF[n] = idx
+                    n += 1
+                    break
+            if n == 1:
+                break
+
+    return BUF[:n]
+
+
+@njit
+def check_resistence_pty(ai_party, user_pok, last_move_type):
+    """
+    Check if there's any pokemon with super effective move
+    """
+    BUF.fill(0)
+    n = 0
+
+    alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
+    if len(alive) <= 1:
+        return BUF[:0]
+
+    user_t1 = user_pok[_POK_TYPE1]
+    user_t2 = user_pok[_POK_TYPE2]
+    for idx in alive:
+        pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
+        ef, de = get_type_effectiveness(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2])
+        if ef/de < 1:
+            moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
+            for mv in moves:
+                mv_type = mv[_MOVE_TYPE]
+                eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
+                if eff // den >= 2:
+                    BUF[n] = idx
+                    n += 1
+                    break
+            if n == 1:
+                break
+
+    return BUF[:n]

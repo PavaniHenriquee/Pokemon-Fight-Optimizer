@@ -49,4 +49,22 @@ def _build_category_sets():
             special.add(move_id)
     return tuple(physical), tuple(special)
 
+def _build_type_tuples(typ):
+    _type = set()
+    for move_data in moveDB.values():
+        name_key = move_data["name"].upper()
+        move_id = getattr(MoveName, name_key, None)
+        if move_id is None:
+            continue  # move in JSON but not yet in MoveName — skip silently
+        category = move_data.get("category")
+        if category in ("Physical","Special"):
+            ty = move_data.get("type")
+            if ty == typ:
+                _type.add(move_id)
+    return tuple(_type)
+
 PHYSICAL, SPECIAL = _build_category_sets()
+FIRE_MOVES = _build_type_tuples("Fire")
+WATER_MOVES = _build_type_tuples("Water")
+ELECTRIC_MOVES = _build_type_tuples("Electric")
+FIRE_WATER_ELECTRIC = FIRE_MOVES + WATER_MOVES + ELECTRIC_MOVES

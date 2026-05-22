@@ -53,25 +53,28 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
         raw_attack = attacker[_POK_ATTACK]
         raw_defense = defender[_POK_DEFENSE]
 
+        if attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
+            atk_stage = max(-6, min(6, attacker[_POK_ATTACK_STAT_STAGE] * 2))
+        else:
+            atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
 
-        # A boolean evaluates to 1 (True) or 0 (False). 
-        # If Simple is active, mult is 1 + 1 = 2. If not, mult is 1 + 0 = 1.
-        atk_mult = 1 + (attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE)
-        atk_stage = max(-6, min(6, attacker[_POK_ATTACK_STAT_STAGE] * atk_mult))
-
-        def_mult = 1 + (defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE)
-        def_stage = max(-6, min(6, defender[_POK_DEFENSE_STAT_STAGE] * def_mult))
+        if defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
+            def_stage = max(-6, min(6, defender[_POK_DEFENSE_STAT_STAGE] * 2))
+        else:
+            def_stage = defender[_POK_DEFENSE_STAT_STAGE]
     else:
         raw_attack = attacker[_POK_SPECIAL_ATTACK]
         raw_defense = defender[_POK_SPECIAL_DEFENSE]
 
-        # A boolean evaluates to 1 (True) or 0 (False).
-        # If Simple is active, mult is 1 + 1 = 2. If not, mult is 1 + 0 = 1.
-        atk_mult = 1 + (attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE)
-        atk_stage = max(-6, min(6, attacker[_POK_SPECIAL_ATTACK_STAT_STAGE] * atk_mult))
+        if attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
+            atk_stage = max(-6, min(6, attacker[_POK_SPECIAL_ATTACK_STAT_STAGE] * 2))
+        else:
+            atk_stage = attacker[_POK_SPECIAL_ATTACK_STAT_STAGE]
 
-        def_mult = 1 + (defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE)
-        def_stage = max(-6, min(6, defender[_POK_SPECIAL_DEFENSE_STAT_STAGE] * def_mult))
+        if defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
+            def_stage = max(-6, min(6, defender[_POK_SPECIAL_DEFENSE_STAT_STAGE] * 2))
+        else:
+            def_stage = defender[_POK_SPECIAL_DEFENSE_STAT_STAGE]
 
         if (
             weather == _WEATHER_SANDSTORM

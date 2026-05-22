@@ -316,7 +316,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # 
             return True
     # In cases like after recoil damage, selfdestruct, etc.
     if defender[Pok.CURRENT_HP] <= 0:
-        if move[Move.TARGET] in TARGET_SELF_SIDE:
+        if not isinstance(move,int) and move[Move.TARGET] in TARGET_SELF_SIDE:
             return False
         #TODO: Some moves still go through, like dig, future sight
         return True
