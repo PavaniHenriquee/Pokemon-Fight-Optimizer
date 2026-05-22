@@ -57,7 +57,11 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
         return 0.0, 0, dead
 
     # Fallback to if the game haven't finished yet, but max depth reached
-    return 0.2, 0, dead
+    opp_pty_count = count_Id(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
+    my_hp = party_hp_fraction(sim_state.battle_array, 0, my_pty_count)
+    opp_hp = party_hp_fraction(sim_state.battle_array, 6 * POK_LEN, opp_pty_count)
+    heuristic = my_hp / (my_hp + opp_hp + 1e-9)  # 0..1 continuous
+    return heuristic * 0.35, 0, dead
     #  raise ValueError("Shouldn't get here")
 
 

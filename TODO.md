@@ -16,7 +16,7 @@ Abilities
 [X]Reckless
 []Rock Head (Need to implement recoil)
 [X]Sand Veil
-[]Simple
+[X]Simple
 []Solar Power
 []Soundproof
 []Speed Boost

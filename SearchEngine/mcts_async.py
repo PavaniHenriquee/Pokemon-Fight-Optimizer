@@ -33,7 +33,7 @@ def _async_worker(task_queue: mp.Queue, result_queue: mp.Queue):
 def mcts_async(
         root_state: GameState,
         max_iterations: int=1_250_000,
-        terminal_iterations: int=2_000,
+        terminal_iterations: int=1_000,
         num_workers: int=None
 ):
     """Main tree workflow"""
@@ -62,7 +62,7 @@ def mcts_async(
         while iterations < max_iterations or in_flight:
             # Feed tasks until pipeline is full or iterations exhausted
             while len(in_flight) < pipeline_depth and iterations < max_iterations:
-                state, path = _select_expand(root_state, root)
+                state, path = _select_expand(root_state.clone(), root)
                 for n in path:                  # virtual loss, so ucb dont keep choosing the same
                     n.visits      += 1
                     n.total_value -= 1

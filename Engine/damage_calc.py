@@ -14,7 +14,7 @@ from Models.constants import (
     _POK_MAX_HP, _MOVE_TYPE, _TYPES_FIRE, _TYPES_WATER, _TYPES_GRASS, _ABILITYNAMES_IRON_FIST,
     _FLAGS_PUNCH, _STATUS_BURN, _WEATHER_SUN, _WEATHER_RAIN, _MOVE_POWER,
     _ABILITYACTIVATION_ON_BASE_POWER, _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
-    _MOVE_HAS_CRASH_DAMAGE
+    _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE
 )
 
 
@@ -52,13 +52,27 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
     if physical:
         raw_attack = attacker[_POK_ATTACK]
         raw_defense = defender[_POK_DEFENSE]
-        atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
-        def_stage = defender[_POK_DEFENSE_STAT_STAGE]
+
+
+        # A boolean evaluates to 1 (True) or 0 (False). 
+        # If Simple is active, mult is 1 + 1 = 2. If not, mult is 1 + 0 = 1.
+        atk_mult = 1 + (attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE)
+        atk_stage = max(-6, min(6, attacker[_POK_ATTACK_STAT_STAGE] * atk_mult))
+
+        def_mult = 1 + (defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE)
+        def_stage = max(-6, min(6, defender[_POK_DEFENSE_STAT_STAGE] * def_mult))
     else:
         raw_attack = attacker[_POK_SPECIAL_ATTACK]
         raw_defense = defender[_POK_SPECIAL_DEFENSE]
-        atk_stage = attacker[_POK_SPECIAL_ATTACK_STAT_STAGE]
-        def_stage = defender[_POK_SPECIAL_DEFENSE_STAT_STAGE]
+
+        # A boolean evaluates to 1 (True) or 0 (False).
+        # If Simple is active, mult is 1 + 1 = 2. If not, mult is 1 + 0 = 1.
+        atk_mult = 1 + (attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE)
+        atk_stage = max(-6, min(6, attacker[_POK_SPECIAL_ATTACK_STAT_STAGE] * atk_mult))
+
+        def_mult = 1 + (defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE)
+        def_stage = max(-6, min(6, defender[_POK_SPECIAL_DEFENSE_STAT_STAGE] * def_mult))
+
         if (
             weather == _WEATHER_SANDSTORM
             and (

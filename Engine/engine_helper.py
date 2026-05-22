@@ -161,7 +161,7 @@ def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
 def calculate_hit_miss(move, attacker, defender, weather):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
-    if isinstance(move, int):
+    if isinstance(move, int):  #Struggle
         return MoveOutcome.HIT
     move_acc = move[Move.ACCURACY]
 
@@ -186,7 +186,7 @@ def calculate_hit_miss(move, attacker, defender, weather):
     else:
         accuracy = move_acc
 
-    if random.random() <= accuracy/100:
+    if accuracy == 100 or random.random()*100 < accuracy:
         return MoveOutcome.HIT
     return MoveOutcome.MISS
 

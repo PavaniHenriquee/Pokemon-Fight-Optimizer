@@ -6,6 +6,15 @@ from DataBase.AbilitiesDB import AbilityNames
 
 
 B_P = {Status.BURN, Status.POISON, Status.TOXIC}
+STAT_MAPPING = (
+    (Move.BOOST_ATK, Pok.ATTACK_STAT_STAGE),
+    (Move.BOOST_DEF, Pok.DEFENSE_STAT_STAGE),
+    (Move.BOOST_SPATK, Pok.SPECIAL_ATTACK_STAT_STAGE),
+    (Move.BOOST_SPDEF, Pok.SPECIAL_DEFENSE_STAT_STAGE),
+    (Move.BOOST_SPEED, Pok.SPEED_STAT_STAGE),
+    (Move.BOOST_EV, Pok.EVASION_STAT_STAGE)
+)
+
 
 def apply_status(move, pok, weather, sec=False):
     """Apply status effects"""
@@ -30,59 +39,63 @@ def apply_status(move, pok, weather, sec=False):
     return
 
 
+
+def stat_changes(move, attacker, defender):
+    """
+    Check and apply stat changes
+    """
+     # 1.Check if ANY stat change exists
+    has_stat_boost = False
+    for move_idx, _ in STAT_MAPPING:
+        if move[move_idx] != 0:
+            has_stat_boost = True
+            break
+
+    if move[Move.BOOST_ACC] != 0:
+        has_stat_boost = True
+
+    # 2. EXECUTE LOGIC if a stat boost is present
+    if has_stat_boost:
+        m_target = move[Move.TARGET]
+
+        # --- Apply Stats to Self ---
+        if m_target in TARGET_SELF_SIDE:
+            for move_idx, stat_idx in STAT_MAPPING:
+                boost = move[move_idx]
+                if boost != 0:
+                    attacker[stat_idx] = max(-6, min(6, attacker[stat_idx] + boost))
+
+            acc_boost = move[Move.BOOST_ACC]
+            if acc_boost != 0:
+                attacker[Pok.ACCURACY_STAT_STAGE] = (
+                    max(-6, min(6, attacker[Pok.ACCURACY_STAT_STAGE] + acc_boost))
+                )
+
+        # --- Apply Stats to Opponent ---
+        elif m_target in TARGET_OPP_SIDE:
+            for move_idx, stat_idx in STAT_MAPPING:
+                boost = move[move_idx]
+                if boost != 0:
+                    defender[stat_idx] = max(-6, min(6, defender[stat_idx] + boost))
+
+            acc_boost = move[Move.BOOST_ACC]
+            if acc_boost != 0:
+                if acc_boost < 0 and defender[Pok.AB_ID] == AbilityNames.KEEN_EYE:
+                    pass # Blocked
+                else:
+                    defender[Pok.ACCURACY_STAT_STAGE] = (
+                        max(-6, min(6, defender[Pok.ACCURACY_STAT_STAGE] + acc_boost))
+                    )
+
+
 def calculate_effects(attacker, defender, move, weather):
     """Calculate the effect parts of the moves"""
     if move[Move.CATEGORY] != MoveCategory.STATUS:
         return
 
-    # Stat boost and reducing
-    b_atk = move[Move.BOOST_ATK]
-    b_def = move[Move.BOOST_DEF]
-    b_spatk = move[Move.BOOST_SPATK]
-    b_spdef = move[Move.BOOST_SPDEF]
-    b_speed = move[Move.BOOST_SPEED]
-    b_acc = move[Move.BOOST_ACC]
-    b_ev = move[Move.BOOST_EV]
-    if (b_atk
-        or b_def
-        or b_spatk
-        or b_spdef
-        or b_speed
-        or b_acc
-        or b_ev
-    ):
-        m_target = move[Move.TARGET]
-        if m_target in TARGET_SELF_SIDE:
-            if b_atk:
-                attacker[Pok.ATTACK_STAT_STAGE] += b_atk
-            if b_def:
-                attacker[Pok.DEFENSE_STAT_STAGE] += b_def
-            if b_spatk:
-                attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += b_spatk
-            if b_spdef:
-                attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += b_spdef
-            if b_speed:
-                attacker[Pok.SPEED_STAT_STAGE] += b_speed
-            if b_acc:
-                attacker[Pok.ACCURACY_STAT_STAGE] += b_acc
-            if b_ev:
-                attacker[Pok.EVASION_STAT_STAGE] += b_ev
+    # Stat Buffs and Debuffs
+    stat_changes(move, attacker, defender)
 
-        if m_target in TARGET_OPP_SIDE:
-            if b_atk:
-                defender[Pok.ATTACK_STAT_STAGE] += b_atk
-            if b_def:
-                defender[Pok.DEFENSE_STAT_STAGE] += b_def
-            if b_spatk:
-                defender[Pok.SPECIAL_ATTACK_STAT_STAGE] += b_spatk
-            if b_spdef:
-                defender[Pok.SPECIAL_DEFENSE_STAT_STAGE] += b_spdef
-            if b_speed:
-                defender[Pok.SPEED_STAT_STAGE] += b_speed
-            if b_acc and defender[Pok.AB_ID] == AbilityNames.KEEN_EYE:
-                defender[Pok.ACCURACY_STAT_STAGE] += b_acc
-            if b_ev:
-                defender[Pok.EVASION_STAT_STAGE] += b_ev
     # Status
     if move[Move.STATUS] != 0:
         if move[Move.TARGET] in TARGET_OPP_SIDE:
@@ -97,39 +110,14 @@ def sec_effects(move, attacker, defender, weather):
     roll = random.random()*100 if chance < 100 else 0
     if roll <= chance:
         m_target = move[Move.TARGET]
+
+        # Stat can be both sides, so check and apply as normal
+        stat_changes(move, attacker, defender)
+
+        # Status can only be opposing side, so only enter function if necessary
         if m_target in TARGET_OPP_SIDE:
             if move[Sec.STATUS] != 0:
                 apply_status(move, defender, weather, sec=True)
-        if m_target in TARGET_SELF_SIDE:
-            b_atk = move[Move.BOOST_ATK]
-            b_def = move[Move.BOOST_DEF]
-            b_spatk = move[Move.BOOST_SPATK]
-            b_spdef = move[Move.BOOST_SPDEF]
-            b_speed = move[Move.BOOST_SPEED]
-            b_acc = move[Move.BOOST_ACC]
-            b_ev = move[Move.BOOST_EV]
-            if (b_atk
-                or b_def
-                or b_spatk
-                or b_spdef
-                or b_speed
-                or b_acc
-                or b_ev
-            ):
-                if b_atk:
-                    attacker[Pok.ATTACK_STAT_STAGE] += b_atk
-                if b_def:
-                    attacker[Pok.DEFENSE_STAT_STAGE] += b_def
-                if b_spatk:
-                    attacker[Pok.SPECIAL_ATTACK_STAT_STAGE] += b_spatk
-                if b_spdef:
-                    attacker[Pok.SPECIAL_DEFENSE_STAT_STAGE] += b_spdef
-                if b_speed:
-                    attacker[Pok.SPEED_STAT_STAGE] += b_speed
-                if b_acc:
-                    attacker[Pok.ACCURACY_STAT_STAGE] += b_acc
-                if b_ev:
-                    attacker[Pok.EVASION_STAT_STAGE] += b_ev
 
 
 def after_turn_status(pok):

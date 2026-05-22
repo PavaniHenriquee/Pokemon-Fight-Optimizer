@@ -18,7 +18,7 @@ from DataBase.MoveDB import MoveIdToName
 from DataBase.PkDB import PokIdToName
 
 
-def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.32) -> float:
+def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.38) -> float:
     """
     Mixed rollout: sometimes use heuristics, sometimes pure random
     This reduces bias while still getting some benefit from domain knowledge
@@ -153,7 +153,7 @@ def print_best_path(root, battle_array, depth=0, max_depth=50, min_visits=1):
     pok_max_HP =  int(root.snapshot.opp_slice[Pok.MAX_HP])
     print(
         f"{indent}                {PokIdToName.get(pok_idd, "").capitalize()}"
-        f"- {pok_HP}/{pok_max_HP}"
+        f" - {pok_HP}/{pok_max_HP}"
     )
     print(f"{indent}                      vs.")
     print(f"{indent}                   Trainer")
