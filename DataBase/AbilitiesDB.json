@@ -90,7 +90,7 @@
   },
   "Solar Power": {
     "name": "solar_power",
-    "when": ["on_modify_stat", "on_weather"]
+    "when": "on_modify_stat"
   },
   "Soundproof": {
     "breakable": true,

@@ -2,8 +2,8 @@
 import random
 from numba import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
-from Engine.status_calc import after_turn_status, freeze, paralysis
-from Models.idx_const import Pok, Move, Sec, Field, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
+from Engine.status_calc import after_turn_status, freeze, paralysis, B_P
+from Models.idx_const import Pok, Move, Sec, Field, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, Flags
 from Models.helper import (
     Status, VolStatus, Types, Weather, AbilityActivation, MoveCategory, TARGET_SELF_SIDE,
     STEEL_POISON
@@ -19,7 +19,7 @@ from DataBase.MoveDB import MoveName
 
 SANDSTORM_IM = {Types.ROCK, Types.GROUND, Types.STEEL}
 DAMP_IGNORES = {MoveName.EXPLOSION, MoveName.SELFDESTRUCT}
-WEATHER_NOT_END_OF_TURN = {0, _WEATHER_SUN, Weather.RAIN}
+WEATHER_NOT_END_OF_TURN = {0, Weather.RAIN}
 
 
 @njit
@@ -138,6 +138,7 @@ def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
     """
     atk_ab = attacker[_POK_AB_ID]
     def_ab = defender[_POK_AB_ID]
+    target = move[Move.TARGET]
     if move in DAMP_IGNORES and (
         atk_ab == AbilityNames.DAMP  #pylint: disable=consider-using-in
         or def_ab == AbilityNames.DAMP
@@ -154,6 +155,17 @@ def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
         and weather == Weather.SANDSTORM
     ):
         return (accuracy*3277)//4096
+    if (
+        move[Flags.SOUND]
+        and (
+            def_ab == AbilityNames.SOUNDPROOF
+            or (
+                atk_ab == AbilityNames.SOUNDPROOF
+                and target in TARGET_SELF_SIDE
+            )
+        )
+    ):
+        return 0
 
     return accuracy
 
@@ -263,25 +275,43 @@ def start_of_battle(array):
     array[Field.TURN] = 1
 
 
+def weather_dmg(pokemon, weather, max_hp):
+    """
+    Weather damage calc
+    """
+    type1 = pokemon[Pok.TYPE1]
+    type2 = pokemon[Pok.TYPE2]
+    abi = pokemon[Pok.AB_ID]
+    if weather == Weather.SANDSTORM:
+        if (
+            type1 != Types.ROCK and type1 != Types.GROUND and type1 != Types.STEEL
+            and type2 != Types.ROCK and type2 != Types.GROUND and type2 != Types.STEEL
+            and abi != AbilityNames.SAND_VEIL
+        ):
+            return max_hp//16
+        return 0
+    if weather == Weather.HAIL:
+        if type1 != Types.ICE and type2!= Types.ICE:
+            return max_hp//16
+        return 0
+    if weather == Weather.SUN:
+        if abi == AbilityNames.SOLAR_POWER:
+            return max_hp//8
+        return 0
+    return 0
+
+
 def after_turn_damage(pokemon, weather: int) -> int:
     """Calculate all damage sources that comes at the end of turns"""
-    if (
-        (weather in WEATHER_NOT_END_OF_TURN and pokemon[_POK_STATUS] == 0)
-        or pokemon[Pok.AB_ID] == AbilityNames.MAGIC_GUARD
-    ):
+    # 1. Absolute Immunity Early Exit
+    if pokemon[Pok.AB_ID] == AbilityNames.MAGIC_GUARD:
         return 0
-    dmg = 0
     max_hp = pokemon[Pok.MAX_HP]
-    dmg += after_turn_status(pokemon)
-    type1_2= (pokemon[Pok.TYPE1],pokemon[Pok.TYPE2])
-    if (
-        weather == Weather.SANDSTORM
-        and not SANDSTORM_IM.isdisjoint(type1_2)
-        and pokemon[Pok.AB_ID] != AbilityNames.SAND_VEIL
-    ):
-        dmg += max_hp // 16
-    elif weather == Weather.HAIL and Types.ICE not in type1_2:
-        dmg += max_hp // 16
+    dmg = 0
+    if pokemon[Pok.STATUS] in B_P:
+        dmg += after_turn_status(pokemon)
+    if weather not in WEATHER_NOT_END_OF_TURN:
+        dmg += weather_dmg(pokemon, weather, max_hp)
 
     return dmg
 
@@ -352,3 +382,12 @@ def heal_end_turn(self_, weather):
         hp_missing = max_hp - self_[Pok.CURRENT_HP]
         heal = min(heal,hp_missing)
         self_[Pok.CURRENT_HP] += heal
+
+
+def on_residual(pokemon, action):
+    """
+    On residual abilities at end of turn
+    """
+    abi = pokemon[Pok.AB_ID]
+    if abi == AbilityNames.SPEED_BOOST and action >= 0:
+        pokemon[Pok.SPEED_STAT_STAGE] = max(-6, min(6, pokemon[Pok.SPEED_STAT_STAGE] + 1))

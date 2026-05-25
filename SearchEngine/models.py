@@ -110,16 +110,7 @@ class GameState():
 
     def opp_move_choice(self) -> int:
         """Uses the trainer AI to choose the move"""
-        opp_idx = return_idx(
-            self.get_opp_active(),
-            self.get_my_active(),
-            self.battle_array[Field.TURN],
-            self.battle_array[Field.WEATHER],
-            self.battle_array[Field.AI_KNOWS],
-            self.battle_array[Field.MY_LAST_MOVE],
-            self.battle_array[Field.AI_TOOK_DMG_LAST_TURN],
-            self.opp_pty
-        )
+        opp_idx = return_idx(self.battle_array)
         return opp_idx
 
     def step(self, my_move_idx):

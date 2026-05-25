@@ -14,7 +14,7 @@ from Models.constants import (
     _POK_MAX_HP, _MOVE_TYPE, _TYPES_FIRE, _TYPES_WATER, _TYPES_GRASS, _ABILITYNAMES_IRON_FIST,
     _FLAGS_PUNCH, _STATUS_BURN, _WEATHER_SUN, _WEATHER_RAIN, _MOVE_POWER,
     _ABILITYACTIVATION_ON_BASE_POWER, _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
-    _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE
+    _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE, _ABILITYNAMES_SOLAR_POWER
 )
 
 
@@ -28,7 +28,7 @@ STAGES_TABLE = (
 
 
 @njit
-def ab_modify_stat(attacker, atk, physical, move):
+def ab_modify_stat(attacker, atk, physical, move, weather):
     """
     Applies base stat changes
     """
@@ -39,6 +39,9 @@ def ab_modify_stat(attacker, atk, physical, move):
         elif atk_ab == _ABILITYNAMES_HUGE_POWER:
             atk *= 2
         elif atk_ab == _ABILITYNAMES_HUSTLE and not move[_MOVE_OH_KO]:
+            atk = (atk*3)//2
+    else:
+        if atk_ab == _ABILITYNAMES_SOLAR_POWER and weather == _WEATHER_SUN:
             atk = (atk*3)//2
     return atk
 
@@ -92,7 +95,7 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
         attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_MODIFY_STAT
         or defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_MODIFY_STAT
     ):
-        raw_attack = ab_modify_stat(attacker, raw_attack, physical, move)
+        raw_attack = ab_modify_stat(attacker, raw_attack, physical, move, weather)
     # apply stage multipliers
     if not atk_stage | def_stage:
         return raw_attack, raw_defense

@@ -17,8 +17,8 @@ Abilities
 []Rock Head (Need to implement recoil)
 [X]Sand Veil
 [X]Simple
-[]Solar Power
-[]Soundproof
+[X]Solar Power
+[X]Soundproof
 []Speed Boost
 []Steadfast
 []Sturdy

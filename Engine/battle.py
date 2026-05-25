@@ -14,7 +14,8 @@ from Engine.engine_helper import (
     early_returns,
     switch_in,
     contact_ability,
-    heal_end_turn
+    heal_end_turn,
+    on_residual
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage, struggle
@@ -224,10 +225,11 @@ def end_of_turn(battle_array):
         ((battle_array[Field.OPP_POK]+7) * POK_LEN)
     ]
     weather = battle_array[Field.WEATHER]
-    # TODO: Abilities
     # TODO: Items
     m_hp = current_pokemon[Pok.CURRENT_HP]
     opp_hp = current_opp[Pok.CURRENT_HP]
+
+    # TODO: Weather finish before what happens to pokemon
 
     # Calculate after turn status like burn, leech seed, curse
     if m_hp > 0:
@@ -238,6 +240,7 @@ def end_of_turn(battle_array):
                 m_hp = 0
             else:
                 m_hp -= dmg
+                on_residual(current_pokemon,0)
             current_pokemon[Pok.CURRENT_HP] = m_hp
     if opp_hp > 0:
         heal_end_turn(current_opp, weather)

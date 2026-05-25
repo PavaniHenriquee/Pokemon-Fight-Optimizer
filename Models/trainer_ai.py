@@ -16,7 +16,8 @@ from Models.constants import (
     _POK_TYPE2, _ENEMY_AI_KNOWS_ABILITY, _MOVE_ID, _MOVE_PP, _MOVE_CATEGORY,
     _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD, _POK_STATUS,
     _STATUS_SLEEP, _ABILITYNAMES_NATURAL_CURE, _POK_MAX_HP, _POK_ATTACK_STAT_STAGE,
-    _POK_EVASION_STAT_STAGE
+    _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
+    _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_AI_TOOK_DMG_LAST_TURN
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -144,16 +145,7 @@ def sub_after_death(ai_party, user_pok, deadmon):
 
 
 @njit
-def choose_move(
-        ai_pok,
-        user_pok,
-        turn,
-        weather,
-        ai_know,
-        my_last_move,
-        took_dmg,
-        ai_pty
-):
+def choose_move(battle_array):
     """
     Calculates the score of the moves and sees what has the highest score
     search is used for me to get the raw values of score and rand,
@@ -192,6 +184,20 @@ def choose_move(
 
     If you switch out, the AI will forget its knowledge of your moves and abilities.
     """
+    opp_active = battle_array[_FIELD_OPP_POK]
+    my_active = battle_array[_FIELD_MY_POK]
+    ai_pok = battle_array[
+        ((opp_active+6) * POK_LEN):((opp_active+7) * POK_LEN)
+    ]
+    user_pok = battle_array[
+        (my_active * POK_LEN):((my_active+1) * POK_LEN)
+    ]
+    turn = battle_array[_FIELD_TURN]
+    weather = battle_array[_FIELD_WEATHER]
+    ai_know = battle_array[_FIELD_AI_KNOWS]
+    my_last_move = battle_array[_FIELD_MY_LAST_MOVE]
+    took_dmg = battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN]
+    ai_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
     # TODO: 1. Perish Song about to hit 0
 
     _EVALUATED_MOVES.fill(10)
@@ -203,7 +209,7 @@ def choose_move(
     ):
         if not took_dmg and random.getrandbits(1):
             sub = sub_after_death(ai_pty, user_pok, ai_pok)
-            if ai_pty[(sub * POK_LEN):((sub+1) * POK_LEN)] is ai_pok:
+            if sub == opp_active:
                 pass
             else:
                 _EVALUATED_MOVES[0] = [sub-6,0,0,False]
@@ -256,13 +262,13 @@ def choose_move(
 
         if not move_is_status:
             final_damage = calculate_ai_logic_damage(effectiveness, ai_pok, user_pok, move, weather)
+            not_status_counter +=1
             if s_e_check:
                 s_e = True
             if effectiveness != 0:
                 can_hit = True
         else:
             final_damage = 0
-            not_status_counter +=1
 
         eval_atk = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, _RAND)
         score = eval_atk + basic_flag(move, ability, ai_pok, user_pok, effectiveness, weather)
@@ -314,7 +320,7 @@ def choose_move(
         if s_e and random.random()<0.6666 and not took_dmg:
             pass
         else:
-            cand_abi = check_absorb_abi_pty(ai_pty, user_pok)
+            cand_abi = check_absorb_abi_pty(ai_pty, my_last_move)
             if cand_abi.size > 0:
                 for i in cand_abi:
                     if random.random() < 0.50:
@@ -360,14 +366,14 @@ def choose_move(
 
 
 @njit
-def return_idx(ai_pok, user_pok, turn, weather, ai_know, my_last_move,took_dmg, ai_pty):
+def return_idx(battle_array):
     """
     It transform the highest moving score to the index of the move
     """
-    move_scores = choose_move(ai_pok, user_pok, turn, weather, ai_know, my_last_move,took_dmg, ai_pty)
+    move_scores = choose_move(battle_array)
 
     max_score = -999999
-    _BEST_MOVES.fill(0)
+    _BEST_MOVES.fill(100)
     n_best = 0
 
 
