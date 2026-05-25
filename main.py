@@ -88,7 +88,7 @@ def run_jit():
     if battle[_FIELD_TURN] == 0:
         start_of_battle(battle)
     root = GameState(battle)
-    print("-----------------------MCTS JIT-----------------------------")
+    print("-----------------------MCTS NJIT-----------------------------")
     mcts(root, max_iterations=10000)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
@@ -105,7 +105,7 @@ def run_jit_base_time():
     if battle[_FIELD_TURN] == 0:
         start_of_battle(battle)
     root = GameState(battle)
-    print("-----------------------MCTS JITN'T-----------------------------")
+    print("-----------------------MCTS NJITN'T-----------------------------")
     mcts(root, max_iterations=10000)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")

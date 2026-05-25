@@ -29,6 +29,7 @@ class MoveName:
     PSYCH_UP = 19
     FLATTER = 20
     DRAGON_DANCE = 21
+    STRUGGLE = 22
 
 
 MoveIdToName = {v: k for k, v in MoveName.__dict__.items() if not k.startswith("__")}

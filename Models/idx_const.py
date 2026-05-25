@@ -203,7 +203,9 @@ class Field:
     """Battlefield indices - pure integers"""
     MY_POK             = POK_LEN * 12
     OPP_POK            = MY_POK + 1
-    TURN               = OPP_POK + 1
+    MY_ENTER_FIELD     = OPP_POK + 1
+    OPP_ENTER_FIELD    = MY_ENTER_FIELD + 1
+    TURN               = OPP_ENTER_FIELD + 1
     WEATHER            = TURN + 1
     WEATHER_DURATION   = WEATHER + 1
     TRICKROOM          = WEATHER_DURATION + 1
@@ -214,7 +216,11 @@ class Field:
     OPP_SCREEN_DURATION= OPP_SCREEN + 1
     PHASE              = OPP_SCREEN_DURATION + 1
     OPP_MOVE           = PHASE + 1
-    MY_LAST_MOVE       = OPP_MOVE + 1
+    AI_ITEM1           = OPP_MOVE + 1
+    AI_ITEM2           = AI_ITEM1 + 1
+    AI_ITEM3           = AI_ITEM2 + 1
+    AI_ITEM4           = AI_ITEM3 + 1
+    MY_LAST_MOVE       = AI_ITEM4 + 1
     AI_TOOK_DMG_LAST_TURN = MY_LAST_MOVE + 1
     AI_KNOWS           = AI_TOOK_DMG_LAST_TURN + 1
 

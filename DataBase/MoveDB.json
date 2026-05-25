@@ -155,5 +155,12 @@
       "metronome": true
     },
     "boost_def": 1
+  },
+  "Struggle": {
+    "name": "struggle",
+    "category": "Physical",
+    "target": "random_normal",
+    "type": "Typeless",
+    "pp": -1
   }
 }

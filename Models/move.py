@@ -9,6 +9,7 @@ from Models.idx_const import (
 )
 from Models.helper import Types, Target,SideCondition, Status, VolStatus, MoveCategory
 from DataBase.MoveDB import MoveName
+from DataBase.loader import moveDB
 
 
 
@@ -228,3 +229,6 @@ class Moves():
     def to_array(self):
         """Convert move to numpy array"""
         return np.concatenate((self.base_move(), self.move_flags(), self.sec_effect()))
+
+
+STRUGGLE = Moves(moveDB['Struggle']).to_array()

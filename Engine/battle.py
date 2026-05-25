@@ -62,6 +62,7 @@ def start_of_turn(opp_move, switch_idx, battle_array):
             battle_array[Field.MY_POK] = switch_idx
             battle_array[Field.AI_KNOWS] = 0
             battle_array[Field.MY_LAST_MOVE] = 0
+            battle_array[Field.MY_ENTER_FIELD] = 1
             current_pokemon = battle_array[
                 (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
             ]
@@ -69,6 +70,7 @@ def start_of_turn(opp_move, switch_idx, battle_array):
             # Opponent Pokemon
             reset_switch_out(current_opp)
             battle_array[Field.OPP_POK] = opp_switch
+            battle_array[Field.OPP_ENTER_FIELD] = 1
             current_opp = battle_array[
                 ((opp_switch+6) * POK_LEN):((opp_switch+7) * POK_LEN)
             ]
@@ -77,6 +79,7 @@ def start_of_turn(opp_move, switch_idx, battle_array):
             # Opponent Pokemon
             reset_switch_out(current_opp)
             battle_array[Field.OPP_POK] = opp_switch
+            battle_array[Field.OPP_ENTER_FIELD] = 1
             current_opp = battle_array[
                 ((opp_switch+6) * POK_LEN):((opp_switch+7) * POK_LEN)
             ]
@@ -86,6 +89,7 @@ def start_of_turn(opp_move, switch_idx, battle_array):
             battle_array[Field.MY_POK] = switch_idx
             battle_array[Field.AI_KNOWS] = 0
             battle_array[Field.MY_LAST_MOVE] = 0
+            battle_array[Field.MY_ENTER_FIELD] = 1
             current_pokemon = battle_array[
                 (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
             ]
@@ -95,6 +99,7 @@ def start_of_turn(opp_move, switch_idx, battle_array):
     if opp_switch:
         reset_switch_out(current_opp)
         battle_array[Field.OPP_POK] = opp_switch
+        battle_array[Field.OPP_ENTER_FIELD] = 1
         current_opp = battle_array[
             ((opp_switch+6) * POK_LEN):((opp_switch+7) * POK_LEN)
         ]
@@ -105,6 +110,7 @@ def start_of_turn(opp_move, switch_idx, battle_array):
         battle_array[Field.MY_POK] = switch_idx
         battle_array[Field.AI_KNOWS] = 0
         battle_array[Field.MY_LAST_MOVE] = 0
+        battle_array[Field.MY_ENTER_FIELD] = 1
         current_pokemon = battle_array[
             (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
         ]
@@ -225,10 +231,14 @@ def end_of_turn(battle_array):
         ((battle_array[Field.OPP_POK]+7) * POK_LEN)
     ]
     weather = battle_array[Field.WEATHER]
-    # TODO: Items
     m_hp = current_pokemon[Pok.CURRENT_HP]
     opp_hp = current_opp[Pok.CURRENT_HP]
+    my_enter_field = battle_array[Field.MY_ENTER_FIELD]
+    opp_enter_field = battle_array[Field.OPP_ENTER_FIELD]
+    m_abi = current_pokemon[Pok.AB_ID]
+    o_abi = current_opp[Pok.AB_ID]
 
+    # TODO: Items
     # TODO: Weather finish before what happens to pokemon
 
     # Calculate after turn status like burn, leech seed, curse
@@ -240,8 +250,16 @@ def end_of_turn(battle_array):
                 m_hp = 0
             else:
                 m_hp -= dmg
-                on_residual(current_pokemon,0)
+                if m_abi & AbilityActivation.ON_RESIDUAL:
+                    on_residual(current_pokemon, my_enter_field)
+                if my_enter_field:
+                    battle_array[Field.MY_ENTER_FIELD] = 0
             current_pokemon[Pok.CURRENT_HP] = m_hp
+        else:
+            if m_abi & AbilityActivation.ON_RESIDUAL:
+                on_residual(current_pokemon, my_enter_field)
+            if my_enter_field:
+                battle_array[Field.MY_ENTER_FIELD] = 0
     if opp_hp > 0:
         heal_end_turn(current_opp, weather)
         dmg = after_turn_damage(current_opp, weather)
@@ -250,7 +268,16 @@ def end_of_turn(battle_array):
                 opp_hp = 0
             else:
                 opp_hp -= dmg
+                if o_abi & AbilityActivation.ON_RESIDUAL:
+                    on_residual(current_opp, opp_enter_field)
+                if opp_enter_field:
+                    battle_array[Field.OPP_ENTER_FIELD] = 0
             current_opp[Pok.CURRENT_HP] = opp_hp
+        else:
+            if m_abi & AbilityActivation.ON_RESIDUAL:
+                on_residual(current_pokemon, my_enter_field)
+            if opp_enter_field:
+                battle_array[Field.OPP_ENTER_FIELD] = 0
 
     # If Opponent is dead
     opp_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]

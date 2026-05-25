@@ -384,10 +384,10 @@ def heal_end_turn(self_, weather):
         self_[Pok.CURRENT_HP] += heal
 
 
-def on_residual(pokemon, action):
+def on_residual(pokemon, _switch_in):
     """
     On residual abilities at end of turn
     """
     abi = pokemon[Pok.AB_ID]
-    if abi == AbilityNames.SPEED_BOOST and action >= 0:
+    if abi == AbilityNames.SPEED_BOOST and not _switch_in:
         pokemon[Pok.SPEED_STAT_STAGE] = max(-6, min(6, pokemon[Pok.SPEED_STAT_STAGE] + 1))

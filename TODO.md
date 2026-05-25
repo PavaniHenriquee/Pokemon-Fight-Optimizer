@@ -19,7 +19,7 @@ Abilities
 [X]Simple
 [X]Solar Power
 [X]Soundproof
-[]Speed Boost
+[X]Speed Boost
 []Steadfast
 []Sturdy
 []Suction Cups !
@@ -217,4 +217,4 @@ Pokemon
 Misc.
 []Trainer AI potion
 [X]Weather
-[]PP Counter
+[X]PP Counter

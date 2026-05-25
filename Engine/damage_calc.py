@@ -276,6 +276,7 @@ def calculate_damage_confusion(pok):
     return damage
 
 
+@njit
 def struggle(attacker, defender, rec=True):
     """
     Struggle damage for the opponent and recoil

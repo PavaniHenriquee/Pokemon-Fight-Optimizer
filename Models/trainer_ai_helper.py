@@ -125,7 +125,6 @@ for pk_id in range(POKEMON_LENGTH + 1):
             POKEMON_HAS_RELEVANT_ABILITY[pk_id] = True
             break
 
-BUF = np.zeros(6,dtype=np.int16)
 
 @njit
 def match_2tuple_any(tup1, tup2):
@@ -440,75 +439,93 @@ def basic_flag(
 
     '''
     TODO:
-    Captivate
-    Worry Seed (need to implement if know about Snore and Sleep Talk)
-    Guard Swap
-    Power Swap
-    Copycat
-    Metal Burst
-    Acupressure
-    Tickle
-    Refresh
-    Trick / Switcheroo / Knock Off
-    Helping Hand
-    Baton Pass
-    Curse
-    Snore / Sleep Talk
-    Leech Seed
-    Substitute
-    Belly Drum
+    --------------Specific Moves---------------
+    Selfdestruct/Explosion
+    Nightmare
     Dream Eater
-    Explosion / Selfdestruct
-    Stat Stage Resetting/Copying/Swapping Moves
-    Nightmare,
-    Reflect / Light Screen / Mist / Safeguard,
+    Belly Drum
+    Reflect / Light Screen / Mist / Safeguard
     Focus Energy / Ingrain / Mud Sport / Water Sport / Camouflage / Power Trick / Lucky Chant / Aqua Ring / Magnet Rise
+    Substitute
+    Leech Seed
     Disable / Encore
+    Snore / Sleep Talk
     Lock On / Mean Look / Foresight / Perish Song / Torment / Miracle Eye / Heal Block / Gastro Acid
-    Hazard-Setting Moves (Spikes, Toxic Spikes, Stealth Rock)
-    Weather-Setting Moves (Sandstorm, Rain Dance, Sunny Day, Hail)
+    Curse
     Future Sight / Doom Desire
+    Baton Pass
     Fake Out
     Stockpile
-    Spit UP / Swallow
+    Spit Up / Swallow
     Memento
+    Helping Hand
+    Trick / Switcheroo / Knock Off
     Imprison
+    Refresh
+    Tickle
     Cosmic Power / Bulk Up / Calm Mind / Dragon Dance
     Gravity / Tailwind
     Trick Room
     Healing Wish / Lunar Dance
     Natural Gift
+    Acupressure
+    Metal Burst
     Embargo
     Fling
     Psycho Shift
+    Copycat
+    Power Swap / Guard Swap
     Last Resort
+    Worry Seed
     Defog
-    # Moves Which Force Switches
-    if (
-        move[_MOVE_FORCE_SWITCH]
-        and (
-            count_party(user_party_alive) > 1
-            or (
-                ability == _ABILITYNAMES_SUCTION_CUPS
-                and ai_pok[_POK_AB_ID] == _ABILITYNAMES_MOLD_BREAKER
-            )
-        )
-    ):
-        return -10
-    # Recovery Moves
-    if move[_FLAGS_HEAL] and ai_pok[_POK_CURRENT_HP] == ai_pok[_POK_MAX_HP]:
-        return -10
-    # OH-KO
-    if (
-        move[_MOVE_OH_KO]
-        and (
-            user_pok[_POK_LEVEL] > ai_pok[_POK_LEVEL]
-            or (
-                ability == _ABILITYNAMES_STURDY and ai_pok[_POK_AB_ID] == _ABILITYNAMES_MOLD_BREAKER
-            )
-        )
-    ):
-        return -10
+    Captivate
+    --------------Effect Moves-----------------
+    Stat Stage Resetting/Copying/Swapping Moves(Example: Haze, Psych Up, Heart Swap)
+    Non-Standard Damage and Charge Turn Moves(
+    Charge Turn Moves:
+        -Razor Wind
+        -Sky Attack
+        -Blast Burn
+        -Frenzy Plant
+        -Giga Impact
+        -Hydro Cannon
+        -Hyper Beam
+        -Roar of Time
+        -Rock Wrecker
+        -Skull Bash
+        -Focus Punch
+        -Superpower (for some reason)
+    Variable Power / Flat Damage Moves:
+        -Bide
+        -Super Fang
+        -Dragon Rage
+        -Night Shade
+        -Seismic Toss
+        -Psywave
+        -Counter
+        -Flail
+        -Reversal
+        -Return
+        -Present
+        -Frustration
+        -Sonic Boom
+        -Hidden Power
+        -Mirror Coat
+        -Endeavor
+        -Low Kick
+        -Grass Knot
+        -Gyro Ball
+        -Trump Card
+        -Crush Grip
+        -Wring Out
+        -Punishment
+        -Magnitude
+    )
+    Force Switches(Example moves: Roar, Whirlwind)
+    Recovery Moves(Example moves: Roost, Synthesis, Recover)
+    OHKO Moves(Example moves: Horn Drill, Fissure, Sheer Cold, Guillotine)
+    Hazard-Setting Moves (Spikes, Toxic Spikes, Stealth Rock)
+    Weather-Setting Moves (Sandstorm, Rain Dance, Sunny Day, Hail)
     '''
 
     return 0
@@ -867,13 +884,166 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
 
     """
     TODO:
-        Draining Attacks
-        Mirror Move
-        Selfdestruct, explosion, memento
-        Healing Wish, Lunar Dance
-        Dragon Dance
-        Acupressure
+    --------------Specific Moves---------------
+    Self-Destruct, Explosion, Memento
+    Healing Wish, Lunar Dance
+    Mirror Move
+    Dragon Dance
+    Acupressure
+    Vital Throw
+    Haze
+    Bide
+    Conversion
+    Rest
+    Toxic, Leech Seed
+    Light Screen
+    Reflect
+    Fake Out
+    Spit Up
+    Super Fang
+    Disable
+    Encore
+    Counter, Mirror Coat
+    Metal Burst
+    Pain Split
+    Nightmare
+    Lock On, Mind Reader
+    Sleep Talk
+    Destiny Bond
+    Reversal, Flail
+    Heal Bell, Aromatherapy
+    Thief, Covet
+    Curse
+    Protect, Detect
+    Spikes
+    Foresight, Odor Sleuth
+    Miracle Eye
+    Endure
+    Substitute
+    Baton Pass
+    Pursuit
+    Rain Dance
+    Sunny Day
+    Hail
+    Gravity
+    Tailwind
+    Belly Drum
+    Psych Up
+    Facade
+    Focus Punch
+    Smelling Salt
+    Wake-Up Slap
+    Trick, Switcheroo
+    Superpower
+    Magic Coat
+    Recycle
+    Brick Break
+    Knock Off
+    Endeavor
+    Imprison
+    Refresh
+    Snatch
+    Mud Sport, Water Sport
+    Hammer Arm
+    Brine
+    Feint
+    Pluck, Bug Bite
+    U-turn
+    Close Combat
+    Payback
+    Assurance
+    Embargo
+    Fling
+    Psycho Shift
+    Trump Card
+    Heal Block
+    Wring Out, Crush Grip
+    Power Trick
+    Gastro Acid
+    Lucky Chant
+    Me First
+    Copycat
+    Power Swap
+    Guard Swap
+    Punishment
+    Last Resort
+    Worry Seed
+    Sucker Punch
+    Toxic Spikes
+    Heart Swap
+    Aqua Ring
+    Magnet Rise
+    Defog
+    Trick Room
+    Blizzard
+    Captivate
+    Stealth Rock
 
+    --------------Effect Moves-----------------
+    Draining Attacks (e.g. Giga Drain)
+    Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
+    Switch-Forcing Moves (Roar, Whirlwind)
+    Recovery Moves (e.g., Recover, Synthesis, Swallow)
+    OHKO Moves (Example moves: Horn Drill, Fissure, Sheer Cold, Guillotine)
+    Charge Turn Moves Without Invulnerability (Razor Wind, Skull Bash, Sky Attack, Solar Beam/Blade)
+    Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)
+    Binding Moves (e.g. Wrap, Clamp)
+    High Critical Hit Rate (e.g. Slash, Razor Leaf, Cross Poison)
+    Recoil Moves (e.g. Submission, Flare Blitz, Double-Edge)
+    Speed-Lowering Attacks (e.g. Rock Tomb, Mud Shot, Icy Wind)
+    Recharge-Turn Attacks (e.g. Hyper Beam, Giga Impact)
+    Moves Which Change the User's Ability (Role Play, Skill Swap)
+    Moves Which Decrease in Power With Less User HP (Water Spout, Eruption)
+    Double-Power Negative-Priority Moves (Avalanche, Revenge)
+    Moves Reducing the User's SpAttack by 2 (e.g., Overheat, Draco Meteor)
+
+    --------------Mirror Move------------------
+    Sleep Powder
+    Lovely Kiss
+    Spore
+    Hypnosis
+    Sing
+    Grass Whistle
+    Shadow Punch
+    Sand Attack
+    Smoke Screen
+    Toxic
+    Guillotine
+    Horn Drill
+    Fissure
+    Sheer Cold
+    Cross Chop
+    Aeroblast
+    Confuse Ray
+    Sweet Kiss
+    Screech
+    Cotton Spore
+    Scary Face
+    Fake Tears
+    Metal Sound
+    Thunder Wave
+    Glare
+    Poison Powder
+    Shadow Ball
+    Dynamic Punch
+    Hyper Beam
+    Extreme Speed
+    Thief
+    Covet
+    Attract
+    Swagger
+    Torment
+    Flatter
+    Trick
+    Superpower
+    Skill Swap
+    Psycho Shift
+    Power Swap
+    Guard Swap
+    Sucker Punch
+    Heart Swap
+    Switcheroo
+    Captivate
     """
     return 0
 
@@ -883,12 +1053,12 @@ def check_super_ef_move_pty(ai_party, user_pok):
     """
     Check if there's any pokemon with super effective move
     """
-    BUF.fill(0)
+    buf = np.zeros(6,dtype=np.int16)
     n = 0
 
     alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
     if len(alive) <= 1:
-        return BUF[:0]
+        return buf[:0]
 
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
@@ -899,10 +1069,10 @@ def check_super_ef_move_pty(ai_party, user_pok):
             mv_type = mv[_MOVE_TYPE]
             eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
             if eff // den >= 2:
-                BUF[n] = idx
+                buf[n] = idx
                 n += 1
                 break
-    return BUF[:n]
+    return buf[:n]
 
 
 @njit
@@ -910,12 +1080,12 @@ def check_any_damaging_move_pty(ai_party, user_pok):
     """
     Check party for any damaging move
     """
-    BUF.fill(0)
+    buf = np.zeros(6,dtype=np.int16)
     n = 0
 
     alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
     if len(alive) <= 1:
-        return BUF[:0]
+        return buf[:0]
 
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
@@ -926,10 +1096,10 @@ def check_any_damaging_move_pty(ai_party, user_pok):
             mv_type = mv[_MOVE_TYPE]
             eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
             if eff / den != 0:
-                BUF[n] = idx
+                buf[n] = idx
                 n += 1
                 break
-    return BUF[:n]
+    return buf[:n]
 
 
 @njit
@@ -937,12 +1107,12 @@ def check_absorb_abi_pty(ai_party, my_last_move):
     """
     Check if party has any pokemon with ability that absorbs types
     """
-    BUF.fill(0)
+    buf = np.zeros(6,dtype=np.int16)
     n = 0
 
     alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
     if len(alive) <= 1:
-        return BUF[:0]
+        return buf[:0]
 
     for idx in alive:
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
@@ -950,15 +1120,15 @@ def check_absorb_abi_pty(ai_party, my_last_move):
         if pok_ab not in ABSORB_ABI:
             continue
         if my_last_move in FIRE_MOVES and pok_ab == _ABILITYNAMES_FLASH_FIRE:
-            BUF[n] = idx
+            buf[n] = idx
             n += 1
         elif my_last_move in WATER_MOVES and pok_ab == _ABILITYNAMES_WATER_ABSORB:
-            BUF[n] = idx
+            buf[n] = idx
             n += 1
         elif my_last_move in ELECTRIC_MOVES and pok_ab == _ABILITYNAMES_VOLT_ABSORB:
-            BUF[n] = idx
+            buf[n] = idx
             n += 1
-    return BUF[:n]
+    return buf[:n]
 
 
 @njit
@@ -966,12 +1136,12 @@ def check_immunity_pty(ai_party, user_pok, last_move_type):
     """
     Check if there's any pokemon with super effective move
     """
-    BUF.fill(0)
+    buf = np.zeros(6,dtype=np.int16)
     n = 0
 
     alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
     if len(alive) <= 1:
-        return BUF[:0]
+        return buf[:0]
 
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
@@ -984,13 +1154,13 @@ def check_immunity_pty(ai_party, user_pok, last_move_type):
                 mv_type = mv[_MOVE_TYPE]
                 eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
                 if eff // den >= 2:
-                    BUF[n] = idx
+                    buf[n] = idx
                     n += 1
                     break
             if n == 1:
                 break
 
-    return BUF[:n]
+    return buf[:n]
 
 
 @njit
@@ -998,12 +1168,12 @@ def check_resistence_pty(ai_party, user_pok, last_move_type):
     """
     Check if there's any pokemon with super effective move
     """
-    BUF.fill(0)
+    buf = np.zeros(6,dtype=np.int16)
     n = 0
 
     alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
     if len(alive) <= 1:
-        return BUF[:0]
+        return buf[:0]
 
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
@@ -1016,10 +1186,10 @@ def check_resistence_pty(ai_party, user_pok, last_move_type):
                 mv_type = mv[_MOVE_TYPE]
                 eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
                 if eff // den >= 2:
-                    BUF[n] = idx
+                    buf[n] = idx
                     n += 1
                     break
             if n == 1:
                 break
 
-    return BUF[:n]
+    return buf[:n]

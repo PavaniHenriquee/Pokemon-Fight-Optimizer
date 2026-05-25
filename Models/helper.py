@@ -26,6 +26,7 @@ class Types:
     DRAGON = 16
     DARK = 17
     FAIRY = 18
+    TYPELESS = 19
 
 STEEL_POISON = (Types.STEEL, Types.POISON)
 

@@ -10,6 +10,7 @@ disable=
     multiple-statements,
     import-outside-toplevel,
     unexpected-keyword-arg,
-    too-many-return-statements
+    too-many-return-statements,
+    too-many-lines
 
 max-line-length = 110

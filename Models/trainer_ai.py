@@ -41,11 +41,6 @@ MOVE_EXCEP = (
 )
 
 
-_RAND = np.zeros((4, 5, 2), dtype=np.int16)
-_EVALUATED_MOVES = np.zeros((4,4),dtype=np.int16)
-_BEST_MOVES = np.zeros(4, dtype=np.int16)
-
-
 @njit
 def sub_after_death(ai_party, user_pok, deadmon):
     """
@@ -200,7 +195,7 @@ def choose_move(battle_array):
     ai_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
     # TODO: 1. Perish Song about to hit 0
 
-    _EVALUATED_MOVES.fill(10)
+    _evaluated_moves = np.full((4,4),10,dtype=np.int16)
     # Withdraw 5 - The active Pokémon is asleep and has the ability Natural Cure
     if (
         ai_pok[_POK_AB_ID] == _ABILITYNAMES_NATURAL_CURE
@@ -212,21 +207,21 @@ def choose_move(battle_array):
             if sub == opp_active:
                 pass
             else:
-                _EVALUATED_MOVES[0] = [sub-6,0,0,False]
-                return _EVALUATED_MOVES
+                _evaluated_moves[0] = [sub-6,0,0,False]
+                return _evaluated_moves
         if took_dmg:
             im = check_immunity_pty(ai_pty, user_pok, took_dmg)
             if im.size > 0:
-                _EVALUATED_MOVES[0] = [im[0]-6,0,0,False]
-                return _EVALUATED_MOVES
+                _evaluated_moves[0] = [im[0]-6,0,0,False]
+                return _evaluated_moves
             res = check_resistence_pty(ai_pty, user_pok, took_dmg)
             if res.size > 0:
-                _EVALUATED_MOVES[0] = [res[0]-6,0,0,False]
-                return _EVALUATED_MOVES
+                _evaluated_moves[0] = [res[0]-6,0,0,False]
+                return _evaluated_moves
             if random.getrandbits(1):
                 sub = sub_after_death(ai_pty, user_pok, ai_pok)
-                _EVALUATED_MOVES[0] = [sub-6,0,0,False]
-                return _EVALUATED_MOVES
+                _evaluated_moves[0] = [sub-6,0,0,False]
+                return _evaluated_moves
 
 
     moves = ai_pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
@@ -240,7 +235,7 @@ def choose_move(battle_array):
 
     max_damage = 0
 
-    _RAND.fill(0)
+    _rand = np.zeros((4, 5, 2), dtype=np.int16)
     s_e = False
     can_hit = False
     not_status_counter = 0
@@ -270,20 +265,20 @@ def choose_move(battle_array):
         else:
             final_damage = 0
 
-        eval_atk = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, _RAND)
+        eval_atk = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, _rand)
         score = eval_atk + basic_flag(move, ability, ai_pok, user_pok, effectiveness, weather)
 
-        expert = expert_flag(ai_pok, user_pok, move, turn, i, _RAND, weather, my_last_move)
+        expert = expert_flag(ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move)
         score += expert
 
         is_damaging = move_id not in MOVE_EXCEP and not move_is_status
         if is_damaging and final_damage > max_damage:
             max_damage = final_damage
 
-        score += batch_independent_score_from_rand(_RAND, i)
+        score += batch_independent_score_from_rand(_rand, i)
 
         # Append only what is necessary for the next step
-        _EVALUATED_MOVES[i] = [i, score, final_damage, is_damaging]
+        _evaluated_moves[i] = [i, score, final_damage, is_damaging]
 
     # Withdraw 2 - The active Pokémon is facing a foe with Wonder Guard and cannot hit it supereffectively
     cand = None
@@ -292,9 +287,9 @@ def choose_move(battle_array):
         if cand.size > 0:
             for i in cand:
                 if random.random() < 0.66666:
-                    _EVALUATED_MOVES.fill(10)
-                    _EVALUATED_MOVES[0] = [i-6,0,0,False]
-                    return _EVALUATED_MOVES
+                    _evaluated_moves.fill(10)
+                    _evaluated_moves[0] = [i-6,0,0,False]
+                    return _evaluated_moves
 
     # Withdraw 3 - More than 2 damaging moves and All of them do not affect the target
     if not_status_counter>1 and not can_hit:
@@ -303,16 +298,16 @@ def choose_move(battle_array):
         if cand.size> 0:
             for i in cand:
                 if random.random() < 0.888:
-                    _EVALUATED_MOVES.fill(10)
-                    _EVALUATED_MOVES[0] = [i-6,0,0,False]
-                    return _EVALUATED_MOVES
+                    _evaluated_moves.fill(10)
+                    _evaluated_moves[0] = [i-6,0,0,False]
+                    return _evaluated_moves
         cand_normal = check_any_damaging_move_pty(ai_pty, user_pok)
         if cand_normal.size > 0:
             for i in cand_normal:
                 if random.random() < 0.75:
-                    _EVALUATED_MOVES.fill(10)
-                    _EVALUATED_MOVES[0] = [i-6,0,0,False]
-                    return _EVALUATED_MOVES
+                    _evaluated_moves.fill(10)
+                    _evaluated_moves[0] = [i-6,0,0,False]
+                    return _evaluated_moves
 
     # Withdraw 4 - The last move the active Pokémon was hit by in the last turn was Fire, Water,
     # or Electric-type, and a party Pokémon has the ability Flash Fire, Water Absorb, or Volt Absorb
@@ -324,9 +319,9 @@ def choose_move(battle_array):
             if cand_abi.size > 0:
                 for i in cand_abi:
                     if random.random() < 0.50:
-                        _EVALUATED_MOVES.fill(10)
-                        _EVALUATED_MOVES[0] = [i-6,0,0,False]
-                        return _EVALUATED_MOVES
+                        _evaluated_moves.fill(10)
+                        _evaluated_moves[0] = [i-6,0,0,False]
+                        return _evaluated_moves
 
 
     # Before checking the final two situations to switch, check if:
@@ -342,27 +337,27 @@ def choose_move(battle_array):
             if random.getrandbits(1):
                 im = check_immunity_pty(ai_pty, user_pok, took_dmg)
                 if im.size > 0:
-                    _EVALUATED_MOVES.fill(10)
-                    _EVALUATED_MOVES[0] = [im[0]-6,0,0,False]
-                    return _EVALUATED_MOVES
+                    _evaluated_moves.fill(10)
+                    _evaluated_moves[0] = [im[0]-6,0,0,False]
+                    return _evaluated_moves
             # 7. A party member resists the previous attack and can hit the foe supereffectively
             if random.random() < 0.3333:
                 res = check_resistence_pty(ai_pty, user_pok, took_dmg)
                 if res.size > 0:
-                    _EVALUATED_MOVES.fill(10)
-                    _EVALUATED_MOVES[0] = [res[0]-6,0,0,False]
-                    return _EVALUATED_MOVES
+                    _evaluated_moves.fill(10)
+                    _evaluated_moves[0] = [res[0]-6,0,0,False]
+                    return _evaluated_moves
 
     # Apply penalty only to the already-filtered valid moves
     current_hp = user_pok[_POK_CURRENT_HP]
-    for info in _EVALUATED_MOVES:
+    for info in _evaluated_moves:
         # info[3] is is_damaging_excep
         if info[3]:
             # info[2] is dmg
             if info[2] < max_damage and info[2] < current_hp:
                 info[1] -= 1 # info[1] is score
 
-    return _EVALUATED_MOVES
+    return _evaluated_moves
 
 
 @njit
@@ -373,7 +368,7 @@ def return_idx(battle_array):
     move_scores = choose_move(battle_array)
 
     max_score = -999999
-    _BEST_MOVES.fill(100)
+    _best_moves = np.full(4,100, dtype=np.int16)
     n_best = 0
 
 
@@ -383,15 +378,15 @@ def return_idx(battle_array):
         score = info[1]
         if score > max_score:
             max_score = score
-            _BEST_MOVES[0] = info[0]
+            _best_moves[0] = info[0]
             n_best = 1
         elif score == max_score:
-            _BEST_MOVES[n_best] = info[0]
+            _best_moves[n_best] = info[0]
             n_best += 1
 
     if n_best == 0:
         return 10  #Struggle
     if n_best == 1:
-        return _BEST_MOVES[0]
+        return _best_moves[0]
 
-    return _BEST_MOVES[random.randint(0, n_best - 1)]
+    return _best_moves[random.randint(0, n_best - 1)]
