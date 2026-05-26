@@ -7,7 +7,6 @@ from Engine.engine_helper import (
     calculate_hit_miss,
     calculate_crit,
     reset_switch_out,
-    MoveOutcome,
     flinch_checker,
     thaw,
     after_turn_damage,
@@ -15,19 +14,22 @@ from Engine.engine_helper import (
     switch_in,
     contact_ability,
     heal_end_turn,
-    on_residual
+    on_residual,
+    trainer_ai_items
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage, struggle
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
-    Pok, Field, Move, Flags, Sec, POK_LEN
+    Pok, Field, Move, Flags, Sec, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 )
 from Models.helper import (
     count_party, Status, AbilityActivation,
-    ActionType, BattlePhase, PHYSICAL_SPECIAL
+    ActionType, BattlePhase, PHYSICAL_SPECIAL, MoveOutcome
 )
+from Models.move import STRUGGLE
 from DataBase.AbilitiesDB import AbilityNames
+from DataBase.MoveDB import MoveName
 
 
 def start_of_turn(opp_move, switch_idx, battle_array):
@@ -45,10 +47,15 @@ def start_of_turn(opp_move, switch_idx, battle_array):
     ]
     battle_array[Field.AI_TOOK_DMG_LAST_TURN] = 0
     if opp_move < 0:
-        i = opp_move + 6  #Before i subtracted -6 from idx that's why add 6 so it's 0..5
-        opp_switch = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
+        if opp_move <= -10:  #Item
+            item_list = battle_array[Field.AI_ITEM1:(Field.AI_ITEM1+4)]
+            slot = -(opp_move // 10) - 1  #Items are -10, -20, -30, -40
+            trainer_ai_items(current_opp, item_list[slot])
+        else:
+            i = opp_move + 6  #Before i subtracted -6 from idx that's why add 6 so it's 0..5
+            opp_switch = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
 
-    if switch_idx >= 0 > opp_move:
+    if switch_idx >= 0 > opp_move >-10:
         my_s, opp_s = check_speed(
             current_pokemon, current_opp, battle_array[Field.WEATHER]
         )
@@ -180,7 +187,7 @@ def action(current_move, opp_move, battle_array):
         # TODO: Check everything if opponent switches, specially if they die on entering
         p2_switch = True
 
-    order = move_order(
+    mv1_slot, mv2_slot, count, first_is_mine = move_order(
         current_pokemon,
         current_move,
         current_opp,
@@ -189,33 +196,67 @@ def action(current_move, opp_move, battle_array):
         p2_switch,
         weather
     )
+    if count == 0:
+        return
+    atk1 = current_pokemon if first_is_mine else current_opp
+    def1 = current_opp     if first_is_mine else current_pokemon
+    atk2 = current_opp     if first_is_mine else current_pokemon
+    def2 = current_pokemon if first_is_mine else current_opp
 
-    for idx, (attacker, move, defender) in enumerate(order, start=1):
-        # If attacker slower and died before could attack
-        if attacker[Pok.CURRENT_HP] <= 0 or early_returns(attacker, defender, idx, flinch, move):
-            continue
+    mv1 = (atk1[OFFSET_MOVE + mv1_slot * MOVE_STRIDE :
+                OFFSET_MOVE + (mv1_slot + 1) * MOVE_STRIDE]
+        if mv1_slot != 10 else STRUGGLE.copy())
 
-        if not isinstance(move, int):  # This is to check for Struggle since it's not a np.array
-            move[Move.PP] -= 1
-            if attacker is current_pokemon:
-                battle_array[Field.MY_LAST_MOVE] = move[Move.ID]
-        else:
-            battle_array[Field.MY_LAST_MOVE] = -1  # -1 to be Struggle
+    mv2 = (atk2[OFFSET_MOVE + mv2_slot * MOVE_STRIDE :
+                OFFSET_MOVE + (mv2_slot + 1) * MOVE_STRIDE]
+        if mv2_slot != 10 else STRUGGLE.copy())
 
-        move_hit = calculate_hit_miss(move, attacker, defender, weather)
+    # ---- First move ----
+    if count >= 1:
+        if atk1[Pok.CURRENT_HP] > 0 and not early_returns(atk1, def1, 1, flinch, mv1):
+            if mv1[Move.ID] != MoveName.STRUGGLE:
+                mv1[Move.PP] -= 1
+                if first_is_mine:
+                    battle_array[Field.MY_LAST_MOVE] = mv1[Move.ID]
+            elif first_is_mine:
+                battle_array[Field.MY_LAST_MOVE] = -1
 
-        if move_hit is MoveOutcome.HIT:
-            if isinstance(move, int):
-                struggle(attacker, defender)
-            elif move[Move.CATEGORY] in PHYSICAL_SPECIAL:
-                ps_moves(attacker, defender, move, weather)
-                if defender is current_opp:
-                    battle_array[Field.AI_TOOK_DMG_LAST_TURN] = move[Move.TYPE]
-                flinch = flinch_checker(move, defender)
-                if defender[Pok.STATUS] == Status.FREEZE:
-                    thaw(move, defender)
-            else:
-                calculate_effects(attacker, defender, move, weather)
+            move_hit = calculate_hit_miss(mv1, atk1, def1, weather)
+            if move_hit == MoveOutcome.HIT:
+                if mv1[Move.ID] == MoveName.STRUGGLE:
+                    struggle(atk1, def1)
+                elif mv1[Move.CATEGORY] in PHYSICAL_SPECIAL:
+                    ps_moves(atk1, def1, mv1, weather)
+                    if first_is_mine:   # def1 is current_opp only when my pokemon goes first
+                        battle_array[Field.AI_TOOK_DMG_LAST_TURN] = mv1[Move.TYPE]
+                    flinch = flinch_checker(mv1, def1)
+                    if def1[Pok.STATUS] == Status.FREEZE:
+                        thaw(mv1, def1)
+                else:
+                    calculate_effects(atk1, def1, mv1, weather)
+
+    # ---- Second move ----
+    if count >= 2:
+        if atk2[Pok.CURRENT_HP] > 0 and not early_returns(atk2, def2, 2, flinch, mv2):
+            if mv2[Move.ID] != MoveName.STRUGGLE:
+                mv2[Move.PP] -= 1
+                if not first_is_mine:   # second attacker is mine when opp went first
+                    battle_array[Field.MY_LAST_MOVE] = mv2[Move.ID]
+            elif not first_is_mine:
+                battle_array[Field.MY_LAST_MOVE] = -1
+
+            move_hit = calculate_hit_miss(mv2, atk2, def2, weather)
+            if move_hit == MoveOutcome.HIT:
+                if mv2[Move.ID] == MoveName.STRUGGLE:
+                    struggle(atk2, def2)
+                elif mv2[Move.CATEGORY] in PHYSICAL_SPECIAL:
+                    ps_moves(atk2, def2, mv2, weather)
+                    if not first_is_mine:   # def2 is current_opp only when opp went first
+                        battle_array[Field.AI_TOOK_DMG_LAST_TURN] = mv2[Move.TYPE]
+                    if def2[Pok.STATUS] == Status.FREEZE:
+                        thaw(mv2, def2)
+                else:
+                    calculate_effects(atk2, def2, mv2, weather)
 
 
 def end_of_turn(battle_array):

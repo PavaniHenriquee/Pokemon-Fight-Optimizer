@@ -17,7 +17,9 @@ from Models.constants import (
     _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD, _POK_STATUS,
     _STATUS_SLEEP, _ABILITYNAMES_NATURAL_CURE, _POK_MAX_HP, _POK_ATTACK_STAT_STAGE,
     _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
-    _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_AI_TOOK_DMG_LAST_TURN
+    _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1,
+    _FIELD_AI_ITEM4, _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
+    _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -31,6 +33,7 @@ from Models.trainer_ai_helper import (
     check_absorb_abi_pty,
     check_immunity_pty, check_resistence_pty
 )
+from Models.helper import count_party
 
 # mov_excep = ['Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
 #             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Superpower', 'Eruption',
@@ -193,6 +196,7 @@ def choose_move(battle_array):
     my_last_move = battle_array[_FIELD_MY_LAST_MOVE]
     took_dmg = battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN]
     ai_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
+    ai_items= battle_array[_FIELD_AI_ITEM1:(_FIELD_AI_ITEM4+1)]
     # TODO: 1. Perish Song about to hit 0
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
@@ -348,10 +352,62 @@ def choose_move(battle_array):
                     _evaluated_moves[0] = [res[0]-6,0,0,False]
                     return _evaluated_moves
 
+    # --- Item check ---
+    # Count non-zero item slots upfront (max 4 iterations, cheap)
+    ai_items = battle_array[_FIELD_AI_ITEM1:_FIELD_AI_ITEM1 + 4]
+    item_count = 0
+    for _ii in range(4):
+        if ai_items[_ii] != 0:
+            item_count += 1
+
+    if item_count > 0 and ai_pok[_POK_CURRENT_HP] > 0:
+        ai_cur_hp  = ai_pok[_POK_CURRENT_HP]
+        ai_max_hp  = ai_pok[_POK_MAX_HP]
+        hp_quarter = ai_max_hp >> 2          # ai_max_hp // 4
+        hp_missing = ai_max_hp - ai_cur_hp
+        ai_status  = ai_pok[_POK_STATUS]
+        alive_mons = count_party(ai_pty)
+
+        for idx in range(4):
+            item = ai_items[idx]
+            if item == 0:
+                continue
+
+            # "Save items for remaining mons":
+            # item slot idx > 0 is skipped when the party still has more alive
+            # mons than the remaining item slots from this point onward.
+            if idx > 0 and alive_mons > (item_count - idx + 1):
+                continue
+
+            use_item = False
+
+            if item == _POTIONS_FULL_RESTORE:
+                use_item = ai_cur_hp < hp_quarter
+
+            elif item == _POTIONS_FULL_HEAL:
+                use_item = ai_status != 0
+
+            elif item == _POTIONS_POTION:
+                use_item = ai_cur_hp < hp_quarter or hp_missing >= 20
+
+            elif item == _POTIONS_SUPER_POTION:
+                use_item = ai_cur_hp < hp_quarter or hp_missing >= 50
+
+            elif item == _POTIONS_HYPER_POTION:
+                use_item = ai_cur_hp < hp_quarter or hp_missing >= 200
+
+            elif turn > 1:     # stat boosters: X_SPECIAL, X_DEFEND, X_SPEED
+                use_item = True
+
+            if use_item:
+                _evaluated_moves.fill(10)
+                _evaluated_moves[0, 0] = np.int16(-(idx + 1) * 10)
+                return _evaluated_moves
+
     # Apply penalty only to the already-filtered valid moves
     current_hp = user_pok[_POK_CURRENT_HP]
     for info in _evaluated_moves:
-        # info[3] is is_damaging_excep
+        # info[3] is is_damaging
         if info[3]:
             # info[2] is dmg
             if info[2] < max_damage and info[2] < current_hp:
@@ -368,7 +424,7 @@ def return_idx(battle_array):
     move_scores = choose_move(battle_array)
 
     max_score = -999999
-    _best_moves = np.full(4,100, dtype=np.int16)
+    _best_moves = np.empty(4, dtype=np.int16)
     n_best = 0
 
 

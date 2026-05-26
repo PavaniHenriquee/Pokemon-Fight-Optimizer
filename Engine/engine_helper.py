@@ -3,23 +3,33 @@ import random
 from numba import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.status_calc import after_turn_status, freeze, paralysis, B_P
-from Models.idx_const import Pok, Move, Sec, Field, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, Flags
-from Models.helper import (
-    Status, VolStatus, Types, Weather, AbilityActivation, MoveCategory, TARGET_SELF_SIDE,
-    STEEL_POISON
-)
+from Models.idx_const import POK_LEN, MOVE_STRIDE, OFFSET_MOVE
+from Models.helper import TARGET_SELF_SIDE, STEEL_POISON
 from Models.constants import (
     _POK_SPEED, _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
     _ABILITYACTIVATION_ON_MODIFY_SPEED, _WEATHER_SUN,_ABILITYNAMES_CHLOROPHYLL,
-    _POK_AB_ID
+    _POK_AB_ID, _MOVE_PRIORITY, _MOVE_ID, _MOVEOUTCOME_HIT, _MOVEOUTCOME_INVULNERABLE,
+    _MOVEOUTCOME_MISS, _TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL, _TYPES_FIRE, _TYPES_ICE,
+    _MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT, _MOVENAME_STRUGGLE, _WEATHER_RAIN,
+    _WEATHER_SANDSTORM, _WEATHER_HAIL, _MOVE_TARGET, _MOVE_CATEGORY, _MOVE_OH_KO, _MOVE_ACCURACY,
+    _MOVE_TYPE, _ABILITYNAMES_DAMP, _ABILITYNAMES_HUSTLE, _ABILITYNAMES_SAND_VEIL,
+    _ABILITYNAMES_SOUNDPROOF, _ABILITYNAMES_INNER_FOCUS, _ABILITYNAMES_INTIMIDATE,
+    _ABILITYNAMES_SOLAR_POWER, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_STEADFAST,
+    _ABILITYNAMES_POISON_POINT, _ABILITYNAMES_RAIN_DISH, _ABILITYNAMES_SPEED_BOOST,
+    _MOVECATEGORY_PHYSICAL, _FLAGS_SOUND, _ABILITYACTIVATION_ON_TRY_MOVE, _ABILITYACTIVATION_ON_SWITCH_IN,
+    _POK_TYPE1, _POK_TYPE2, _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _POK_ATTACK_STAT_STAGE,
+    _POK_VOL_STATUS, _POK_BADLY_POISON, _POK_TURNS, _POK_MAX_HP, _POK_SLEEP_COUNTER, _POK_CURRENT_HP,
+    _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_VOL_STATUS, _SEC_CHANCE,
+    _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _FIELD_TURN, _STATUS_TOXIC, _STATUS_POISON,
+    _STATUS_SLEEP, _STATUS_FREEZE, _VOLSTATUS_FLINCH, _VOLSTATUS_CONFUSION, _POTIONS_FULL_HEAL,
+    _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
+    _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED
 )
-from DataBase.AbilitiesDB import AbilityNames
-from DataBase.MoveDB import MoveName
 
 
-SANDSTORM_IM = {Types.ROCK, Types.GROUND, Types.STEEL}
-DAMP_IGNORES = {MoveName.EXPLOSION, MoveName.SELFDESTRUCT}
-WEATHER_NOT_END_OF_TURN = {0, Weather.RAIN}
+SANDSTORM_IM = (_TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL)
+DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
+WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 
 
 @njit
@@ -49,6 +59,7 @@ def check_speed(p1, p2, weather):
     return p1_speed, p2_speed
 
 
+@njit
 def move_speed_tie(p1, m1, p2, m2):
     """Get at random the order"""
     if random.getrandbits(1):
@@ -56,6 +67,7 @@ def move_speed_tie(p1, m1, p2, m2):
     return [(p2, m2, p1), (p1, m1, p2)]
 
 
+@njit
 def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
     """Calculates the order which the what move should be played
     Returns:
@@ -63,73 +75,33 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
     [('Faster Pokemon', 'Move of Faster Pokemon', 'Slower Pokemon'),
         ('Slower Pokemon, 'Move of Slower Pokemon', 'Faster Pokemon')]"""
     if p1_switch and p2_switch:
-        return []
-
-    move_offset = MOVE_STRIDE
-    base_offset = OFFSET_MOVE
+        return -1, -1, 0, False  # count=0, rest are dummies
 
     if p1_switch:
-        move2 = p2[
-            base_offset + (move_offset * opp_move):
-            base_offset + (move_offset * (opp_move + 1))
-        ] if opp_move != 10 else 10
-        return [(p2, move2, p1)]
+        return opp_move, -1, 1, False
     if p2_switch:
-        move1 = p1[
-            base_offset + (move_offset * my_move):
-            base_offset + (move_offset * (my_move + 1))
-        ] if opp_move != 10 else 10
-        return [(p1, move1, p2)]
-
-    strug1 = False
-    strug2 = False
-    if my_move < 4:
-        move1 = p1[
-            base_offset + (move_offset * my_move):
-            base_offset + (move_offset * (my_move + 1))
-        ]
-    else:
-        move1 = my_move
-        strug1 = True
-    if opp_move < 4:
-        move2 = p2[
-            base_offset + (move_offset * opp_move):
-            base_offset + (move_offset * (opp_move + 1))
-        ]
-    else:
-        move2 = opp_move
-        strug2 = True
+        return my_move, -1, 1, True
 
     p1_speed, p2_speed = check_speed(p1, p2, weather)
 
-    move1_prio = move1[Move.PRIORITY] if not strug1 else 0
-    move2_prio = move2[Move.PRIORITY] if not strug2 else 0
+    move1_prio = (p1[OFFSET_MOVE + my_move  * MOVE_STRIDE + _MOVE_PRIORITY]
+              if my_move  != 10 else 0)
+    move2_prio = (p2[OFFSET_MOVE + opp_move * MOVE_STRIDE + _MOVE_PRIORITY]
+              if opp_move != 10 else 0)
 
     if (
         (move1_prio != 0 or move2_prio != 0)
         and move1_prio != move2_prio
     ):
         if move1_prio > move2_prio:
-            order = [(p1, move1, p2), (p2, move2, p1)]
-        else:
-            order = [(p2, move2, p1), (p1, move1, p2)]
-    else:
-        if p1_speed > p2_speed:
-            order = [(p1, move1, p2), (p2, move2, p1)]
-        elif p2_speed > p1_speed:
-            order = [(p2, move2, p1), (p1, move1, p2)]
-        else:
-            order = move_speed_tie(p1, move1, p2, move2)
-
-    return order
-
-
-class MoveOutcome:
-    """Possible moves outcomes"""
-    HIT               = 1
-    MISS              = 2
-    INVULNERABLE      = 3
-    SEMI_INVULNERABLE = 4
+            return my_move, opp_move, 2, True
+        return opp_move, my_move, 2, False
+    speed_t = False
+    if p1_speed == p2_speed and random.getrandbits(1):
+        speed_t = True
+    if p1_speed > p2_speed or speed_t:
+        return my_move, opp_move, 2, True
+    return opp_move, my_move, 2, False
 
 
 def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
@@ -138,29 +110,29 @@ def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
     """
     atk_ab = attacker[_POK_AB_ID]
     def_ab = defender[_POK_AB_ID]
-    target = move[Move.TARGET]
+    target = move[_MOVE_TARGET]
     if move in DAMP_IGNORES and (
-        atk_ab == AbilityNames.DAMP  #pylint: disable=consider-using-in
-        or def_ab == AbilityNames.DAMP
+        atk_ab == _ABILITYNAMES_DAMP  #pylint: disable=consider-using-in
+        or def_ab == _ABILITYNAMES_DAMP
     ):
         return 0
     if (
-        atk_ab == AbilityNames.HUSTLE
-        and move[Move.CATEGORY] == MoveCategory.PHYSICAL
-        and not move[Move.OH_KO]
+        atk_ab == _ABILITYNAMES_HUSTLE
+        and move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL
+        and not move[_MOVE_OH_KO]
     ):
         return (accuracy*3277)//4096
     if (
-        def_ab == AbilityNames.SAND_VEIL
-        and weather == Weather.SANDSTORM
+        def_ab == _ABILITYNAMES_SAND_VEIL
+        and weather == _WEATHER_SANDSTORM
     ):
         return (accuracy*3277)//4096
     if (
-        move[Flags.SOUND]
+        move[_FLAGS_SOUND]
         and (
-            def_ab == AbilityNames.SOUNDPROOF
+            def_ab == _ABILITYNAMES_SOUNDPROOF
             or (
-                atk_ab == AbilityNames.SOUNDPROOF
+                atk_ab == _ABILITYNAMES_SOUNDPROOF
                 and target in TARGET_SELF_SIDE
             )
         )
@@ -173,24 +145,24 @@ def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
 def calculate_hit_miss(move, attacker, defender, weather):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
-    if isinstance(move, int):  #Struggle
-        return MoveOutcome.HIT
-    move_acc = move[Move.ACCURACY]
+    if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
+        return _MOVEOUTCOME_HIT
+    move_acc = move[_MOVE_ACCURACY]
 
     ab_a = attacker[_POK_AB_WHEN]
     ab_d = defender[_POK_AB_WHEN]
-    if ab_a & AbilityActivation.ON_TRY_MOVE or ab_d & AbilityActivation.ON_TRY_MOVE:
+    if ab_a & _ABILITYACTIVATION_ON_TRY_MOVE or ab_d & _ABILITYACTIVATION_ON_TRY_MOVE:
         move_acc = ab_on_try_move(move, attacker, defender, move_acc, weather)
 
-    if get_type_effectiveness(move[Move.TYPE], defender[Pok.TYPE1], defender[Pok.TYPE2]) == 0:
-        return MoveOutcome.INVULNERABLE
+    if get_type_effectiveness(move[_MOVE_TYPE], defender[_POK_TYPE1], defender[_POK_TYPE2]) == 0:
+        return _MOVEOUTCOME_INVULNERABLE
 
     if move_acc == -1:
-        return MoveOutcome.HIT
+        return _MOVEOUTCOME_HIT
     if move_acc == 0:
-        return MoveOutcome.MISS
+        return _MOVEOUTCOME_MISS
 
-    acc_stage = attacker[Pok.ACCURACY_STAT_STAGE] - defender[Pok.EVASION_STAT_STAGE]
+    acc_stage = attacker[_POK_ACCURACY_STAT_STAGE] - defender[_POK_EVASION_STAT_STAGE]
     if acc_stage > 0:
         accuracy = move_acc*(acc_stage+3)/3
     elif acc_stage < 0:
@@ -199,8 +171,8 @@ def calculate_hit_miss(move, attacker, defender, weather):
         accuracy = move_acc
 
     if accuracy == 100 or random.random()*100 < accuracy:
-        return MoveOutcome.HIT
-    return MoveOutcome.MISS
+        return _MOVEOUTCOME_HIT
+    return _MOVEOUTCOME_MISS
 
 
 def calculate_crit():
@@ -210,18 +182,18 @@ def calculate_crit():
 
 def reset_switch_out(pok):
     """If a pokemon swithces out it needs to reset these conditions"""
-    pok[Pok.ATTACK_STAT_STAGE : Pok.EVASION_STAT_STAGE + 1] = 0
-    pok[Pok.VOL_STATUS] = 0
-    pok[Pok.BADLY_POISON] = 1 if pok[_POK_STATUS] == Status.TOXIC else 0
+    pok[_POK_ATTACK_STAT_STAGE : _POK_EVASION_STAT_STAGE + 1] = 0
+    pok[_POK_VOL_STATUS] = 0
+    pok[_POK_BADLY_POISON] = 1 if pok[_POK_STATUS] == _STATUS_TOXIC else 0
 
 
 def flinch_checker(move, defender):
     """Returns true or false if move has a flinch percent and it should flinch"""
-    flinch = move[Sec.VOL_STATUS]
-    if flinch != 0 and flinch & VolStatus.FLINCH:
-        if defender[_POK_AB_ID] == AbilityNames.INNER_FOCUS:
+    flinch = move[_SEC_VOL_STATUS]
+    if flinch != 0 and flinch & _VOLSTATUS_FLINCH:
+        if defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS:
             return False
-        if random.random()*100 < move[Sec.CHANCE]:
+        if random.random()*100 < move[_SEC_CHANCE]:
             return True
 
     return False
@@ -229,7 +201,7 @@ def flinch_checker(move, defender):
 
 def thaw(move, defender):
     """Check if a move thaws"""
-    if move[Move.TYPE] == Types.FIRE:
+    if move[_MOVE_TYPE] == _TYPES_FIRE:
         defender[_POK_STATUS] = 0
         return True
     return False
@@ -241,11 +213,11 @@ def switch_in(attacker, defender):
     """
     # TODO: Hazards damage, take in consideration that the pokemon needs to
     # be alive to activiate the ability so before the ability do something like
-    # if attacker[Pok.CURRENT_HP] > 0:
-    if attacker[_POK_AB_WHEN] & AbilityActivation.ON_SWITCH_IN:
+    # if attacker[_POK_CURRENT_HP] > 0:
+    if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
         ability = attacker[_POK_AB_ID]
-        if ability == AbilityNames.INTIMIDATE:
-            defender[Pok.ATTACK_STAT_STAGE] -= 1
+        if ability == _ABILITYNAMES_INTIMIDATE:
+            defender[_POK_ATTACK_STAT_STAGE] -= 1
 
 
 def start_of_battle(array):
@@ -254,12 +226,12 @@ def start_of_battle(array):
     # TODO: Switch in abilities like Intimidate, Drought etc.
     # Order of entry is in account for things like Drought against Drizzle
     current_pokemon = array[
-            (array[Field.MY_POK] * POK_LEN):((array[Field.MY_POK]+1) * POK_LEN)
+            (array[_FIELD_MY_POK] * POK_LEN):((array[_FIELD_MY_POK]+1) * POK_LEN)
         ]
     current_opp = array[
-            ((array[Field.OPP_POK]+6) * POK_LEN):((array[Field.OPP_POK]+7) * POK_LEN)
+            ((array[_FIELD_OPP_POK]+6) * POK_LEN):((array[_FIELD_OPP_POK]+7) * POK_LEN)
         ]
-    weather = array[Field.WEATHER]
+    weather = array[_FIELD_WEATHER]
     p1_speed, p2_speed = check_speed(current_pokemon, current_opp, weather)
     speed_tie = 0
     if p1_speed == p2_speed:
@@ -270,32 +242,32 @@ def start_of_battle(array):
     else:
         switch_in(current_opp, current_pokemon)
         switch_in(current_pokemon, current_opp)
-    current_pokemon[Pok.TURNS] = 1
-    current_opp[Pok.TURNS] = 1
-    array[Field.TURN] = 1
+    current_pokemon[_POK_TURNS] = 1
+    current_opp[_POK_TURNS] = 1
+    array[_FIELD_TURN] = 1
 
 
 def weather_dmg(pokemon, weather, max_hp):
     """
     Weather damage calc
     """
-    type1 = pokemon[Pok.TYPE1]
-    type2 = pokemon[Pok.TYPE2]
-    abi = pokemon[Pok.AB_ID]
-    if weather == Weather.SANDSTORM:
+    type1 = pokemon[_POK_TYPE1]
+    type2 = pokemon[_POK_TYPE2]
+    abi = pokemon[_POK_AB_ID]
+    if weather == _WEATHER_SANDSTORM:
         if (
-            type1 != Types.ROCK and type1 != Types.GROUND and type1 != Types.STEEL
-            and type2 != Types.ROCK and type2 != Types.GROUND and type2 != Types.STEEL
-            and abi != AbilityNames.SAND_VEIL
+            type1 != _TYPES_ROCK and type1 != _TYPES_GROUND and type1 != _TYPES_STEEL
+            and type2 != _TYPES_ROCK and type2 != _TYPES_GROUND and type2 != _TYPES_STEEL
+            and abi != _ABILITYNAMES_SAND_VEIL
         ):
             return max_hp//16
         return 0
-    if weather == Weather.HAIL:
-        if type1 != Types.ICE and type2!= Types.ICE:
+    if weather == _WEATHER_HAIL:
+        if type1 != _TYPES_ICE and type2!= _TYPES_ICE:
             return max_hp//16
         return 0
-    if weather == Weather.SUN:
-        if abi == AbilityNames.SOLAR_POWER:
+    if weather == _WEATHER_SUN:
+        if abi == _ABILITYNAMES_SOLAR_POWER:
             return max_hp//8
         return 0
     return 0
@@ -304,11 +276,11 @@ def weather_dmg(pokemon, weather, max_hp):
 def after_turn_damage(pokemon, weather: int) -> int:
     """Calculate all damage sources that comes at the end of turns"""
     # 1. Absolute Immunity Early Exit
-    if pokemon[Pok.AB_ID] == AbilityNames.MAGIC_GUARD:
+    if pokemon[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
         return 0
-    max_hp = pokemon[Pok.MAX_HP]
+    max_hp = pokemon[_POK_MAX_HP]
     dmg = 0
-    if pokemon[Pok.STATUS] in B_P:
+    if pokemon[_POK_STATUS] in B_P:
         dmg += after_turn_status(pokemon)
     if weather not in WEATHER_NOT_END_OF_TURN:
         dmg += weather_dmg(pokemon, weather, max_hp)
@@ -320,35 +292,35 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # 
     """Early returns to see if an attack goes through or not"""
     atker_status = attacker[_POK_STATUS]
     # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
-    if atker_status == Status.SLEEP:
-        if attacker[Pok.SLEEP_COUNTER] > 0:
-            attacker[Pok.SLEEP_COUNTER] -= 1
+    if atker_status == _STATUS_SLEEP:
+        if attacker[_POK_SLEEP_COUNTER] > 0:
+            attacker[_POK_SLEEP_COUNTER] -= 1
             return True
         attacker[_POK_STATUS] = 0
     # Check for Paralysis
     if (
         atker_status == _STATUS_PARALYSIS
         and paralysis()
-        and defender[Pok.AB_ID] != AbilityNames.MAGIC_GUARD  #Gen 4 exclusive
+        and defender[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD  #Gen 4 exclusive
     ):
         return True
     # Freeze
-    if atker_status == Status.FREEZE:
+    if atker_status == _STATUS_FREEZE:
         if freeze():
             return True
         attacker[_POK_STATUS] = 0
     # Flinch
     if idx >= 2 and flinch:
-        if defender[_POK_AB_ID] == AbilityNames.STEADFAST:
+        if defender[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
             defender[_POK_SPEED_STAT_STAGE] = max(-6, min(6, defender[_POK_SPEED_STAT_STAGE] + 1))
         return True
     # Volatile Status early returns, only not implemented confusion for now
-    if attacker[Pok.VOL_STATUS] != 0 and attacker[Pok.VOL_STATUS] & VolStatus.CONFUSION:
+    if attacker[_POK_VOL_STATUS] != 0 and attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
         if random.getrandbits(1):
             return True
     # In cases like after recoil damage, selfdestruct, etc.
-    if defender[Pok.CURRENT_HP] <= 0:
-        if not isinstance(move,int) and move[Move.TARGET] in TARGET_SELF_SIDE:
+    if defender[_POK_CURRENT_HP] <= 0:
+        if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
             return False
         #TODO: Some moves still go through, like dig, future sight
         return True
@@ -359,16 +331,16 @@ def contact_ability(attacker, defender):
     """
     Abilities that activate with contact
     """
-    if defender[Pok.AB_ID] == AbilityNames.POISON_POINT:
+    if defender[_POK_AB_ID] == _ABILITYNAMES_POISON_POINT:
         if (
-            attacker[Pok.STATUS] == 0
+            attacker[_POK_STATUS] == 0
             and (
-                attacker[Pok.TYPE1] not in STEEL_POISON
-                or attacker[Pok.TYPE2] not in STEEL_POISON
+                attacker[_POK_TYPE1] not in STEEL_POISON
+                or attacker[_POK_TYPE2] not in STEEL_POISON
             )
             and random.random() < .30
         ):
-            attacker[Pok.STATUS] = Status.POISON
+            attacker[_POK_STATUS] = _STATUS_POISON
 
 
 def heal_end_turn(self_, weather):
@@ -376,20 +348,45 @@ def heal_end_turn(self_, weather):
     Heals after turns, from items, abilities and volatile conditions
     """
     heal = 0
-    max_hp = self_[Pok.MAX_HP]
-    if self_[Pok.AB_ID] == AbilityNames.RAIN_DISH and weather == Weather.RAIN:
+    max_hp = self_[_POK_MAX_HP]
+    if self_[_POK_AB_ID] == _ABILITYNAMES_RAIN_DISH and weather == _WEATHER_RAIN:
         heal += max_hp//16
 
     if heal:
-        hp_missing = max_hp - self_[Pok.CURRENT_HP]
+        hp_missing = max_hp - self_[_POK_CURRENT_HP]
         heal = min(heal,hp_missing)
-        self_[Pok.CURRENT_HP] += heal
+        self_[_POK_CURRENT_HP] += heal
 
 
 def on_residual(pokemon, _switch_in):
     """
     On residual abilities at end of turn
     """
-    abi = pokemon[Pok.AB_ID]
-    if abi == AbilityNames.SPEED_BOOST and not _switch_in:
-        pokemon[Pok.SPEED_STAT_STAGE] = max(-6, min(6, pokemon[Pok.SPEED_STAT_STAGE] + 1))
+    abi = pokemon[_POK_AB_ID]
+    if abi == _ABILITYNAMES_SPEED_BOOST and not _switch_in:
+        pokemon[_POK_SPEED_STAT_STAGE] = max(-6, min(6, pokemon[_POK_SPEED_STAT_STAGE] + 1))
+
+
+def trainer_ai_items(pok, item):
+    """
+    Usage of potions, full heals and x specials
+    """
+    cur_hp = pok[_POK_CURRENT_HP]
+    max_hp = pok[_POK_MAX_HP]
+    if item == _POTIONS_POTION:
+        pok[_POK_CURRENT_HP] = max(max_hp, cur_hp+20)
+    elif item == _POTIONS_SUPER_POTION:
+        pok[_POK_CURRENT_HP] = max(max_hp, cur_hp+50)
+    elif item == _POTIONS_HYPER_POTION:
+        pok[_POK_CURRENT_HP] = max(max_hp, cur_hp+200)
+    elif item == _POTIONS_FULL_RESTORE:
+        pok[_POK_CURRENT_HP] = max_hp
+        pok[_POK_STATUS] = 0
+    elif item == _POTIONS_FULL_HEAL:
+        pok[_POK_STATUS] = 0
+    elif item == _POTIONS_X_DEFEND:
+        pok[_POK_DEFENSE_STAT_STAGE] = min(6, pok[_POK_DEFENSE_STAT_STAGE] + 1)
+    elif item == _POTIONS_X_SPECIAL:
+        pok[_POK_SPECIAL_ATTACK_STAT_STAGE] = min(6, pok[_POK_SPECIAL_ATTACK_STAT_STAGE] + 1)
+    elif item == _POTIONS_X_SPEED:
+        pok[_POK_SPEED_STAT_STAGE] = min(6, pok[_POK_SPEED_STAT_STAGE] + 1)

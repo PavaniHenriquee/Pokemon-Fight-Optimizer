@@ -2,6 +2,7 @@
 from types import SimpleNamespace
 from dataclasses import dataclass
 import numpy as np
+from numba import njit
 from Models.idx_const import Pok, POK_LEN
 
 
@@ -169,6 +170,8 @@ class ItemActivation:
 
 _HP_RAW = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
 
+
+@njit
 def count_party(pty) -> int:
     """How many pok are alive"""
     n = 0
@@ -245,11 +248,19 @@ class Potions():
     """
     Usable Items by the trainer AI
     """
-    POTION       = 1
-    SUPER_POTION = 2
-    HYPER_POTION = 3
+    POTION       = 1  #20
+    SUPER_POTION = 2  #50
+    HYPER_POTION = 3  #200
     FULL_RESTORE = 4
     FULL_HEAL    = 5
     X_SPECIAL    = 6
     X_DEFEND     = 7
     X_SPEED      = 8
+
+
+class MoveOutcome:
+    """Possible moves outcomes"""
+    HIT               = 1
+    MISS              = 2
+    INVULNERABLE      = 3
+    SEMI_INVULNERABLE = 4

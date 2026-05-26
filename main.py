@@ -118,6 +118,6 @@ if __name__ =='__main__':
     np.random.seed(SEED)
 
     #run_single()
-    run_parallel()
-    #run_jit()
+    #run_parallel()
+    run_jit()
     #run_jit_base_time()
