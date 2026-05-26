@@ -20,9 +20,9 @@ Abilities
 [X]Solar Power
 [X]Soundproof
 [X]Speed Boost
-[]Steadfast
-[]Sturdy
-[]Suction Cups !
+[X]Steadfast
+[]Sturdy (Need to implement OHKO moves)
+[]Suction Cups (Need to implement force switches moves)
 []Swift Swim
 []Synchronize
 []Thick Fat

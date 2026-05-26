@@ -339,6 +339,8 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # 
         attacker[_POK_STATUS] = 0
     # Flinch
     if idx >= 2 and flinch:
+        if defender[_POK_AB_ID] == AbilityNames.STEADFAST:
+            defender[_POK_SPEED_STAT_STAGE] = max(-6, min(6, defender[_POK_SPEED_STAT_STAGE] + 1))
         return True
     # Volatile Status early returns, only not implemented confusion for now
     if attacker[Pok.VOL_STATUS] != 0 and attacker[Pok.VOL_STATUS] & VolStatus.CONFUSION:

@@ -239,3 +239,17 @@ TARGET_OPP_SIDE = (
     Target.RANDOM_NORMAL,
     Target.SCRIPTED
 )
+
+@dataclass(slots=True)
+class Potions():
+    """
+    Usable Items by the trainer AI
+    """
+    POTION       = 1
+    SUPER_POTION = 2
+    HYPER_POTION = 3
+    FULL_RESTORE = 4
+    FULL_HEAL    = 5
+    X_SPECIAL    = 6
+    X_DEFEND     = 7
+    X_SPEED      = 8

@@ -102,8 +102,7 @@
     "when": "on_residual"
   },
   "Steadfast": {
-    "name": "steadfast",
-    "when": "on_set_status"
+    "name": "steadfast"
   },
   "Sturdy": {
     "breakable": true,
