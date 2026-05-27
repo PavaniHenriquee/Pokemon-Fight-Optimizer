@@ -183,7 +183,7 @@ def action(current_move, opp_move, battle_array):
         return  # Check if neither used an action, if so early return
     if current_move < 0:
         p1_switch = True
-    if opp_move < 0:  # Switches mid battle are (-6..-1)
+    if opp_move < 0:  # Switches mid battle are (-6..-1) and potions are -10..-40
         # TODO: Check everything if opponent switches, specially if they die on entering
         p2_switch = True
 

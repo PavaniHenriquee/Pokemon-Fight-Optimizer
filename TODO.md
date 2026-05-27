@@ -23,12 +23,12 @@ Abilities
 [X]Steadfast
 []Sturdy (Need to implement OHKO moves)
 []Suction Cups (Need to implement force switches moves)
-[]Swift Swim
-[]Synchronize
-[]Thick Fat
-[]Tinted Lens
-[]Unburden !
-[]Water Absorb
+[X]Swift Swim
+[X]Synchronize
+[X]Thick Fat
+[X]Tinted Lens
+[]Unburden (Need to implement usable held items)
+[X]Water Absorb
 
 []Shadow Tag
 []Magnet Pull
@@ -41,7 +41,7 @@ Abilities
 []Levitate
 []Wonder Guard
 []Vital Spirit
-[]Immunity
+[]Immunity - Partial(on synchronize)
 []Poison Heal
 []Leaf Guard
 []Hydration

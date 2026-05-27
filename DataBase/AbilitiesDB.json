@@ -82,7 +82,7 @@
   "Sand Veil": {
     "breakable": true,
     "name": "sand_veil",
-    "when": "on_modify_acc"
+    "when": "on_try_move"
   },
   "Simple": {
     "breakable": true,
@@ -119,8 +119,7 @@
     "when": "on_modify_speed"
   },
   "Synchronize": {
-    "name": "synchronize",
-    "when": "on_set_status"
+    "name": "synchronize"
   },
   "Thick Fat": {
     "breakable": true,
@@ -128,8 +127,7 @@
     "when": "on_modify_stat"
   },
   "Tinted Lens": {
-    "name": "tinted_lens",
-    "when": "on_damage"
+    "name": "tinted_lens"
   },
   "Torrent": {
     "name": "torrent",

@@ -23,7 +23,9 @@ from Models.constants import (
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _FIELD_TURN, _STATUS_TOXIC, _STATUS_POISON,
     _STATUS_SLEEP, _STATUS_FREEZE, _VOLSTATUS_FLINCH, _VOLSTATUS_CONFUSION, _POTIONS_FULL_HEAL,
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
-    _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED
+    _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED, _ABILITYNAMES_SWIFT_SWIM,
+    _ABILITYNAMES_SYNCHRONIZE, _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_WATER_ABSORB,
+    _TYPES_WATER
 )
 
 
@@ -52,9 +54,13 @@ def check_speed(p1, p2, weather):
         ab = p1[_POK_AB_ID]
         if weather == _WEATHER_SUN and ab == _ABILITYNAMES_CHLOROPHYLL:
             p1_speed *= 2
+        elif weather == _WEATHER_RAIN and ab == _ABILITYNAMES_SWIFT_SWIM:
+            p1_speed *= 2
     if ab_w2 & _ABILITYACTIVATION_ON_MODIFY_SPEED:
         ab = p2[_POK_AB_ID]
         if weather == _WEATHER_SUN and ab == _ABILITYNAMES_CHLOROPHYLL:
+            p2_speed *= 2
+        elif weather == _WEATHER_RAIN and ab == _ABILITYNAMES_SWIFT_SWIM:
             p2_speed *= 2
     return p1_speed, p2_speed
 
@@ -104,6 +110,13 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
     return opp_move, my_move, 2, False
 
 
+def absorb_abi(defender):
+    """
+    Absorb abilities restore 1/4 of max hp on try hitting instead of the move
+    """
+    defender[_POK_CURRENT_HP] = max(defender[_POK_MAX_HP], (defender[_POK_CURRENT_HP] + defender[_POK_MAX_HP]//4))
+
+
 def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
     """
     Check to see if the ability changes the probabilty of a move hitting
@@ -137,6 +150,9 @@ def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
             )
         )
     ):
+        return 0
+    if def_ab == _ABILITYNAMES_WATER_ABSORB and move[_MOVE_TYPE] == _TYPES_WATER:
+        absorb_abi(defender)
         return 0
 
     return accuracy
@@ -331,6 +347,7 @@ def contact_ability(attacker, defender):
     """
     Abilities that activate with contact
     """
+    #TODO: Add Synchronize to the ones that apply status
     if defender[_POK_AB_ID] == _ABILITYNAMES_POISON_POINT:
         if (
             attacker[_POK_STATUS] == 0
@@ -341,6 +358,16 @@ def contact_ability(attacker, defender):
             and random.random() < .30
         ):
             attacker[_POK_STATUS] = _STATUS_POISON
+            if attacker[_POK_AB_ID] == _ABILITYNAMES_SYNCHRONIZE:
+                t1 = defender[_POK_TYPE1]
+                t2 = defender[_POK_TYPE2]
+                if t1 in STEEL_POISON:
+                    return
+                if t2 != 0 and (t2 in STEEL_POISON):
+                    return
+                if defender[_POK_AB_ID] == _ABILITYNAMES_IMMUNITY:
+                    return
+                defender[_POK_STATUS] = _STATUS_POISON
 
 
 def heal_end_turn(self_, weather):

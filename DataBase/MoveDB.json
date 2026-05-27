@@ -162,5 +162,103 @@
     "target": "random_normal",
     "type": "Typeless",
     "pp": -1
+  },
+  "Absorb": {
+    "name": "absorb",
+    "category": "Special",
+    "target": "normal",
+    "power": 20,
+    "type": "Grass",
+    "pp": 25,
+    "accuracy": 100,
+    "drain": [1, 2],
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "heal": true,
+      "metronome": true
+    }
+  },
+  "Acid": {
+    "name": "acid",
+    "category": "Special",
+    "target": "all_adjacent_foes",
+    "type": "Poison",
+    "pp": 30,
+    "accuracy": 100,
+    "power": 40,
+    "secondary": {
+      "chance": 10,
+      "sec_boost_speed": -1
+    },
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Amnesia": {
+    "name": "amnesia",
+    "category": "Status",
+    "target": "self",
+    "type": "Psychic",
+    "pp": 20,
+    "accuracy": true,
+    "boost_spdef": 2,
+    "flags": {
+      "snatch": true,
+      "metronome": true
+    }
+  },
+  "Aqua Jet": {
+    "name": "aqua_jet",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Water",
+    "pp": 20,
+    "accuracy": 100,
+    "power": 40,
+    "priority": 1,
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Arm Thrust": {
+    "name": "arm_thrust",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Fighting",
+    "pp": 20,
+    "power": 15,
+    "accuracy": 100,
+    "multi_hit": [2, 5],
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Astonish": {
+    "name": "astonish",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Ghost",
+    "pp": 15,
+    "accuracy": 100,
+    "power": 30,
+    "secondary": {
+      "chance": 30,
+      "volatileStatus": "flinch"
+    },
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
   }
 }

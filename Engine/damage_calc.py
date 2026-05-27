@@ -14,12 +14,14 @@ from Models.constants import (
     _POK_MAX_HP, _MOVE_TYPE, _TYPES_FIRE, _TYPES_WATER, _TYPES_GRASS, _ABILITYNAMES_IRON_FIST,
     _FLAGS_PUNCH, _STATUS_BURN, _WEATHER_SUN, _WEATHER_RAIN, _MOVE_POWER,
     _ABILITYACTIVATION_ON_BASE_POWER, _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
-    _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE, _ABILITYNAMES_SOLAR_POWER
+    _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE, _ABILITYNAMES_SOLAR_POWER,
+    _ABILITYNAMES_THICK_FAT, _TYPES_ICE, _ABILITYNAMES_TINTED_LENS
 )
 
 
 MULTIPLIERS = (85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100)
 STARTER_AB = (_ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW)
+THICK_F_TYPES = (_TYPES_FIRE, _TYPES_ICE)
 STAGES_TABLE = (
     (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), # -6 to -1
     (2, 2),                                         # 0
@@ -43,6 +45,8 @@ def ab_modify_stat(attacker, atk, physical, move, weather):
     else:
         if atk_ab == _ABILITYNAMES_SOLAR_POWER and weather == _WEATHER_SUN:
             atk = (atk*3)//2
+    if atk_ab == _ABILITYNAMES_THICK_FAT and move[_MOVE_TYPE] in THICK_F_TYPES:
+        atk //= 2
     return atk
 
 
@@ -133,6 +137,7 @@ def base_power_ability(attacker, move) -> float:
     if att_ab == _ABILITYNAMES_IRON_FIST and move[_FLAGS_PUNCH]:
         return 4915  # 1.2
 
+    # Reckless
     if (
         att_ab == _ABILITYNAMES_RECKLESS
         and (move[_MOVE_RECOIL] or _MOVE_HAS_CRASH_DAMAGE)
@@ -208,6 +213,7 @@ def multipliers(
         damage = (effectiveness * damage)//2
 
     # Effectiveness type 2
+    effectiveness2 = 2  # Normal type effectivness because of int work
     if def_type2:
         effectiveness2, _ = get_type_effectiveness(m_type, def_type2, 0)
         if effectiveness2 != 2:
@@ -217,7 +223,9 @@ def multipliers(
 
     # TODO: Expert belt
 
-    # TODO: Tinted Lens
+    # Tinted Lens
+    if attacker[_POK_AB_ID] == _ABILITYNAMES_TINTED_LENS and effectiveness*effectiveness2//4 == 0:
+        damage *= 2
 
     # TODO: Berry
 

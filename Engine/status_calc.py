@@ -1,7 +1,7 @@
 """Calculate Status effects moves"""
 import random
 from numba import njit
-from Models.helper import TARGET_OPP_SIDE, TARGET_SELF_SIDE
+from Models.helper import TARGET_OPP_SIDE, TARGET_SELF_SIDE, STEEL_POISON
 from Models.constants import (
     _POK_STATUS, _STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_SLEEP, _STATUS_FREEZE,
     _MOVE_BOOST_ATK, _MOVE_BOOST_DEF, _MOVE_BOOST_SPATK, _MOVE_BOOST_SPDEF, _MOVE_BOOST_SPEED,
@@ -10,11 +10,15 @@ from Models.constants import (
     _SEC_BOOST_EV, _SEC_BOOST_SPDEF, _SEC_BOOST_SPEED, _POK_ATTACK_STAT_STAGE, _POK_DEFENSE_STAT_STAGE,
     _POK_SPECIAL_ATTACK_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE, _POK_SPEED_STAT_STAGE,
     _POK_EVASION_STAT_STAGE, _POK_BADLY_POISON, _POK_SLEEP_COUNTER, _POK_ACCURACY_STAT_STAGE,
-    _POK_AB_ID, _POK_MAX_HP, _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_MAGIC_GUARD
+    _POK_AB_ID, _POK_MAX_HP, _POK_TYPE1, _POK_TYPE2, _STATUS_PARALYSIS,
+    _TYPES_FIRE, _TYPES_ELECTRIC,
+    _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_SYNCHRONIZE,
+    _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL,
 )
 
 
 B_P = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC)
+B_P_P = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 STAT_MAPPING = (
     (_MOVE_BOOST_ATK, _POK_ATTACK_STAT_STAGE),
     (_MOVE_BOOST_DEF, _POK_DEFENSE_STAT_STAGE),
@@ -34,8 +38,50 @@ SECONDARY_STAT_MAPPING = (
 
 
 @njit
-def apply_status(move, pok, weather, sec=False):
-    """Apply status effects"""
+def synchronize_reflect(recipient, applied_status, source):
+    """
+    Generation IV Synchronize: when burned, paralyzed, poisoned, or badly poisoned by
+    another Pokemon's move effect, the inflicting Pokemon gains the same status if able.
+    Sleep and freeze are not reflected (Gen V+ extended Synchronize to sleep).
+    """
+    if recipient[_POK_AB_ID] != _ABILITYNAMES_SYNCHRONIZE:
+        return
+    if applied_status not in B_P_P:
+        return
+    if source[_POK_STATUS] != 0:
+        return
+    if applied_status == _STATUS_BURN:
+        if (
+            source[_POK_TYPE1] == _TYPES_FIRE
+            or (source[_POK_TYPE2] != 0 and source[_POK_TYPE2] == _TYPES_FIRE)
+        ):
+            return
+        if source[_POK_AB_ID] == _ABILITYNAMES_WATER_VEIL:
+            return
+    elif applied_status == _STATUS_PARALYSIS:
+        if (
+            source[_POK_TYPE1] == _TYPES_ELECTRIC
+            or (source[_POK_TYPE2] != 0 and source[_POK_TYPE2] == _TYPES_ELECTRIC)
+        ):
+            return
+        if source[_POK_AB_ID] == _ABILITYNAMES_LIMBER:
+            return
+    else:
+        # poison or toxic
+        t1 = source[_POK_TYPE1]
+        t2 = source[_POK_TYPE2]
+        if t1 in STEEL_POISON:
+            return
+        if t2 != 0 and (t2 in STEEL_POISON):
+            return
+        if source[_POK_AB_ID] == _ABILITYNAMES_IMMUNITY:
+            return
+    source[_POK_STATUS] = _STATUS_POISON
+
+
+@njit
+def apply_status(move, pok, weather, source, sec=False):
+    """Apply status effects. ``source`` is the Pokemon whose move inflicted the status (for Synchronize)."""
     pok_status = pok[_POK_STATUS]
     if sec:
         m_status = move[_SEC_STATUS]
@@ -48,6 +94,7 @@ def apply_status(move, pok, weather, sec=False):
             pok[_POK_STATUS] = m_status
             if m_status == _STATUS_TOXIC:
                 pok[_POK_BADLY_POISON] = 1
+            synchronize_reflect(pok, m_status, source)
             return
         return
     if pok_status == _STATUS_SLEEP:
@@ -123,7 +170,7 @@ def calculate_effects(attacker, defender, move, weather):
     # Status
     if move[_MOVE_STATUS] != 0:
         if move[_MOVE_TARGET] in TARGET_OPP_SIDE:
-            apply_status(move, defender, weather)
+            apply_status(move, defender, weather, attacker)
         raise ValueError("Shouldn't have self status change")
 
 
@@ -142,7 +189,7 @@ def sec_effects(move, attacker, defender, weather):
         # Status can only be opposing side, so only enter function if necessary
         if m_target in TARGET_OPP_SIDE:
             if move[_SEC_STATUS] != 0:
-                apply_status(move, defender, weather, sec=True)
+                apply_status(move, defender, weather, attacker, sec=True)
 
 
 @njit

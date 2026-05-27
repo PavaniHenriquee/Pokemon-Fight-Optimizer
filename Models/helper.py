@@ -128,13 +128,11 @@ class AbilityActivation:
     ON_SWITCH_IN    = 16
     ON_CRITICAL     = 32
     ON_TRY_MOVE     = 64
-    ON_SET_STATUS   = 128
-    ON_MODIFY_SPEED = 256
-    ON_WEATHER      = 512
-    ON_MODIFY_ACC   = 1024
-    ON_RESIDUAL     = 2048
+    ON_MODIFY_SPEED = 128
+    ON_RESIDUAL     = 256
 
 
+@dataclass(slots=True)
 class MoveCategory:
     """
     Physical, Special, Status
@@ -258,6 +256,7 @@ class Potions():
     X_SPEED      = 8
 
 
+@dataclass(slots=True)
 class MoveOutcome:
     """Possible moves outcomes"""
     HIT               = 1

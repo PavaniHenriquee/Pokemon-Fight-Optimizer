@@ -51,7 +51,7 @@ class Moves():
             else 0
         )
         base_move_array[Move.ACCURACY] = (
-            -1 if self.move.get('accuracy', True) is True
+            -1 if self.move.get('accuracy', 0) is True
             else self.move.get('accuracy', 0) if self.move.get('accuracy', 0) is not None
             else 0
         )
@@ -108,7 +108,7 @@ class Moves():
         base_move_array[Move.BOOST_ATK]        = self.move.get('boost_atk', 0)
         base_move_array[Move.BOOST_DEF]        = self.move.get('boost_def', 0)
         base_move_array[Move.BOOST_SPATK]      = self.move.get('boost_spatk', 0)
-        base_move_array[Move.BOOST_SPDEF]      = self.move.get('boost_sp def', 0)
+        base_move_array[Move.BOOST_SPDEF]      = self.move.get('boost_spdef', 0)
         base_move_array[Move.BOOST_SPEED]      = self.move.get('boost_speed', 0)
         base_move_array[Move.BOOST_ACC]        = self.move.get('boost_acc', 0)
         base_move_array[Move.BOOST_EV]         = self.move.get('boost_ev', 0)
@@ -207,7 +207,7 @@ class Moves():
             else 0
         )
         sec_array[SecondaryArray.VOL_STATUS - off] = (
-            getattr(VolStatus, secondary.get('vol_status', 'None').upper())
+            getattr(VolStatus, secondary.get('volatileStatus', 'None').upper())
             if secondary and secondary.get('volatileStatus', None)
             else 0
         )
@@ -219,7 +219,7 @@ class Moves():
             else 0
         )
         sec_array[SecondaryArray.VOL_STATUS2 - off] = (
-            getattr(VolStatus, secondary2.get('vol_status', 'None').upper())
+            getattr(VolStatus, secondary2.get('volatileStatus', 'None').upper())
             if secondary2 and secondary2.get('volatileStatus', None)
             else 0
         )
