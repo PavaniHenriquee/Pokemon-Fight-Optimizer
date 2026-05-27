@@ -19,9 +19,9 @@ from Models.constants import (
     _MOVECATEGORY_PHYSICAL, _FLAGS_SOUND, _ABILITYACTIVATION_ON_TRY_MOVE, _ABILITYACTIVATION_ON_SWITCH_IN,
     _POK_TYPE1, _POK_TYPE2, _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _POK_ATTACK_STAT_STAGE,
     _POK_VOL_STATUS, _POK_BADLY_POISON, _POK_TURNS, _POK_MAX_HP, _POK_SLEEP_COUNTER, _POK_CURRENT_HP,
-    _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_VOL_STATUS, _SEC_CHANCE,
+    _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_CHANCE,
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _FIELD_TURN, _STATUS_TOXIC, _STATUS_POISON,
-    _STATUS_SLEEP, _STATUS_FREEZE, _VOLSTATUS_FLINCH, _VOLSTATUS_CONFUSION, _POTIONS_FULL_HEAL,
+    _STATUS_SLEEP, _STATUS_FREEZE, _VOLSTATUS_CONFUSION, _POTIONS_FULL_HEAL,
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
     _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED, _ABILITYNAMES_SWIFT_SWIM,
     _ABILITYNAMES_SYNCHRONIZE, _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_WATER_ABSORB,
@@ -110,14 +110,18 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
     return opp_move, my_move, 2, False
 
 
+@njit
 def absorb_abi(defender):
     """
     Absorb abilities restore 1/4 of max hp on try hitting instead of the move
     """
-    defender[_POK_CURRENT_HP] = max(defender[_POK_MAX_HP], (defender[_POK_CURRENT_HP] + defender[_POK_MAX_HP]//4))
+    defender[_POK_CURRENT_HP] = min(
+        defender[_POK_MAX_HP], (defender[_POK_CURRENT_HP] + defender[_POK_MAX_HP]//4)
+    )
 
 
-def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
+@njit
+def ab_on_try_move(move, attacker, defender, accuracy:int, weather):
     """
     Check to see if the ability changes the probabilty of a move hitting
     """
@@ -158,6 +162,7 @@ def ab_on_try_move(move, attacker, defender, accuracy, weather) -> bool:
     return accuracy
 
 
+@njit
 def calculate_hit_miss(move, attacker, defender, weather):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
@@ -170,7 +175,9 @@ def calculate_hit_miss(move, attacker, defender, weather):
     if ab_a & _ABILITYACTIVATION_ON_TRY_MOVE or ab_d & _ABILITYACTIVATION_ON_TRY_MOVE:
         move_acc = ab_on_try_move(move, attacker, defender, move_acc, weather)
 
-    if get_type_effectiveness(move[_MOVE_TYPE], defender[_POK_TYPE1], defender[_POK_TYPE2]) == 0:
+    #TODO: Some status moves don't get immunities from type immunities i think, check it
+    eff, _ = get_type_effectiveness(move[_MOVE_TYPE], defender[_POK_TYPE1], defender[_POK_TYPE2])
+    if  eff == 0:
         return _MOVEOUTCOME_INVULNERABLE
 
     if move_acc == -1:
@@ -191,11 +198,13 @@ def calculate_hit_miss(move, attacker, defender, weather):
     return _MOVEOUTCOME_MISS
 
 
+@njit
 def calculate_crit():
     """Returns a boolean if the move passed the crit check"""
-    return random.getrandbits(4) + 1 == 1
+    return random.getrandbits(4) == 0
 
 
+@njit
 def reset_switch_out(pok):
     """If a pokemon swithces out it needs to reset these conditions"""
     pok[_POK_ATTACK_STAT_STAGE : _POK_EVASION_STAT_STAGE + 1] = 0
@@ -203,18 +212,17 @@ def reset_switch_out(pok):
     pok[_POK_BADLY_POISON] = 1 if pok[_POK_STATUS] == _STATUS_TOXIC else 0
 
 
+@njit
 def flinch_checker(move, defender):
     """Returns true or false if move has a flinch percent and it should flinch"""
-    flinch = move[_SEC_VOL_STATUS]
-    if flinch != 0 and flinch & _VOLSTATUS_FLINCH:
-        if defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS:
-            return False
-        if random.random()*100 < move[_SEC_CHANCE]:
-            return True
-
+    if defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS:
+        return False
+    if random.random()*100 < move[_SEC_CHANCE]:
+        return True
     return False
 
 
+@njit
 def thaw(move, defender):
     """Check if a move thaws"""
     if move[_MOVE_TYPE] == _TYPES_FIRE:
@@ -223,6 +231,7 @@ def thaw(move, defender):
     return False
 
 
+@njit
 def switch_in(attacker, defender):
     """
     What happens when a pokemon switches in so, abilities, hazards
@@ -252,7 +261,7 @@ def start_of_battle(array):
     speed_tie = 0
     if p1_speed == p2_speed:
         speed_tie = random.getrandbits(1)
-    if speed_tie or p1_speed > p2_speed:
+    if p1_speed > p2_speed or speed_tie:
         switch_in(current_pokemon, current_opp)
         switch_in(current_opp, current_pokemon)
     else:
@@ -263,7 +272,8 @@ def start_of_battle(array):
     array[_FIELD_TURN] = 1
 
 
-def weather_dmg(pokemon, weather, max_hp):
+@njit
+def weather_dmg(pokemon, weather, max_hp:int):
     """
     Weather damage calc
     """
@@ -272,8 +282,8 @@ def weather_dmg(pokemon, weather, max_hp):
     abi = pokemon[_POK_AB_ID]
     if weather == _WEATHER_SANDSTORM:
         if (
-            type1 != _TYPES_ROCK and type1 != _TYPES_GROUND and type1 != _TYPES_STEEL
-            and type2 != _TYPES_ROCK and type2 != _TYPES_GROUND and type2 != _TYPES_STEEL
+            type1 not in SANDSTORM_IM
+            and type2 not in SANDSTORM_IM
             and abi != _ABILITYNAMES_SAND_VEIL
         ):
             return max_hp//16
@@ -289,6 +299,7 @@ def weather_dmg(pokemon, weather, max_hp):
     return 0
 
 
+@njit
 def after_turn_damage(pokemon, weather: int) -> int:
     """Calculate all damage sources that comes at the end of turns"""
     # 1. Absolute Immunity Early Exit
@@ -304,7 +315,8 @@ def after_turn_damage(pokemon, weather: int) -> int:
     return dmg
 
 
-def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # pylint: disable=too-many-return-statements
+@njit
+def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: disable=too-many-return-statements
     """Early returns to see if an attack goes through or not"""
     atker_status = attacker[_POK_STATUS]
     # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
@@ -328,9 +340,9 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # 
     # Flinch
     if idx >= 2 and flinch:
         if defender[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
-            defender[_POK_SPEED_STAT_STAGE] = max(-6, min(6, defender[_POK_SPEED_STAT_STAGE] + 1))
+            defender[_POK_SPEED_STAT_STAGE] = min(6, defender[_POK_SPEED_STAT_STAGE] + 1)
         return True
-    # Volatile Status early returns, only not implemented confusion for now
+    # Volatile Status early returns, only implemented confusion for now
     if attacker[_POK_VOL_STATUS] != 0 and attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
         if random.getrandbits(1):
             return True
@@ -343,6 +355,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move) -> bool:  # 
     return False
 
 
+@njit
 def contact_ability(attacker, defender):
     """
     Abilities that activate with contact
@@ -363,13 +376,14 @@ def contact_ability(attacker, defender):
                 t2 = defender[_POK_TYPE2]
                 if t1 in STEEL_POISON:
                     return
-                if t2 != 0 and (t2 in STEEL_POISON):
+                if t2 != 0 and t2 in STEEL_POISON:
                     return
                 if defender[_POK_AB_ID] == _ABILITYNAMES_IMMUNITY:
                     return
                 defender[_POK_STATUS] = _STATUS_POISON
 
 
+@njit
 def heal_end_turn(self_, weather):
     """
     Heals after turns, from items, abilities and volatile conditions
@@ -385,15 +399,17 @@ def heal_end_turn(self_, weather):
         self_[_POK_CURRENT_HP] += heal
 
 
+@njit
 def on_residual(pokemon, _switch_in):
     """
     On residual abilities at end of turn
     """
     abi = pokemon[_POK_AB_ID]
     if abi == _ABILITYNAMES_SPEED_BOOST and not _switch_in:
-        pokemon[_POK_SPEED_STAT_STAGE] = max(-6, min(6, pokemon[_POK_SPEED_STAT_STAGE] + 1))
+        pokemon[_POK_SPEED_STAT_STAGE] = min(6, pokemon[_POK_SPEED_STAT_STAGE] + 1)
 
 
+@njit
 def trainer_ai_items(pok, item):
     """
     Usage of potions, full heals and x specials
@@ -401,11 +417,11 @@ def trainer_ai_items(pok, item):
     cur_hp = pok[_POK_CURRENT_HP]
     max_hp = pok[_POK_MAX_HP]
     if item == _POTIONS_POTION:
-        pok[_POK_CURRENT_HP] = max(max_hp, cur_hp+20)
+        pok[_POK_CURRENT_HP] = min(max_hp, cur_hp+20)
     elif item == _POTIONS_SUPER_POTION:
-        pok[_POK_CURRENT_HP] = max(max_hp, cur_hp+50)
+        pok[_POK_CURRENT_HP] = min(max_hp, cur_hp+50)
     elif item == _POTIONS_HYPER_POTION:
-        pok[_POK_CURRENT_HP] = max(max_hp, cur_hp+200)
+        pok[_POK_CURRENT_HP] = min(max_hp, cur_hp+200)
     elif item == _POTIONS_FULL_RESTORE:
         pok[_POK_CURRENT_HP] = max_hp
         pok[_POK_STATUS] = 0

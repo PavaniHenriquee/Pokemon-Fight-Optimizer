@@ -124,7 +124,7 @@
     },
     "secondary": {
       "chance": 10,
-      "sec_boost_speed": -1
+      "speed": -1
     }
   },
   "Razor Leaf": {
@@ -189,7 +189,7 @@
     "power": 40,
     "secondary": {
       "chance": 10,
-      "sec_boost_speed": -1
+      "speed": -1
     },
     "flags": {
       "protect": true,
@@ -252,7 +252,7 @@
     "power": 30,
     "secondary": {
       "chance": 30,
-      "volatileStatus": "flinch"
+      "vol_status": "flinch"
     },
     "flags": {
       "contact": true,

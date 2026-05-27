@@ -1,5 +1,5 @@
 """Normalize moves into numpy Arrays"""
-from types import SimpleNamespace
+from dataclasses import dataclass
 import numpy as np
 from Models.idx_const import (
     BASE_MOVE_LEN, SEC_LEN, FLAGS_LEN, OFFSET_SEC,
@@ -13,14 +13,17 @@ from DataBase.loader import moveDB
 
 
 
+@dataclass(slots=True)
+class Stat:
+    """
+    For override stat, so foul play, psyshock and similars
+    """
+    ATTACK = 1
+    DEFENSE = 2
+    SPECIAL_ATTACK = 3
+    SPECIAL_DEFENSE = 4
+    SPEED = 5
 
-Stat = SimpleNamespace(
-    ATTACK = 0,
-    DEFENSE = 1,
-    SPECIAL_ATTACK = 2,
-    SPECIAL_DEFENSE = 3,
-    SPEED = 4
-)
 
 
 class Moves():
@@ -46,62 +49,39 @@ class Moves():
         base_move_array[Move.CATEGORY] = getattr(MoveCategory, self.move['category'].upper())
         base_move_array[Move.TYPE]     = getattr(Types,self.move['type'].upper())
         base_move_array[Move.TARGET]   = getattr(Target,self.move['target'].upper())
-        base_move_array[Move.POWER]    = (
-            self.move.get('power', 0) if self.move.get('power', 0) is not None
-            else 0
-        )
+        base_move_array[Move.POWER]    = self.move.get('power', 0)
         base_move_array[Move.ACCURACY] = (
             -1 if self.move.get('accuracy', 0) is True
-            else self.move.get('accuracy', 0) if self.move.get('accuracy', 0) is not None
-            else 0
+            else self.move.get('accuracy', 0)
         )
         base_move_array[Move.CRIT_RATIO]  = self.move.get('crit_ratio', 1)
         base_move_array[Move.WILL_CRIT]   = int(self.move.get('will_crit', False))
         base_move_array[Move.OH_KO]       = int(self.move.get('oh_ko', False))
-        base_move_array[Move.SHEER_FORCE] = int(self.move.get('sheer_force', False))
         base_move_array[Move.PRIORITY]    = self.move.get('priority', 0)
-        base_move_array[Move.OVERRIDE_OFF_POK] = (
-            1 if self.move.get('override_off_pok', None) == 'target'
+        base_move_array[Move.OVERRIDE_OFF_STAT] = (
+            getattr(Stat, self.move.get('override_off_stat', 0).upper())
+            if self.move.get('override_off_stat', 0)
             else 0
         )
-        base_move_array[Move.OVERRIDE_OFF_STAT] = (
-            getattr(Stat, self.move.get('override_off_stat', 'Attack').upper())
-            if self.move.get('override_off_stat', None)
-            else -1
-        )
         base_move_array[Move.OVERRIDE_DEF_STAT] = (
-            getattr(Stat, self.move.get('override_def_stat', 'Defense').upper())
-            if self.move.get('override_def_stat', None)
-            else -1
+            getattr(Stat, self.move.get('override_def_stat', 0).upper())
+            if self.move.get('override_def_stat', 0)
+            else 0
         )
         base_move_array[Move.IGNORE_DEF]      = int(self.move.get('ignore_def', False))
         base_move_array[Move.IGNORE_IMMUNITY] = int(self.move.get('ignore_immunity', False))
-        base_move_array[Move.PP]              = self.move['pp']
+        base_move_array[Move.PP]              = self.move.get('pp',0)
         base_move_array[Move.PP_UP]           = 0  # Move wont tell pp up, need to manually tell
-        base_move_array[Move.MULTI_HIT_MIN]   = (
-            self.move.get('multi_hit', 1) if isinstance(self.move.get('multi_hit', 1), int)
-            else self.move.get('multi_hit', [1, 1])[0]
-        )
-        base_move_array[Move.MULTI_HIT_MAX] = (
-            self.move.get('multi_hit', 1) if isinstance(self.move.get('multi_hit', 1), int)
-            else self.move.get('multi_hit', [1, 1])[1]
-        )
+        mult_hit = self.move.get('multi_hit',[1,1])
+        base_move_array[Move.MULTI_HIT_MIN]   = mult_hit[0]
+        base_move_array[Move.MULTI_HIT_MAX] = mult_hit[1]
         base_move_array[Move.SELF_SWITCH]  = int(self.move.get('self_switch', False))
-        base_move_array[Move.FORCE_SWITCH] = int(self.move.get('self_switch', False))
-        base_move_array[Move.NON_GHOST]    = 1 if self.move.get('non_ghost', None) == 'self' else 0
-        base_move_array[Move.IGNORE_AB]    = int(self.move.get('ignore_ab', False))
+        base_move_array[Move.FORCE_SWITCH] = int(self.move.get('force_switch', False))
         base_move_array[Move.DAMAGE]       = dmg_result
-        base_move_array[Move.SPREAD_HIT]   = int(self.move.get('spread_hit', False))
-        base_move_array[Move.SPREAD_MOD]   = self.move.get('spread_mod', 100)
-        base_move_array[Move.FORCE_STAB]   = 1 if self.move.get('force_stab', False) else 0
-        base_move_array[Move.STATUS]       = (
-            getattr(Status, self.move.get('status', 'None').upper()) if self.move.get('status', None)
-            else 0
-        )
-        base_move_array[Move.VOL_STATUS] = (
-            self.move.get('vol_status', 0) if self.move.get('vol_status', 0) is not None
-            else 0
-        )
+        status = self.move.get('status')
+        base_move_array[Move.STATUS] = getattr(Status, status.upper()) if status else 0
+        vol_status = self.move.get('vol_status')
+        base_move_array[Move.VOL_STATUS] = getattr(VolStatus, vol_status.upper()) if vol_status else 0
         base_move_array[Move.HAS_CRASH_DAMAGE] = int(self.move.get('has_crash_damage', False))
         base_move_array[Move.SLEEP_USABLE]     = int(self.move.get('sleep_usable', False))
         base_move_array[Move.SMART_TARGET]     = int(self.move.get('smart_target', False))
@@ -112,15 +92,14 @@ class Moves():
         base_move_array[Move.BOOST_SPEED]      = self.move.get('boost_speed', 0)
         base_move_array[Move.BOOST_ACC]        = self.move.get('boost_acc', 0)
         base_move_array[Move.BOOST_EV]         = self.move.get('boost_ev', 0)
+        side_condition = self.move.get('side_condition')
         base_move_array[Move.SIDE_CONDITION]   = (
-            getattr(SideCondition, self.move.get('side_condition', 'None').upper())
-            if self.move.get('side_condition', None)
-            else -1
+            getattr(SideCondition, side_condition.upper())
+            if side_condition
+            else 0
         )
-        base_move_array[Move.RECOIL] = self.move.get('recoil', 0)
+        base_move_array[Move.RECOIL] = self.move.get('recoil', 0)  #Considering division by 100 later
         base_move_array[Move.DRAIN]  = self.move.get('drain', 0)
-        if base_move_array[Move.PP] == 0:
-            raise ValueError("ove doesn't have PP")
         return base_move_array
 
     def move_flags(self):
@@ -172,55 +151,40 @@ class Moves():
         sec_array = np.zeros(SEC_LEN, dtype=np.int32)
         if self.move is None:
             return sec_array
-        secondary2 = {}
-        if not self.move.get('secondary', None):
-            return sec_array
-        if isinstance(self.move.get('secondary', None), list):
-            secondary = self.move.get('secondary', [])[0]
-            secondary2 = (
-                self.move.get('secondary', [None, None])[1]
-                if len(self.move.get('secondary', [])) > 1
-                else {}
-            )
-        else:
-            secondary = self.move.get('secondary', None)
-
+        secondary = self.move.get('secondary', {})
         off = OFFSET_SEC
-        boosts = secondary.get('boost', {}) if secondary else {}
-
         sec_array[SecondaryArray.CHANCE - off] = secondary.get('chance', 0) if secondary else 0
         sec_array[SecondaryArray.TARGET - off] = (
-            getattr(Target,secondary.get('target', 'any').upper())
-            if secondary and secondary.get('target', None)
+            getattr(Target,secondary.get('target', 'normal').upper())
+            if secondary
             else -1
         )
-        sec_array[SecondaryArray.BOOST_ATK - off]   = boosts.get('atk', 0)
-        sec_array[SecondaryArray.BOOST_DEF - off]   = boosts.get('def', 0)
-        sec_array[SecondaryArray.BOOST_SPATK - off] = boosts.get('spa', 0)
-        sec_array[SecondaryArray.BOOST_SPDEF - off] = boosts.get('spd', 0)
-        sec_array[SecondaryArray.BOOST_SPEED - off] = boosts.get('spe', 0)
-        sec_array[SecondaryArray.BOOST_ACC - off]   = boosts.get('accuracy', 0)
-        sec_array[SecondaryArray.BOOST_EV - off]    = boosts.get('evasion', 0)
+        sec_array[SecondaryArray.BOOST_ATK - off]   = secondary.get('atk', 0)
+        sec_array[SecondaryArray.BOOST_DEF - off]   = secondary.get('def', 0)
+        sec_array[SecondaryArray.BOOST_SPATK - off] = secondary.get('spa', 0)
+        sec_array[SecondaryArray.BOOST_SPDEF - off] = secondary.get('spd', 0)
+        sec_array[SecondaryArray.BOOST_SPEED - off] = secondary.get('speed', 0)
+        sec_array[SecondaryArray.BOOST_ACC - off]   = secondary.get('accuracy', 0)
+        sec_array[SecondaryArray.BOOST_EV - off]    = secondary.get('evasion', 0)
+        status = secondary.get('status')
         sec_array[SecondaryArray.STATUS - off] = (
-            getattr(Status,secondary.get('status', 'None').upper())
-            if secondary and secondary.get('status', None)
+            getattr(Status, status.upper())
+            if status
             else 0
         )
+        vol_status = secondary.get('vol_status')
         sec_array[SecondaryArray.VOL_STATUS - off] = (
-            getattr(VolStatus, secondary.get('volatileStatus', 'None').upper())
-            if secondary and secondary.get('volatileStatus', None)
+            getattr(VolStatus, vol_status.upper())
+            if vol_status
             else 0
         )
 
-        # Second secondary effect(for the fangs moves)
-        sec_array[SecondaryArray.CHANCE2 - off] = (
-            secondary2.get('chance', 0)
-            if secondary2
-            else 0
-        )
+        # Second secondary effect(only for the fangs moves)
+        sec_array[SecondaryArray.CHANCE2 - off] = secondary.get('chance2', 0)
+        vol_status2 = secondary.get('vol_status2')
         sec_array[SecondaryArray.VOL_STATUS2 - off] = (
-            getattr(VolStatus, secondary2.get('volatileStatus', 'None').upper())
-            if secondary2 and secondary2.get('volatileStatus', None)
+            getattr(VolStatus, vol_status2.upper())
+            if vol_status
             else 0
         )
 

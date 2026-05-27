@@ -62,10 +62,8 @@ class Move:
     CRIT_RATIO       = ACCURACY + 1
     WILL_CRIT        = CRIT_RATIO + 1
     OH_KO            = WILL_CRIT + 1
-    SHEER_FORCE      = OH_KO + 1
-    PRIORITY         = SHEER_FORCE + 1
-    OVERRIDE_OFF_POK = PRIORITY + 1
-    OVERRIDE_OFF_STAT= OVERRIDE_OFF_POK + 1
+    PRIORITY         = OH_KO + 1
+    OVERRIDE_OFF_STAT= PRIORITY + 1
     OVERRIDE_DEF_STAT= OVERRIDE_OFF_STAT + 1
     IGNORE_DEF       = OVERRIDE_DEF_STAT + 1
     IGNORE_IMMUNITY  = IGNORE_DEF + 1
@@ -75,14 +73,8 @@ class Move:
     MULTI_HIT_MAX    = MULTI_HIT_MIN + 1
     SELF_SWITCH      = MULTI_HIT_MAX + 1
     FORCE_SWITCH     = SELF_SWITCH + 1
-    NON_GHOST        = FORCE_SWITCH + 1
-    IGNORE_AB        = NON_GHOST + 1
-    DAMAGE           = IGNORE_AB + 1
-    SPREAD_HIT       = DAMAGE + 1
-    SPREAD_MOD       = SPREAD_HIT + 1
-    CRIT_MOD         = SPREAD_MOD + 1
-    FORCE_STAB       = CRIT_MOD + 1
-    STATUS           = FORCE_STAB + 1
+    DAMAGE           = FORCE_SWITCH + 1
+    STATUS           = DAMAGE + 1
     VOL_STATUS       = STATUS + 1
     HAS_CRASH_DAMAGE = VOL_STATUS + 1
     SELFDESTRUCT     = HAS_CRASH_DAMAGE + 1
@@ -224,4 +216,5 @@ class Field:
     AI_TOOK_DMG_LAST_TURN = MY_LAST_MOVE + 1
     AI_KNOWS           = AI_TOOK_DMG_LAST_TURN + 1
 
-FIELD_LEN = Field.AI_KNOWS + 1
+# Last one minus first one +1 because idx 0
+FIELD_LEN = Field.AI_KNOWS - Field.MY_POK + 1

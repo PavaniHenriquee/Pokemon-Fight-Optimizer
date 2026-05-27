@@ -214,11 +214,11 @@ def choose_move(battle_array):
                 _evaluated_moves[0] = [sub-6,0,0,False]
                 return _evaluated_moves
         if took_dmg:
-            im = check_immunity_pty(ai_pty, user_pok, took_dmg)
+            im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active)
             if im.size > 0:
                 _evaluated_moves[0] = [im[0]-6,0,0,False]
                 return _evaluated_moves
-            res = check_resistence_pty(ai_pty, user_pok, took_dmg)
+            res = check_resistence_pty(ai_pty, user_pok, took_dmg, opp_active)
             if res.size > 0:
                 _evaluated_moves[0] = [res[0]-6,0,0,False]
                 return _evaluated_moves
@@ -287,7 +287,7 @@ def choose_move(battle_array):
     # Withdraw 2 - The active Pokémon is facing a foe with Wonder Guard and cannot hit it supereffectively
     cand = None
     if ab == _ABILITYNAMES_WONDER_GUARD and not s_e:
-        cand = check_super_ef_move_pty(ai_pty, user_pok)
+        cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active)
         if cand.size > 0:
             for i in cand:
                 if random.random() < 0.66666:
@@ -298,14 +298,14 @@ def choose_move(battle_array):
     # Withdraw 3 - More than 2 damaging moves and All of them do not affect the target
     if not_status_counter>1 and not can_hit:
         if not cand:
-            cand = check_super_ef_move_pty(ai_pty, user_pok)
+            cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active)
         if cand.size> 0:
             for i in cand:
                 if random.random() < 0.888:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [i-6,0,0,False]
                     return _evaluated_moves
-        cand_normal = check_any_damaging_move_pty(ai_pty, user_pok)
+        cand_normal = check_any_damaging_move_pty(ai_pty, user_pok, opp_active)
         if cand_normal.size > 0:
             for i in cand_normal:
                 if random.random() < 0.75:
@@ -319,7 +319,7 @@ def choose_move(battle_array):
         if s_e and random.random()<0.6666 and not took_dmg:
             pass
         else:
-            cand_abi = check_absorb_abi_pty(ai_pty, my_last_move)
+            cand_abi = check_absorb_abi_pty(ai_pty, my_last_move, opp_active)
             if cand_abi.size > 0:
                 for i in cand_abi:
                     if random.random() < 0.50:
@@ -339,14 +339,14 @@ def choose_move(battle_array):
         if took_dmg:
             # 6. A party member is immune to the previous attack and can hit the foe supereffectively
             if random.getrandbits(1):
-                im = check_immunity_pty(ai_pty, user_pok, took_dmg)
+                im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active)
                 if im.size > 0:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [im[0]-6,0,0,False]
                     return _evaluated_moves
             # 7. A party member resists the previous attack and can hit the foe supereffectively
             if random.random() < 0.3333:
-                res = check_resistence_pty(ai_pty, user_pok, took_dmg)
+                res = check_resistence_pty(ai_pty, user_pok, took_dmg, opp_active)
                 if res.size > 0:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [res[0]-6,0,0,False]

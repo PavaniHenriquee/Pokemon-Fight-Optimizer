@@ -142,7 +142,7 @@ class MoveCategory:
     STATUS = 3
 
 
-PHYSICAL_SPECIAL = {MoveCategory.PHYSICAL, MoveCategory.SPECIAL}
+PHYSICAL_SPECIAL = (MoveCategory.PHYSICAL, MoveCategory.SPECIAL)
 
 
 ItemType = SimpleNamespace(

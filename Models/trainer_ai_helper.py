@@ -1049,7 +1049,7 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
 
 
 @njit
-def check_super_ef_move_pty(ai_party, user_pok):
+def check_super_ef_move_pty(ai_party, user_pok, opp_active):
     """
     Check if there's any pokemon with super effective move
     """
@@ -1063,6 +1063,8 @@ def check_super_ef_move_pty(ai_party, user_pok):
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
     for idx in alive:
+        if idx == opp_active:
+            continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
@@ -1076,7 +1078,7 @@ def check_super_ef_move_pty(ai_party, user_pok):
 
 
 @njit
-def check_any_damaging_move_pty(ai_party, user_pok):
+def check_any_damaging_move_pty(ai_party, user_pok, opp_active):
     """
     Check party for any damaging move
     """
@@ -1090,6 +1092,8 @@ def check_any_damaging_move_pty(ai_party, user_pok):
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
     for idx in alive:
+        if idx == opp_active:
+            continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
@@ -1103,7 +1107,7 @@ def check_any_damaging_move_pty(ai_party, user_pok):
 
 
 @njit
-def check_absorb_abi_pty(ai_party, my_last_move):
+def check_absorb_abi_pty(ai_party, my_last_move, opp_active):
     """
     Check if party has any pokemon with ability that absorbs types
     """
@@ -1115,6 +1119,8 @@ def check_absorb_abi_pty(ai_party, my_last_move):
         return buf[:0]
 
     for idx in alive:
+        if idx == opp_active:
+            continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         pok_ab = pok[_POK_AB_ID]
         if pok_ab not in ABSORB_ABI:
@@ -1132,7 +1138,7 @@ def check_absorb_abi_pty(ai_party, my_last_move):
 
 
 @njit
-def check_immunity_pty(ai_party, user_pok, last_move_type):
+def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active):
     """
     Check if there's any pokemon with super effective move
     """
@@ -1146,6 +1152,8 @@ def check_immunity_pty(ai_party, user_pok, last_move_type):
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
     for idx in alive:
+        if idx == opp_active:
+            continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         ef, de = get_type_effectiveness(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2])
         if ef/de == 0:
@@ -1164,7 +1172,7 @@ def check_immunity_pty(ai_party, user_pok, last_move_type):
 
 
 @njit
-def check_resistence_pty(ai_party, user_pok, last_move_type):
+def check_resistence_pty(ai_party, user_pok, last_move_type, opp_active):
     """
     Check if there's any pokemon with super effective move
     """
@@ -1178,6 +1186,8 @@ def check_resistence_pty(ai_party, user_pok, last_move_type):
     user_t1 = user_pok[_POK_TYPE1]
     user_t2 = user_pok[_POK_TYPE2]
     for idx in alive:
+        if idx == opp_active:
+            continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         ef, de = get_type_effectiveness(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2])
         if ef/de < 1:
@@ -1185,7 +1195,7 @@ def check_resistence_pty(ai_party, user_pok, last_move_type):
             for mv in moves:
                 mv_type = mv[_MOVE_TYPE]
                 eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
-                if eff // den >= 2:
+                if eff // den < 2:
                     buf[n] = idx
                     n += 1
                     break

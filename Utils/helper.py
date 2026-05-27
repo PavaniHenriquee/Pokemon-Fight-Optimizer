@@ -3,8 +3,7 @@ import random
 import numpy as np
 from numba import njit
 from Utils.loader import TYPE_CHART
-from Models.idx_const import POK_LEN, FIELD_LEN, Field
-from Models.helper import Enemy_AI_Knows
+from Models.idx_const import POK_LEN, FIELD_LEN
 
 
 
@@ -71,6 +70,5 @@ def to_battle_array(my_pty, opp_pty, battlefield=None):
     # Handle battlefield with a simple fallback
     battlef = battlefield.to_array() if battlefield else np.zeros(FIELD_LEN, dtype=np.int32)
 
-    battlef[(Field.AI_KNOWS-POK_LEN*12)] = Enemy_AI_Knows.ABILITY
 
     return np.concatenate([*my_data, *opp_data, battlef], dtype=np.int32)

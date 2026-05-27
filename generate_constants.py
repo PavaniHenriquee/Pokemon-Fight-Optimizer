@@ -4,7 +4,7 @@ Automatically build constants for use with Numba
 from Models.idx_const import Pok, Move, Flags, Sec, Field, Item
 from Models.helper import (
     MoveCategory, Types, Weather, AbilityActivation, Status, VolStatus, Gender,
-    Enemy_AI_Knows, Potions, MoveOutcome
+    Enemy_AI_Knows, Potions, MoveOutcome, ActionType, BattlePhase
 )
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.MoveDB import MoveName
@@ -22,7 +22,8 @@ def build_constants_file():
         for _cls in (
             Pok, Move, Flags, Sec, Field, Item, MoveCategory, AbilityNames,
             Types, Weather, AbilityActivation, Status, MoveName, VolStatus,
-            Gender, Enemy_AI_Knows, Potions, MoveOutcome
+            Gender, Enemy_AI_Knows, Potions, MoveOutcome, ActionType,
+            BattlePhase
         ):
             f.write(f"# --- {_cls.__name__.upper()} CONSTANTS ---\n")
             for _attr, _val in vars(_cls).items():

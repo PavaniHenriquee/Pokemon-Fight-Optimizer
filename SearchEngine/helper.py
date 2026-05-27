@@ -37,6 +37,7 @@ def _bracket(pct: float) -> int:
 
 def multiple_nodes(child: Node, new_state: GameState):
     """Check to see if the current state needs to create a new node"""
+    #TODO: Weather because of speed ties
     # Pre-compute everything from new_state ONCE, outside the loop
     new_snap      = NodeSnapshot.from_state(new_state)
 
