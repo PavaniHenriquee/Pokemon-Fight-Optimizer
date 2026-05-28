@@ -547,7 +547,7 @@ def evaluate_attack_flag(
             move_id
             in SELF_KILL_MOVE
         ):
-            score += 0
+            pass
         elif (
             move_id
             in WEIRD_PRIO_MOVE
@@ -562,7 +562,7 @@ def evaluate_attack_flag(
     if (
         move_id in MAYBE_BAD_MOVES
     ):
-        add_adjustment(rand, idx, -2, 176)
+        add_adjustment(rand, idx, -2, 205)
     if effectiveness >= 4:
         add_adjustment(rand, idx, 2, 176)
     return score

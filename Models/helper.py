@@ -41,6 +41,7 @@ class Status:
     BURN = 4
     POISON = 5
     TOXIC = 6
+StatustoName = {v: k for k, v in Status.__dict__.items() if not k.startswith("__")}
 
 
 @dataclass(slots=True)

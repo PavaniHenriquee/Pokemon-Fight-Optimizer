@@ -340,6 +340,8 @@ def end_of_turn(battle_array):
             opp_pty, current_pokemon, current_opp
         )
         battle_array[_FIELD_OPP_POK] = i
+        battle_array[_FIELD_MY_LAST_MOVE] = 0
+        battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
         current_opp = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
         switch_in(current_pokemon, current_opp)
         return i
@@ -419,6 +421,8 @@ def switch_in_action(battle_array, switch_idx: int):
             # Opponent Pokemon
             current_opp = opp_switch
             battle_array[_FIELD_OPP_POK] = i
+            battle_array[_FIELD_MY_LAST_MOVE] = 0
+            battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
 
             # Switch in effects after they are already switched
             switch_in(current_pokemon, current_opp)
@@ -426,6 +430,8 @@ def switch_in_action(battle_array, switch_idx: int):
         elif my_s < opp_s:
             # Opponent Pokemon
             battle_array[_FIELD_OPP_POK] = i
+            battle_array[_FIELD_MY_LAST_MOVE] = 0
+            battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
             current_opp = opp_switch
 
             # My Pokemon

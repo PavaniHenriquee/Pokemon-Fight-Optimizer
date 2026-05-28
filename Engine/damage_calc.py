@@ -237,7 +237,7 @@ def calculate_damage(
         attacker, defender, move,
         weather: int=0,
         crit: bool=False,
-        roll_multiplier: float=None,
+        roll_multiplier: int=None,
 ) -> int:
     """Calculate damage based on current stats of the attacker and the defender,
        giving back the damage and its effectiveness"""

@@ -39,7 +39,7 @@ def count_fainted(battle_array, offset, maxp):
             fallen += 1
     return fallen
 
-def evaluate_terminal(sim_state) -> tuple[float, int, int]:
+'''def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     """
     Terminal evaluation for MCTS backprop with strictly segregated reward tiers.
     Guaranteed Win (0-death) > Guaranteed Win (Casualties) > Incomplete Rollout > Loss
@@ -76,6 +76,38 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     incomplete_value = 0.01 + (heuristic * 0.34)  # Range: 0.01 to 0.35
 
     return incomplete_value, 0, dead
+'''
+def evaluate_terminal(sim_state) -> tuple[float, int, int]:
+    """
+    Terminal evaluation for MCTS backprop.
+    - Win  => +1
+    - Loss => 0
+    - draw => 0
+    """
+    # quick terminal check
+    my_pty_count = count_Id(sim_state.battle_array[0:(6 * POK_LEN)])
+    my_alive = count_party(sim_state.battle_array[0:(6 * POK_LEN)])
+    opp_alive = count_party(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
+    dead = my_pty_count - my_alive
+    if dead:
+        win_value = (my_alive / my_pty_count)* 0.7
+    else:
+        win_value = 1.0
+
+    if opp_alive == 0 and my_alive > 0:
+        turn = sim_state.battle_array[Field.TURN]
+        turn_penalty = min(0.15, turn * 0.0025)  # caps at 0.15, never flips a win
+        return win_value-turn_penalty, 1, dead
+    if my_alive == 0:
+        return 0.0, 0, dead
+
+    # Fallback to if the game haven't finished yet, but max depth reached
+    opp_pty_count = count_Id(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
+    my_hp = party_hp_fraction(sim_state.battle_array, 0, my_pty_count)
+    opp_hp = party_hp_fraction(sim_state.battle_array, 6 * POK_LEN, opp_pty_count)
+    heuristic = my_hp / (my_hp + opp_hp + 1e-9)  # 0..1 continuous
+    return heuristic * 0.35, 0, dead
+
 
 @njit
 def _weighted_choice(act_types, act_idxs, weights, n):
@@ -125,7 +157,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
     res = RES.copy()
     if opp_choice != 10 and opp_choice>=0:  # Struggle
         o_move = o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE]
-        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, True, 100)  # still worth it for 1 calc
+        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, False, 100)  # still worth it for 1 calc
         o_mv_type = o_move[_MOVE_TYPE]
         imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx)
         res   = check_resistence_pty(my_pty, o_pok, o_mv_type, my_idx)
@@ -182,9 +214,9 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                         if dmg >= o_pok[_POK_CURRENT_HP] and (faster or can_survive):
                             weight = 100  # KO when safe to do so
                         elif eff_ratio == 4:
-                            weight = 20
+                            weight = 30
                         elif eff_ratio == 2:
-                            weight = 8
+                            weight = 15
                         elif stab:
                             weight = 4
                     else:

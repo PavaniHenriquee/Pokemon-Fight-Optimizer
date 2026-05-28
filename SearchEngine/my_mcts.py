@@ -14,12 +14,16 @@ import numpy as np
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node
 from SearchEngine.models import BattlePhase, GameState, Node, ActionType
+from Models.helper import StatustoName
 from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move
 from DataBase.MoveDB import MoveIdToName
 from DataBase.PkDB import PokIdToName
 
+a = np.zeros(5)
+a.tolist()
 
-def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.40) -> float:
+
+def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.425) -> float:
     """
     Mixed rollout: sometimes use heuristics, sometimes pure random
     This reduces bias while still getting some benefit from domain knowledge
@@ -152,6 +156,10 @@ def print_best_path(root, battle_array, depth=0, max_depth=50, min_visits=1):
         f"{indent}                {PokIdToName.get(pok_idd, "").capitalize()}"
         f" - {pok_HP}/{pok_max_HP}"
     )
+    status =StatustoName.get(root.snapshot.opp_slice[Pok.STATUS],"No Status")
+    print(f"{indent}                   {status}")
+    stats = root.snapshot.opp_slice[Pok.ATTACK_STAT_STAGE:(Pok.EVASION_STAT_STAGE+1)].tolist()
+    print(f"{indent}             {stats}")
     print(f"{indent}                      vs.")
     print(f"{indent}                   Trainer")
     pok_idd = int(root.snapshot.my_slice[Pok.ID])
@@ -159,8 +167,12 @@ def print_best_path(root, battle_array, depth=0, max_depth=50, min_visits=1):
     pok_max_HP =  int(root.snapshot.my_slice[Pok.MAX_HP])
     print(
         f"{indent}                {PokIdToName.get(pok_idd, "").capitalize()}"
-        f" - {pok_HP}/{pok_max_HP}\n"
+        f" - {pok_HP}/{pok_max_HP}"
     )
+    status =StatustoName.get(root.snapshot.my_slice[Pok.STATUS],"No Status")
+    print(f"{indent}                   {status}")
+    stats = root.snapshot.my_slice[Pok.ATTACK_STAT_STAGE:(Pok.EVASION_STAT_STAGE+1)].tolist()
+    print(f"{indent}             {stats}\n")
 
     best_action = None
     best_metric = -float("inf")

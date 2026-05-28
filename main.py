@@ -89,7 +89,7 @@ def run_jit():
         start_of_battle(battle)
     root = GameState(battle)
     print("-----------------------MCTS NJIT-----------------------------")
-    mcts(root, max_iterations=70000)
+    mcts(root, max_iterations=100000)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
 
@@ -117,7 +117,7 @@ if __name__ =='__main__':
     random.seed(SEED)
     np.random.seed(SEED)
 
-    run_single()
+    #run_single()
     #run_parallel()
-    #run_jit()
+    run_jit()
     #run_jit_base_time()
