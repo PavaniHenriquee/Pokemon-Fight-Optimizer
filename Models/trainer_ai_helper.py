@@ -1195,7 +1195,7 @@ def check_resistence_pty(ai_party, user_pok, last_move_type, opp_active):
             for mv in moves:
                 mv_type = mv[_MOVE_TYPE]
                 eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
-                if eff // den < 2:
+                if 0 < eff // den < 2:
                     buf[n] = idx
                     n += 1
                     break

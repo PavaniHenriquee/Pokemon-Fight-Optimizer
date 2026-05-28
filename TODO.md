@@ -53,6 +53,7 @@ Abilities
 []Clear Body
 []White Smoke
 []Natural Cure
+[]Trace
 
 Moves
 []Absorb
@@ -143,6 +144,8 @@ Moves
 []Sucker Punch
 []Focus Punch
 []Future Sight
+[]Dig
+[]Hyper Beam
 
 Items
 []Oran Berry
@@ -154,6 +157,9 @@ Items
 []Sitrus Berry
 
 []Quick Claw
+[]Focus Band
+[]Bright Powder
+[]Lum Berry
 
 Pokemon
 []Chimchar
@@ -215,6 +221,6 @@ Pokemon
 []Cranidos
 
 Misc.
-[]Trainer AI potion
+[X]Trainer AI potion
 [X]Weather
 [X]PP Counter

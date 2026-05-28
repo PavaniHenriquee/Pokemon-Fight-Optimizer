@@ -10,15 +10,16 @@ estimating its potential value.
 import math
 import random
 from typing import List
+import numpy as np
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node
 from SearchEngine.models import BattlePhase, GameState, Node, ActionType
-from Models.idx_const import Pok, Field, POK_LEN, MOVE_STRIDE, Move
+from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move
 from DataBase.MoveDB import MoveIdToName
 from DataBase.PkDB import PokIdToName
 
 
-def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.38) -> float:
+def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.40) -> float:
     """
     Mixed rollout: sometimes use heuristics, sometimes pure random
     This reduces bias while still getting some benefit from domain knowledge
@@ -33,13 +34,9 @@ def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.38) -> float
 
         if random.random() < heuristic_prob and sim_state.phase != BattlePhase.DEATH_END_OF_TURN:
             # Use heuristic occasionally
-            action = rollout_pref(
-                sim_state.get_my_active(),
-                sim_state.get_opp_active(),
-                sim_state.opp_move,
-                sim_state.battle_array[Field.WEATHER],
-                valid_actions
-            )
+            actions_arr = np.array(valid_actions, dtype=np.int16)
+            act = rollout_pref(sim_state.battle_array, sim_state.opp_move, actions_arr)
+            action = (int(act[0]), int(act[1]))
         else:
             # Pure random most of the time
             action = random.choice(valid_actions)
@@ -275,6 +272,7 @@ def _backprop(path: List, value: float, win: int, dead: int):
     for node in reversed(path):
         node.visits += 1
         node.total_value += value
+        node.total_value_sq += value * value
         node.wins += win
         node.dead += dead if win else 0
         node.dead_avg = node.dead / node.wins if node.wins else 0

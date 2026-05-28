@@ -160,7 +160,7 @@ class Node():
     - Key: nodes represent decision points, not chance outcomes
     """
     __slots__ = (
-        'snapshot', 'children', 'visits', 'total_value',
+        'snapshot', 'children', 'visits', 'total_value', 'total_value_sq',
         'wins', 'dead', 'win_chance', 'dead_avg'
     )
     def __init__(self, state):
@@ -172,10 +172,10 @@ class Node():
         self.dead = 0
         self.win_chance = 0.0
         self.dead_avg = 0
+        self.total_value_sq = 0.0
 
-    def best_action(self, c=0.50):
+    def best_action(self, c=0.50, risk_lambda=0.15):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
-        # prefer a random unvisited child to avoid insertion-order bias
 
         best_key, best_node = None, None
         best_val = -float("inf")
@@ -187,12 +187,17 @@ class Node():
             # average value
             c_total_value = 0
             c_visits = 0
+            c_total_value_sq = 0
             for chi in child:
                 c_total_value += chi.total_value
                 c_visits += chi.visits
+                c_total_value_sq += chi.total_value_sq
             avg = c_total_value / c_visits
-            # UCB: avg + c * sqrt(2 * ln(N) / n)
-            ucb_val = avg + c * math.sqrt(2 * (log_parent_visits) / c_visits)
+            variance = max(0.0, c_total_value_sq / c_visits - avg * avg)
+            std_dev = variance ** 0.5
+            exploration = c * math.sqrt(2 * log_parent_visits / c_visits)
+            # UCB: using CVaR-like to take in account risk aversion
+            ucb_val = avg - risk_lambda * std_dev + exploration
             if ucb_val > best_val or (ucb_val == best_val and random.getrandbits(1)):
                 best_val, best_key, best_node = ucb_val, key, child
 

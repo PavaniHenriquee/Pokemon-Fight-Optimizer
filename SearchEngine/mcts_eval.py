@@ -1,12 +1,19 @@
 """Evaluation of terminal and current state"""
 import random
+import numpy as np
+from numba import njit
 from Models.idx_const import(
-    Pok, Sec, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, Move, Field
+    Pok, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, Field
 )
-from Models.helper import count_party, count_Id, MoveCategory
+from Models.constants import (
+    _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _POK_CURRENT_HP, _POK_MAX_HP,
+    _POK_SPEED, _MOVE_TYPE, _ACTIONTYPE_MOVE, _MOVECATEGORY_STATUS, _MOVE_CATEGORY,
+    _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE
+)
+from Models.helper import count_party, count_Id
+from Models.trainer_ai_helper import check_immunity_pty, check_resistence_pty
 from Engine.damage_calc import calculate_damage, struggle
 from Utils.helper import get_type_effectiveness
-from SearchEngine.models import ActionType
 
 
 def party_hp_fraction(battle_array, offset, maxp):
@@ -70,83 +77,109 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
 
     return incomplete_value, 0, dead
 
+@njit
+def _weighted_choice(act_types, act_idxs, weights, n):
+    best_i = 0
+    best_w = weights[0]
+    total  = weights[0]
+    for i in range(1, n):
+        total += weights[i]
+        if weights[i] > best_w:
+            best_w = weights[i]
+            best_i = i
 
-def _weighted_choice(ev):
-    """
-    Fast path: single dominant action (very common case)
-    Avoids full scan most of the time
-    """
-    best_action, best_weight = ev[0]
-    total = best_weight
-    for action, weight in ev[1:]:
-        total += weight
-        if weight > best_weight:
-            best_weight = weight
-            best_action = action
+    if best_w >= total * 0.90:
+        return act_types[best_i], act_idxs[best_i]
 
-    # If one action is overwhelmingly dominant, pick it directly
-    # 100 vs rest-at-1: e.g. 4 actions → total ~103, dominant has 97% chance anyway
-    if best_weight >= total * 0.90:
-        return best_action
-
-    # Otherwise do the proper weighted draw
     r = random.randrange(total)
-    cumulative = 0
-    for action, weight in ev:
-        cumulative += weight
-        if r < cumulative:
-            return action
+    cum = 0
+    for i in range(n):
+        cum += weights[i]
+        if r < cum:
+            return act_types[i], act_idxs[i]
+    return act_types[n - 1], act_idxs[n - 1]  # safety fallback
 
 
-def rollout_pref(c_pok, o_pok, o_idx, weather, actions) -> tuple:
+IMNTY = np.full(6,-1, dtype=np.int16)
+RES   = np.full(6,-1, dtype=np.int16)
+
+
+@njit
+def rollout_pref(battle_array, opp_choice, actions) -> tuple:
     """
     Prefer certain moves to reduce noise
     """
-    if o_idx != 10 or o_idx < 0:
-        o_move = o_pok[OFFSET_MOVE + o_idx * MOVE_STRIDE: OFFSET_MOVE + (o_idx + 1) * MOVE_STRIDE]
-        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather)  # still worth it for 1 calc
+    my_idx = battle_array[_FIELD_MY_POK]
+    opp_idx = battle_array[_FIELD_OPP_POK]
+    c_pok = battle_array[
+        (my_idx * POK_LEN):
+        ((my_idx+1) * POK_LEN)
+    ]
+    o_pok = battle_array[
+        ((opp_idx+6) * POK_LEN):
+        ((opp_idx+7) * POK_LEN)
+    ]
+    my_pty = battle_array[0:(6 * POK_LEN)]
+    weather = battle_array[_FIELD_WEATHER]
+    imnty = IMNTY.copy()
+    res = RES.copy()
+    if opp_choice != 10 and opp_choice>=0:  # Struggle
+        o_move = o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE]
+        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, True, 100)  # still worth it for 1 calc
+        o_mv_type = o_move[_MOVE_TYPE]
+        imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx)
+        res   = check_resistence_pty(my_pty, o_pok, o_mv_type, my_idx)
+    elif opp_choice < 0:  # Switch or potion
+        o_dmg = 0
     else:
         o_dmg = struggle(o_pok, c_pok, rec=False)
-    opp_hp_ratio = o_pok[Pok.CURRENT_HP] * 4 // o_pok[Pok.MAX_HP]
-    faster = c_pok[Pok.SPEED] > o_pok[Pok.SPEED]
-    can_survive = o_dmg < c_pok[Pok.CURRENT_HP]
-    ev = []
+    opp_hp_ratio = o_pok[_POK_CURRENT_HP] * 4 // o_pok[_POK_MAX_HP]
+    faster = c_pok[_POK_SPEED] > o_pok[_POK_SPEED]
+    can_survive = o_dmg < c_pok[_POK_CURRENT_HP]
+    act_types = np.empty(10, dtype=np.int16)
+    act_idxs  = np.empty(10, dtype=np.int16)
+    weights   = np.empty(10, dtype=np.int32)
+    n_ev = 0
 
-    for a in actions:
-        weight = 1
+    for i in range(len(actions)):
+        a_type = actions[i, 0]
+        a_idx  = actions[i, 1]
+        weight = np.int32(1)
 
-        if a[0] == ActionType.MOVE:
-            if a[1] == 10:
+
+        if a_type == _ACTIONTYPE_MOVE:
+            if a_idx == 10:
                 continue
-            move = c_pok[OFFSET_MOVE + a[1] * MOVE_STRIDE: OFFSET_MOVE + (a[1] + 1) * MOVE_STRIDE]
-            cat = move[Move.CATEGORY]
+            move = c_pok[OFFSET_MOVE + a_idx * MOVE_STRIDE: OFFSET_MOVE + (a_idx + 1) * MOVE_STRIDE]
+            cat = move[_MOVE_CATEGORY]
 
-            if cat == MoveCategory.STATUS:
+            if cat == _MOVECATEGORY_STATUS:
                 # Status moves: give a small base weight so they're not excluded
                 weight = 1
 
             else:
                 # Cheap type effectiveness first — no damage calc
-                eff, den = get_type_effectiveness(move[Move.TYPE], o_pok[Pok.TYPE1], o_pok[Pok.TYPE2])
-                eff_ratio = eff // den  # 0, 1, 2, or 4
+                move_type = move[_MOVE_TYPE]
+                eff, den = get_type_effectiveness(move_type, o_pok[_POK_TYPE1], o_pok[_POK_TYPE2])
+                eff_ratio = eff // den
 
                 if eff_ratio == 0:
                     weight = 0  # immune — never pick this
                 else:
                     # STAB bonus
-                    stab = move[Move.TYPE] in (c_pok[Pok.TYPE1], c_pok[Pok.TYPE2])
+                    stab = move_type == c_pok[_POK_TYPE1] or move_type == c_pok[_POK_TYPE2]
 
                     # Only do full damage calc if it looks like a KO candidate
                     likely_strong = (
                         eff_ratio >= 2                          # super effective
-                        or (stab and move[Move.POWER] >= 60)   # strong STAB
-                        or (opp_hp_ratio == 0 and eff_ratio >= 1)   # <25% HP, any non-resisted
+                        or (stab and move[_MOVE_POWER] >= 60)   # strong STAB
+                        or (opp_hp_ratio == 0 and eff_ratio >= 1 and opp_choice > 0)  # <25% HP, non-resisted
                         or (opp_hp_ratio == 1 and eff_ratio >= 1 and stab)  # <50% HP, STAB neutral
                     )
 
                     if likely_strong:
                         dmg = calculate_damage(c_pok, o_pok, move, weather)
-                        if dmg >= o_pok[Pok.CURRENT_HP] and (faster or can_survive):
+                        if dmg >= o_pok[_POK_CURRENT_HP] and (faster or can_survive):
                             weight = 100  # KO when safe to do so
                         elif eff_ratio == 4:
                             weight = 20
@@ -162,17 +195,29 @@ def rollout_pref(c_pok, o_pok, o_idx, weather, actions) -> tuple:
                             weight = 1
 
                     # Secondary effect scaled by chance
-                    if move[Sec.CHANCE]:
-                        weight += move[Sec.CHANCE] // 10
+                    if move[_SEC_CHANCE]:
+                        weight += move[_SEC_CHANCE] // 10
 
         else:  # switch
-            if o_dmg >= c_pok[Pok.CURRENT_HP] and not faster:
-                weight = 50
+            if o_dmg >= c_pok[_POK_CURRENT_HP] and not faster:
+                # Get hp from switching — only consider if it helps survive
+                switch_hp = battle_array[(a_idx) * POK_LEN + _POK_CURRENT_HP]
+                if switch_hp > o_dmg:
+                    if a_idx in imnty:
+                        weight = 110
+                    elif a_idx in res:
+                        weight = 80
+                    else:
+                        weight = 50
 
         if weight > 0:
-            ev.append((a, weight))
+            act_types[n_ev] = a_type
+            act_idxs[n_ev]  = a_idx
+            weights[n_ev]   = weight
+            n_ev += 1
 
-    if not ev:  # fallback if everything was immune or list empty
-        return random.choice(actions)
+    if n_ev == 0:
+        r = random.randint(0, len(actions) - 1)
+        return actions[r, 0], actions[r, 1]
 
-    return _weighted_choice(ev)
+    return _weighted_choice(act_types, act_idxs, weights, n_ev)

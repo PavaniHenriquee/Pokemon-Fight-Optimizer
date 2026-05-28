@@ -35,7 +35,7 @@ def _bracket(pct: float) -> int:
     return 0
 
 
-def multiple_nodes(child: Node, new_state: GameState):
+def multiple_nodes(child: list, new_state: GameState):
     """Check to see if the current state needs to create a new node"""
     #TODO: Weather because of speed ties
     # Pre-compute everything from new_state ONCE, outside the loop
@@ -44,7 +44,7 @@ def multiple_nodes(child: Node, new_state: GameState):
     new_my_brack  = _bracket(new_snap.my_slice[Pok.CURRENT_HP]  / new_snap.my_slice[Pok.MAX_HP])
     new_opp_brack = _bracket(new_snap.opp_slice[Pok.CURRENT_HP] / new_snap.opp_slice[Pok.MAX_HP])
 
-    # .tobytes() → C-level bytes comparison, no temp arrays unlike array_equal
+    # .tobytes() → C-level bytes comparison
     new_my_stages  = new_snap.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
     new_opp_stages = new_snap.opp_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
 
