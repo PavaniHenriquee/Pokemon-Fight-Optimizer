@@ -87,19 +87,19 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     # quick terminal check
     my_pty_count = count_Id(sim_state.battle_array[0:(6 * POK_LEN)])
     my_alive = count_party(sim_state.battle_array[0:(6 * POK_LEN)])
-    opp_alive = count_party(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
     dead = my_pty_count - my_alive
+    if my_alive == 0:
+        return 0.0, 0, dead
+    opp_alive = count_party(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
     if dead:
-        win_value = (my_alive / my_pty_count)* 0.7
+        win_value = 0.65 - (0.1*dead)
     else:
         win_value = 1.0
 
     if opp_alive == 0 and my_alive > 0:
         turn = sim_state.battle_array[Field.TURN]
-        turn_penalty = min(0.15, turn * 0.0025)  # caps at 0.15, never flips a win
+        turn_penalty = min(0.10, turn * 0.0005)  # caps at 0.1, never flips a win
         return win_value-turn_penalty, 1, dead
-    if my_alive == 0:
-        return 0.0, 0, dead
 
     # Fallback to if the game haven't finished yet, but max depth reached
     opp_pty_count = count_Id(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
@@ -155,6 +155,10 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
     weather = battle_array[_FIELD_WEATHER]
     imnty = IMNTY.copy()
     res = RES.copy()
+    # Arbitrary number to accomadate when i died and need to switch, so AI don't have an action
+    if opp_choice is None:
+        opp_choice = -50
+
     if opp_choice != 10 and opp_choice>=0:  # Struggle
         o_move = o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE]
         o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, False, 100)  # still worth it for 1 calc

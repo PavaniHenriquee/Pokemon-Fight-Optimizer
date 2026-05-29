@@ -35,7 +35,7 @@ from Models.constants import (
     _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_POWER, _MOVE_ID, _MOVE_PP,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START,
-    _BATTLEPHASE_DEATH_END_OF_TURN
+    _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE
 )
 from Models.move import STRUGGLE
 
@@ -413,7 +413,6 @@ def switch_in_action(battle_array, switch_idx: int):
             # My Pokemon
             battle_array[_FIELD_MY_POK] = switch_idx
             battle_array[_FIELD_AI_KNOWS] = 0
-            battle_array[_FIELD_MY_LAST_MOVE] = 0
             current_pokemon = my_pty[
                 (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
             ]
@@ -430,7 +429,6 @@ def switch_in_action(battle_array, switch_idx: int):
         elif my_s < opp_s:
             # Opponent Pokemon
             battle_array[_FIELD_OPP_POK] = i
-            battle_array[_FIELD_MY_LAST_MOVE] = 0
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
             current_opp = opp_switch
 
@@ -449,6 +447,7 @@ def switch_in_action(battle_array, switch_idx: int):
         battle_array[_FIELD_TURN] += 1
         current_opp[_POK_TURNS] += 1
         current_pokemon[_POK_TURNS] += 1
+        battle_array[_FIELD_PHASE] = _BATTLEPHASE_TURN_START
         return
     battle_array[_FIELD_MY_POK] = switch_idx
     current_pokemon = my_pty[
@@ -459,3 +458,4 @@ def switch_in_action(battle_array, switch_idx: int):
     current_pokemon[_POK_TURNS] += 1
     battle_array[_FIELD_AI_KNOWS] = 0
     battle_array[_FIELD_MY_LAST_MOVE] = 0
+    battle_array[_FIELD_PHASE] = _BATTLEPHASE_TURN_START

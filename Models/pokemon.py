@@ -15,15 +15,15 @@ class Pokemon:
     def __init__(
             self,
             name: str,
-            gender,
-            level,
-            ability,
-            nature,
-            moves,
-            ivs=None,
-            evs=None,
-            status=0,
-            item=None
+            gender: str,
+            level: int,
+            ability: str,
+            nature: str,
+            moves: list[str],
+            ivs: dict=None,
+            evs: dict=None,
+            status: str=0,
+            item: str=None
     ):
         self.name = name
         self.base_data = pkDB[name]

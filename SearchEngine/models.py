@@ -15,6 +15,7 @@ from Engine.battle import turn_sim, switch_in_action
 _MOVE_ID_IDXS = tuple(Pok.MOVE1_ID + i * MOVE_STRIDE for i in range(4))
 _MOVE_PP_IDXS = tuple(idx + Move.PP for idx in _MOVE_ID_IDXS)
 _POK_HP_OFFSETS = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
+N_BINS = 10
 
 
 class GameState():
@@ -119,15 +120,16 @@ class GameState():
             switch_in_action(self.battle_array, my_move_idx[1])
             self.my_active = my_move_idx[1]
             self.phase = BattlePhase.TURN_START
-            self.battle_array[Field.PHASE] = BattlePhase.TURN_START
             return self
         opp_move_idx = self.opp_move
         self.phase, opp_idx = turn_sim(opp_move_idx, my_move_idx, self.battle_array)
         self.battle_array[Field.PHASE] = self.phase
-        if opp_idx:
+        if opp_idx >= 0:
             self.opp_active = opp_idx
         if my_move_idx[0] == ActionType.SWITCH:
             self.my_active = my_move_idx[1]
+        if self.phase == BattlePhase.DEATH_END_OF_TURN:
+            self.my_active = -1
 
         self.opp_move_cache = None # Needs to clear the cache so it picks a new one next time
         return self
@@ -154,14 +156,36 @@ class NodeSnapshot:
         )
 
 
+def cvar_from_hist(hist, visits, alpha=0.15):
+    """Mean of the worst alpha fraction of outcomes"""
+    cutoff = visits * alpha
+    accumulated = 0
+    total_val = 0.0
+    for i in range(N_BINS):
+        count = hist[i]
+        if count == 0:
+            continue
+        bin_mid = (i + 0.5) / N_BINS
+        if accumulated + count <= cutoff:
+            total_val += count * bin_mid
+            accumulated += count
+        else:
+            # partial bin
+            remaining = cutoff - accumulated
+            total_val += remaining * bin_mid
+            accumulated = cutoff
+            break
+    return total_val / cutoff if cutoff > 0 else 0.0
+
+
 class Node():
     """
     - Store: state, parent, children, visit count, total value, untried actions
     - Key: nodes represent decision points, not chance outcomes
     """
     __slots__ = (
-        'snapshot', 'children', 'visits', 'total_value', 'total_value_sq',
-        'wins', 'dead', 'win_chance', 'dead_avg'
+        'snapshot', 'children', 'visits', 'total_value',
+        'wins', 'dead', 'win_chance', 'dead_avg', 'hist'
     )
     def __init__(self, state):
         self.snapshot = NodeSnapshot.from_state(state)
@@ -172,9 +196,9 @@ class Node():
         self.dead = 0
         self.win_chance = 0.0
         self.dead_avg = 0
-        self.total_value_sq = 0.0
+        self.hist = np.zeros(N_BINS, dtype=np.int32)
 
-    def best_action(self, c=0.5, risk_lambda=0.3):
+    def best_action(self, c=0.4, risk_lambda=0.3, alpha=0.15):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
 
         best_key, best_node = None, None
@@ -184,20 +208,20 @@ class Node():
         log_parent_visits = math.log(self.visits) if self.visits > 1 else 0.0
 
         for key, child in self.children.items():
-            # average value
             c_total_value = 0
             c_visits = 0
-            c_total_value_sq = 0
+            c_hist = np.zeros(N_BINS, dtype=np.int32)
             for chi in child:
                 c_total_value += chi.total_value
-                c_visits += chi.visits
-                c_total_value_sq += chi.total_value_sq
-            avg = c_total_value / c_visits
-            variance = max(0.0, c_total_value_sq / c_visits - avg * avg)
-            std_dev = variance ** 0.5
+                c_visits      += chi.visits
+                c_hist        += chi.hist
+
+            avg         = c_total_value / c_visits
+            cvar        = cvar_from_hist(c_hist, c_visits, alpha)
+            tail_gap    = max(0.0, avg - cvar)          # how far the tail falls below the mean
             exploration = c * math.sqrt(2 * log_parent_visits / c_visits)
-            # UCB: using CVaR-like to take in account risk aversion
-            ucb_val = avg - risk_lambda * std_dev + exploration
+            ucb_val     = avg - risk_lambda * tail_gap + exploration
+
             if ucb_val > best_val or (ucb_val == best_val and random.getrandbits(1)):
                 best_val, best_key, best_node = ucb_val, key, child
 

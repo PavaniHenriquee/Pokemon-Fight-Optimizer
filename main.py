@@ -13,11 +13,14 @@ def build_battle():
     charmander = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"])
     squirtle = Pokemon("Squirtle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail Whip", "Bubble"])
     bulbasaur =Pokemon("Bulbasaur", "Male", 5, "Overgrow", "Hardy", ["Pound", "Leer", "Razor Leaf"])
+    charmeleon = Pokemon("Charmeleon", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl"])
+    wartortle = Pokemon("Wartortle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail Whip"])
+    ivysaur =Pokemon("Ivysaur", "Male", 5, "Overgrow", "Hardy", ["Pound", "Leer"])
     squirtle1 = Pokemon("Squirtle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail Whip"])
     charmander1 = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl"])
 
-    my_party = [charmander, bulbasaur, squirtle, squirtle, squirtle, squirtle]
-    opp_party = [squirtle1, charmander1, charmander1, charmander1, charmander1, charmander1]
+    my_party = [charmander, bulbasaur, squirtle, charmeleon, ivysaur, wartortle]
+    opp_party = [squirtle1, charmander1, charmander1, charmander1, charmander1]
 
     return to_battle_array(my_party, opp_party)
 
@@ -89,7 +92,7 @@ def run_jit():
         start_of_battle(battle)
     root = GameState(battle)
     print("-----------------------MCTS NJIT-----------------------------")
-    mcts(root, max_iterations=1_750_000)
+    mcts(root, max_iterations=350_000)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
 

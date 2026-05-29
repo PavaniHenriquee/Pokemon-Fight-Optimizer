@@ -13,17 +13,14 @@ from typing import List
 import numpy as np
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node
-from SearchEngine.models import BattlePhase, GameState, Node, ActionType
-from Models.helper import StatustoName
+from SearchEngine.models import GameState, Node, ActionType, N_BINS
+from Models.helper import StatustoName, BattlePhase
 from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move
 from DataBase.MoveDB import MoveIdToName
 from DataBase.PkDB import PokIdToName
 
-a = np.zeros(5)
-a.tolist()
 
-
-def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.432) -> float:
+def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.48) -> float:
     """
     Mixed rollout: sometimes use heuristics, sometimes pure random
     This reduces bias while still getting some benefit from domain knowledge
@@ -32,11 +29,13 @@ def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.432) -> floa
     depth = 0
 
     while not sim_state.is_terminal() and depth < max_depth:
+        if depth == 19:
+            pass
         valid_actions = sim_state.get_valid_actions()
         if not valid_actions:
             break
 
-        if random.random() < heuristic_prob and sim_state.phase != BattlePhase.DEATH_END_OF_TURN:
+        if random.random() < heuristic_prob:
             # Use heuristic occasionally
             actions_arr = np.array(valid_actions, dtype=np.int16)
             act = rollout_pref(sim_state.battle_array, sim_state.opp_move, actions_arr)
@@ -92,14 +91,14 @@ def propagate_stable_values(node, min_visits=70):
         if total_wins > 0:
             avg_dead = sum(c.dead_avg * c.wins for c in node_list) / total_wins
         else:
-            avg_dead = float('inf')
+            avg_dead = 0
 
         # Use Wilson score: conservative win estimate accounting for sample size
         # This naturally prefers "9000 visits at 97%" over "40 visits at 100%"
         wilson_score = wilson_lower_bound(total_wins, total_visits)
 
         # Add small penalty for deaths (but don't let it dominate)
-        score = wilson_score - (0.1 * avg_dead if avg_dead != float('inf') else 0)
+        score = wilson_score - 0.1 * avg_dead
 
         if score > best_score:
             best_score = score
@@ -162,17 +161,18 @@ def print_best_path(root, battle_array, depth=0, max_depth=50, min_visits=1):
     print(f"{indent}             {stats}")
     print(f"{indent}                      vs.")
     print(f"{indent}                   Trainer")
-    pok_idd = int(root.snapshot.my_slice[Pok.ID])
-    pok_HP  = int(root.snapshot.my_slice[Pok.CURRENT_HP])
-    pok_max_HP =  int(root.snapshot.my_slice[Pok.MAX_HP])
-    print(
-        f"{indent}                {PokIdToName.get(pok_idd, "").capitalize()}"
-        f" - {pok_HP}/{pok_max_HP}"
-    )
-    status =StatustoName.get(root.snapshot.my_slice[Pok.STATUS],"No Status")
-    print(f"{indent}                   {status}")
-    stats = root.snapshot.my_slice[Pok.ATTACK_STAT_STAGE:(Pok.EVASION_STAT_STAGE+1)].tolist()
-    print(f"{indent}             {stats}\n")
+    if root.snapshot.phase != BattlePhase.DEATH_END_OF_TURN:
+        pok_idd = int(root.snapshot.my_slice[Pok.ID])
+        pok_HP  = int(root.snapshot.my_slice[Pok.CURRENT_HP])
+        pok_max_HP =  int(root.snapshot.my_slice[Pok.MAX_HP])
+        print(
+            f"{indent}                {PokIdToName.get(pok_idd, "").capitalize()}"
+            f" - {pok_HP}/{pok_max_HP}"
+        )
+        status =StatustoName.get(root.snapshot.my_slice[Pok.STATUS],"No Status")
+        print(f"{indent}                   {status}")
+        stats = root.snapshot.my_slice[Pok.ATTACK_STAT_STAGE:(Pok.EVASION_STAT_STAGE+1)].tolist()
+        print(f"{indent}             {stats}\n")
 
     best_action = None
     best_metric = -float("inf")
@@ -281,14 +281,15 @@ def _rollout(state: GameState):
 
 def _backprop(path: List, value: float, win: int, dead: int):
     """Phase 4 of MCTS"""
+    bin_idx = min(int(value * N_BINS), N_BINS - 1)
     for node in reversed(path):
         node.visits += 1
         node.total_value += value
-        node.total_value_sq += value * value
         node.wins += win
         node.dead += dead if win else 0
         node.dead_avg = node.dead / node.wins if node.wins else 0
         node.win_chance = node.wins/ node.visits
+        node.hist[bin_idx] += 1
 
 
 def mcts_loop(
@@ -301,6 +302,8 @@ def mcts_loop(
         node = root
         state = root_state.clone()
         state, path = _select_expand(state, node)
+        if iterations == 22:
+            pass
         value, win, dead = _rollout(state)
         _backprop(path, value, win, dead)
 

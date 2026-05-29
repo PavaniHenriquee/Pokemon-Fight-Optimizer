@@ -1,9 +1,11 @@
 """helper functions"""
 import random
 import copy
+import numpy as np
 from DataBase.pok_sets import charmander, squirtle, bulbasaur
 from Utils.helper import to_battle_array
 from Models.idx_const import Pok
+from Models.constants import _BATTLEPHASE_DEATH_END_OF_TURN
 from SearchEngine.models import Node, GameState, NodeSnapshot
 
 
@@ -32,6 +34,8 @@ def _bracket(pct: float) -> int:
         return 2
     if pct >= .25:
         return 1
+    if pct == 0:
+        return -1
     return 0
 
 
@@ -40,26 +44,42 @@ def multiple_nodes(child: list, new_state: GameState):
     #TODO: Weather because of speed ties
     # Pre-compute everything from new_state ONCE, outside the loop
     new_snap      = NodeSnapshot.from_state(new_state)
+    new_phase_eot = new_snap.phase == _BATTLEPHASE_DEATH_END_OF_TURN
 
-    new_my_brack  = _bracket(new_snap.my_slice[Pok.CURRENT_HP]  / new_snap.my_slice[Pok.MAX_HP])
+    if new_phase_eot:
+        new_my_brack = _bracket(0)
+    else:
+        new_my_brack  = _bracket(new_snap.my_slice[Pok.CURRENT_HP]  / new_snap.my_slice[Pok.MAX_HP])
     new_opp_brack = _bracket(new_snap.opp_slice[Pok.CURRENT_HP] / new_snap.opp_slice[Pok.MAX_HP])
 
     # .tobytes() → C-level bytes comparison
-    new_my_stages  = new_snap.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
+    if new_phase_eot:
+        new_my_stages = np.zeros(7).tobytes()
+    else:
+        new_my_stages  = new_snap.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
     new_opp_stages = new_snap.opp_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
 
     for c in child:
         # Cheapest checks first (scalar int comparisons) → bail early
         s = c.snapshot
+        s_phase_eot = s.phase == _BATTLEPHASE_DEATH_END_OF_TURN
         if s.phase      != new_snap.phase:      continue
         if s.opp_active != new_snap.opp_active: continue
-        if s.my_slice[Pok.STATUS]    != new_snap.my_slice[Pok.STATUS]:  continue
+        if not s_phase_eot and s.my_slice[Pok.STATUS]    != new_snap.my_slice[Pok.STATUS]:  continue
         if s.opp_slice[Pok.STATUS]   != new_snap.opp_slice[Pok.STATUS]: continue
-        if s.my_slice[Pok.VOL_STATUS]  != new_snap.my_slice[Pok.VOL_STATUS]: continue
+        if not s_phase_eot and s.my_slice[Pok.VOL_STATUS]  != new_snap.my_slice[Pok.VOL_STATUS]: continue
         if s.opp_slice[Pok.VOL_STATUS] != new_snap.opp_slice[Pok.VOL_STATUS]: continue
-        if _bracket(s.my_slice[Pok.CURRENT_HP]  / s.my_slice[Pok.MAX_HP])  != new_my_brack:  continue
+        if (
+            not s_phase_eot
+            and _bracket(s.my_slice[Pok.CURRENT_HP]  / s.my_slice[Pok.MAX_HP])  != new_my_brack
+        ):
+            continue
         if _bracket(s.opp_slice[Pok.CURRENT_HP] / s.opp_slice[Pok.MAX_HP]) != new_opp_brack: continue
-        if s.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()  != new_my_stages:  continue
+        if (
+            not s_phase_eot
+            and s.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()  != new_my_stages
+        ):
+            continue
         if s.opp_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes() != new_opp_stages: continue
 
         c.snapshot = new_snap
