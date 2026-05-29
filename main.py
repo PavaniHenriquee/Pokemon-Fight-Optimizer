@@ -89,7 +89,7 @@ def run_jit():
         start_of_battle(battle)
     root = GameState(battle)
     print("-----------------------MCTS NJIT-----------------------------")
-    mcts(root, max_iterations=100000)
+    mcts(root, max_iterations=1_750_000)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
 

@@ -174,7 +174,7 @@ class Node():
         self.dead_avg = 0
         self.total_value_sq = 0.0
 
-    def best_action(self, c=0.50, risk_lambda=0.1):
+    def best_action(self, c=0.5, risk_lambda=0.3):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
 
         best_key, best_node = None, None

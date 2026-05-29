@@ -62,26 +62,26 @@ Moves
 []Aqua Jet
 []Arm Thrust
 []Astonish
-[]Bide
+[]Bide !
 []Bite
 []Bone Club
-[]Brick Break
-[]Bubble
-[]Bug Bite
+[]Brick Break !
+[X]Bubble
+[]Bug Bite !
 []Bulldoze
 []Bullet Seed
 []Charm
 []Confuse Ray
 []Confusion
-[]Counter
-[]Covet
-[]Curse
+[]Counter !
+[]Covet !
+[]Curse !
 []Defense Curl
 []Disarming Voice
-[]Fake Out
+[]Fake Out !
 []Fire Punch
-[]Flail
-[]Focus Energy
+[]Flail !
+[]Focus Energy !?
 []Force Palm
 []Foresight
 []Fury Cutter

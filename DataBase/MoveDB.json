@@ -260,5 +260,326 @@
       "mirror": true,
       "metronome": true
     }
+  },
+  "Bide": {
+    "name": "bide",
+    "category": "Physical",
+    "target": "self",
+    "type": "Normal",
+    "pp": 10,
+    "accuracy": true,
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "metronome": true,
+      "no_sleep_talk": true,
+      "fail_instruct": true
+    }
+  },
+  "Bite": {
+    "name": "bite",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Dark",
+    "pp": 25,
+    "accuracy": 100,
+    "power": 60,
+    "secondary": {
+      "chance": 30,
+      "vol_status": "flinch"
+    },
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true,
+      "bite": true
+    }
+  },
+  "Bone Club": {
+    "name": "bone_club",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Gruond",
+    "pp": 20,
+    "accuracy": 85,
+    "power": 65,
+    "secondary": {
+      "chance": 10,
+      "vol_status": "flinch"
+    },
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Brick Break": {
+    "name": "brick_break",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Fighting",
+    "pp": 15,
+    "accuracy": 100,
+    "power": 75,
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Bug Bite": {
+    "name": "bug_bite",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Bug",
+    "pp": 20,
+    "accuracy": 100,
+    "power": 60,
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Bulldoze": {
+    "name": "bulldoze",
+    "category": "Physical",
+    "target": "all_adjacent",
+    "type": "Ground",
+    "pp": 20,
+    "accuracy": 100,
+    "power": 60,
+    "secondary": {
+      "chance": 100,
+      "speed": -1
+    }
+  },
+  "Bullet Seed": {
+    "name": "bullet_seed",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Grass",
+    "pp": 30,
+    "accuracy": 100,
+    "multi_hit": [2, 5],
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "metronome": true,
+      "bullet": true
+    }
+  },
+  "Charm": {
+    "name": "charm",
+    "category": "Status",
+    "target": "normal",
+    "type": "Fairy",
+    "pp": 20,
+    "accuracy": 100,
+    "boost_atk": -2,
+    "flags": {
+      "protect": true,
+      "reflectable": true,
+      "mirror": true,
+      "allyanim": true,
+      "metronome": true
+    }
+  },
+  "Confuse Ray": {
+    "name": "confuse_ray",
+    "category": "Status",
+    "target": "normal",
+    "type": "Ghost",
+    "pp": 10,
+    "accuracy": 100,
+    "vol_status": "confusion",
+    "flags": {
+      "protect": true,
+      "reflectable": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Confusion": {
+    "name": "confusion",
+    "category": "Special",
+    "target": "normal",
+    "type": "Psychic",
+    "pp": 25,
+    "accuracy": 100,
+    "power": 50,
+    "secondary": {
+      "chance": 10,
+      "vol_status": "confusion"
+    },
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Counter": {
+    "name": "counter",
+    "category": "Physical",
+    "target": "scripted",
+    "type": "Fighting",
+    "pp": 20,
+    "accuracy": 100,
+    "priority": -5,
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "fail_me_first": true,
+      "no_assist": true,
+      "fail_copycat": true
+    }
+  },
+  "Covet": {
+    "name": "covet",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Normal",
+    "pp": 25,
+    "accuracy": 100,
+    "power": 60,
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "fail_me_first": true,
+      "no_assist": true,
+      "fail_copycat": true
+    }
+  },
+  "Curse": {
+    "name": "curse",
+    "category": "Status",
+    "target": "normal",
+    "type": "Ghost",
+    "pp": 10,
+    "accuracy": true,
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true
+    }
+  },
+  "Defense Curl": {
+    "name": "defense_curl",
+    "category": "Status",
+    "target": "self",
+    "type": "Normal",
+    "pp": 40,
+    "accuracy": true,
+    "boost_def": 1,
+    "vol_status": "defense_curl",
+    "flags": {
+      "snatch": true,
+      "metronome": true
+    }
+  },
+  "Disarming Voice": {
+    "name": "disarming_voice",
+    "category": "Special",
+    "target": "all_adjacent_foes",
+    "type": "Fairy",
+    "pp": 15,
+    "accuracy": true,
+    "power": 40,
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "sound": true,
+      "bypass_sub": true,
+      "metronome": true
+    }
+  },
+  "Fake Out": {
+    "name": "fake_out",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Normal",
+    "pp": 10,
+    "accuracy": 100,
+    "power": 40,
+    "priority": 3,
+    "secondary": {
+      "chance": 100,
+      "vol_status": "flinch"
+    },
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Fire Punch": {
+    "name": "fire_punch",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Fire",
+    "pp": 15,
+    "accuracy": 100,
+    "power": 75,
+    "secondary": {
+      "chance": 10,
+      "status": "burn"
+    },
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "punch": true,
+      "metronome": true
+    }
+  },
+  "Flail": {
+    "name": "flail",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Normal",
+    "pp": 15,
+    "accuracy": 100,
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
+  },
+  "Focus Energy": {
+    "name": "focus_energy",
+    "category": "Status",
+    "target": "self",
+    "type": "Normal",
+    "pp": 30,
+    "accuracy": true,
+    "vol_status": "focus_energy",
+    "flags": {
+      "snatch": true,
+      "metronome": true
+    }
+  },
+  "Force Palm": {
+    "name": "force_palm",
+    "category": "Physical",
+    "target": "normal",
+    "type": "Fighting",
+    "pp": 10,
+    "accuracy": 100,
+    "power": 60,
+    "secondary": {
+      "chance": 30,
+      "status": "paralysis"
+    },
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
   }
 }

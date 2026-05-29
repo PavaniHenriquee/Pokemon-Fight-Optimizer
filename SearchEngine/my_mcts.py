@@ -23,7 +23,7 @@ a = np.zeros(5)
 a.tolist()
 
 
-def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.425) -> float:
+def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.432) -> float:
     """
     Mixed rollout: sometimes use heuristics, sometimes pure random
     This reduces bias while still getting some benefit from domain knowledge
@@ -293,7 +293,7 @@ def _backprop(path: List, value: float, win: int, dead: int):
 
 def mcts_loop(
         root: 'Node', root_state: GameState,
-        max_iterations: int=50_000, terminal_iterations: int=1000
+        max_iterations: int=50_000, terminal_iterations: int=700
 ):
     """MCTS"""
 
@@ -305,7 +305,7 @@ def mcts_loop(
         _backprop(path, value, win, dead)
 
         # Cutoff when results are good enough
-        if iterations % 100 == 0 and iterations > 0:
+        if iterations % 500 == 0 and iterations > 0:
             terminal_node, terminal_path, actions = find_best_terminal_node(root)
             if terminal_node.snapshot.terminal and terminal_node.visits >= terminal_iterations:
                 print(f"Converged at {iterations} iterations, \n"
