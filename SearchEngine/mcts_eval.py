@@ -8,11 +8,12 @@ from Models.idx_const import(
 from Models.constants import (
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_SPEED, _MOVE_TYPE, _ACTIONTYPE_MOVE, _MOVECATEGORY_STATUS, _MOVE_CATEGORY,
-    _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE
+    _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE, _POK_AB_WHEN
 )
 from Models.helper import count_party, count_Id
 from Models.trainer_ai_helper import check_immunity_pty, check_resistence_pty
 from Engine.damage_calc import calculate_damage, struggle
+from Engine.engine_helper import calculate_crit
 from Utils.helper import get_type_effectiveness
 
 
@@ -161,7 +162,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
 
     if opp_choice != 10 and opp_choice>=0:  # Struggle
         o_move = o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE]
-        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, False, 100)  # still worth it for 1 calc
+        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, calculate_crit(c_pok[_POK_AB_WHEN]))
         o_mv_type = o_move[_MOVE_TYPE]
         imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx)
         res   = check_resistence_pty(my_pty, o_pok, o_mv_type, my_idx)

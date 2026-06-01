@@ -31,7 +31,7 @@ from Models.constants import (
     _FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1, _FIELD_WEATHER,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_MY_ENTER_FIELD, _FIELD_OPP_ENTER_FIELD, _FIELD_TURN,
     _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS,
-    _ABILITYACTIVATION_ON_CRITICAL, _ABILITYACTIVATION_ON_CONTACT, _ABILITYACTIVATION_ON_RESIDUAL,
+    _ABILITYACTIVATION_ON_CONTACT, _ABILITYACTIVATION_ON_RESIDUAL,
     _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_POWER, _MOVE_ID, _MOVE_PP,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START,
@@ -135,10 +135,7 @@ def start_of_turn(opp_move, switch_idx, battle_array):
 def ps_moves(attacker, defender, move, weather):
     """Physical or Special moves, where I need to calculate damage and secondary effects"""
     ab_when = defender[_POK_AB_WHEN]
-    if ab_when & _ABILITYACTIVATION_ON_CRITICAL:
-        crit = False
-    else:
-        crit = calculate_crit()
+    crit = calculate_crit(ab_when)
     damage = calculate_damage(attacker, defender, move, weather, crit)
     if damage <= defender[_POK_CURRENT_HP]:
         defender[_POK_CURRENT_HP] -= damage

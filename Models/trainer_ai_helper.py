@@ -1190,12 +1190,12 @@ def check_resistence_pty(ai_party, user_pok, last_move_type, opp_active):
             continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         ef, de = get_type_effectiveness(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2])
-        if ef/de < 1:
+        if 0 < ef/de < 1:
             moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
             for mv in moves:
                 mv_type = mv[_MOVE_TYPE]
                 eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
-                if 0 < eff // den < 2:
+                if eff // den >= 2:
                     buf[n] = idx
                     n += 1
                     break

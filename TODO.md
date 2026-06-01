@@ -66,7 +66,7 @@ Moves
 []Bite
 []Bone Club
 []Brick Break !
-[X]Bubble
+[]Bubble
 []Bug Bite !
 []Bulldoze
 []Bullet Seed
@@ -78,74 +78,90 @@ Moves
 []Curse !
 []Defense Curl
 []Disarming Voice
+[]Ember
 []Fake Out !
 []Fire Punch
 []Flail !
 []Focus Energy !?
 []Force Palm
-[]Foresight
-[]Fury Cutter
+[]Foresight !
+[]Fury Cutter !
 []Fury Swipes
 []Grass Whistle
-[]Growth
+[]Growl
+[]Growth !
 []Gust
 []Harden
 []Headbutt
-[]Hidden Power
+[]Hidden Power !!
 []Howl
 []Hypnosis
-[]Ingrain
+[]Ingrain !
 []Karate Chop
-[]Low Kick
+[]Leer
+[]Low Kick !
 []Mega Drain
 []Metal Claw
 []Metronome!!!!!!
 []Mud Shot
-[]Mud Sport
+[]Mud Sport !
 []Mud-Slap
-[]Nature Power
+[]Nature Power !(maybe unnecessary)
 []Peck
 []Poison Sting
-[]Protect
-[]Pursuit
+[]Pound
+[]Protect !
+[]Pursuit !
 []Quick Attack
+[]Razor Leaf
 []Roar
 []Rock Polish
 []Rock Throw
 []Rock Tomb
-[]Rollout
+[]Rollout !!
 []Sand Attack
-[]Sandstorm
+[]Sandstorm !
 []Scary Face
 []Schock Wave
+[]Scratch
 []Sing
 []Slam
 []Spark
-[]Splash
-[]Stealth Rock
-[]Stomp
+[]Splash !(Gravity interaction)
+[]Stealth Rock !
+[]Stomp !(Minimize interaction)
 []String Shot
+[]Struggle
 []Supersonic
 []Sweet Scent
-[]Taunt
+[]Tackle
+[]Tail Whip
+[]Taunt !
 []Thunder Punch
 []Thunder Wave
-[]Uproar
+[]Uproar !
 []Vine Whip
 []Water Pulse
-[]Water Sport
+[]Water Sport !
 []Wing Attack
-[]Wrap
+[]Withdraw
+[]Wrap !
 []Zen Headbutt
 
-[]Sleep Talk
-[]Selfdestruct
+[]Dig
+[]Dragon Dance
+[]Dream Eater
 []Explosion
-[]Sucker Punch
+[]Flatter
 []Focus Punch
 []Future Sight
-[]Dig
 []Hyper Beam
+[]Nightmare
+[]Psych Up
+[]Selfdestruct
+[]Sleep Talk
+[]Sucker Punch
+[]Swagger
 
 Items
 []Oran Berry

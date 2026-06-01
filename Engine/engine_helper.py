@@ -25,7 +25,7 @@ from Models.constants import (
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
     _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED, _ABILITYNAMES_SWIFT_SWIM,
     _ABILITYNAMES_SYNCHRONIZE, _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_WATER_ABSORB,
-    _TYPES_WATER
+    _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL
 )
 
 
@@ -199,8 +199,10 @@ def calculate_hit_miss(move, attacker, defender, weather):
 
 
 @njit
-def calculate_crit():
+def calculate_crit(def_aw):
     """Returns a boolean if the move passed the crit check"""
+    if def_aw & _ABILITYACTIVATION_ON_CRITICAL:
+        return False
     return random.getrandbits(4) == 0
 
 
