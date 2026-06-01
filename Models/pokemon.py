@@ -28,7 +28,7 @@ class Pokemon:
         self.name = name
         self.base_data = pkDB[name]
         self.gender = gender  # Male, Female, None
-        self.weight = self.base_data.get("weight", 1)
+        self.weight = int(self.base_data.get("weight"))
         self.level = level
         self.ability = abDB[ability]
         self.item = itemDB[item] if item else None
@@ -110,8 +110,9 @@ class Pokemon:
 
         type1, type2 = type_to_number(self.types)
 
+        pok_enum = self.name.upper().replace("-", "_").replace(" ", "_")
         stats = np.array([
-            getattr(PokemonName, self.name.upper()),
+            getattr(PokemonName, pok_enum),
             self.level,
             type1,
             type2,

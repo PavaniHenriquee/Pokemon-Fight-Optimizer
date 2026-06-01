@@ -41,14 +41,14 @@ class Pok:
     AB_ID                     = WEIGHT + 1
     AB_WHEN                   = AB_ID + 1
     AB_BREAKABLE              = AB_WHEN + 1
-    AB_CANT_SUPRESS           = AB_BREAKABLE + 1
+    """AB_CANT_SUPRESS           = AB_BREAKABLE + 1
     AB_FAIL_ROLEPLAY          = AB_CANT_SUPRESS + 1
     AB_FAIL_SKILL_SWAP        = AB_FAIL_ROLEPLAY + 1
     AB_NO_ENTRAIN             = AB_FAIL_SKILL_SWAP + 1
     AB_NO_RECEIVER            = AB_NO_ENTRAIN + 1
     AB_NO_TRACER              = AB_NO_RECEIVER + 1
     AB_NO_TRANSFORM           = AB_NO_TRACER + 1
-    AB_SUPRESS_WEATHER        = AB_NO_TRANSFORM + 1
+    AB_SUPRESS_WEATHER        = AB_NO_TRANSFORM + 1"""
 
 @dataclass(slots=True)
 class Move:
@@ -101,38 +101,38 @@ class Flags:
     BYPASS_SUB       = BASE_MOVE_LEN
     BITE             = BYPASS_SUB + 1
     BULLET           = BITE + 1
-    CANT_USE_TWICE   = BULLET + 1
-    CHARGE           = CANT_USE_TWICE + 1
+    CHARGE           = BULLET + 1
     CONTACT          = CHARGE + 1
     DANCE            = CONTACT + 1
     DEFROST          = DANCE + 1
-    DISTANCE         = DEFROST + 1
-    FAIL_COPYCAT     = DISTANCE + 1
-    FAIL_ENCORE      = FAIL_COPYCAT + 1
-    FAIL_INSTRUCT    = FAIL_ENCORE + 1
-    FAIL_ME_FIRST    = FAIL_INSTRUCT + 1
-    FAIL_MIMIC       = FAIL_ME_FIRST + 1
-    FUTURE_MOVE      = FAIL_MIMIC + 1
+    FAIL_ENCORE      = DEFROST + 1
+    FUTURE_MOVE      = FAIL_ENCORE + 1
     GRAVITY          = FUTURE_MOVE + 1
     HEAL             = GRAVITY + 1
-    METRONOME        = HEAL + 1
-    MIRROR           = METRONOME + 1
-    MUST_PRESSURE    = MIRROR + 1
-    NO_ASSIST        = MUST_PRESSURE + 1
-    NO_PARENTAL_BOND = NO_ASSIST + 1
-    NO_SKETCH        = NO_PARENTAL_BOND + 1
-    NO_SLEEP_TALK    = NO_SKETCH + 1
-    PLEDGE_COMBO     = NO_SLEEP_TALK + 1
-    POWDER           = PLEDGE_COMBO + 1
+    MIRROR           = HEAL + 1
+    NO_SLEEP_TALK    = MIRROR + 1
+    POWDER           = NO_SLEEP_TALK + 1
     PROTECT          = POWDER + 1
     PULSE            = PROTECT + 1
     PUNCH            = PULSE + 1
     RECHARGE         = PUNCH + 1
     REFLECTABLE      = RECHARGE + 1
     SLICING          = REFLECTABLE + 1
-    SNATCHING        = SLICING + 1
-    SOUND            = SNATCHING + 1
-    WIND             = SOUND + 1
+    SOUND            = SLICING + 1
+    #DISTANCE         = DEFROST + 1
+    #FAIL_COPYCAT     = DISTANCE + 1
+    #FAIL_INSTRUCT    = FAIL_ENCORE + 1
+    #FAIL_ME_FIRST    = FAIL_INSTRUCT + 1
+    #FAIL_MIMIC       = FAIL_ME_FIRST + 1
+    #METRONOME        = HEAL + 1
+    #MUST_PRESSURE    = MIRROR + 1
+    #NO_ASSIST        = MUST_PRESSURE + 1
+    #NO_PARENTAL_BOND = NO_ASSIST + 1
+    #NO_SKETCH        = NO_PARENTAL_BOND + 1
+    #PLEDGE_COMBO     = NO_SLEEP_TALK + 1
+    #SNATCHING        = SLICING + 1
+    #CANT_USE_TWICE   = BULLET + 1
+    #WIND             = SOUND + 1
 
 
 FLAGS_LEN = _length(Flags, BASE_MOVE_LEN)
@@ -176,7 +176,7 @@ class Item:
 
 ITEM_LEN      = _length(Item)
 BASE_LEN      = Pok.AB_ID
-AB_LEN        = Pok.AB_SUPRESS_WEATHER - Pok.AB_ID + 1
+AB_LEN        = Pok.AB_BREAKABLE - Pok.AB_ID + 1
 MOVE_STRIDE   = BASE_MOVE_LEN + FLAGS_LEN + SEC_LEN
 OFFSET_MOVE   = BASE_LEN + AB_LEN
 OFFSET_ITEM   = OFFSET_MOVE + (4 * MOVE_STRIDE)

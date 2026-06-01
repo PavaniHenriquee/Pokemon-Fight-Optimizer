@@ -18,7 +18,6 @@ def build_constants_file():
         f.write("# AUTO-GENERATED CONSTANTS FILE\n")
         f.write("# Do not edit manually. Run generate_constants.py to update.\n\n")
 
-        # Your exact loop logic, but writing to a file instead of setattr
         for _cls in (
             Pok, Move, Flags, Sec, Field, Item, MoveCategory, AbilityNames,
             Types, Weather, AbilityActivation, Status, MoveName, VolStatus,

@@ -39,11 +39,16 @@ def _bracket(pct: float) -> int:
     return 0
 
 
+EOT_ZEROS = np.zeros(7).tobytes()
+
+
 def multiple_nodes(child: list, new_state: GameState):
     """Check to see if the current state needs to create a new node"""
-    #TODO: Weather because of speed ties
-    # Pre-compute everything from new_state ONCE, outside the loop
+    #TODO: Weather because speed ties can result in different weathers
     new_snap      = NodeSnapshot.from_state(new_state)
+
+    # If phase is to choose a new one, i don't have a current one, ->
+    # so most checks are not only useless they will give errors
     new_phase_eot = new_snap.phase == _BATTLEPHASE_DEATH_END_OF_TURN
 
     if new_phase_eot:
@@ -54,7 +59,7 @@ def multiple_nodes(child: list, new_state: GameState):
 
     # .tobytes() → C-level bytes comparison
     if new_phase_eot:
-        new_my_stages = np.zeros(7).tobytes()
+        new_my_stages = EOT_ZEROS
     else:
         new_my_stages  = new_snap.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
     new_opp_stages = new_snap.opp_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()

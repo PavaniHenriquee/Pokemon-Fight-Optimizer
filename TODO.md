@@ -30,30 +30,30 @@ Abilities
 []Unburden (Need to implement usable held items)
 [X]Water Absorb
 
-[]Shadow Tag
-[]Magnet Pull
-[]Arena Trap
-[]Forewarn
 []Adaptability
-[]Volt Absorb
-[]Motor Drive
-[]Flash Fire
-[]Levitate
-[]Wonder Guard
-[]Vital Spirit
-[]Immunity - Partial(on synchronize)
-[]Poison Heal
-[]Leaf Guard
-[]Hydration
-[]Limber
-[]Water Veil
-[]Own Tempo
-[]Oblivious
-[]Hyper Cutter
+[]Arena Trap
 []Clear Body
-[]White Smoke
+[]Flash Fire
+[]Forewarn
+[]Hydration
+[]Hyper Cutter
+[]Immunity - Partial(on synchronize)
+[]Leaf Guard
+[]Levitate
+[]Limber
+[]Magnet Pull
+[]Motor Drive
 []Natural Cure
+[]Oblivious
+[]Own Tempo
+[]Poison Heal
+[]Shadow Tag
 []Trace
+[]Vital Spirit
+[]Volt Absorb
+[]Water Veil
+[]White Smoke
+[]Wonder Guard
 
 Moves
 []Absorb
@@ -164,77 +164,77 @@ Moves
 []Swagger
 
 Items
-[]Oran Berry
-[]Smooth Rock
-[]Rindo Berry
 []Expert Belt
-[]Muscle Band
 []Flame Orb
+[]Muscle Band
+[]Oran Berry
+[]Rindo Berry
 []Sitrus Berry
+[]Smooth Rock
 
-[]Quick Claw
-[]Focus Band
 []Bright Powder
+[]Focus Band
 []Lum Berry
+[]Quick Claw
 
 Pokemon
-[]Chimchar
-[]Piplup
-[]Turtwig
-[]Sentret
-[]Bidoof
-[]Hoothoot
-[]Starly
-[]Growlithe
-[]Burmy
-[]Zigzagoon
 []Abra
+[]Anorith
+[]Aron
+[]Azurill
+[]Bellsprout
+[]Bidoof
+[]Bonsly
+[]Budew
+[]Bulbasaur
+[]Burmy
+[]Charmander
+[]Chimchar
+[]Cranidos
+[]Cubone
+[]Diglett
+[]Geodude
+[]Growlithe
+[]Hoothoot
+[]Kabuto
+[]Kricketot
+[]larvitar
+[]Lileep
+[]Machop
+[]Magikarp
+[]Makuhita
+[]Mudkip
+[]Munchlax
+[]Nidoran
+[]Nosepass
+[]Oddish
+[]Omanyte
+[]Onix
+[]Phanpy
+[]Pidgey
+[]Piplup
+[]Psyduck
 []Psyduck
 []Ralts
-[]Staryu
-[]Bulbasaur
-[]Charmander
-[]Squirtle
-[]Shinx
-[]Nidoran
-[]Pidgey
-[]Magikarp
-[]Oddish
-[]Budew
-[]Bellsprout
-[]Munchlax
-[]Kricketot
-[]Zubat
 []Rattata
+[]Rhyhorn
+[]Riolu
 []Sandshrew
-[]Makuhita
-[]Machop
-[]Spearow
-[]Cubone
-[]Azurill
-[]Psyduck
-[]Sunkern
-[]Digglet
 []Seedot
-[]Wooper
-[]Whismur
-[]Mudkip
+[]Sentret
+[]Shinx
+[]Spearow
+[]Squirtle
+[]Starly
+[]Staryu
+[]Sunkern
 []Torchic
 []Treecko
-[]Riolu
-[]Phanpy
-[]Aron
-[]Geodude
-[]Kabuto
-[]Omanyte
-[]Rhyhorn
-[]Lileep
-[]Anorith
-[]Nosepass
-[]Bonsly
-[]Onix
-[]larvitar
-[]Cranidos
+[]Turtwig
+[]Whismur
+[]Wooper
+[]Zigzagoon
+[]Zubat
 
 Misc.
 [X]Trainer AI potion

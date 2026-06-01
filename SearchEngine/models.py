@@ -178,6 +178,9 @@ def cvar_from_hist(hist, visits, alpha=0.15):
     return total_val / cutoff if cutoff > 0 else 0.0
 
 
+HIST = np.zeros(N_BINS, dtype=np.uint16)
+
+
 class Node():
     """
     - Store: state, parent, children, visit count, total value, untried actions
@@ -196,9 +199,9 @@ class Node():
         self.dead = 0
         self.win_chance = 0.0
         self.dead_avg = 0
-        self.hist = np.zeros(N_BINS, dtype=np.int32)
+        self.hist = HIST.copy()
 
-    def best_action(self, c=0.4, risk_lambda=0.3, alpha=0.15):
+    def best_action(self, c=0.42, risk_lambda=0.3, alpha=0.15):
         """Best outcome using UCB; break ties and unvisited bias fairly."""
 
         best_key, best_node = None, None
@@ -210,7 +213,7 @@ class Node():
         for key, child in self.children.items():
             c_total_value = 0
             c_visits = 0
-            c_hist = np.zeros(N_BINS, dtype=np.int32)
+            c_hist = HIST.copy()
             for chi in child:
                 c_total_value += chi.total_value
                 c_visits      += chi.visits

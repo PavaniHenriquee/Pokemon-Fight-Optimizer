@@ -40,44 +40,7 @@ def count_fainted(battle_array, offset, maxp):
             fallen += 1
     return fallen
 
-'''def evaluate_terminal(sim_state) -> tuple[float, int, int]:
-    """
-    Terminal evaluation for MCTS backprop with strictly segregated reward tiers.
-    Guaranteed Win (0-death) > Guaranteed Win (Casualties) > Incomplete Rollout > Loss
-    """
-    my_pty_count = count_Id(sim_state.battle_array[0:(6 * POK_LEN)])
-    my_alive = count_party(sim_state.battle_array[0:(6 * POK_LEN)])
-    opp_alive = count_party(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
-    dead = my_pty_count - my_alive
 
-    # 1. ACTUAL VICTORY
-    if opp_alive == 0 and my_alive > 0:
-        # Base value starts at 0.50 for winning, and scales up to 1.0 based on survival
-        # 6/6 alive = 1.0 | 5/6 alive = 0.916 | 1/6 alive = 0.583
-        win_value = 0.36 + (0.64 * (my_alive / my_pty_count)**2)
-
-        # Turn penalty is tightly constrained (max 0.05) so it can NEVER
-        # cross the gap between survival counts (which is 0.50 / 6 = 0.0833)
-        turn = sim_state.battle_array[Field.TURN]
-        turn_penalty = min(0.05, turn * 0.0005)
-
-        return win_value - turn_penalty, 1, dead
-
-    # 2. ACTUAL LOSS / DRAW
-    if my_alive == 0:
-        return 0.0, 0, dead
-
-    # 3. INCOMPLETE ROLLOUT (Max Depth Reached)
-    # Scaled to exist strictly between 0.01 and 0.35
-    opp_pty_count = count_Id(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
-    my_hp = party_hp_fraction(sim_state.battle_array, 0, my_pty_count)
-    opp_hp = party_hp_fraction(sim_state.battle_array, 6 * POK_LEN, opp_pty_count)
-
-    heuristic = my_hp / (my_hp + opp_hp + 1e-9)
-    incomplete_value = 0.01 + (heuristic * 0.34)  # Range: 0.01 to 0.35
-
-    return incomplete_value, 0, dead
-'''
 def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     """
     Terminal evaluation for MCTS backprop.
@@ -93,13 +56,13 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
         return 0.0, 0, dead
     opp_alive = count_party(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
     if dead:
-        win_value = 0.65 - (0.1*dead)
+        win_value = 0.67 - (0.1*dead)
     else:
         win_value = 1.0
 
     if opp_alive == 0 and my_alive > 0:
         turn = sim_state.battle_array[Field.TURN]
-        turn_penalty = min(0.10, turn * 0.0005)  # caps at 0.1, never flips a win
+        turn_penalty = min(0.10, turn * 0.0005)
         return win_value-turn_penalty, 1, dead
 
     # Fallback to if the game haven't finished yet, but max depth reached
