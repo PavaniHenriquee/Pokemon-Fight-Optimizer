@@ -302,8 +302,6 @@ def mcts_loop(
         node = root
         state = root_state.clone()
         state, path = _select_expand(state, node)
-        if iterations == 22:
-            pass
         value, win, dead = _rollout(state)
         _backprop(path, value, win, dead)
 
