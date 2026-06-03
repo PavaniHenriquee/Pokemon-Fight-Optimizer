@@ -24,38 +24,6 @@ body {
   font-family: "Segoe UI", system-ui, sans-serif;
 }
 
-.app {
-  max-width: 860px;
-  margin: 0 auto;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── header ── */
-.app-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-.app-title {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--accent);
-}
-.header-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
 .dot {
   width: 8px;
   height: 8px;

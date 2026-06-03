@@ -10,6 +10,8 @@ import sys
 import threading
 import asyncio
 import random
+from typing import Optional
+from pydantic import BaseModel
 import numpy as np
 from numba import njit
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -19,7 +21,10 @@ from Models.pokemon import Pokemon
 from Engine.engine_helper import start_of_battle
 from SearchEngine.models import GameState, Node
 from SearchEngine.my_mcts import _select_expand, _rollout, _backprop, find_best_terminal_node
+from SearchEngine.helper import prune_dominated
 from Utils.helper import to_battle_array
+from Utils.loader import natures
+from DataBase.loader import pkDB, moveDB, abDB
 from .serializer import serialize_node   # relative import within the backend package
 
 # Put project root on path so Models/Engine/etc. are importable
@@ -58,20 +63,35 @@ _state: dict = {
 
 # ─── battle builder ──────────────────────────────────────────────────────────
 
-def _build_battle() -> np.ndarray:
-    """Same battle as in main.py — change this to whatever you want to analyse."""
-    charmander  = Pokemon("Charmander",  "Male", 5, "Blaze",    "Hardy", ["Scratch","Growl","Ember"])
-    squirtle    = Pokemon("Squirtle",    "Male", 8, "Torrent",  "Hardy", ["Tackle","Tail Whip","Bubble"])
-    bulbasaur   = Pokemon("Bulbasaur",   "Male", 5, "Overgrow", "Hardy", ["Pound","Leer","Razor Leaf"])
-    charmeleon  = Pokemon("Charmeleon",  "Male", 5, "Blaze",    "Hardy", ["Scratch","Growl"])
-    wartortle   = Pokemon("Wartortle",   "Male", 5, "Torrent",  "Hardy", ["Tackle","Tail Whip"])
-    ivysaur     = Pokemon("Ivysaur",     "Male", 5, "Overgrow", "Hardy", ["Pound","Leer"])
-    squirtle1   = Pokemon("Squirtle",    "Male", 5, "Torrent",  "Hardy", ["Tackle","Tail Whip"])
-    charmander1 = Pokemon("Charmander",  "Male", 5, "Blaze",    "Hardy", ["Scratch","Growl"])
-    return to_battle_array(
-        [charmander, bulbasaur, squirtle, charmeleon, ivysaur, wartortle],
-        [squirtle1, charmander1, charmander1, charmander1, charmander1],
-    )
+
+class PokemonConfig(BaseModel):
+    """
+    Readable frontend data for Pokemon Entry
+    """
+    name: str
+    gender: Optional[str] = "Male"
+    level: int = 5
+    ability: str
+    nature: str = "Hardy"
+    moves: list[str]  # empty strings filtered out before building
+
+class BattleConfig(BaseModel):
+    """
+    REadable frontend data for Both teams
+    """
+    my_team: list[PokemonConfig]
+    opp_team: list[PokemonConfig]
+
+
+@app.get("/pokemon-data")
+async def get_pokemon_data() -> dict:
+    """Everything the team builder needs to populate its dropdowns."""
+    return {
+        "pokemon": sorted(pkDB.keys()),
+        "moves":   sorted(moveDB.keys()),
+        "natures": sorted(natures.keys()),
+        "abilities": sorted(abDB.keys())
+    }
 
 # ─── MCTS worker ─────────────────────────────────────────────────────────────
 
@@ -90,8 +110,10 @@ def _mcts_worker(root: Node, root_state: GameState, stop_event: threading.Event)
         _backprop(path, value, win, dead)
         _state["iterations"] = i + 1   # simple int write — GIL-atomic
 
-        if i % 500 == 0 and i > 0:
+        if i % 2500 == 0 and i > 0:
             terminal_node, _, _ = find_best_terminal_node(root)
+            _ = prune_dominated(root)
+
             if terminal_node.snapshot.terminal and terminal_node.visits >= 1_000:
                 print(f"[MCTS] converged at {i:,} iterations")
                 break
@@ -102,20 +124,26 @@ def _mcts_worker(root: Node, root_state: GameState, stop_event: threading.Event)
 # ─── REST endpoints ───────────────────────────────────────────────────────────
 
 @app.post("/start")
-async def start_mcts() -> dict:
+async def start_mcts(config: BattleConfig) -> dict:
     """
-    Start the MCTS
+    Start from app
     """
-    # Stop any existing run
     if ev := _state.get("stop_event"):
         ev.set()
-    await asyncio.sleep(0.1)   # let the old thread notice before we replace state
+    await asyncio.sleep(0.1)
 
     random.seed(37)
     np.random.seed(37)
     _seed_numba(37)
 
-    battle = _build_battle()
+    def make_pokemon(p: PokemonConfig) -> Pokemon:
+        moves = [m for m in p.moves if m]  # strip empty slots
+        return Pokemon(p.name, p.gender, p.level, p.ability, p.nature, moves)
+
+    my_party  = [make_pokemon(p) for p in config.my_team]
+    opp_party = [make_pokemon(p) for p in config.opp_team]
+    battle    = to_battle_array(my_party, opp_party)
+
     if battle[_FIELD_TURN] == 0:
         start_of_battle(battle)
 
@@ -132,6 +160,7 @@ async def start_mcts() -> dict:
     return {"status": "started"}
 
 
+
 @app.post("/stop")
 async def stop_mcts() -> dict:
     """
@@ -145,6 +174,9 @@ async def stop_mcts() -> dict:
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket) -> None:
+    """
+    Websocket
+    """
     await ws.accept()
     loop = asyncio.get_running_loop()
     last_sent = -1   # tracks what iteration count we last serialized

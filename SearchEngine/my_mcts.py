@@ -12,7 +12,7 @@ import random
 from typing import List
 import numpy as np
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
-from SearchEngine.helper import multiple_nodes, find_best_terminal_node
+from SearchEngine.helper import multiple_nodes, find_best_terminal_node, prune_dominated
 from SearchEngine.models import GameState, Node, ActionType, N_BINS
 from Models.helper import StatustoName, BattlePhase
 from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move
@@ -308,6 +308,7 @@ def mcts_loop(
         # Cutoff when results are good enough
         if iterations % 500 == 0 and iterations > 0:
             terminal_node, terminal_path, actions = find_best_terminal_node(root)
+            _ = prune_dominated(root)
             if terminal_node.snapshot.terminal and terminal_node.visits >= terminal_iterations:
                 print(f"Converged at {iterations} iterations, \n"
                     f"terminal depth {len(terminal_path)}, \n"

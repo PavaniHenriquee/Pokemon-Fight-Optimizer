@@ -47,3 +47,19 @@ export interface WSMessage {
   running: boolean;
   tree?: TreeNode;
 }
+
+export interface PokemonConfig {
+  name: string;
+  gender: string | null;
+  level: number;
+  ability: string;
+  nature: string;
+  moves: string[]; // up to 4, empty string = unused slot
+}
+
+export interface PokemonData {
+  pokemon: string[];
+  moves: string[];
+  natures: string[];
+  abilities: string[];
+}

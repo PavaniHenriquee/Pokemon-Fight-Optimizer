@@ -184,7 +184,7 @@ def cvar_from_hist(hist, visits, alpha=0.15):
     return total_val / cutoff if cutoff > 0 else 0.0
 
 
-HIST = np.zeros(N_BINS, dtype=np.uint16)
+HIST = np.zeros(N_BINS, dtype=np.uint32)
 
 
 class Node():
