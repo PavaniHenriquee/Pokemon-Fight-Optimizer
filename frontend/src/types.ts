@@ -15,6 +15,7 @@ export interface SnapshotData {
   phase: "TURN_START" | "DEATH";
   opp_active: number;
   terminal: boolean;
+  opp_move: string | null;
   my: PokemonState | null; // null when phase === "DEATH"
   opp: PokemonState | null;
 }

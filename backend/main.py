@@ -11,6 +11,7 @@ import threading
 import asyncio
 import random
 import numpy as np
+from numba import njit
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from Models.constants import _FIELD_TURN
@@ -25,6 +26,12 @@ from .serializer import serialize_node   # relative import within the backend pa
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
+
+
+@njit
+def _seed_numba(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
 
 
 # ─── app setup ───────────────────────────────────────────────────────────────
@@ -106,6 +113,7 @@ async def start_mcts() -> dict:
 
     random.seed(37)
     np.random.seed(37)
+    _seed_numba(37)
 
     battle = _build_battle()
     if battle[_FIELD_TURN] == 0:

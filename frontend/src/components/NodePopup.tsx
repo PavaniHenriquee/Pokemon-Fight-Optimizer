@@ -7,11 +7,13 @@ import type { ActionData, TreeNode } from "../types";
 function OutcomeCard({
   node,
   onSelect,
+  action,
 }: {
   node: TreeNode;
   onSelect: (id: string) => void;
+  action: ActionData
 }) {
-  const { opp, my } = node.snapshot;
+  const { opp, my, opp_move } = node.snapshot;
 
   function PokLine({ pok, label }: { pok: typeof opp; label: string }) {
     if (!pok) return <span className="outcome-pok">{label}: fainted</span>;
@@ -44,6 +46,11 @@ function OutcomeCard({
 
   return (
     <div className="outcome-card">
+      {opp_move && (
+        <div className="opp-move-banner">
+          Opp: <strong>{opp_move}</strong>
+        </div>
+      )}
       <div className="outcome-snapshot">
         {node.snapshot.phase === "DEATH" && (
           <span className="badge terminal-badge">Fainted</span>
@@ -54,7 +61,7 @@ function OutcomeCard({
 
       <div className="outcome-footer">
         <span className="action-stats">
-          <span>{node.visits.toLocaleString()} v</span>
+          <span>{node.visits.toLocaleString()} ({(node.visits/action.total_visits*100).toFixed(1)}%) v</span>
           <span>{(node.win_chance * 100).toFixed(1)}% win</span>
           <span>{node.dead_avg.toFixed(2)} dead</span>
         </span>
@@ -104,7 +111,7 @@ export default function NodePopup({ action, onSelect, onClose }: Props) {
         ) : (
           <div className="outcome-list">
             {sorted.map((node) => (
-              <OutcomeCard key={node.id} node={node} onSelect={onSelect} />
+              <OutcomeCard key={node.id} node={node} onSelect={onSelect}  action={action}/>
             ))}
           </div>
         )}

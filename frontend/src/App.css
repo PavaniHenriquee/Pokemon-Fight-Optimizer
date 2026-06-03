@@ -420,3 +420,17 @@ body {
   justify-content: space-between;
   align-items: center;
 }
+.opp-move-banner {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+  padding: 5px 10px;
+  background: var(--surface2);
+  border-radius: 5px;
+  border-left: 2px solid var(--accent);
+}
+.best-action-label {
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-style: italic;
+}

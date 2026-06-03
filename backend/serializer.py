@@ -44,12 +44,35 @@ def _pok(arr) -> dict | None:
     }
 
 
-def _snapshot(snap) -> dict:
+def _opp_move_label(opp_move_idx: int, parent_opp_slice) -> str | None:
+    """
+    Turn the raw opp_move_idx into a readable string.
+    Needs parent_opp_slice because the move name lives in the opp's Pokemon
+    array from BEFORE the turn, not after.
+    """
+    if opp_move_idx < 0:
+        if opp_move_idx >= -6:
+            return "Switched"         # -1 to -6 are switch indices
+        return "Used item"            # -10, -20, -30, -40
+    if opp_move_idx == 10:
+        return "Struggle"
+    # Normal move: look up the name from the parent's opp Pokemon array
+    if parent_opp_slice is not None and len(parent_opp_slice) > 0:
+        move_id = int(parent_opp_slice[Pok.MOVE1_ID + opp_move_idx * MOVE_STRIDE + Move.ID])
+        return MoveIdToName.get(move_id, f"Move#{move_id}").replace("_", " ").title()
+    return f"Move {opp_move_idx}"
+
+
+def _snapshot(snap, parent_opp_slice=None) -> dict:
     is_death = snap.phase == BattlePhase.DEATH_END_OF_TURN
+    opp_move = None
+    if parent_opp_slice is not None and snap.opp_move_idx != -1:
+        opp_move = _opp_move_label(snap.opp_move_idx, parent_opp_slice)
     return {
         "phase":      "DEATH" if is_death else "TURN_START",
         "opp_active": int(snap.opp_active),
         "terminal":   bool(snap.terminal),
+        "opp_move":   opp_move,   
         # When it's DEATH phase, my_slice is an empty array (my_active == -1)
         "my":  _pok(snap.my_slice if not is_death else None),
         "opp": _pok(snap.opp_slice),
@@ -82,6 +105,7 @@ def serialize_node(
     min_visits: int = 100,
     max_depth: int = 12,
     _depth: int = 0,
+    _parent_opp_slice=None,
 ) -> dict:
     """
     Transform the node in a type that is ready for the webapp
@@ -92,7 +116,7 @@ def serialize_node(
         "wins":       node.wins,
         "win_chance": round(float(node.win_chance), 4),
         "dead_avg":   round(float(node.dead_avg), 4),
-        "snapshot":   _snapshot(node.snapshot),
+        "snapshot":   _snapshot(node.snapshot, _parent_opp_slice),
         "actions":    {},
     }
 
@@ -124,7 +148,10 @@ def serialize_node(
             "dead_avg":     round(agg_dead, 4),
             # Child nodes: only serialize if above threshold (or at root level)
             "nodes": [
-                serialize_node(c, battle_array, min_visits, max_depth, _depth + 1)
+                serialize_node(
+                    c, battle_array, min_visits, max_depth, _depth + 1,
+                    _parent_opp_slice=node.snapshot.opp_slice,
+                )
                 for c in children
                 if c.visits >= min_visits or _depth == 0
             ],

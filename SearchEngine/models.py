@@ -21,7 +21,8 @@ N_BINS = 10
 class GameState():
     """Screenshot of the current gamestate"""
     __slots__ = (
-        'battle_array', 'my_active', 'opp_active', 'turn', 'phase', '_opp_ai', 'opp_move_cache'
+        'battle_array', 'my_active', 'opp_active', 'turn', 'phase', '_opp_ai', 'opp_move_cache',
+        'opp_move_last'
     )
     def __init__(self, battle_array):
         self.battle_array = np.copy(battle_array)
@@ -30,6 +31,7 @@ class GameState():
         self.phase = self.battle_array[Field.PHASE]
         self._opp_ai = None
         self.opp_move_cache = None
+        self.opp_move_last = None
 
     @property
     def opp_move(self):
@@ -120,8 +122,10 @@ class GameState():
             switch_in_action(self.battle_array, my_move_idx[1])
             self.my_active = my_move_idx[1]
             self.phase = BattlePhase.TURN_START
+            self.opp_move_last = None
             return self
         opp_move_idx = self.opp_move
+        self.opp_move_last = int(opp_move_idx)
         self.phase, opp_idx = turn_sim(opp_move_idx, my_move_idx, self.battle_array)
         self.battle_array[Field.PHASE] = self.phase
         if opp_idx >= 0:
@@ -143,6 +147,7 @@ class NodeSnapshot:
     my_slice:   np.ndarray
     opp_slice:  np.ndarray
     terminal:   bool
+    opp_move_idx: int
 
     @staticmethod
     def from_state(state: GameState) -> 'NodeSnapshot':
@@ -152,7 +157,8 @@ class NodeSnapshot:
             opp_active = state.opp_active,
             my_slice   = state.get_my_active().copy(),
             opp_slice  = state.get_opp_active().copy(),
-            terminal   = state.is_terminal()
+            terminal   = state.is_terminal(),
+            opp_move_idx = -1 if state.opp_move_last is None else int(state.opp_move_last),
         )
 
 

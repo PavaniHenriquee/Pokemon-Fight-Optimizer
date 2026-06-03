@@ -97,12 +97,21 @@ function PokCard({ pok, label }: { pok: PokemonState | null; label: string }) {
 export default function BattleView({ node }: { node: TreeNode }) {
   const { snapshot, visits, win_chance, dead_avg } = node;
   const isDeath = snapshot.phase === "DEATH";
+  const bestAction = Object.values(node.actions).sort(
+    (a, b) => b.total_visits - a.total_visits
+  )[0] ?? null
 
   return (
     <section className="battle-view">
       {isDeath && (
         <div className="death-banner">
           ⚠ Your Pokémon fainted — choose a replacement below
+        </div>
+      )}
+
+      {snapshot.opp_move && (
+        <div className="opp-move-banner">
+          Opp used: <strong>{snapshot.opp_move}</strong>
         </div>
       )}
 
@@ -113,18 +122,19 @@ export default function BattleView({ node }: { node: TreeNode }) {
       </div>
 
       <div className="node-stats">
-        <span>
-          <strong>{visits.toLocaleString()}</strong> visits
-        </span>
-        <span style={{ color: winColor(win_chance) }}>
-          <strong>{(win_chance * 100).toFixed(1)}%</strong> win
-        </span>
-        <span>
-          <strong>{dead_avg.toFixed(2)}</strong> avg deaths
-        </span>
-        {snapshot.terminal && (
-          <span className="badge terminal-badge">TERMINAL</span>
+        <span><strong>{node.visits.toLocaleString()}</strong> visits</span>
+        {bestAction ? (
+          <>
+            <span style={{ color: winColor(bestAction.win_chance) }}>
+              <strong>{(bestAction.win_chance * 100).toFixed(1)}%</strong> win
+            </span>
+            <span><strong>{bestAction.dead_avg.toFixed(2)}</strong> avg deaths</span>
+            <span className="best-action-label">if {bestAction.label}</span>
+          </>
+        ) : (
+          <span className="muted">no actions explored yet</span>
         )}
+        {snapshot.terminal && <span className="badge terminal-badge">TERMINAL</span>}
       </div>
     </section>
   );
