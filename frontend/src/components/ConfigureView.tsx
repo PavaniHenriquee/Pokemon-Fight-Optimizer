@@ -1,4 +1,12 @@
 import { useState } from "react";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "./ui/combobox";
 import type { PokemonConfig, PokemonData } from "../types";
 
 // ─── default teams mirror what was hardcoded in Python ────────────────────────
@@ -98,7 +106,7 @@ const DEFAULT_OPP_TEAM: PokemonConfig[] = [
 
 // ─── shared select style ───────────────────────────────────────────────────────
 const inp =
-  "w-full bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-2 py-1 focus:outline-none focus:border-violet-500";
+  "bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-2 py-1 focus:outline-none focus:border-violet-500";
 
 // ─── single Pokemon slot ──────────────────────────────────────────────────────
 function PokemonSlot({
@@ -128,71 +136,32 @@ function PokemonSlot({
     onChange({ ...config, moves });
   }
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [backupValue, setBackupValue] = useState("");
-
-  // Filter the list based on what's typed in config.name
-  const filteredPokemon = allPokemon.filter((p) =>
-    p.toLowerCase().includes(config.name.toLowerCase()),
-  );
-
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 space-y-2">
       {/* Row 1: name, level, gender */}
-      <div className="inline-grid grid-cols-4 gap-2 items-center">
-        {/* Searchable Dropdown Container */}
-        <div className="relative flex-1">
-          <input
-            type="text"
-            value={config.name}
-            onFocus={() => {
-              setBackupValue(config.name); // Save current value in case they cancel
-              setIsOpen(true);
-            }}
-            onChange={(e) => set("name", e.target.value)}
-            onBlur={() => {
-              // Wrap in timeout so click selection can process first
-              setTimeout(() => {
-                setIsOpen(false);
-                // If what they typed isn't a valid option, revert to previous value
-                const valid = allPokemon.some(
-                  (p) => p.toLowerCase() === config.name.toLowerCase(),
-                );
-                if (!valid) set("name", backupValue);
-              }, 150);
-            }}
-            className={`${inp} w-full`}
-            placeholder="Search Pokémon..."
-          />
-
-          {/* Custom Dropdown Menu */}
-          {isOpen && (
-            <ul className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-md border border-slate-700 bg-slate-900 py-1 shadow-lg">
-              {filteredPokemon.length === 0 ? (
-                <li className="px-3 py-2 text-xs text-slate-500">
-                  No results found
-                </li>
-              ) : (
-                filteredPokemon.map((p) => (
-                  <li
-                    key={p}
-                    // onMouseDown fires BEFORE input onBlur handles reversion
-                    onMouseDown={() => {
-                      set("name", p);
-                      setIsOpen(false);
-                    }}
-                    className="cursor-pointer px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 transition-colors"
-                  >
-                    {p}
-                  </li>
-                ))
-              )}
-            </ul>
-          )}
+      <div className="relative flex flex-wrap flex-row gap-2 items-center">
+        <div className="relative flex-1 w-10 shrink-0">
+          <Combobox
+            value={config.name ?? ""}
+            onValueChange={(v) => set("name", v ?? "")}
+            items={allPokemon}
+          >
+            <ComboboxInput className={`${inp} w-full`} showClear />
+            <ComboboxContent>
+              <ComboboxEmpty>No results found</ComboboxEmpty>
+              <ComboboxList>
+                {(item) => (
+                  <ComboboxItem key={item} value={item}>
+                    {item}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
         </div>
 
         {/* --- Rest of your existing level/gender code remains identical --- */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0 w-18">
           <span className="text-slate-400 text-xs">Lv</span>
           <input
             type="number"
@@ -204,74 +173,101 @@ function PokemonSlot({
           />
         </div>
 
-        <input
-          type="text"
-          list="gender-list"
+        <Combobox
           value={config.gender ?? "None"}
-          onChange={(e) =>
-            set("gender", e.target.value === "None" ? null : e.target.value)
+          onValueChange={(value) =>
+            set("gender", value === "None" ? null : value)
           }
-          className={`${inp} w-24 shrink-0`}
-        />
-        <datalist id="gender-list">
-          <option value="Male" />
-          <option value="Female" />
-          <option value="None" />
-        </datalist>
+          items={["Male", "Female", "None"]}
+        >
+          <ComboboxInput className={`${inp} w-27 shrink-0`} />
+          <ComboboxContent>
+            <ComboboxList>
+              <ComboboxItem value="Male">Male</ComboboxItem>
+              <ComboboxItem value="Female">Female</ComboboxItem>
+              <ComboboxItem value="None">None</ComboboxItem>
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
 
         <button
           onClick={onRemove}
-          className="text-slate-500 hover:text-red-400 transition-colors shrink-0 text-lg leading-none"
+          className="absolute -top-5 -right-5.5 text-slate-300 hover:text-red-600 transition-all w-6 h-6 rounded-full bg-red-500/40 hover:bg-red-500/60 flex items-center justify-center"
         >
-          x
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="pr-0.25 w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
         </button>
       </div>
 
       {/* Row 2: ability, nature */}
       <div className="flex gap-2">
-        <input
-          type="text"
-          list="ability-list"
+        <Combobox
           value={config.ability}
-          onChange={(e) => set("ability", e.target.value)}
-          className={`${inp} flex-1`}
-        />
-        <datalist id="ability-list">
-          {allAbilities.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
-        <input
-          type="text"
-          list="nature-list"
+          onValueChange={(value) => set("ability", value ?? "")}
+        >
+          <ComboboxInput className={`${inp} flex-1`} />
+          <ComboboxContent>
+            <ComboboxEmpty>No results found</ComboboxEmpty>
+            <ComboboxList>
+              {allAbilities.map((n) => (
+                <ComboboxItem key={n} value={n}>
+                  {n}
+                </ComboboxItem>
+              ))}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+        <Combobox
           value={config.nature}
-          onChange={(e) => set("nature", e.target.value)}
-          className={`${inp} flex-1`}
-        />
-        <datalist id="nature-list">
-          {allNatures.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
+          onValueChange={(value) => set("nature", value ?? "")}
+        >
+          {" "}
+          <ComboboxInput className={`${inp} flex-1`} />
+          <ComboboxContent>
+            <ComboboxEmpty>No results found</ComboboxEmpty>
+            <ComboboxList>
+              {allNatures.map((n) => (
+                <ComboboxItem key={n} value={n}>
+                  {n}
+                </ComboboxItem>
+              ))}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
       </div>
 
       {/* Row 3: moves */}
       <div className="grid grid-cols-2 gap-2">
         {config.moves.map((move, i) => (
           <div key={i}>
-            <input
-              type="text"
-              list="moves-list"
+            <Combobox
               value={move}
-              onChange={(e) => setMove(i, e.target.value)}
-              placeholder="— empty —"
-              className={inp}
-            />
-            <datalist id="moves-list">
-              {allMoves.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
+              onValueChange={(value) => setMove(i, value ?? "")}
+            >
+              <ComboboxInput className={inp} placeholder="— empty —" />
+              <ComboboxContent>
+                <ComboboxEmpty>No results found</ComboboxEmpty>
+                <ComboboxList>
+                  {allMoves.map((m) => (
+                    <ComboboxItem key={m} value={m}>
+                      {m}
+                    </ComboboxItem>
+                  ))}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
           </div>
         ))}
       </div>
