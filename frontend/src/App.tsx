@@ -186,9 +186,9 @@ export default function App() {
   // className instead of class (class is a reserved word in JS).
   // onClick, onChange etc. are camelCase event handlers.
   return (
-    <div className="flex flex-col h-screen bg-slate-900 text-slate-200">
-      <header className="flex items-center gap-3 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0 flex-wrap">
-        <h1 className="text-violet-400 font-bold text-sm">MCTS Explorer</h1>
+    <div className="flex flex-col bg-slate-900 text-slate-200">
+      <header className="flex flex-wrap items-center h-30 gap-1 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0 sticky top-0 z-10 justify-center">
+        <h1 className="text-violet-400 font-bold text-4xl w-full ">MCTS</h1>
 
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
@@ -196,7 +196,7 @@ export default function App() {
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`px-3 py-1 rounded text-xs font-medium capitalize transition-colors
+              className={`px-3 py-1 rounded text-xs font-medium capitalize transition-colors cursor-pointer
           ${
             view === v
               ? "bg-violet-600 text-white"
@@ -208,8 +208,10 @@ export default function App() {
           ))}
         </div>
 
+        <div className="basis-full h-0"></div>
+
         {/* Status */}
-        <div className="flex items-center gap-2 flex-1 text-xs text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
           <span
             className={`w-2 h-2 rounded-full ${connected ? "bg-green-400" : "bg-red-500"}`}
           />

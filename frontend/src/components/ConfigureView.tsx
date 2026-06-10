@@ -8,6 +8,12 @@ import {
   ComboboxList,
 } from "./ui/combobox";
 import type { PokemonConfig, PokemonData } from "../types";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "./ui/input-group";
 
 // ─── default teams mirror what was hardcoded in Python ────────────────────────
 const DEFAULT_MY_TEAM: PokemonConfig[] = [
@@ -140,7 +146,8 @@ function PokemonSlot({
     <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 space-y-2">
       {/* Row 1: name, level, gender */}
       <div className="relative flex flex-wrap flex-row gap-2 items-center">
-        <div className="relative flex-1 w-10 shrink-0">
+        {/*Name*/}
+        <div className="flex-1 min-w-38 shrink-0">
           <Combobox
             value={config.name ?? ""}
             onValueChange={(v) => set("name", v ?? "")}
@@ -160,19 +167,37 @@ function PokemonSlot({
           </Combobox>
         </div>
 
-        {/* --- Rest of your existing level/gender code remains identical --- */}
-        <div className="flex items-center gap-1 shrink-0 w-18">
-          <span className="text-slate-400 text-xs">Lv</span>
-          <input
-            type="number"
-            min={1}
-            max={100}
-            value={config.level}
-            onChange={(e) => set("level", parseInt(e.target.value) || 1)}
-            className={`${inp} w-14 text-center`}
-          />
+        {/*Level*/}
+        <div className="flex items-center shrink-0">
+          <InputGroup className="w-24">
+            <InputGroupAddon align="inline-start">
+              <InputGroupButton
+                onClick={() => set("level", Math.max(1, config.level - 1))}
+              >
+                -
+              </InputGroupButton>
+            </InputGroupAddon>
+
+            <InputGroupInput
+              type="number"
+              min={1}
+              max={100}
+              value={config.level}
+              onChange={(e) => set("level", parseInt(e.target.value) || 1)}
+              className="text-center"
+            />
+
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                onClick={() => set("level", Math.min(100, config.level + 1))}
+              >
+                +
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
         </div>
 
+        {/*Gender*/}
         <Combobox
           value={config.gender ?? "None"}
           onValueChange={(value) =>
@@ -192,7 +217,7 @@ function PokemonSlot({
 
         <button
           onClick={onRemove}
-          className="absolute -top-5 -right-5.5 text-slate-300 hover:text-red-600 transition-all w-6 h-6 rounded-full bg-red-500/40 hover:bg-red-500/60 flex items-center justify-center"
+          className="absolute -top-5 -right-5.5 text-slate-300 hover:text-red-600 transition-all w-6 h-6 rounded-full bg-red-500/40 hover:bg-red-500/60 flex items-center justify-center cursor-pointer"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
