@@ -10,8 +10,9 @@ import sys
 import threading
 import asyncio
 import random
+import json
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import numpy as np
 from numba import njit
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -25,12 +26,20 @@ from SearchEngine.helper import prune_dominated
 from Utils.helper import to_battle_array
 from Utils.loader import natures
 from DataBase.loader import pkDB, moveDB, abDB
+from DataBase.PkDB import PokemonName
 from .serializer import serialize_node   # relative import within the backend package
 
 # Put project root on path so Models/Engine/etc. are importable
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
+
+
+_DEFAULT_IVS = {
+    "HP": 31, "Attack": 31, "Defense": 31,
+    "Special Attack": 31, "Special Defense": 31, "Speed": 31,
+}
+_BOX_PATH = os.path.join(_ROOT, "UserData", "box.json")
 
 
 @njit
@@ -62,6 +71,16 @@ _state: dict = {
 }
 
 # ─── battle builder ──────────────────────────────────────────────────────────
+class BoxEntry(BaseModel):
+    """Persisted Pokémon in the player's box."""
+    id: str
+    name: str
+    gender: Optional[str] = "Male"
+    nature: str = "Hardy"
+    ability: str = ""
+    level: int = 5
+    moves: list[str] = Field(default_factory=list)
+    ivs: dict = Field(default_factory=lambda: dict(_DEFAULT_IVS))
 
 
 class PokemonConfig(BaseModel):
@@ -74,6 +93,7 @@ class PokemonConfig(BaseModel):
     ability: str
     nature: str = "Hardy"
     moves: list[str]  # empty strings filtered out before building
+    ivs: Optional[dict] = None
 
 class BattleConfig(BaseModel):
     """
@@ -86,11 +106,29 @@ class BattleConfig(BaseModel):
 @app.get("/pokemon-data")
 async def get_pokemon_data() -> dict:
     """Everything the team builder needs to populate its dropdowns."""
+
+    def _to_enum_key(name: str) -> str:
+        """Transform a pkDB display name to its PokemonName attribute key."""
+        return (name.upper()
+                .replace(" ", "_")
+                .replace(".", "")
+                .replace("'", "")
+                .replace("-", "_")
+                .replace("\u2640", "_F")   # ♀
+                .replace("\u2642", "_M"))  # ♂
+
+    name_to_id: dict[str, int] = {}
+    for pk_name in pkDB.keys():
+        pk_id = getattr(PokemonName, _to_enum_key(pk_name), None)
+        if pk_id is not None:
+            name_to_id[pk_name] = pk_id
+
     return {
-        "pokemon": sorted(pkDB.keys()),
-        "moves":   sorted(moveDB.keys()),
-        "natures": sorted(natures.keys()),
-        "abilities": sorted(abDB.keys())
+        "pokemon":   sorted(pkDB.keys()),
+        "moves":     sorted(moveDB.keys()),
+        "natures":   sorted(natures.keys()),
+        "abilities": sorted(abDB.keys()),
+        "nameToId":  name_to_id,
     }
 
 # ─── MCTS worker ─────────────────────────────────────────────────────────────
@@ -138,7 +176,7 @@ async def start_mcts(config: BattleConfig) -> dict:
 
     def make_pokemon(p: PokemonConfig) -> Pokemon:
         moves = [m for m in p.moves if m]  # strip empty slots
-        return Pokemon(p.name, p.gender, p.level, p.ability, p.nature, moves)
+        return Pokemon(p.name, p.gender, p.level, p.ability, p.nature, moves, ivs=p.ivs)
 
     my_party  = [make_pokemon(p) for p in config.my_team]
     opp_party = [make_pokemon(p) for p in config.opp_team]
@@ -169,6 +207,24 @@ async def stop_mcts() -> dict:
     if ev := _state.get("stop_event"):
         ev.set()
     return {"status": "stopped"}
+
+@app.get("/box")
+async def get_box() -> list:
+    """Load the player's Pokémon box from disk."""
+    try:
+        with open(_BOX_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+@app.post("/box")
+async def save_box(entries: list[BoxEntry]) -> dict:
+    """Persist the player's Pokémon box to disk."""
+    os.makedirs(os.path.dirname(_BOX_PATH), exist_ok=True)
+    with open(_BOX_PATH, "w", encoding="utf-8") as f:
+        json.dump([e.model_dump() for e in entries], f, indent=2)
+    return {"status": "saved"}
 
 # ─── WebSocket ────────────────────────────────────────────────────────────────
 

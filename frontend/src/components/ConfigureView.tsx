@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import BoxView from "./BoxView";
 import {
   Combobox,
   ComboboxContent,
@@ -7,13 +8,15 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "./ui/combobox";
-import type { PokemonConfig, PokemonData } from "../types";
+import type { BoxEntry, PokemonConfig, PokemonData } from "../types";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
 } from "./ui/input-group";
+
+const API_URL = "http://localhost:8000";
 
 // ─── default teams mirror what was hardcoded in Python ────────────────────────
 const DEFAULT_MY_TEAM: PokemonConfig[] = [
@@ -25,46 +28,6 @@ const DEFAULT_MY_TEAM: PokemonConfig[] = [
     nature: "Hardy",
     moves: ["Scratch", "Growl", "Ember", ""],
   },
-  {
-    name: "Bulbasaur",
-    gender: "Male",
-    level: 5,
-    ability: "Overgrow",
-    nature: "Hardy",
-    moves: ["Pound", "Leer", "Razor Leaf", ""],
-  },
-  {
-    name: "Squirtle",
-    gender: "Male",
-    level: 7,
-    ability: "Torrent",
-    nature: "Hardy",
-    moves: ["Tackle", "Tail Whip", "Bubble", ""],
-  },
-  {
-    name: "Charmeleon",
-    gender: "Male",
-    level: 5,
-    ability: "Blaze",
-    nature: "Hardy",
-    moves: ["Scratch", "Growl", "", ""],
-  },
-  {
-    name: "Ivysaur",
-    gender: "Male",
-    level: 5,
-    ability: "Overgrow",
-    nature: "Hardy",
-    moves: ["Pound", "Leer", "", ""],
-  },
-  {
-    name: "Wartortle",
-    gender: "Male",
-    level: 5,
-    ability: "Torrent",
-    nature: "Hardy",
-    moves: ["Tackle", "Tail Whip", "", ""],
-  },
 ];
 
 const DEFAULT_OPP_TEAM: PokemonConfig[] = [
@@ -75,38 +38,6 @@ const DEFAULT_OPP_TEAM: PokemonConfig[] = [
     ability: "Torrent",
     nature: "Hardy",
     moves: ["Tackle", "Tail Whip", "", ""],
-  },
-  {
-    name: "Charmander",
-    gender: "Male",
-    level: 5,
-    ability: "Blaze",
-    nature: "Hardy",
-    moves: ["Scratch", "Growl", "", ""],
-  },
-  {
-    name: "Charmander",
-    gender: "Male",
-    level: 5,
-    ability: "Blaze",
-    nature: "Hardy",
-    moves: ["Scratch", "Growl", "", ""],
-  },
-  {
-    name: "Charmander",
-    gender: "Male",
-    level: 5,
-    ability: "Blaze",
-    nature: "Hardy",
-    moves: ["Scratch", "Growl", "", ""],
-  },
-  {
-    name: "Charmander",
-    gender: "Male",
-    level: 5,
-    ability: "Blaze",
-    nature: "Hardy",
-    moves: ["Scratch", "Growl", "", ""],
   },
 ];
 
@@ -309,6 +240,8 @@ function TeamPanel({
   allNatures,
   allAbilities,
   onChange,
+  boxEntries,
+  nameToId,
 }: {
   label: string;
   team: PokemonConfig[];
@@ -317,6 +250,8 @@ function TeamPanel({
   allNatures: string[];
   allAbilities: string[];
   onChange: (team: PokemonConfig[]) => void;
+  boxEntries?: BoxEntry[]; // undefined = Opponent, defined = My Team
+  nameToId?: Record<string, number>;
 }) {
   function addSlot() {
     if (team.length >= 6) return;
@@ -365,14 +300,64 @@ function TeamPanel({
         ))}
       </div>
 
-      {team.length < 6 && (
-        <button
-          onClick={addSlot}
-          className="w-full py-2 border border-dashed border-slate-600 text-slate-500 hover:text-slate-300 hover:border-slate-500 rounded-lg text-sm transition-colors"
-        >
-          + Add Pokémon
-        </button>
-      )}
+      {team.length < 6 &&
+        (boxEntries !== undefined ? (
+          // ── My Team: pick from box ────────────────────────────────────────
+          boxEntries.length === 0 ? (
+            <p className="text-xs text-slate-500 italic text-center py-3 border border-dashed border-slate-700 rounded-lg">
+              Box is empty — open Box to add Pokémon
+            </p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <p className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">
+                Add from box
+              </p>
+              {boxEntries.map((entry) => (
+                <button
+                  key={entry.id}
+                  onClick={() =>
+                    onChange([
+                      ...team,
+                      {
+                        name: entry.name,
+                        gender: entry.gender,
+                        level: entry.level,
+                        ability: entry.ability,
+                        nature: entry.nature,
+                        moves: [...entry.moves],
+                        ivs: { ...entry.ivs },
+                      },
+                    ])
+                  }
+                  className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-left transition-colors"
+                >
+                  {nameToId?.[entry.name] && (
+                    <img
+                      src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/icons/${nameToId[entry.name]}.png`}
+                      width={32}
+                      height={24}
+                      alt=""
+                      draggable={false}
+                      style={{ imageRendering: "pixelated" }}
+                    />
+                  )}
+                  <span className="flex-1 truncate">{entry.name}</span>
+                  <span className="text-xs text-slate-500 shrink-0">
+                    Lv.{entry.level}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )
+        ) : (
+          // ── Opponent Team: blank slot ──────────────────────────────────────
+          <button
+            onClick={addSlot}
+            className="w-full py-2 border border-dashed border-slate-600 text-slate-500 hover:text-slate-300 hover:border-slate-500 rounded-lg text-sm transition-colors"
+          >
+            + Add Pokémon
+          </button>
+        ))}
     </div>
   );
 }
@@ -391,6 +376,25 @@ export default function ConfigureView({
 }: Props) {
   const [myTeam, setMyTeam] = useState<PokemonConfig[]>(DEFAULT_MY_TEAM);
   const [oppTeam, setOppTeam] = useState<PokemonConfig[]>(DEFAULT_OPP_TEAM);
+  // ── box ──────────────────────────────────────────────────────────────────────
+  const [box, setBox] = useState<BoxEntry[] | null>(null);
+
+  // Load once on mount
+  useEffect(() => {
+    fetch(`${API_URL}/box`)
+      .then((r) => r.json())
+      .then((data: BoxEntry[]) => setBox(data))
+      .catch(() => setBox([]));
+  }, []);
+
+  function saveBox() {
+    if (box === null) return;
+    fetch(`${API_URL}/box`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(box),
+    }).catch(console.error);
+  }
 
   if (!pokemonData) {
     return (
@@ -400,33 +404,46 @@ export default function ConfigureView({
     );
   }
 
-  const { pokemon, moves, natures, abilities } = pokemonData;
+  const { pokemon, moves, natures, abilities, nameToId } = pokemonData;
   const canStart = myTeam.length > 0 && oppTeam.length > 0;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Teams */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex gap-4 items-start max-w-5xl mx-auto">
-          <TeamPanel
-            label="Your Team"
-            team={myTeam}
-            allPokemon={pokemon}
-            allMoves={moves}
-            allNatures={natures}
-            allAbilities={abilities}
-            onChange={setMyTeam}
+        <div className="max-w-5xl mx-auto space-y-3">
+          {/* Box trigger */}
+          <BoxView
+            box={box ?? []}
+            pokemonData={pokemonData}
+            onBoxChange={(b) => setBox(b)}
+            onSave={saveBox}
           />
-          <div className="w-px bg-slate-700 self-stretch shrink-0" />
-          <TeamPanel
-            label="Opponent Team"
-            team={oppTeam}
-            allPokemon={pokemon}
-            allMoves={moves}
-            allNatures={natures}
-            allAbilities={abilities}
-            onChange={setOppTeam}
-          />
+
+          {/* Teams */}
+          <div className="flex gap-4 items-start">
+            <TeamPanel
+              label="My Team"
+              team={myTeam}
+              allPokemon={pokemon}
+              allMoves={moves}
+              allNatures={natures}
+              allAbilities={abilities}
+              onChange={setMyTeam}
+              boxEntries={box ?? []}
+              nameToId={nameToId}
+            />
+            <div className="w-px bg-slate-700 self-stretch shrink-0" />
+            <TeamPanel
+              label="Opponent Team"
+              team={oppTeam}
+              allPokemon={pokemon}
+              allMoves={moves}
+              allNatures={natures}
+              allAbilities={abilities}
+              onChange={setOppTeam}
+            />
+          </div>
         </div>
       </div>
 

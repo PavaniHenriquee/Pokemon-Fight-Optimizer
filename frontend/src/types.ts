@@ -48,6 +48,26 @@ export interface WSMessage {
   tree?: TreeNode;
 }
 
+export interface IVs {
+  HP: number;
+  Attack: number;
+  Defense: number;
+  "Special Attack": number;
+  "Special Defense": number;
+  Speed: number;
+}
+
+export interface BoxEntry {
+  id: string;
+  name: string;
+  gender: string | null;
+  nature: string;
+  ability: string;
+  level: number;
+  moves: string[];
+  ivs: IVs;
+}
+
 export interface PokemonConfig {
   name: string;
   gender: string | null;
@@ -55,6 +75,7 @@ export interface PokemonConfig {
   ability: string;
   nature: string;
   moves: string[]; // up to 4, empty string = unused slot
+  ivs?: IVs;
 }
 
 export interface PokemonData {
@@ -62,4 +83,5 @@ export interface PokemonData {
   moves: string[];
   natures: string[];
   abilities: string[];
+  nameToId: Record<string, number>;
 }

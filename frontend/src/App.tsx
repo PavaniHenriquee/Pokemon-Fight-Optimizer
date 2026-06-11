@@ -188,7 +188,9 @@ export default function App() {
   return (
     <div className="flex flex-col bg-slate-900 text-slate-200">
       <header className="flex flex-wrap items-center h-30 gap-1 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0 sticky top-0 z-10 justify-center">
-        <h1 className="text-violet-400 font-bold text-4xl w-full ">MCTS</h1>
+        <h1 className="text-violet-400 font-bold text-4xl w-full text-shadow-lg/20 font-sans">
+          MCTS
+        </h1>
 
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
@@ -247,29 +249,40 @@ export default function App() {
           )}
         </div>
       </header>
-      {view === "configure" ? (
+
+      {/* Always mounted — CSS hide/show preserves team state between tab switches */}
+      <div
+        className={
+          view === "configure"
+            ? "flex flex-1 flex-col overflow-hidden"
+            : "hidden"
+        }
+      >
         <ConfigureView
           pokemonData={pokemonData}
           onStart={start}
           running={running}
         />
-      ) : !currentNode ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-500">
-          <p>Start MCTS from the Configure tab</p>
-          <p className="text-xs">
-            {connected ? "✓ Backend connected" : "Waiting for backend…"}
-          </p>
-        </div>
-      ) : (
-        <>
-          <BattleView node={currentNode} />
-          <ActionPanel
-            node={currentNode}
-            onActionClick={handleActionClick}
-            selectedKey={selectedKey}
-          />
-        </>
-      )}
+      </div>
+
+      {view !== "configure" &&
+        (!currentNode ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-500">
+            <p>Start MCTS from the Configure tab</p>
+            <p className="text-xs">
+              {connected ? "✓ Backend connected" : "Waiting for backend…"}
+            </p>
+          </div>
+        ) : (
+          <>
+            <BattleView node={currentNode} />
+            <ActionPanel
+              node={currentNode}
+              onActionClick={handleActionClick}
+              selectedKey={selectedKey}
+            />
+          </>
+        ))}
       {selectedAction && (
         <NodePopup
           action={selectedAction}
