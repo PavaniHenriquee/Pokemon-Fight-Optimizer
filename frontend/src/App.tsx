@@ -5,6 +5,7 @@ import type {
   WSMessage,
   PokemonData,
   PokemonConfig,
+  TrainerDB,
 } from "./types";
 import BattleView from "./components/BattleView";
 import ActionPanel from "./components/ActionPanel";
@@ -38,6 +39,14 @@ export default function App() {
   const prevDisplayRef = useRef(0); // tracks where animation is currently at
   const [view, setView] = useState<"configure" | "explore">("configure");
   const [pokemonData, setPokemonData] = useState<PokemonData | null>(null);
+  const [trainerDB, setTrainerDB] = useState<TrainerDB>({});
+
+  useEffect(() => {
+    fetch(`${API_URL}/trainers`)
+      .then((r) => r.json())
+      .then(setTrainerDB)
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     const from = prevDisplayRef.current;
@@ -188,7 +197,7 @@ export default function App() {
   return (
     <div className="flex flex-col bg-slate-900 text-slate-200">
       <header className="flex flex-wrap items-center h-30 gap-1 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0 sticky top-0 z-10 justify-center">
-        <h1 className="text-violet-400 font-bold text-4xl w-full text-shadow-lg/20 font-sans">
+        <h1 className="text-yellow-400 font-bold text-4xl w-full text-shadow-lg/20 font-sans">
           MCTS
         </h1>
 
@@ -201,7 +210,7 @@ export default function App() {
               className={`px-3 py-1 rounded text-xs font-medium capitalize transition-colors cursor-pointer
           ${
             view === v
-              ? "bg-violet-600 text-white"
+              ? "bg-(--accent) text-black"
               : "text-slate-400 hover:text-slate-200"
           }`}
             >
@@ -262,6 +271,7 @@ export default function App() {
           pokemonData={pokemonData}
           onStart={start}
           running={running}
+          trainerDB={trainerDB}
         />
       </div>
 

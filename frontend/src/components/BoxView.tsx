@@ -111,7 +111,7 @@ function BoxEntryModal({
 
   const { pokemon, moves, natures, abilities } = pokemonData;
 
-  // z-index 200 so it renders above the box popup (z-index 100)
+  // z-index 20 so it renders above the box popup (z-index 10)
   return (
     <div className="popup-overlay" style={{ zIndex: 20 }} onClick={onCancel}>
       <div
@@ -403,7 +403,7 @@ function BoxCell({
             className="fixed inset-0 z-40"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="absolute top-5 right-0 z-50 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden min-w-[72px]">
+          <div className="absolute top-5 right-0 z-51 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden min-w-[72px]">
             <button
               className="block w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 whitespace-nowrap"
               onClick={() => {
@@ -452,7 +452,10 @@ function BoxPopup({
   const emptyCount = box.length % 6 === 0 ? 0 : 6 - (box.length % 6);
 
   return (
-    <div className="popup-overlay" style={{ zIndex: 10 }} onClick={onClose}>
+    <div
+      className="fixed inset-0 z-10 bg-black/60 flex items-center justify-center p-20 m-0"
+      onClick={onClose}
+    >
       <div
         className="popup-panel"
         style={{ maxWidth: "520px" }}

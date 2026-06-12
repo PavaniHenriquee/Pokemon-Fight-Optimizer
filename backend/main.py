@@ -198,6 +198,16 @@ async def start_mcts(config: BattleConfig) -> dict:
     return {"status": "started"}
 
 
+@app.get("/trainers")
+async def get_trainers() -> dict:
+    """Load trainer parties from TrainerDB.json."""
+    try:
+        trainer_db_path = os.path.join(_ROOT, "DataBase", "TrainerDB.json")
+        with open(trainer_db_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
 
 @app.post("/stop")
 async def stop_mcts() -> dict:

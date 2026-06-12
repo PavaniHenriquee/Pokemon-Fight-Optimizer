@@ -85,3 +85,5 @@ export interface PokemonData {
   abilities: string[];
   nameToId: Record<string, number>;
 }
+
+export type TrainerDB = Record<string, PokemonConfig[]>;
