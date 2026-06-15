@@ -78,12 +78,23 @@ export interface PokemonConfig {
   ivs?: IVs;
 }
 
+export interface BaseStats {
+  HP: number;
+  Attack: number;
+  Defense: number;
+  "Special Attack": number;
+  "Special Defense": number;
+  Speed: number;
+}
+
 export interface PokemonData {
   pokemon: string[];
   moves: string[];
   natures: string[];
   abilities: string[];
   nameToId: Record<string, number>;
+  baseStats: Record<string, BaseStats>;
+  natureMultipliers: Record<string, Record<string, number>>;
 }
 
 export type TrainerDB = Record<string, PokemonConfig[]>;

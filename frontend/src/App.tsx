@@ -40,6 +40,10 @@ export default function App() {
   const [view, setView] = useState<"configure" | "explore">("configure");
   const [pokemonData, setPokemonData] = useState<PokemonData | null>(null);
   const [trainerDB, setTrainerDB] = useState<TrainerDB>({});
+  const [myTeam, setMyTeam] = useState<PokemonConfig[]>([]);
+  const [oppTeam, setOppTeam] = useState<PokemonConfig[]>([]);
+  const [iterations, setIterations] = useState(100_000);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     fetch(`${API_URL}/trainers`)
@@ -171,7 +175,7 @@ export default function App() {
     fetch(`${API_URL}/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ my_team: myTeam, opp_team: oppTeam }),
+      body: JSON.stringify({ my_team: myTeam, opp_team: oppTeam, iterations }),
     }).catch(console.error);
     setPathIds([]);
     setSelectedKey(null);
@@ -238,7 +242,7 @@ export default function App() {
           {running && (
             <button
               onClick={stop}
-              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs rounded-lg border border-slate-600 transition-colors"
+              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs rounded-lg border border-slate-600 transition-colors cursor-pointer"
             >
               ■ Stop
             </button>
@@ -246,7 +250,7 @@ export default function App() {
           {view === "explore" && pathIds.length > 0 && (
             <button
               onClick={goBack}
-              className="px-3 py-1 text-slate-400 hover:text-slate-200 text-xs border border-slate-700 rounded-lg transition-colors"
+              className="px-3 py-1 text-slate-400 hover:text-slate-200 text-xs border border-slate-700 rounded-lg transition-colors cursor-pointer"
             >
               ← Back
             </button>
@@ -269,19 +273,54 @@ export default function App() {
       >
         <ConfigureView
           pokemonData={pokemonData}
-          onStart={start}
-          running={running}
           trainerDB={trainerDB}
+          myTeam={myTeam}
+          setMyTeam={setMyTeam}
+          oppTeam={oppTeam}
+          setOppTeam={setOppTeam}
         />
       </div>
 
       {view !== "configure" &&
         (!currentNode ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-500">
-            <p>Start MCTS from the Configure tab</p>
-            <p className="text-xs">
-              {connected ? "✓ Backend connected" : "Waiting for backend…"}
-            </p>
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-500">
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-slate-400">
+                  Max iterations
+                </label>
+                <input
+                  type="text"
+                  value={
+                    isFocused
+                      ? iterations === 0
+                        ? ""
+                        : iterations
+                      : new Intl.NumberFormat("en-US").format(iterations)
+                  }
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => {
+                    setIsFocused(false);
+                    setIterations((prev) => Math.max(1, prev));
+                  }}
+                  onChange={(e) => {
+                    const rawValue = e.target.value.replace(/\D/g, "");
+                    setIterations(rawValue === "" ? 0 : parseInt(rawValue, 10));
+                  }}
+                  disabled={running}
+                  className="px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded disabled:opacity-50 w-32 text-center"
+                />
+              </div>
+              <button
+                onClick={() => start(myTeam, oppTeam)}
+                disabled={
+                  myTeam.length === 0 || oppTeam.length === 0 || running
+                }
+                className={`px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors cursor-${running ? "not-allowed" : "pointer"}`}
+              >
+                {running ? "Running…" : "▶ Start MCTS"}
+              </button>
+            </div>
           </div>
         ) : (
           <>

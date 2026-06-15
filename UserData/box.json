@@ -1,1 +1,134 @@
-[]
+[
+  {
+    "id": "96159710-65da-439a-a9a6-3c4df3a308f0",
+    "name": "Charmander",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Blaze",
+    "level": 5,
+    "moves": [
+      "Scratch",
+      "Growl",
+      "Ember",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    }
+  },
+  {
+    "id": "906addab-a89c-4f90-aafb-e7e10efdd3ac",
+    "name": "Squirtle",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Torrent",
+    "level": 7,
+    "moves": [
+      "Tackle",
+      "Tail Whip",
+      "Bubble",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    }
+  },
+  {
+    "id": "73e8c6c1-c254-4525-964d-793b8f280473",
+    "name": "Bulbasaur",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Overgrow",
+    "level": 5,
+    "moves": [
+      "Pound",
+      "Leer",
+      "Razor Leaf",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    }
+  },
+  {
+    "id": "2c3773d3-3b6b-4f5f-899f-625a2bc77e32",
+    "name": "Charmeleon",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Blaze",
+    "level": 5,
+    "moves": [
+      "Scratch",
+      "Growl",
+      "Ember",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    }
+  },
+  {
+    "id": "c3825669-2294-4c7e-aa6b-fb1e32d09083",
+    "name": "Wartortle",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Torrent",
+    "level": 5,
+    "moves": [
+      "Tackle",
+      "Tail Whip",
+      "Bubble",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    }
+  },
+  {
+    "id": "09fe9748-2f04-45b8-9d97-ccde6334e6f7",
+    "name": "Ivysaur",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Overgrow",
+    "level": 5,
+    "moves": [
+      "Pound",
+      "Leer",
+      "Razor Leaf",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    }
+  }
+]

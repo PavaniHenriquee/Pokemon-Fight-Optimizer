@@ -60,7 +60,7 @@ body {
   opacity: 0.85;
 }
 .btn-primary {
-  background: var(--accent);
+  background: var(--yellow);
   color: #fff;
 }
 .btn-secondary {
@@ -246,11 +246,6 @@ body {
   font-style: italic;
   text-align: center;
   padding: 30px;
-}
-.action-list {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
 }
 
 .action-card {

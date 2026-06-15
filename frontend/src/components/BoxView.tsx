@@ -220,7 +220,7 @@ function BoxEntryModal({
                 onValueChange={(v) => patch({ ability: v ?? "" })}
                 items={abilities}
               >
-                <ComboboxInput className={inp} />
+                <ComboboxInput className={inp} showClear />
                 <ComboboxContent>
                   <ComboboxEmpty>No results</ComboboxEmpty>
                   <ComboboxList>
@@ -268,7 +268,11 @@ function BoxEntryModal({
                   onValueChange={(v) => setMove(i, v ?? "")}
                   items={moves}
                 >
-                  <ComboboxInput className={inp} placeholder="— empty —" />
+                  <ComboboxInput
+                    className={inp}
+                    placeholder="— empty —"
+                    showClear
+                  />
                   <ComboboxContent>
                     <ComboboxEmpty>No results</ComboboxEmpty>
                     <ComboboxList>
@@ -340,7 +344,7 @@ function BoxEntryModal({
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-4 py-1.5 text-sm text-slate-400 hover:text-slate-200 border border-slate-600 rounded-lg transition-colors"
+            className="px-4 py-1.5 text-sm text-slate-400 hover:text-slate-200 border border-slate-600 rounded-lg transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -349,8 +353,13 @@ function BoxEntryModal({
               draft.name &&
               onSave({ ...draft, id: entry?.id ?? crypto.randomUUID() })
             }
-            disabled={!draft.name}
-            className="px-4 py-1.5 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-lg transition-colors"
+            disabled={
+              !draft.name ||
+              !draft.ability ||
+              !draft.moves.some((m) => m) ||
+              !draft.ivs
+            }
+            className="px-4 py-1.5 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-lg transition-colors disabled:cursor-not-allowed cursor-pointer"
           >
             Save
           </button>
@@ -552,7 +561,7 @@ export default function BoxView({
     <>
       <button
         onClick={() => setPopupOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-sm text-slate-200 transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-sm text-slate-200 transition-colors cursor-pointer"
       >
         Box
         <span className="text-slate-400 text-xs">({box.length})</span>

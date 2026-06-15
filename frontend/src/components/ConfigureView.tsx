@@ -54,163 +54,6 @@ function OpponentHeader({
 }
 
 // ─── one team column ──────────────────────────────────────────────────────────
-/*
-function TeamPanel({
-  label,
-  team,
-  allPokemon,
-  allMoves,
-  allNatures,
-  allAbilities,
-  onChange,
-  boxEntries,
-  nameToId,
-  trainerDB,
-  selectedTrainer,
-  onTrainerSelect,
-  locked = false,
-}: {
-  label: string;
-  team: PokemonConfig[];
-  allPokemon: string[];
-  allMoves: string[];
-  allNatures: string[];
-  allAbilities: string[];
-  onChange: (team: PokemonConfig[]) => void;
-  boxEntries?: BoxEntry[]; // undefined = Opponent, defined = My Team
-  nameToId?: Record<string, number>;
-  trainerDB?: TrainerDB;
-  selectedTrainer?: string;
-  onTrainerSelect?: (trainer: string | null) => void; // if provided, shows trainer select dropdown
-  locked?: boolean; // if true, disables team editing (used for Opponent when trainer is selected)
-}) {
-  function addSlot() {
-    if (team.length >= 6) return;
-    const first = allPokemon[0];
-    onChange([
-      ...team,
-      {
-        name: first,
-        gender: "Male",
-        level: 5,
-        ability: "",
-        nature: "Hardy",
-        moves: ["", "", "", ""],
-      },
-    ]);
-  }
-
-  function update(idx: number, updated: PokemonConfig) {
-    const next = [...team];
-    next[idx] = updated;
-    onChange(next);
-  }
-
-  function remove(idx: number) {
-    onChange(team.filter((_, i) => i !== idx));
-  }
-
-  return (
-    <div className="flex-1 min-w-0 space-y-3">
-      <div className="flex flex-wrap items-center gap-3 justify-between">
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
-          {label} <span className="text-slate-600">({team.length}/6)</span>
-        </h2>
-        {onTrainerSelect && trainerDB && selectedTrainer !== undefined && (
-          <div className="w-full sm:w-52">
-            <OpponentHeader
-              trainerDB={trainerDB}
-              selectedTrainer={selectedTrainer}
-              onSelectTrainer={onTrainerSelect}
-            />
-          </div>
-        )}
-      </div>
-      {locked && onTrainerSelect ? (
-        <p className="text-xs text-slate-500">
-          Trainer-selected teams are locked.
-        </p>
-      ) : null}
-
-      <div className="space-y-2">
-        {team.map((config, idx) => (
-          <PokemonSlot
-            key={idx}
-            config={config}
-            allPokemon={allPokemon}
-            allMoves={allMoves}
-            allNatures={allNatures}
-            allAbilities={allAbilities}
-            onChange={(updated) => update(idx, updated)}
-            onRemove={() => remove(idx)}
-            disabled={locked}
-          />
-        ))}
-      </div>
-
-      {team.length < 6 &&
-        !locked &&
-        (boxEntries !== undefined ? (
-          // ── My Team: pick from box ────────────────────────────────────────
-          boxEntries.length === 0 ? (
-            <p className="text-xs text-slate-500 italic text-center py-3 border border-dashed border-slate-700 rounded-lg">
-              Box is empty — open Box to add Pokémon
-            </p>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <p className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">
-                Add from box
-              </p>
-              {boxEntries.map((entry) => (
-                <button
-                  key={entry.id}
-                  onClick={() =>
-                    onChange([
-                      ...team,
-                      {
-                        name: entry.name,
-                        gender: entry.gender,
-                        level: entry.level,
-                        ability: entry.ability,
-                        nature: entry.nature,
-                        moves: [...entry.moves],
-                        ivs: { ...entry.ivs },
-                      },
-                    ])
-                  }
-                  className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-left transition-colors"
-                >
-                  {nameToId?.[entry.name] && (
-                    <img
-                      src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/icons/${nameToId[entry.name]}.png`}
-                      width={32}
-                      height={24}
-                      alt=""
-                      draggable={false}
-                      style={{ imageRendering: "pixelated" }}
-                    />
-                  )}
-                  <span className="flex-1 truncate">{entry.name}</span>
-                  <span className="text-xs text-slate-500 shrink-0">
-                    Lv.{entry.level}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )
-        ) : (
-          // ── Opponent Team: blank slot ──────────────────────────────────────
-          <button
-            onClick={addSlot}
-            className="w-full py-2 border border-dashed border-slate-600 text-slate-500 hover:text-slate-300 hover:border-slate-500 rounded-lg text-sm transition-colors"
-          >
-            + Add Pokémon
-          </button>
-        ))}
-    </div>
-  );
-}
-*/
 function TeamPanel({
   label,
   team,
@@ -224,6 +67,7 @@ function TeamPanel({
   selectedTrainer,
   onTrainerSelect,
   locked = false,
+  pokemonData,
 }: {
   label: string;
   team: PokemonConfig[];
@@ -237,6 +81,7 @@ function TeamPanel({
   selectedTrainer?: string;
   onTrainerSelect?: (trainer: string | null) => void;
   locked?: boolean;
+  pokemonData?: PokemonData;
 }) {
   function addSlot() {
     if (team.length >= 6) return;
@@ -295,9 +140,15 @@ function TeamPanel({
               nameToId={nameToId ?? {}}
               onChange={(updated) => update(idx, updated)}
               onRemove={() => remove(idx)}
+              pokemonData={pokemonData}
             />
           ) : (
-            <OpponentSlot key={idx} config={config} nameToId={nameToId ?? {}} />
+            <OpponentSlot
+              key={idx}
+              config={config}
+              nameToId={nameToId ?? {}}
+              pokemonData={pokemonData}
+            />
           ),
         )}
       </div>
@@ -305,52 +156,63 @@ function TeamPanel({
       {team.length < 6 &&
         !locked &&
         (boxEntries !== undefined ? (
-          boxEntries.length === 0 ? (
-            <p className="text-xs text-slate-500 italic text-center py-3 border border-dashed border-slate-700 rounded-lg">
-              Box is empty — open Box to add Pokémon
-            </p>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <p className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">
-                Add from box
+          (() => {
+            const availableEntries = boxEntries.filter(
+              (entry) => !team.some((t) => t.name === entry.name),
+            );
+            return availableEntries.length === 0 ? (
+              <p className="text-xs text-slate-500 italic text-center py-3 border border-dashed border-slate-700 rounded-lg">
+                {boxEntries.length === 0
+                  ? "Box is empty — open Box to add Pokémon"
+                  : "All box Pokémon are in your team"}
               </p>
-              {boxEntries.map((entry) => (
-                <button
-                  key={entry.id}
-                  onClick={() =>
-                    onChange([
-                      ...team,
-                      {
-                        name: entry.name,
-                        gender: entry.gender,
-                        level: entry.level,
-                        ability: entry.ability,
-                        nature: entry.nature,
-                        moves: [...entry.moves],
-                        ivs: { ...entry.ivs },
-                      },
-                    ])
-                  }
-                  className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-left transition-colors"
-                >
-                  {nameToId?.[entry.name] && (
-                    <img
-                      src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/icons/${nameToId[entry.name]}.png`}
-                      width={32}
-                      height={24}
-                      alt=""
-                      draggable={false}
-                      style={{ imageRendering: "pixelated" }}
-                    />
-                  )}
-                  <span className="flex-1 truncate">{entry.name}</span>
-                  <span className="text-xs text-slate-500 shrink-0">
-                    Lv.{entry.level}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-slate-500 uppercase tracking-wide">
+                  Add from box
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {availableEntries.map((entry) => (
+                    <button
+                      key={entry.id}
+                      onClick={() =>
+                        onChange([
+                          ...team,
+                          {
+                            name: entry.name,
+                            gender: entry.gender,
+                            level: entry.level,
+                            ability: entry.ability,
+                            nature: entry.nature,
+                            moves: [...entry.moves],
+                            ivs: { ...entry.ivs },
+                          },
+                        ])
+                      }
+                      className="flex flex-col items-center gap-1 px-2 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm transition-colors"
+                    >
+                      {nameToId?.[entry.name] && (
+                        <img
+                          src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/icons/${nameToId[entry.name]}.png`}
+                          width={32}
+                          height={24}
+                          alt=""
+                          draggable={false}
+                          style={{ imageRendering: "pixelated" }}
+                        />
+                      )}
+                      <span className="text-xs truncate w-full text-center">
+                        {entry.name}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        Lv.{entry.level}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()
         ) : (
           <button
             onClick={addSlot}
@@ -365,19 +227,21 @@ function TeamPanel({
 // ─── main view ────────────────────────────────────────────────────────────────
 interface Props {
   pokemonData: PokemonData | null;
-  onStart: (myTeam: PokemonConfig[], oppTeam: PokemonConfig[]) => void;
-  running: boolean;
   trainerDB: TrainerDB;
+  myTeam: PokemonConfig[];
+  setMyTeam: (team: PokemonConfig[]) => void;
+  oppTeam: PokemonConfig[];
+  setOppTeam: (team: PokemonConfig[]) => void;
 }
 
 export default function ConfigureView({
   pokemonData,
-  onStart,
-  running,
   trainerDB,
+  myTeam,
+  setMyTeam,
+  oppTeam,
+  setOppTeam,
 }: Props) {
-  const [myTeam, setMyTeam] = useState<PokemonConfig[]>([]);
-  const [oppTeam, setOppTeam] = useState<PokemonConfig[]>([]);
   const [box, setBox] = useState<BoxEntry[] | null>(null);
   const [oppLocked, setOppLocked] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState("");
@@ -430,7 +294,6 @@ export default function ConfigureView({
   }
 
   const { pokemon, moves, nameToId } = pokemonData;
-  const canStart = myTeam.length > 0 && oppTeam.length > 0;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -457,6 +320,7 @@ export default function ConfigureView({
                 onChange={setMyTeam}
                 boxEntries={box ?? []}
                 nameToId={nameToId}
+                pokemonData={pokemonData}
               />
             </div>
             <div className="w-px bg-slate-700 self-stretch shrink-0" />
@@ -473,24 +337,11 @@ export default function ConfigureView({
                 selectedTrainer={selectedTrainer}
                 onTrainerSelect={handleSelectTrainer}
                 locked={oppLocked}
+                pokemonData={pokemonData}
               />
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Start bar */}
-      <div className="border-t border-slate-700 bg-slate-900 px-4 py-3 flex items-center justify-end gap-3">
-        <span className="text-slate-500 text-sm">
-          {myTeam.length} vs {oppTeam.length} Pokémon
-        </span>
-        <button
-          onClick={() => onStart(myTeam, oppTeam)}
-          disabled={!canStart || running}
-          className="px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
-        >
-          {running ? "Running…" : "▶ Start MCTS"}
-        </button>
       </div>
     </div>
   );

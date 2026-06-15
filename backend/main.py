@@ -97,10 +97,11 @@ class PokemonConfig(BaseModel):
 
 class BattleConfig(BaseModel):
     """
-    REadable frontend data for Both teams
+    Readable frontend data for Both teams
     """
     my_team: list[PokemonConfig]
     opp_team: list[PokemonConfig]
+    iterations: int = 350_000
 
 
 @app.get("/pokemon-data")
@@ -118,10 +119,12 @@ async def get_pokemon_data() -> dict:
                 .replace("\u2642", "_M"))  # ♂
 
     name_to_id: dict[str, int] = {}
+    base_stats: dict[str, dict] = {}
     for pk_name in pkDB.keys():
         pk_id = getattr(PokemonName, _to_enum_key(pk_name), None)
         if pk_id is not None:
             name_to_id[pk_name] = pk_id
+        base_stats[pk_name] = pkDB[pk_name].get("base stats", {})
 
     return {
         "pokemon":   sorted(pkDB.keys()),
@@ -129,16 +132,22 @@ async def get_pokemon_data() -> dict:
         "natures":   sorted(natures.keys()),
         "abilities": sorted(abDB.keys()),
         "nameToId":  name_to_id,
+        "baseStats": base_stats,
+        "natureMultipliers": natures,
     }
 
 # ─── MCTS worker ─────────────────────────────────────────────────────────────
 
-def _mcts_worker(root: Node, root_state: GameState, stop_event: threading.Event) -> None:
+def _mcts_worker(root: Node, root_state: GameState, stop_event: threading.Event, max_iterations: int) -> None:
     """
     Mirrors mcts_loop() from my_mcts.py but checks stop_event each iteration
     so the WebSocket endpoint can stop it cleanly.
     """
-    for i in range(350_000):
+    random.seed(37)
+    np.random.seed(37)
+    _seed_numba(37)
+
+    for i in range(max_iterations):
         if stop_event.is_set():
             break
 
@@ -170,10 +179,6 @@ async def start_mcts(config: BattleConfig) -> dict:
         ev.set()
     await asyncio.sleep(0.1)
 
-    random.seed(37)
-    np.random.seed(37)
-    _seed_numba(37)
-
     def make_pokemon(p: PokemonConfig) -> Pokemon:
         moves = [m for m in p.moves if m]  # strip empty slots
         return Pokemon(p.name, p.gender, p.level, p.ability, p.nature, moves, ivs=p.ivs)
@@ -193,7 +198,7 @@ async def start_mcts(config: BattleConfig) -> dict:
                   running=True, iterations=0, stop_event=stop_event)
 
     threading.Thread(target=_mcts_worker,
-                     args=(root, root_state, stop_event),
+                     args=(root, root_state, stop_event, config.iterations),
                      daemon=True).start()
     return {"status": "started"}
 
