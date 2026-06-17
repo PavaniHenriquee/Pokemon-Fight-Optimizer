@@ -201,14 +201,12 @@ class Field:
     WEATHER            = TURN + 1
     WEATHER_DURATION   = WEATHER + 1
     TRICKROOM          = WEATHER_DURATION + 1
-    TRICKROOM_DURATION = TRICKROOM + 1
-    MY_SCREEN          = TRICKROOM_DURATION + 1
+    MY_SCREEN          = TRICKROOM+ 1
     MY_SCREEN_DURATION = MY_SCREEN + 1
     OPP_SCREEN         = MY_SCREEN_DURATION + 1
     OPP_SCREEN_DURATION= OPP_SCREEN + 1
     PHASE              = OPP_SCREEN_DURATION + 1
-    OPP_MOVE           = PHASE + 1
-    AI_ITEM1           = OPP_MOVE + 1
+    AI_ITEM1           = PHASE + 1
     AI_ITEM2           = AI_ITEM1 + 1
     AI_ITEM3           = AI_ITEM2 + 1
     AI_ITEM4           = AI_ITEM3 + 1

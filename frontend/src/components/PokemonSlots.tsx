@@ -47,7 +47,7 @@ function FrontSprite({
   }
   return (
     <img
-      src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}asd.png`}
+      src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`}
       alt={name}
       width={96}
       height={96}

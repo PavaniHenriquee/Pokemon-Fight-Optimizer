@@ -118,7 +118,7 @@ class MoveName:
 MoveIdToName = {v: k for k, v in MoveName.__dict__.items() if not k.startswith("__")}
 
 
-def _build_category_sets():
+def _build_category_tuples():
     physical = {-1}  # Struggle is physical
     special = set()
     for move_data in moveDB.values():
@@ -147,7 +147,7 @@ def _build_type_tuples(typ):
                 _type.add(move_id)
     return tuple(_type)
 
-PHYSICAL, SPECIAL = _build_category_sets()
+PHYSICAL, SPECIAL = _build_category_tuples()
 FIRE_MOVES = _build_type_tuples("Fire")
 WATER_MOVES = _build_type_tuples("Water")
 ELECTRIC_MOVES = _build_type_tuples("Electric")

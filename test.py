@@ -1,8 +1,8 @@
 """test"""
+import numpy as np
 from Models.pokemon import Pokemon
-from Models.idx_const import POK_LEN, Pok, MOVE_STRIDE
-from Engine.damage_calc import calculate_damage
 from Utils.helper import to_battle_array
+from NeuralNetwork.models import to_nn_input, NN_INPUT_SIZE
 
 
 charmander = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"])
@@ -15,24 +15,11 @@ my_party = [charmander]
 opp_party = [squirtle1]
 
 array = to_battle_array(my_party, opp_party)
-pok = array[0:POK_LEN]
-opp = array[POK_LEN*6:POK_LEN*7]
-opp[Pok.SPECIAL_DEFENSE_STAT_STAGE] = -1
-pok[Pok.ATTACK_STAT_STAGE] = -3
-move = pok[Pok.MOVE1_ID:(Pok.MOVE1_ID + MOVE_STRIDE)]
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=85))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=86))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=87))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=88))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=89))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=90))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=91))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=92))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=93))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=94))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=95))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=96))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=97))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=98))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=99))
-print(calculate_damage(pok,opp,move,weather=1,roll_multiplier=100))
+
+features = to_nn_input(array)
+print(features.shape)    # should be (636,)
+print(features.dtype)    # should be float32
+print(features.min(), features.max())  # should be roughly -1.0 to 1.0
+assert not np.any(np.isnan(features)), "NaN found"
+assert not np.any(np.isinf(features)), "Inf found"
+print(f"NN_INPUT_SIZE = {NN_INPUT_SIZE}")
