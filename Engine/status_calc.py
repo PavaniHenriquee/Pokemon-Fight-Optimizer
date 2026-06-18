@@ -11,7 +11,7 @@ from Models.constants import (
     _POK_SPECIAL_ATTACK_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE, _POK_SPEED_STAT_STAGE,
     _POK_EVASION_STAT_STAGE, _POK_BADLY_POISON, _POK_SLEEP_COUNTER, _POK_ACCURACY_STAT_STAGE,
     _POK_AB_ID, _POK_MAX_HP, _POK_TYPE1, _POK_TYPE2, _STATUS_PARALYSIS,
-    _TYPES_FIRE, _TYPES_ELECTRIC,
+    _TYPES_FIRE, _TYPES_ELECTRIC, _POK_CURRENT_HP,
     _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_SYNCHRONIZE,
     _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL,
 )
@@ -178,16 +178,18 @@ def calculate_effects(attacker, defender, move, weather):
 def sec_effects(move, attacker, defender, weather):
     """Calculate the secondary effects, like 10% of burning,
     30% of increasing attacking, Drain moves etc."""
+    m_target = move[_MOVE_TARGET]
+    target = m_target in TARGET_OPP_SIDE
+    if target and defender[_POK_CURRENT_HP] <= 0:
+        return
     chance = move[_SEC_CHANCE]
     roll = random.random()*100 if chance < 100 else 0
     if roll <= chance:
-        m_target = move[_MOVE_TARGET]
-
         # Stat can be both sides, so check and apply as normal
         stat_changes(move, attacker, defender, sec=True)
 
         # Status can only be opposing side, so only enter function if necessary
-        if m_target in TARGET_OPP_SIDE:
+        if target:
             if move[_SEC_STATUS] != 0:
                 apply_status(move, defender, weather, attacker, sec=True)
 

@@ -56,35 +56,35 @@ Abilities
 []Wonder Guard
 
 Moves
-[]Absorb
+[]Absorb !
 []Acid
 []Amnesia
 []Aqua Jet
 []Arm Thrust
 []Astonish
-[]Bide !
+[]Bide(E) !
 []Bite
 []Bone Club
-[]Brick Break !
+[]Brick Break(E) !
 []Bubble
-[]Bug Bite !
+[]Bug Bite(E) !
 []Bulldoze
 []Bullet Seed
 []Charm
 []Confuse Ray
 []Confusion
-[]Counter !
-[]Covet !
-[]Curse !
+[]Counter(E) !
+[]Covet(E) !
+[]Curse(B/E) !
 []Defense Curl
 []Disarming Voice
 []Ember
-[]Fake Out !
+[]Fake Out(B/E) !
 []Fire Punch
-[]Flail !
-[]Focus Energy !?
+[]Flail(E) !
+[]Focus Energy(B) !?
 []Force Palm
-[]Foresight !
+[]Foresight(B/E) !
 []Fury Cutter !
 []Fury Swipes
 []Grass Whistle
@@ -96,7 +96,7 @@ Moves
 []Hidden Power !!
 []Howl
 []Hypnosis
-[]Ingrain !
+[]Ingrain(B) !
 []Karate Chop
 []Leer
 []Low Kick !
@@ -104,14 +104,14 @@ Moves
 []Metal Claw
 []Metronome!!!!!!
 []Mud Shot
-[]Mud Sport !
+[]Mud Sport(B/E) !
 []Mud-Slap
 []Nature Power !(maybe unnecessary)
 []Peck
 []Poison Sting
 []Pound
-[]Protect !
-[]Pursuit !
+[]Protect(E) !
+[]Pursuit(E) !
 []Quick Attack
 []Razor Leaf
 []Roar
@@ -142,26 +142,129 @@ Moves
 []Uproar !
 []Vine Whip
 []Water Pulse
-[]Water Sport !
+[]Water Sport(B/E) !
 []Wing Attack
 []Withdraw
 []Wrap !
 []Zen Headbutt
 
+[]Acupressure(B/E)
+[]Aqua Ring(B/E)
+[]Aromatherapy(E)
+[]Assurance(E)
+[]Baton Pass(B/E)
+[]Belly Drum(B/E)
+[]Blizzard(E)
+[]Brine(E)
+[]Bulk Up(B)
+[]Camouflage(B)
+[]Calm Mind(B)
+[]Captivate(B/E)
+[]Close Combat(E)
+[]Conversion(E)
+[]Copycat(B/E)
+[]Cosmic Power(B)
+[]Crush Grip(E)
+[]Defog(B/E)
+[]Destiny Bond(E)
+[]Detect(E)
 []Dig
-[]Dragon Dance
+[]Disable(B/E)
+[]Doom Desire(B)
+[]Dragon Dance(B/E)
 []Dream Eater
-[]Explosion
+[]Embargo(B/E)
+[]Encore(B/E)
+[]Endeavor(E)
+[]Endure(E)
+[]Explosion(B/E)
+[]Facade(E)
+[]Feint(E)
 []Flatter
-[]Focus Punch
-[]Future Sight
+[]Fling(B/E)
+[]Focus Punch(E)
+[]Future Sight(B) !
+[]Gastro Acid(B/E)
+[]Gravity(B/E)
+[]Guard Swap(B/E)
+[]Hail(E)
+[]Hammer Arm(E)
+[]Haze(E)
+[]Heal Bell(E)
+[]Heal Block(B/E)
+[]Heart Swap(E)
+[]Healing Wish(B/E)
+[]Helping Hand
 []Hyper Beam
-[]Nightmare
-[]Psych Up
-[]Selfdestruct
-[]Sleep Talk
-[]Sucker Punch
+[]Imprison(B/E)
+[]Knock Off(B/E)
+[]Last Resort(B/E)
+[]Leech Seed(B/E)
+[]Lock On(B/E)
+[]Light Screen(B/E)
+[]Lucky Chant(B/E)
+[]Lunar Dance(B/E)
+[]Magic Coat(E)
+[]Magnet Rise(B/E)
+[]Mean Look(B)
+[]Memento(B/E)
+[]Metal Burst(B/E)
+[]Me First(E)
+[]Mind Reader(E)
+[]Miracle Eye(B/E)
+[]Mirror Coat(E)
+[]Mirror Move(E)
+[]Mist(B)
+[]Natural Gift(B)
+[]Nightmare(B/E)
+[]Odor Sleuth(E)
+[]Pain Split(E)
+[]Payback(E)
+[]Perish Song(B)
+[]Pluck(E)
+[]Power Swap(B/E)
+[]Power Trick(B/E)
+[]Psych Up(E)
+[]Psycho Shift(B/E)
+[]Punishment(E)
+[]Rain Dance(E)
+[]Recycle(E)
+[]Reflect(B/E)
+[]Refresh(B/E)
+[]Rest(E)
+[]Reversal(E)
+[]Safeguard(B)
+[]Selfdestruct(B/E)
+[]Sleep Talk(B/E)
+[]Smelling Salt(E)
+[]Snatch(E)
+[]Snore(B)
+[]Spikes(E)
+[]Spit Up(B/E)
+[]Stealth Rock(E)
+[]Stockpile(B)
+[]Substitute(B/E)
+[]Sucker Punch(E)
+[]Sunny Day(E)
+[]Super Fang(E)
+[]Superpower(E)
 []Swagger
+[]Swallow(B)
+[]Switcheroo(B/E)
+[]Tailwind(B/E)
+[]Thief(E)
+[]Tickle(B)
+[]Torment(B)
+[]Toxic(E)
+[]Toxic Spikes(E)
+[]Trick(B/E)
+[]Trick Room(B/E)
+[]Trump Card(E)
+[]U-Turn(E)
+[]Vital Throw(E)
+[]Wake-Up Slap(E)
+[]Worry Seed(B/E)
+[]Wring Out(E)
 
 Items
 []Expert Belt
@@ -213,7 +316,6 @@ Pokemon
 []Phanpy
 []Pidgey
 []Piplup
-[]Psyduck
 []Psyduck
 []Ralts
 []Rattata

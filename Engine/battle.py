@@ -137,7 +137,7 @@ def ps_moves(attacker, defender, move, weather):
     ab_when = defender[_POK_AB_WHEN]
     crit = calculate_crit(ab_when)
     damage = calculate_damage(attacker, defender, move, weather, crit)
-    if damage <= defender[_POK_CURRENT_HP]:
+    if damage < defender[_POK_CURRENT_HP]:
         defender[_POK_CURRENT_HP] -= damage
         if (
             move[_FLAGS_CONTACT]
@@ -163,10 +163,10 @@ def ps_moves(attacker, defender, move, weather):
                 attacker[_POK_CURRENT_HP] = 0
                 return  # Both are dead so early return
 
-    # TODO: recoil
+    # TODO: recoil, drain
 
     # Check for secondary effects and apply them
-    if move[_SEC_CHANCE] and defender[_POK_CURRENT_HP] > 0:
+    if move[_SEC_CHANCE]:
         sec_effects(move, attacker, defender, weather)
 
 

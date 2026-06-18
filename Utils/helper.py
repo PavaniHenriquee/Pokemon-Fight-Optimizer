@@ -19,7 +19,7 @@ def stage_to_multiplier(stages, stat) -> int:
     return res
 
 
-@njit
+@njit(cache=True)
 def get_type_effectiveness(atk_type, def_type1, def_type2):
     """Get how effective the type is against its target"""
     atk = atk_type

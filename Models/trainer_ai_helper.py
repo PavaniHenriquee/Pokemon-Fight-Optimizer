@@ -885,7 +885,7 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
     """
     TODO:
     --------------Specific Moves---------------
-    Self-Destruct, Explosion, Memento
+    Selfdestruct, Explosion, Memento
     Healing Wish, Lunar Dance
     Mirror Move
     Dragon Dance
