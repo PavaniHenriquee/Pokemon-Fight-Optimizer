@@ -99,7 +99,15 @@ class Moves():
             else 0
         )
         base_move_array[Move.RECOIL] = self.move.get('recoil', 0)  #Considering division by 100 later
-        base_move_array[Move.DRAIN]  = self.move.get('drain', 0)
+        drain = self.move.get('drain', 0)
+        if not isinstance(drain, int):
+            # its 50% or 75%
+            if drain[1]==2:
+                base_move_array[Move.DRAIN]  = 2
+            else:
+                base_move_array[Move.DRAIN]  = 3
+        else:
+            base_move_array[Move.DRAIN]  = self.move.get('drain', 0)
         return base_move_array
 
     def move_flags(self):
