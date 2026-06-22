@@ -11,7 +11,7 @@ from Models.constants import (
     _POK_SPECIAL_ATTACK_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE, _POK_SPEED_STAT_STAGE,
     _POK_EVASION_STAT_STAGE, _POK_BADLY_POISON, _POK_SLEEP_COUNTER, _POK_ACCURACY_STAT_STAGE,
     _POK_AB_ID, _POK_MAX_HP, _POK_TYPE1, _POK_TYPE2, _STATUS_PARALYSIS,
-    _TYPES_FIRE, _TYPES_ELECTRIC, _POK_CURRENT_HP,
+    _TYPES_FIRE, _TYPES_ELECTRIC, _POK_CURRENT_HP, _SEC_BOOST_ACC,
     _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_SYNCHRONIZE,
     _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL,
 )
@@ -109,7 +109,6 @@ def stat_changes(move, attacker, defender, sec=False):
     """
     Check and apply stat changes
     """
-    #TODO: Secondary case
     # 1.Check if ANY stat change exists
     has_stat_boost = False
     if sec:
@@ -135,7 +134,7 @@ def stat_changes(move, attacker, defender, sec=False):
                 if boost != 0:
                     attacker[stat_idx] = max(-6, min(6, attacker[stat_idx] + boost))
 
-            acc_boost = move[_MOVE_BOOST_ACC]
+            acc_boost = move[_MOVE_BOOST_ACC] if not sec else move[_SEC_BOOST_ACC]
             if acc_boost != 0:
                 attacker[_POK_ACCURACY_STAT_STAGE] = (
                     max(-6, min(6, attacker[_POK_ACCURACY_STAT_STAGE] + acc_boost))
@@ -148,7 +147,7 @@ def stat_changes(move, attacker, defender, sec=False):
                 if boost != 0:
                     defender[stat_idx] = max(-6, min(6, defender[stat_idx] + boost))
 
-            acc_boost = move[_MOVE_BOOST_ACC]
+            acc_boost = move[_MOVE_BOOST_ACC] if not sec else move[_SEC_BOOST_ACC]
             if acc_boost != 0:
                 if acc_boost < 0 and defender[_POK_AB_ID] == _ABILITYNAMES_KEEN_EYE:
                     pass # Blocked
@@ -162,7 +161,7 @@ def stat_changes(move, attacker, defender, sec=False):
 def calculate_effects(attacker, defender, move, weather):
     """Calculate the effect parts of the moves"""
     if move[_MOVE_CATEGORY] != _MOVECATEGORY_STATUS:
-        return
+        raise ValueError("Broken")
 
     # Stat Buffs and Debuffs
     stat_changes(move, attacker, defender)

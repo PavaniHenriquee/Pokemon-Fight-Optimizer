@@ -56,11 +56,11 @@ Abilities
 []Wonder Guard
 
 Moves
-[]Absorb !
-[]Acid
-[]Amnesia
-[]Aqua Jet
-[]Arm Thrust
+[X]Absorb !
+[X]Acid
+[X]Amnesia
+[X]Aqua Jet
+[]Arm Thrust !
 []Astonish
 []Bide(E) !
 []Bite

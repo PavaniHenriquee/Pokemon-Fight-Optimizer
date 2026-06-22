@@ -16,7 +16,8 @@ from Engine.engine_helper import (
     contact_ability,
     heal_end_turn,
     on_residual,
-    trainer_ai_items
+    trainer_ai_items,
+    drain
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage, struggle
@@ -35,7 +36,7 @@ from Models.constants import (
     _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_POWER, _MOVE_ID, _MOVE_PP,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START,
-    _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE
+    _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN
 )
 from Models.move import STRUGGLE
 
@@ -163,7 +164,10 @@ def ps_moves(attacker, defender, move, weather):
                 attacker[_POK_CURRENT_HP] = 0
                 return  # Both are dead so early return
 
-    # TODO: recoil, drain
+    # TODO: recoil
+    if move[_MOVE_DRAIN]:
+        drain(attacker, move, damage)
+
 
     # Check for secondary effects and apply them
     if move[_SEC_CHANCE]:

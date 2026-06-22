@@ -25,7 +25,7 @@ from Models.constants import (
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
     _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED, _ABILITYNAMES_SWIFT_SWIM,
     _ABILITYNAMES_SYNCHRONIZE, _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_WATER_ABSORB,
-    _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL
+    _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN
 )
 
 
@@ -90,9 +90,9 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
 
     p1_speed, p2_speed = check_speed(p1, p2, weather)
 
-    move1_prio = (p1[OFFSET_MOVE + my_move  * MOVE_STRIDE + _MOVE_PRIORITY]
+    move1_prio = (p1[my_move  * MOVE_STRIDE + OFFSET_MOVE + _MOVE_PRIORITY]
               if my_move  != 10 else 0)
-    move2_prio = (p2[OFFSET_MOVE + opp_move * MOVE_STRIDE + _MOVE_PRIORITY]
+    move2_prio = (p2[opp_move * MOVE_STRIDE + OFFSET_MOVE + _MOVE_PRIORITY]
               if opp_move != 10 else 0)
 
     if (
@@ -435,3 +435,15 @@ def trainer_ai_items(pok, item):
         pok[_POK_SPECIAL_ATTACK_STAT_STAGE] = min(6, pok[_POK_SPECIAL_ATTACK_STAT_STAGE] + 1)
     elif item == _POTIONS_X_SPEED:
         pok[_POK_SPEED_STAT_STAGE] = min(6, pok[_POK_SPEED_STAT_STAGE] + 1)
+
+
+@njit
+def drain(pok, move, dmg):
+    """
+    Drain calculation and application
+    """
+    drain_pct = move[_MOVE_DRAIN]
+    heal = (dmg*drain_pct)//4
+    if heal == 0:
+        heal = 1
+    pok[_POK_CURRENT_HP] = min(pok[_POK_CURRENT_HP]+heal, pok[_POK_MAX_HP])
