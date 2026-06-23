@@ -1,14 +1,56 @@
-// The list of action cards at the bottom. Sorted by visits, best first.
 import type { TreeNode, ActionData } from "../types";
 
-function WinBar({ win }: { win: number }) {
+const gen7Icon = (id: number) =>
+  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-vii/icons/${id}.png`;
+
+function WinRing({ win, size = 30 }: { win: number; size?: number }) {
+  const strokeWidth = 2.5;
+  const r = (size - strokeWidth * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const fill = win * circ;
   const color = win > 0.65 ? "#4ade80" : win > 0.4 ? "#fbbf24" : "#f87171";
+  const cx = size / 2;
+
   return (
-    <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
-      <div
-        className="h-full rounded-full transition-all duration-300"
-        style={{ width: `${(win * 100).toFixed(1)}%`, background: color }}
-      />
+    <div
+      style={{ position: "relative", width: size, height: size, flexShrink: 0 }}
+    >
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle
+          cx={cx}
+          cy={cx}
+          r={r}
+          fill="none"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={cx}
+          cy={cx}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={`${fill} ${circ - fill}`}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dasharray 0.4s ease, stroke 0.3s" }}
+        />
+      </svg>
+      <span
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "0.44rem",
+          fontWeight: 800,
+          color,
+          lineHeight: 1,
+        }}
+      >
+        {Math.round(win * 100)}
+      </span>
     </div>
   );
 }
@@ -51,6 +93,10 @@ export default function ActionPanel({
     );
   }
 
+  const maxVisits = Math.max(
+    ...Object.values(node.actions).map((a) => a.total_visits),
+    1,
+  );
   const bestKey =
     Object.entries(node.actions).sort(
       ([, a], [, b]) => b.total_visits - a.total_visits,
@@ -58,7 +104,6 @@ export default function ActionPanel({
 
   const moves = sorted.filter(([, a]) => a.action_type === 1);
   const switches = sorted.filter(([, a]) => a.action_type === 2);
-
   const isDeath = snapshot.phase === "DEATH";
 
   function ActionCard({
@@ -70,11 +115,16 @@ export default function ActionPanel({
   }) {
     const isBest = actionKey === bestKey;
     const isSelected = actionKey === selectedKey;
+    const switchPokId =
+      action.action_type === 2 ? action.nodes[0]?.snapshot.my?.id : undefined;
+    const visitFillPct = (action.total_visits / maxVisits) * 100;
+
     return (
       <button
         onClick={() => onActionClick(actionKey)}
+        style={{ position: "relative", overflow: "hidden" }}
         className={[
-          "flex flex-col gap-1.5 p-2.5 rounded-lg border text-left cursor-pointer transition-colors",
+          "flex flex-col gap-1.5 p-2.5 pb-3 rounded-lg border text-left cursor-pointer transition-colors",
           "bg-[var(--surface)] text-[var(--text)]",
           isSelected
             ? "border-[var(--accent)] bg-[var(--surface2)]"
@@ -83,22 +133,84 @@ export default function ActionPanel({
               : "border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--surface2)]",
         ].join(" ")}
       >
-        <div className="flex justify-between items-baseline gap-1">
-          <span className="font-semibold text-sm truncate">
-            {isBest && <span className="text-[var(--accent)] mr-0.5">★</span>}
+        {/* Switch: pokemon icon */}
+        {switchPokId !== undefined && (
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <img
+              src={gen7Icon(switchPokId)}
+              alt=""
+              style={{
+                width: 40,
+                height: 30,
+                imageRendering: "pixelated",
+                objectFit: "contain",
+              }}
+            />
+          </div>
+        )}
+
+        {/* Label */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            gap: 4,
+          }}
+        >
+          <span
+            style={{
+              fontWeight: 600,
+              fontSize: "0.85rem",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {isBest && (
+              <span style={{ color: "var(--accent)", marginRight: 2 }}>★</span>
+            )}
             {action.label}
-          </span>
-          <span className="text-[10px] text-slate-500 shrink-0">
-            {action.total_visits.toLocaleString()}v
           </span>
         </div>
 
-        <WinBar win={action.win_chance} />
+        {/* Win ring + secondary stats */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <WinRing win={action.win_chance} size={30} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: "0.6rem", color: "var(--muted)" }}>
+              {action.dead_avg.toFixed(2)} deaths
+            </span>
+            <span
+              style={{ fontSize: "0.58rem", color: "rgba(120,128,160,0.55)" }}
+            >
+              {action.nodes.length} outcomes
+            </span>
+          </div>
+          <span className="text-[0.58rem] text-[var(--muted)] rounded-md px-10.5 py-0.5">
+            {action.total_visits.toLocaleString()} visits
+          </span>
+        </div>
 
-        <div className="flex gap-2 text-[10px] text-slate-500">
-          <span>{(action.win_chance * 100).toFixed(1)}%</span>
-          <span>{action.dead_avg.toFixed(2)} Exp. Deaths</span>
-          <span>{action.nodes.length} Outcomes</span>
+        {/* Visit bar — 2px strip at bottom edge, fills relative to most-visited action */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 2,
+            background: "rgba(255,255,255,0.04)",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${visitFillPct}%`,
+              background: isBest ? "var(--accent)" : "rgba(120,128,160,0.3)",
+              transition: "width 0.4s ease",
+            }}
+          />
         </div>
       </button>
     );
@@ -106,7 +218,6 @@ export default function ActionPanel({
 
   return (
     <section className="flex-1 p-4 overflow-y-auto space-y-4 min-h-0">
-      {/* Moves row — always 4 columns, placeholders fill empty slots */}
       {!isDeath && moves.length > 0 && (
         <div>
           <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
@@ -119,14 +230,14 @@ export default function ActionPanel({
             {Array.from({ length: 4 - moves.length }).map((_, i) => (
               <div
                 key={`mp-${i}`}
-                className="rounded-lg border border-dashed border-slate-700/40 h-20"
+                className="rounded-lg border border-dashed border-slate-700/40"
+                style={{ minHeight: 80 }}
               />
             ))}
           </div>
         </div>
       )}
 
-      {/* Switches row — up to 5 columns (6 pokemon minus 1 active) */}
       {switches.length > 0 && (
         <div>
           <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
@@ -139,7 +250,8 @@ export default function ActionPanel({
             {Array.from({ length: 5 - switches.length }).map((_, i) => (
               <div
                 key={`sp-${i}`}
-                className="rounded-lg border border-dashed border-slate-700/40 h-20"
+                className="rounded-lg border border-dashed border-slate-700/40"
+                style={{ minHeight: 100 }}
               />
             ))}
           </div>

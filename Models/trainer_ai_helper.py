@@ -37,7 +37,7 @@ from Models.constants import (
     _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _MOVE_ID, _POK_CURRENT_HP,
     _MOVE_PRIORITY, _MOVENAME_FAKE_OUT, _POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID,
     _POK_MOVE4_ID, _MOVENAME_PSYCH_UP, _MOVENAME_DRAGON_DANCE, _VOLSTATUS_LEECH_SEED,
-    _VOLSTATUS_CURSE, _POK_MAX_HP, _MOVE_ACCURACY, _POK_ITEM_ID
+    _VOLSTATUS_CURSE, _POK_MAX_HP, _MOVE_ACCURACY, _POK_ITEM_ID, _MOVE_DRAIN
 )
 
 
@@ -830,7 +830,7 @@ def expert_stat(
 
 
 @njit
-def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
+def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it
@@ -881,6 +881,17 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
             add_adjustment(rand, idx, 1, 156)
         return score
 
+    # Draining Moves (e.g. Absorb, Dream Eater)
+    if move[_MOVE_DRAIN]:
+        if move[_MOVE_ID] == _MOVENAME_DREAM_EATER:
+            if effectiveness < 1.0:
+                return -1
+            if u_pok[_POK_STATUS] == _STATUS_SLEEP:
+                add_adjustment(rand, idx, 3, 205)
+            return 0
+        if effectiveness < 1.0:
+            add_adjustment(rand, idx, -3, 206)
+        return 0
 
     """
     TODO:
@@ -980,7 +991,6 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move):
     Stealth Rock
 
     --------------Effect Moves-----------------
-    Draining Attacks (e.g. Giga Drain)
     Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
     Switch-Forcing Moves (Roar, Whirlwind)
     Recovery Moves (e.g., Recover, Synthesis, Swallow)

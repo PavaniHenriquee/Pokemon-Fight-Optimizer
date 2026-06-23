@@ -340,7 +340,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: 
             return True
         attacker[_POK_STATUS] = 0
     # Flinch
-    if idx >= 2 and flinch:
+    if flinch and idx >= 2:
         if defender[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
             defender[_POK_SPEED_STAT_STAGE] = min(6, defender[_POK_SPEED_STAT_STAGE] + 1)
         return True

@@ -272,7 +272,7 @@ def choose_move(battle_array):
         eval_atk = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, _rand)
         score = eval_atk + basic_flag(move, ability, ai_pok, user_pok, effectiveness, weather)
 
-        expert = expert_flag(ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move)
+        expert = expert_flag(ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness)
         score += expert
 
         is_damaging = move_id not in MOVE_EXCEP and not move_is_status
