@@ -5,8 +5,9 @@ from dataclasses import dataclass
 from typing import List, Tuple
 import numpy as np
 from Models.idx_const import (
-    Pok, Field, POK_LEN, MOVE_STRIDE, Move
+    Pok, Field, POK_LEN, MOVE_STRIDE, Move, FIELD_LEN
 )
+from Models.constants import _STATUS_TOXIC
 from Models.trainer_ai import return_idx
 from Models.helper import count_party, ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action
@@ -16,6 +17,12 @@ _MOVE_ID_IDXS = tuple(Pok.MOVE1_ID + i * MOVE_STRIDE for i in range(4))
 _MOVE_PP_IDXS = tuple(idx + Move.PP for idx in _MOVE_ID_IDXS)
 _POK_HP_OFFSETS = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
 N_BINS = 10
+_PP_IDXS = (
+    Pok.MOVE1_ID + Move.PP,
+    Pok.MOVE2_ID + Move.PP,
+    Pok.MOVE3_ID + Move.PP,
+    Pok.MOVE4_ID + Move.PP,
+)
 
 
 class GameState():
@@ -141,25 +148,96 @@ class GameState():
 
 @dataclass(slots=True)
 class NodeSnapshot:
-    """Just what i need to save in the node from the GameState so i save memory"""
-    phase:      int
-    opp_active: int
-    my_slice:   np.ndarray
-    opp_slice:  np.ndarray
-    terminal:   bool
+    """
+    Snapshot of the state so i don't need to store the entire battle_array
+    """
+    phase:        int
+    opp_active:   int
+    my_active:    int
+    my_slice:     np.ndarray
+    opp_slice:    np.ndarray
+    terminal:     bool
     opp_move_idx: int
+    bench_delta:  np.ndarray  # (12, 8) int32 — [hp, status, sleep_ctr, turns, pp0..pp3] per slot
+    field_block:  np.ndarray  # (FIELD_LEN,) int32
 
     @staticmethod
-    def from_state(state: GameState) -> 'NodeSnapshot':
-        """return the values"""
+    def from_state(state: 'GameState') -> 'NodeSnapshot':
+        """
+        Returns the values
+        """
+        bench = np.zeros((12, 8), dtype=np.int32)
+        for i in range(6):
+            pok = state.battle_array[i * POK_LEN : (i + 1) * POK_LEN]
+            bench[i, 0] = pok[Pok.CURRENT_HP]
+            bench[i, 1] = pok[Pok.STATUS]
+            bench[i, 2] = pok[Pok.SLEEP_COUNTER]
+            bench[i, 3] = pok[Pok.TURNS]
+            for m, pp_idx in enumerate(_PP_IDXS):
+                bench[i, 4 + m] = pok[pp_idx]
+        for i in range(6):
+            pok = state.battle_array[(i + 6) * POK_LEN : (i + 7) * POK_LEN]
+            bench[i + 6, 0] = pok[Pok.CURRENT_HP]
+            bench[i + 6, 1] = pok[Pok.STATUS]
+            bench[i + 6, 2] = pok[Pok.SLEEP_COUNTER]
+            bench[i + 6, 3] = pok[Pok.TURNS]
+            for m, pp_idx in enumerate(_PP_IDXS):
+                bench[i + 6, 4 + m] = pok[pp_idx]
+
+        field_start = POK_LEN * 12
         return NodeSnapshot(
-            phase      = state.phase,
-            opp_active = state.opp_active,
-            my_slice   = state.get_my_active().copy(),
-            opp_slice  = state.get_opp_active().copy(),
-            terminal   = state.is_terminal(),
+            phase        = state.phase,
+            opp_active   = state.opp_active,
+            my_active    = state.my_active,
+            my_slice     = state.get_my_active().copy(),
+            opp_slice    = state.get_opp_active().copy(),
+            terminal     = state.is_terminal(),
             opp_move_idx = -1 if state.opp_move_last is None else int(state.opp_move_last),
+            bench_delta  = bench,
+            field_block  = state.battle_array[field_start : field_start + FIELD_LEN].copy(),
         )
+
+
+def reconstruct_battle_array(snap: NodeSnapshot, initial: np.ndarray) -> np.ndarray:
+    """
+    Rebuild a battle_array from a NodeSnapshot and the initial array at MCTS start.
+    Bench fields restored from bench_delta; active slots overwritten with exact slices;
+    field block (turn, weather, indices, phase...) fully replaced.
+    """
+    out = initial.copy()
+
+    # 1. Patch the 8 mutable bench fields for all 12 party slots
+    for i in range(6):
+        base = i * POK_LEN
+        out[base + Pok.CURRENT_HP]    = snap.bench_delta[i, 0]
+        out[base + Pok.STATUS]         = snap.bench_delta[i, 1]
+        out[base + Pok.SLEEP_COUNTER]  = snap.bench_delta[i, 2]
+        out[base + Pok.TURNS]          = snap.bench_delta[i, 3]
+        out[base + Pok.BADLY_POISON]   = 1 if snap.bench_delta[i, 1] == _STATUS_TOXIC else 0
+        for m, pp_idx in enumerate(_PP_IDXS):
+            out[base + pp_idx] = snap.bench_delta[i, 4 + m]
+
+    for i in range(6):
+        base = (i + 6) * POK_LEN
+        out[base + Pok.CURRENT_HP]    = snap.bench_delta[i + 6, 0]
+        out[base + Pok.STATUS]         = snap.bench_delta[i + 6, 1]
+        out[base + Pok.SLEEP_COUNTER]  = snap.bench_delta[i + 6, 2]
+        out[base + Pok.TURNS]          = snap.bench_delta[i + 6, 3]
+        out[base + Pok.BADLY_POISON]   = 1 if snap.bench_delta[i + 6, 1] == _STATUS_TOXIC else 0
+        for m, pp_idx in enumerate(_PP_IDXS):
+            out[base + pp_idx] = snap.bench_delta[i + 6, 4 + m]
+
+    # 2. Overwrite active slots with the full exact slice (stat stages, vol_status, etc.)
+    if snap.my_active >= 0:
+        out[snap.my_active * POK_LEN : (snap.my_active + 1) * POK_LEN] = snap.my_slice
+
+    out[(snap.opp_active + 6) * POK_LEN : (snap.opp_active + 7) * POK_LEN] = snap.opp_slice
+
+    # 3. Restore field block — includes MY_POK, OPP_POK, turn, weather, phase, AI fields
+    out[POK_LEN * 12 : POK_LEN * 12 + FIELD_LEN] = snap.field_block
+
+    return out
+
 
 
 def cvar_from_hist(hist, visits, alpha=0.15):

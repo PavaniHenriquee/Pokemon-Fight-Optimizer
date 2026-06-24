@@ -36,7 +36,7 @@ from Models.constants import (
     _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_POWER, _MOVE_ID, _MOVE_PP,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START,
-    _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN
+    _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN, _MOVE_MULTI_HIT_MIN, _MOVE_MULTI_HIT_MAX
 )
 from Models.move import STRUGGLE
 
@@ -132,12 +132,19 @@ def start_of_turn(opp_move, switch_idx, battle_array):
         switch_in(current_pokemon, current_opp)
 
 
+MULTIHIT_PROB=(2,2,2,3,3,3,4,5)
+
+
 @njit
-def ps_moves(attacker, defender, move, weather):
-    """Physical or Special moves, where I need to calculate damage and secondary effects"""
+def _ps_moves_core(attacker, defender, move, weather):
+    """
+    Finds crit, calculates and apply damage, check for contact abilities, if it applies flinch
+    and if the defender dies checks for aftermath
+    """
     ab_when = defender[_POK_AB_WHEN]
     crit = calculate_crit(ab_when)
     damage = calculate_damage(attacker, defender, move, weather, crit)
+    flinch = False
     if damage < defender[_POK_CURRENT_HP]:
         defender[_POK_CURRENT_HP] -= damage
         if (
@@ -148,6 +155,8 @@ def ps_moves(attacker, defender, move, weather):
             )
         ):
             contact_ability(attacker, defender)
+        if move[_SEC_VOL_STATUS] & _VOLSTATUS_FLINCH:
+            flinch = flinch_checker(move, defender)
     else:
         defender[_POK_CURRENT_HP] = 0
         # Aftermath damage after kill
@@ -158,11 +167,30 @@ def ps_moves(attacker, defender, move, weather):
             and attacker[_POK_AB_ID] != _ABILITYNAMES_DAMP
         ):
             dmg = attacker[_POK_MAX_HP] // 4
-            if dmg <= attacker[_POK_CURRENT_HP:]:
+            if dmg < attacker[_POK_CURRENT_HP:]:
                 attacker[_POK_CURRENT_HP] -= damage
             else:
                 attacker[_POK_CURRENT_HP] = 0
-                return  # Both are dead so early return
+                return False, damage # Both are dead so early return
+    return flinch, damage
+
+
+@njit
+def ps_moves_multihit(attacker, defender, move, weather):
+    """Physical or Special multihit moves, where I need to calculate damage and secondary effects"""
+    mult_hit_min = move[_MOVE_MULTI_HIT_MIN]
+    mult_hit_max = move[_MOVE_MULTI_HIT_MAX]
+    flinch = False
+    if mult_hit_min == 2 and mult_hit_max == 5:
+        multhit = MULTIHIT_PROB[random.getrandbits(3)]
+    elif mult_hit_min == mult_hit_max:
+        multhit = mult_hit_min
+    else:
+        raise ValueError("Moves that are variable and not 2-5 shouldn't exit, check DB")
+    for i in range(multhit):
+        if i and early_returns(attacker, defender, 1, False, move):
+            break
+        flinch, damage = _ps_moves_core(attacker, defender, move, weather)
 
     # TODO: recoil
     if move[_MOVE_DRAIN]:
@@ -172,6 +200,25 @@ def ps_moves(attacker, defender, move, weather):
     # Check for secondary effects and apply them
     if move[_SEC_CHANCE]:
         sec_effects(move, attacker, defender, weather)
+
+    return flinch
+
+
+@njit
+def ps_moves(attacker, defender, move, weather):
+    """Physical or Special moves, where I need to calculate damage and secondary effects"""
+    flinch, damage = _ps_moves_core(attacker, defender, move, weather)
+
+    # TODO: recoil
+    if move[_MOVE_DRAIN]:
+        drain(attacker, move, damage)
+
+
+    # Check for secondary effects and apply them
+    if move[_SEC_CHANCE]:
+        sec_effects(move, attacker, defender, weather)
+
+    return flinch
 
 
 @njit
@@ -236,11 +283,12 @@ def action(current_move, opp_move, battle_array):
                 if mv1[_MOVE_ID] == _MOVENAME_STRUGGLE:
                     struggle(atk1, def1)
                 elif mv1[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
-                    ps_moves(atk1, def1, mv1, weather)
+                    if mv1[_MOVE_MULTI_HIT_MIN]:
+                        flinch = ps_moves_multihit(atk1, def1, mv1, weather)
+                    else:
+                        flinch = ps_moves(atk1, def1, mv1, weather)
                     if first_is_mine:   # def1 is current_opp only when my pokemon goes first
                         battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = mv1[_MOVE_TYPE]
-                    if mv1[_SEC_VOL_STATUS] & _VOLSTATUS_FLINCH:
-                        flinch = flinch_checker(mv1, def1)
                     if def1[_POK_STATUS] == _STATUS_FREEZE:
                         thaw(mv1, def1)
                 else:
@@ -261,7 +309,10 @@ def action(current_move, opp_move, battle_array):
                 if mv2[_MOVE_ID] == _MOVENAME_STRUGGLE:
                     struggle(atk2, def2)
                 elif mv2[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
-                    ps_moves(atk2, def2, mv2, weather)
+                    if mv1[_MOVE_MULTI_HIT_MIN]:
+                        _ = ps_moves_multihit(atk2, def2, mv2, weather)
+                    else:
+                        _ = ps_moves(atk2, def2, mv2, weather)
                     if not first_is_mine:   # def2 is current_opp only when opp went first
                         battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = mv2[_MOVE_TYPE]
                     if def2[_POK_STATUS] == _STATUS_FREEZE:

@@ -1,6 +1,7 @@
 """Main"""
 import random
 import numpy as np
+import psutil
 from Models.constants import _FIELD_TURN
 # Profile command
 # py-spy record -s -f speedscope -r 250 -o flamegraph.speedscope.json -- python main.py
@@ -23,6 +24,23 @@ def build_battle():
     opp_party = [squirtle1, charmander1, charmander1, charmander1, charmander1]
 
     return to_battle_array(my_party, opp_party)
+
+
+def print_peak_memory():
+    """
+    Check the maximum amount of RAM the program used 
+    """
+    # Automatically grabs the current running Python process
+    process = psutil.Process()
+    mem_info = process.memory_info()
+
+    # peak_wset is a Windows-specific metric representing the maximum physical RAM reached
+    peak_bytes = mem_info.peak_wset
+    peak_mb = peak_bytes / (1024 * 1024)
+
+    print("\n==========================================")
+    print(f"[MEMORY REPORT] Peak RAM Usage: {peak_mb:.2f} MB")
+    print("==========================================")
 
 
 def run_single():
@@ -92,7 +110,7 @@ def run_jit():
         start_of_battle(battle)
     root = GameState(battle)
     print("-----------------------MCTS NJIT-----------------------------")
-    mcts(root, max_iterations=350_000)
+    mcts(root, max_iterations=100_000)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
 
@@ -124,3 +142,4 @@ if __name__ =='__main__':
     #run_parallel()
     run_jit()
     #run_jit_base_time()
+    print_peak_memory()

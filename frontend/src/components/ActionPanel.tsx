@@ -187,7 +187,7 @@ export default function ActionPanel({
               {action.nodes.length} outcomes
             </span>
           </div>
-          <span className="text-[0.58rem] text-[var(--muted)] rounded-md px-10.5 py-0.5">
+          <span className="text-[0.58rem] text-[var(--muted)] rounded-md max-w-sm mx-auto text-center">
             {action.total_visits.toLocaleString()} visits
           </span>
         </div>

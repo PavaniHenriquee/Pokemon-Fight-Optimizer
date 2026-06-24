@@ -348,11 +348,11 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: 
     if attacker[_POK_VOL_STATUS] != 0 and attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
         if random.getrandbits(1):
             return True
-    # In cases like after recoil damage, selfdestruct, etc.
+    # In cases like after recoil damage, selfdestruct, multihit etc.
     if defender[_POK_CURRENT_HP] <= 0:
         if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
             return False
-        #TODO: Some moves still go through, like dig, future sight
+        #TODO: Some moves still go through, like dig, future sight, charge moves
         return True
     return False
 

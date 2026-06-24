@@ -60,7 +60,7 @@ Moves
 [X]Acid
 [X]Amnesia
 [X]Aqua Jet
-[]Arm Thrust !
+[X]Arm Thrust !
 []Astonish
 []Bide(E) !
 []Bite
