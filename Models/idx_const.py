@@ -35,7 +35,10 @@ class Pok:
     VOL_STATUS                = STATUS + 1
     SLEEP_COUNTER             = VOL_STATUS + 1
     BADLY_POISON              = SLEEP_COUNTER + 1
-    TURNS                     = BADLY_POISON + 1
+    DMG_TAKEN                 = BADLY_POISON + 1
+    CHARGE_RECHARGE           = DMG_TAKEN + 1
+    LOCKED_MOVE               = CHARGE_RECHARGE + 1
+    TURNS                     = LOCKED_MOVE + 1
     GENDER                    = TURNS + 1
     WEIGHT                    = GENDER + 1
     AB_ID                     = WEIGHT + 1
@@ -89,7 +92,8 @@ class Move:
     BOOST_EV         = BOOST_ACC + 1
     SIDE_CONDITION   = BOOST_EV + 1
     RECOIL           = SIDE_CONDITION + 1
-    DRAIN            = RECOIL + 1
+    CHARGE_RECHARGE  = RECOIL + 1
+    DRAIN            = CHARGE_RECHARGE + 1
 
 
 BASE_MOVE_LEN = _length(Move)

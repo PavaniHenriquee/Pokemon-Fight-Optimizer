@@ -11,7 +11,7 @@ import threading
 import asyncio
 import random
 import json
-from typing import Optional
+from typing import Optional, cast
 from pydantic import BaseModel, Field
 import numpy as np
 from numba import njit
@@ -273,7 +273,7 @@ async def node_info(node_id: str) -> dict:
     Node info
     """
     root    = _state["root"]
-    initial: np.ndarray = _state["battle_array"]
+    initial = cast(np.ndarray, _state.get("battle_array"))
     if root is None or initial is None:
         return {"error": "no active battle"}
 

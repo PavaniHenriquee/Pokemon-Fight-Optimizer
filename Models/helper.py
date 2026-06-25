@@ -47,15 +47,13 @@ StatustoName = {v: k for k, v in Status.__dict__.items() if not k.startswith("__
 @dataclass(slots=True)
 class VolStatus:
     """Volatile status to numbers, using bitmap"""
-    FLINCH = 1
-    CONFUSION = 2
-    HEAL_BLOCK = 4
-    SALT_CURE = 8
-    SPARKLIN_ARIA = 16
-    PARTIALLY_TRAPPED = 32
-    LEECH_SEED = 64
-    CURSE = 128
-    ATTRACT = 256
+    FLINCH            = 1
+    CONFUSION         = 2
+    HEAL_BLOCK        = 4
+    LEECH_SEED        = 8
+    CURSE             = 16
+    ATTRACT           = 32
+    BIDE              = 64
 
 
 @dataclass(slots=True)

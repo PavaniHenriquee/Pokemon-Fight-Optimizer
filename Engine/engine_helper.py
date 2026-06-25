@@ -25,7 +25,8 @@ from Models.constants import (
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
     _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED, _ABILITYNAMES_SWIFT_SWIM,
     _ABILITYNAMES_SYNCHRONIZE, _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_WATER_ABSORB,
-    _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN
+    _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN, _POK_DMG_TAKEN,
+    _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE
 )
 
 
@@ -212,6 +213,9 @@ def reset_switch_out(pok):
     pok[_POK_ATTACK_STAT_STAGE : _POK_EVASION_STAT_STAGE + 1] = 0
     pok[_POK_VOL_STATUS] = 0
     pok[_POK_BADLY_POISON] = 1 if pok[_POK_STATUS] == _STATUS_TOXIC else 0
+    pok[_POK_DMG_TAKEN] = 0
+    pok[_POK_CHARGE_RECHARGE] = 0
+    pok[_POK_LOCKED_MOVE] = -1
 
 
 @njit
@@ -325,8 +329,22 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: 
     if atker_status == _STATUS_SLEEP:
         if attacker[_POK_SLEEP_COUNTER] > 0:
             attacker[_POK_SLEEP_COUNTER] -= 1
+            if attacker[_POK_CHARGE_RECHARGE] > 0:
+                attacker[_POK_CHARGE_RECHARGE] -= 1
             return True
         attacker[_POK_STATUS] = 0
+    # Freeze
+    if atker_status == _STATUS_FREEZE:
+        if freeze():
+            if attacker[_POK_CHARGE_RECHARGE] > 0:
+                attacker[_POK_CHARGE_RECHARGE] -= 1
+            return True
+        attacker[_POK_STATUS] = 0
+    # Charging poke e.g. solarbeam, bide
+    if attacker[_POK_CHARGE_RECHARGE] > 0:
+        attacker[_POK_CHARGE_RECHARGE] -= 1
+        if attacker[_POK_CHARGE_RECHARGE] > 0:
+            return True
     # Check for Paralysis
     if (
         atker_status == _STATUS_PARALYSIS
@@ -334,11 +352,6 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: 
         and defender[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD  #Gen 4 exclusive
     ):
         return True
-    # Freeze
-    if atker_status == _STATUS_FREEZE:
-        if freeze():
-            return True
-        attacker[_POK_STATUS] = 0
     # Flinch
     if flinch and idx >= 2:
         if defender[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
@@ -350,9 +363,13 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: 
             return True
     # In cases like after recoil damage, selfdestruct, multihit etc.
     if defender[_POK_CURRENT_HP] <= 0:
+        # Move not targeting the defender, so don't matter its dead
         if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
             return False
-        #TODO: Some moves still go through, like dig, future sight, charge moves
+        # Charge move on its first turn
+        if move[_MOVE_CHARGE_RECHARGE] > 0 and attacker[_POK_LOCKED_MOVE] == -1:
+            return False
+        #TODO: Some moves still go through, like future sight
         return True
     return False
 

@@ -61,7 +61,7 @@ Moves
 [X]Amnesia
 [X]Aqua Jet
 [X]Arm Thrust !
-[]Astonish
+[X]Astonish
 []Bide(E) !
 []Bite
 []Bone Club
@@ -342,3 +342,6 @@ Misc.
 [X]Trainer AI potion
 [X]Weather
 [X]PP Counter
+
+Doubles
+[]Bide

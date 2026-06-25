@@ -99,6 +99,7 @@ class Moves():
             else 0
         )
         base_move_array[Move.RECOIL] = self.move.get('recoil', 0)  #Considering division by 100 later
+        base_move_array[Move.CHARGE_RECHARGE] = self.move.get('charge', 0) - self.move.get('recharge', 0)
         drain = self.move.get('drain', 0)
         if not isinstance(drain, int):
             # its 50% or 75%
@@ -192,7 +193,7 @@ class Moves():
         vol_status2 = secondary.get('vol_status2')
         sec_array[SecondaryArray.VOL_STATUS2 - off] = (
             getattr(VolStatus, vol_status2.upper())
-            if vol_status
+            if vol_status2
             else 0
         )
 

@@ -98,17 +98,22 @@ export interface PokemonData {
 }
 
 export interface PokemonEntry {
-  slot:    number;
-  pok_id:  number;
-  name:    string;
-  hp:      number;
-  max_hp:  number;
+  slot: number;
+  pok_id: number;
+  name: string;
+  hp: number;
+  max_hp: number;
 }
 
 export interface NodeInfoData {
-  my_active:  PokemonEntry | null;   // null in DEATH phase
+  my_active: PokemonEntry | null; // null in DEATH phase
   opp_active: PokemonEntry;
-  my_bench:   PokemonEntry[];        // alive bench only
+  my_bench: PokemonEntry[]; // alive bench only
 }
 
-export type TrainerDB = Record<string, PokemonConfig[]>;
+export interface TrainerEntry {
+  sprite: string;
+  team: PokemonConfig[];
+}
+
+export type TrainerDB = Record<string, TrainerEntry>;

@@ -135,6 +135,9 @@ class Pokemon:
             self.sleep_counter,
             self.badly_poison,
             self.turns,
+            0,   # This is dmg taken
+            0,   # This is Charge Recharge
+            -1,  # This is for Locked move -1 because move idx is 0-3
             gender,
             self.weight
         ], dtype=np.int32)

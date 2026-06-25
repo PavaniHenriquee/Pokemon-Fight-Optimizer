@@ -100,6 +100,7 @@
   "Bide": {
     "accuracy": true,
     "category": "Physical",
+    "charge": 2,
     "flags": {
       "contact": true,
       "fail_instruct": true,
@@ -109,8 +110,10 @@
     },
     "name": "bide",
     "pp": 10,
+    "priority": 1,
     "target": "self",
-    "type": "Normal"
+    "type": "Normal",
+    "vol_status": "bide"
   },
   "Bite": {
     "accuracy": 100,

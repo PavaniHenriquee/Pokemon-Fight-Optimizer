@@ -7,7 +7,7 @@ import numpy as np
 from Models.idx_const import (
     Pok, Field, POK_LEN, MOVE_STRIDE, Move, FIELD_LEN
 )
-from Models.constants import _STATUS_TOXIC
+from Models.constants import _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE
 from Models.trainer_ai import return_idx
 from Models.helper import count_party, ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action
@@ -143,6 +143,12 @@ class GameState():
             self.my_active = -1
 
         self.opp_move_cache = None # Needs to clear the cache so it picks a new one next time
+        if self.phase != BattlePhase.DEATH_END_OF_TURN and not self.is_terminal():
+            active_pok = self.get_my_active()
+            if active_pok[_POK_CHARGE_RECHARGE] != 0:
+                locked_move = int(active_pok[_POK_LOCKED_MOVE])
+                if locked_move >= 0:
+                    return self.step((ActionType.MOVE, locked_move))
         return self
 
 

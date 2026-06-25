@@ -25,31 +25,48 @@ function OpponentHeader({
   onSelectTrainer: (trainer: string | null) => void;
 }) {
   const options = Object.keys(trainerDB);
+  const sprite = trainerDB[selectedTrainer]?.sprite ?? null;
 
   return (
-    <Combobox
-      value={selectedTrainer}
-      onValueChange={(v) => {
-        if (!v) onSelectTrainer(null);
-        else onSelectTrainer(v);
-      }}
-      items={options}
-    >
-      <ComboboxInput
-        className="bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-2 py-1 w-full"
-        placeholder={options[0]}
-      />
-      <ComboboxContent>
-        <ComboboxEmpty>No results</ComboboxEmpty>
-        <ComboboxList>
-          {(item: string) => (
-            <ComboboxItem key={item} value={item}>
-              {item}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
+    <div className="flex items-center gap-2">
+      <div style={{ width: 40, height: 40, flexShrink: 0 }}>
+        {sprite && (
+          <img
+            src={`https://play.pokemonshowdown.com/sprites/trainers/${sprite}.png`}
+            alt={selectedTrainer}
+            style={{
+              width: 40,
+              height: 40,
+              objectFit: "contain",
+              imageRendering: "pixelated",
+            }}
+          />
+        )}
+      </div>
+      <Combobox
+        value={selectedTrainer}
+        onValueChange={(v) => {
+          if (!v) onSelectTrainer(null);
+          else onSelectTrainer(v);
+        }}
+        items={options}
+      >
+        <ComboboxInput
+          className="bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-2 py-1 w-full"
+          placeholder={options[0]}
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>No results</ComboboxEmpty>
+          <ComboboxList>
+            {(item: string) => (
+              <ComboboxItem key={item} value={item}>
+                {item}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    </div>
   );
 }
 
@@ -251,7 +268,7 @@ export default function ConfigureView({
     const firstTrainer = Object.keys(trainerDB)[0];
     if (firstTrainer && selectedTrainer === "") {
       setSelectedTrainer(firstTrainer);
-      setOppTeam(trainerDB[firstTrainer] ?? []);
+      setOppTeam(trainerDB[firstTrainer]?.team ?? []); // was trainerDB[firstTrainer] ?? []
       setOppLocked(true);
     }
   }, [trainerDB, selectedTrainer]);
@@ -279,9 +296,8 @@ export default function ConfigureView({
       setSelectedTrainer("");
       return;
     }
-
     setSelectedTrainer(trainer);
-    setOppTeam(trainerDB[trainer] ?? []);
+    setOppTeam(trainerDB[trainer]?.team ?? []); // was trainerDB[trainer] ?? []
     setOppLocked(true);
   }
 

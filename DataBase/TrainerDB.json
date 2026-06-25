@@ -1,44 +1,47 @@
 {
-  "Test": [
-    {
-      "name": "Squirtle",
-      "gender": "Male",
-      "level": 5,
-      "ability": "Torrent",
-      "nature": "Hardy",
-      "moves": ["Tackle", "Tail Whip", "", ""]
-    },
-    {
-      "name": "Charmander",
-      "gender": "Male",
-      "level": 5,
-      "ability": "Blaze",
-      "nature": "Hardy",
-      "moves": ["Scratch", "Growl", "", ""]
-    },
-    {
-      "name": "Charmander",
-      "gender": "Male",
-      "level": 5,
-      "ability": "Blaze",
-      "nature": "Hardy",
-      "moves": ["Scratch", "Growl", "", ""]
-    },
-    {
-      "name": "Charmander",
-      "gender": "Male",
-      "level": 5,
-      "ability": "Blaze",
-      "nature": "Hardy",
-      "moves": ["Scratch", "Growl", "", ""]
-    },
-    {
-      "name": "Charmander",
-      "gender": "Male",
-      "level": 5,
-      "ability": "Blaze",
-      "nature": "Hardy",
-      "moves": ["Scratch", "Growl", "", ""]
-    }
-  ]
+  "Test": {
+    "sprite": "youngster",
+    "team": [
+      {
+        "name": "Squirtle",
+        "gender": "Male",
+        "level": 5,
+        "ability": "Torrent",
+        "nature": "Hardy",
+        "moves": ["Tackle", "Tail Whip", "", ""]
+      },
+      {
+        "name": "Charmander",
+        "gender": "Male",
+        "level": 5,
+        "ability": "Blaze",
+        "nature": "Hardy",
+        "moves": ["Scratch", "Growl", "", ""]
+      },
+      {
+        "name": "Charmander",
+        "gender": "Male",
+        "level": 5,
+        "ability": "Blaze",
+        "nature": "Hardy",
+        "moves": ["Scratch", "Growl", "", ""]
+      },
+      {
+        "name": "Charmander",
+        "gender": "Male",
+        "level": 5,
+        "ability": "Blaze",
+        "nature": "Hardy",
+        "moves": ["Scratch", "Growl", "", ""]
+      },
+      {
+        "name": "Charmander",
+        "gender": "Male",
+        "level": 5,
+        "ability": "Blaze",
+        "nature": "Hardy",
+        "moves": ["Scratch", "Growl", "", ""]
+      }
+    ]
+  }
 }
