@@ -97,4 +97,18 @@ export interface PokemonData {
   natureMultipliers: Record<string, Record<string, number>>;
 }
 
+export interface PokemonEntry {
+  slot:    number;
+  pok_id:  number;
+  name:    string;
+  hp:      number;
+  max_hp:  number;
+}
+
+export interface NodeInfoData {
+  my_active:  PokemonEntry | null;   // null in DEATH phase
+  opp_active: PokemonEntry;
+  my_bench:   PokemonEntry[];        // alive bench only
+}
+
 export type TrainerDB = Record<string, PokemonConfig[]>;

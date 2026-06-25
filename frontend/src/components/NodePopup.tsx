@@ -170,6 +170,19 @@ function PokRow({
             {range}
           </span>
         </div>
+        {Object.keys(pok.stages).length > 0 && (
+          <div className="flex flex-row flex-wrap gap-3 mt-1">
+            {Object.entries(pok.stages).map(([stat, val]) => (
+              <span
+                key={stat}
+                className={`badge stage-badge ${val > 0 ? "up" : "down"}`}
+              >
+                {stat} {val > 0 ? "+" : ""}
+                {val}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

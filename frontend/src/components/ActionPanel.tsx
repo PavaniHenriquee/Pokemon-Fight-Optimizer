@@ -43,11 +43,11 @@ function WinRing({ win, size = 30 }: { win: number; size?: number }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "0.44rem",
           fontWeight: 800,
           color,
           lineHeight: 1,
         }}
+        className="text-sm"
       >
         {Math.round(win * 100)}
       </span>
@@ -140,8 +140,8 @@ export default function ActionPanel({
               src={gen7Icon(switchPokId)}
               alt=""
               style={{
-                width: 40,
-                height: 30,
+                width: 70,
+                height: 50,
                 imageRendering: "pixelated",
                 objectFit: "contain",
               }}
@@ -150,23 +150,8 @@ export default function ActionPanel({
         )}
 
         {/* Label */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            gap: 4,
-          }}
-        >
-          <span
-            style={{
-              fontWeight: 600,
-              fontSize: "0.85rem",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+        <div className="flex flex-row justify-center items-center gap-1">
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap font-bold text-lg">
             {isBest && (
               <span style={{ color: "var(--accent)", marginRight: 2 }}>★</span>
             )}
@@ -176,18 +161,16 @@ export default function ActionPanel({
 
         {/* Win ring + secondary stats */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <WinRing win={action.win_chance} size={30} />
+          <WinRing win={action.win_chance} size={50} />
           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: "0.6rem", color: "var(--muted)" }}>
+            <span className="text-xs text-[var(--muted)]">
               {action.dead_avg.toFixed(2)} deaths
             </span>
-            <span
-              style={{ fontSize: "0.58rem", color: "rgba(120,128,160,0.55)" }}
-            >
+            <span className="text-xs text-[rgba(120,128,160,0.55)]">
               {action.nodes.length} outcomes
             </span>
           </div>
-          <span className="text-[0.58rem] text-[var(--muted)] rounded-md max-w-sm mx-auto text-center">
+          <span className="text-[var(--muted)] rounded-md max-w-sm mx-auto text-center font-semibold text-sm">
             {action.total_visits.toLocaleString()} visits
           </span>
         </div>

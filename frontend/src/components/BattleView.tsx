@@ -265,7 +265,13 @@ function BattleSlot({
   );
 }
 
-export default function BattleView({ node }: { node: TreeNode }) {
+export default function BattleView({
+  node,
+  onContinue,
+}: {
+  node: TreeNode;
+  onContinue: (id: string) => void;
+}) {
   const { snapshot } = node;
   const isDeath = snapshot.phase === "DEATH";
   const bestAction =
@@ -343,6 +349,23 @@ export default function BattleView({ node }: { node: TreeNode }) {
         {snapshot.terminal && (
           <span className="badge terminal-badge">TERMINAL</span>
         )}
+        <button
+          onClick={() => onContinue(node.id)}
+          style={{
+            marginLeft: "auto",
+            padding: "3px 10px",
+            background: "transparent",
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+            color: "var(--muted)",
+            fontSize: "0.7rem",
+            cursor: "pointer",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
+        >
+          Continue from here
+        </button>
       </div>
     </section>
   );

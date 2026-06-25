@@ -171,7 +171,7 @@ function TeamPanel({
                 <p className="text-xs text-slate-500 uppercase tracking-wide">
                   Add from box
                 </p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-6 gap-2">
                   {availableEntries.map((entry) => (
                     <button
                       key={entry.id}
@@ -189,7 +189,7 @@ function TeamPanel({
                           },
                         ])
                       }
-                      className="flex flex-col items-center gap-1 px-2 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm transition-colors"
+                      className="flex flex-col items-center gap-1 px-2 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm transition-colors cursor-pointer"
                     >
                       {nameToId?.[entry.name] && (
                         <img

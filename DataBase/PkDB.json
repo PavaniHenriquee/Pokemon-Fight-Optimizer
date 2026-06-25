@@ -31,7 +31,7 @@
       "HP": 80,
       "Attack": 82,
       "Defense": 83,
-      "Special Attack": 100,
+      "Special Attack": 110,
       "Special Defense": 100,
       "Speed": 80
     },
@@ -65,12 +65,12 @@
     "weight": 19.0
   },
   "Charizard": {
-    "type": ["Fire", "Flying"],
+    "type": ["Fire", "Dragon"],
     "base stats": {
       "HP": 78,
       "Attack": 84,
       "Defense": 78,
-      "Special Attack": 109,
+      "Special Attack": 110,
       "Special Defense": 85,
       "Speed": 100
     },
@@ -109,7 +109,7 @@
       "HP": 79,
       "Attack": 83,
       "Defense": 100,
-      "Special Attack": 85,
+      "Special Attack": 90,
       "Special Defense": 105,
       "Speed": 78
     },
@@ -147,10 +147,10 @@
     "base stats": {
       "HP": 60,
       "Attack": 45,
-      "Defense": 50,
-      "Special Attack": 90,
-      "Special Defense": 80,
-      "Speed": 70
+      "Defense": 45,
+      "Special Attack": 110,
+      "Special Defense": 100,
+      "Speed": 90
     },
     "abilities": ["Run Away", "Tinted Lens"],
     "weight": 32.0
@@ -185,11 +185,11 @@
     "type": ["Bug", "Poison"],
     "base stats": {
       "HP": 65,
-      "Attack": 90,
+      "Attack": 115,
       "Defense": 40,
-      "Special Attack": 45,
-      "Special Defense": 80,
-      "Speed": 75
+      "Special Attack": 40,
+      "Special Defense": 95,
+      "Speed": 95
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 29.5
@@ -198,9 +198,9 @@
     "type": ["Normal", "Flying"],
     "base stats": {
       "HP": 40,
-      "Attack": 45,
-      "Defense": 40,
-      "Special Attack": 35,
+      "Attack": 35,
+      "Defense": 35,
+      "Special Attack": 50,
       "Special Defense": 35,
       "Speed": 56
     },
@@ -211,9 +211,9 @@
     "type": ["Normal", "Flying"],
     "base stats": {
       "HP": 63,
-      "Attack": 60,
-      "Defense": 55,
-      "Special Attack": 50,
+      "Attack": 50,
+      "Defense": 50,
+      "Special Attack": 65,
       "Special Defense": 50,
       "Speed": 71
     },
@@ -224,9 +224,9 @@
     "type": ["Normal", "Flying"],
     "base stats": {
       "HP": 83,
-      "Attack": 80,
-      "Defense": 75,
-      "Special Attack": 70,
+      "Attack": 60,
+      "Defense": 70,
+      "Special Attack": 115,
       "Special Defense": 70,
       "Speed": 101
     },
@@ -250,11 +250,11 @@
     "type": ["Normal"],
     "base stats": {
       "HP": 55,
-      "Attack": 81,
-      "Defense": 60,
-      "Special Attack": 50,
+      "Attack": 97,
+      "Defense": 70,
+      "Special Attack": 45,
       "Special Defense": 70,
-      "Speed": 97
+      "Speed": 113
     },
     "abilities": ["Run Away", "Hustle"],
     "weight": 18.5
@@ -276,7 +276,7 @@
     "type": ["Normal", "Flying"],
     "base stats": {
       "HP": 65,
-      "Attack": 90,
+      "Attack": 110,
       "Defense": 65,
       "Special Attack": 61,
       "Special Defense": 61,
@@ -302,10 +302,10 @@
     "type": ["Poison"],
     "base stats": {
       "HP": 60,
-      "Attack": 95,
-      "Defense": 69,
-      "Special Attack": 65,
-      "Special Defense": 79,
+      "Attack": 110,
+      "Defense": 70,
+      "Special Attack": 55,
+      "Special Defense": 80,
       "Speed": 80
     },
     "abilities": ["Intimidate", "Intimidate"],
@@ -328,9 +328,9 @@
     "type": ["Electric"],
     "base stats": {
       "HP": 60,
-      "Attack": 90,
+      "Attack": 95,
       "Defense": 55,
-      "Special Attack": 90,
+      "Special Attack": 95,
       "Special Defense": 80,
       "Speed": 110
     },
@@ -481,14 +481,14 @@
     "weight": 9.9
   },
   "Ninetales": {
-    "type": ["Fire"],
+    "type": ["Fire", "Fairy"],
     "base stats": {
       "HP": 73,
-      "Attack": 76,
+      "Attack": 67,
       "Defense": 75,
       "Special Attack": 81,
       "Special Defense": 100,
-      "Speed": 100
+      "Speed": 109
     },
     "abilities": ["Flash Fire", "Flash Fire"],
     "weight": 19.9
@@ -497,11 +497,11 @@
     "type": ["Normal", "Fairy"],
     "base stats": {
       "HP": 115,
-      "Attack": 45,
-      "Defense": 20,
-      "Special Attack": 45,
-      "Special Defense": 25,
-      "Speed": 20
+      "Attack": 55,
+      "Defense": 30,
+      "Special Attack": 55,
+      "Special Defense": 35,
+      "Speed": 30
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 5.5
@@ -510,11 +510,11 @@
     "type": ["Normal", "Fairy"],
     "base stats": {
       "HP": 140,
-      "Attack": 70,
-      "Defense": 45,
-      "Special Attack": 85,
-      "Special Defense": 50,
-      "Speed": 45
+      "Attack": 80,
+      "Defense": 55,
+      "Special Attack": 95,
+      "Special Defense": 60,
+      "Speed": 55
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 12.0
@@ -601,10 +601,10 @@
     "type": ["Bug", "Grass"],
     "base stats": {
       "HP": 60,
-      "Attack": 95,
-      "Defense": 80,
-      "Special Attack": 60,
-      "Special Defense": 80,
+      "Attack": 115,
+      "Defense": 100,
+      "Special Attack": 55,
+      "Special Defense": 90,
       "Speed": 30
     },
     "abilities": ["Run Away", "Damp"],
@@ -627,9 +627,9 @@
     "type": ["Bug", "Poison"],
     "base stats": {
       "HP": 70,
-      "Attack": 65,
+      "Attack": 55,
       "Defense": 60,
-      "Special Attack": 90,
+      "Special Attack": 100,
       "Special Defense": 75,
       "Speed": 90
     },
@@ -679,9 +679,9 @@
     "type": ["Normal"],
     "base stats": {
       "HP": 65,
-      "Attack": 70,
+      "Attack": 80,
       "Defense": 60,
-      "Special Attack": 65,
+      "Special Attack": 80,
       "Special Defense": 65,
       "Speed": 115
     },
@@ -702,7 +702,7 @@
     "weight": 19.6
   },
   "Golduck": {
-    "type": ["Water"],
+    "type": ["Water", "Psychic"],
     "base stats": {
       "HP": 80,
       "Attack": 82,
@@ -1066,14 +1066,14 @@
     "weight": 60.0
   },
   "Farfetchd": {
-    "type": ["Normal", "Flying"],
+    "type": ["Fighting", "Flying"],
     "base stats": {
-      "HP": 52,
-      "Attack": 90,
-      "Defense": 55,
-      "Special Attack": 58,
-      "Special Defense": 62,
-      "Speed": 60
+      "HP": 55,
+      "Attack": 110,
+      "Defense": 60,
+      "Special Attack": 55,
+      "Special Defense": 60,
+      "Speed": 110
     },
     "abilities": ["Keen Eye", "Keen Eye"],
     "weight": 15.0
@@ -1121,9 +1121,9 @@
     "type": ["Water", "Ice"],
     "base stats": {
       "HP": 90,
-      "Attack": 70,
+      "Attack": 80,
       "Defense": 80,
-      "Special Attack": 70,
+      "Special Attack": 80,
       "Special Defense": 95,
       "Speed": 70
     },
@@ -1225,11 +1225,11 @@
     "type": ["Rock", "Ground"],
     "base stats": {
       "HP": 35,
-      "Attack": 45,
+      "Attack": 75,
       "Defense": 160,
       "Special Attack": 30,
       "Special Defense": 45,
-      "Speed": 70
+      "Speed": 80
     },
     "abilities": ["Rock Head", "Rock Head"],
     "weight": 210.0
@@ -1524,11 +1524,11 @@
     "type": ["Water"],
     "base stats": {
       "HP": 45,
-      "Attack": 67,
+      "Attack": 77,
       "Defense": 60,
-      "Special Attack": 35,
+      "Special Attack": 25,
       "Special Defense": 50,
-      "Speed": 63
+      "Speed": 73
     },
     "abilities": ["Swift Swim", "Swift Swim"],
     "weight": 15.0
@@ -1537,11 +1537,11 @@
     "type": ["Water"],
     "base stats": {
       "HP": 80,
-      "Attack": 92,
-      "Defense": 65,
-      "Special Attack": 65,
+      "Attack": 122,
+      "Defense": 80,
+      "Special Attack": 45,
       "Special Defense": 80,
-      "Speed": 68
+      "Speed": 78
     },
     "abilities": ["Swift Swim", "Swift Swim"],
     "weight": 39.0
@@ -1576,11 +1576,11 @@
     "type": ["Psychic", "Fairy"],
     "base stats": {
       "HP": 40,
-      "Attack": 45,
+      "Attack": 35,
       "Defense": 65,
-      "Special Attack": 100,
+      "Special Attack": 110,
       "Special Defense": 120,
-      "Speed": 90
+      "Speed": 95
     },
     "abilities": ["Soundproof", "Soundproof"],
     "weight": 54.5
@@ -1601,10 +1601,10 @@
   "Jynx": {
     "type": ["Ice", "Psychic"],
     "base stats": {
-      "HP": 65,
-      "Attack": 50,
+      "HP": 75,
+      "Attack": 40,
       "Defense": 35,
-      "Special Attack": 115,
+      "Special Attack": 125,
       "Special Defense": 95,
       "Speed": 95
     },
@@ -1757,12 +1757,12 @@
   "Flareon": {
     "type": ["Fire"],
     "base stats": {
-      "HP": 65,
+      "HP": 110,
       "Attack": 130,
       "Defense": 60,
-      "Special Attack": 95,
-      "Special Defense": 110,
-      "Speed": 65
+      "Special Attack": 65,
+      "Special Defense": 65,
+      "Speed": 95
     },
     "abilities": ["Flash Fire", "Guts"],
     "weight": 25.0
@@ -1989,12 +1989,12 @@
     "weight": 15.8
   },
   "Meganium": {
-    "type": ["Grass"],
+    "type": ["Grass", "Fairy"],
     "base stats": {
       "HP": 80,
       "Attack": 82,
       "Defense": 100,
-      "Special Attack": 83,
+      "Special Attack": 93,
       "Special Defense": 100,
       "Speed": 80
     },
@@ -2031,11 +2031,11 @@
     "type": ["Fire"],
     "base stats": {
       "HP": 78,
-      "Attack": 84,
-      "Defense": 78,
-      "Special Attack": 109,
-      "Special Defense": 85,
-      "Speed": 100
+      "Attack": 79,
+      "Defense": 73,
+      "Special Attack": 124,
+      "Special Defense": 80,
+      "Speed": 101
     },
     "abilities": ["Blaze", "Flash Fire"],
     "weight": 79.5
@@ -2067,10 +2067,10 @@
     "weight": 25.0
   },
   "Feraligatr": {
-    "type": ["Water"],
+    "type": ["Water", "Dark"],
     "base stats": {
       "HP": 85,
-      "Attack": 105,
+      "Attack": 110,
       "Defense": 100,
       "Special Attack": 79,
       "Special Defense": 83,
@@ -2082,12 +2082,12 @@
   "Sentret": {
     "type": ["Normal"],
     "base stats": {
-      "HP": 35,
-      "Attack": 46,
-      "Defense": 34,
+      "HP": 45,
+      "Attack": 45,
+      "Defense": 35,
       "Special Attack": 35,
       "Special Defense": 45,
-      "Speed": 20
+      "Speed": 40
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 6.0
@@ -2095,12 +2095,12 @@
   "Furret": {
     "type": ["Normal"],
     "base stats": {
-      "HP": 85,
-      "Attack": 76,
-      "Defense": 64,
+      "HP": 95,
+      "Attack": 85,
+      "Defense": 65,
       "Special Attack": 45,
       "Special Defense": 55,
-      "Speed": 90
+      "Speed": 105
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 32.5
@@ -2119,14 +2119,14 @@
     "weight": 21.2
   },
   "Noctowl": {
-    "type": ["Normal", "Flying"],
+    "type": ["Psychic", "Flying"],
     "base stats": {
       "HP": 100,
-      "Attack": 50,
-      "Defense": 50,
-      "Special Attack": 86,
-      "Special Defense": 96,
-      "Speed": 70
+      "Attack": 40,
+      "Defense": 40,
+      "Special Attack": 106,
+      "Special Defense": 116,
+      "Speed": 60
     },
     "abilities": ["Keen Eye", "Tinted Lens"],
     "weight": 40.8
@@ -2135,9 +2135,9 @@
     "type": ["Bug", "Flying"],
     "base stats": {
       "HP": 40,
-      "Attack": 20,
+      "Attack": 50,
       "Defense": 30,
-      "Special Attack": 40,
+      "Special Attack": 20,
       "Special Defense": 80,
       "Speed": 55
     },
@@ -2147,10 +2147,10 @@
   "Ledian": {
     "type": ["Bug", "Flying"],
     "base stats": {
-      "HP": 55,
-      "Attack": 35,
+      "HP": 65,
+      "Attack": 105,
       "Defense": 50,
-      "Special Attack": 55,
+      "Special Attack": 35,
       "Special Defense": 110,
       "Speed": 85
     },
@@ -2161,11 +2161,11 @@
     "type": ["Bug", "Poison"],
     "base stats": {
       "HP": 40,
-      "Attack": 60,
+      "Attack": 70,
       "Defense": 40,
       "Special Attack": 40,
       "Special Defense": 40,
-      "Speed": 30
+      "Speed": 45
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 8.5
@@ -2174,11 +2174,11 @@
     "type": ["Bug", "Poison"],
     "base stats": {
       "HP": 70,
-      "Attack": 90,
+      "Attack": 110,
       "Defense": 70,
-      "Special Attack": 60,
+      "Special Attack": 50,
       "Special Defense": 70,
-      "Speed": 40
+      "Speed": 80
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 33.5
@@ -2340,7 +2340,7 @@
     "weight": 13.3
   },
   "Ampharos": {
-    "type": ["Electric"],
+    "type": ["Electric", "Dragon"],
     "base stats": {
       "HP": 90,
       "Attack": 75,
@@ -2371,7 +2371,7 @@
       "HP": 70,
       "Attack": 20,
       "Defense": 50,
-      "Special Attack": 20,
+      "Special Attack": 40,
       "Special Defense": 50,
       "Speed": 40
     },
@@ -2381,7 +2381,7 @@
   "Azumarill": {
     "type": ["Water", "Fairy"],
     "base stats": {
-      "HP": 100,
+      "HP": 110,
       "Attack": 50,
       "Defense": 80,
       "Special Attack": 60,
@@ -2394,11 +2394,11 @@
   "Sudowoodo": {
     "type": ["Rock"],
     "base stats": {
-      "HP": 70,
-      "Attack": 100,
-      "Defense": 115,
+      "HP": 95,
+      "Attack": 115,
+      "Defense": 125,
       "Special Attack": 30,
-      "Special Defense": 65,
+      "Special Defense": 75,
       "Speed": 30
     },
     "abilities": ["Sturdy", "Sturdy"],
@@ -2423,7 +2423,7 @@
       "HP": 35,
       "Attack": 35,
       "Defense": 40,
-      "Special Attack": 35,
+      "Special Attack": 45,
       "Special Defense": 55,
       "Speed": 50
     },
@@ -2436,7 +2436,7 @@
       "HP": 55,
       "Attack": 45,
       "Defense": 50,
-      "Special Attack": 45,
+      "Special Attack": 65,
       "Special Defense": 65,
       "Speed": 80
     },
@@ -2449,7 +2449,7 @@
       "HP": 75,
       "Attack": 55,
       "Defense": 70,
-      "Special Attack": 55,
+      "Special Attack": 85,
       "Special Defense": 95,
       "Speed": 110
     },
@@ -2485,11 +2485,11 @@
   "Sunflora": {
     "type": ["Grass"],
     "base stats": {
-      "HP": 75,
-      "Attack": 75,
-      "Defense": 55,
-      "Special Attack": 105,
-      "Special Defense": 85,
+      "HP": 85,
+      "Attack": 55,
+      "Defense": 85,
+      "Special Attack": 125,
+      "Special Defense": 95,
       "Speed": 30
     },
     "abilities": ["Chlorophyll", "Chlorophyll"],
@@ -2512,8 +2512,8 @@
     "type": ["Water", "Ground"],
     "base stats": {
       "HP": 55,
-      "Attack": 45,
-      "Defense": 45,
+      "Attack": 55,
+      "Defense": 55,
       "Special Attack": 25,
       "Special Defense": 25,
       "Speed": 15
@@ -2525,8 +2525,8 @@
     "type": ["Water", "Ground"],
     "base stats": {
       "HP": 95,
-      "Attack": 85,
-      "Defense": 85,
+      "Attack": 95,
+      "Defense": 95,
       "Special Attack": 65,
       "Special Defense": 65,
       "Speed": 35
@@ -2587,7 +2587,7 @@
     "weight": 79.5
   },
   "Misdreavus": {
-    "type": ["Ghost"],
+    "type": ["Ghost", "Fairy"],
     "base stats": {
       "HP": 60,
       "Attack": 60,
@@ -2602,12 +2602,12 @@
   "Unown": {
     "type": ["Psychic"],
     "base stats": {
-      "HP": 48,
-      "Attack": 72,
-      "Defense": 48,
-      "Special Attack": 72,
-      "Special Defense": 48,
-      "Speed": 48
+      "HP": 54,
+      "Attack": 108,
+      "Defense": 54,
+      "Special Attack": 108,
+      "Special Defense": 54,
+      "Speed": 54
     },
     "abilities": ["Levitate", "Levitate"],
     "weight": 5.0
@@ -2667,11 +2667,11 @@
   "Dunsparce": {
     "type": ["Normal"],
     "base stats": {
-      "HP": 100,
-      "Attack": 70,
-      "Defense": 70,
-      "Special Attack": 65,
-      "Special Defense": 65,
+      "HP": 105,
+      "Attack": 95,
+      "Defense": 95,
+      "Special Attack": 55,
+      "Special Defense": 55,
       "Speed": 45
     },
     "abilities": ["Run Away", "Run Away"],
@@ -2694,9 +2694,9 @@
     "type": ["Steel", "Ground"],
     "base stats": {
       "HP": 75,
-      "Attack": 85,
+      "Attack": 105,
       "Defense": 200,
-      "Special Attack": 55,
+      "Special Attack": 45,
       "Special Defense": 65,
       "Speed": 30
     },
@@ -2734,8 +2734,8 @@
     "base stats": {
       "HP": 65,
       "Attack": 95,
-      "Defense": 85,
-      "Special Attack": 55,
+      "Defense": 95,
+      "Special Attack": 45,
       "Special Defense": 55,
       "Speed": 85
     },
@@ -2823,11 +2823,11 @@
   "Slugma": {
     "type": ["Fire"],
     "base stats": {
-      "HP": 40,
-      "Attack": 40,
-      "Defense": 40,
-      "Special Attack": 70,
-      "Special Defense": 40,
+      "HP": 50,
+      "Attack": 50,
+      "Defense": 50,
+      "Special Attack": 90,
+      "Special Defense": 50,
       "Speed": 20
     },
     "abilities": ["Run Away", "Run Away"],
@@ -2838,9 +2838,9 @@
     "base stats": {
       "HP": 60,
       "Attack": 50,
-      "Defense": 120,
-      "Special Attack": 90,
-      "Special Defense": 80,
+      "Defense": 150,
+      "Special Attack": 110,
+      "Special Defense": 100,
       "Speed": 30
     },
     "abilities": ["Run Away", "Run Away"],
@@ -2876,10 +2876,10 @@
     "type": ["Water", "Rock"],
     "base stats": {
       "HP": 65,
-      "Attack": 55,
-      "Defense": 95,
-      "Special Attack": 65,
-      "Special Defense": 95,
+      "Attack": 45,
+      "Defense": 115,
+      "Special Attack": 90,
+      "Special Defense": 115,
       "Speed": 35
     },
     "abilities": ["Hustle", "Hustle"],
@@ -2914,12 +2914,12 @@
   "Delibird": {
     "type": ["Ice", "Flying"],
     "base stats": {
-      "HP": 45,
-      "Attack": 55,
-      "Defense": 45,
-      "Special Attack": 65,
-      "Special Defense": 45,
-      "Speed": 75
+      "HP": 65,
+      "Attack": 85,
+      "Defense": 50,
+      "Special Attack": 110,
+      "Special Defense": 50,
+      "Speed": 110
     },
     "abilities": ["Vital Spirit", "Vital Spirit"],
     "weight": 16.0
@@ -3086,7 +3086,7 @@
       "HP": 45,
       "Attack": 30,
       "Defense": 15,
-      "Special Attack": 85,
+      "Special Attack": 95,
       "Special Defense": 65,
       "Speed": 65
     },
@@ -3289,13 +3289,13 @@
     "weight": 21.6
   },
   "Sceptile": {
-    "type": ["Grass"],
+    "type": ["Grass", "Dragon"],
     "base stats": {
       "HP": 70,
-      "Attack": 85,
+      "Attack": 90,
       "Defense": 65,
-      "Special Attack": 105,
-      "Special Defense": 85,
+      "Special Attack": 110,
+      "Special Defense": 80,
       "Speed": 120
     },
     "abilities": ["Overgrow", "Unburden"],
@@ -3332,7 +3332,7 @@
     "base stats": {
       "HP": 80,
       "Attack": 120,
-      "Defense": 70,
+      "Defense": 75,
       "Special Attack": 110,
       "Special Defense": 70,
       "Speed": 80
@@ -3383,11 +3383,11 @@
     "type": ["Dark"],
     "base stats": {
       "HP": 35,
-      "Attack": 55,
+      "Attack": 75,
       "Defense": 35,
       "Special Attack": 30,
       "Special Defense": 30,
-      "Speed": 35
+      "Speed": 65
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 13.6
@@ -3396,11 +3396,11 @@
     "type": ["Dark"],
     "base stats": {
       "HP": 70,
-      "Attack": 90,
+      "Attack": 110,
       "Defense": 70,
       "Special Attack": 60,
       "Special Defense": 60,
-      "Speed": 70
+      "Speed": 95
     },
     "abilities": ["Intimidate", "Intimidate"],
     "weight": 37.0
@@ -3409,7 +3409,7 @@
     "type": ["Normal"],
     "base stats": {
       "HP": 38,
-      "Attack": 30,
+      "Attack": 40,
       "Defense": 41,
       "Special Attack": 30,
       "Special Defense": 41,
@@ -3421,12 +3421,12 @@
   "Linoone": {
     "type": ["Normal"],
     "base stats": {
-      "HP": 78,
-      "Attack": 70,
-      "Defense": 61,
+      "HP": 85,
+      "Attack": 85,
+      "Defense": 60,
       "Special Attack": 50,
-      "Special Defense": 61,
-      "Speed": 100
+      "Special Defense": 60,
+      "Speed": 110
     },
     "abilities": ["Pickup", "Pickup"],
     "weight": 32.5
@@ -3462,10 +3462,10 @@
     "base stats": {
       "HP": 60,
       "Attack": 70,
-      "Defense": 50,
-      "Special Attack": 100,
-      "Special Defense": 50,
-      "Speed": 65
+      "Defense": 60,
+      "Special Attack": 125,
+      "Special Defense": 60,
+      "Speed": 75
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 28.4
@@ -3488,10 +3488,10 @@
     "base stats": {
       "HP": 60,
       "Attack": 50,
-      "Defense": 70,
-      "Special Attack": 50,
-      "Special Defense": 90,
-      "Speed": 65
+      "Defense": 75,
+      "Special Attack": 75,
+      "Special Defense": 115,
+      "Speed": 75
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 31.6
@@ -3591,9 +3591,9 @@
     "type": ["Normal", "Flying"],
     "base stats": {
       "HP": 60,
-      "Attack": 85,
+      "Attack": 90,
       "Defense": 60,
-      "Special Attack": 75,
+      "Special Attack": 80,
       "Special Defense": 50,
       "Speed": 125
     },
@@ -3618,9 +3618,9 @@
     "base stats": {
       "HP": 60,
       "Attack": 50,
-      "Defense": 100,
+      "Defense": 110,
       "Special Attack": 95,
-      "Special Defense": 70,
+      "Special Defense": 80,
       "Speed": 65
     },
     "abilities": ["Keen Eye", "Rain Dish"],
@@ -3632,8 +3632,8 @@
       "HP": 28,
       "Attack": 25,
       "Defense": 25,
-      "Special Attack": 45,
-      "Special Defense": 35,
+      "Special Attack": 65,
+      "Special Defense": 55,
       "Speed": 40
     },
     "abilities": ["Synchronize", "Synchronize"],
@@ -3645,8 +3645,8 @@
       "HP": 38,
       "Attack": 35,
       "Defense": 35,
-      "Special Attack": 65,
-      "Special Defense": 55,
+      "Special Attack": 95,
+      "Special Defense": 85,
       "Speed": 50
     },
     "abilities": ["Synchronize", "Synchronize"],
@@ -3670,23 +3670,23 @@
     "base stats": {
       "HP": 40,
       "Attack": 30,
-      "Defense": 32,
-      "Special Attack": 50,
-      "Special Defense": 52,
+      "Defense": 30,
+      "Special Attack": 55,
+      "Special Defense": 55,
       "Speed": 65
     },
     "abilities": ["Swift Swim", "Rain Dish"],
     "weight": 1.7
   },
   "Masquerain": {
-    "type": ["Bug", "Flying"],
+    "type": ["Bug", "Water"],
     "base stats": {
       "HP": 70,
-      "Attack": 60,
-      "Defense": 62,
-      "Special Attack": 100,
-      "Special Defense": 82,
-      "Speed": 80
+      "Attack": 50,
+      "Defense": 50,
+      "Special Attack": 110,
+      "Special Defense": 100,
+      "Speed": 100
     },
     "abilities": ["Intimidate", "Intimidate"],
     "weight": 3.6
@@ -3866,7 +3866,7 @@
       "HP": 50,
       "Attack": 20,
       "Defense": 40,
-      "Special Attack": 20,
+      "Special Attack": 40,
       "Special Defense": 40,
       "Speed": 20
     },
@@ -3877,9 +3877,9 @@
     "type": ["Rock"],
     "base stats": {
       "HP": 30,
-      "Attack": 45,
+      "Attack": 35,
       "Defense": 135,
-      "Special Attack": 45,
+      "Special Attack": 55,
       "Special Defense": 90,
       "Speed": 30
     },
@@ -3890,11 +3890,11 @@
     "type": ["Normal"],
     "base stats": {
       "HP": 50,
-      "Attack": 45,
-      "Defense": 45,
-      "Special Attack": 35,
-      "Special Defense": 35,
-      "Speed": 50
+      "Attack": 50,
+      "Defense": 50,
+      "Special Attack": 40,
+      "Special Defense": 40,
+      "Speed": 60
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 11.0
@@ -3903,11 +3903,11 @@
     "type": ["Normal"],
     "base stats": {
       "HP": 70,
-      "Attack": 65,
+      "Attack": 95,
       "Defense": 65,
-      "Special Attack": 55,
+      "Special Attack": 85,
       "Special Defense": 55,
-      "Speed": 90
+      "Speed": 95
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 32.6
@@ -3916,10 +3916,10 @@
     "type": ["Dark", "Ghost"],
     "base stats": {
       "HP": 50,
-      "Attack": 75,
-      "Defense": 75,
-      "Special Attack": 65,
-      "Special Defense": 65,
+      "Attack": 85,
+      "Defense": 95,
+      "Special Attack": 85,
+      "Special Defense": 85,
       "Speed": 50
     },
     "abilities": ["Keen Eye", "Keen Eye"],
@@ -3929,10 +3929,10 @@
     "type": ["Steel", "Fairy"],
     "base stats": {
       "HP": 50,
-      "Attack": 85,
-      "Defense": 85,
+      "Attack": 95,
+      "Defense": 115,
       "Special Attack": 55,
-      "Special Defense": 55,
+      "Special Defense": 85,
       "Speed": 50
     },
     "abilities": ["Hyper Cutter", "Hyper Cutter"],
@@ -3983,7 +3983,7 @@
       "HP": 30,
       "Attack": 40,
       "Defense": 55,
-      "Special Attack": 40,
+      "Special Attack": 60,
       "Special Defense": 55,
       "Speed": 60
     },
@@ -3995,10 +3995,10 @@
     "base stats": {
       "HP": 60,
       "Attack": 60,
-      "Defense": 75,
-      "Special Attack": 60,
-      "Special Defense": 75,
-      "Speed": 80
+      "Defense": 80,
+      "Special Attack": 80,
+      "Special Defense": 80,
+      "Speed": 90
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 31.5
@@ -4034,10 +4034,10 @@
     "base stats": {
       "HP": 60,
       "Attack": 50,
-      "Defense": 40,
-      "Special Attack": 85,
-      "Special Defense": 75,
-      "Speed": 95
+      "Defense": 50,
+      "Special Attack": 95,
+      "Special Defense": 85,
+      "Speed": 110
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 4.2
@@ -4046,37 +4046,37 @@
     "type": ["Electric"],
     "base stats": {
       "HP": 60,
-      "Attack": 40,
+      "Attack": 50,
       "Defense": 50,
-      "Special Attack": 75,
-      "Special Defense": 85,
-      "Speed": 95
+      "Special Attack": 85,
+      "Special Defense": 95,
+      "Speed": 110
     },
     "abilities": ["Run Away", "Volt Absorb"],
     "weight": 4.2
   },
   "Volbeat": {
-    "type": ["Bug"],
+    "type": ["Bug", "Electric"],
     "base stats": {
       "HP": 65,
-      "Attack": 73,
+      "Attack": 33,
       "Defense": 75,
-      "Special Attack": 47,
+      "Special Attack": 107,
       "Special Defense": 85,
-      "Speed": 85
+      "Speed": 100
     },
     "abilities": ["Illuminate", "Illuminate"],
     "weight": 17.7
   },
   "Illumise": {
-    "type": ["Bug"],
+    "type": ["Bug", "Fairy"],
     "base stats": {
       "HP": 65,
-      "Attack": 47,
-      "Defense": 75,
-      "Special Attack": 73,
+      "Attack": 33,
+      "Defense": 85,
+      "Special Attack": 97,
       "Special Defense": 85,
-      "Speed": 85
+      "Speed": 100
     },
     "abilities": ["Oblivious", "Oblivious"],
     "weight": 17.7
@@ -4240,20 +4240,20 @@
   "Spinda": {
     "type": ["Normal"],
     "base stats": {
-      "HP": 60,
-      "Attack": 60,
-      "Defense": 60,
-      "Special Attack": 60,
-      "Special Defense": 60,
-      "Speed": 60
+      "HP": 75,
+      "Attack": 75,
+      "Defense": 75,
+      "Special Attack": 75,
+      "Special Defense": 75,
+      "Speed": 75
     },
     "abilities": ["Own Tempo", "Own Tempo"],
     "weight": 5.0
   },
   "Trapinch": {
-    "type": ["Ground"],
+    "type": ["Bug", "Ground"],
     "base stats": {
-      "HP": 45,
+      "HP": 55,
       "Attack": 100,
       "Defense": 45,
       "Special Attack": 45,
@@ -4264,26 +4264,26 @@
     "weight": 15.0
   },
   "Vibrava": {
-    "type": ["Ground", "Dragon"],
+    "type": ["Bug", "Dragon"],
     "base stats": {
-      "HP": 50,
-      "Attack": 70,
-      "Defense": 50,
-      "Special Attack": 50,
-      "Special Defense": 50,
+      "HP": 60,
+      "Attack": 80,
+      "Defense": 55,
+      "Special Attack": 90,
+      "Special Defense": 55,
       "Speed": 70
     },
     "abilities": ["Levitate", "Levitate"],
     "weight": 15.3
   },
   "Flygon": {
-    "type": ["Ground", "Dragon"],
+    "type": ["Bug", "Dragon"],
     "base stats": {
-      "HP": 80,
-      "Attack": 100,
-      "Defense": 80,
-      "Special Attack": 80,
-      "Special Defense": 80,
+      "HP": 90,
+      "Attack": 110,
+      "Defense": 85,
+      "Special Attack": 130,
+      "Special Defense": 85,
       "Speed": 100
     },
     "abilities": ["Levitate", "Levitate"],
@@ -4316,12 +4316,12 @@
     "weight": 77.4
   },
   "Swablu": {
-    "type": ["Normal", "Flying"],
+    "type": ["Fairy", "Flying"],
     "base stats": {
       "HP": 45,
-      "Attack": 40,
+      "Attack": 60,
       "Defense": 60,
-      "Special Attack": 40,
+      "Special Attack": 60,
       "Special Defense": 75,
       "Speed": 50
     },
@@ -4329,12 +4329,12 @@
     "weight": 1.2
   },
   "Altaria": {
-    "type": ["Dragon", "Flying"],
+    "type": ["Dragon", "Fairy"],
     "base stats": {
       "HP": 75,
-      "Attack": 70,
+      "Attack": 90,
       "Defense": 90,
-      "Special Attack": 70,
+      "Special Attack": 90,
       "Special Defense": 105,
       "Speed": 80
     },
@@ -4344,25 +4344,25 @@
   "Zangoose": {
     "type": ["Normal"],
     "base stats": {
-      "HP": 73,
+      "HP": 75,
       "Attack": 115,
       "Defense": 60,
       "Special Attack": 60,
       "Special Defense": 60,
-      "Speed": 90
+      "Speed": 95
     },
     "abilities": ["Immunity", "Immunity"],
     "weight": 40.3
   },
   "Seviper": {
-    "type": ["Poison"],
+    "type": ["Poison", "Dark"],
     "base stats": {
-      "HP": 73,
-      "Attack": 100,
+      "HP": 75,
+      "Attack": 115,
       "Defense": 60,
-      "Special Attack": 100,
+      "Special Attack": 80,
       "Special Defense": 60,
-      "Speed": 65
+      "Speed": 75
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 52.5
@@ -4373,7 +4373,7 @@
       "HP": 90,
       "Attack": 55,
       "Defense": 65,
-      "Special Attack": 95,
+      "Special Attack": 100,
       "Special Defense": 85,
       "Speed": 70
     },
@@ -4384,7 +4384,7 @@
     "type": ["Rock", "Psychic"],
     "base stats": {
       "HP": 90,
-      "Attack": 95,
+      "Attack": 100,
       "Defense": 85,
       "Special Attack": 55,
       "Special Defense": 65,
@@ -4537,7 +4537,7 @@
     "weight": 7.4
   },
   "Milotic": {
-    "type": ["Water"],
+    "type": ["Water", "Fairy"],
     "base stats": {
       "HP": 95,
       "Attack": 60,
@@ -4552,12 +4552,12 @@
   "Castform": {
     "type": ["Normal"],
     "base stats": {
-      "HP": 70,
-      "Attack": 70,
-      "Defense": 70,
-      "Special Attack": 70,
+      "HP": 60,
+      "Attack": 60,
+      "Defense": 60,
+      "Special Attack": 105,
       "Special Defense": 70,
-      "Speed": 70
+      "Speed": 95
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 0.8
@@ -4566,7 +4566,7 @@
     "type": ["Normal"],
     "base stats": {
       "HP": 60,
-      "Attack": 90,
+      "Attack": 100,
       "Defense": 70,
       "Special Attack": 60,
       "Special Defense": 120,
@@ -4592,9 +4592,9 @@
     "type": ["Ghost"],
     "base stats": {
       "HP": 64,
-      "Attack": 115,
+      "Attack": 125,
       "Defense": 65,
-      "Special Attack": 83,
+      "Special Attack": 93,
       "Special Defense": 63,
       "Speed": 65
     },
@@ -4630,12 +4630,12 @@
   "Tropius": {
     "type": ["Grass", "Flying"],
     "base stats": {
-      "HP": 99,
-      "Attack": 68,
-      "Defense": 83,
-      "Special Attack": 72,
-      "Special Defense": 87,
-      "Speed": 51
+      "HP": 110,
+      "Attack": 95,
+      "Defense": 95,
+      "Special Attack": 95,
+      "Special Defense": 95,
+      "Speed": 45
     },
     "abilities": ["Chlorophyll", "Chlorophyll"],
     "weight": 100.0
@@ -4644,10 +4644,10 @@
     "type": ["Psychic"],
     "base stats": {
       "HP": 75,
-      "Attack": 50,
+      "Attack": 40,
       "Defense": 80,
-      "Special Attack": 95,
-      "Special Defense": 90,
+      "Special Attack": 110,
+      "Special Defense": 100,
       "Speed": 65
     },
     "abilities": ["Levitate", "Levitate"],
@@ -4659,9 +4659,9 @@
       "HP": 65,
       "Attack": 130,
       "Defense": 60,
-      "Special Attack": 75,
+      "Special Attack": 85,
       "Special Defense": 60,
-      "Speed": 75
+      "Speed": 85
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 47.0
@@ -4693,13 +4693,13 @@
     "weight": 16.8
   },
   "Glalie": {
-    "type": ["Ice"],
+    "type": ["Ice", "Rock"],
     "base stats": {
       "HP": 80,
-      "Attack": 80,
-      "Defense": 80,
-      "Special Attack": 80,
-      "Special Defense": 80,
+      "Attack": 110,
+      "Defense": 110,
+      "Special Attack": 60,
+      "Special Defense": 60,
       "Speed": 80
     },
     "abilities": ["Inner Focus", "Inner Focus"],
@@ -4797,14 +4797,14 @@
     "weight": 23.4
   },
   "Luvdisc": {
-    "type": ["Water"],
+    "type": ["Water", "Fairy"],
     "base stats": {
-      "HP": 43,
+      "HP": 50,
       "Attack": 30,
-      "Defense": 55,
-      "Special Attack": 40,
-      "Special Defense": 65,
-      "Speed": 97
+      "Defense": 75,
+      "Special Attack": 95,
+      "Special Defense": 75,
+      "Speed": 125
     },
     "abilities": ["Swift Swim", "Hydration"],
     "weight": 8.7
@@ -5047,8 +5047,8 @@
     "type": ["Grass", "Ground"],
     "base stats": {
       "HP": 95,
-      "Attack": 109,
-      "Defense": 105,
+      "Attack": 114,
+      "Defense": 110,
       "Special Attack": 75,
       "Special Defense": 85,
       "Speed": 56
@@ -5090,7 +5090,7 @@
       "Defense": 71,
       "Special Attack": 104,
       "Special Defense": 71,
-      "Speed": 108
+      "Speed": 109
     },
     "abilities": ["Blaze", "Iron Fist"],
     "weight": 55.0
@@ -5127,7 +5127,7 @@
       "HP": 84,
       "Attack": 86,
       "Defense": 88,
-      "Special Attack": 111,
+      "Special Attack": 116,
       "Special Defense": 101,
       "Speed": 60
     },
@@ -5189,11 +5189,11 @@
   "Bibarel": {
     "type": ["Normal", "Water"],
     "base stats": {
-      "HP": 79,
-      "Attack": 85,
-      "Defense": 60,
+      "HP": 94,
+      "Attack": 100,
+      "Defense": 65,
       "Special Attack": 55,
-      "Special Defense": 60,
+      "Special Defense": 65,
       "Speed": 71
     },
     "abilities": ["Simple", "Simple"],
@@ -5203,9 +5203,9 @@
     "type": ["Bug"],
     "base stats": {
       "HP": 37,
-      "Attack": 25,
+      "Attack": 35,
       "Defense": 41,
-      "Special Attack": 25,
+      "Special Attack": 35,
       "Special Defense": 41,
       "Speed": 25
     },
@@ -5215,11 +5215,11 @@
   "Kricketune": {
     "type": ["Bug"],
     "base stats": {
-      "HP": 77,
-      "Attack": 85,
-      "Defense": 51,
-      "Special Attack": 55,
-      "Special Defense": 51,
+      "HP": 80,
+      "Attack": 115,
+      "Defense": 70,
+      "Special Attack": 50,
+      "Special Defense": 70,
       "Speed": 65
     },
     "abilities": ["Run Away", "Run Away"],
@@ -5252,7 +5252,7 @@
     "weight": 30.5
   },
   "Luxray": {
-    "type": ["Electric"],
+    "type": ["Electric", "Dark"],
     "base stats": {
       "HP": 80,
       "Attack": 120,
@@ -5320,9 +5320,9 @@
     "type": ["Rock", "Steel"],
     "base stats": {
       "HP": 30,
-      "Attack": 42,
+      "Attack": 62,
       "Defense": 118,
-      "Special Attack": 42,
+      "Special Attack": 22,
       "Special Defense": 88,
       "Speed": 30
     },
@@ -5333,9 +5333,9 @@
     "type": ["Rock", "Steel"],
     "base stats": {
       "HP": 60,
-      "Attack": 52,
+      "Attack": 72,
       "Defense": 168,
-      "Special Attack": 47,
+      "Special Attack": 27,
       "Special Defense": 138,
       "Speed": 30
     },
@@ -5346,11 +5346,11 @@
     "type": ["Bug"],
     "base stats": {
       "HP": 40,
-      "Attack": 29,
+      "Attack": 20,
       "Defense": 45,
-      "Special Attack": 29,
+      "Special Attack": 45,
       "Special Defense": 45,
-      "Speed": 36
+      "Speed": 30
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 3.4
@@ -5359,11 +5359,11 @@
     "type": ["Bug", "Grass"],
     "base stats": {
       "HP": 60,
-      "Attack": 59,
-      "Defense": 85,
-      "Special Attack": 79,
-      "Special Defense": 105,
-      "Speed": 36
+      "Attack": 50,
+      "Defense": 90,
+      "Special Attack": 110,
+      "Special Defense": 110,
+      "Speed": 30
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 6.5
@@ -5412,8 +5412,8 @@
     "base stats": {
       "HP": 60,
       "Attack": 45,
-      "Defense": 70,
-      "Special Attack": 45,
+      "Defense": 80,
+      "Special Attack": 80,
       "Special Defense": 90,
       "Speed": 95
     },
@@ -5463,11 +5463,11 @@
     "type": ["Grass"],
     "base stats": {
       "HP": 70,
-      "Attack": 60,
+      "Attack": 45,
       "Defense": 70,
-      "Special Attack": 87,
-      "Special Defense": 78,
-      "Speed": 85
+      "Special Attack": 107,
+      "Special Defense": 83,
+      "Speed": 90
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 9.3
@@ -5551,12 +5551,12 @@
     "weight": 5.5
   },
   "Lopunny": {
-    "type": ["Normal"],
+    "type": ["Normal", "Fighting"],
     "base stats": {
       "HP": 65,
-      "Attack": 76,
+      "Attack": 106,
       "Defense": 84,
-      "Special Attack": 54,
+      "Special Attack": 44,
       "Special Defense": 96,
       "Speed": 105
     },
@@ -5564,7 +5564,7 @@
     "weight": 33.3
   },
   "Mismagius": {
-    "type": ["Ghost"],
+    "type": ["Ghost", "Fairy"],
     "base stats": {
       "HP": 60,
       "Attack": 60,
@@ -5592,12 +5592,12 @@
   "Glameow": {
     "type": ["Normal"],
     "base stats": {
-      "HP": 49,
-      "Attack": 55,
-      "Defense": 42,
-      "Special Attack": 42,
-      "Special Defense": 37,
-      "Speed": 85
+      "HP": 50,
+      "Attack": 65,
+      "Defense": 45,
+      "Special Attack": 45,
+      "Special Defense": 40,
+      "Speed": 90
     },
     "abilities": ["Limber", "Keen Eye"],
     "weight": 3.9
@@ -5605,12 +5605,12 @@
   "Purugly": {
     "type": ["Normal"],
     "base stats": {
-      "HP": 71,
-      "Attack": 82,
-      "Defense": 64,
-      "Special Attack": 64,
-      "Special Defense": 59,
-      "Speed": 112
+      "HP": 90,
+      "Attack": 95,
+      "Defense": 70,
+      "Special Attack": 65,
+      "Special Defense": 60,
+      "Speed": 115
     },
     "abilities": ["Thick Fat", "Thick Fat"],
     "weight": 43.8
@@ -5621,8 +5621,8 @@
       "HP": 45,
       "Attack": 30,
       "Defense": 50,
-      "Special Attack": 65,
-      "Special Defense": 50,
+      "Special Attack": 80,
+      "Special Defense": 60,
       "Speed": 45
     },
     "abilities": ["Levitate", "Levitate"],
@@ -5631,12 +5631,12 @@
   "Stunky": {
     "type": ["Poison", "Dark"],
     "base stats": {
-      "HP": 63,
-      "Attack": 63,
-      "Defense": 47,
-      "Special Attack": 41,
-      "Special Defense": 41,
-      "Speed": 74
+      "HP": 65,
+      "Attack": 65,
+      "Defense": 50,
+      "Special Attack": 40,
+      "Special Defense": 40,
+      "Speed": 75
     },
     "abilities": ["Aftermath", "Keen Eye"],
     "weight": 19.2
@@ -5644,12 +5644,12 @@
   "Skuntank": {
     "type": ["Poison", "Dark"],
     "base stats": {
-      "HP": 103,
-      "Attack": 93,
-      "Defense": 67,
-      "Special Attack": 71,
-      "Special Defense": 61,
-      "Speed": 84
+      "HP": 115,
+      "Attack": 95,
+      "Defense": 70,
+      "Special Attack": 70,
+      "Special Defense": 60,
+      "Speed": 85
     },
     "abilities": ["Aftermath", "Keen Eye"],
     "weight": 38.0
@@ -5683,11 +5683,11 @@
   "Bonsly": {
     "type": ["Rock"],
     "base stats": {
-      "HP": 50,
-      "Attack": 80,
+      "HP": 60,
+      "Attack": 85,
       "Defense": 95,
       "Special Attack": 10,
-      "Special Defense": 45,
+      "Special Defense": 55,
       "Speed": 10
     },
     "abilities": ["Sturdy", "Sturdy"],
@@ -5697,11 +5697,11 @@
     "type": ["Psychic", "Fairy"],
     "base stats": {
       "HP": 20,
-      "Attack": 25,
+      "Attack": 15,
       "Defense": 45,
-      "Special Attack": 70,
+      "Special Attack": 80,
       "Special Defense": 90,
-      "Speed": 60
+      "Speed": 65
     },
     "abilities": ["Soundproof", "Soundproof"],
     "weight": 13.0
@@ -5722,12 +5722,12 @@
   "Chatot": {
     "type": ["Normal", "Flying"],
     "base stats": {
-      "HP": 76,
-      "Attack": 65,
-      "Defense": 45,
-      "Special Attack": 92,
-      "Special Defense": 42,
-      "Speed": 91
+      "HP": 75,
+      "Attack": 45,
+      "Defense": 55,
+      "Special Attack": 110,
+      "Special Defense": 55,
+      "Speed": 110
     },
     "abilities": ["Keen Eye", "Keen Eye"],
     "weight": 1.9
@@ -5905,11 +5905,11 @@
     "type": ["Grass"],
     "base stats": {
       "HP": 74,
-      "Attack": 100,
+      "Attack": 110,
       "Defense": 72,
-      "Special Attack": 90,
+      "Special Attack": 100,
       "Special Defense": 72,
-      "Speed": 46
+      "Speed": 36
     },
     "abilities": ["Levitate", "Levitate"],
     "weight": 27.0
@@ -5917,12 +5917,12 @@
   "Finneon": {
     "type": ["Water"],
     "base stats": {
-      "HP": 49,
-      "Attack": 49,
-      "Defense": 56,
-      "Special Attack": 49,
-      "Special Defense": 61,
-      "Speed": 66
+      "HP": 50,
+      "Attack": 30,
+      "Defense": 60,
+      "Special Attack": 60,
+      "Special Defense": 60,
+      "Speed": 70
     },
     "abilities": ["Swift Swim", "Water Veil"],
     "weight": 7.0
@@ -5930,12 +5930,12 @@
   "Lumineon": {
     "type": ["Water"],
     "base stats": {
-      "HP": 69,
-      "Attack": 69,
-      "Defense": 76,
-      "Special Attack": 69,
-      "Special Defense": 86,
-      "Speed": 91
+      "HP": 70,
+      "Attack": 40,
+      "Defense": 75,
+      "Special Attack": 105,
+      "Special Defense": 90,
+      "Speed": 105
     },
     "abilities": ["Swift Swim", "Water Veil"],
     "weight": 24.0
@@ -6045,7 +6045,7 @@
     "weight": 128.6
   },
   "Electivire": {
-    "type": ["Electric"],
+    "type": ["Electric", "Fighting"],
     "base stats": {
       "HP": 75,
       "Attack": 123,
@@ -6116,8 +6116,8 @@
       "Attack": 60,
       "Defense": 110,
       "Special Attack": 130,
-      "Special Defense": 95,
-      "Speed": 65
+      "Special Defense": 65,
+      "Speed": 95
     },
     "abilities": ["Run Away", "Run Away"],
     "weight": 25.9
@@ -6178,9 +6178,9 @@
     "type": ["Rock", "Steel"],
     "base stats": {
       "HP": 60,
-      "Attack": 55,
+      "Attack": 45,
       "Defense": 145,
-      "Special Attack": 75,
+      "Special Attack": 85,
       "Special Defense": 150,
       "Speed": 40
     },
@@ -6204,9 +6204,9 @@
     "type": ["Ice", "Ghost"],
     "base stats": {
       "HP": 70,
-      "Attack": 80,
+      "Attack": 70,
       "Defense": 70,
-      "Special Attack": 80,
+      "Special Attack": 110,
       "Special Defense": 70,
       "Speed": 110
     },
@@ -6221,13 +6221,13 @@
       "Defense": 77,
       "Special Attack": 95,
       "Special Defense": 77,
-      "Speed": 91
+      "Speed": 101
     },
     "abilities": ["Levitate", "Levitate"],
     "weight": 0.3
   },
   "Uxie": {
-    "type": ["Psychic"],
+    "type": ["Psychic", "Fairy"],
     "base stats": {
       "HP": 75,
       "Attack": 75,
@@ -6240,7 +6240,7 @@
     "weight": 0.3
   },
   "Mesprit": {
-    "type": ["Psychic"],
+    "type": ["Psychic", "Fairy"],
     "base stats": {
       "HP": 80,
       "Attack": 105,
@@ -6253,7 +6253,7 @@
     "weight": 0.3
   },
   "Azelf": {
-    "type": ["Psychic"],
+    "type": ["Psychic", "Fairy"],
     "base stats": {
       "HP": 75,
       "Attack": 125,

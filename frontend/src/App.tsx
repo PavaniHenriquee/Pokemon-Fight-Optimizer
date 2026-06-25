@@ -11,6 +11,7 @@ import BattleView from "./components/BattleView";
 import ActionPanel from "./components/ActionPanel";
 import NodePopup from "./components/NodePopup";
 import ConfigureView from "./components/ConfigureView";
+import ContinueModal from "./components/ContinueModal";
 import "./App.css";
 
 const WS_URL = "ws://localhost:8000/ws";
@@ -44,6 +45,7 @@ export default function App() {
   const [oppTeam, setOppTeam] = useState<PokemonConfig[]>([]);
   const [iterations, setIterations] = useState(100_000);
   const [isFocused, setIsFocused] = useState(false);
+  const [continueNodeId, setContinueNodeId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${API_URL}/trainers`)
@@ -324,7 +326,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            <BattleView node={currentNode} />
+            <BattleView node={currentNode} onContinue={setContinueNodeId} />
             <ActionPanel
               node={currentNode}
               onActionClick={handleActionClick}
@@ -337,6 +339,18 @@ export default function App() {
           action={selectedAction}
           onSelect={navigateTo}
           onClose={() => setSelectedKey(null)}
+        />
+      )}
+      {continueNodeId && (
+        <ContinueModal
+          nodeId={continueNodeId}
+          onClose={() => setContinueNodeId(null)}
+          onStarted={() => {
+            setPathIds([]);
+            setSelectedKey(null);
+            setStartTime(Date.now());
+            setElapsed(0);
+          }}
         />
       )}
     </div>

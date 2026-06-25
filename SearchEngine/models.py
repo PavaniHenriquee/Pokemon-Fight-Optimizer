@@ -186,9 +186,9 @@ class NodeSnapshot:
 
         field_start = POK_LEN * 12
         return NodeSnapshot(
-            phase        = state.phase,
-            opp_active   = state.opp_active,
-            my_active    = state.my_active,
+            phase        = int(state.phase),
+            opp_active   = int(state.opp_active),
+            my_active    = int(state.my_active),
             my_slice     = state.get_my_active().copy(),
             opp_slice    = state.get_opp_active().copy(),
             terminal     = state.is_terminal(),

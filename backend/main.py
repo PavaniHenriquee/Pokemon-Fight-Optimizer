@@ -17,16 +17,17 @@ import numpy as np
 from numba import njit
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from Models.idx_const import Pok, POK_LEN
 from Models.constants import _FIELD_TURN
 from Models.pokemon import Pokemon
 from Engine.engine_helper import start_of_battle
-from SearchEngine.models import GameState, Node
+from SearchEngine.models import GameState, Node, reconstruct_battle_array
 from SearchEngine.my_mcts import _select_expand, _rollout, _backprop, find_best_terminal_node
 from SearchEngine.helper import prune_dominated
 from Utils.helper import to_battle_array
 from Utils.loader import natures
 from DataBase.loader import pkDB, moveDB, abDB
-from DataBase.PkDB import PokemonName
+from DataBase.PkDB import PokemonName, PokIdToName
 from .serializer import serialize_node   # relative import within the backend package
 
 # Put project root on path so Models/Engine/etc. are importable
@@ -102,6 +103,30 @@ class BattleConfig(BaseModel):
     my_team: list[PokemonConfig]
     opp_team: list[PokemonConfig]
     iterations: int = 350_000
+
+
+def _find_node(root: Node, target_id: str) -> Node | None:
+    """Iterative BFS — safe on deep trees, no recursion limit risk."""
+    from collections import deque
+    q = deque([root])
+    while q:
+        node = q.popleft()
+        if str(id(node)) == target_id:
+            return node
+        for children in node.children.values():
+            q.extend(children)
+    return None
+
+
+class ContinueConfig(BaseModel):
+    """
+    Continue config
+    """
+    node_id:       str
+    iterations:    int
+    my_active_hp:  Optional[int] = None   # None when phase == DEATH
+    opp_active_hp: int
+    bench_hps:     dict[int, int]          # slot_index → hp
 
 
 @app.get("/pokemon-data")
@@ -240,6 +265,111 @@ async def save_box(entries: list[BoxEntry]) -> dict:
     with open(_BOX_PATH, "w", encoding="utf-8") as f:
         json.dump([e.model_dump() for e in entries], f, indent=2)
     return {"status": "saved"}
+
+
+@app.get("/node_info/{node_id}")
+async def node_info(node_id: str) -> dict:
+    """
+    Node info
+    """
+    root    = _state["root"]
+    initial: np.ndarray = _state["battle_array"]
+    if root is None or initial is None:
+        return {"error": "no active battle"}
+
+    node = _find_node(root, node_id)
+    if node is None:
+        return {"error": "node not found"}
+
+    snap = node.snapshot
+
+    def _entry(pok_id: int, hp: int, max_hp: int, slot: int) -> dict:
+        return {
+            "slot":   slot,
+            "pok_id": pok_id,
+            "name":   PokIdToName.get(pok_id, "?").capitalize(),
+            "hp":     hp,
+            "max_hp": max_hp,
+        }
+
+    my_active_slot = snap.my_active
+    my_active = (
+        _entry(
+            int(snap.my_slice[Pok.ID]),
+            int(snap.my_slice[Pok.CURRENT_HP]),
+            int(snap.my_slice[Pok.MAX_HP]),
+            my_active_slot,
+        )
+        if my_active_slot >= 0 else None
+    )
+
+    opp_active = _entry(
+        int(snap.opp_slice[Pok.ID]),
+        int(snap.opp_slice[Pok.CURRENT_HP]),
+        int(snap.opp_slice[Pok.MAX_HP]),
+        snap.opp_active,
+    )
+
+    my_bench = []
+    for i in range(6):
+        if i == my_active_slot:
+            continue
+        pok_id  = int(initial[i * POK_LEN + Pok.ID])
+        bench_hp = int(snap.bench_delta[i, 0])
+        if pok_id == 0 or bench_hp == 0:   # empty slot or fainted — skip
+            continue
+        my_bench.append(_entry(
+            pok_id,
+            bench_hp,
+            int(initial[i * POK_LEN + Pok.MAX_HP]),
+            i,
+        ))
+
+    return {"my_active": my_active, "opp_active": opp_active, "my_bench": my_bench}
+
+
+@app.post("/continue_from_node")
+async def continue_from_node(config: ContinueConfig) -> dict:
+    """
+    Continue from node
+    """
+    if ev := _state.get("stop_event"):
+        ev.set()
+    await asyncio.sleep(0.1)
+
+    root    = _state["root"]
+    initial = _state["battle_array"]
+    if root is None:
+        return {"error": "no active battle"}
+
+    node = _find_node(root, config.node_id)
+    if node is None:
+        return {"error": "node not found"}
+
+    snap   = node.snapshot
+    battle = reconstruct_battle_array(snap, initial)
+
+    # HP overrides on top of reconstruction
+    if config.my_active_hp is not None and snap.my_active >= 0:
+        battle[snap.my_active * POK_LEN + Pok.CURRENT_HP] = config.my_active_hp
+    battle[(snap.opp_active + 6) * POK_LEN + Pok.CURRENT_HP] = config.opp_active_hp
+    for slot, hp in config.bench_hps.items():
+        battle[int(slot) * POK_LEN + Pok.CURRENT_HP] = hp
+
+    root_state = GameState(battle)
+    new_root   = Node(root_state)
+    stop_event = threading.Event()
+
+    _state.update(
+        root=new_root, battle_array=battle.copy(),
+        running=True, iterations=0, stop_event=stop_event,
+    )
+    threading.Thread(
+        target=_mcts_worker,
+        args=(new_root, root_state, stop_event, config.iterations),
+        daemon=True,
+    ).start()
+    return {"status": "started"}
 
 # ─── WebSocket ────────────────────────────────────────────────────────────────
 
