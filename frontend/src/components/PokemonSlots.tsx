@@ -28,6 +28,9 @@ const IV_KEYS: (keyof IVs)[] = [
 ];
 const IV_SHORT = ["HP", "Atk", "Def", "SpA", "SpD", "Spe"];
 
+const itemIcon = (name: string) =>
+  `https://play.pokemonshowdown.com/sprites/itemicons/${name.toLowerCase().replace(/[\s_]+/g, "-")}.png`;
+
 // ─── Sprite ───────────────────────────────────────────────────────────────────
 
 function FrontSprite({
@@ -334,6 +337,47 @@ export function MyTeamSlot({
           </Combobox>
         ))}
       </div>
+      {/* Item */}
+      <div>
+        <label className="block text-xs text-slate-500 mb-0.5">Item</label>
+        <div className="flex items-center gap-1">
+          {config.item ? (
+            <img
+              src={itemIcon(config.item)}
+              alt=""
+              width={18}
+              height={18}
+              style={{ imageRendering: "pixelated", flexShrink: 0 }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <div style={{ width: 18, flexShrink: 0 }} />
+          )}
+          <div className="flex-1 min-w-0">
+            <Combobox
+              value={config.item ?? ""}
+              onValueChange={(v) =>
+                onChange({ ...config, item: v ?? undefined })
+              }
+              items={pokemonData?.items ?? []}
+            >
+              <ComboboxInput className={inp} placeholder="— none —" showClear />
+              <ComboboxContent>
+                <ComboboxEmpty>No results</ComboboxEmpty>
+                <ComboboxList>
+                  {(item: string) => (
+                    <ComboboxItem key={item} value={item}>
+                      {item}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -379,6 +423,21 @@ export function OpponentSlot({
           </span>
         ))}
       </div>
+      {config.item && (
+        <div className="flex items-center gap-1">
+          <img
+            src={itemIcon(config.item)}
+            alt=""
+            width={16}
+            height={16}
+            style={{ imageRendering: "pixelated" }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+          <span className="text-xs text-slate-300">{config.item}</span>
+        </div>
+      )}
     </div>
   );
 }

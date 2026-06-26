@@ -162,23 +162,6 @@ class Sec:
 
 
 SEC_LEN = _length(Sec, OFFSET_SEC)
-
-
-@dataclass(slots=True)
-class Item:
-    """Index for Items"""
-    ID                 = 0
-    WHEN               = ID + 1
-    ITEM_TYPE          = WHEN + 1
-    FLING_POWER        = ITEM_TYPE + 1
-    FLING_STATUS       = FLING_POWER + 1
-    FLING_VOLATILE     = FLING_STATUS + 1
-    NATURAL_GIFT_POWER = FLING_VOLATILE + 1
-    NATURAL_GIFT_TYPE  = NATURAL_GIFT_POWER + 1
-    ITEM_USER          = NATURAL_GIFT_TYPE + 1
-
-
-ITEM_LEN      = _length(Item)
 BASE_LEN      = Pok.AB_ID
 AB_LEN        = Pok.AB_BREAKABLE - Pok.AB_ID + 1
 MOVE_STRIDE   = BASE_MOVE_LEN + FLAGS_LEN + SEC_LEN
@@ -191,6 +174,22 @@ Pok.MOVE3_ID = Pok.MOVE2_ID + MOVE_STRIDE
 Pok.MOVE4_ID = Pok.MOVE3_ID + MOVE_STRIDE
 Pok.ITEM_ID  = Pok.MOVE4_ID + MOVE_STRIDE
 
+
+@dataclass(slots=True)
+class Item:
+    """Index for Items"""
+    ID                 = Pok.ITEM_ID
+    WHEN               = ID + 1
+    ITEM_TYPE          = WHEN + 1
+    FLING_POWER        = ITEM_TYPE + 1
+    FLING_STATUS       = FLING_POWER + 1
+    FLING_VOLATILE     = FLING_STATUS + 1
+    NATURAL_GIFT_POWER = FLING_VOLATILE + 1
+    NATURAL_GIFT_TYPE  = NATURAL_GIFT_POWER + 1
+    ITEM_USER          = NATURAL_GIFT_TYPE + 1
+
+
+ITEM_LEN      = Item.ITEM_USER + 1 - Item.ID
 POK_LEN       = Pok.ITEM_ID + ITEM_LEN
 
 
@@ -220,3 +219,5 @@ class Field:
 
 # Last one minus first one +1 because idx 0
 FIELD_LEN = Field.AI_KNOWS - Field.MY_POK + 1
+
+print(POK_LEN)

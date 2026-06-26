@@ -12,6 +12,8 @@ const staticBack = (id: number) =>
   `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/${id}.png`;
 const gen7Icon = (id: number) =>
   `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-vii/icons/${id}.png`;
+const itemIcon = (name: string) =>
+  `https://play.pokemonshowdown.com/sprites/itemicons/${name.toLowerCase().replace(/[\s_]+/g, "-")}.png`;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function hpColor(hp: number, max: number) {
@@ -178,6 +180,19 @@ function PokInfo({ pok, label }: { pok: PokemonState; label: string }) {
           </span>
         ))}
       </div>
+      {pok.item && (
+        <img
+          src={itemIcon(pok.item)}
+          alt={pok.item}
+          title={pok.item}
+          width={16}
+          height={16}
+          style={{ imageRendering: "pixelated", flexShrink: 0 }}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      )}
       <HpBar pok={pok} />
       {stages.length > 0 && (
         <div
@@ -387,6 +402,30 @@ function BenchCard({ entry }: { entry: BenchEntry }) {
             >
               {entry.status}
             </span>
+          )}
+          {entry.item && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                marginBottom: 7,
+              }}
+            >
+              <img
+                src={itemIcon(entry.item)}
+                alt={entry.item}
+                width={16}
+                height={16}
+                style={{ imageRendering: "pixelated" }}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              <span style={{ fontSize: "0.65rem", color: "var(--muted)" }}>
+                {entry.item}
+              </span>
+            </div>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span
@@ -611,6 +650,44 @@ export default function BattleView({
             minWidth: 0,
           }}
         >
+          {/* Trainer remaining items */}
+          {snapshot.trainer_items?.some(Boolean) && (
+            <div
+              style={{
+                display: "flex",
+                gap: 4,
+                justifyContent: "flex-end",
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.48rem",
+                  color: "var(--muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                Items
+              </span>
+              {snapshot.trainer_items.map((item, i) =>
+                item ? (
+                  <img
+                    key={i}
+                    src={itemIcon(item)}
+                    alt={item}
+                    title={item}
+                    width={20}
+                    height={20}
+                    style={{ imageRendering: "pixelated" }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : null,
+              )}
+            </div>
+          )}
           {/* Bench above info */}
           <BenchRow entries={snapshot.opp_bench} justify="flex-end" />
           {snapshot.opp && (

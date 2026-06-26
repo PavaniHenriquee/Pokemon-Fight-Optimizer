@@ -3,7 +3,7 @@ import random
 from numba import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.status_calc import after_turn_status, freeze, paralysis, B_P
-from Models.idx_const import POK_LEN, MOVE_STRIDE, OFFSET_MOVE
+from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 from Models.helper import TARGET_SELF_SIDE, STEEL_POISON
 from Models.constants import (
     _POK_SPEED, _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
@@ -26,13 +26,15 @@ from Models.constants import (
     _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED, _ABILITYNAMES_SWIFT_SWIM,
     _ABILITYNAMES_SYNCHRONIZE, _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_WATER_ABSORB,
     _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN, _POK_DMG_TAKEN,
-    _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE
+    _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEMNAMES_ORAN_BERRY,
+    _ITEM_ID, _ITEMNAMES_SITRUS_BERRY
 )
 
 
 SANDSTORM_IM = (_TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL)
 DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
+ITEM_50HP = (_ITEMNAMES_ORAN_BERRY, _ITEMNAMES_SITRUS_BERRY)
 
 
 @njit
@@ -242,7 +244,7 @@ def switch_in(attacker, defender):
     """
     What happens when a pokemon switches in so, abilities, hazards
     """
-    # TODO: Hazards damage, take in consideration that the pokemon needs to
+    # TODO: Hazards damage(needs to put item on rdmg), take in consideration that the pokemon needs to
     # be alive to activiate the ability so before the ability do something like
     # if attacker[_POK_CURRENT_HP] > 0:
     if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
@@ -464,3 +466,24 @@ def drain(pok, move, dmg):
     if heal == 0:
         heal = 1
     pok[_POK_CURRENT_HP] = min(pok[_POK_CURRENT_HP]+heal, pok[_POK_MAX_HP])
+
+
+@njit
+def clear_item(pok):
+    """
+    If the item was used reset it
+    """
+    pok[_ITEM_ID:(_ITEM_ID+ITEM_LEN)] = 0
+
+
+@njit
+def item_on_rdmg(pok):
+    """
+    Check what item it is and apply it
+    """
+    hp_pct = (pok[_POK_CURRENT_HP]*100)//pok[_POK_MAX_HP]
+    item_id = pok[_ITEM_ID]
+    if hp_pct < 50 and item_id in ITEM_50HP:
+        if item_id == _ITEMNAMES_ORAN_BERRY:
+            pok[_POK_CURRENT_HP] = min((pok[_POK_CURRENT_HP]+10), pok[_POK_MAX_HP])
+        clear_item(pok)

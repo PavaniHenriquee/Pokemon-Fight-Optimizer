@@ -46,6 +46,8 @@ export default function App() {
   const [iterations, setIterations] = useState(100_000);
   const [isFocused, setIsFocused] = useState(false);
   const [continueNodeId, setContinueNodeId] = useState<string | null>(null);
+  const [sessionActive, setSessionActive] = useState(false);
+  const [trainerItems, setTrainerItems] = useState<string[]>(["", "", "", ""]);
 
   useEffect(() => {
     fetch(`${API_URL}/trainers`)
@@ -177,13 +179,18 @@ export default function App() {
     fetch(`${API_URL}/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ my_team: myTeam, opp_team: oppTeam, iterations }),
+      body: JSON.stringify({
+        my_team: myTeam,
+        opp_team: oppTeam,
+        iterations,
+        trainer_items: trainerItems.filter(Boolean), // ← new; strips empty slots
+      }),
     }).catch(console.error);
     setPathIds([]);
     setSelectedKey(null);
     setStartTime(Date.now());
     setElapsed(0);
-    setView("explore"); // auto-switch to explore tab
+    setView("explore");
   };
 
   const stop = () => {
@@ -280,11 +287,13 @@ export default function App() {
           setMyTeam={setMyTeam}
           oppTeam={oppTeam}
           setOppTeam={setOppTeam}
+          trainerItems={trainerItems}
+          setTrainerItems={setTrainerItems}
         />
       </div>
 
       {view !== "configure" &&
-        (!currentNode ? (
+        (!sessionActive || !currentNode ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-500">
             <div className="flex flex-col items-center gap-3">
               <div className="flex flex-col gap-1">
@@ -346,6 +355,8 @@ export default function App() {
           nodeId={continueNodeId}
           onClose={() => setContinueNodeId(null)}
           onStarted={() => {
+            setSessionActive(true);
+            setTree(null);
             setPathIds([]);
             setSelectedKey(null);
             setStartTime(Date.now());

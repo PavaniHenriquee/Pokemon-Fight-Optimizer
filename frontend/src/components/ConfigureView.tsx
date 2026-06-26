@@ -13,7 +13,8 @@ import { MyTeamSlot, OpponentSlot } from "./PokemonSlots";
 
 const API_URL = "http://localhost:8000";
 
-// ─── single Pokemon slot ──────────────────────────────
+const itemIcon = (name: string) =>
+  `https://play.pokemonshowdown.com/sprites/itemicons/${name.toLowerCase().replace(/[\s_]+/g, "-")}.png`;
 
 function OpponentHeader({
   trainerDB,
@@ -34,9 +35,7 @@ function OpponentHeader({
           <img
             src={`https://play.pokemonshowdown.com/sprites/trainers/${sprite}.png`}
             alt={selectedTrainer}
-            style={{
-              imageRendering: "pixelated",
-            }}
+            style={{ imageRendering: "pixelated" }}
             className="object-contain"
           />
         )}
@@ -68,7 +67,6 @@ function OpponentHeader({
   );
 }
 
-// ─── one team column ──────────────────────────────────────────────────────────
 function TeamPanel({
   label,
   team,
@@ -83,6 +81,7 @@ function TeamPanel({
   onTrainerSelect,
   locked = false,
   pokemonData,
+  trainerItems,
 }: {
   label: string;
   team: PokemonConfig[];
@@ -97,6 +96,7 @@ function TeamPanel({
   onTrainerSelect?: (trainer: string | null) => void;
   locked?: boolean;
   pokemonData?: PokemonData;
+  trainerItems?: string[];
 }) {
   function addSlot() {
     if (team.length >= 6) return;
@@ -139,6 +139,36 @@ function TeamPanel({
           </div>
         )}
       </div>
+
+      {/* Trainer battle items — opponent side only */}
+      {trainerItems !== undefined && trainerItems.some(Boolean) && (
+        <div className="my-2">
+          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">
+            Trainer Items
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {trainerItems.filter(Boolean).map((item, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-1.5 px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg"
+              >
+                <img
+                  src={itemIcon(item)}
+                  alt=""
+                  width={16}
+                  height={16}
+                  style={{ imageRendering: "pixelated" }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+                <span className="text-xs text-slate-300">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {locked && onTrainerSelect ? (
         <p className="text-xs text-slate-500">
           Trainer-selected teams are locked.
@@ -239,7 +269,7 @@ function TeamPanel({
     </div>
   );
 }
-// ─── main view ────────────────────────────────────────────────────────────────
+
 interface Props {
   pokemonData: PokemonData | null;
   trainerDB: TrainerDB;
@@ -247,6 +277,8 @@ interface Props {
   setMyTeam: (team: PokemonConfig[]) => void;
   oppTeam: PokemonConfig[];
   setOppTeam: (team: PokemonConfig[]) => void;
+  trainerItems: string[];
+  setTrainerItems: (items: string[]) => void;
 }
 
 export default function ConfigureView({
@@ -256,22 +288,28 @@ export default function ConfigureView({
   setMyTeam,
   oppTeam,
   setOppTeam,
+  trainerItems,
+  setTrainerItems,
 }: Props) {
   const [box, setBox] = useState<BoxEntry[] | null>(null);
   const [oppLocked, setOppLocked] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState("");
 
-  // Select the first loaded trainer once when trainerDB arrives.
+  // Helper: pad a trainer_items array to always have exactly 4 slots
+  function padItems(items: string[] = []): string[] {
+    return [...items, "", "", "", ""].slice(0, 4);
+  }
+
   useEffect(() => {
     const firstTrainer = Object.keys(trainerDB)[0];
     if (firstTrainer && selectedTrainer === "") {
       setSelectedTrainer(firstTrainer);
-      setOppTeam(trainerDB[firstTrainer]?.team ?? []); // was trainerDB[firstTrainer] ?? []
+      setOppTeam(trainerDB[firstTrainer]?.team ?? []);
+      setTrainerItems(padItems(trainerDB[firstTrainer]?.trainer_items));
       setOppLocked(true);
     }
   }, [trainerDB, selectedTrainer]);
 
-  // Load once on mount
   useEffect(() => {
     fetch(`${API_URL}/box`)
       .then((r) => r.json())
@@ -292,10 +330,12 @@ export default function ConfigureView({
     if (trainer === null) {
       setOppLocked(false);
       setSelectedTrainer("");
+      setTrainerItems(["", "", "", ""]);
       return;
     }
     setSelectedTrainer(trainer);
-    setOppTeam(trainerDB[trainer]?.team ?? []); // was trainerDB[trainer] ?? []
+    setOppTeam(trainerDB[trainer]?.team ?? []);
+    setTrainerItems(padItems(trainerDB[trainer]?.trainer_items));
     setOppLocked(true);
   }
 
@@ -311,10 +351,8 @@ export default function ConfigureView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Teams */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-[95%] mx-auto space-y-3">
-          {/* Box trigger */}
           <BoxView
             box={box ?? []}
             pokemonData={pokemonData}
@@ -322,7 +360,6 @@ export default function ConfigureView({
             onSave={saveBox}
           />
 
-          {/* Teams */}
           <div className="flex gap-4 items-start">
             <div style={{ flex: 1.15, minWidth: 0 }}>
               <TeamPanel
@@ -352,6 +389,7 @@ export default function ConfigureView({
                 onTrainerSelect={handleSelectTrainer}
                 locked={oppLocked}
                 pokemonData={pokemonData}
+                trainerItems={trainerItems}
               />
             </div>
           </div>

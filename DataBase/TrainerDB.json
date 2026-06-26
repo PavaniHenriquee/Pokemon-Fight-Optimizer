@@ -1,6 +1,7 @@
 {
   "Test": {
     "sprite": "youngster",
+    "trainer_items": ["Potion"],
     "team": [
       {
         "name": "Squirtle",

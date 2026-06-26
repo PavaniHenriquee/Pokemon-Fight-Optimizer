@@ -2,7 +2,7 @@
 import random
 import numpy as np
 import psutil
-from Models.constants import _FIELD_TURN
+from Models.constants import _FIELD_TURN, _FIELD_AI_ITEM1, _POTIONS_POTION
 # Profile command
 # py-spy record -s -f speedscope -r 250 -o flamegraph.speedscope.json -- python main.py
 
@@ -11,7 +11,7 @@ def build_battle():
     """Build battle"""
     from Models.pokemon import Pokemon
     from Utils.helper import to_battle_array
-    charmander = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"])
+    charmander = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"], item="Oran Berry")
     squirtle = Pokemon("Squirtle", "Male", 7, "Torrent", "Hardy", ["Tackle", "Tail Whip", "Bubble"])
     bulbasaur =Pokemon("Bulbasaur", "Male", 5, "Overgrow", "Hardy", ["Pound", "Leer", "Razor Leaf"])
     charmeleon = Pokemon("Charmeleon", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl"])
@@ -20,10 +20,11 @@ def build_battle():
     squirtle1 = Pokemon("Squirtle", "Male", 5, "Torrent", "Hardy", ["Tackle", "Tail Whip"])
     charmander1 = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl"])
 
-    my_party = [charmander, bulbasaur, squirtle, charmeleon, ivysaur, wartortle]
-    opp_party = [squirtle1, charmander1, charmander1, charmander1, charmander1]
-
-    return to_battle_array(my_party, opp_party)
+    my_party = [charmander, bulbasaur, squirtle, charmeleon, wartortle, ivysaur]
+    opp_party = [squirtle1, charmander1]
+    array = to_battle_array(my_party, opp_party)
+    array[_FIELD_AI_ITEM1] = _POTIONS_POTION
+    return array
 
 
 def print_peak_memory():
@@ -140,6 +141,6 @@ if __name__ =='__main__':
 
     #run_single()
     #run_parallel()
-    run_jit()
-    #run_jit_base_time()
+    #run_jit()
+    run_jit_base_time()
     print_peak_memory()

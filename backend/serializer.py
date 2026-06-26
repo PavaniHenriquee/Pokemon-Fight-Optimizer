@@ -2,10 +2,11 @@
 from __future__ import annotations
 import os
 import sys
-from Models.idx_const import Pok, Move, MOVE_STRIDE, POK_LEN
+from Models.idx_const import Pok, Move, MOVE_STRIDE, POK_LEN, Field as FieldIdx
 from Models.helper import BattlePhase
 from DataBase.PkDB import PokIdToName
 from DataBase.MoveDB import MoveIdToName
+from DataBase.ItemDB import ItemNames as _ItemNameEnum
 
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,6 +23,21 @@ VOL_BITS = {
     128: "Curse", 256: "Attracted",
 }
 STAGE_NAMES = ["Atk", "Def", "SpA", "SpD", "Spe", "Acc", "Eva"]
+_ITEM_ID_TO_NAME: dict[int, str] = {
+    v: k.replace("_", " ").title()
+    for k, v in vars(_ItemNameEnum).items()
+    if isinstance(v, int)
+}
+
+_POTION_ID_TO_NAME: dict[int, str] = {
+    1: "Potion", 2: "Super Potion", 3: "Hyper Potion",
+    4: "Full Restore", 5: "Full Heal",
+    6: "X Special", 7: "X Defend", 8: "X Speed",
+}
+
+_FLD_BASE = FieldIdx.MY_POK
+_FLD_ITEMS = (FieldIdx.AI_ITEM1, FieldIdx.AI_ITEM2, FieldIdx.AI_ITEM3, FieldIdx.AI_ITEM4)
+
 
 def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
     """One bench slot. Returns None for empty party slots (pok_id == 0)."""
@@ -38,6 +54,7 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
         "max_hp": int(battle_array[base + Pok.MAX_HP]),
         "status": STATUS.get(int(snap.bench_delta[delta_i, 1]), ""),
         "level":  int(battle_array[base + Pok.LEVEL]),
+        "item":   _ITEM_ID_TO_NAME.get(int(battle_array[base + Pok.ITEM_ID]), ""),
     }
 
 
@@ -54,10 +71,10 @@ def _pok(arr) -> dict | None:
         "status":     STATUS.get(int(arr[Pok.STATUS]), ""),
         "vol_status": [name for bit, name in VOL_BITS.items()
                        if int(arr[Pok.VOL_STATUS]) & bit],
-        # Only include non-zero stages so the frontend doesn't clutter
         "stages":     {STAGE_NAMES[i]: int(arr[Pok.ATTACK_STAT_STAGE + i])
                        for i in range(7)
                        if int(arr[Pok.ATTACK_STAT_STAGE + i]) != 0},
+        "item":       _ITEM_ID_TO_NAME.get(int(arr[Pok.ITEM_ID]), ""),
     }
 
 
@@ -97,15 +114,18 @@ def _snapshot(snap, parent_opp_slice=None, battle_array=None) -> dict:
                 if e:
                     opp_bench.append(e)
     return {
-        "phase":      "DEATH" if is_death else "TURN_START",
-        "opp_active": int(snap.opp_active),
-        "terminal":   bool(snap.terminal),
-        "opp_move":   opp_move,   
-        # When it's DEATH phase, my_slice is an empty array (my_active == -1)
-        "my":  _pok(snap.my_slice if not is_death else None),
-        "opp": _pok(snap.opp_slice),
-        "my_bench":  my_bench,
-        "opp_bench": opp_bench,
+        "phase":         "DEATH" if is_death else "TURN_START",
+        "opp_active":    int(snap.opp_active),
+        "terminal":      bool(snap.terminal),
+        "opp_move":      opp_move,
+        "my":            _pok(snap.my_slice if not is_death else None),
+        "opp":           _pok(snap.opp_slice),
+        "my_bench":      my_bench,
+        "opp_bench":     opp_bench,
+        "trainer_items": [
+            _POTION_ID_TO_NAME.get(int(snap.field_block[fi - _FLD_BASE]), "")
+            for fi in _FLD_ITEMS
+        ],
     }
 
 

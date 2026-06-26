@@ -1,5 +1,4 @@
 """Helper for transformation of Names to number, so i can use Numpy efficiently"""
-from types import SimpleNamespace
 from dataclasses import dataclass
 import numpy as np
 from numba import njit
@@ -143,19 +142,20 @@ class MoveCategory:
 
 PHYSICAL_SPECIAL = (MoveCategory.PHYSICAL, MoveCategory.SPECIAL)
 
+@dataclass(slots=True)
+class ItemType:
+    """Types of items"""
+    BERRY      = 0
+    CONSUMABLE = 1
+    CHOICE     = 2
+    HELD       = 3
+    MEGA       = 4
 
-ItemType = SimpleNamespace(
-    BERRY = 0,
-    CONSUMABLE = 1,
-    CHOICE = 2,
-    HELD = 3,
-    MEGA = 4
-)
 
 
 @dataclass(slots=True)
 class ItemActivation:
-    """When will the ability be used"""
+    """When will the item be used"""
     SWITCH_IN         = 1
     ON_PREPARE_HIT    = 2
     ON_DAMAGE         = 4

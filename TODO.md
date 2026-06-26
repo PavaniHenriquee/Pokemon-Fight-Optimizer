@@ -270,7 +270,7 @@ Items
 []Expert Belt
 []Flame Orb
 []Muscle Band
-[]Oran Berry
+[X]Oran Berry
 []Rindo Berry
 []Sitrus Berry
 []Smooth Rock

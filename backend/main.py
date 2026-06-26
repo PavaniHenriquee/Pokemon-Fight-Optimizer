@@ -18,7 +18,13 @@ from numba import njit
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from Models.idx_const import Pok, POK_LEN
-from Models.constants import _FIELD_TURN
+from Models.constants import (
+    _FIELD_TURN,
+    _FIELD_AI_ITEM1, _FIELD_AI_ITEM2, _FIELD_AI_ITEM3, _FIELD_AI_ITEM4,
+    _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
+    _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL,
+    _POTIONS_X_SPECIAL, _POTIONS_X_DEFEND, _POTIONS_X_SPEED,
+)
 from Models.pokemon import Pokemon
 from Engine.engine_helper import start_of_battle
 from SearchEngine.models import GameState, Node, reconstruct_battle_array
@@ -26,7 +32,7 @@ from SearchEngine.my_mcts import _select_expand, _rollout, _backprop, find_best_
 from SearchEngine.helper import prune_dominated
 from Utils.helper import to_battle_array
 from Utils.loader import natures
-from DataBase.loader import pkDB, moveDB, abDB
+from DataBase.loader import pkDB, moveDB, abDB, itemDB
 from DataBase.PkDB import PokemonName, PokIdToName
 from .serializer import serialize_node   # relative import within the backend package
 
@@ -41,6 +47,21 @@ _DEFAULT_IVS = {
     "Special Attack": 31, "Special Defense": 31, "Speed": 31,
 }
 _BOX_PATH = os.path.join(_ROOT, "UserData", "box.json")
+
+_TRAINER_ITEM_FIELDS = (
+    _FIELD_AI_ITEM1, _FIELD_AI_ITEM2, _FIELD_AI_ITEM3, _FIELD_AI_ITEM4,
+)
+
+_TRAINER_ITEM_MAP: dict[str, int] = {
+    "Potion":       _POTIONS_POTION,
+    "Super Potion": _POTIONS_SUPER_POTION,
+    "Hyper Potion": _POTIONS_HYPER_POTION,
+    "Full Restore": _POTIONS_FULL_RESTORE,
+    "Full Heal":    _POTIONS_FULL_HEAL,
+    "X Special":    _POTIONS_X_SPECIAL,
+    "X Defend":     _POTIONS_X_DEFEND,
+    "X Speed":      _POTIONS_X_SPEED,
+}
 
 
 @njit
@@ -95,6 +116,7 @@ class PokemonConfig(BaseModel):
     nature: str = "Hardy"
     moves: list[str]  # empty strings filtered out before building
     ivs: Optional[dict] = None
+    item: Optional[str] = None
 
 class BattleConfig(BaseModel):
     """
@@ -103,6 +125,7 @@ class BattleConfig(BaseModel):
     my_team: list[PokemonConfig]
     opp_team: list[PokemonConfig]
     iterations: int = 350_000
+    trainer_items: list[str] = Field(default_factory=list)
 
 
 def _find_node(root: Node, target_id: str) -> Node | None:
@@ -156,6 +179,7 @@ async def get_pokemon_data() -> dict:
         "moves":     sorted(moveDB.keys()),
         "natures":   sorted(natures.keys()),
         "abilities": sorted(abDB.keys()),
+        "items":     sorted(itemDB.keys()),
         "nameToId":  name_to_id,
         "baseStats": base_stats,
         "natureMultipliers": natures,
@@ -205,8 +229,13 @@ async def start_mcts(config: BattleConfig) -> dict:
     await asyncio.sleep(0.1)
 
     def make_pokemon(p: PokemonConfig) -> Pokemon:
-        moves = [m for m in p.moves if m]  # strip empty slots
-        return Pokemon(p.name, p.gender, p.level, p.ability, p.nature, moves, ivs=p.ivs)
+        moves = [m for m in p.moves if m]
+        return Pokemon(
+            p.name, p.gender, p.level, p.ability, p.nature, moves,
+            ivs=p.ivs,
+            item=p.item if p.item else None,
+        )
+
 
     my_party  = [make_pokemon(p) for p in config.my_team]
     opp_party = [make_pokemon(p) for p in config.opp_team]
@@ -214,6 +243,12 @@ async def start_mcts(config: BattleConfig) -> dict:
 
     if battle[_FIELD_TURN] == 0:
         start_of_battle(battle)
+
+    # Set trainer AI battle items
+    for i, item_name in enumerate(config.trainer_items[:4]):
+        val = _TRAINER_ITEM_MAP.get(item_name, 0)
+        if val:
+            battle[_TRAINER_ITEM_FIELDS[i]] = val
 
     root_state = GameState(battle)
     root       = Node(root_state)

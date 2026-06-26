@@ -9,6 +9,7 @@ export interface PokemonState {
   status: string; // "BRN" | "PAR" | "SLP" | ""
   vol_status: string[]; // ["Confused", "Leech Seed"]
   stages: Record<string, number>; // { "Atk": 2, "SpD": -1 } — only non-zero
+  item?: string;
 }
 
 export interface SnapshotData {
@@ -18,8 +19,9 @@ export interface SnapshotData {
   opp_move: string | null;
   my: PokemonState | null; // null when phase === "DEATH"
   opp: PokemonState | null;
-  my_bench:  BenchEntry[];
+  my_bench: BenchEntry[];
   opp_bench: BenchEntry[];
+  trainer_items?: string[];
 }
 
 export interface ActionData {
@@ -78,6 +80,7 @@ export interface PokemonConfig {
   nature: string;
   moves: string[]; // up to 4, empty string = unused slot
   ivs?: IVs;
+  item?: string;
 }
 
 export interface BaseStats {
@@ -94,6 +97,7 @@ export interface PokemonData {
   moves: string[];
   natures: string[];
   abilities: string[];
+  items: string[];
   nameToId: Record<string, number>;
   baseStats: Record<string, BaseStats>;
   natureMultipliers: Record<string, Record<string, number>>;
@@ -116,16 +120,18 @@ export interface NodeInfoData {
 export interface TrainerEntry {
   sprite: string;
   team: PokemonConfig[];
+  trainer_items?: string[];
 }
 
 export type TrainerDB = Record<string, TrainerEntry>;
 
 export interface BenchEntry {
-  slot:    number;
-  id:      number;
-  name:    string;
-  hp:      number;
-  max_hp:  number;
-  status:  string;
-  level:   number;
+  slot: number;
+  id: number;
+  name: string;
+  hp: number;
+  max_hp: number;
+  status: string;
+  level: number;
+  item?: string;
 }

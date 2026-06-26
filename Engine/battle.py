@@ -17,7 +17,8 @@ from Engine.engine_helper import (
     heal_end_turn,
     on_residual,
     trainer_ai_items,
-    drain
+    drain,
+    item_on_rdmg
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage, struggle
@@ -38,7 +39,7 @@ from Models.constants import (
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START,
     _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN, _MOVE_MULTI_HIT_MIN, _MOVE_MULTI_HIT_MAX,
     _POK_VOL_STATUS, _VOLSTATUS_BIDE, _POK_DMG_TAKEN, _MOVE_CHARGE_RECHARGE, _POK_CHARGE_RECHARGE,
-    _POK_LOCKED_MOVE
+    _POK_LOCKED_MOVE, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE
 )
 from Models.move import STRUGGLE
 
@@ -62,6 +63,7 @@ def start_of_turn(opp_move, switch_idx, battle_array):
             item_list = battle_array[_FIELD_AI_ITEM1:(_FIELD_AI_ITEM1+4)]
             slot = -(opp_move // 10) - 1  #Items are -10, -20, -30, -40
             trainer_ai_items(current_opp, item_list[slot])
+            item_list[slot] = 0  # Item used, so goes to 0
         else:
             opp_switch = opp_move + 6 #Before I subtracted -6 from idx that's why +6 so it's 0..5
 
@@ -159,6 +161,8 @@ def _ps_moves_core(attacker, defender, move, weather):
             contact_ability(attacker, defender)
         if move[_SEC_VOL_STATUS] & _VOLSTATUS_FLINCH:
             flinch = flinch_checker(move, defender)
+        if defender[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+            item_on_rdmg(defender)
     else:
         defender[_POK_CURRENT_HP] = 0
         # Aftermath damage after kill
@@ -171,6 +175,8 @@ def _ps_moves_core(attacker, defender, move, weather):
             dmg = attacker[_POK_MAX_HP] // 4
             if dmg < attacker[_POK_CURRENT_HP:]:
                 attacker[_POK_CURRENT_HP] -= damage
+                if attacker[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+                    item_on_rdmg(attacker)
             else:
                 attacker[_POK_CURRENT_HP] = 0
                 return False, damage # Both are dead so early return
@@ -385,6 +391,9 @@ def end_of_turn(battle_array):
                 if my_enter_field:
                     battle_array[_FIELD_MY_ENTER_FIELD] = 0
             current_pokemon[_POK_CURRENT_HP] = m_hp
+            # Items after taking damage
+            if current_pokemon[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+                item_on_rdmg(current_pokemon)
         else:
             if m_abi & _ABILITYACTIVATION_ON_RESIDUAL:
                 on_residual(current_pokemon, my_enter_field)
@@ -403,6 +412,9 @@ def end_of_turn(battle_array):
                 if opp_enter_field:
                     battle_array[_FIELD_OPP_ENTER_FIELD] = 0
             current_opp[_POK_CURRENT_HP] = opp_hp
+            # Items after taking damage
+            if current_opp[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+                item_on_rdmg(current_opp)
         else:
             if m_abi & _ABILITYACTIVATION_ON_RESIDUAL:
                 on_residual(current_pokemon, my_enter_field)
