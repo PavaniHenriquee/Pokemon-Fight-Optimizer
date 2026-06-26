@@ -23,6 +23,23 @@ VOL_BITS = {
 }
 STAGE_NAMES = ["Atk", "Def", "SpA", "SpD", "Spe", "Acc", "Eva"]
 
+def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
+    """One bench slot. Returns None for empty party slots (pok_id == 0)."""
+    delta_i = i if is_my else i + 6
+    base    = i * POK_LEN if is_my else (i + 6) * POK_LEN
+    pok_id  = int(battle_array[base + Pok.ID])
+    if pok_id == 0:
+        return None
+    return {
+        "slot":   i,
+        "id":     pok_id,
+        "name":   PokIdToName.get(pok_id, "?").capitalize(),
+        "hp":     int(snap.bench_delta[delta_i, 0]),
+        "max_hp": int(battle_array[base + Pok.MAX_HP]),
+        "status": STATUS.get(int(snap.bench_delta[delta_i, 1]), ""),
+        "level":  int(battle_array[base + Pok.LEVEL]),
+    }
+
 
 def _pok(arr) -> dict | None:
     """Serialize the key display fields from one Pokemon's array slice."""
@@ -63,11 +80,22 @@ def _opp_move_label(opp_move_idx: int, parent_opp_slice) -> str | None:
     return f"Move {opp_move_idx}"
 
 
-def _snapshot(snap, parent_opp_slice=None) -> dict:
+def _snapshot(snap, parent_opp_slice=None, battle_array=None) -> dict:
     is_death = snap.phase == BattlePhase.DEATH_END_OF_TURN
     opp_move = None
     if parent_opp_slice is not None and snap.opp_move_idx != -1:
         opp_move = _opp_move_label(snap.opp_move_idx, parent_opp_slice)
+    my_bench, opp_bench = [], []
+    if battle_array is not None:
+        for i in range(6):
+            if i != snap.my_active:
+                e = _bench_entry(battle_array, snap, i, True)
+                if e:
+                    my_bench.append(e)
+            if i != snap.opp_active:
+                e = _bench_entry(battle_array, snap, i, False)
+                if e:
+                    opp_bench.append(e)
     return {
         "phase":      "DEATH" if is_death else "TURN_START",
         "opp_active": int(snap.opp_active),
@@ -76,6 +104,8 @@ def _snapshot(snap, parent_opp_slice=None) -> dict:
         # When it's DEATH phase, my_slice is an empty array (my_active == -1)
         "my":  _pok(snap.my_slice if not is_death else None),
         "opp": _pok(snap.opp_slice),
+        "my_bench":  my_bench,
+        "opp_bench": opp_bench,
     }
 
 
@@ -116,7 +146,7 @@ def serialize_node(
         "wins":       node.wins,
         "win_chance": round(float(node.win_chance), 4),
         "dead_avg":   round(float(node.dead_avg), 4),
-        "snapshot":   _snapshot(node.snapshot, _parent_opp_slice),
+        "snapshot":   _snapshot(node.snapshot, _parent_opp_slice, battle_array),
         "actions":    {},
     }
 

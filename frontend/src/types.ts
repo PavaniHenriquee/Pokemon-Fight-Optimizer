@@ -18,6 +18,8 @@ export interface SnapshotData {
   opp_move: string | null;
   my: PokemonState | null; // null when phase === "DEATH"
   opp: PokemonState | null;
+  my_bench:  BenchEntry[];
+  opp_bench: BenchEntry[];
 }
 
 export interface ActionData {
@@ -117,3 +119,13 @@ export interface TrainerEntry {
 }
 
 export type TrainerDB = Record<string, TrainerEntry>;
+
+export interface BenchEntry {
+  slot:    number;
+  id:      number;
+  name:    string;
+  hp:      number;
+  max_hp:  number;
+  status:  string;
+  level:   number;
+}

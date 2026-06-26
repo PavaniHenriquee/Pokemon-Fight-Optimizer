@@ -29,17 +29,15 @@ function OpponentHeader({
 
   return (
     <div className="flex items-center gap-2">
-      <div style={{ width: 40, height: 40, flexShrink: 0 }}>
+      <div className="w-20 h-full flex-shrink-0">
         {sprite && (
           <img
             src={`https://play.pokemonshowdown.com/sprites/trainers/${sprite}.png`}
             alt={selectedTrainer}
             style={{
-              width: 40,
-              height: 40,
-              objectFit: "contain",
               imageRendering: "pixelated",
             }}
+            className="object-contain"
           />
         )}
       </div>
@@ -132,7 +130,7 @@ function TeamPanel({
           {label} <span className="text-slate-600">({team.length}/6)</span>
         </h2>
         {onTrainerSelect && trainerDB && selectedTrainer !== undefined && (
-          <div className="w-full sm:w-52">
+          <div className="w-60">
             <OpponentHeader
               trainerDB={trainerDB}
               selectedTrainer={selectedTrainer}

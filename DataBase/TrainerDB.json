@@ -43,5 +43,321 @@
         "moves": ["Scratch", "Growl", "", ""]
       }
     ]
+  },
+  "Barry 1-P": {
+    "sprite": "barry",
+    "team": [
+      {
+        "name": "Turtwig",
+        "gender": "Male",
+        "level": 5,
+        "ability": "Overgrow",
+        "nature": "Serious",
+        "moves": ["Tackle", "Withdraw", "", ""],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Barry 1-T": {
+    "sprite": "barry",
+    "team": [
+      {
+        "name": "Chimchar",
+        "gender": "Male",
+        "level": 5,
+        "ability": "Iron Fist",
+        "nature": "Timid",
+        "moves": ["Scratch", "Leer", "", ""],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Barry 1-C": {
+    "sprite": "barry",
+    "team": [
+      {
+        "name": "Piplup",
+        "gender": "Male",
+        "level": 5,
+        "ability": "Torrent",
+        "nature": "Naive",
+        "moves": ["Pound", "Growl", "", ""],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Lucas 1-P": {
+    "sprite": "lucas-gen4pt",
+    "team": [
+      {
+        "name": "Turtwig",
+        "gender": "Male",
+        "level": 9,
+        "ability": "Overgrow",
+        "nature": "Hasty",
+        "moves": ["Razor Leaf", "Absorb", "Withdraw", "Tackle"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Lucas 1-T": {
+    "sprite": "lucas-gen4pt",
+    "team": [
+      {
+        "name": "Chimchar",
+        "gender": "Male",
+        "level": 9,
+        "ability": "Iron Fist",
+        "nature": "Hasty",
+        "moves": ["Taunt", "Ember", "Leer", "Scratch"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Lucas 1-C": {
+    "sprite": "lucas-gen4pt",
+    "team": [
+      {
+        "name": "Piplup",
+        "gender": "Male",
+        "level": 9,
+        "ability": "Torrent",
+        "nature": "Hasty",
+        "moves": ["Water Sport", "Bubble", "Growl", "Pound"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Dawn 1-P": {
+    "sprite": "dawn-gen4pt",
+    "team": [
+      {
+        "name": "Turtwig",
+        "gender": "Male",
+        "level": 9,
+        "ability": "Overgrow",
+        "nature": "Careful",
+        "moves": ["Razor Leaf", "Absorb", "Withdraw", "Tackle"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Dawn 1-T": {
+    "sprite": "dawn-gen4pt",
+    "team": [
+      {
+        "name": "Chimchar",
+        "gender": "Male",
+        "level": 9,
+        "ability": "Iron Fist",
+        "nature": "Docile",
+        "moves": ["Taunt", "Ember", "Leer", "Scratch"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Dawn 1-C": {
+    "sprite": "dawn-gen4pt",
+    "team": [
+      {
+        "name": "Piplup",
+        "gender": "Male",
+        "level": 9,
+        "ability": "Torrent",
+        "nature": "Lax",
+        "moves": ["Water Sport", "Bubble", "Growl", "Pound"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Lass Natalie 1": {
+    "sprite": "lass-gen4dp",
+    "team": [
+      {
+        "name": "Sentret",
+        "gender": "Female",
+        "level": 7,
+        "ability": "Run Away",
+        "nature": "Hasty",
+        "moves": ["Fury Swipes", "Quick Attack", "Defense Curl", "Foresight"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Bidoof",
+        "gender": "Female",
+        "level": 7,
+        "ability": "Simple",
+        "nature": "Quiet",
+        "moves": ["Defense Curl", "Growl", "Tackle", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Youngster Tristan 1": {
+    "sprite": "youngster-gen4dp",
+    "team": [
+      {
+        "name": "Hoothoot",
+        "gender": "Male",
+        "level": 7,
+        "ability": "Tinted Lens",
+        "nature": "Jolly",
+        "moves": ["Hypnosis", "Peck", "Foresight", "Growl"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Starly",
+        "gender": "Male",
+        "level": 7,
+        "ability": "Reckless",
+        "nature": "Lax",
+        "moves": ["Quick Attack", "Growl", "Tackle", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Youngster Logan 1": {
+    "sprite": "youngster-gen4dp",
+    "team": [
+      {
+        "name": "Growlithe",
+        "gender": "Male",
+        "level": 7,
+        "ability": "Intimidate",
+        "nature": "Docile",
+        "moves": ["Ember", "Howl", "Roar", "Leer"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Burmy",
+        "gender": "Male",
+        "level": 7,
+        "ability": "Battle Armor",
+        "nature": "Jolly",
+        "moves": ["Hidden Power", "Bug Bite", "Tackle", "Protect"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Zigzagoon",
+        "gender": "Male",
+        "level": 7,
+        "ability": "Pickup",
+        "nature": "Adamant",
+        "moves": ["Covet", "Sand Attack", "Tail Whip", "Growl"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
   }
 }
