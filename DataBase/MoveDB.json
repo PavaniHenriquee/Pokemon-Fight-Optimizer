@@ -113,7 +113,8 @@
     "priority": 1,
     "target": "self",
     "type": "Normal",
-    "vol_status": "bide"
+    "vol_status": "bide",
+    "damage": "dmg_taken"
   },
   "Bite": {
     "accuracy": 100,
@@ -180,6 +181,7 @@
     "power": 40,
     "pp": 30,
     "secondary": {
+      "target": "normal",
       "chance": 10,
       "speed": -1
     },
@@ -225,6 +227,7 @@
     },
     "multi_hit": [2, 5],
     "name": "bullet_seed",
+    "power": 25,
     "pp": 30,
     "target": "normal",
     "type": "Grass"
@@ -352,6 +355,20 @@
     "pp": 15,
     "target": "all_adjacent_foes",
     "type": "Fairy"
+  },
+  "Dragon Rage": {
+    "name": "dragon_rage",
+    "category": "Special",
+    "target": "normal",
+    "type": "Dragon",
+    "pp": 10,
+    "accuracy": 100,
+    "damage": 40,
+    "flags": {
+      "protect": true,
+      "mirror": true,
+      "metronome": true
+    }
   },
   "Ember": {
     "accuracy": 100,

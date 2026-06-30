@@ -42,8 +42,10 @@ class Moves():
             dmg_result = dmg_val
         elif dmg_val == 'level':
             dmg_result = -2
-        else:
+        elif dmg_val == 'dmg_taken':
             dmg_result = -1
+        else:
+            dmg_result = 0
 
         base_move_array[Move.ID]       = getattr(MoveName, self.move['name'].upper())
         base_move_array[Move.CATEGORY] = getattr(MoveCategory, self.move['category'].upper())
@@ -72,7 +74,7 @@ class Moves():
         base_move_array[Move.IGNORE_IMMUNITY] = int(self.move.get('ignore_immunity', False))
         base_move_array[Move.PP]              = self.move.get('pp',0)
         base_move_array[Move.PP_UP]           = 0  # Move wont tell pp up, need to manually tell
-        mult_hit = self.move.get('multi_hit',[1,1])
+        mult_hit = self.move.get('multi_hit',[0,0])
         base_move_array[Move.MULTI_HIT_MIN]   = mult_hit[0]
         base_move_array[Move.MULTI_HIT_MAX] = mult_hit[1]
         base_move_array[Move.SELF_SWITCH]  = int(self.move.get('self_switch', False))

@@ -145,11 +145,11 @@ PHYSICAL_SPECIAL = (MoveCategory.PHYSICAL, MoveCategory.SPECIAL)
 @dataclass(slots=True)
 class ItemType:
     """Types of items"""
-    BERRY      = 0
-    CONSUMABLE = 1
-    CHOICE     = 2
-    HELD       = 3
-    MEGA       = 4
+    BERRY      = 1
+    CONSUMABLE = 2
+    CHOICE     = 3
+    HELD       = 4
+    MEGA       = 5
 
 
 

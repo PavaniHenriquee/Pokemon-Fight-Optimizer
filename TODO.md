@@ -62,22 +62,23 @@ Moves
 [X]Aqua Jet
 [X]Arm Thrust !
 [X]Astonish
-[]Bide(E) !
-[]Bite
-[]Bone Club
-[]Brick Break(E) !
-[]Bubble
-[]Bug Bite(E) !
-[]Bulldoze
-[]Bullet Seed
-[]Charm
-[]Confuse Ray
+[X]Bide(E) !
+[X]Bite
+[X]Bone Club
+[]Brick Break(E) ! (Need Screens)
+[X]Bubble
+[X]Bug Bite(E) !
+[X]Bulldoze
+[X]Bullet Seed
+[X]Charm
+[]Confuse Ray !
 []Confusion
 []Counter(E) !
 []Covet(E) !
 []Curse(B/E) !
 []Defense Curl
 []Disarming Voice
+[X]Dragon Rage !
 []Ember
 []Fake Out(B/E) !
 []Fire Punch

@@ -19,7 +19,7 @@ from Models.constants import (
     _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1,
     _FIELD_AI_ITEM4, _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
-    _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL
+    _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -421,6 +421,12 @@ def return_idx(battle_array):
     """
     It transform the highest moving score to the index of the move
     """
+    idx = battle_array[_FIELD_OPP_POK]
+    pok = battle_array[
+        ((idx+6) * POK_LEN):((idx+7) * POK_LEN)
+    ]
+    if pok[_POK_LOCKED_MOVE] != -1:
+        return pok[_POK_LOCKED_MOVE]
     move_scores = choose_move(battle_array)
 
     max_score = -999999

@@ -15,7 +15,7 @@ from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node, prune_dominated
 from SearchEngine.models import GameState, Node, ActionType, N_BINS
 from Models.helper import StatustoName, BattlePhase
-from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move
+from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move, Field
 from DataBase.MoveDB import MoveIdToName
 from DataBase.PkDB import PokIdToName
 
@@ -145,6 +145,7 @@ def print_best_path(root, battle_array, depth=0, max_depth=50, min_visits=1):
 
     indent = " " * depth
     print(f"\n{indent}------ Depth {depth} ------")
+    print(f"\n{indent}Turn: {root.snapshot.field_block[Field.TURN - Field.MY_POK]}")
 
     # Print current state of the battle
     print(f"{indent}                   Opponent")

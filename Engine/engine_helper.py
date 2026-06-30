@@ -27,7 +27,8 @@ from Models.constants import (
     _ABILITYNAMES_SYNCHRONIZE, _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_WATER_ABSORB,
     _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN, _POK_DMG_TAKEN,
     _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEMNAMES_ORAN_BERRY,
-    _ITEM_ID, _ITEMNAMES_SITRUS_BERRY
+    _ITEM_ID, _ITEMNAMES_SITRUS_BERRY, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _ITEMTYPE_BERRY,
+    _ITEM_ITEM_TYPE
 )
 
 
@@ -169,7 +170,7 @@ def ab_on_try_move(move, attacker, defender, accuracy:int, weather):
 def calculate_hit_miss(move, attacker, defender, weather):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
-    if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
+    if move[_MOVE_ID] == _MOVENAME_STRUGGLE or move[_MOVE_ID] == _MOVENAME_BIDE:
         return _MOVEOUTCOME_HIT
     move_acc = move[_MOVE_ACCURACY]
 
@@ -343,7 +344,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: 
             return True
         attacker[_POK_STATUS] = 0
     # Charging poke e.g. solarbeam, bide
-    if attacker[_POK_CHARGE_RECHARGE] > 0:
+    if attacker[_POK_CHARGE_RECHARGE] > 0 and not attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         attacker[_POK_CHARGE_RECHARGE] -= 1
         if attacker[_POK_CHARGE_RECHARGE] > 0:
             return True
@@ -362,6 +363,12 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: 
     # Volatile Status early returns, only implemented confusion for now
     if attacker[_POK_VOL_STATUS] != 0 and attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
         if random.getrandbits(1):
+            return True
+    # Bide has a special case since it pauses the counter if any of the above is true,
+    # so it needs to be below them
+    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+        attacker[_POK_CHARGE_RECHARGE] -= 1
+        if attacker[_POK_CHARGE_RECHARGE] > 0:
             return True
     # In cases like after recoil damage, selfdestruct, multihit etc.
     if defender[_POK_CURRENT_HP] <= 0:
@@ -469,6 +476,25 @@ def drain(pok, move, dmg):
 
 
 @njit
+def eat_berry(pok, bug_bite=False, bug_bite_pok=None):
+    """
+    Eat the berry when the condition is met apply its effect and erase it from the pokemon
+    """
+    if bug_bite:
+        item_id = bug_bite_pok[_ITEM_ID]
+    else:
+        item_id = pok[_ITEM_ID]
+    hp_pct = (pok[_POK_CURRENT_HP]*100)//pok[_POK_MAX_HP]
+    if (hp_pct < 50 and item_id in ITEM_50HP) or bug_bite:
+        if item_id == _ITEMNAMES_ORAN_BERRY:
+            pok[_POK_CURRENT_HP] = min((pok[_POK_CURRENT_HP]+10), pok[_POK_MAX_HP])
+        if bug_bite:
+            clear_item(bug_bite_pok)
+        else:
+            clear_item(pok)
+
+
+@njit
 def clear_item(pok):
     """
     If the item was used reset it
@@ -481,9 +507,5 @@ def item_on_rdmg(pok):
     """
     Check what item it is and apply it
     """
-    hp_pct = (pok[_POK_CURRENT_HP]*100)//pok[_POK_MAX_HP]
-    item_id = pok[_ITEM_ID]
-    if hp_pct < 50 and item_id in ITEM_50HP:
-        if item_id == _ITEMNAMES_ORAN_BERRY:
-            pok[_POK_CURRENT_HP] = min((pok[_POK_CURRENT_HP]+10), pok[_POK_MAX_HP])
-        clear_item(pok)
+    if pok[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY:
+        eat_berry(pok)

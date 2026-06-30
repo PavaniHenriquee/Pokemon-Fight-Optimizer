@@ -147,8 +147,7 @@ class GameState():
             active_pok = self.get_my_active()
             if active_pok[_POK_CHARGE_RECHARGE] != 0:
                 locked_move = int(active_pok[_POK_LOCKED_MOVE])
-                if locked_move >= 0:
-                    return self.step((ActionType.MOVE, locked_move))
+                return self.step((ActionType.MOVE, locked_move))
         return self
 
 

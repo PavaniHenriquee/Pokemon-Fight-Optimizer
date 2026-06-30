@@ -1,47 +1,14 @@
 {
   "Test": {
     "sprite": "youngster",
-    "trainer_items": ["Potion"],
     "team": [
       {
-        "name": "Squirtle",
+        "name": "Carvanha",
         "gender": "Male",
-        "level": 5,
+        "level": 80,
         "ability": "Torrent",
         "nature": "Hardy",
-        "moves": ["Tackle", "Tail Whip", "", ""]
-      },
-      {
-        "name": "Charmander",
-        "gender": "Male",
-        "level": 5,
-        "ability": "Blaze",
-        "nature": "Hardy",
-        "moves": ["Scratch", "Growl", "", ""]
-      },
-      {
-        "name": "Charmander",
-        "gender": "Male",
-        "level": 5,
-        "ability": "Blaze",
-        "nature": "Hardy",
-        "moves": ["Scratch", "Growl", "", ""]
-      },
-      {
-        "name": "Charmander",
-        "gender": "Male",
-        "level": 5,
-        "ability": "Blaze",
-        "nature": "Hardy",
-        "moves": ["Scratch", "Growl", "", ""]
-      },
-      {
-        "name": "Charmander",
-        "gender": "Male",
-        "level": 5,
-        "ability": "Blaze",
-        "nature": "Hardy",
-        "moves": ["Scratch", "Growl", "", ""]
+        "moves": ["Bide", "Leer", "", ""]
       }
     ]
   },
@@ -350,6 +317,44 @@
         "ability": "Pickup",
         "nature": "Adamant",
         "moves": ["Covet", "Sand Attack", "Tail Whip", "Growl"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "School Kid Harrison 1": {
+    "sprite": "schoolkid-gen4dp",
+    "trainer_items": ["Potion"],
+    "team": [
+      {
+        "name": "Abra",
+        "gender": "Male",
+        "level": 8,
+        "ability": "Magic Guard",
+        "nature": "Mild",
+        "moves": ["Hidden Power", "", "", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Psyduck",
+        "gender": "Male",
+        "level": 8,
+        "ability": "Damp",
+        "nature": "Relaxed",
+        "moves": ["Hidden Power", "Water Gun", "", ""],
         "ivs": {
           "HP": 12,
           "Attack": 12,

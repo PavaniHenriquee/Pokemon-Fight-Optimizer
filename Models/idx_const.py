@@ -219,5 +219,3 @@ class Field:
 
 # Last one minus first one +1 because idx 0
 FIELD_LEN = Field.AI_KNOWS - Field.MY_POK + 1
-
-print(POK_LEN)

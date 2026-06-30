@@ -183,9 +183,11 @@ export default function App() {
         my_team: myTeam,
         opp_team: oppTeam,
         iterations,
-        trainer_items: trainerItems.filter(Boolean), // ← new; strips empty slots
+        trainer_items: trainerItems.filter(Boolean),
       }),
     }).catch(console.error);
+    setSessionActive(true);
+    setTree(null);
     setPathIds([]);
     setSelectedKey(null);
     setStartTime(Date.now());

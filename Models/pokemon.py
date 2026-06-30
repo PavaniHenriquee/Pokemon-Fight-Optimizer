@@ -112,17 +112,17 @@ class Pokemon:
 
         pok_enum = self.name.upper().replace("-", "_").replace(" ", "_")
         stats = np.array([
-            getattr(PokemonName, pok_enum),
-            self.level,
-            type1,
-            type2,
-            self.current_hp,
-            self.max_hp,
-            self.attack,
-            self.defense,
-            self.special_attack,
-            self.special_defense,
-            self.speed,
+            getattr(PokemonName, pok_enum),  # ID
+            self.level,  #Level
+            type1,       #Type1
+            type2,       #Type2
+            self.current_hp,  #Current_hp
+            self.max_hp,      #Max_HP
+            self.attack,      #Attack
+            self.defense,     #Defense
+            self.special_attack,   #Special_attack
+            self.special_defense,  #Special_defense
+            self.speed,  #Speed
             self.stat_stages['Attack'],
             self.stat_stages['Defense'],
             self.stat_stages['Special Attack'],
@@ -134,10 +134,10 @@ class Pokemon:
             0,  # this is for vol_status, which can't start a battle with any
             self.sleep_counter,
             self.badly_poison,
-            self.turns,
             0,   # This is dmg taken
             0,   # This is Charge Recharge
             -1,  # This is for Locked move -1 because move idx is 0-3
+            self.turns,
             gender,
             self.weight
         ], dtype=np.int32)

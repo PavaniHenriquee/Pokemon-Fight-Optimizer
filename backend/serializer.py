@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from Models.idx_const import Pok, Move, MOVE_STRIDE, POK_LEN, Field as FieldIdx
-from Models.helper import BattlePhase
+from Models.helper import BattlePhase, VolStatus
 from DataBase.PkDB import PokIdToName
 from DataBase.MoveDB import MoveIdToName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
@@ -17,10 +17,13 @@ if _ROOT not in sys.path:
 # ─── display helpers ─────────────────────────────────────────────────────────
 
 STATUS = {0: "", 1: "SLP", 2: "FRZ", 3: "PAR", 4: "BRN", 5: "PSN", 6: "TOX"}
+_VOL_DISPLAY_OVERRIDES = {
+    "CONFUSION": "Confused",
+}
 VOL_BITS = {
-    1: "Flinch", 2: "Confused", 4: "Heal Block",
-    8: "Salt Cure", 32: "Trapped", 64: "Leech Seed",
-    128: "Curse", 256: "Attracted",
+    v: _VOL_DISPLAY_OVERRIDES.get(k, k.replace("_", " ").title())
+    for k, v in vars(VolStatus).items()
+    if k.isupper() and isinstance(v, int)
 }
 STAGE_NAMES = ["Atk", "Def", "SpA", "SpD", "Spe", "Acc", "Eva"]
 _ITEM_ID_TO_NAME: dict[int, str] = {

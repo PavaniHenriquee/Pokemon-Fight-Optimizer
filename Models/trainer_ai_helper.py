@@ -37,7 +37,8 @@ from Models.constants import (
     _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _MOVE_ID, _POK_CURRENT_HP,
     _MOVE_PRIORITY, _MOVENAME_FAKE_OUT, _POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID,
     _POK_MOVE4_ID, _MOVENAME_PSYCH_UP, _MOVENAME_DRAGON_DANCE, _VOLSTATUS_LEECH_SEED,
-    _VOLSTATUS_CURSE, _POK_MAX_HP, _MOVE_ACCURACY, _POK_ITEM_ID, _MOVE_DRAIN
+    _VOLSTATUS_CURSE, _POK_MAX_HP, _MOVE_ACCURACY, _POK_ITEM_ID, _MOVE_DRAIN, _MOVENAME_BIDE,
+    _MOVENAME_BRICK_BREAK, _MOVENAME_BUG_BITE, _POK_TURNS
 )
 
 
@@ -124,6 +125,10 @@ for pk_id in range(POKEMON_LENGTH + 1):
         if ab_id in RELEVANT_ABILITIES:  # still a set here, build-time only
             POKEMON_HAS_RELEVANT_ABILITY[pk_id] = True
             break
+
+
+#--------------Move tuples-----------------------------
+EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BRICK_BREAK, _MOVENAME_BUG_BITE)
 
 
 @njit
@@ -830,12 +835,35 @@ def expert_stat(
 
 
 @njit
+def expert_moves(move, ai_pok, effectiveness, rand, idx):
+    """
+    Expert moves that have specific logic
+    """
+    score = 0
+    hp_pct = (ai_pok[_POK_CURRENT_HP]*100)//ai_pok[_POK_MAX_HP]
+    m_id = move[_MOVE_ID]
+    if m_id == _MOVENAME_BIDE:
+        if hp_pct < 91:
+            score += -2
+    elif m_id == _MOVENAME_BUG_BITE:
+        if effectiveness == 0.5 or effectiveness == 0.25 or effectiveness == 0:
+            score += -1
+        else:
+            if ai_pok[_POK_TURNS] == 1:
+                add_adjustment(rand, idx, 1, 192)
+            add_adjustment(rand, idx, 1, 128)
+
+    return score
+
+
+@njit
 def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it
     """
-
+    if move[_MOVE_ID] in EXPERT_SPECIFIC_M:
+        return expert_moves(move, ai_pok, effectiveness, rand, idx)
     if move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
         hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
         hp_pct_u = (u_pok[_POK_CURRENT_HP]*100) // u_pok[_POK_MAX_HP]

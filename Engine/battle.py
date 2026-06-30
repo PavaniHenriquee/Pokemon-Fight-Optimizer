@@ -18,7 +18,8 @@ from Engine.engine_helper import (
     on_residual,
     trainer_ai_items,
     drain,
-    item_on_rdmg
+    item_on_rdmg,
+    eat_berry
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage, struggle
@@ -39,7 +40,8 @@ from Models.constants import (
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START,
     _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN, _MOVE_MULTI_HIT_MIN, _MOVE_MULTI_HIT_MAX,
     _POK_VOL_STATUS, _VOLSTATUS_BIDE, _POK_DMG_TAKEN, _MOVE_CHARGE_RECHARGE, _POK_CHARGE_RECHARGE,
-    _POK_LOCKED_MOVE, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE
+    _POK_LOCKED_MOVE, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_DAMAGE, _MOVE_VOL_STATUS,
+    _MOVENAME_BUG_BITE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY
 )
 from Models.move import STRUGGLE
 
@@ -147,7 +149,20 @@ def _ps_moves_core(attacker, defender, move, weather):
     """
     ab_when = defender[_POK_AB_WHEN]
     crit = calculate_crit(ab_when)
-    damage = calculate_damage(attacker, defender, move, weather, crit)
+    move_damage = move[_MOVE_DAMAGE]
+    damage = 0
+    if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
+        damage = struggle(attacker, defender)
+    elif not move_damage:
+        damage = calculate_damage(attacker, defender, move, weather, crit)
+    # Damage based on damage taken
+    elif move_damage == -1:
+        damage = attacker[_POK_DMG_TAKEN]*2
+        attacker[_POK_DMG_TAKEN] = 0
+        if attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+            attacker[_POK_VOL_STATUS] -= _VOLSTATUS_BIDE
+    else:
+        damage = move_damage
     flinch = False
     if damage < defender[_POK_CURRENT_HP]:
         defender[_POK_CURRENT_HP] -= damage
@@ -199,7 +214,9 @@ def ps_moves_multihit(attacker, defender, move, weather):
     for i in range(multhit):
         if i and early_returns(attacker, defender, 1, False, move):
             break
-        flinch, damage = _ps_moves_core(attacker, defender, move, weather)
+        flinch_c, damage = _ps_moves_core(attacker, defender, move, weather)
+        if flinch_c:
+            flinch = True
         dmg += damage
 
     # TODO: recoil
@@ -211,7 +228,8 @@ def ps_moves_multihit(attacker, defender, move, weather):
         sec_effects(move, attacker, defender, weather)
 
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
-        defender[_POK_DMG_TAKEN] += dmg
+        #Only last damage counts
+        defender[_POK_DMG_TAKEN] += damage
 
     return flinch
 
@@ -231,6 +249,9 @@ def ps_moves(attacker, defender, move, weather):
 
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         defender[_POK_DMG_TAKEN] += damage
+
+    if move[_MOVE_ID] == _MOVENAME_BUG_BITE and defender[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY:
+        eat_berry(attacker, True, defender)
 
     return flinch
 
@@ -286,7 +307,8 @@ def action(current_move, opp_move, battle_array):
     if count >= 1:
         if atk1[_POK_CURRENT_HP] > 0 and not early_returns(atk1, def1, 1, flinch, mv1):
             if mv1[_MOVE_ID] != _MOVENAME_STRUGGLE:
-                mv1[_MOVE_PP] -= 1
+                if atk1[_POK_LOCKED_MOVE] == -1:
+                    mv1[_MOVE_PP] -= 1
                 if first_is_mine:
                     battle_array[_FIELD_MY_LAST_MOVE] = mv1[_MOVE_ID]
             elif first_is_mine:
@@ -295,15 +317,15 @@ def action(current_move, opp_move, battle_array):
             if mv1[_MOVE_CHARGE_RECHARGE] > 0 and atk1[_POK_LOCKED_MOVE] == -1:
                 atk1[_POK_CHARGE_RECHARGE] = mv1[_MOVE_CHARGE_RECHARGE]
                 atk1[_POK_LOCKED_MOVE] = current_move if first_is_mine else opp_move
+                if mv1[_MOVE_VOL_STATUS] & _VOLSTATUS_BIDE:
+                    atk1[_POK_VOL_STATUS] += _VOLSTATUS_BIDE
             else:
                 # Reset locked Move
                 if mv1[_MOVE_CHARGE_RECHARGE] > 0:
                     atk1[_POK_LOCKED_MOVE] = -1
                 move_hit = calculate_hit_miss(mv1, atk1, def1, weather)
                 if move_hit == _MOVEOUTCOME_HIT:
-                    if mv1[_MOVE_ID] == _MOVENAME_STRUGGLE:
-                        struggle(atk1, def1)
-                    elif mv1[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
+                    if mv1[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
                         if mv1[_MOVE_MULTI_HIT_MIN]:
                             flinch = ps_moves_multihit(atk1, def1, mv1, weather)
                         else:
@@ -321,7 +343,8 @@ def action(current_move, opp_move, battle_array):
     if count >= 2:
         if atk2[_POK_CURRENT_HP] > 0 and not early_returns(atk2, def2, 2, flinch, mv2):
             if mv2[_MOVE_ID] != _MOVENAME_STRUGGLE:
-                mv2[_MOVE_PP] -= 1
+                if atk2[_POK_LOCKED_MOVE] == -1:
+                    mv2[_MOVE_PP] -= 1
                 if not first_is_mine:
                     battle_array[_FIELD_MY_LAST_MOVE] = mv2[_MOVE_ID]
             elif not first_is_mine:
@@ -330,6 +353,8 @@ def action(current_move, opp_move, battle_array):
             if mv2[_MOVE_CHARGE_RECHARGE] > 0 and atk2[_POK_LOCKED_MOVE] == -1:
                 atk2[_POK_CHARGE_RECHARGE] = mv2[_MOVE_CHARGE_RECHARGE]
                 atk2[_POK_LOCKED_MOVE] = opp_move if first_is_mine else current_move
+                if mv2[_MOVE_VOL_STATUS] & _VOLSTATUS_BIDE:
+                    atk2[_POK_VOL_STATUS] += _VOLSTATUS_BIDE
             else:
                 # Reset locked Move
                 if mv2[_MOVE_CHARGE_RECHARGE] > 0:

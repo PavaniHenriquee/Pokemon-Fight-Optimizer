@@ -32,7 +32,8 @@ class MoveName:
     DIG             = DEFENSE_CURL + 1
     DISARMING_VOICE = DIG + 1
     DRAGON_DANCE    = DISARMING_VOICE + 1
-    DREAM_EATER     = DRAGON_DANCE + 1
+    DRAGON_RAGE     = DRAGON_DANCE + 1
+    DREAM_EATER     = DRAGON_RAGE + 1
     EMBER           = DREAM_EATER + 1
     EXPLOSION       = EMBER + 1
     FAKE_OUT        = EXPLOSION + 1
