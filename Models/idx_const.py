@@ -35,7 +35,8 @@ class Pok:
     VOL_STATUS                = STATUS + 1
     SLEEP_COUNTER             = VOL_STATUS + 1
     BADLY_POISON              = SLEEP_COUNTER + 1
-    DMG_TAKEN                 = BADLY_POISON + 1
+    CONFUSION_COUNTER         = BADLY_POISON + 1
+    DMG_TAKEN                 = CONFUSION_COUNTER + 1
     CHARGE_RECHARGE           = DMG_TAKEN + 1
     LOCKED_MOVE               = CHARGE_RECHARGE + 1
     TURNS                     = LOCKED_MOVE + 1

@@ -43,7 +43,6 @@ class Pokemon:
         self.sleep_counter = 0
         self.vol_status = []
         self.confusion = False
-        self.attract = False
         self.nature = natures[nature]
         self.stat_stages = {
             'Attack': 0,
@@ -77,9 +76,6 @@ class Pokemon:
         self.special_defense = self.calculate_stat('Special Defense')
         self.speed = self.calculate_stat('Speed')
         self.current_hp = self.max_hp  # I use this to alter hp
-        self.substitute = False
-        self.leech_seed = False
-        self.curse = False
         self.turns = 0
         self.fainted = False
 
@@ -134,6 +130,7 @@ class Pokemon:
             0,  # this is for vol_status, which can't start a battle with any
             self.sleep_counter,
             self.badly_poison,
+            self.confusion,
             0,   # This is dmg taken
             0,   # This is Charge Recharge
             -1,  # This is for Locked move -1 because move idx is 0-3

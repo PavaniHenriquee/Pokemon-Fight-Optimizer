@@ -2,7 +2,8 @@
 import random
 import numpy as np
 from numba import njit
-from Utils.helper import stage_to_multiplier, get_type_effectiveness
+from Engine.engine_helper import calculate_crit
+from Utils.helper import get_type_effectiveness
 from Models.constants import (
     _ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW,
     _POK_AB_ID, _ABILITYNAMES_GUTS, _POK_STATUS, _ABILITYNAMES_HUGE_POWER,
@@ -18,7 +19,9 @@ from Models.constants import (
     _ABILITYNAMES_THICK_FAT, _TYPES_ICE, _ABILITYNAMES_TINTED_LENS
 )
 
-
+# ==========================================
+# 1. CONSTANTS & LOOKUPS
+# ==========================================
 MULTIPLIERS = (85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100)
 STARTER_AB = (_ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW)
 THICK_F_TYPES = (_TYPES_FIRE, _TYPES_ICE)
@@ -29,6 +32,25 @@ STAGES_TABLE = (
 )
 
 
+# ==========================================
+# 2. MATH HELPERS
+# ==========================================
+@njit
+def apply_stat_stage(raw_stat: int, stage: int, is_simple: bool) -> int:
+    """Applies Gen IV stage multipliers to a stat, returning the integer math."""
+    if is_simple:
+        stage = max(-6, min(6, stage * 2))
+
+    if stage == 0:
+        return raw_stat
+
+    n_stat, d_stat = STAGES_TABLE[stage + 6]
+    return (raw_stat * n_stat) // d_stat
+
+
+# ==========================================
+# 3. MODIFIERS (ABILITIES, WEATHER, ETC.)
+# ==========================================
 @njit
 def ab_modify_stat(attacker, atk, physical, move, weather):
     """
@@ -37,14 +59,15 @@ def ab_modify_stat(attacker, atk, physical, move, weather):
     atk_ab = attacker[_POK_AB_ID]
     if physical:
         if atk_ab == _ABILITYNAMES_GUTS and attacker[_POK_STATUS] != 0:
-            atk = (atk*3)//2
+            atk = (atk * 3) // 2
         elif atk_ab == _ABILITYNAMES_HUGE_POWER:
             atk *= 2
         elif atk_ab == _ABILITYNAMES_HUSTLE and not move[_MOVE_OH_KO]:
-            atk = (atk*3)//2
+            atk = (atk * 3) // 2
     else:
         if atk_ab == _ABILITYNAMES_SOLAR_POWER and weather == _WEATHER_SUN:
-            atk = (atk*3)//2
+            atk = (atk * 3) // 2
+
     if atk_ab == _ABILITYNAMES_THICK_FAT and move[_MOVE_TYPE] in THICK_F_TYPES:
         atk //= 2
     return atk
@@ -56,41 +79,27 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
     Getting the right attack and defense and applying the right modifiers
     """
     physical = move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL
+    atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
+    def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
     if physical:
         raw_attack = attacker[_POK_ATTACK]
         raw_defense = defender[_POK_DEFENSE]
-
-        if attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
-            atk_stage = max(-6, min(6, attacker[_POK_ATTACK_STAT_STAGE] * 2))
-        else:
-            atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
-
-        if defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
-            def_stage = max(-6, min(6, defender[_POK_DEFENSE_STAT_STAGE] * 2))
-        else:
-            def_stage = defender[_POK_DEFENSE_STAT_STAGE]
+        atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
+        def_stage = defender[_POK_DEFENSE_STAT_STAGE]
     else:
         raw_attack = attacker[_POK_SPECIAL_ATTACK]
         raw_defense = defender[_POK_SPECIAL_DEFENSE]
-
-        if attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
-            atk_stage = max(-6, min(6, attacker[_POK_SPECIAL_ATTACK_STAT_STAGE] * 2))
-        else:
-            atk_stage = attacker[_POK_SPECIAL_ATTACK_STAT_STAGE]
-
-        if defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
-            def_stage = max(-6, min(6, defender[_POK_SPECIAL_DEFENSE_STAT_STAGE] * 2))
-        else:
-            def_stage = defender[_POK_SPECIAL_DEFENSE_STAT_STAGE]
-
-        if (
-            weather == _WEATHER_SANDSTORM
+        atk_stage = attacker[_POK_SPECIAL_ATTACK_STAT_STAGE]
+        def_stage = defender[_POK_SPECIAL_DEFENSE_STAT_STAGE]
+        # Sandstorm Sp.Def boost for Rock types
+        if weather == (
+            _WEATHER_SANDSTORM
             and (
-                attacker[_POK_TYPE1] == _TYPES_ROCK  #pylint: disable=consider-using-in
+                attacker[_POK_TYPE1] == _TYPES_ROCK
                 or attacker[_POK_TYPE2] == _TYPES_ROCK
             )
         ):
-            raw_defense = (raw_defense*3)//2
+            raw_defense = (raw_defense * 3) // 2
     if crit:
         def_stage = min(def_stage, 0)
         atk_stage = max(atk_stage, 0)
@@ -100,23 +109,21 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
         or defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_MODIFY_STAT
     ):
         raw_attack = ab_modify_stat(attacker, raw_attack, physical, move, weather)
-    # apply stage multipliers
-    if not atk_stage | def_stage:
-        return raw_attack, raw_defense
-    table = STAGES_TABLE
-    n_atk, d_atk = table[atk_stage + 6]
-    n_def, d_def = table[def_stage + 6]
 
-    # Integer-only math: (Value * Numerator) // Denominator
-    return (raw_attack * n_atk) // d_atk, (raw_defense * n_def) // d_def
+    attack = apply_stat_stage(raw_attack, atk_stage, atk_is_simple)
+    defense = apply_stat_stage(raw_defense, def_stage, def_is_simple)
+
+    return attack, defense
 
 
 @njit
 def base_power_ability(attacker, move) -> float:
-    """Calculate what the ability does in relation to power
+    """
+    Calculate what the ability does in relation to power
     Returns:
-        1 if nothing happens\n
-        multiplier based on 4096 if it does something, like Blaze"""
+        0 if nothing happens\n
+        multiplier based on 4096 if it does something, like Blaze
+    """
     att_ab = attacker[_POK_AB_ID]
 
     # Starter Abilities
@@ -124,14 +131,13 @@ def base_power_ability(attacker, move) -> float:
         att_ab in STARTER_AB
         and attacker[_POK_CURRENT_HP] / attacker[_POK_MAX_HP] <= 1 / 3
     ):
-        mult = 4096
         if att_ab == _ABILITYNAMES_BLAZE and move[_MOVE_TYPE] == _TYPES_FIRE:
-            mult = 6144  # 1.5
-        elif att_ab == _ABILITYNAMES_TORRENT and move[_MOVE_TYPE] == _TYPES_WATER:
-            mult = 6144  # 1.5
-        elif att_ab == _ABILITYNAMES_OVERGROW and move[_MOVE_TYPE] == _TYPES_GRASS:
-            mult = 6144  # 1.5
-        return mult
+            return 6144  # 1.5
+        if att_ab == _ABILITYNAMES_TORRENT and move[_MOVE_TYPE] == _TYPES_WATER:
+            return 6144  # 1.5
+        if att_ab == _ABILITYNAMES_OVERGROW and move[_MOVE_TYPE] == _TYPES_GRASS:
+            return 6144  # 1.5
+        return 0
 
     # Iron Fist
     if att_ab == _ABILITYNAMES_IRON_FIST and move[_FLAGS_PUNCH]:
@@ -140,7 +146,10 @@ def base_power_ability(attacker, move) -> float:
     # Reckless
     if (
         att_ab == _ABILITYNAMES_RECKLESS
-        and (move[_MOVE_RECOIL] or _MOVE_HAS_CRASH_DAMAGE)
+        and (
+            move[_MOVE_RECOIL]
+            or move[_MOVE_HAS_CRASH_DAMAGE]
+        )
     ):
         return 4915  #1.2
 
@@ -149,8 +158,7 @@ def base_power_ability(attacker, move) -> float:
 
 @njit
 def multipliers(
-        move: np.ndarray[1, np.int32], attacker: np.ndarray[1, np.int32],
-        defender: np.ndarray[1, np.int32],
+        move: np.ndarray, attacker: np.ndarray, defender: np.ndarray,
         weather:int, crit: bool, roll_mult: int, damage: int
 ) -> int:
     """Calc Multiplers for bas formula damage"""
@@ -213,7 +221,7 @@ def multipliers(
         damage = (effectiveness * damage)//2
 
     # Effectiveness type 2
-    effectiveness2 = 2  # Normal type effectivness because of int work
+    effectiveness2 = 2  # Base is 2 since later //2
     if def_type2:
         effectiveness2, _ = get_type_effectiveness(m_type, def_type2, 0)
         if effectiveness2 != 2:
@@ -224,7 +232,10 @@ def multipliers(
     # TODO: Expert belt
 
     # Tinted Lens
-    if attacker[_POK_AB_ID] == _ABILITYNAMES_TINTED_LENS and effectiveness*effectiveness2//4 == 0:
+    if (
+        attacker[_POK_AB_ID] == _ABILITYNAMES_TINTED_LENS
+        and (effectiveness * effectiveness2 // 4) == 0
+    ):
         damage *= 2
 
     # TODO: Berry
@@ -232,15 +243,15 @@ def multipliers(
     return damage
 
 
+# ==========================================
+# 4. CORE DAMAGE FUNCTIONS
+# ==========================================
 @njit
 def calculate_damage(
-        attacker, defender, move,
-        weather: int=0,
-        crit: bool=False,
-        roll_multiplier: int=None,
+        attacker: np.ndarray, defender: np.ndarray, move: np.ndarray,
+        weather: int=0, crit: bool=False, roll_multiplier: int=None,
 ) -> int:
-    """Calculate damage based on current stats of the attacker and the defender,
-       giving back the damage and its effectiveness"""
+    """Standard damage calculation"""
 
     attack, defense = raw_atk_def(move, attacker, defender, weather, crit)
 
@@ -249,38 +260,47 @@ def calculate_damage(
     if attacker[_POK_AB_WHEN] == _ABILITYACTIVATION_ON_BASE_POWER:
         base_power_mult = base_power_ability(attacker, move)
         if base_power_mult:
-            power = base_power_mult*power//4096
+            power = base_power_mult*power // 4096
 
     level = attacker[_POK_LEVEL]
 
     # Base damage formula
     damage = (((2 * level / 5) + 2) * power * (attack / defense)) // 50
-    if damage < 0:
-        raise ValueError("There shouldn't be negative damage")
 
-    damage = multipliers(move, attacker, defender, weather, crit, roll_multiplier, damage)
-    return damage
+    return multipliers(move, attacker, defender, weather, crit, roll_multiplier, damage)
 
 
+@njit
 def calculate_damage_confusion(pok):
     """Calculate the damage for Confusion self hit"""
-    raw_attack = pok[_POK_ATTACK]
-    raw_defense = pok[_POK_DEFENSE]
-    atk_stage = pok[_POK_ATTACK_STAT_STAGE]
-    def_stage = pok[_POK_DEFENSE_STAT_STAGE]
-    # apply stage multipliers
-    if atk_stage != 0:
-        attack =  stage_to_multiplier(atk_stage, raw_attack)
-    else:
-        attack = raw_attack
-    if def_stage != 0:
-        defense = stage_to_multiplier(def_stage, raw_defense)
-    else:
-        defense = raw_defense
+    is_simple = pok[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
+
+    attack = apply_stat_stage(pok[_POK_ATTACK], pok[_POK_ATTACK_STAT_STAGE], is_simple)
+    defense = apply_stat_stage(pok[_POK_DEFENSE], pok[_POK_DEFENSE_STAT_STAGE], is_simple)
+
+    # Abilities affecting stat(equal logic to ab_mod_stat but without move)
+    pok_ab = pok[_POK_AB_ID]
+    if pok_ab == _ABILITYNAMES_GUTS and pok[_POK_STATUS] != 0:
+        atk = (atk*3)//2
+    elif pok_ab == _ABILITYNAMES_HUGE_POWER:
+        atk *= 2
+    elif pok_ab == _ABILITYNAMES_HUSTLE:
+        atk = (atk*3)//2
+
     # Base damage formula, confusion counts as a 40 power move
-    damage = ((2 * pok[_POK_LEVEL] / 5) + 2) * 40 * (attack / defense) // 50 + 2
+    damage = ((2 * pok[_POK_LEVEL] / 5) + 2) * 40 * (attack / defense) // 50
     if pok[_POK_STATUS] == _STATUS_BURN:
         damage //= 2
+    # Adding 2 after the above
+    damage += 2
+    # Random Multiplier
+    damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
+    #TODO: Helping Hand
+    #TODO: Silk Scarf
+    #TODO: Choice Band, Thick Club
+    #TODO: Power TRick, Power Split, Guard Split
+    #TODO: Rivalry
+
     return damage
 
 
@@ -290,25 +310,20 @@ def struggle(attacker, defender, rec=True):
     Struggle damage for the opponent and recoil
     Not implemented
     """
-    attack = attacker[_POK_ATTACK]
-    defense = defender[_POK_DEFENSE]
-    def_stage = defender[_POK_DEFENSE_STAT_STAGE]
+    atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
+    def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
     atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
+    def_stage = defender[_POK_DEFENSE_STAT_STAGE]
     level = attacker[_POK_LEVEL]
-    atk_max_hp = attacker[_POK_MAX_HP]
-    cur_hup = attacker[_POK_CURRENT_HP]
+    def_aw = defender[_POK_AB_WHEN]
+    crit = calculate_crit(def_aw)
 
-    if random.random() < 0.0625:
+    if crit:
         def_stage = min(def_stage, 0)
         atk_stage = max(atk_stage, 0)
 
-    # apply stage multipliers
-    if atk_stage | def_stage:
-        table = STAGES_TABLE
-        n_atk, d_atk = table[atk_stage + 6]
-        n_def, d_def = table[def_stage + 6]
-        attack = (attack * n_atk) // d_atk
-        defense = (defense * n_def) // d_def
+    attack = apply_stat_stage(attacker[_POK_ATTACK], atk_stage, atk_is_simple)
+    defense = apply_stat_stage(defender[_POK_DEFENSE], def_stage, def_is_simple)
 
     # Base damage formula for Struggle with power 50
     damage = (((2 * level / 5) + 2) * 50 * (attack / defense)) // 50
@@ -322,9 +337,14 @@ def struggle(attacker, defender, rec=True):
     # Adding 2 after the above
     damage += 2
 
+    if crit:
+        damage *= 2
+
+    damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
+
     if rec:
-        recoil = atk_max_hp//4
-        if recoil >= cur_hup:
+        recoil = max(1, attacker[_POK_MAX_HP] // 4)
+        if recoil >= attacker[_POK_CURRENT_HP]:
             attacker[_POK_CURRENT_HP] = 0
         else:
             attacker[_POK_CURRENT_HP] -= recoil

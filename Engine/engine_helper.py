@@ -3,6 +3,7 @@ import random
 from numba import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.status_calc import after_turn_status, freeze, paralysis, B_P
+from Engine.damage_calc import calculate_damage_confusion
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 from Models.helper import TARGET_SELF_SIDE, STEEL_POISON
 from Models.constants import (
@@ -28,7 +29,7 @@ from Models.constants import (
     _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN, _POK_DMG_TAKEN,
     _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEMNAMES_ORAN_BERRY,
     _ITEM_ID, _ITEMNAMES_SITRUS_BERRY, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _ITEMTYPE_BERRY,
-    _ITEM_ITEM_TYPE
+    _ITEM_ITEM_TYPE, _POK_CONFUSION_COUNTER, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE
 )
 
 
@@ -241,6 +242,19 @@ def thaw(move, defender):
 
 
 @njit
+def confusion(pok):
+    """
+    If the pokemon gets hit by confusion, it's kinda the same as ps_core,
+    but since the damage calculation is different and it doesn't have a "move"
+    Better have a own thing to apply everything
+    """
+    damage = calculate_damage_confusion(pok)
+    pok[_POK_CURRENT_HP] = max(0, (pok[_POK_CURRENT_HP]-damage))
+    if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+        item_on_rdmg(pok)
+
+
+@njit
 def switch_in(attacker, defender):
     """
     What happens when a pokemon switches in so, abilities, hazards
@@ -325,8 +339,19 @@ def after_turn_damage(pokemon, weather: int) -> int:
 
 
 @njit
-def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: disable=too-many-return-statements
+def early_returns(attacker, defender, idx: int, flinch: bool, move):
     """Early returns to see if an attack goes through or not"""
+    """
+    Priorities, highest go first:
+    Recharge:  11
+    Sleep:     10
+    Freeze:    10
+    Flinch:    8
+    Confusion: 3
+    Attract:   2
+    Paralysis: 1
+    Default:   0
+    """
     atker_status = attacker[_POK_STATUS]
     # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
     if atker_status == _STATUS_SLEEP:
@@ -343,11 +368,19 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: 
                 attacker[_POK_CHARGE_RECHARGE] -= 1
             return True
         attacker[_POK_STATUS] = 0
-    # Charging poke e.g. solarbeam, bide
-    if attacker[_POK_CHARGE_RECHARGE] > 0 and not attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
-        attacker[_POK_CHARGE_RECHARGE] -= 1
-        if attacker[_POK_CHARGE_RECHARGE] > 0:
-            return True
+    # Flinch
+    if flinch and idx >= 2:
+        if defender[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
+            defender[_POK_SPEED_STAT_STAGE] = min(6, defender[_POK_SPEED_STAT_STAGE] + 1)
+        return True
+    # Confusion
+    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
+        attacker[_POK_CONFUSION_COUNTER] -= 1
+        if attacker[_POK_CONFUSION_COUNTER] > 0:
+            if random.getrandbits(1):
+                return True
+        else:
+            attacker[_POK_VOL_STATUS] -= _VOLSTATUS_CONFUSION
     # Check for Paralysis
     if (
         atker_status == _STATUS_PARALYSIS
@@ -355,14 +388,10 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):  # pylint: 
         and defender[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD  #Gen 4 exclusive
     ):
         return True
-    # Flinch
-    if flinch and idx >= 2:
-        if defender[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
-            defender[_POK_SPEED_STAT_STAGE] = min(6, defender[_POK_SPEED_STAT_STAGE] + 1)
-        return True
-    # Volatile Status early returns, only implemented confusion for now
-    if attacker[_POK_VOL_STATUS] != 0 and attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
-        if random.getrandbits(1):
+    # Charging poke e.g. solarbeam, bide
+    if attacker[_POK_CHARGE_RECHARGE] > 0 and not attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+        attacker[_POK_CHARGE_RECHARGE] -= 1
+        if attacker[_POK_CHARGE_RECHARGE] > 0:
             return True
     # Bide has a special case since it pauses the counter if any of the above is true,
     # so it needs to be below them

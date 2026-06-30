@@ -11,7 +11,9 @@ def build_battle():
     """Build battle"""
     from Models.pokemon import Pokemon
     from Utils.helper import to_battle_array
-    charmander = Pokemon("Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"], item="Oran Berry")
+    charmander = Pokemon(
+        "Charmander", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl", "Ember"], item="Oran Berry"
+    )
     squirtle = Pokemon("Squirtle", "Male", 7, "Torrent", "Hardy", ["Tackle", "Tail Whip", "Bubble"])
     bulbasaur =Pokemon("Bulbasaur", "Male", 5, "Overgrow", "Hardy", ["Pound", "Leer", "Razor Leaf"])
     charmeleon = Pokemon("Charmeleon", "Male", 5, "Blaze", "Hardy", ["Scratch", "Growl"])
