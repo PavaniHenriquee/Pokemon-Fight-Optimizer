@@ -5,15 +5,16 @@ from Models.helper import TARGET_OPP_SIDE, TARGET_SELF_SIDE, STEEL_POISON
 from Models.constants import (
     _POK_STATUS, _STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_SLEEP, _STATUS_FREEZE,
     _MOVE_BOOST_ATK, _MOVE_BOOST_DEF, _MOVE_BOOST_SPATK, _MOVE_BOOST_SPDEF, _MOVE_BOOST_SPEED,
-    _MOVE_BOOST_EV, _MOVE_BOOST_ACC, _MOVE_STATUS, _MOVE_TARGET, _MOVE_CATEGORY, _WEATHER_SUN,
-    _MOVECATEGORY_STATUS, _SEC_STATUS, _SEC_CHANCE, _SEC_BOOST_ATK, _SEC_BOOST_DEF, _SEC_BOOST_SPATK,
+    _MOVE_BOOST_EV, _MOVE_BOOST_ACC, _MOVE_STATUS, _MOVE_TARGET,  _WEATHER_SUN,
+    _SEC_STATUS, _SEC_CHANCE, _SEC_BOOST_ATK, _SEC_BOOST_DEF, _SEC_BOOST_SPATK,
     _SEC_BOOST_EV, _SEC_BOOST_SPDEF, _SEC_BOOST_SPEED, _POK_ATTACK_STAT_STAGE, _POK_DEFENSE_STAT_STAGE,
     _POK_SPECIAL_ATTACK_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE, _POK_SPEED_STAT_STAGE,
     _POK_EVASION_STAT_STAGE, _POK_BADLY_POISON, _POK_SLEEP_COUNTER, _POK_ACCURACY_STAT_STAGE,
     _POK_AB_ID, _POK_MAX_HP, _POK_TYPE1, _POK_TYPE2, _STATUS_PARALYSIS,
     _TYPES_FIRE, _TYPES_ELECTRIC, _POK_CURRENT_HP, _SEC_BOOST_ACC,
     _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_SYNCHRONIZE,
-    _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL,
+    _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL, _MOVE_VOL_STATUS,
+    _VOLSTATUS_CONFUSION, _POK_VOL_STATUS, _POK_CONFUSION_COUNTER
 )
 
 
@@ -35,6 +36,7 @@ SECONDARY_STAT_MAPPING = (
     (_SEC_BOOST_SPEED, _POK_SPEED_STAT_STAGE),
     (_SEC_BOOST_EV, _POK_EVASION_STAT_STAGE)
 )
+TURNS_2_5 = (2, 3, 4, 5)
 
 
 @njit
@@ -158,19 +160,32 @@ def stat_changes(move, attacker, defender, sec=False):
 
 
 @njit
+def vol_status(move, pok):
+    """
+    Check and apply any volatile status
+    """
+    v_status = move[_MOVE_VOL_STATUS]
+    if v_status & _VOLSTATUS_CONFUSION:
+        if not pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
+            pok[_POK_VOL_STATUS] += _VOLSTATUS_CONFUSION
+            pok[_POK_CONFUSION_COUNTER] = TURNS_2_5[random.getrandbits(2)]
+
+
+@njit
 def calculate_effects(attacker, defender, move, weather):
     """Calculate the effect parts of the moves"""
-    if move[_MOVE_CATEGORY] != _MOVECATEGORY_STATUS:
-        raise ValueError("Broken")
-
     # Stat Buffs and Debuffs
     stat_changes(move, attacker, defender)
 
     # Status
-    if move[_MOVE_STATUS] != 0:
+    if move[_MOVE_STATUS]:
         if move[_MOVE_TARGET] in TARGET_OPP_SIDE:
             apply_status(move, defender, weather, attacker)
         raise ValueError("Shouldn't have self status change")
+
+    # Vol Status
+    if move[_MOVE_VOL_STATUS]:
+        vol_status(move, defender)
 
 
 @njit

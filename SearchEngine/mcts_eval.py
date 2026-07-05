@@ -12,8 +12,8 @@ from Models.constants import (
 )
 from Models.helper import count_party, count_Id
 from Models.trainer_ai_helper import check_immunity_pty, check_resistence_pty
-from Engine.damage_calc import calculate_damage, struggle
-from Engine.engine_helper import calculate_crit
+from Engine.damage_calc import calculate_damage
+from Engine.engine_helper import calculate_crit, struggle
 from Utils.helper import get_type_effectiveness
 
 

@@ -3,7 +3,9 @@ import random
 from numba import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.status_calc import after_turn_status, freeze, paralysis, B_P
-from Engine.damage_calc import calculate_damage_confusion
+from Engine.damage_calc import (
+    calculate_damage_confusion, apply_stat_stage, MULTIPLIERS
+)
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 from Models.helper import TARGET_SELF_SIDE, STEEL_POISON
 from Models.constants import (
@@ -29,7 +31,8 @@ from Models.constants import (
     _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN, _POK_DMG_TAKEN,
     _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEMNAMES_ORAN_BERRY,
     _ITEM_ID, _ITEMNAMES_SITRUS_BERRY, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _ITEMTYPE_BERRY,
-    _ITEM_ITEM_TYPE, _POK_CONFUSION_COUNTER, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE
+    _ITEM_ITEM_TYPE, _POK_CONFUSION_COUNTER, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE,
+    _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN
 )
 
 
@@ -37,6 +40,49 @@ SANDSTORM_IM = (_TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL)
 DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 ITEM_50HP = (_ITEMNAMES_ORAN_BERRY, _ITEMNAMES_SITRUS_BERRY)
+
+
+@njit
+def clear_item(pok):
+    """
+    If the item was used reset it
+    """
+    pok[_ITEM_ID:(_ITEM_ID+ITEM_LEN)] = 0
+
+
+@njit
+def _apply_berry_effect(item_id, target):
+    """Apply the berry's effect to target. target = the beneficiary, which is
+    'pok' for a self-trigger, or 'attacker' for Bug Bite."""
+    if item_id == _ITEMNAMES_ORAN_BERRY:
+        target[_POK_CURRENT_HP] = min(target[_POK_CURRENT_HP]+10, target[_POK_MAX_HP])
+
+
+@njit
+def eat_berry(pok):
+    """Self-triggered berry eat at low HP (end of turn / on receiving damage)"""
+    item_id = pok[_ITEM_ID]
+    hp_pct = (pok[_POK_CURRENT_HP]*100)//pok[_POK_MAX_HP]
+    if hp_pct < 50 and item_id in ITEM_50HP:
+        _apply_berry_effect(item_id, pok)
+        clear_item(pok)
+
+
+@njit
+def eat_berry_bug_bite(attacker, defender):
+    """Bug Bite forces the target to eat its berry immediately; attacker gets the benefit"""
+    item_id = defender[_ITEM_ID]
+    _apply_berry_effect(item_id, attacker)
+    clear_item(defender)
+
+
+@njit
+def item_on_rdmg(pok):
+    """
+    Check what item it is and apply it
+    """
+    if pok[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY:
+        eat_berry(pok)
 
 
 @njit
@@ -173,8 +219,8 @@ def calculate_hit_miss(move, attacker, defender, weather):
     # TODO: Semi invulnerable states, like Fly, dig etc.
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE or move[_MOVE_ID] == _MOVENAME_BIDE:
         return _MOVEOUTCOME_HIT
-    move_acc = move[_MOVE_ACCURACY]
 
+    move_acc = move[_MOVE_ACCURACY]
     ab_a = attacker[_POK_AB_WHEN]
     ab_d = defender[_POK_AB_WHEN]
     if ab_a & _ABILITYACTIVATION_ON_TRY_MOVE or ab_d & _ABILITYACTIVATION_ON_TRY_MOVE:
@@ -378,6 +424,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
         attacker[_POK_CONFUSION_COUNTER] -= 1
         if attacker[_POK_CONFUSION_COUNTER] > 0:
             if random.getrandbits(1):
+                confusion(attacker)
                 return True
         else:
             attacker[_POK_VOL_STATUS] -= _VOLSTATUS_CONFUSION
@@ -505,36 +552,48 @@ def drain(pok, move, dmg):
 
 
 @njit
-def eat_berry(pok, bug_bite=False, bug_bite_pok=None):
+def struggle(attacker, defender, rec=True):
     """
-    Eat the berry when the condition is met apply its effect and erase it from the pokemon
+    Struggle damage for the opponent and recoil
+    Not implemented
     """
-    if bug_bite:
-        item_id = bug_bite_pok[_ITEM_ID]
-    else:
-        item_id = pok[_ITEM_ID]
-    hp_pct = (pok[_POK_CURRENT_HP]*100)//pok[_POK_MAX_HP]
-    if (hp_pct < 50 and item_id in ITEM_50HP) or bug_bite:
-        if item_id == _ITEMNAMES_ORAN_BERRY:
-            pok[_POK_CURRENT_HP] = min((pok[_POK_CURRENT_HP]+10), pok[_POK_MAX_HP])
-        if bug_bite:
-            clear_item(bug_bite_pok)
+    atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
+    def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
+    atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
+    def_stage = defender[_POK_DEFENSE_STAT_STAGE]
+    level = attacker[_POK_LEVEL]
+    def_aw = defender[_POK_AB_WHEN]
+    crit = calculate_crit(def_aw)
+
+    if crit:
+        def_stage = min(def_stage, 0)
+        atk_stage = max(atk_stage, 0)
+
+    attack = apply_stat_stage(attacker[_POK_ATTACK], atk_stage, atk_is_simple)
+    defense = apply_stat_stage(defender[_POK_DEFENSE], def_stage, def_is_simple)
+
+    # Base damage formula for Struggle with power 50
+    damage = (((2 * level / 5) + 2) * 50 * (attack / defense)) // 50
+
+    # Burn
+    if attacker[_POK_STATUS] == _STATUS_BURN:
+        damage //= 2
+
+    # TODO: Screen
+
+    # Adding 2 after the above
+    damage += 2
+
+    if crit:
+        damage *= 2
+
+    damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
+
+    if rec:
+        recoil = max(1, attacker[_POK_MAX_HP] // 4)
+        if recoil >= attacker[_POK_CURRENT_HP]:
+            attacker[_POK_CURRENT_HP] = 0
         else:
-            clear_item(pok)
+            attacker[_POK_CURRENT_HP] -= recoil
 
-
-@njit
-def clear_item(pok):
-    """
-    If the item was used reset it
-    """
-    pok[_ITEM_ID:(_ITEM_ID+ITEM_LEN)] = 0
-
-
-@njit
-def item_on_rdmg(pok):
-    """
-    Check what item it is and apply it
-    """
-    if pok[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY:
-        eat_berry(pok)
+    return damage

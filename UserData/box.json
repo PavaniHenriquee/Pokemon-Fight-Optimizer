@@ -6,7 +6,12 @@
     "nature": "Hardy",
     "ability": "Blaze",
     "level": 5,
-    "moves": ["Scratch", "Growl", "Ember", ""],
+    "moves": [
+      "Scratch",
+      "Growl",
+      "Ember",
+      ""
+    ],
     "ivs": {
       "HP": 31,
       "Attack": 31,
@@ -23,7 +28,12 @@
     "nature": "Hardy",
     "ability": "Torrent",
     "level": 7,
-    "moves": ["Tackle", "Tail Whip", "Bubble", ""],
+    "moves": [
+      "Tackle",
+      "Tail Whip",
+      "Bubble",
+      ""
+    ],
     "ivs": {
       "HP": 31,
       "Attack": 31,
@@ -40,7 +50,12 @@
     "nature": "Hardy",
     "ability": "Overgrow",
     "level": 5,
-    "moves": ["Pound", "Leer", "Razor Leaf", ""],
+    "moves": [
+      "Pound",
+      "Leer",
+      "Razor Leaf",
+      ""
+    ],
     "ivs": {
       "HP": 31,
       "Attack": 31,
@@ -57,7 +72,12 @@
     "nature": "Hardy",
     "ability": "Blaze",
     "level": 5,
-    "moves": ["Scratch", "Growl", "", ""],
+    "moves": [
+      "Scratch",
+      "Growl",
+      "",
+      ""
+    ],
     "ivs": {
       "HP": 31,
       "Attack": 31,
@@ -74,7 +94,12 @@
     "nature": "Hardy",
     "ability": "Torrent",
     "level": 5,
-    "moves": ["Tackle", "Tail Whip", "", ""],
+    "moves": [
+      "Tackle",
+      "Tail Whip",
+      "",
+      ""
+    ],
     "ivs": {
       "HP": 31,
       "Attack": 31,
@@ -91,7 +116,34 @@
     "nature": "Hardy",
     "ability": "Overgrow",
     "level": 5,
-    "moves": ["Pound", "Leer", "", ""],
+    "moves": [
+      "Pound",
+      "Leer",
+      "",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    }
+  },
+  {
+    "id": "e2f21267-953e-458d-97c3-126114fb232b",
+    "name": "Scizor",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Torrent",
+    "level": 70,
+    "moves": [
+      "Arm Thrust",
+      "",
+      "",
+      ""
+    ],
     "ivs": {
       "HP": 31,
       "Attack": 31,

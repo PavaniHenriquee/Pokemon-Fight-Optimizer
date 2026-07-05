@@ -19,10 +19,11 @@ from Engine.engine_helper import (
     trainer_ai_items,
     drain,
     item_on_rdmg,
-    eat_berry
+    eat_berry_bug_bite,
+    struggle
 )
 from Engine.status_calc import sec_effects, calculate_effects
-from Engine.damage_calc import calculate_damage, struggle
+from Engine.damage_calc import calculate_damage
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
     POK_LEN, MOVE_STRIDE, OFFSET_MOVE
@@ -212,7 +213,7 @@ def ps_moves_multihit(attacker, defender, move, weather):
     else:
         raise ValueError("Moves that are variable and not 2-5 shouldn't exit, check DB")
     for i in range(multhit):
-        if i and early_returns(attacker, defender, 1, False, move):
+        if i and defender[_POK_CURRENT_HP]<=0:
             break
         flinch_c, damage = _ps_moves_core(attacker, defender, move, weather)
         if flinch_c:
@@ -251,7 +252,7 @@ def ps_moves(attacker, defender, move, weather):
         defender[_POK_DMG_TAKEN] += damage
 
     if move[_MOVE_ID] == _MOVENAME_BUG_BITE and defender[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY:
-        eat_berry(attacker, True, defender)
+        eat_berry_bug_bite(attacker, defender)
 
     return flinch
 

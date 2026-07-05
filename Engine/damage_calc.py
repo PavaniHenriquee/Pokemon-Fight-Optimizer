@@ -2,7 +2,6 @@
 import random
 import numpy as np
 from numba import njit
-from Engine.engine_helper import calculate_crit
 from Utils.helper import get_type_effectiveness
 from Models.constants import (
     _ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW,
@@ -281,11 +280,11 @@ def calculate_damage_confusion(pok):
     # Abilities affecting stat(equal logic to ab_mod_stat but without move)
     pok_ab = pok[_POK_AB_ID]
     if pok_ab == _ABILITYNAMES_GUTS and pok[_POK_STATUS] != 0:
-        atk = (atk*3)//2
+        attack = (attack*3)//2
     elif pok_ab == _ABILITYNAMES_HUGE_POWER:
-        atk *= 2
+        attack *= 2
     elif pok_ab == _ABILITYNAMES_HUSTLE:
-        atk = (atk*3)//2
+        attack = (attack*3)//2
 
     # Base damage formula, confusion counts as a 40 power move
     damage = ((2 * pok[_POK_LEVEL] / 5) + 2) * 40 * (attack / defense) // 50
@@ -304,52 +303,6 @@ def calculate_damage_confusion(pok):
     return damage
 
 
-@njit
-def struggle(attacker, defender, rec=True):
-    """
-    Struggle damage for the opponent and recoil
-    Not implemented
-    """
-    atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
-    def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
-    atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
-    def_stage = defender[_POK_DEFENSE_STAT_STAGE]
-    level = attacker[_POK_LEVEL]
-    def_aw = defender[_POK_AB_WHEN]
-    crit = calculate_crit(def_aw)
-
-    if crit:
-        def_stage = min(def_stage, 0)
-        atk_stage = max(atk_stage, 0)
-
-    attack = apply_stat_stage(attacker[_POK_ATTACK], atk_stage, atk_is_simple)
-    defense = apply_stat_stage(defender[_POK_DEFENSE], def_stage, def_is_simple)
-
-    # Base damage formula for Struggle with power 50
-    damage = (((2 * level / 5) + 2) * 50 * (attack / defense)) // 50
-
-    # Burn
-    if attacker[_POK_STATUS] == _STATUS_BURN:
-        damage //= 2
-
-    # TODO: Screen
-
-    # Adding 2 after the above
-    damage += 2
-
-    if crit:
-        damage *= 2
-
-    damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
-
-    if rec:
-        recoil = max(1, attacker[_POK_MAX_HP] // 4)
-        if recoil >= attacker[_POK_CURRENT_HP]:
-            attacker[_POK_CURRENT_HP] = 0
-        else:
-            attacker[_POK_CURRENT_HP] -= recoil
-
-    return damage
 
 
 @njit

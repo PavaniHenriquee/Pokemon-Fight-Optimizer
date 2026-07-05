@@ -3,12 +3,13 @@
     "sprite": "youngster",
     "team": [
       {
-        "name": "Carvanha",
+        "name": "Rapidash",
         "gender": "Male",
-        "level": 80,
-        "ability": "Torrent",
+        "level": 70,
+        "item": "Oran Berry",
+        "ability": "Blaze",
         "nature": "Hardy",
-        "moves": ["Bide", "Leer", "", ""]
+        "moves": ["Confuse Ray", "", "", ""]
       }
     ]
   },
