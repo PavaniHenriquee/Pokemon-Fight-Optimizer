@@ -28,6 +28,8 @@ def create_random_initial_state():
 
 def _bracket(pct: float) -> int:
     """HP brackets pre-computed as ints — avoids recalculating per child"""
+    if pct == 1.0:
+        return 4
     if pct >= .75:
         return 3
     if pct >= .50:

@@ -24,6 +24,7 @@ function hpColor(hp: number, max: number) {
 function hpRange(hp: number, max: number): string {
   const pct = hp / Math.max(max, 1);
   if (pct <= 0) return "Fainted";
+  if (pct === 1) return "100%";
   if (pct >= 0.75) return "75%–100%";
   if (pct >= 0.5) return "50%–74%";
   if (pct >= 0.25) return "25%–49%";

@@ -71,8 +71,8 @@ Moves
 [X]Bulldoze
 [X]Bullet Seed
 [X]Charm
-[]Confuse Ray !
-[]Confusion
+[X]Confuse Ray !
+[X]Confusion
 []Counter(E) !
 []Covet(E) !
 []Curse(B/E) !

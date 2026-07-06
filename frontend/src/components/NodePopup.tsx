@@ -11,6 +11,7 @@ function hpColor(hp: number, max: number) {
 function hpRange(hp: number, max: number): string {
   const pct = hp / max;
   if (pct <= 0) return "Fainted";
+  if (pct === 1) return "100%";
   if (pct >= 0.75) return "75%–100%";
   if (pct >= 0.5) return "50%–74%";
   if (pct >= 0.25) return "25%–49%";
@@ -163,7 +164,7 @@ function PokRow({
               color,
               fontWeight: 600,
               width: 62,
-              textAlign: "right",
+              textAlign: "center",
               flexShrink: 0,
             }}
           >

@@ -14,7 +14,7 @@ from Models.constants import (
     _TYPES_FIRE, _TYPES_ELECTRIC, _POK_CURRENT_HP, _SEC_BOOST_ACC,
     _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_SYNCHRONIZE,
     _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL, _MOVE_VOL_STATUS,
-    _VOLSTATUS_CONFUSION, _POK_VOL_STATUS, _POK_CONFUSION_COUNTER
+    _VOLSTATUS_CONFUSION, _POK_VOL_STATUS, _POK_CONFUSION_COUNTER, _SEC_VOL_STATUS
 )
 
 
@@ -160,11 +160,11 @@ def stat_changes(move, attacker, defender, sec=False):
 
 
 @njit
-def vol_status(move, pok):
+def vol_status(move, pok, sec=False):
     """
     Check and apply any volatile status
     """
-    v_status = move[_MOVE_VOL_STATUS]
+    v_status = move[_MOVE_VOL_STATUS] if not sec else move[_SEC_VOL_STATUS]
     if v_status & _VOLSTATUS_CONFUSION:
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
             pok[_POK_VOL_STATUS] += _VOLSTATUS_CONFUSION
@@ -206,6 +206,10 @@ def sec_effects(move, attacker, defender, weather):
         if target:
             if move[_SEC_STATUS] != 0:
                 apply_status(move, defender, weather, attacker, sec=True)
+
+            # Volatile Status for the opponent only
+            if move[_SEC_VOL_STATUS] != 0:
+                vol_status(move, defender, True)
 
 
 @njit

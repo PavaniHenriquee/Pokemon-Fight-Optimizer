@@ -9,7 +9,7 @@
         "item": "Oran Berry",
         "ability": "Blaze",
         "nature": "Hardy",
-        "moves": ["Confuse Ray", "", "", ""]
+        "moves": ["Confusion", "", "", ""]
       }
     ]
   },

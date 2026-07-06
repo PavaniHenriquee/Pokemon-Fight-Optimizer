@@ -317,6 +317,7 @@ def basic_move_vol_status(move, ability, user_pok, ai_pok):
     user_vol_status = user_pok[_POK_VOL_STATUS]
 
     if vol_status == _VOLSTATUS_CONFUSION:
+        # TODO: Safeguard
         if user_vol_status & _VOLSTATUS_CONFUSION:
             return -5
         if ability == _ABILITYNAMES_OWN_TEMPO:
