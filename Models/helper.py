@@ -262,3 +262,12 @@ class MoveOutcome:
     MISS              = 2
     INVULNERABLE      = 3
     SEMI_INVULNERABLE = 4
+
+
+@dataclass(slots=True)
+class DamageSources:
+    """If a move does damage based on something else"""
+    BIDE       = -1
+    COUNTER    = -2
+    MAGIC_COAT = -3
+    LEVEL      = -4

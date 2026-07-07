@@ -17,9 +17,11 @@ from Models.constants import (
     _VOLSTATUS_CONFUSION, _POK_VOL_STATUS, _POK_CONFUSION_COUNTER, _SEC_VOL_STATUS
 )
 
-
+# --- Global Tuples ---
 B_P = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC)
 B_P_P = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
+TURNS_2_5 = (2, 3, 4, 5)
+
 STAT_MAPPING = (
     (_MOVE_BOOST_ATK, _POK_ATTACK_STAT_STAGE),
     (_MOVE_BOOST_DEF, _POK_DEFENSE_STAT_STAGE),
@@ -28,6 +30,7 @@ STAT_MAPPING = (
     (_MOVE_BOOST_SPEED, _POK_SPEED_STAT_STAGE),
     (_MOVE_BOOST_EV, _POK_EVASION_STAT_STAGE)
 )
+
 SECONDARY_STAT_MAPPING = (
     (_SEC_BOOST_ATK, _POK_ATTACK_STAT_STAGE),
     (_SEC_BOOST_DEF, _POK_DEFENSE_STAT_STAGE),
@@ -36,135 +39,108 @@ SECONDARY_STAT_MAPPING = (
     (_SEC_BOOST_SPEED, _POK_SPEED_STAT_STAGE),
     (_SEC_BOOST_EV, _POK_EVASION_STAT_STAGE)
 )
-TURNS_2_5 = (2, 3, 4, 5)
 
 
 @njit
 def synchronize_reflect(recipient, applied_status, source):
-    """
-    Generation IV Synchronize: when burned, paralyzed, poisoned, or badly poisoned by
-    another Pokemon's move effect, the inflicting Pokemon gains the same status if able.
-    Sleep and freeze are not reflected (Gen V+ extended Synchronize to sleep).
-    """
+    """Reflects Burn, Poison, Toxic, or Paralysis back to the attacker."""
     if recipient[_POK_AB_ID] != _ABILITYNAMES_SYNCHRONIZE:
         return
     if applied_status not in B_P_P:
         return
     if source[_POK_STATUS] != 0:
         return
+
+    t1 = source[_POK_TYPE1]
+    t2 = source[_POK_TYPE2]
+
+    # Branchless type matching for immunities
     if applied_status == _STATUS_BURN:
-        if (
-            source[_POK_TYPE1] == _TYPES_FIRE
-            or (source[_POK_TYPE2] != 0 and source[_POK_TYPE2] == _TYPES_FIRE)
-        ):
+        if t1 == _TYPES_FIRE or t2 == _TYPES_FIRE or source[_POK_AB_ID] == _ABILITYNAMES_WATER_VEIL:
             return
-        if source[_POK_AB_ID] == _ABILITYNAMES_WATER_VEIL:
+        source[_POK_STATUS] = applied_status
+        return
+    if applied_status == _STATUS_PARALYSIS:
+        if t1 == _TYPES_ELECTRIC or t2 == _TYPES_ELECTRIC or source[_POK_AB_ID] == _ABILITYNAMES_LIMBER:
             return
-    elif applied_status == _STATUS_PARALYSIS:
-        if (
-            source[_POK_TYPE1] == _TYPES_ELECTRIC
-            or (source[_POK_TYPE2] != 0 and source[_POK_TYPE2] == _TYPES_ELECTRIC)
-        ):
-            return
-        if source[_POK_AB_ID] == _ABILITYNAMES_LIMBER:
-            return
-    else:
-        # poison or toxic
-        t1 = source[_POK_TYPE1]
-        t2 = source[_POK_TYPE2]
-        if t1 in STEEL_POISON:
-            return
-        if t2 != 0 and (t2 in STEEL_POISON):
-            return
-        if source[_POK_AB_ID] == _ABILITYNAMES_IMMUNITY:
-            return
+        source[_POK_STATUS] = applied_status
+        return
+    # Poison or Toxic
+    if t1 in STEEL_POISON or t2 in STEEL_POISON or source[_POK_AB_ID] == _ABILITYNAMES_IMMUNITY:
+        return
+    # Synchronize always inflicts standard Poison, even if triggered by Toxic
     source[_POK_STATUS] = _STATUS_POISON
 
 
 @njit
 def apply_status(move, pok, weather, source, sec=False):
-    """Apply status effects. ``source`` is the Pokemon whose move inflicted the status (for Synchronize)."""
-    pok_status = pok[_POK_STATUS]
-    if sec:
-        m_status = move[_SEC_STATUS]
-    else:
-        m_status = move[_MOVE_STATUS]
-    if m_status != _STATUS_SLEEP:
-        if pok_status == 0:
-            if m_status == _STATUS_FREEZE and weather == _WEATHER_SUN:
-                return
-            pok[_POK_STATUS] = m_status
-            if m_status == _STATUS_TOXIC:
-                pok[_POK_BADLY_POISON] = 1
-            synchronize_reflect(pok, m_status, source)
-            return
+    """Apply non-volatile status effects."""
+    # Gen 4: Cannot apply a new status if one already exists
+    if pok[_POK_STATUS] != 0:
         return
-    if pok_status == _STATUS_SLEEP:
+
+    m_status = move[_SEC_STATUS] if sec else move[_MOVE_STATUS]
+    if m_status == 0:
         return
+
+    if m_status == _STATUS_FREEZE and weather == _WEATHER_SUN:
+        return
+
     pok[_POK_STATUS] = m_status
-    pok[_POK_SLEEP_COUNTER] = random.getrandbits(2) + 1
-    return
+
+    if m_status == _STATUS_TOXIC:
+        pok[_POK_BADLY_POISON] = 1
+    elif m_status == _STATUS_SLEEP:
+        pok[_POK_SLEEP_COUNTER] = TURNS_2_5[random.getrandbits(2)]
+
+    if m_status in B_P_P:
+        synchronize_reflect(pok, m_status, source)
 
 
 @njit
 def stat_changes(move, attacker, defender, sec=False):
-    """
-    Check and apply stat changes
-    """
-    # 1.Check if ANY stat change exists
+    """Check and apply stat changes."""
+    stat_map = SECONDARY_STAT_MAPPING if sec else STAT_MAPPING
     has_stat_boost = False
-    if sec:
-        stat_map = SECONDARY_STAT_MAPPING
-    else:
-        stat_map = STAT_MAPPING
+
+    # 1. Early exit check (Numba completely unrolls this tuple loop)
     for move_idx, _ in stat_map:
         if move[move_idx] != 0:
             has_stat_boost = True
             break
 
-    if move[_MOVE_BOOST_ACC] != 0:
+    acc_boost = move[_SEC_BOOST_ACC] if sec else move[_MOVE_BOOST_ACC]
+    if acc_boost != 0:
         has_stat_boost = True
 
-    # 2. EXECUTE LOGIC if a stat boost is present
-    if has_stat_boost:
-        m_target = move[_MOVE_TARGET]
+    if not has_stat_boost:
+        return
 
-        # --- Apply Stats to Self ---
-        if m_target in TARGET_SELF_SIDE:
-            for move_idx, stat_idx in stat_map:
-                boost = move[move_idx]
-                if boost != 0:
-                    attacker[stat_idx] = max(-6, min(6, attacker[stat_idx] + boost))
+    # 2. Assign target exactly once
+    m_target = move[_MOVE_TARGET]
+    target_pok = attacker if m_target in TARGET_SELF_SIDE else defender
 
-            acc_boost = move[_MOVE_BOOST_ACC] if not sec else move[_SEC_BOOST_ACC]
-            if acc_boost != 0:
-                attacker[_POK_ACCURACY_STAT_STAGE] = (
-                    max(-6, min(6, attacker[_POK_ACCURACY_STAT_STAGE] + acc_boost))
-                )
+    # 3. Apply stats safely to the evaluated target
+    for move_idx, stat_idx in stat_map:
+        boost = move[move_idx]
+        if boost != 0:
+            target_pok[stat_idx] = max(-6, min(6, target_pok[stat_idx] + boost))
 
-        # --- Apply Stats to Opponent ---
-        elif m_target in TARGET_OPP_SIDE:
-            for move_idx, stat_idx in stat_map:
-                boost = move[move_idx]
-                if boost != 0:
-                    defender[stat_idx] = max(-6, min(6, defender[stat_idx] + boost))
-
-            acc_boost = move[_MOVE_BOOST_ACC] if not sec else move[_SEC_BOOST_ACC]
-            if acc_boost != 0:
-                if acc_boost < 0 and defender[_POK_AB_ID] == _ABILITYNAMES_KEEN_EYE:
-                    pass # Blocked
-                else:
-                    defender[_POK_ACCURACY_STAT_STAGE] = (
-                        max(-6, min(6, defender[_POK_ACCURACY_STAT_STAGE] + acc_boost))
-                    )
+    # Apply Accuracy (Requires Keen Eye exception for Opponent target)
+    if acc_boost != 0:
+        if m_target in TARGET_OPP_SIDE and acc_boost < 0 and defender[_POK_AB_ID] == _ABILITYNAMES_KEEN_EYE:
+            pass  # Blocked
+        else:
+            target_pok[_POK_ACCURACY_STAT_STAGE] = (
+                max(-6, min(6, target_pok[_POK_ACCURACY_STAT_STAGE] + acc_boost))
+            )
 
 
 @njit
 def vol_status(move, pok, sec=False):
-    """
-    Check and apply any volatile status
-    """
-    v_status = move[_MOVE_VOL_STATUS] if not sec else move[_SEC_VOL_STATUS]
+    """Check and apply volatile status."""
+    v_status = move[_SEC_VOL_STATUS] if sec else move[_MOVE_VOL_STATUS]
+
     if v_status & _VOLSTATUS_CONFUSION:
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
             pok[_POK_VOL_STATUS] += _VOLSTATUS_CONFUSION
@@ -173,76 +149,65 @@ def vol_status(move, pok, sec=False):
 
 @njit
 def calculate_effects(attacker, defender, move, weather):
-    """Calculate the effect parts of the moves"""
-    # Stat Buffs and Debuffs
+    """Calculate primary move effects."""
     stat_changes(move, attacker, defender)
 
-    # Status
-    if move[_MOVE_STATUS]:
+    if move[_MOVE_STATUS] != 0:
         if move[_MOVE_TARGET] in TARGET_OPP_SIDE:
             apply_status(move, defender, weather, attacker)
-        raise ValueError("Shouldn't have self status change")
+        else:
+            raise ValueError("Shouldn't have self status change in this block")
 
-    # Vol Status
-    if move[_MOVE_VOL_STATUS]:
+    if move[_MOVE_VOL_STATUS] != 0:
         vol_status(move, defender)
 
 
 @njit
 def sec_effects(move, attacker, defender, weather):
-    """Calculate the secondary effects, like 10% of burning,
-    30% of increasing attacking, Drain moves etc."""
+    """Calculate secondary move effects (e.g., 10% Burn)."""
     m_target = move[_MOVE_TARGET]
-    target = m_target in TARGET_OPP_SIDE
-    if target and defender[_POK_CURRENT_HP] <= 0:
+    target_opp = m_target in TARGET_OPP_SIDE
+
+    if target_opp and defender[_POK_CURRENT_HP] <= 0:
         return
+
     chance = move[_SEC_CHANCE]
-    roll = random.random()*100 if chance < 100 else 0
-    if roll <= chance:
-        # Stat can be both sides, so check and apply as normal
+
+    if chance == 100 or random.randint(1, 100) <= chance:
         stat_changes(move, attacker, defender, sec=True)
 
-        # Status can only be opposing side, so only enter function if necessary
-        if target:
+        if target_opp:
             if move[_SEC_STATUS] != 0:
                 apply_status(move, defender, weather, attacker, sec=True)
-
-            # Volatile Status for the opponent only
             if move[_SEC_VOL_STATUS] != 0:
-                vol_status(move, defender, True)
+                vol_status(move, defender, sec=True)
 
 
 @njit
 def after_turn_status(pok):
-    """Calculate damage after turn like burn, poison, volatile status"""
-    # TODO: Magic Guard
+    """Calculate end-of-turn status damage."""
+    if pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
+        return 0
+
     status = pok[_POK_STATUS]
-    badly = pok[_POK_BADLY_POISON]
-    max_hp = pok[_POK_MAX_HP]
-    dmg = 0
-    if status:
-        if status in B_P:
-            if badly >= 1:
-                if pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD:
-                    dmg = max_hp * badly // 16
-                pok[_POK_BADLY_POISON] += 1
-            elif pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD:
-                dmg = max_hp // 8
+    if status in B_P:
+        max_hp = pok[_POK_MAX_HP]
+        if pok[_POK_BADLY_POISON] >= 1:
+            dmg = max_hp * pok[_POK_BADLY_POISON] // 16
+            pok[_POK_BADLY_POISON] += 1
             return dmg
-    return dmg
+        return max_hp // 8
+
+    return 0
 
 
 @njit
 def paralysis():
-    """Check if Pokemon is fully paralysed"""
-    if random.getrandbits(2):  #25%
-        return True
-    return False
+    """Returns True if the Pokémon is fully paralyzed (25% chance)."""
+    return random.getrandbits(2) == 0
 
 
 @njit
 def freeze():
-    """Check if it thaws"""
-    if random.random() <= 0.2:
-        return False
-    return True
+    """Returns True if the Pokémon thaws from ice (20% chance)."""
+    return random.random() <= 0.2

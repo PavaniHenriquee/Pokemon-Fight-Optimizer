@@ -7,7 +7,9 @@ from Models.idx_const import (
     Flags as MoveFlags,
     Sec as SecondaryArray
 )
-from Models.helper import Types, Target,SideCondition, Status, VolStatus, MoveCategory
+from Models.helper import (
+    Types, Target,SideCondition, Status, VolStatus, MoveCategory, DamageSources
+)
 from DataBase.MoveDB import MoveName
 from DataBase.loader import moveDB
 
@@ -41,9 +43,13 @@ class Moves():
         if isinstance(dmg_val, int):
             dmg_result = dmg_val
         elif dmg_val == 'level':
-            dmg_result = -2
-        elif dmg_val == 'dmg_taken':
-            dmg_result = -1
+            dmg_result = DamageSources.LEVEL
+        elif dmg_val == 'bide':
+            dmg_result = DamageSources.BIDE
+        elif dmg_val == 'counter':
+            dmg_result = DamageSources.COUNTER
+        elif dmg_val == 'magic_coat':
+            dmg_result = DamageSources.MAGIC_COAT
         else:
             dmg_result = 0
 

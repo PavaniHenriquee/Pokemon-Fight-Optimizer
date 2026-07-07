@@ -446,6 +446,8 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
         attacker[_POK_CHARGE_RECHARGE] -= 1
         if attacker[_POK_CHARGE_RECHARGE] > 0:
             return True
+        if attacker[_POK_CHARGE_RECHARGE] < 0:
+            attacker[_POK_CHARGE_RECHARGE] = 0
     # In cases like after recoil damage, selfdestruct, multihit etc.
     if defender[_POK_CURRENT_HP] <= 0:
         # Move not targeting the defender, so don't matter its dead
@@ -555,7 +557,6 @@ def drain(pok, move, dmg):
 def struggle(attacker, defender, rec=True):
     """
     Struggle damage for the opponent and recoil
-    Not implemented
     """
     atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
     def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE

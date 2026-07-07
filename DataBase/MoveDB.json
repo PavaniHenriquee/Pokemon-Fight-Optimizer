@@ -114,7 +114,7 @@
     "target": "self",
     "type": "Normal",
     "vol_status": "bide",
-    "damage": "dmg_taken"
+    "damage": "bide"
   },
   "Bite": {
     "accuracy": 100,
@@ -1218,7 +1218,19 @@
     "name": "struggle",
     "pp": -1,
     "target": "random_normal",
-    "type": "Typeless"
+    "type": "Typeless",
+    "flags": {
+      "contact": true,
+      "protect": true,
+      "fail_encore": true,
+      "fail_me_first": true,
+      "no_sleep_talk": true,
+      "no_assist": true,
+      "fail_copycat": true,
+      "fail_mimic": true,
+      "fail_instruct": true,
+      "no_sketch": true
+    }
   },
   "Supersonic": {
     "accuracy": 55,
