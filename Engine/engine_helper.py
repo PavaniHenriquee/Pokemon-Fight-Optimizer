@@ -2,7 +2,7 @@
 import random
 from numba import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
-from Engine.status_calc import after_turn_status, freeze, paralysis, B_P
+from Engine.status_calc import after_turn_status, freeze, paralysis, synchronize_reflect, B_P
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS
 )
@@ -27,7 +27,7 @@ from Models.constants import (
     _STATUS_SLEEP, _STATUS_FREEZE, _VOLSTATUS_CONFUSION, _POTIONS_FULL_HEAL,
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
     _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED, _ABILITYNAMES_SWIFT_SWIM,
-    _ABILITYNAMES_SYNCHRONIZE, _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_WATER_ABSORB,
+    _ABILITYNAMES_WATER_ABSORB, _MOVE_DAMAGE, _DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT,
     _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN, _POK_DMG_TAKEN,
     _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEMNAMES_ORAN_BERRY,
     _ITEM_ID, _ITEMNAMES_SITRUS_BERRY, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _ITEMTYPE_BERRY,
@@ -40,7 +40,10 @@ SANDSTORM_IM = (_TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL)
 DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 ITEM_50HP = (_ITEMNAMES_ORAN_BERRY, _ITEMNAMES_SITRUS_BERRY)
+RECORD_DAMAGE = (_DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT)
 
+
+# ── Item / berry helpers ───────────────────────────────────────────────────────
 
 @njit
 def clear_item(pok):
@@ -56,14 +59,15 @@ def _apply_berry_effect(item_id, target):
     'pok' for a self-trigger, or 'attacker' for Bug Bite."""
     if item_id == _ITEMNAMES_ORAN_BERRY:
         target[_POK_CURRENT_HP] = min(target[_POK_CURRENT_HP]+10, target[_POK_MAX_HP])
+    # TODO: Sitrus Berry is in ITEM_50HP below but has no effect here — once it's in
+    # ItemDB.json, add its branch or it'll get eaten (and cleared) for nothing.
 
 
 @njit
 def eat_berry(pok):
     """Self-triggered berry eat at low HP (end of turn / on receiving damage)"""
     item_id = pok[_ITEM_ID]
-    hp_pct = (pok[_POK_CURRENT_HP]*100)//pok[_POK_MAX_HP]
-    if hp_pct < 50 and item_id in ITEM_50HP:
+    if item_id in ITEM_50HP and pok[_POK_CURRENT_HP] * 2 <= pok[_POK_MAX_HP]:
         _apply_berry_effect(item_id, pok)
         clear_item(pok)
 
@@ -85,15 +89,16 @@ def item_on_rdmg(pok):
         eat_berry(pok)
 
 
+# ── Speed & turn order ──────────────────────────────────────────────────────────
+
 @njit
 def check_speed(p1, p2, weather):
-    """Gives speed after modifications of stages, paralysis and Abilities"""
+    """Gives speed after modifications of stages, abilities, and paralysis (Showdown/Smogon-DP
+    confirmed order: stat stage -> ability modifier -> item modifier (not yet implemented) ->
+    paralysis -> tailwind (not yet implemented). Paralysis is applied last, to the already-
+    truncated result of the earlier steps, not multiplied in alongside them.)"""
     p1_speed = p1[_POK_SPEED]
     p2_speed = p2[_POK_SPEED]
-    if p1[_POK_STATUS] == _STATUS_PARALYSIS:
-        p1_speed //= 4
-    if p2[_POK_STATUS] == _STATUS_PARALYSIS:
-        p2_speed //= 4
     # Apply Stat stages if necessary
     if p1[_POK_SPEED_STAT_STAGE] != 0:
         p1_speed = stage_to_multiplier(p1[_POK_SPEED_STAT_STAGE], p1_speed)
@@ -113,24 +118,26 @@ def check_speed(p1, p2, weather):
             p2_speed *= 2
         elif weather == _WEATHER_RAIN and ab == _ABILITYNAMES_SWIFT_SWIM:
             p2_speed *= 2
+    # TODO: item modifiers (Choice Scarf ×1.5, Iron Ball/Macho Brace/Power items ×0.5,
+    # Quick Powder ×2) go here once items are wired into the speed calc — before paralysis.
+    if p1[_POK_STATUS] == _STATUS_PARALYSIS:
+        p1_speed //= 4
+    if p2[_POK_STATUS] == _STATUS_PARALYSIS:
+        p2_speed //= 4
+    # TODO: Tailwind ×2 goes here, last.
     return p1_speed, p2_speed
 
 
 @njit
-def move_speed_tie(p1, m1, p2, m2):
-    """Get at random the order"""
-    if random.getrandbits(1):
-        return [(p1, m1, p2), (p2, m2, p1)]
-    return [(p2, m2, p1), (p1, m1, p2)]
-
-
-@njit
 def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
-    """Calculates the order which the what move should be played
-    Returns:
-
-    [('Faster Pokemon', 'Move of Faster Pokemon', 'Slower Pokemon'),
-        ('Slower Pokemon, 'Move of Slower Pokemon', 'Faster Pokemon')]"""
+    """
+    Calculates who acts first this turn.
+    Returns (mv1_slot, mv2_slot, count, first_is_mine):
+      mv1_slot / mv2_slot — move index for whoever acts in that position
+                            (-1 = switch, dummy value if count < 2)
+      count               — how many of the two slots actually act (0, 1, or 2)
+      first_is_mine       — whether slot 1 belongs to my side
+    """
     if p1_switch and p2_switch:
         return -1, -1, 0, False  # count=0, rest are dummies
 
@@ -161,6 +168,8 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
     return opp_move, my_move, 2, False
 
 
+# ── Accuracy & crit ─────────────────────────────────────────────────────────────
+
 @njit
 def absorb_abi(defender):
     """
@@ -179,7 +188,7 @@ def ab_on_try_move(move, attacker, defender, accuracy:int, weather):
     atk_ab = attacker[_POK_AB_ID]
     def_ab = defender[_POK_AB_ID]
     target = move[_MOVE_TARGET]
-    if move in DAMP_IGNORES and (
+    if move[_MOVE_ID] in DAMP_IGNORES and (
         atk_ab == _ABILITYNAMES_DAMP  #pylint: disable=consider-using-in
         or def_ab == _ABILITYNAMES_DAMP
     ):
@@ -226,7 +235,8 @@ def calculate_hit_miss(move, attacker, defender, weather):
     if ab_a & _ABILITYACTIVATION_ON_TRY_MOVE or ab_d & _ABILITYACTIVATION_ON_TRY_MOVE:
         move_acc = ab_on_try_move(move, attacker, defender, move_acc, weather)
 
-    #TODO: Some status moves don't get immunities from type immunities i think, check it
+    # TODO: Move.IGNORE_IMMUNITY is parsed from JSON (e.g. Thunder Wave) but never
+    # read anywhere — decide what it should bypass here before relying on it.
     eff, _ = get_type_effectiveness(move[_MOVE_TYPE], defender[_POK_TYPE1], defender[_POK_TYPE2])
     if  eff == 0:
         return _MOVEOUTCOME_INVULNERABLE
@@ -237,14 +247,14 @@ def calculate_hit_miss(move, attacker, defender, weather):
         return _MOVEOUTCOME_MISS
 
     acc_stage = attacker[_POK_ACCURACY_STAT_STAGE] - defender[_POK_EVASION_STAT_STAGE]
-    if acc_stage > 0:
-        accuracy = move_acc*(acc_stage+3)/3
+    if acc_stage == 0:
+        accuracy = move_acc
     elif acc_stage < 0:
         accuracy = move_acc*(3)/(3+acc_stage)
     else:
-        accuracy = move_acc
+        accuracy = move_acc*(acc_stage+3)/3
 
-    if accuracy == 100 or random.random()*100 < accuracy:
+    if accuracy == 100 or random.randint(1,100) <= accuracy:
         return _MOVEOUTCOME_HIT
     return _MOVEOUTCOME_MISS
 
@@ -252,10 +262,15 @@ def calculate_hit_miss(move, attacker, defender, weather):
 @njit
 def calculate_crit(def_aw):
     """Returns a boolean if the move passed the crit check"""
+    # TODO: doesn't take move.CRIT_RATIO into account — Karate Chop/Razor Leaf etc.
+    # currently crit at the base 1/16 rate like anything else. Needs a `move` param
+    # and the Gen4 crit-stage table (1/16, 1/8, 1/4, always) whenever that's a priority.
     if def_aw & _ABILITYACTIVATION_ON_CRITICAL:
         return False
     return random.getrandbits(4) == 0
 
+
+# ── Switch handling ──────────────────────────────────────────────────────────────
 
 @njit
 def reset_switch_out(pok):
@@ -269,11 +284,27 @@ def reset_switch_out(pok):
 
 
 @njit
+def switch_in(attacker, defender):
+    """
+    What happens when a pokemon switches in so, abilities, hazards
+    """
+    # TODO: Hazards damage(needs to put item on rdmg), take in consideration that the pokemon needs to
+    # be alive to activiate the ability so before the ability do something like
+    # if attacker[_POK_CURRENT_HP] > 0:
+    if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
+        ability = attacker[_POK_AB_ID]
+        if ability == _ABILITYNAMES_INTIMIDATE:
+            defender[_POK_ATTACK_STAT_STAGE] = max(-6, defender[_POK_ATTACK_STAT_STAGE] - 1)
+
+
+# ── In-battle status / contact effects ────────────────────────────────────────────
+
+@njit
 def flinch_checker(move, defender):
     """Returns true or false if move has a flinch percent and it should flinch"""
     if defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS:
         return False
-    if random.random()*100 < move[_SEC_CHANCE]:
+    if random.randint(1,100) <= move[_SEC_CHANCE]:
         return True
     return False
 
@@ -294,6 +325,8 @@ def confusion(pok):
     but since the damage calculation is different and it doesn't have a "move"
     Better have a own thing to apply everything
     """
+    if pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
+        return
     damage = calculate_damage_confusion(pok)
     pok[_POK_CURRENT_HP] = max(0, (pok[_POK_CURRENT_HP]-damage))
     if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
@@ -301,18 +334,126 @@ def confusion(pok):
 
 
 @njit
-def switch_in(attacker, defender):
+def contact_ability(attacker, defender):
     """
-    What happens when a pokemon switches in so, abilities, hazards
+    Abilities that activate with contact
     """
-    # TODO: Hazards damage(needs to put item on rdmg), take in consideration that the pokemon needs to
-    # be alive to activiate the ability so before the ability do something like
-    # if attacker[_POK_CURRENT_HP] > 0:
-    if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
-        ability = attacker[_POK_AB_ID]
-        if ability == _ABILITYNAMES_INTIMIDATE:
-            defender[_POK_ATTACK_STAT_STAGE] -= 1
+    if defender[_POK_AB_ID] == _ABILITYNAMES_POISON_POINT:
+        if (
+            attacker[_POK_STATUS] == 0
+            and attacker[_POK_TYPE1] not in STEEL_POISON
+            and attacker[_POK_TYPE2] not in STEEL_POISON
+            and random.random() < .30
+        ):
+            attacker[_POK_STATUS] = _STATUS_POISON
+            synchronize_reflect(attacker, _STATUS_POISON, defender)
 
+
+# ── The turn-blocking gate ───────────────────────────────────────────────────────
+
+@njit
+def _tick_charge_if_blocked(attacker):
+    """
+    When something blocks the move outright (sleep, freeze, ...), the charge/recharge
+    counter still ticks down so a two-turn move doesn't stall out waiting extra turns
+    once the status finally lifts.
+    """
+    if attacker[_POK_CHARGE_RECHARGE] > 0 and not attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+        attacker[_POK_CHARGE_RECHARGE] -= 1
+
+
+@njit
+def early_returns(attacker, defender, idx: int, flinch: bool, move):
+    """Early returns to see if an attack goes through or not"""
+    """
+    Priorities, highest go first:
+    Recharge:  11
+    Sleep:     10
+    Freeze:    10
+    Flinch:    8
+    Confusion: 3
+    Attract:   2
+    Paralysis: 1
+    Default:   0
+
+    NOTE: charge/recharge tick-vs-pause is still open. Bulbapedia's answer for Bide
+    is "pause" (a blocked turn doesn't count toward the charge), which the Sleep/
+    Freeze ticking below doesn't currently do — left as-is on purpose pending a pass
+    across all charge-type moves (Bide, Solar Beam, Dig, ...) together, rather than
+    fixed piecemeal here. Attract isn't implemented at all yet.
+    """
+    atker_status = attacker[_POK_STATUS]
+    # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
+    if atker_status == _STATUS_SLEEP:
+        if attacker[_POK_SLEEP_COUNTER] > 0:
+            attacker[_POK_SLEEP_COUNTER] -= 1
+            _tick_charge_if_blocked(attacker)
+            return True
+        attacker[_POK_STATUS] = 0
+    # Freeze
+    if atker_status == _STATUS_FREEZE:
+        # TODO: a small set of specific moves (Flame Wheel, Sacred Fire, Scald, ...)
+        # auto-thaw the user on use regardless of the roll below. None exist in
+        # MoveDB yet — once added, gate this on a move-id tuple in DataBase/MoveDB.py
+        # (same pattern as FIRE_MOVES / FIRE_WATER_ELECTRIC), not on move[_MOVE_TYPE].
+        if freeze():
+            _tick_charge_if_blocked(attacker)
+            return True
+        attacker[_POK_STATUS] = 0
+    # Flinch
+    if flinch and idx >= 2:
+        if defender[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
+            defender[_POK_SPEED_STAT_STAGE] = min(6, defender[_POK_SPEED_STAT_STAGE] + 1)
+        return True
+    # Confusion
+    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
+        attacker[_POK_CONFUSION_COUNTER] -= 1
+        if attacker[_POK_CONFUSION_COUNTER] > 0:
+            if random.getrandbits(1):
+                confusion(attacker)
+                return True
+        else:
+            attacker[_POK_VOL_STATUS] -= _VOLSTATUS_CONFUSION
+    # Paralysis — Magic Guard still allows getting PAR, it just blocks the roll
+    # into full paralysis (Gen 4 specific)
+    if (
+        atker_status == _STATUS_PARALYSIS
+        and paralysis()
+        and attacker[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD
+    ):
+        return True
+    # Charging poke e.g. solarbeam, bide
+    if attacker[_POK_CHARGE_RECHARGE] > 0 and not attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+        attacker[_POK_CHARGE_RECHARGE] -= 1
+        if attacker[_POK_CHARGE_RECHARGE] > 0:
+            return True
+    # Bide has a special case since it pauses the counter if any of the above is true,
+    # so it needs to be below them
+    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+        attacker[_POK_CHARGE_RECHARGE] -= 1
+        if attacker[_POK_CHARGE_RECHARGE] > 0:
+            return True
+
+    # Counter and Mirror Coat
+    if (
+        (move[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER or move[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT)
+        and (idx == 1 or attacker[_POK_DMG_TAKEN] == 0)
+    ):
+        return True
+    # In cases like after recoil damage, selfdestruct etc.
+    if defender[_POK_CURRENT_HP] <= 0:
+        # Move not targeting the defender, so don't matter its dead
+        if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
+            return False
+        # Charge move on its first turn
+        if move[_MOVE_CHARGE_RECHARGE] > 0 and attacker[_POK_LOCKED_MOVE] == -1:
+            return False
+        #TODO: Some moves still go through, like future sight
+        return True
+    return False
+
+
+# ── Battle start & end-of-turn residuals ───────────────────────────────────────
 
 def start_of_battle(array):
     """Select the two first pokemon of each team and does ability effects on switch in
@@ -339,6 +480,32 @@ def start_of_battle(array):
     current_pokemon[_POK_TURNS] = 1
     current_opp[_POK_TURNS] = 1
     array[_FIELD_TURN] = 1
+
+
+@njit
+def heal_end_turn(self_, weather):
+    """
+    Heals after turns, from items, abilities and volatile conditions
+    """
+    heal = 0
+    max_hp = self_[_POK_MAX_HP]
+    if self_[_POK_AB_ID] == _ABILITYNAMES_RAIN_DISH and weather == _WEATHER_RAIN:
+        heal += max_hp//16
+
+    if heal:
+        hp_missing = max_hp - self_[_POK_CURRENT_HP]
+        heal = min(heal,hp_missing)
+        self_[_POK_CURRENT_HP] += heal
+
+
+@njit
+def on_residual(pokemon, _switch_in):
+    """
+    On residual abilities at end of turn
+    """
+    abi = pokemon[_POK_AB_ID]
+    if abi == _ABILITYNAMES_SPEED_BOOST and not _switch_in:
+        pokemon[_POK_SPEED_STAT_STAGE] = min(6, pokemon[_POK_SPEED_STAT_STAGE] + 1)
 
 
 @njit
@@ -384,136 +551,7 @@ def after_turn_damage(pokemon, weather: int) -> int:
     return dmg
 
 
-@njit
-def early_returns(attacker, defender, idx: int, flinch: bool, move):
-    """Early returns to see if an attack goes through or not"""
-    """
-    Priorities, highest go first:
-    Recharge:  11
-    Sleep:     10
-    Freeze:    10
-    Flinch:    8
-    Confusion: 3
-    Attract:   2
-    Paralysis: 1
-    Default:   0
-    """
-    atker_status = attacker[_POK_STATUS]
-    # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
-    if atker_status == _STATUS_SLEEP:
-        if attacker[_POK_SLEEP_COUNTER] > 0:
-            attacker[_POK_SLEEP_COUNTER] -= 1
-            if attacker[_POK_CHARGE_RECHARGE] > 0:
-                attacker[_POK_CHARGE_RECHARGE] -= 1
-            return True
-        attacker[_POK_STATUS] = 0
-    # Freeze
-    if atker_status == _STATUS_FREEZE:
-        if freeze():
-            if attacker[_POK_CHARGE_RECHARGE] > 0:
-                attacker[_POK_CHARGE_RECHARGE] -= 1
-            return True
-        attacker[_POK_STATUS] = 0
-    # Flinch
-    if flinch and idx >= 2:
-        if defender[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
-            defender[_POK_SPEED_STAT_STAGE] = min(6, defender[_POK_SPEED_STAT_STAGE] + 1)
-        return True
-    # Confusion
-    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
-        attacker[_POK_CONFUSION_COUNTER] -= 1
-        if attacker[_POK_CONFUSION_COUNTER] > 0:
-            if random.getrandbits(1):
-                confusion(attacker)
-                return True
-        else:
-            attacker[_POK_VOL_STATUS] -= _VOLSTATUS_CONFUSION
-    # Check for Paralysis
-    if (
-        atker_status == _STATUS_PARALYSIS
-        and paralysis()
-        and defender[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD  #Gen 4 exclusive
-    ):
-        return True
-    # Charging poke e.g. solarbeam, bide
-    if attacker[_POK_CHARGE_RECHARGE] > 0 and not attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
-        attacker[_POK_CHARGE_RECHARGE] -= 1
-        if attacker[_POK_CHARGE_RECHARGE] > 0:
-            return True
-    # Bide has a special case since it pauses the counter if any of the above is true,
-    # so it needs to be below them
-    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
-        attacker[_POK_CHARGE_RECHARGE] -= 1
-        if attacker[_POK_CHARGE_RECHARGE] > 0:
-            return True
-        if attacker[_POK_CHARGE_RECHARGE] < 0:
-            attacker[_POK_CHARGE_RECHARGE] = 0
-    # In cases like after recoil damage, selfdestruct, multihit etc.
-    if defender[_POK_CURRENT_HP] <= 0:
-        # Move not targeting the defender, so don't matter its dead
-        if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
-            return False
-        # Charge move on its first turn
-        if move[_MOVE_CHARGE_RECHARGE] > 0 and attacker[_POK_LOCKED_MOVE] == -1:
-            return False
-        #TODO: Some moves still go through, like future sight
-        return True
-    return False
-
-
-@njit
-def contact_ability(attacker, defender):
-    """
-    Abilities that activate with contact
-    """
-    #TODO: Add Synchronize to the ones that apply status
-    if defender[_POK_AB_ID] == _ABILITYNAMES_POISON_POINT:
-        if (
-            attacker[_POK_STATUS] == 0
-            and (
-                attacker[_POK_TYPE1] not in STEEL_POISON
-                or attacker[_POK_TYPE2] not in STEEL_POISON
-            )
-            and random.random() < .30
-        ):
-            attacker[_POK_STATUS] = _STATUS_POISON
-            if attacker[_POK_AB_ID] == _ABILITYNAMES_SYNCHRONIZE:
-                t1 = defender[_POK_TYPE1]
-                t2 = defender[_POK_TYPE2]
-                if t1 in STEEL_POISON:
-                    return
-                if t2 != 0 and t2 in STEEL_POISON:
-                    return
-                if defender[_POK_AB_ID] == _ABILITYNAMES_IMMUNITY:
-                    return
-                defender[_POK_STATUS] = _STATUS_POISON
-
-
-@njit
-def heal_end_turn(self_, weather):
-    """
-    Heals after turns, from items, abilities and volatile conditions
-    """
-    heal = 0
-    max_hp = self_[_POK_MAX_HP]
-    if self_[_POK_AB_ID] == _ABILITYNAMES_RAIN_DISH and weather == _WEATHER_RAIN:
-        heal += max_hp//16
-
-    if heal:
-        hp_missing = max_hp - self_[_POK_CURRENT_HP]
-        heal = min(heal,hp_missing)
-        self_[_POK_CURRENT_HP] += heal
-
-
-@njit
-def on_residual(pokemon, _switch_in):
-    """
-    On residual abilities at end of turn
-    """
-    abi = pokemon[_POK_AB_ID]
-    if abi == _ABILITYNAMES_SPEED_BOOST and not _switch_in:
-        pokemon[_POK_SPEED_STAT_STAGE] = min(6, pokemon[_POK_SPEED_STAT_STAGE] + 1)
-
+# ── Trainer items, drain, struggle ──────────────────────────────────────────────
 
 @njit
 def trainer_ai_items(pok, item):
@@ -531,8 +569,10 @@ def trainer_ai_items(pok, item):
     elif item == _POTIONS_FULL_RESTORE:
         pok[_POK_CURRENT_HP] = max_hp
         pok[_POK_STATUS] = 0
+        pok[_POK_BADLY_POISON] = 0
     elif item == _POTIONS_FULL_HEAL:
         pok[_POK_STATUS] = 0
+        pok[_POK_BADLY_POISON] = 0
     elif item == _POTIONS_X_DEFEND:
         pok[_POK_DEFENSE_STAT_STAGE] = min(6, pok[_POK_DEFENSE_STAT_STAGE] + 1)
     elif item == _POTIONS_X_SPECIAL:
@@ -556,7 +596,9 @@ def drain(pok, move, dmg):
 @njit
 def struggle(attacker, defender, rec=True):
     """
-    Struggle damage for the opponent and recoil
+    Struggle damage to the defender, plus recoil to the attacker. rec=False skips
+    the recoil application — used by rollout heuristics that only want a damage
+    estimate without mutating the attacker's HP.
     """
     atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
     def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE

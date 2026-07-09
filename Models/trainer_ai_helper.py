@@ -38,11 +38,14 @@ from Models.constants import (
     _MOVE_PRIORITY, _MOVENAME_FAKE_OUT, _POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID,
     _POK_MOVE4_ID, _MOVENAME_PSYCH_UP, _MOVENAME_DRAGON_DANCE, _VOLSTATUS_LEECH_SEED,
     _VOLSTATUS_CURSE, _POK_MAX_HP, _MOVE_ACCURACY, _POK_ITEM_ID, _MOVE_DRAIN, _MOVENAME_BIDE,
-    _MOVENAME_BRICK_BREAK, _MOVENAME_BUG_BITE, _POK_TURNS
+    _MOVENAME_BUG_BITE, _POK_TURNS, _MOVENAME_COUNTER, _TYPES_NORMAL, _TYPES_FIGHTING,
+    _TYPES_POISON, _TYPES_ROCK, _TYPES_BUG, _TYPES_GHOST, _TYPES_STEEL, _TYPES_FLYING
 )
 
-
-
+COUNTER_EX_TYPES = (
+    _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
+    _TYPES_ROCK, _TYPES_BUG, _TYPES_GHOST, _TYPES_STEEL
+)
 ELEC_AB_IM = (_ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE)
 POISON_AB_IM = (_ABILITYNAMES_IMMUNITY, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_POINT)
 PARA_AB_IM = (_ABILITYNAMES_LIMBER, _ABILITYNAMES_MAGIC_GUARD)
@@ -128,7 +131,7 @@ for pk_id in range(POKEMON_LENGTH + 1):
 
 
 #--------------Move tuples-----------------------------
-EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BRICK_BREAK, _MOVENAME_BUG_BITE)
+EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER)
 
 
 @njit
@@ -540,7 +543,7 @@ def basic_flag(
 @njit
 def evaluate_attack_flag(
             final_damage, effectiveness, user_pok, move, idx, rand
-    ) -> tuple[int, list]:
+    ):
     """
     For damage moves it sees if it kill and some move exceptions then add to score
     For non-damaging moves it checks if its 4x effective, for some reason
@@ -569,7 +572,7 @@ def evaluate_attack_flag(
         move_id in MAYBE_BAD_MOVES
     ):
         add_adjustment(rand, idx, -2, 205)
-    if effectiveness >= 4:
+    if effectiveness == 4.0:
         add_adjustment(rand, idx, 2, 176)
     return score
 
@@ -661,210 +664,260 @@ def expert_vol_status(move, ai_pok, u_pok, turn, rand, idx, hp_pct_u):
         return score
     raise ValueError("Need implementation")
 
+@njit(inline='always')
+def _expert_stat_self(
+    move, ai_pok, rand, idx, hp_pct_ai,
+    move_first, u_pok, hp_pct_u, my_last_move
+):
+    """Handles adjustments for moves targeting self side"""
+    if move[_MOVE_BOOST_DEF]:
+        if ai_pok[_POK_DEFENSE_STAT_STAGE] >= 3:
+            add_adjustment(rand, idx, -1, 156)
+        elif hp_pct_ai == 100:
+            add_adjustment(rand, idx, 2, 128)
+        if hp_pct_ai > 69:
+            if random.getrandbits(8) < 200:
+                return 0
+        if hp_pct_ai < 40:
+            return -2
+        if my_last_move in SPECIAL:
+            return -2
+        if my_last_move not in PHYSICAL:
+            add_adjustment(rand, idx, -2, 196)
+            return 0
+        add_adjustment(rand, idx, -2, 150)
+        return 0
+
+    if move[_MOVE_BOOST_SPDEF]:
+        if ai_pok[_POK_SPECIAL_DEFENSE_STAT_STAGE] >= 3:
+            add_adjustment(rand, idx, -1, 156)
+        elif hp_pct_ai == 100:
+            add_adjustment(rand, idx, 2, 128)
+        if hp_pct_ai > 69:
+            if random.getrandbits(8) < 200:
+                return 0
+        if hp_pct_ai < 40:
+            return -2
+        if my_last_move in PHYSICAL:
+            return -2
+        if my_last_move not in SPECIAL:
+            add_adjustment(rand, idx, -2, 196)
+            return 0
+        add_adjustment(rand, idx, -2, 150)
+        return 0
+
+    if move[_MOVE_BOOST_ATK] and move[_MOVE_ID] != _MOVENAME_DRAGON_DANCE:
+        if ai_pok[_POK_ATTACK_STAT_STAGE] >= 3:
+            add_adjustment(rand, idx, -1, 156)
+        if hp_pct_ai == 100:
+            add_adjustment(rand, idx, 2, 128)
+        if 39 < hp_pct_ai < 71:
+            add_adjustment(rand, idx, -2, 216)
+            return 0
+        if hp_pct_ai < 40:
+            return -2
+        return 0
+
+    if move[_MOVE_BOOST_SPATK]:
+        if ai_pok[_POK_SPECIAL_ATTACK_STAT_STAGE] >= 3:
+            add_adjustment(rand, idx, -1, 156)
+        if hp_pct_ai == 100:
+            add_adjustment(rand, idx, 2, 128)
+        if 39 < hp_pct_ai < 71:
+            add_adjustment(rand, idx, -2, 186)
+            return 0
+        if hp_pct_ai < 40:
+            return -2
+        return 0
+
+    if move[_MOVE_BOOST_SPEED] and move[_MOVE_ID] != _MOVENAME_DRAGON_DANCE:
+        if move_first:
+            return -3
+        add_adjustment(rand, idx, 3, 186)
+        return 0
+
+    if move[_MOVE_BOOST_EV]:
+        # TODO: Ingrain, Aqua Ring
+        ai_ev_stage = ai_pok[_POK_EVASION_STAT_STAGE]
+        if hp_pct_ai > 89:
+            add_adjustment(rand, idx, 3, 156)
+        if ai_ev_stage >= 3:
+            add_adjustment(rand, idx, -1, 128)
+        if u_pok[_POK_STATUS] == _STATUS_TOXIC:
+            if hp_pct_ai > 50:
+                add_adjustment(rand, idx, 3, 206)
+            else:
+                add_adjustment(rand, idx, 3, 142)
+        u_pok_vol_stat = u_pok[_POK_VOL_STATUS]
+        if u_pok_vol_stat & _VOLSTATUS_LEECH_SEED:
+            add_adjustment(rand, idx, 3, 186)
+        if u_pok_vol_stat & _VOLSTATUS_CURSE:
+            add_adjustment(rand, idx, 3, 186)
+        if hp_pct_ai > 70 or ai_ev_stage == 0:
+            return 0
+        if hp_pct_ai < 40 or hp_pct_u < 40:
+            return -2
+        add_adjustment(rand, idx, -2, 186)
+        return 0
+
+    raise ValueError("Target self missing something")
+
+
+@njit(inline='always')
+def _expert_stat_opp(
+    move, ai_pok, rand, idx, hp_pct_ai,
+    move_first, u_pok, hp_pct_u, my_last_move
+):
+    """Handles adjustments for moves targeting opponent side"""
+    if move[_MOVE_BOOST_ATK]:
+        score = 0
+        atk_stage = u_pok[_POK_ATTACK_STAT_STAGE]
+        if atk_stage != 0:
+            score += -1
+            if hp_pct_ai < 91:
+                score += -1
+        if atk_stage <= -3:
+            add_adjustment(rand, idx, -2, 206)
+        if hp_pct_u < 71:
+            score += -2
+        if my_last_move in SPECIAL:
+            add_adjustment(rand, idx, -2, 128)
+            return score
+        return score
+
+    # No moves that are status and also reduce SP.Atk
+
+    if move[_MOVE_BOOST_DEF]:
+        score = 0
+        if hp_pct_ai < 70 or u_pok[_POK_DEFENSE_STAT_STAGE] <= -3:
+            add_adjustment(rand, idx, -2, 206)
+        if hp_pct_u < 71:
+            score += -2
+        return score
+
+    if move[_MOVE_BOOST_SPDEF]:
+        score = 0
+        if hp_pct_ai < 70 or ai_pok[_POK_SPECIAL_DEFENSE_STAT_STAGE] <= -3:
+            add_adjustment(rand, idx, -2, 206)
+        if hp_pct_u < 71:
+            score += -2
+        return score
+
+    if move[_MOVE_BOOST_SPEED]:
+        if move_first:
+            return -3
+        add_adjustment(rand, idx, 2, 186)
+        return 0
+
+    if move[_MOVE_BOOST_ACC]:
+        if hp_pct_ai < 70 or hp_pct_u < 71:
+            add_adjustment(rand, idx, -1, 156)
+        if ai_pok[_POK_ACCURACY_STAT_STAGE] <= -2:
+            add_adjustment(rand, idx, -2, 176)
+        if u_pok[_POK_STATUS] == _STATUS_TOXIC:
+            add_adjustment(rand, idx, 2, 186)
+        if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_LEECH_SEED:
+            add_adjustment(rand, idx, 2, 186)
+        if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
+            add_adjustment(rand, idx, 2, 186)
+        if hp_pct_ai >= 70 or ai_pok[_POK_ACCURACY_STAT_STAGE] == 0:
+            return 0
+        if hp_pct_ai < 40 or hp_pct_u < 40:
+            return -2
+        add_adjustment(rand, idx, -2, 186)
+        return 0
+        # TODO: Ingrain, Aqua Ring
+
+    if move[_MOVE_BOOST_EV]:
+        score = 0
+        if hp_pct_ai < 70 or u_pok[_POK_EVASION_STAT_STAGE] <= -3:
+            add_adjustment(rand, idx, -2, 206)
+        if hp_pct_u < 71:
+            score += -2
+        return score
+
+    raise ValueError("Target enemy missing something")
+
 
 @njit
 def expert_stat(
-        move, ai_pok, rand, idx, hp_pct_ai,
-        move_first, u_pok, hp_pct_u, my_last_move
+    move, ai_pok, rand, idx, hp_pct_ai,
+    move_first, u_pok, hp_pct_u, my_last_move
 ):
     """
     Moves that changes stat
     """
     move_target = move[_MOVE_TARGET]
-    # Stat-Boosting moves
+
     if move_target in TARGET_SELF_SIDE:
-        if move[_MOVE_BOOST_DEF]:
-            if ai_pok[_POK_DEFENSE_STAT_STAGE]>= 3:
-                add_adjustment(rand, idx, -1, 156)
-            elif hp_pct_ai == 100:
-                add_adjustment(rand, idx, 2, 128)
-            if hp_pct_ai>69:
-                if random.getrandbits(8) < 200:
-                    return 0
-            if hp_pct_ai < 40:
-                return -2
-            if my_last_move in SPECIAL:
-                return -2
-            if my_last_move not in PHYSICAL:
-                add_adjustment(rand, idx, -2, 196)
-                return 0
-            add_adjustment(rand, idx, -2, 150)
-            return 0
-
-        if move[_MOVE_BOOST_SPDEF]:
-            if ai_pok[_POK_SPECIAL_DEFENSE_STAT_STAGE]>= 3:
-                add_adjustment(rand, idx, -1, 156)
-            elif hp_pct_ai == 100:
-                add_adjustment(rand, idx, 2, 128)
-            if hp_pct_ai>69:
-                if random.getrandbits(8) < 200:
-                    return 0
-            if hp_pct_ai < 40:
-                return -2
-            if my_last_move in PHYSICAL:
-                return -2
-            if my_last_move not in SPECIAL:
-                add_adjustment(rand, idx, -2, 196)
-                return 0
-            add_adjustment(rand, idx, -2, 150)
-            return 0
-
-        if move[_MOVE_BOOST_ATK] and move[_MOVE_ID] != _MOVENAME_DRAGON_DANCE:
-            if ai_pok[_POK_ATTACK_STAT_STAGE]>= 3:
-                add_adjustment(rand, idx, -1, 156)
-            if hp_pct_ai == 100:
-                add_adjustment(rand, idx, 2, 128)
-            if 39<hp_pct_ai<71:
-                add_adjustment(rand, idx, -2, 216)
-                return 0
-            if hp_pct_ai < 40:
-                return -2
-            return 0
-
-        if move[_MOVE_BOOST_SPATK]:
-            if ai_pok[_POK_SPECIAL_ATTACK_STAT_STAGE]>= 3:
-                add_adjustment(rand, idx, -1, 156)
-            if hp_pct_ai == 100:
-                add_adjustment(rand, idx, 2, 128)
-            if 39<hp_pct_ai<71:
-                add_adjustment(rand, idx, -2, 186)
-                return 0
-            if hp_pct_ai < 40:
-                return -2
-            return 0
-
-        if move[_MOVE_BOOST_SPEED] and move[_MOVE_ID] != _MOVENAME_DRAGON_DANCE:
-            if move_first:
-                return -3
-            add_adjustment(rand, idx, 3, 186)
-            return 0
-
-        if move[_MOVE_BOOST_EV]:
-            # TODO: Ingrain, Aqua Ring
-            ai_ev_stage = ai_pok[_POK_EVASION_STAT_STAGE]
-            if hp_pct_ai > 89:
-                add_adjustment(rand, idx, 3, 156)
-            if ai_ev_stage >= 3:
-                add_adjustment(rand, idx, -1, 128)
-            if u_pok[_POK_STATUS] == _STATUS_TOXIC:
-                if hp_pct_ai > 50:
-                    add_adjustment(rand, idx, 3, 206)
-                else:
-                    add_adjustment(rand, idx, 3, 142)
-            u_pok_vol_stat = u_pok[_POK_VOL_STATUS]
-            if u_pok_vol_stat & _VOLSTATUS_LEECH_SEED:
-                add_adjustment(rand, idx, 3, 186)
-            if u_pok_vol_stat & _VOLSTATUS_CURSE:
-                add_adjustment(rand, idx, 3, 186)
-            if hp_pct_ai > 70 or ai_ev_stage == 0:
-                return 0
-            if hp_pct_ai < 40 or hp_pct_u < 40:
-                return -2
-            add_adjustment(rand, idx, -2, 186)
-            return 0
-        raise ValueError("Target self missing something")
+        return _expert_stat_self(
+            move, ai_pok, rand, idx, hp_pct_ai,
+            move_first, u_pok, hp_pct_u, my_last_move
+        )
 
     if move_target in TARGET_OPP_SIDE:
-        if move[_MOVE_BOOST_ATK]:
-            score = 0
-            atk_stage = u_pok[_POK_ATTACK_STAT_STAGE]
-            if atk_stage!= 0:
-                score += -1
-                if hp_pct_ai < 91:
-                    score += -1
-            if atk_stage <= -3:
-                add_adjustment(rand, idx, -2, 206)
-            if hp_pct_u < 71:
-                score += -2
-            if my_last_move in SPECIAL:
-                add_adjustment(rand, idx, -2, 128)
-                return score
-            return score
+        return _expert_stat_opp(
+            move, ai_pok, rand, idx, hp_pct_ai,
+            move_first, u_pok, hp_pct_u, my_last_move
+        )
 
-        # No moves that are status and also reduce SP.Atk
-
-        if move[_MOVE_BOOST_DEF]:
-            score = 0
-            if hp_pct_ai < 70 or u_pok[_POK_DEFENSE_STAT_STAGE] <= -3:
-                add_adjustment(rand, idx, -2, 206)
-            if hp_pct_u < 71:
-                score += -2
-            return score
-
-        if move[_MOVE_BOOST_SPDEF]:
-            score = 0
-            if hp_pct_ai < 70 or ai_pok[_POK_SPECIAL_DEFENSE_STAT_STAGE] <= -3:
-                add_adjustment(rand, idx, -2, 206)
-            if hp_pct_u < 71:
-                score += -2
-            return score
-
-        if move[_MOVE_BOOST_SPEED]:
-            if move_first:
-                return -3
-            add_adjustment(rand, idx, 2, 186)
-            return 0
-
-        if move[_MOVE_BOOST_ACC]:
-            if hp_pct_ai < 70 or hp_pct_u < 71:
-                add_adjustment(rand, idx, -1, 156)
-            if ai_pok[_POK_ACCURACY_STAT_STAGE] <= -2:
-                add_adjustment(rand, idx, -2, 176)
-            if u_pok[_POK_STATUS] == _STATUS_TOXIC:
-                add_adjustment(rand, idx, 2, 186)
-            if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_LEECH_SEED:
-                add_adjustment(rand, idx, 2, 186)
-            if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
-                add_adjustment(rand, idx, 2, 186)
-            if hp_pct_ai >= 70 or ai_pok[_POK_ACCURACY_STAT_STAGE] == 0:
-                return 0
-            if hp_pct_ai < 40 or hp_pct_u < 40:
-                return -2
-            add_adjustment(rand, idx, -2, 186)
-            return 0
-            # TODO: Ingrain, Aqua Ring
-
-        if move[_MOVE_BOOST_EV]:
-            score = 0
-            if hp_pct_ai < 70 or u_pok[_POK_EVASION_STAT_STAGE] <= -3:
-                add_adjustment(rand, idx, -2, 206)
-            if hp_pct_u < 71:
-                score += -2
-            return score
-        raise ValueError("Target enemy missing something")
     raise ValueError("Target no accounted for")
 
 
 @njit
-def expert_moves(move, ai_pok, effectiveness, rand, idx):
+def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move):
     """
     Expert moves that have specific logic
     """
     score = 0
-    hp_pct = (ai_pok[_POK_CURRENT_HP]*100)//ai_pok[_POK_MAX_HP]
+    ai_hp_pct = (ai_pok[_POK_CURRENT_HP]*100)//ai_pok[_POK_MAX_HP]
     m_id = move[_MOVE_ID]
     if m_id == _MOVENAME_BIDE:
-        if hp_pct < 91:
-            score += -2
+        if ai_hp_pct < 91:
+            return -2
     elif m_id == _MOVENAME_BUG_BITE:
         if effectiveness == 0.5 or effectiveness == 0.25 or effectiveness == 0:
-            score += -1
+            return -1
         else:
             if ai_pok[_POK_TURNS] == 1:
                 add_adjustment(rand, idx, 1, 192)
             add_adjustment(rand, idx, 1, 128)
+    elif m_id == _MOVENAME_COUNTER:
+        if (
+            u_pok[_POK_STATUS] == _STATUS_SLEEP
+            or u_pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION
+            or u_pok[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT
+        ):
+            return -1
+        else:
+            if ai_hp_pct < 31:
+                add_adjustment(rand, idx, -1, 246)
+            if ai_hp_pct < 51:
+                add_adjustment(rand, idx, -1, 156)
+            #TODO: AI knows Mirror Coat
+            #TODO: User is taunted
+            if t_dmg:
+                if ml_move in SPECIAL:
+                    return -1
+                add_adjustment(rand, idx, 1, 156)
+                return 0
+            if u_pok[_POK_TYPE1] in COUNTER_EX_TYPES or u_pok[_POK_TYPE2] in COUNTER_EX_TYPES:
+                pass
+            else:
+                add_adjustment(rand, idx, 4, 126)
+
 
     return score
 
 
 @njit
-def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness):
+def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it
     """
     if move[_MOVE_ID] in EXPERT_SPECIFIC_M:
-        return expert_moves(move, ai_pok, effectiveness, rand, idx)
+        return expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move)
     if move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
         hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
         hp_pct_u = (u_pok[_POK_CURRENT_HP]*100) // u_pok[_POK_MAX_HP]
@@ -932,7 +985,6 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
     Acupressure
     Vital Throw
     Haze
-    Bide
     Conversion
     Rest
     Toxic, Leech Seed
@@ -943,7 +995,7 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
     Super Fang
     Disable
     Encore
-    Counter, Mirror Coat
+    Mirror Coat
     Metal Burst
     Pain Split
     Nightmare
@@ -987,7 +1039,7 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
     Hammer Arm
     Brine
     Feint
-    Pluck, Bug Bite
+    Pluck
     U-turn
     Close Combat
     Payback

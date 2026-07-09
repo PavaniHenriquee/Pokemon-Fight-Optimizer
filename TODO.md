@@ -73,7 +73,7 @@ Moves
 [X]Charm
 [X]Confuse Ray !
 [X]Confusion
-[]Counter(E) !
+[X]Counter(E) !
 []Covet(E) !
 []Curse(B/E) !
 []Defense Curl
@@ -276,10 +276,34 @@ Items
 []Sitrus Berry
 []Smooth Rock
 
+[]Babiri Berry
+[]Berry Juice
+[]Black Sludge
 []Bright Powder
+[]Charti Berry
+[]Chesto Berry
+[]Chilan Berry
+[]Chople Berry
+[]Coba Berry
+[]Colbur Berry
 []Focus Band
+[]Haban Berry
+[]Kasib Berry
+[]Kebia Berry
+[]Lax Incense
+[]Leftovers
+[]Light Ball
 []Lum Berry
+[]Occa Berry
+[]Passho Berry
+[]Payapa Berry
 []Quick Claw
+[]Rindo Berry
+[]Shuca Berry
+[]Tanga Berry
+[]Thick Club
+[]Wacan Berry
+[]Yache Berry
 
 Pokemon
 []Abra

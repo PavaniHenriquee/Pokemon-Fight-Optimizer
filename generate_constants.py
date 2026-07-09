@@ -17,14 +17,16 @@ def build_constants_file():
     """
 
     with open("Models/constants.py", "w") as f:
-        f.write("# AUTO-GENERATED CONSTANTS FILE\n")
+        f.write("'''AUTO-GENERATED CONSTANTS FILE'''\n")
         f.write("# Do not edit manually. Run generate_constants.py to update.\n\n")
 
         for _cls in (
             Pok, Move, Flags, Sec, Field, Item, MoveCategory, AbilityNames,
             Types, Weather, AbilityActivation, Status, MoveName, VolStatus,
             Gender, Enemy_AI_Knows, Potions, MoveOutcome, ActionType,
-            BattlePhase, ItemActivation, ItemType, ItemNames, DamageSources
+            BattlePhase, ItemActivation, ItemType, ItemNames,
+
+            DamageSources
         ):
             f.write(f"# --- {_cls.__name__.upper()} CONSTANTS ---\n")
             for _attr, _val in vars(_cls).items():
@@ -32,7 +34,8 @@ def build_constants_file():
                     # Writes exactly what VSCode wants to see: _POK_ID = 0
                     f.write(f"_{_cls.__name__.upper()}_{_attr} = {_val}\n")
 
-            f.write("\n") # Add a blank line between classes
+            if _cls.__name__.upper() != "DAMAGESOURCES":
+                f.write("\n") # Add a blank line between classes
 
     print("Successfully generated constants.py")
 

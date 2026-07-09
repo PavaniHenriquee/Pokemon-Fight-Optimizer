@@ -12,6 +12,10 @@ disable=
     unexpected-keyword-arg,
     too-many-return-statements,
     too-many-lines,
-    consider-using-in
+    consider-using-in,
+    too-many-arguments,
+    too-many-positional-arguments
 
 max-line-length = 110
+max-branches    = 20
+max-locals      = 25

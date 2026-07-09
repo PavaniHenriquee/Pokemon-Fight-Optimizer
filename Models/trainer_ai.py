@@ -19,7 +19,7 @@ from Models.constants import (
     _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1,
     _FIELD_AI_ITEM4, _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
-    _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE
+    _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -260,7 +260,12 @@ def choose_move(battle_array):
         effectiveness, s_e_check = trainer_ai_effectiveness(move, ai_pok, user_pok)
 
         if not move_is_status:
-            final_damage = calculate_ai_logic_damage(effectiveness, ai_pok, user_pok, move, weather)
+            if not move[_MOVE_DAMAGE]:
+                final_damage = calculate_ai_logic_damage(effectiveness, ai_pok, user_pok, move, weather)
+            elif move[_MOVE_DAMAGE] < 0:
+                final_damage = 0
+            else:
+                final_damage = move[_MOVE_DAMAGE]
             not_status_counter +=1
             if s_e_check:
                 s_e = True
@@ -272,10 +277,12 @@ def choose_move(battle_array):
         eval_atk = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, _rand)
         score = eval_atk + basic_flag(move, ability, ai_pok, user_pok, effectiveness, weather)
 
-        expert = expert_flag(ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness)
+        expert = expert_flag(
+            ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg
+        )
         score += expert
 
-        is_damaging = move_id not in MOVE_EXCEP and not move_is_status
+        is_damaging = move_id not in MOVE_EXCEP and not final_damage
         if is_damaging and final_damage > max_damage:
             max_damage = final_damage
 

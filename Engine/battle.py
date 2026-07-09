@@ -20,7 +20,8 @@ from Engine.engine_helper import (
     drain,
     item_on_rdmg,
     eat_berry_bug_bite,
-    struggle
+    struggle,
+    RECORD_DAMAGE
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage
@@ -34,15 +35,15 @@ from Models.helper import (
 from Models.constants import (
     _FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1, _FIELD_WEATHER,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_MY_ENTER_FIELD, _FIELD_OPP_ENTER_FIELD, _FIELD_TURN,
-    _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS,
-    _ABILITYACTIVATION_ON_CONTACT, _ABILITYACTIVATION_ON_RESIDUAL,
+    _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS, _MOVECATEGORY_SPECIAL,
+    _ABILITYACTIVATION_ON_CONTACT, _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER,
     _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_ID, _MOVE_PP,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
-    _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START,
+    _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START, _MOVECATEGORY_PHYSICAL,
     _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN, _MOVE_MULTI_HIT_MIN, _MOVE_MULTI_HIT_MAX,
     _POK_VOL_STATUS, _VOLSTATUS_BIDE, _POK_DMG_TAKEN, _MOVE_CHARGE_RECHARGE, _POK_CHARGE_RECHARGE,
     _POK_LOCKED_MOVE, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_DAMAGE, _MOVE_VOL_STATUS,
-    _MOVENAME_BUG_BITE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _DAMAGESOURCES_BIDE
+    _MOVENAME_BUG_BITE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _DAMAGESOURCES_BIDE, _DAMAGESOURCES_MAGIC_COAT
 )
 from Models.move import STRUGGLE
 
@@ -133,8 +134,13 @@ def _resolve_move_damage(attacker, defender, move, weather):
         # Bide damage
         dmg = attacker[_POK_DMG_TAKEN]*2
         attacker[_POK_DMG_TAKEN] = 0
+        # I think this if is not needed, but just to be safe its here
         if attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
             attacker[_POK_VOL_STATUS] -= _VOLSTATUS_BIDE
+        return dmg
+    if move_damage in RECORD_DAMAGE:
+        dmg = attacker[_POK_DMG_TAKEN]*2
+        attacker[_POK_DMG_TAKEN] = 0
         return dmg
     # if move damage is a positive int, it means that is a fixed damage so just return it
     return move_damage
@@ -190,7 +196,7 @@ def _ps_moves_core(attacker, defender, move, weather):
 
 
 @njit
-def ps_moves_multihit(attacker, defender, move, weather):
+def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s):
     """Physical or Special multihit moves, where I need to calculate damage and secondary effects"""
     mult_hit_min = move[_MOVE_MULTI_HIT_MIN]
     mult_hit_max = move[_MOVE_MULTI_HIT_MAX]
@@ -221,12 +227,18 @@ def ps_moves_multihit(attacker, defender, move, weather):
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         #Only last damage counts i think, needs check TODO
         defender[_POK_DMG_TAKEN] += damage
+    if (
+        (rec_p and move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL)
+        or (rec_s and move[_MOVE_CATEGORY] == _MOVECATEGORY_SPECIAL)
+    ):
+        #Only last damage counts i think, needs check TODO
+        defender[_POK_DMG_TAKEN] = damage
 
     return flinch
 
 
 @njit
-def ps_moves(attacker, defender, move, weather):
+def ps_moves(attacker, defender, move, weather, rec_p, rec_s):
     """Physical or Special moves, where I need to calculate damage and secondary effects"""
     flinch, damage = _ps_moves_core(attacker, defender, move, weather)
 
@@ -240,6 +252,11 @@ def ps_moves(attacker, defender, move, weather):
 
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         defender[_POK_DMG_TAKEN] += damage
+    if (
+        (rec_p and move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL)
+        or (rec_s and move[_MOVE_CATEGORY] == _MOVECATEGORY_SPECIAL)
+    ):
+        defender[_POK_DMG_TAKEN] = damage
 
     if move[_MOVE_ID] == _MOVENAME_BUG_BITE and defender[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY:
         eat_berry_bug_bite(attacker, defender)
@@ -250,7 +267,8 @@ def ps_moves(attacker, defender, move, weather):
 @njit
 def _execute_move_slot(
         atk, defn, mv, is_mine, current_move, opp_move,
-        flinch_in, slot_num, battle_array, weather
+        flinch_in, slot_num, battle_array, weather,
+        rec_p=False, rec_s=False
 ):
     """
     Run one move-slot (whichever attacker acts in this position) end to end:
@@ -267,7 +285,7 @@ def _execute_move_slot(
         if is_mine:
             battle_array[_FIELD_MY_LAST_MOVE] = mv[_MOVE_ID]
     elif is_mine:
-        battle_array[_FIELD_MY_LAST_MOVE] = -1
+        battle_array[_FIELD_MY_LAST_MOVE] = -1  #-1 Means Struggle
 
     # Charge moves are positive so they don't do anything first turn
     if mv[_MOVE_CHARGE_RECHARGE] > 0 and atk[_POK_LOCKED_MOVE] == -1:
@@ -287,9 +305,9 @@ def _execute_move_slot(
 
     if mv[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
         if mv[_MOVE_MULTI_HIT_MIN]:
-            flinch = ps_moves_multihit(atk, defn, mv, weather)
+            flinch = ps_moves_multihit(atk, defn, mv, weather, rec_p, rec_s)
         else:
-            flinch = ps_moves(atk, defn, mv, weather)
+            flinch = ps_moves(atk, defn, mv, weather, rec_p, rec_s)
         # Information for trainer ai logic
         if is_mine:
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = mv[_MOVE_TYPE]
@@ -349,10 +367,13 @@ def action(current_move, opp_move, battle_array):
                 OFFSET_MOVE + (mv2_slot + 1) * MOVE_STRIDE]
         if mv2_slot != 10 else STRUGGLE.copy())
 
+    record_phy = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER
+    record_sp  = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT
+
     if count >= 1:
         flinch = _execute_move_slot(
             atk1, def1, mv1, first_is_mine, current_move, opp_move,
-            flinch, 1, battle_array, weather
+            flinch, 1, battle_array, weather, record_phy, record_sp
         )
 
     if count >= 2:

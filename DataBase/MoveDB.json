@@ -284,6 +284,7 @@
   "Counter": {
     "accuracy": 100,
     "category": "Physical",
+    "damage": "counter",
     "flags": {
       "contact": true,
       "fail_copycat": true,
