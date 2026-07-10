@@ -213,3 +213,10 @@ class Moves():
 
 
 STRUGGLE = Moves(moveDB['Struggle']).to_array()
+# -------Curse array when not being used by a ghost type
+CURSE_BOOST = Moves(moveDB['Curse']).to_array()
+CURSE_BOOST[Move.VOL_STATUS]=0
+CURSE_BOOST[Move.BOOST_SPEED]=-1
+CURSE_BOOST[Move.BOOST_ATK]=1
+CURSE_BOOST[Move.BOOST_DEF]=1
+CURSE_BOOST[Move.TARGET]=Target.SELF

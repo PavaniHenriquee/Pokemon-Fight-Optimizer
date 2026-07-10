@@ -319,13 +319,13 @@
     "accuracy": true,
     "category": "Status",
     "flags": {
-      "bypass_sub": true,
       "metronome": true
     },
     "name": "curse",
     "pp": 10,
     "target": "normal",
-    "type": "Ghost"
+    "type": "Ghost",
+    "vol_status": "curse"
   },
   "Defense Curl": {
     "accuracy": true,

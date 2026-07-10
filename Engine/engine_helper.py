@@ -1,5 +1,6 @@
 """Helpers that are only needed in the engine directory"""
 import random
+import numpy as np
 from numba import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.status_calc import after_turn_status, freeze, paralysis, synchronize_reflect, B_P
@@ -22,7 +23,7 @@ from Models.constants import (
     _MOVECATEGORY_PHYSICAL, _FLAGS_SOUND, _ABILITYACTIVATION_ON_TRY_MOVE, _ABILITYACTIVATION_ON_SWITCH_IN,
     _POK_TYPE1, _POK_TYPE2, _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _POK_ATTACK_STAT_STAGE,
     _POK_VOL_STATUS, _POK_BADLY_POISON, _POK_TURNS, _POK_MAX_HP, _POK_SLEEP_COUNTER, _POK_CURRENT_HP,
-    _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_CHANCE,
+    _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_CHANCE, _VOLSTATUS_CURSE,
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _FIELD_TURN, _STATUS_TOXIC, _STATUS_POISON,
     _STATUS_SLEEP, _STATUS_FREEZE, _VOLSTATUS_CONFUSION, _POTIONS_FULL_HEAL,
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
@@ -59,8 +60,6 @@ def _apply_berry_effect(item_id, target):
     'pok' for a self-trigger, or 'attacker' for Bug Bite."""
     if item_id == _ITEMNAMES_ORAN_BERRY:
         target[_POK_CURRENT_HP] = min(target[_POK_CURRENT_HP]+10, target[_POK_MAX_HP])
-    # TODO: Sitrus Berry is in ITEM_50HP below but has no effect here — once it's in
-    # ItemDB.json, add its branch or it'll get eaten (and cleared) for nothing.
 
 
 @njit
@@ -78,6 +77,15 @@ def eat_berry_bug_bite(attacker, defender):
     item_id = defender[_ITEM_ID]
     _apply_berry_effect(item_id, attacker)
     clear_item(defender)
+
+
+@njit
+def switch_items(pok1, pok2):
+    """Switch items"""
+    item_slice = slice(_ITEM_ID, _ITEM_ID + ITEM_LEN)
+    item_copy = np.copy(pok1[item_slice])
+    pok1[item_slice] = pok2[item_slice]
+    pok2[item_slice] = item_copy
 
 
 @njit
@@ -547,6 +555,8 @@ def after_turn_damage(pokemon, weather: int) -> int:
         dmg += after_turn_status(pokemon)
     if weather not in WEATHER_NOT_END_OF_TURN:
         dmg += weather_dmg(pokemon, weather, max_hp)
+    if pokemon[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
+        dmg += max_hp//4
 
     return dmg
 

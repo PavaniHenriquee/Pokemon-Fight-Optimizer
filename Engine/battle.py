@@ -3,24 +3,10 @@ end of turn and repeat"""
 import random
 from numba import njit
 from Engine.engine_helper import (
-    check_speed,
-    move_order,
-    calculate_hit_miss,
-    calculate_crit,
-    reset_switch_out,
-    flinch_checker,
-    thaw,
-    after_turn_damage,
-    early_returns,
-    switch_in,
-    contact_ability,
-    heal_end_turn,
-    on_residual,
-    trainer_ai_items,
-    drain,
-    item_on_rdmg,
-    eat_berry_bug_bite,
-    struggle,
+    check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
+    flinch_checker, thaw, after_turn_damage, early_returns, switch_in,
+    contact_ability, heal_end_turn, on_residual, trainer_ai_items, drain,
+    item_on_rdmg, eat_berry_bug_bite, struggle, switch_items,
     RECORD_DAMAGE
 )
 from Engine.status_calc import sec_effects, calculate_effects
@@ -37,7 +23,7 @@ from Models.constants import (
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_MY_ENTER_FIELD, _FIELD_OPP_ENTER_FIELD, _FIELD_TURN,
     _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS, _MOVECATEGORY_SPECIAL,
     _ABILITYACTIVATION_ON_CONTACT, _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER,
-    _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_ID, _MOVE_PP,
+    _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_ID, _MOVE_PP, _MOVENAME_COVET,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START, _MOVECATEGORY_PHYSICAL,
     _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN, _MOVE_MULTI_HIT_MIN, _MOVE_MULTI_HIT_MAX,
@@ -260,6 +246,12 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s):
 
     if move[_MOVE_ID] == _MOVENAME_BUG_BITE and defender[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY:
         eat_berry_bug_bite(attacker, defender)
+    elif (
+        move[_MOVE_ID] == _MOVENAME_COVET
+        and defender[_ITEM_ITEM_TYPE]
+        and not attacker[_ITEM_ITEM_TYPE]
+    ):
+        switch_items(attacker, defender)
 
     return flinch
 
@@ -386,6 +378,14 @@ def action(current_move, opp_move, battle_array):
 @njit
 def _apply_residual(pok, weather, enter_field_flag_idx, battle_array):
     """Heal, weather/status damage, on-residual ability, enter-field clear — one side"""
+    """
+    Lower goes first:
+    Weather:     1
+    Psn/Tox:     9
+    Burn:        10
+    Curse:       12
+    Speed Boost: 28 - 2
+    """
     hp = pok[_POK_CURRENT_HP]
     if hp <= 0:
         return

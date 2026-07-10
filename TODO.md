@@ -74,7 +74,7 @@ Moves
 [X]Confuse Ray !
 [X]Confusion
 [X]Counter(E) !
-[]Covet(E) !
+[]Covet(E) !(needs test)
 []Curse(B/E) !
 []Defense Curl
 []Disarming Voice

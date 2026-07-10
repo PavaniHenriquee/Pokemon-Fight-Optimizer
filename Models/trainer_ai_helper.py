@@ -18,7 +18,7 @@ from Models.constants import (
     _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_POINT, _ABILITYNAMES_LIMBER,
     _ABILITYNAMES_WATER_VEIL, _ABILITYNAMES_CLEAR_BODY, _ABILITYNAMES_WHITE_SMOKE,
     _ABILITYNAMES_WATER_ABSORB, _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_LEVITATE,
-    _ABILITYNAMES_SOUNDPROOF, _ABILITYNAMES_WONDER_GUARD,
+    _ABILITYNAMES_SOUNDPROOF, _ABILITYNAMES_WONDER_GUARD, _MOVENAME_COVET,
     _MOVENAME_EXPLOSION, _MOVE_SELFDESTRUCT, _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH,
     _MOVENAME_FUTURE_SIGHT, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE, _MOVENAME_SWAGGER,
     _MOVENAME_FLATTER, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_LEAF_GUARD,
@@ -39,7 +39,14 @@ from Models.constants import (
     _POK_MOVE4_ID, _MOVENAME_PSYCH_UP, _MOVENAME_DRAGON_DANCE, _VOLSTATUS_LEECH_SEED,
     _VOLSTATUS_CURSE, _POK_MAX_HP, _MOVE_ACCURACY, _POK_ITEM_ID, _MOVE_DRAIN, _MOVENAME_BIDE,
     _MOVENAME_BUG_BITE, _POK_TURNS, _MOVENAME_COUNTER, _TYPES_NORMAL, _TYPES_FIGHTING,
-    _TYPES_POISON, _TYPES_ROCK, _TYPES_BUG, _TYPES_GHOST, _TYPES_STEEL, _TYPES_FLYING
+    _TYPES_POISON, _TYPES_ROCK, _TYPES_BUG, _TYPES_GHOST, _TYPES_STEEL, _TYPES_FLYING,
+    _ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_JUICE, _ITEMNAMES_ORAN_BERRY,
+    _ITEMNAMES_BRIGHT_POWDER, _ITEMNAMES_LAX_INCENSE, _ITEMNAMES_LEFTOVERS, _ITEMNAMES_LIGHT_BALL,
+    _ITEMNAMES_THICK_CLUB, _ITEMNAMES_OCCA_BERRY, _ITEMNAMES_PASSHO_BERRY, _ITEMNAMES_WACAN_BERRY,
+    _ITEMNAMES_RINDO_BERRY, _ITEMNAMES_YACHE_BERRY, _ITEMNAMES_CHOPLE_BERRY, _ITEMNAMES_KEBIA_BERRY,
+    _ITEMNAMES_SHUCA_BERRY, _ITEMNAMES_COBA_BERRY, _ITEMNAMES_PAYAPA_BERRY, _ITEMNAMES_TANGA_BERRY,
+    _ITEMNAMES_CHARTI_BERRY, _ITEMNAMES_KASIB_BERRY, _ITEMNAMES_HABAN_BERRY, _ITEMNAMES_COLBUR_BERRY,
+    _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE
 )
 
 COUNTER_EX_TYPES = (
@@ -129,9 +136,17 @@ for pk_id in range(POKEMON_LENGTH + 1):
             POKEMON_HAS_RELEVANT_ABILITY[pk_id] = True
             break
 
+# --------Items that AI considers as good effects to steal------------
+ITEMS_STEAL = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_JUICE, _ITEMNAMES_ORAN_BERRY,
+    _ITEMNAMES_BRIGHT_POWDER, _ITEMNAMES_LAX_INCENSE, _ITEMNAMES_LEFTOVERS, _ITEMNAMES_LIGHT_BALL,
+    _ITEMNAMES_THICK_CLUB, _ITEMNAMES_OCCA_BERRY, _ITEMNAMES_PASSHO_BERRY, _ITEMNAMES_WACAN_BERRY,
+    _ITEMNAMES_RINDO_BERRY, _ITEMNAMES_YACHE_BERRY, _ITEMNAMES_CHOPLE_BERRY, _ITEMNAMES_KEBIA_BERRY,
+    _ITEMNAMES_SHUCA_BERRY, _ITEMNAMES_COBA_BERRY, _ITEMNAMES_PAYAPA_BERRY, _ITEMNAMES_TANGA_BERRY,
+    _ITEMNAMES_CHARTI_BERRY, _ITEMNAMES_KASIB_BERRY, _ITEMNAMES_HABAN_BERRY, _ITEMNAMES_COLBUR_BERRY,
+    _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE)
 
 #--------------Move tuples-----------------------------
-EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER)
+EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET)
 
 
 @njit
@@ -889,23 +904,27 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move):
             or u_pok[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT
         ):
             return -1
+        if ai_hp_pct < 31:
+            add_adjustment(rand, idx, -1, 246)
+        if ai_hp_pct < 51:
+            add_adjustment(rand, idx, -1, 156)
+        #TODO: AI knows Mirror Coat
+        #TODO: User is taunted
+        if t_dmg:
+            if ml_move in SPECIAL:
+                return -1
+            add_adjustment(rand, idx, 1, 156)
+            return 0
+        if u_pok[_POK_TYPE1] in COUNTER_EX_TYPES or u_pok[_POK_TYPE2] in COUNTER_EX_TYPES:
+            pass
         else:
-            if ai_hp_pct < 31:
-                add_adjustment(rand, idx, -1, 246)
-            if ai_hp_pct < 51:
-                add_adjustment(rand, idx, -1, 156)
-            #TODO: AI knows Mirror Coat
-            #TODO: User is taunted
-            if t_dmg:
-                if ml_move in SPECIAL:
-                    return -1
-                add_adjustment(rand, idx, 1, 156)
-                return 0
-            if u_pok[_POK_TYPE1] in COUNTER_EX_TYPES or u_pok[_POK_TYPE2] in COUNTER_EX_TYPES:
-                pass
-            else:
-                add_adjustment(rand, idx, 4, 126)
-
+            add_adjustment(rand, idx, 4, 126)
+    elif m_id == _MOVENAME_COVET:
+        # AI cheats to see the user items
+        if u_pok[_POK_ITEM_ID] in ITEMS_STEAL:
+            add_adjustment(rand, idx, 1, 206)
+        else:
+            return -2
 
     return score
 
