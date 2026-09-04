@@ -23,7 +23,7 @@ I wanted to build something with:
 The domain is Pokemon because I know its rules well and they're precisely
 defined, which let me focus on the algorithm and engine architecture instead
 of also having to invent and balance a game from scratch. Also because of the
-randomness it has, since most MCTS algorithyms are based on deterministic games
+randomness it has, since most MCTS algorithms are based on deterministic games
 
 ## Architecture
 
@@ -52,14 +52,13 @@ Three layers, all built from scratch:
    any explored node with adjusted HP values.
 
 A neural network component (`NeuralNetwork/`) is planned to eventually
-replace random rollouts, framed as a single-player prediction problem (the
-opponent's behavior comes from a deterministic trainer-AI model, not
-self-play).
+replace random rollouts, framed as a single-player prediction problem (
+so only for Nuzlockes and not for competitive games like VGC).
 
 ## Status
 
-The first game i'm doing it for is the Drayano Renegade Platinum where
-it is a more difficult version of the game, but also not super challenging,
+The first game I'm targeting is Renegade Platinum, a ROM hack by Drayano, where
+it is a more difficult version of the base game, but also not extra challenging,
 whereas i can still be able to manually check if the results are expected
 and realistic
 
@@ -71,7 +70,7 @@ abilities, moves and items) until the 1st gym badge of Renegade Platinum.
 
 - Core damage/type/stat-stage calculations
 - All abilities of opposing trainers until 1st gym, a growing move list and items
-- Full MCTS + CVaR search loop, live tree visualization
+- Full MCTS + CVaR search loop, live tree visualization, through local server
 - Trainer AI (approximating in-game AI decision logic)
 
 **Not yet implemented:**
@@ -81,9 +80,8 @@ abilities, moves and items) until the 1st gym badge of Renegade Platinum.
 - Neural network policy/value network
 - Desktop packaging
 
-Engine completeness is intentionally prioritized over further performance
-work or rollout quality — an incomplete simulation is a bigger source of
-error than raw search speed right now.
+Engine completeness is the main focus right now, want to be able to play the game
+with this tool by the side to check for effectiveness of the results and bugs.
 
 ## Tech
 
@@ -118,7 +116,8 @@ dev.bat  //Or just double click the file
 ```
 
 This opens the backend (`uvicorn backend.main:app`, port 8000) and frontend
-(Vite dev server) in separate terminal windows.
+(Vite dev server) in separate terminal windows. After both terminals are running
+open the URL shown in the frontend terminal
 
 ## Sources & Inspiration
 
@@ -127,9 +126,6 @@ rather than memory or guesswork:
 
 - **[Bulbapedia](https://bulbapedia.bulbagarden.net/)** — move, ability, and
   item data, and Gen IV-specific mechanic details.
-- **[Smogon](https://www.smogon.com/)** — competitive mechanic breakdowns,
-  particularly for Gen IV-specific interactions and edge cases not always
-  well documented elsewhere.
 - **[Pokemow](https://pokemow.com/Gen4/TrainerAI/)** — Source for the trainer
   AI of the base game
 - **[pokeplatinum](https://github.com/pret/pokeplatinum)** — Decompilation of

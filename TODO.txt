@@ -1,4 +1,4 @@
-Abilities
+# Abilities
 [X]Aftermath
 [X]Battle Armor
 [X]Chlorophyll
@@ -30,6 +30,7 @@ Abilities
 []Unburden (Need to implement usable held items)
 [X]Water Absorb
 
+## Abilities that isn't used until 1st gym, but Trainer AI or engine has current special conditions
 []Adaptability
 []Arena Trap
 []Clear Body
@@ -55,7 +56,7 @@ Abilities
 []White Smoke
 []Wonder Guard
 
-Moves
+# Moves
 [X]Absorb !
 [X]Acid
 [X]Amnesia
@@ -74,8 +75,8 @@ Moves
 [X]Confuse Ray !
 [X]Confusion
 [X]Counter(E) !
-[]Covet(E) !(needs test)
-[]Curse(B/E) !
+[]Covet(E) !(needs testing)
+[]Curse(B/E) !(needs testing)
 []Defense Curl
 []Disarming Voice
 [X]Dragon Rage !
@@ -149,6 +150,8 @@ Moves
 []Wrap !
 []Zen Headbutt
 
+
+## Moves that isn't used until 1st gym, but Trainer AI or engine has current special conditions
 []Acupressure(B/E)
 []Aqua Ring(B/E)
 []Aromatherapy(E)
@@ -267,7 +270,7 @@ Moves
 []Worry Seed(B/E)
 []Wring Out(E)
 
-Items
+# Items
 []Expert Belt
 []Flame Orb
 []Muscle Band
@@ -276,6 +279,7 @@ Items
 []Sitrus Berry
 []Smooth Rock
 
+## Items that isn't used until 1st gym, but Trainer AI or engine has current special conditions
 []Babiri Berry
 []Berry Juice
 []Black Sludge
@@ -298,14 +302,13 @@ Items
 []Passho Berry
 []Payapa Berry
 []Quick Claw
-[]Rindo Berry
 []Shuca Berry
 []Tanga Berry
 []Thick Club
 []Wacan Berry
 []Yache Berry
 
-Pokemon
+# Pokemon for checking
 []Abra
 []Anorith
 []Aron
@@ -363,10 +366,11 @@ Pokemon
 []Zigzagoon
 []Zubat
 
-Misc.
+# Misc.
 [X]Trainer AI potion
 [X]Weather
 [X]PP Counter
 
-Doubles
+# Future
+## Doubles
 []Bide
