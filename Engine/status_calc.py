@@ -12,14 +12,13 @@ from Models.constants import (
     _POK_EVASION_STAT_STAGE, _POK_BADLY_POISON, _POK_SLEEP_COUNTER, _POK_ACCURACY_STAT_STAGE,
     _POK_AB_ID, _POK_MAX_HP, _POK_TYPE1, _POK_TYPE2, _STATUS_PARALYSIS, _MOVENAME_CURSE,
     _TYPES_FIRE, _TYPES_ELECTRIC, _POK_CURRENT_HP, _SEC_BOOST_ACC, _MOVE_ID,
-    _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_SYNCHRONIZE,
+    _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_SYNCHRONIZE,
     _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL, _MOVE_VOL_STATUS,
     _VOLSTATUS_CONFUSION, _POK_VOL_STATUS, _POK_CONFUSION_COUNTER, _SEC_VOL_STATUS
 )
 from Models.move import CURSE_BOOST
 
 # --- Global Tuples ---
-B_P = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC)
 B_P_P = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 TURNS_2_5 = (2, 3, 4, 5)
 
@@ -159,7 +158,7 @@ def calculate_effects(attacker, defender, move, weather):
     """Calculate primary move effects."""
     # Curse different moves
     if move[_MOVE_ID] == _MOVENAME_CURSE:
-        if attacker[_POK_TYPE1] != _TYPES_GHOST or attacker[_POK_TYPE2] != _TYPES_GHOST:
+        if attacker[_POK_TYPE1] != _TYPES_GHOST and attacker[_POK_TYPE2] != _TYPES_GHOST:
             move = CURSE_BOOST
     stat_changes(move, attacker, defender)
 
@@ -192,24 +191,6 @@ def sec_effects(move, attacker, defender, weather):
                 apply_status(move, defender, weather, attacker, sec=True)
             if move[_SEC_VOL_STATUS] != 0:
                 vol_status(move, defender, attacker, sec=True)
-
-
-@njit
-def after_turn_status(pok):
-    """Calculate end-of-turn status damage."""
-    if pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
-        return 0
-
-    status = pok[_POK_STATUS]
-    if status in B_P:
-        max_hp = pok[_POK_MAX_HP]
-        if pok[_POK_BADLY_POISON] >= 1:
-            dmg = max_hp * pok[_POK_BADLY_POISON] // 16
-            pok[_POK_BADLY_POISON] += 1
-            return dmg
-        return max_hp // 8
-
-    return 0
 
 
 @njit

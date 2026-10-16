@@ -18,10 +18,10 @@ from Models.constants import (
     _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_POINT, _ABILITYNAMES_LIMBER,
     _ABILITYNAMES_WATER_VEIL, _ABILITYNAMES_CLEAR_BODY, _ABILITYNAMES_WHITE_SMOKE,
     _ABILITYNAMES_WATER_ABSORB, _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_LEVITATE,
-    _ABILITYNAMES_SOUNDPROOF, _ABILITYNAMES_WONDER_GUARD, _MOVENAME_COVET,
+    _ABILITYNAMES_SOUNDPROOF, _ABILITYNAMES_WONDER_GUARD, _MOVENAME_COVET, _MOVENAME_CURSE,
     _MOVENAME_EXPLOSION, _MOVE_SELFDESTRUCT, _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH,
     _MOVENAME_FUTURE_SIGHT, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE, _MOVENAME_SWAGGER,
-    _MOVENAME_FLATTER, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_LEAF_GUARD,
+    _MOVENAME_FLATTER, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_LEAF_GUARD, _MOVENAME_GYRO_BALL,
     _ABILITYNAMES_HYDRATION, _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS,
     _ABILITYNAMES_SUCTION_CUPS, _ABILITYNAMES_STURDY, _ABILITYNAMES_HYPER_CUTTER,
     _ABILITYNAMES_SPEED_BOOST, _ABILITYNAMES_NO_GUARD, _ABILITYNAMES_KEEN_EYE,
@@ -30,7 +30,7 @@ from Models.constants import (
     _TYPES_FIRE, _TYPES_GROUND, _FLAGS_SOUND, _MOVE_STATUS, _POK_STATUS, _STATUS_SLEEP,
     _STATUS_POISON, _STATUS_TOXIC, _WEATHER_SUN, _WEATHER_RAIN, _STATUS_PARALYSIS,
     _ABILITYNAMES_MOLD_BREAKER, _STATUS_BURN, _MOVE_VOL_STATUS, _POK_VOL_STATUS,
-    _VOLSTATUS_CONFUSION, _VOLSTATUS_ATTRACT, _POK_GENDER, _GENDER_GENDERLESS,
+    _VOLSTATUS_CONFUSION, _VOLSTATUS_ATTRACT, _POK_GENDER, _GENDER_GENDERLESS, _MOVENAME_TRICK_ROOM,
     _MOVE_BOOST_ATK, _MOVE_BOOST_DEF, _MOVE_BOOST_SPATK,_MOVE_BOOST_SPDEF, _MOVE_BOOST_SPEED,
     _MOVE_BOOST_ACC, _MOVE_BOOST_EV, _MOVE_TARGET, _POK_ATTACK_STAT_STAGE, _POK_DEFENSE_STAT_STAGE,
     _POK_SPECIAL_ATTACK_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE, _POK_SPEED_STAT_STAGE,
@@ -77,6 +77,7 @@ MAYBE_BAD_MOVES = (
 )
 SLEEP_MOVES = (_MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE)
 CONFUSE_SPECIAL_CASES = (_MOVENAME_SWAGGER, _MOVENAME_FLATTER)
+CURSE_SPECIAL_CASES = (_MOVENAME_GYRO_BALL, _MOVENAME_TRICK_ROOM)
 
 # --- Abilities explicitly checked in basic_flag / expert_flag ---
 _EXPLICIT_RELEVANT: set = {
@@ -146,7 +147,8 @@ ITEMS_STEAL = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_J
     _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE)
 
 #--------------Move tuples-----------------------------
-EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET)
+EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET, _MOVENAME_CURSE)
+BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT)
 
 
 @njit
@@ -423,6 +425,36 @@ def basic_stat_change(move, ability, user_pok, ai_pok) -> bool:
 
 
 @njit
+def basic_moves(move, ai_pok, user_pok, ability):
+    """
+    Moves that triggers a special condition on the basic flag
+    """
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_CURSE:
+        if ai_pok[_POK_TYPE1] == _TYPES_GHOST or ai_pok[_POK_TYPE2] == _TYPES_GHOST:
+            if user_pok[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
+                return -10
+            if ability == _ABILITYNAMES_MAGIC_GUARD:
+                return -10
+        else:
+            if (
+                ai_pok[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
+                and (
+                    ai_pok[_POK_ATTACK_STAT_STAGE] >= 3
+                    or ai_pok[_POK_DEFENSE_STAT_STAGE] >= 3
+                )
+            ):
+                return -10
+            if ai_pok[_POK_ATTACK_STAT_STAGE] >= 6:
+                return -10
+            if ai_pok[_POK_DEFENSE_STAT_STAGE] >= 6:
+                return -8
+
+    return 0
+
+
+
+@njit
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
             weather
@@ -431,7 +463,8 @@ def basic_flag(
     Basic Flag, every trainer has this,
     it discourages moves that would have no effect or that would make no sense
     """
-
+    if move[_MOVE_ID] in BASIC_SPECIFIC_M:
+        return basic_moves(move, ai_pok, user_pok, ability)
     move_category = move[_MOVE_CATEGORY]
     # Check for immunity types
     if move_category != _MOVECATEGORY_STATUS and effectiveness == 0:
@@ -475,7 +508,6 @@ def basic_flag(
     Disable / Encore
     Snore / Sleep Talk
     Lock On / Mean Look / Foresight / Perish Song / Torment / Miracle Eye / Heal Block / Gastro Acid
-    Curse
     Future Sight / Doom Desire
     Baton Pass
     Fake Out
@@ -925,6 +957,29 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move):
             add_adjustment(rand, idx, 1, 206)
         else:
             return -2
+    elif m_id == _MOVENAME_CURSE:
+        if ai_pok[_POK_TYPE1] == _TYPES_GHOST or ai_pok[_POK_TYPE2] == _TYPES_GHOST:
+            if ai_hp_pct < 81:
+                return -1
+        else:
+            if ai_pok[_POK_DEFENSE_STAT_STAGE] >= 4:
+                return 0
+            if (
+                ai_pok[_POK_MOVE1_ID] in CURSE_SPECIAL_CASES
+                or ai_pok[_POK_MOVE2_ID] in CURSE_SPECIAL_CASES
+                or ai_pok[_POK_MOVE3_ID] in CURSE_SPECIAL_CASES
+                or ai_pok[_POK_MOVE4_ID] in CURSE_SPECIAL_CASES
+            ):
+                if random.getrandbits(8) < 224:
+                    score += 1
+                    add_adjustment(rand, idx, 1, 128)
+            else:
+                add_adjustment(rand, idx, 1, 128)
+            if ai_pok[_POK_DEFENSE_STAT_STAGE] >= 2:
+                return score
+            add_adjustment(rand, idx, 1, 128)
+            if ai_pok[_POK_DEFENSE_STAT_STAGE] <= 0:
+                add_adjustment(rand, idx, 1, 128)
 
     return score
 
@@ -1024,7 +1079,6 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
     Reversal, Flail
     Heal Bell, Aromatherapy
     Thief, Covet
-    Curse
     Protect, Detect
     Spikes
     Foresight, Odor Sleuth

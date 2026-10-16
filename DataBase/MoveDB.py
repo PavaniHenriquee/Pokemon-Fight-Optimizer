@@ -51,7 +51,8 @@ class MoveName:
     GROWL           = GRASS_WHISTLE + 1
     GROWTH          = GROWL + 1
     GUST            = GROWTH + 1
-    HARDEN          = GUST + 1
+    GYRO_BALL       = GUST + 1
+    HARDEN          = GYRO_BALL + 1
     HEADBUTT        = HARDEN + 1
     HIDDEN_POWER    = HEADBUTT + 1
     HOWL            = HIDDEN_POWER + 1
@@ -106,7 +107,8 @@ class MoveName:
     TAUNT           = TAIL_WHIP + 1
     THUNDER_PUNCH   = TAUNT + 1
     THUNDER_WAVE    = THUNDER_PUNCH + 1
-    UPROAR          = THUNDER_WAVE + 1
+    TRICK_ROOM      = THUNDER_WAVE + 1
+    UPROAR          = TRICK_ROOM + 1
     VINE_WHIP       = UPROAR + 1
     WATER_PULSE     = VINE_WHIP + 1
     WATER_SPORT     = WATER_PULSE + 1

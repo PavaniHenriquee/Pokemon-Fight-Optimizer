@@ -4,10 +4,10 @@ import random
 from numba import njit
 from Engine.engine_helper import (
     check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
-    flinch_checker, thaw, after_turn_damage, early_returns, switch_in,
-    contact_ability, heal_end_turn, on_residual, trainer_ai_items, drain,
+    flinch_checker, thaw, early_returns, switch_in,
+    contact_ability, heal_weather, on_residual, trainer_ai_items, drain,
     item_on_rdmg, eat_berry_bug_bite, struggle, switch_items,
-    RECORD_DAMAGE
+    RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN
 )
 from Engine.status_calc import sec_effects, calculate_effects
 from Engine.damage_calc import calculate_damage
@@ -29,7 +29,9 @@ from Models.constants import (
     _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN, _MOVE_MULTI_HIT_MIN, _MOVE_MULTI_HIT_MAX,
     _POK_VOL_STATUS, _VOLSTATUS_BIDE, _POK_DMG_TAKEN, _MOVE_CHARGE_RECHARGE, _POK_CHARGE_RECHARGE,
     _POK_LOCKED_MOVE, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_DAMAGE, _MOVE_VOL_STATUS,
-    _MOVENAME_BUG_BITE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _DAMAGESOURCES_BIDE, _DAMAGESOURCES_MAGIC_COAT
+    _MOVENAME_BUG_BITE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _DAMAGESOURCES_BIDE, _DAMAGESOURCES_MAGIC_COAT,
+    _STATUS_POISON, _STATUS_TOXIC, _STATUS_BURN, _VOLSTATUS_CURSE, _ABILITYNAMES_MAGIC_GUARD,
+    _POK_BADLY_POISON
 )
 from Models.move import STRUGGLE
 
@@ -142,8 +144,8 @@ def _apply_move_damage(attacker, defender, move, damage):
         if (
             move[_FLAGS_CONTACT]
             and (
-                attacker[_POK_AB_ID] & _ABILITYACTIVATION_ON_CONTACT
-                or defender[_POK_AB_ID] & _ABILITYACTIVATION_ON_CONTACT
+                attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CONTACT
+                or defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CONTACT
             )
         ):
             contact_ability(attacker, defender)
@@ -376,6 +378,22 @@ def action(current_move, opp_move, battle_array):
 
 
 @njit
+def _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field) -> bool:
+    """Applies residual damage, checks faint, and triggers items. Returns True if fainted."""
+    if dmg <= 0:
+        return False
+    hp = pok[_POK_CURRENT_HP]
+    pok[_POK_CURRENT_HP] = 0 if dmg > hp else hp - dmg
+    if pok[_POK_CURRENT_HP] <= 0:
+        if enter_field:
+            battle_array[enter_field_flag_idx] = 0
+        return True
+    if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+        item_on_rdmg(pok)
+    return False
+
+
+@njit
 def _apply_residual(pok, weather, enter_field_flag_idx, battle_array):
     """Heal, weather/status damage, on-residual ability, enter-field clear — one side"""
     """
@@ -386,27 +404,53 @@ def _apply_residual(pok, weather, enter_field_flag_idx, battle_array):
     Curse:       12
     Speed Boost: 28 - 2
     """
-    hp = pok[_POK_CURRENT_HP]
-    if hp <= 0:
+    if pok[_POK_CURRENT_HP] <= 0:
         return
     enter_field = battle_array[enter_field_flag_idx]
-    heal_end_turn(pok, weather)
-    dmg = after_turn_damage(pok, weather)
-    if dmg != 0:
-        hp = 0 if dmg > hp else hp - dmg
-        if pok[_POK_AB_ID] & _ABILITYACTIVATION_ON_RESIDUAL:
-            on_residual(pok, enter_field)
-        if enter_field:
-            battle_array[enter_field_flag_idx] = 0
-        pok[_POK_CURRENT_HP] = hp
-        # Items after taking damage
-        if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
-            item_on_rdmg(pok)
-    else:
-        if pok[_POK_AB_ID] & _ABILITYACTIVATION_ON_RESIDUAL:
-            on_residual(pok, enter_field)
-        if enter_field:
-            battle_array[enter_field_flag_idx] = 0
+    is_magic_guard = pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD
+
+    # 1. Weather: 1
+    heal_weather(pok, weather)
+    if not is_magic_guard and weather not in WEATHER_NOT_END_OF_TURN:
+        w_dmg = weather_dmg(pok, weather, pok[_POK_MAX_HP])
+        if _apply_residual_damage(pok, w_dmg, enter_field_flag_idx, battle_array, enter_field):
+            return
+
+    # 2. Psn/Tox: 9
+    status = pok[_POK_STATUS]
+    if status == _STATUS_POISON or status == _STATUS_TOXIC:
+        if status == _STATUS_TOXIC:
+            badly_psn = pok[_POK_BADLY_POISON]
+            if badly_psn < 1:
+                badly_psn = 1
+            dmg = pok[_POK_MAX_HP] * badly_psn // 16
+            pok[_POK_BADLY_POISON] = badly_psn + 1
+        else:
+            dmg = pok[_POK_MAX_HP] // 8
+        if not is_magic_guard:
+            if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
+                return
+
+    # 3. Burn: 10
+    if pok[_POK_STATUS] == _STATUS_BURN:
+        if not is_magic_guard:
+            dmg = pok[_POK_MAX_HP] // 8
+            if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
+                return
+
+    # 4. Curse: 12
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
+        if not is_magic_guard:
+            dmg = pok[_POK_MAX_HP] // 4
+            if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
+                return
+
+    # 5. Speed Boost: 28 - 2
+    if pok[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_RESIDUAL:
+        on_residual(pok, enter_field)
+
+    if enter_field:
+        battle_array[enter_field_flag_idx] = 0
 
 
 @njit
@@ -425,7 +469,7 @@ def end_of_turn(battle_array):
     weather = battle_array[_FIELD_WEATHER]
 
     # TODO: Items
-    # TODO: Weather finish before what happens to pokemon
+    # TODO: Weather end before what happens to pokemon
 
     _apply_residual(current_pokemon, weather, _FIELD_MY_ENTER_FIELD, battle_array)
     _apply_residual(current_opp, weather, _FIELD_OPP_ENTER_FIELD, battle_array)

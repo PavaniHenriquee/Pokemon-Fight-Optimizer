@@ -5,5 +5,12 @@
     "type": "berry",
     "natural_gift_power": 80,
     "natural_gift_type": "Poison"
+  },
+  "Sitrus Berry": {
+    "name": "sitrus_berry",
+    "when": "on_receive_damage",
+    "type": "berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Psychic"
   }
 }

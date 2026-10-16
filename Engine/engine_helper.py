@@ -3,7 +3,7 @@ import random
 import numpy as np
 from numba import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
-from Engine.status_calc import after_turn_status, freeze, paralysis, synchronize_reflect, B_P
+from Engine.status_calc import  freeze, paralysis, synchronize_reflect
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS
 )
@@ -23,7 +23,7 @@ from Models.constants import (
     _MOVECATEGORY_PHYSICAL, _FLAGS_SOUND, _ABILITYACTIVATION_ON_TRY_MOVE, _ABILITYACTIVATION_ON_SWITCH_IN,
     _POK_TYPE1, _POK_TYPE2, _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _POK_ATTACK_STAT_STAGE,
     _POK_VOL_STATUS, _POK_BADLY_POISON, _POK_TURNS, _POK_MAX_HP, _POK_SLEEP_COUNTER, _POK_CURRENT_HP,
-    _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_CHANCE, _VOLSTATUS_CURSE,
+    _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_CHANCE,
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _FIELD_TURN, _STATUS_TOXIC, _STATUS_POISON,
     _STATUS_SLEEP, _STATUS_FREEZE, _VOLSTATUS_CONFUSION, _POTIONS_FULL_HEAL,
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
@@ -58,8 +58,14 @@ def clear_item(pok):
 def _apply_berry_effect(item_id, target):
     """Apply the berry's effect to target. target = the beneficiary, which is
     'pok' for a self-trigger, or 'attacker' for Bug Bite."""
+    cur_hp = target[_POK_CURRENT_HP]
+    max_hp = target[_POK_MAX_HP]
     if item_id == _ITEMNAMES_ORAN_BERRY:
-        target[_POK_CURRENT_HP] = min(target[_POK_CURRENT_HP]+10, target[_POK_MAX_HP])
+        cur_hp = min(cur_hp + 10, max_hp)
+    elif item_id == _ITEMNAMES_SITRUS_BERRY:
+        # Needs to be with min because of bug bite
+        cur_hp = min(cur_hp + max_hp // 4, max_hp)
+    target[_POK_CURRENT_HP] = cur_hp
 
 
 @njit
@@ -491,7 +497,7 @@ def start_of_battle(array):
 
 
 @njit
-def heal_end_turn(self_, weather):
+def heal_weather(self_, weather):
     """
     Heals after turns, from items, abilities and volatile conditions
     """
@@ -541,24 +547,6 @@ def weather_dmg(pokemon, weather, max_hp:int):
             return max_hp//8
         return 0
     return 0
-
-
-@njit
-def after_turn_damage(pokemon, weather: int) -> int:
-    """Calculate all damage sources that comes at the end of turns"""
-    # 1. Absolute Immunity Early Exit
-    if pokemon[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
-        return 0
-    max_hp = pokemon[_POK_MAX_HP]
-    dmg = 0
-    if pokemon[_POK_STATUS] in B_P:
-        dmg += after_turn_status(pokemon)
-    if weather not in WEATHER_NOT_END_OF_TURN:
-        dmg += weather_dmg(pokemon, weather, max_hp)
-    if pokemon[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
-        dmg += max_hp//4
-
-    return dmg
 
 
 # ── Trainer items, drain, struggle ──────────────────────────────────────────────

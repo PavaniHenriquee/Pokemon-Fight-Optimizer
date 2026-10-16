@@ -1,7 +1,7 @@
-"""test"""
+# pylint: skip-file
 import time
-#import os
-#os.environ['NUMBA_DISABLE_JIT'] = '1'
+import os
+os.environ['NUMBA_DISABLE_JIT'] = '1'
 from Models.pokemon import Pokemon
 from Models.constants import _FIELD_TURN
 from SearchEngine.my_mcts import mcts, GameState
@@ -10,10 +10,10 @@ from Utils.helper import to_battle_array
 
 
 pok1 = Pokemon("Rapidash", "Male", 70, "Blaze", "Hardy", ["Counter"], item="Oran Berry")
-pok2 = Pokemon("Scizor", "Male", 70, "Torrent", "Hardy", ["Tackle"])
+pok2 = Pokemon("Gengar", "Male", 70, "Torrent", "Hardy", ["Curse"], item="Sitrus Berry")
 
-my_party = [pok2]
-opp_party = [pok1]
+my_party = [pok1]
+opp_party = [pok2]
 
 
 s_time = time.perf_counter()

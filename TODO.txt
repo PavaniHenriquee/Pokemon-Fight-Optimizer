@@ -190,6 +190,7 @@
 []Future Sight(B) !
 []Gastro Acid(B/E)
 []Gravity(B/E)
+[]Gyro Ball
 []Guard Swap(B/E)
 []Hail(E)
 []Hammer Arm(E)
@@ -276,7 +277,7 @@
 []Muscle Band
 [X]Oran Berry
 []Rindo Berry
-[]Sitrus Berry
+[X]Sitrus Berry
 []Smooth Rock
 
 ## Items that isn't used until 1st gym, but Trainer AI or engine has current special conditions
