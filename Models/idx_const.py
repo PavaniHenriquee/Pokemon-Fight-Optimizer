@@ -40,7 +40,8 @@ class Pok:
     CHARGE_RECHARGE           = DMG_TAKEN + 1
     LOCKED_MOVE               = CHARGE_RECHARGE + 1
     TURNS                     = LOCKED_MOVE + 1
-    GENDER                    = TURNS + 1
+    TURNS_ACTIVE              = TURNS + 1
+    GENDER                    = TURNS_ACTIVE + 1
     WEIGHT                    = GENDER + 1
     AB_ID                     = WEIGHT + 1
     AB_WHEN                   = AB_ID + 1

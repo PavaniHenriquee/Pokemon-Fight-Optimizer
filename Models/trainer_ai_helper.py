@@ -46,7 +46,7 @@ from Models.constants import (
     _ITEMNAMES_RINDO_BERRY, _ITEMNAMES_YACHE_BERRY, _ITEMNAMES_CHOPLE_BERRY, _ITEMNAMES_KEBIA_BERRY,
     _ITEMNAMES_SHUCA_BERRY, _ITEMNAMES_COBA_BERRY, _ITEMNAMES_PAYAPA_BERRY, _ITEMNAMES_TANGA_BERRY,
     _ITEMNAMES_CHARTI_BERRY, _ITEMNAMES_KASIB_BERRY, _ITEMNAMES_HABAN_BERRY, _ITEMNAMES_COLBUR_BERRY,
-    _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE
+    _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE, _POK_TURNS_ACTIVE
 )
 
 COUNTER_EX_TYPES = (
@@ -147,7 +147,8 @@ ITEMS_STEAL = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_J
     _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE)
 
 #--------------Move tuples-----------------------------
-EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET, _MOVENAME_CURSE)
+EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET, _MOVENAME_CURSE,
+    _MOVENAME_FAKE_OUT)
 BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT)
 
 
@@ -425,7 +426,7 @@ def basic_stat_change(move, ability, user_pok, ai_pok) -> bool:
 
 
 @njit
-def basic_moves(move, ai_pok, user_pok, ability):
+def basic_moves(move, ai_pok, user_pok, ability, effectiveness):
     """
     Moves that triggers a special condition on the basic flag
     """
@@ -449,6 +450,17 @@ def basic_moves(move, ai_pok, user_pok, ability):
                 return -10
             if ai_pok[_POK_DEFENSE_STAT_STAGE] >= 6:
                 return -8
+    elif move_id == _MOVENAME_FAKE_OUT:
+        if effectiveness <= 0:
+            return -10
+        if (
+            ability == _ABILITYNAMES_MAGIC_GUARD
+            and effectiveness < 2
+            and ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER
+        ):
+            return -12
+        if ai_pok[_POK_TURNS_ACTIVE] > 1:
+            return -10
 
     return 0
 
@@ -464,7 +476,7 @@ def basic_flag(
     it discourages moves that would have no effect or that would make no sense
     """
     if move[_MOVE_ID] in BASIC_SPECIFIC_M:
-        return basic_moves(move, ai_pok, user_pok, ability)
+        return basic_moves(move, ai_pok, user_pok, ability, effectiveness)
     move_category = move[_MOVE_CATEGORY]
     # Check for immunity types
     if move_category != _MOVECATEGORY_STATUS and effectiveness == 0:
@@ -510,7 +522,6 @@ def basic_flag(
     Lock On / Mean Look / Foresight / Perish Song / Torment / Miracle Eye / Heal Block / Gastro Acid
     Future Sight / Doom Desire
     Baton Pass
-    Fake Out
     Stockpile
     Spit Up / Swallow
     Memento
@@ -980,6 +991,8 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move):
             add_adjustment(rand, idx, 1, 128)
             if ai_pok[_POK_DEFENSE_STAT_STAGE] <= 0:
                 add_adjustment(rand, idx, 1, 128)
+    elif m_id == _MOVENAME_FAKE_OUT:
+        return 2
 
     return score
 
@@ -1064,7 +1077,6 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
     Toxic, Leech Seed
     Light Screen
     Reflect
-    Fake Out
     Spit Up
     Super Fang
     Disable

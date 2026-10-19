@@ -22,7 +22,7 @@ from Models.constants import (
     _FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1, _FIELD_WEATHER,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_MY_ENTER_FIELD, _FIELD_OPP_ENTER_FIELD, _FIELD_TURN,
     _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS, _MOVECATEGORY_SPECIAL,
-    _ABILITYACTIVATION_ON_CONTACT, _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER,
+    _ABILITYACTIVATION_ON_CONTACT, _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER, _POK_TURNS_ACTIVE,
     _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_ID, _MOVE_PP, _MOVENAME_COVET,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START, _MOVECATEGORY_PHYSICAL,
@@ -361,8 +361,12 @@ def action(current_move, opp_move, battle_array):
                 OFFSET_MOVE + (mv2_slot + 1) * MOVE_STRIDE]
         if mv2_slot != 10 else STRUGGLE.copy())
 
-    record_phy = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER
-    record_sp  = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT
+    if mv2_slot == -1:
+        record_phy = False
+        record_sp  = False
+    else:
+        record_phy = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER
+        record_sp  = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT
 
     if count >= 1:
         flinch = _execute_move_slot(
@@ -520,6 +524,8 @@ def turn_sim(opp_move, current_action, battle_array):
     battle_array[_FIELD_TURN] += 1
     current_opp[_POK_TURNS] += 1
     current_pokemon[_POK_TURNS] += 1
+    current_opp[_POK_TURNS_ACTIVE] += 1
+    current_pokemon[_POK_TURNS_ACTIVE] += 1
     return _BATTLEPHASE_TURN_START, opp_idx
 
 
@@ -590,6 +596,8 @@ def switch_in_action(battle_array, switch_idx: int):
         battle_array[_FIELD_TURN] += 1
         current_opp[_POK_TURNS] += 1
         current_pokemon[_POK_TURNS] += 1
+        current_opp[_POK_TURNS_ACTIVE] += 1
+        current_pokemon[_POK_TURNS_ACTIVE] += 1
         battle_array[_FIELD_PHASE] = _BATTLEPHASE_TURN_START
         return
     battle_array[_FIELD_MY_POK] = switch_idx
@@ -599,6 +607,8 @@ def switch_in_action(battle_array, switch_idx: int):
     battle_array[_FIELD_TURN] += 1
     current_opp[_POK_TURNS] += 1
     current_pokemon[_POK_TURNS] += 1
+    current_opp[_POK_TURNS_ACTIVE] += 1
+    current_pokemon[_POK_TURNS_ACTIVE] += 1
     battle_array[_FIELD_AI_KNOWS] = 0
     battle_array[_FIELD_MY_LAST_MOVE] = 0
     battle_array[_FIELD_PHASE] = _BATTLEPHASE_TURN_START

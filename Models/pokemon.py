@@ -135,6 +135,7 @@ class Pokemon:
             0,   # This is Charge Recharge
             -1,  # This is for Locked move -1 because move idx is 0-3
             self.turns,
+            0,   # This is for active turns
             gender,
             self.weight
         ], dtype=np.int32)
