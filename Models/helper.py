@@ -53,6 +53,7 @@ class VolStatus:
     CURSE             = 16
     ATTRACT           = 32
     BIDE              = 64
+    DEFENSE_CURL      = 128
 
 
 @dataclass(slots=True)

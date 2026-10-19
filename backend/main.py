@@ -11,6 +11,7 @@ import threading
 import asyncio
 import random
 import json
+import traceback
 from typing import Optional, cast
 from pydantic import BaseModel, Field
 import numpy as np
@@ -81,16 +82,20 @@ app.add_middleware(
 )
 
 # ─── shared state ────────────────────────────────────────────────────────────
-# The MCTS thread writes here; the WebSocket handler reads it.
-# Python's GIL makes simple attribute reads/writes atomic, which is enough
-# for a visualisation tool (we might see a slightly stale value, never a crash).
-_state: dict = {
-    "root":        None,
-    "battle_array": None,
-    "running":     False,
-    "iterations":  0,
-    "stop_event":  None,
-}
+class Session:
+    """Everything that belongs to one MCTS run."""
+    def __init__(self, root: Node, battle_array: np.ndarray, max_iterations: int):
+        self.root = root
+        self.battle_array = battle_array
+        self.max_iterations = max_iterations
+        self.iterations = 0
+        self.running = True
+        self.error: str | None = None
+        self.stop_event = threading.Event()
+        self.thread: threading.Thread | None = None
+
+
+_session: Session | None = None
 
 # ─── battle builder ──────────────────────────────────────────────────────────
 class BoxEntry(BaseModel):
@@ -187,47 +192,59 @@ async def get_pokemon_data() -> dict:
 
 # ─── MCTS worker ─────────────────────────────────────────────────────────────
 
-def _mcts_worker(root: Node, root_state: GameState, stop_event: threading.Event, max_iterations: int) -> None:
-    """
-    Mirrors mcts_loop() from my_mcts.py but checks stop_event each iteration
-    so the WebSocket endpoint can stop it cleanly.
-    """
-    random.seed(37)
-    np.random.seed(37)
-    _seed_numba(37)
+def _mcts_worker(session: Session, root_state: GameState) -> None:
+    try:
+        random.seed(37)
+        np.random.seed(37)
+        _seed_numba(37)
+        root = session.root
 
-    for i in range(max_iterations):
-        if stop_event.is_set():
-            break
-
-        state = root_state.clone()
-        state, path = _select_expand(state, root)
-        value, win, dead = _rollout(state)
-        _backprop(path, value, win, dead)
-        _state["iterations"] = i + 1   # simple int write — GIL-atomic
-
-        if i % 2500 == 0 and i > 0:
-            terminal_node, _, _ = find_best_terminal_node(root)
-            _ = prune_dominated(root)
-
-            if terminal_node.snapshot.terminal and terminal_node.visits >= 1_000:
-                print(f"[MCTS] converged at {i:,} iterations")
+        for i in range(session.max_iterations):
+            if session.stop_event.is_set():
                 break
 
-    _state["running"] = False
-    print(f"[MCTS] done — {_state['iterations']:,} iterations")
+            state = root_state.clone()
+            state, path = _select_expand(state, root)
+            value, win, dead = _rollout(state)
+            _backprop(path, value, win, dead)
+            session.iterations = i + 1
+
+            if i % 2500 == 0 and i > 0:
+                terminal_node, _, _ = find_best_terminal_node(root)
+                _ = prune_dominated(root)
+                if terminal_node.snapshot.terminal and terminal_node.visits >= 1_000:
+                    print(f"[MCTS] converged at {i:,} iterations")
+                    break
+    except Exception:
+        session.error = traceback.format_exc()
+        traceback.print_exc()
+    finally:
+        session.running = False
+        print(f"[MCTS] done — {session.iterations:,} iterations")
+
+
+async def _launch(root_state: GameState, battle: np.ndarray, max_iterations: int) -> None:
+    """Stop the current run (if any), then start a new independent one."""
+    global _session  #pylint:disable=W0603
+    old = _session
+    if old is not None:
+        old.stop_event.set()
+        if old.thread is not None:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, old.thread.join, 5)
+
+    session = Session(Node(root_state), battle.copy(), max_iterations)
+    session.thread = threading.Thread(
+        target=_mcts_worker, args=(session, root_state), daemon=True
+    )
+    _session = session
+    session.thread.start()
 
 # ─── REST endpoints ───────────────────────────────────────────────────────────
 
 @app.post("/start")
 async def start_mcts(config: BattleConfig) -> dict:
-    """
-    Start from app
-    """
-    if ev := _state.get("stop_event"):
-        ev.set()
-    await asyncio.sleep(0.1)
-
+    """Start from app"""
     def make_pokemon(p: PokemonConfig) -> Pokemon:
         moves = [m for m in p.moves if m]
         return Pokemon(
@@ -236,30 +253,25 @@ async def start_mcts(config: BattleConfig) -> dict:
             item=p.item if p.item else None,
         )
 
+    # Build everything BEFORE touching the current run, so a bad config
+    # reports an error instead of killing a working search.
+    try:
+        my_party  = [make_pokemon(p) for p in config.my_team]
+        opp_party = [make_pokemon(p) for p in config.opp_team]
+        battle    = to_battle_array(my_party, opp_party)
 
-    my_party  = [make_pokemon(p) for p in config.my_team]
-    opp_party = [make_pokemon(p) for p in config.opp_team]
-    battle    = to_battle_array(my_party, opp_party)
+        if battle[_FIELD_TURN] == 0:
+            start_of_battle(battle)
 
-    if battle[_FIELD_TURN] == 0:
-        start_of_battle(battle)
+        for i, item_name in enumerate(config.trainer_items[:4]):
+            val = _TRAINER_ITEM_MAP.get(item_name, 0)
+            if val:
+                battle[_TRAINER_ITEM_FIELDS[i]] = val
+    except Exception as exc:
+        traceback.print_exc()
+        return {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
 
-    # Set trainer AI battle items
-    for i, item_name in enumerate(config.trainer_items[:4]):
-        val = _TRAINER_ITEM_MAP.get(item_name, 0)
-        if val:
-            battle[_TRAINER_ITEM_FIELDS[i]] = val
-
-    root_state = GameState(battle)
-    root       = Node(root_state)
-    stop_event = threading.Event()
-
-    _state.update(root=root, battle_array=battle.copy(),
-                  running=True, iterations=0, stop_event=stop_event)
-
-    threading.Thread(target=_mcts_worker,
-                     args=(root, root_state, stop_event, config.iterations),
-                     daemon=True).start()
+    await _launch(GameState(battle), battle, config.iterations)
     return {"status": "started"}
 
 
@@ -277,10 +289,10 @@ async def get_trainers() -> dict:
 @app.post("/stop")
 async def stop_mcts() -> dict:
     """
-    Stop MCTS
+    STOP MCTS
     """
-    if ev := _state.get("stop_event"):
-        ev.set()
+    if _session is not None:
+        _session.stop_event.set()
     return {"status": "stopped"}
 
 @app.get("/box")
@@ -307,10 +319,11 @@ async def node_info(node_id: str) -> dict:
     """
     Node info
     """
-    root    = _state["root"]
-    initial = cast(np.ndarray, _state.get("battle_array"))
-    if root is None or initial is None:
+    sess = _session
+    if sess is None:
         return {"error": "no active battle"}
+    root    = sess.root
+    initial = cast(np.ndarray, sess.battle_array)
 
     node = _find_node(root, node_id)
     if node is None:
@@ -365,45 +378,25 @@ async def node_info(node_id: str) -> dict:
 
 @app.post("/continue_from_node")
 async def continue_from_node(config: ContinueConfig) -> dict:
-    """
-    Continue from node
-    """
-    if ev := _state.get("stop_event"):
-        ev.set()
-    await asyncio.sleep(0.1)
-
-    root    = _state["root"]
-    initial = _state["battle_array"]
-    if root is None:
+    """Continue from node"""
+    sess = _session
+    if sess is None:
         return {"error": "no active battle"}
 
-    node = _find_node(root, config.node_id)
+    node = _find_node(sess.root, config.node_id)
     if node is None:
         return {"error": "node not found"}
 
     snap   = node.snapshot
-    battle = reconstruct_battle_array(snap, initial)
+    battle = reconstruct_battle_array(snap, sess.battle_array)
 
-    # HP overrides on top of reconstruction
     if config.my_active_hp is not None and snap.my_active >= 0:
         battle[snap.my_active * POK_LEN + Pok.CURRENT_HP] = config.my_active_hp
     battle[(snap.opp_active + 6) * POK_LEN + Pok.CURRENT_HP] = config.opp_active_hp
     for slot, hp in config.bench_hps.items():
         battle[int(slot) * POK_LEN + Pok.CURRENT_HP] = hp
 
-    root_state = GameState(battle)
-    new_root   = Node(root_state)
-    stop_event = threading.Event()
-
-    _state.update(
-        root=new_root, battle_array=battle.copy(),
-        running=True, iterations=0, stop_event=stop_event,
-    )
-    threading.Thread(
-        target=_mcts_worker,
-        args=(new_root, root_state, stop_event, config.iterations),
-        daemon=True,
-    ).start()
+    await _launch(GameState(battle), battle, config.iterations)
     return {"status": "started"}
 
 # ─── WebSocket ────────────────────────────────────────────────────────────────
@@ -415,34 +408,36 @@ async def ws_endpoint(ws: WebSocket) -> None:
     """
     await ws.accept()
     loop = asyncio.get_running_loop()
-    last_sent = -1   # tracks what iteration count we last serialized
+    last_sess: Session | None = None
+    last_sent = -1
 
     try:
         while True:
-            iterations = _state["iterations"]
-            running    = _state["running"]
-            root       = _state["root"]
-
-            if iterations != last_sent and root is not None and root.visits > 0:
-                # Something changed — serialize and push the full tree
-                tree = await loop.run_in_executor(
-                    None, serialize_node, root, _state["battle_array"]
-                )
-                await ws.send_json({
-                    "type": "tree_update",
-                    "iterations": iterations,
-                    "running": running,
-                    "tree": tree,
-                })
-                last_sent = iterations
+            sess = _session
+            if sess is None:
+                await ws.send_json({"type": "status", "iterations": 0, "running": False})
             else:
-                # Nothing changed — cheap ping so the frontend knows we're alive
-                await ws.send_json({
-                    "type": "status",
-                    "iterations": iterations,
-                    "running": running,
-                })
-
+                iterations = sess.iterations
+                changed = sess is not last_sess or iterations != last_sent
+                if changed and sess.root.visits > 0:
+                    tree = await loop.run_in_executor(
+                        None, serialize_node, sess.root, sess.battle_array
+                    )
+                    await ws.send_json({
+                        "type": "tree_update",
+                        "iterations": iterations,
+                        "running": sess.running,
+                        "error": sess.error,
+                        "tree": tree,
+                    })
+                    last_sess, last_sent = sess, iterations
+                else:
+                    await ws.send_json({
+                        "type": "status",
+                        "iterations": iterations,
+                        "running": sess.running,
+                        "error": sess.error,
+                    })
             await asyncio.sleep(1.0)
     except WebSocketDisconnect:
         pass

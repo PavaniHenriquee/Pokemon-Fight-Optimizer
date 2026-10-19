@@ -75,12 +75,12 @@
 [X]Confuse Ray !
 [X]Confusion
 [X]Counter(E) !
-[]Covet(E) !(needs testing)
-[]Curse(B/E) !(needs testing)
-[]Defense Curl
-[]Disarming Voice
+[X]Covet(E) !
+[X]Curse(B/E) !
+[X]Defense Curl !
+[X]Disarming Voice
 [X]Dragon Rage !
-[]Ember
+[X]Ember
 []Fake Out(B/E) !
 []Fire Punch
 []Flail(E) !

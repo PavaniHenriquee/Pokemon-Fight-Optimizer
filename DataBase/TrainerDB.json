@@ -5,11 +5,11 @@
       {
         "name": "Rapidash",
         "gender": "Male",
-        "level": 70,
-        "item": "Oran Berry",
+        "level": 100,
+        "item": "Sitrus Berry",
         "ability": "Blaze",
         "nature": "Hardy",
-        "moves": ["Confusion", "", "", ""]
+        "moves": ["Tail Whip", "", "", ""]
       }
     ]
   },

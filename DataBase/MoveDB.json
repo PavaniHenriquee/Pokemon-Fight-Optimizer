@@ -401,7 +401,7 @@
     "name": "fake_out",
     "power": 40,
     "pp": 10,
-    "priority": 3,
+    "priority": 1,
     "secondary": {
       "chance": 100,
       "vol_status": "flinch"

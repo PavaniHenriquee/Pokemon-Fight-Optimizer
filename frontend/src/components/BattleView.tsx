@@ -516,9 +516,15 @@ function BenchRow({
 export default function BattleView({
   node,
   onContinue,
+  onStartNew,
+  running,
+  starting,
 }: {
   node: TreeNode;
   onContinue: (id: string) => void;
+  onStartNew?: () => void;
+  running?: boolean;
+  starting?: boolean;
 }) {
   const { snapshot } = node;
   const isDeath = snapshot.phase === "DEATH";
@@ -745,23 +751,56 @@ export default function BattleView({
         {snapshot.terminal && (
           <span className="badge terminal-badge">TERMINAL</span>
         )}
-        <button
-          onClick={() => onContinue(node.id)}
+        <div
           style={{
             marginLeft: "auto",
-            padding: "3px 10px",
-            background: "transparent",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            color: "var(--muted)",
-            fontSize: "0.7rem",
-            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
         >
-          Continue from here
-        </button>
+          {onStartNew && (
+            <button
+              onClick={onStartNew}
+              disabled={running || starting}
+              style={{
+                padding: "3px 10px",
+                background: "transparent",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                color: "var(--muted)",
+                fontSize: "0.7rem",
+                cursor: running || starting ? "not-allowed" : "pointer",
+                opacity: running || starting ? 0.5 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!running && !starting) e.currentTarget.style.color = "var(--text)";
+              }}
+              onMouseLeave={(e) => {
+                if (!running && !starting) e.currentTarget.style.color = "var(--muted)";
+              }}
+              title="Start a brand new search from root"
+            >
+              {starting ? "Starting…" : "Start brand new"}
+            </button>
+          )}
+          <button
+            onClick={() => onContinue(node.id)}
+            style={{
+              padding: "3px 10px",
+              background: "transparent",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              color: "var(--muted)",
+              fontSize: "0.7rem",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
+          >
+            Continue from here
+          </button>
+        </div>
       </div>
     </section>
   );

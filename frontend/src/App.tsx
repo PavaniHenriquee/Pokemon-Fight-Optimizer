@@ -47,6 +47,7 @@ export default function App() {
   const [isFocused, setIsFocused] = useState(false);
   const [continueNodeId, setContinueNodeId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [trainerItems, setTrainerItems] = useState<string[]>(["", "", "", ""]);
 
   useEffect(() => {
@@ -175,24 +176,38 @@ export default function App() {
   }, []);
 
   // ── MCTS controls ───────────────────────────────────────────────────────────
-  const start = (myTeam: PokemonConfig[], oppTeam: PokemonConfig[]) => {
-    fetch(`${API_URL}/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        my_team: myTeam,
-        opp_team: oppTeam,
-        iterations,
-        trainer_items: trainerItems.filter(Boolean),
-      }),
-    }).catch(console.error);
-    setSessionActive(true);
-    setTree(null);
-    setPathIds([]);
-    setSelectedKey(null);
-    setStartTime(Date.now());
-    setElapsed(0);
-    setView("explore");
+  const start = async (myTeam: PokemonConfig[], oppTeam: PokemonConfig[]) => {
+    if (starting || running) return;
+    setStarting(true);
+    try {
+      const res = await fetch(`${API_URL}/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          my_team: myTeam,
+          opp_team: oppTeam,
+          iterations,
+          trainer_items: trainerItems.filter(Boolean),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.status === "error") {
+        alert(`Could not start: ${data.error ?? res.statusText}`);
+        return;
+      }
+      setSessionActive(true);
+      setTree(null);
+      setPathIds([]);
+      setSelectedKey(null);
+      setStartTime(Date.now());
+      setElapsed(0);
+      setView("explore");
+    } catch (e) {
+      console.error(e);
+      alert("Could not reach the backend.");
+    } finally {
+      setStarting(false);
+    }
   };
 
   const stop = () => {
@@ -249,7 +264,54 @@ export default function App() {
         </div>
 
         {/* Controls */}
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {(sessionActive || view === "configure") && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-400">Max:</span>
+              <input
+                type="text"
+                value={
+                  isFocused
+                    ? iterations === 0
+                      ? ""
+                      : iterations
+                    : new Intl.NumberFormat("en-US").format(iterations)
+                }
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => {
+                  setIsFocused(false);
+                  setIterations((prev) => Math.max(1, prev));
+                }}
+                onChange={(e) => {
+                  const rawValue = e.target.value.replace(/\D/g, "");
+                  setIterations(rawValue === "" ? 0 : parseInt(rawValue, 10));
+                }}
+                disabled={running || starting}
+                title="Max iterations"
+                className="px-2 py-0.5 bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded disabled:opacity-50 w-24 text-center"
+              />
+              <button
+                onClick={() => start(myTeam, oppTeam)}
+                disabled={
+                  myTeam.length === 0 || oppTeam.length === 0 || running || starting
+                }
+                title={
+                  myTeam.length === 0 || oppTeam.length === 0
+                    ? "Configure both teams to start"
+                    : undefined
+                }
+                className={`px-3 py-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-lg transition-colors cursor-${running || starting ? "not-allowed" : "pointer"}`}
+              >
+                {starting
+                  ? "Starting…"
+                  : running
+                    ? "Running…"
+                    : sessionActive
+                      ? "▶ Start New"
+                      : "▶ Start MCTS"}
+              </button>
+            </div>
+          )}
           {running && (
             <button
               onClick={stop}
@@ -320,24 +382,30 @@ export default function App() {
                     const rawValue = e.target.value.replace(/\D/g, "");
                     setIterations(rawValue === "" ? 0 : parseInt(rawValue, 10));
                   }}
-                  disabled={running}
+                  disabled={running || starting}
                   className="px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded disabled:opacity-50 w-32 text-center"
                 />
               </div>
               <button
                 onClick={() => start(myTeam, oppTeam)}
                 disabled={
-                  myTeam.length === 0 || oppTeam.length === 0 || running
+                  myTeam.length === 0 || oppTeam.length === 0 || running || starting
                 }
-                className={`px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors cursor-${running ? "not-allowed" : "pointer"}`}
+                className={`px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors cursor-${running || starting ? "not-allowed" : "pointer"}`}
               >
-                {running ? "Running…" : "▶ Start MCTS"}
+                {starting ? "Starting…" : running ? "Running…" : "▶ Start MCTS"}
               </button>
             </div>
           </div>
         ) : (
           <>
-            <BattleView node={currentNode} onContinue={setContinueNodeId} />
+            <BattleView
+              node={currentNode}
+              onContinue={setContinueNodeId}
+              onStartNew={() => start(myTeam, oppTeam)}
+              running={running}
+              starting={starting}
+            />
             <ActionPanel
               node={currentNode}
               onActionClick={handleActionClick}
