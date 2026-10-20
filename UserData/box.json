@@ -132,14 +132,14 @@
     }
   },
   {
-    "id": "e2f21267-953e-458d-97c3-126114fb232b",
-    "name": "Scizor",
+    "id": "d757d07a-5d3c-4ca9-82a2-60b000bddbc2",
+    "name": "Rapidash",
     "gender": "Male",
     "nature": "Hardy",
     "ability": "Torrent",
-    "level": 70,
+    "level": 40,
     "moves": [
-      "Arm Thrust",
+      "Flail",
       "",
       "",
       ""

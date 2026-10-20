@@ -159,6 +159,24 @@ export default function ActionPanel({
           </span>
         </div>
 
+        {/* PP display for moves */}
+        {action.action_type === 1 && action.max_pp != null && (
+          <div className="flex justify-center items-center -mt-0.5">
+            <span
+              className="text-xs font-semibold tracking-wide"
+              style={{
+                color:
+                  action.current_pp != null && action.current_pp <= 0
+                    ? "#f87171"
+                    : "var(--muted)",
+              }}
+            >
+              PP {action.current_pp ?? 0}
+              <span style={{ opacity: 0.5 }}>/{action.max_pp}</span>
+            </span>
+          </div>
+        )}
+
         {/* Win ring + secondary stats */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <WinRing win={action.win_chance} size={50} />

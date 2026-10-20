@@ -1,6 +1,12 @@
 // Describes the shape of every JSON object the backend sends.
 // Having this lets TypeScript catch mistakes as you write the frontend.
 
+export interface MoveEntry {
+  name: string;
+  pp: number;
+  max_pp: number;
+}
+
 export interface PokemonState {
   id: number;
   name: string;
@@ -10,6 +16,7 @@ export interface PokemonState {
   vol_status: string[]; // ["Confused", "Leech Seed"]
   stages: Record<string, number>; // { "Atk": 2, "SpD": -1 } — only non-zero
   item?: string;
+  moves?: MoveEntry[];
 }
 
 export interface SnapshotData {
@@ -22,6 +29,7 @@ export interface SnapshotData {
   my_bench: BenchEntry[];
   opp_bench: BenchEntry[];
   trainer_items?: string[];
+  turn: number;
 }
 
 export interface ActionData {
@@ -31,6 +39,9 @@ export interface ActionData {
   total_visits: number;
   win_chance: number; // 0–1
   dead_avg: number;
+  current_pp: number | null; // current PP for moves, null for switches
+  max_pp: number | null;     // max base PP from MoveDB, null for switches
+  pp_up?: number;            // PP Up count (0-3)
   nodes: TreeNode[]; // the multiple possible outcomes after this action
 }
 
@@ -134,4 +145,5 @@ export interface BenchEntry {
   status: string;
   level: number;
   item?: string;
+  moves?: MoveEntry[];
 }

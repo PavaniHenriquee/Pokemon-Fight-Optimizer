@@ -7,6 +7,7 @@ from Models.helper import BattlePhase, VolStatus
 from DataBase.PkDB import PokIdToName
 from DataBase.MoveDB import MoveIdToName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
+from DataBase.loader import moveDB as _moveDB
 
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,8 +39,47 @@ _POTION_ID_TO_NAME: dict[int, str] = {
     6: "X Special", 7: "X Defend", 8: "X Speed",
 }
 
+# Map move-ID → base PP from MoveDB.json (for the frontend PP display)
+_MOVE_ID_TO_MAX_PP: dict[int, int] = {}
+for _mid, _raw_name in MoveIdToName.items():
+    _display = _raw_name.replace("_", " ").title()
+    _entry = _moveDB.get(_display)
+    if _entry and "pp" in _entry:
+        _MOVE_ID_TO_MAX_PP[_mid] = int(_entry["pp"])
+
 _FLD_BASE = FieldIdx.MY_POK
 _FLD_ITEMS = (FieldIdx.AI_ITEM1, FieldIdx.AI_ITEM2, FieldIdx.AI_ITEM3, FieldIdx.AI_ITEM4)
+
+
+def _extract_moves(base_slice, current_pps=None) -> list[dict]:
+    """
+    Extract list of {'name': str, 'pp': int, 'max_pp': int}
+    from a Pokemon array slice.
+    """
+    if base_slice is None or len(base_slice) < Pok.MOVE1_ID:
+        return []
+    moves = []
+    for m in range(4):
+        offset = Pok.MOVE1_ID + m * MOVE_STRIDE
+        if offset + Move.ID >= len(base_slice):
+            break
+        move_id = int(base_slice[offset + Move.ID])
+        if move_id == 0:
+            continue
+        move_name = MoveIdToName.get(move_id, f"Move#{move_id}").replace("_", " ").title()
+        if current_pps is not None and m < len(current_pps):
+            cur_pp = int(current_pps[m])
+        else:
+            cur_pp = int(base_slice[offset + Move.PP])
+        base_pp = _MOVE_ID_TO_MAX_PP.get(move_id, cur_pp)
+        pp_up = int(base_slice[offset + Move.PP_UP]) if offset + Move.PP_UP < len(base_slice) else 0
+        max_pp = base_pp + (base_pp * pp_up * 2) // 10 if base_pp is not None else cur_pp
+        moves.append({
+            "name":   move_name,
+            "pp":     cur_pp,
+            "max_pp": max_pp,
+        })
+    return moves
 
 
 def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
@@ -49,6 +89,8 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
     pok_id  = int(battle_array[base + Pok.ID])
     if pok_id == 0:
         return None
+    bench_pps = [snap.bench_delta[delta_i, 4 + m] for m in range(4)]
+    moves = _extract_moves(battle_array[base : base + POK_LEN], current_pps=bench_pps)
     return {
         "slot":   i,
         "id":     pok_id,
@@ -58,6 +100,7 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
         "status": STATUS.get(int(snap.bench_delta[delta_i, 1]), ""),
         "level":  int(battle_array[base + Pok.LEVEL]),
         "item":   _ITEM_ID_TO_NAME.get(int(battle_array[base + Pok.ITEM_ID]), ""),
+        "moves":  moves,
     }
 
 
@@ -78,6 +121,7 @@ def _pok(arr) -> dict | None:
                        for i in range(7)
                        if int(arr[Pok.ATTACK_STAT_STAGE + i]) != 0},
         "item":       _ITEM_ID_TO_NAME.get(int(arr[Pok.ITEM_ID]), ""),
+        "moves":      _extract_moves(arr),
     }
 
 
@@ -129,6 +173,7 @@ def _snapshot(snap, parent_opp_slice=None, battle_array=None) -> dict:
             _POTION_ID_TO_NAME.get(int(snap.field_block[fi - _FLD_BASE]), "")
             for fi in _FLD_ITEMS
         ],
+        "turn":          int(snap.field_block[FieldIdx.TURN - _FLD_BASE]),
     }
 
 
@@ -192,6 +237,23 @@ def serialize_node(
 
         key = f"{action[0]}_{action[1]}"
 
+        # PP info for MOVE actions
+        act_type, act_idx = action
+        current_pp = None
+        max_pp = None
+        pp_up = 0
+        if act_type == 1 and act_idx != 10:  # MOVE, not Struggle
+            my = node.snapshot.my_slice
+            if my is not None and len(my) > 0:
+                current_pp = int(my[Pok.MOVE1_ID + act_idx * MOVE_STRIDE + Move.PP])
+                move_id = int(my[Pok.MOVE1_ID + act_idx * MOVE_STRIDE + Move.ID])
+                base_pp = _MOVE_ID_TO_MAX_PP.get(move_id)
+                pp_up_offset = Pok.MOVE1_ID + act_idx * MOVE_STRIDE + Move.PP_UP
+                if pp_up_offset < len(my):
+                    pp_up = int(my[pp_up_offset])
+                if base_pp is not None:
+                    max_pp = base_pp + (base_pp * pp_up * 2) // 10
+
         result["actions"][key] = {
             "action_type":  int(action[0]),
             "action_idx":   int(action[1]),
@@ -199,6 +261,9 @@ def serialize_node(
             "total_visits": total_visits,
             "win_chance":   round(agg_win,  4),
             "dead_avg":     round(agg_dead, 4),
+            "current_pp":   current_pp,
+            "max_pp":       max_pp,
+            "pp_up":        pp_up,
             # Child nodes: only serialize if above threshold (or at root level)
             "nodes": [
                 serialize_node(

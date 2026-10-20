@@ -15,7 +15,7 @@ from Models.constants import (
     _FLAGS_PUNCH, _STATUS_BURN, _WEATHER_SUN, _WEATHER_RAIN, _MOVE_POWER,
     _ABILITYACTIVATION_ON_BASE_POWER, _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
     _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE, _ABILITYNAMES_SOLAR_POWER,
-    _ABILITYNAMES_THICK_FAT, _TYPES_ICE, _ABILITYNAMES_TINTED_LENS
+    _ABILITYNAMES_THICK_FAT, _TYPES_ICE, _ABILITYNAMES_TINTED_LENS, _MOVE_ID, _MOVENAME_FLAIL,
 )
 
 # ==========================================
@@ -160,7 +160,7 @@ def multipliers(
         move: np.ndarray, attacker: np.ndarray, defender: np.ndarray,
         weather:int, crit: bool, roll_mult: int, damage: int
 ) -> int:
-    """Calc Multiplers for bas formula damage"""
+    """Calc Multiplers for base formula damage"""
     m_type = move[_MOVE_TYPE]
     atk_type1 = attacker[_POK_TYPE1]
     atk_type2 = attacker[_POK_TYPE2]
@@ -242,6 +242,26 @@ def multipliers(
     return damage
 
 
+@njit
+def flail(attacker):
+    """
+    Calculates flail power
+    """
+    hp_pct = attacker[_POK_CURRENT_HP]*48//attacker[_POK_MAX_HP]
+    if hp_pct <= 1:
+        return 200
+    if hp_pct <= 4:
+        return 150
+    if hp_pct <= 9:
+        return 100
+    if hp_pct <= 16:
+        return 80
+    if hp_pct <= 32:
+        return 40
+    return 20
+
+
+
 # ==========================================
 # 4. CORE DAMAGE FUNCTIONS
 # ==========================================
@@ -254,9 +274,12 @@ def calculate_damage(
 
     attack, defense = raw_atk_def(move, attacker, defender, weather, crit)
 
-    # Ability
     power = move[_MOVE_POWER]
-    if attacker[_POK_AB_WHEN] == _ABILITYACTIVATION_ON_BASE_POWER:
+    if move[_MOVE_ID] == _MOVENAME_FLAIL:
+        power = flail(attacker)
+
+    # Ability
+    if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
         base_power_mult = base_power_ability(attacker, move)
         if base_power_mult:
             power = base_power_mult*power // 4096
@@ -297,7 +320,7 @@ def calculate_damage_confusion(pok):
     #TODO: Helping Hand
     #TODO: Silk Scarf
     #TODO: Choice Band, Thick Club
-    #TODO: Power TRick, Power Split, Guard Split
+    #TODO: Power Trick, Power Split, Guard Split
     #TODO: Rivalry
 
     return damage
@@ -308,14 +331,14 @@ def calculate_damage_confusion(pok):
 @njit
 def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather):
     """
-    AI calculates damges from its damage a little differente, so here i do it
-    like in the games
+    AI calculates damages from its damage a little different, so here i do it
+    like it is in the games
     """
     attack, defense = raw_atk_def(move, attacker, defender, weather)
 
     # Ability
     power = move[_MOVE_POWER]
-    if attacker[_POK_AB_WHEN] == _ABILITYACTIVATION_ON_BASE_POWER:
+    if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
         base_power_mult = base_power_ability(attacker, move)
         if base_power_mult:
             power = base_power_mult*power//4096

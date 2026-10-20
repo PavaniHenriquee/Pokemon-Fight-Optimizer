@@ -3,13 +3,22 @@
     "sprite": "youngster",
     "team": [
       {
-        "name": "Rapidash",
+        "name": "Butterfree",
         "gender": "Male",
-        "level": 100,
+        "level": 70,
         "item": "Sitrus Berry",
         "ability": "Blaze",
         "nature": "Hardy",
-        "moves": ["Tail Whip", "", "", ""]
+        "moves": ["Fake Out", "", "", ""]
+      },
+      {
+        "name": "Butterfree",
+        "gender": "Male",
+        "level": 70,
+        "item": "Sitrus Berry",
+        "ability": "Blaze",
+        "nature": "Hardy",
+        "moves": ["Fake Out", "", "", ""]
       }
     ]
   },

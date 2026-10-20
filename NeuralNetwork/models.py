@@ -82,12 +82,13 @@ from Models.constants import (
     _MOVE_BOOST_ATK, _MOVE_BOOST_DEF, _MOVE_BOOST_SPATK,
     _MOVE_BOOST_SPDEF, _MOVE_BOOST_SPEED, _MOVE_BOOST_ACC, _MOVE_BOOST_EV,
     _MOVE_RECOIL, _MOVE_DRAIN,
-    _SEC_CHANCE, _SEC_STATUS,
+    _SEC_CHANCE, _SEC_STATUS, _MOVENAME_FLAIL,
     _MOVECATEGORY_PHYSICAL, _MOVECATEGORY_SPECIAL, _MOVECATEGORY_STATUS,
     _ENEMY_AI_KNOWS_ABILITY, _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2,
     _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4,
     _BATTLEPHASE_DEATH_END_OF_TURN,
 )
+from Engine.damage_calc import flail
 
 # ── Normalization ceilings for genuinely continuous fields ────────────────────
 _MAX_STAT       = 500.0
@@ -279,13 +280,16 @@ def _write_pokemon_base(out, offset, pok):
 # ── One move slice ──────────────────────────────────────────────────────────────
 
 @njit
-def _write_move(out, offset, mv):
+def _write_move(out, offset, mv,pok):
     if mv[_MOVE_ID] == 0:
         return offset + _MOVE_FEAT_LEN   # buffer already zero, nothing to write
 
     c = offset
     out[c] = (mv[_MOVE_PP] > 0)*1.0; c += 1
-    out[c] = float(mv[_MOVE_POWER]) / _MAX_MOVE_POWER; c += 1
+    if mv[_MOVE_ID] != _MOVENAME_FLAIL:
+        out[c] = float(mv[_MOVE_POWER]) / _MAX_MOVE_POWER; c += 1
+    else:
+        out[c] = float(flail(pok)) / _MAX_MOVE_POWER; c += 1
     acc = mv[_MOVE_ACCURACY]
     ignores_accuracy = acc == -1
     out[c] = (ignores_accuracy)*1.0; c += 1
@@ -331,7 +335,7 @@ def _write_full_pokemon(out, offset, pok):
     c = _write_vol_bits(out, c, pok[_POK_VOL_STATUS])
     for i in range(4):
         mv = pok[OFFSET_MOVE + i * MOVE_STRIDE : OFFSET_MOVE + (i + 1) * MOVE_STRIDE]
-        c = _write_move(out, c, mv)
+        c = _write_move(out, c, mv, pok)
     return c
 
 

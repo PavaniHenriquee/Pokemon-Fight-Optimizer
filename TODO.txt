@@ -34,6 +34,7 @@
 []Adaptability
 []Arena Trap
 []Clear Body
+[]Filter
 []Flash Fire
 []Forewarn
 []Hydration
@@ -49,6 +50,7 @@
 []Own Tempo
 []Poison Heal
 []Shadow Tag
+[]Solid Rock
 []Trace
 []Vital Spirit
 []Volt Absorb
@@ -81,9 +83,9 @@
 [X]Disarming Voice
 [X]Dragon Rage !
 [X]Ember
-[]Fake Out(B/E) !
-[]Fire Punch
-[]Flail(E) !
+[X]Fake Out(B/E) !
+[X]Fire Punch
+[X]Flail(E) !
 []Focus Energy(B) !?
 []Force Palm
 []Foresight(B/E) !
@@ -120,7 +122,7 @@
 []Rock Polish
 []Rock Throw
 []Rock Tomb
-[]Rollout !!
+[]Rollout !! (Defense Curl interaction)
 []Sand Attack
 []Sandstorm !
 []Scary Face

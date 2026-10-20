@@ -9,8 +9,8 @@ from Engine.engine_helper import start_of_battle
 from Utils.helper import to_battle_array
 
 
-pok1 = Pokemon("Rapidash", "Male", 30, "Blaze", "Hardy", ["Ember"], item="Oran Berry")
-pok2 = Pokemon("Gengar", "Male", 70, "Torrent", "Hardy", ["Fake Out"], item="Sitrus Berry")
+pok1 = Pokemon("Rapidash", "Male", 40, "Blaze", "Hardy", ["Flail"], item="Oran Berry")
+pok2 = Pokemon("Butterfree", "Male", 70, "Torrent", "Hardy", ["Fake Out"], item="Sitrus Berry")
 
 my_party = [pok1]
 opp_party = [pok2, pok2]

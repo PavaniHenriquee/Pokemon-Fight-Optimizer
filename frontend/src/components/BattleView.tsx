@@ -222,7 +222,7 @@ function BattleSprite({
   pok: PokemonState;
   side: "mine" | "opp";
 }) {
-  return (
+  const sprite = (
     <img
       src={side === "opp" ? animFront(pok.id) : animBack(pok.id)}
       alt={pok.name}
@@ -230,6 +230,7 @@ function BattleSprite({
         imageRendering: "pixelated",
         height: 84,
         filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.5))",
+        cursor: pok.moves && pok.moves.length > 0 ? "help" : "default",
       }}
       className="object-contain block mx-auto mw-100 item-center"
       onError={(e) => {
@@ -240,6 +241,79 @@ function BattleSprite({
         }
       }}
     />
+  );
+
+  if (!pok.moves || pok.moves.length === 0) {
+    return sprite;
+  }
+
+  return (
+    <HoverCard openDelay={150} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <div style={{ display: "inline-block" }}>{sprite}</div>
+      </HoverCardTrigger>
+      <HoverCardContent
+        side="top"
+        align={"center"}
+        className="bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 animate-in fade-in-0 zoom-in-95 w-auto p-2.5"
+      >
+        <div style={{ minWidth: 145 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 8,
+              marginBottom: 6,
+              paddingBottom: 4,
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <span
+              style={{ fontWeight: 700, color: "#f1f5f9", fontSize: "0.85rem" }}
+            >
+              {pok.name}
+            </span>
+            <span
+              style={{
+                fontSize: "0.52rem",
+                color: "var(--muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
+              Moves
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
+            {pok.moves.map((m, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: "0.72rem",
+                  gap: 12,
+                }}
+              >
+                <span style={{ color: "#e2e8f0" }}>- {m.name}</span>
+                <span
+                  style={{
+                    fontSize: "0.65rem",
+                    fontWeight: 600,
+                    fontVariantNumeric: "tabular-nums",
+                    color: m.pp <= 0 ? "#f87171" : "var(--muted)",
+                  }}
+                >
+                  ({m.pp}/{m.max_pp})
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
@@ -472,6 +546,54 @@ function BenchCard({ entry }: { entry: BenchEntry }) {
               {isFainted ? "Fainted" : hpRange(entry.hp, entry.max_hp)}
             </span>
           </div>
+          {entry.moves && entry.moves.length > 0 && (
+            <div
+              style={{
+                marginTop: 8,
+                paddingTop: 6,
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 3.5,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.52rem",
+                  color: "var(--muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: 1,
+                }}
+              >
+                Moves
+              </span>
+              {entry.moves.map((m, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: "0.7rem",
+                    gap: 12,
+                  }}
+                >
+                  <span style={{ color: "#e2e8f0" }}>- {m.name}</span>
+                  <span
+                    style={{
+                      fontSize: "0.62rem",
+                      fontWeight: 600,
+                      fontVariantNumeric: "tabular-nums",
+                      color: m.pp <= 0 ? "#f87171" : "var(--muted)",
+                    }}
+                  >
+                    ({m.pp}/{m.max_pp})
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </HoverCardContent>
     </HoverCard>
@@ -631,20 +753,46 @@ export default function BattleView({
           )}
         </div>
 
-        {/* ── VS ─────────────────────────────────────────────────────── */}
+        {/* ── VS & TURN ───────────────────────────────────────────────── */}
         <div
           style={{
             alignSelf: "center",
-            color: "rgba(120,128,160,0.3)",
-            fontSize: "0.58rem",
-            fontWeight: 700,
-            letterSpacing: "0.12em",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6,
             flexShrink: 0,
             userSelect: "none",
-            padding: "0 2px",
+            padding: "0 4px",
           }}
         >
-          VS
+          {snapshot.turn !== undefined && (
+            <span
+              style={{
+                fontSize: "0.62rem",
+                fontWeight: 700,
+                color: "#94a3b8",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 4,
+                padding: "1px 6px",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              Turn {snapshot.turn}
+            </span>
+          )}
+          <span
+            style={{
+              color: "rgba(120,128,160,0.3)",
+              fontSize: "0.58rem",
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+            }}
+          >
+            VS
+          </span>
         </div>
 
         {/* ── OPP SIDE ───────────────────────────────────────────────── */}
@@ -711,7 +859,7 @@ export default function BattleView({
             </div>
           )}
           {/* Sprite below info */}
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", justifyContent: "center" }}>
             {snapshot.opp ? (
               <BattleSprite pok={snapshot.opp} side="opp" />
             ) : (
@@ -734,6 +882,11 @@ export default function BattleView({
 
       {/* ── Node stats ─────────────────────────────────────────────────── */}
       <div className="node-stats">
+        {snapshot.turn !== undefined && (
+          <span>
+            Turn <strong>{snapshot.turn}</strong>
+          </span>
+        )}
         <span>
           <strong>{node.visits.toLocaleString()}</strong> visits
         </span>
@@ -774,10 +927,12 @@ export default function BattleView({
                 opacity: running || starting ? 0.5 : 1,
               }}
               onMouseEnter={(e) => {
-                if (!running && !starting) e.currentTarget.style.color = "var(--text)";
+                if (!running && !starting)
+                  e.currentTarget.style.color = "var(--text)";
               }}
               onMouseLeave={(e) => {
-                if (!running && !starting) e.currentTarget.style.color = "var(--muted)";
+                if (!running && !starting)
+                  e.currentTarget.style.color = "var(--muted)";
               }}
               title="Start a brand new search from root"
             >

@@ -22,7 +22,7 @@ from Models.constants import (
     _MOVENAME_EXPLOSION, _MOVE_SELFDESTRUCT, _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH,
     _MOVENAME_FUTURE_SIGHT, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE, _MOVENAME_SWAGGER,
     _MOVENAME_FLATTER, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_LEAF_GUARD, _MOVENAME_GYRO_BALL,
-    _ABILITYNAMES_HYDRATION, _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS,
+    _ABILITYNAMES_HYDRATION, _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _MOVENAME_FLAIL,
     _ABILITYNAMES_SUCTION_CUPS, _ABILITYNAMES_STURDY, _ABILITYNAMES_HYPER_CUTTER,
     _ABILITYNAMES_SPEED_BOOST, _ABILITYNAMES_NO_GUARD, _ABILITYNAMES_KEEN_EYE,
     _ABILITYNAMES_SIMPLE, _MOVE_TYPE, _MOVE_CATEGORY,_POK_TYPE1, _POK_TYPE2, _POK_AB_ID,
@@ -148,7 +148,7 @@ ITEMS_STEAL = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_J
 
 #--------------Move tuples-----------------------------
 EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET, _MOVENAME_CURSE,
-    _MOVENAME_FAKE_OUT)
+    _MOVENAME_FAKE_OUT, _MOVENAME_FLAIL)
 BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT)
 
 
@@ -923,7 +923,7 @@ def expert_stat(
 
 
 @njit
-def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move):
+def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, move_first):
     """
     Expert moves that have specific logic
     """
@@ -993,6 +993,21 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move):
                 add_adjustment(rand, idx, 1, 128)
     elif m_id == _MOVENAME_FAKE_OUT:
         return 2
+    elif m_id == _MOVENAME_FLAIL:
+        if move_first:
+            if ai_hp_pct > 33:
+                return -1
+            if ai_hp_pct > 20:
+                return 0
+            if ai_hp_pct < 8:
+                score += 1
+            add_adjustment(rand, idx, 1, 156)
+            return score
+        if ai_hp_pct > 60:
+            return -1
+        if ai_hp_pct > 40:
+            return 0
+        add_adjustment(rand, idx, 1, 156)
 
     return score
 
@@ -1003,19 +1018,22 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it
     """
+    # Check if move first (TODO add Trick room logic here)
+    ai_s, u_s = check_speed(ai_pok, u_pok, weather)
+    if ai_s > u_s:
+        move_first = True
+    elif ai_s == u_s:
+        move_first = random.getrandbits(1)
+    else:
+        move_first = False
+
     if move[_MOVE_ID] in EXPERT_SPECIFIC_M:
-        return expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move)
+        return expert_moves(
+            move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first
+        )
     if move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
         hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
         hp_pct_u = (u_pok[_POK_CURRENT_HP]*100) // u_pok[_POK_MAX_HP]
-        # Check if move first (TODO add Trick room logic here)
-        ai_s, u_s = check_speed(ai_pok, u_pok, weather)
-        if ai_s > u_s:
-            move_first = True
-        elif ai_s == u_s:
-            move_first = random.getrandbits(1)
-        else:
-            move_first = False
 
         if move[_MOVE_STATUS] != 0:
             return expert_status(
