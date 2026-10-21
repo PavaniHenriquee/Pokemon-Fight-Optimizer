@@ -12,3 +12,6 @@ node_modules/
 
 # Profile results (can get too big)
 flamegraph.speedscope.json
+
+# Numba Cache
+.numba_cache/

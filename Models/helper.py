@@ -1,7 +1,7 @@
 """Helper for transformation of Names to number, so i can use Numpy efficiently"""
 from dataclasses import dataclass
 import numpy as np
-from numba import njit
+from Utils.jit import njit
 from Models.idx_const import Pok, POK_LEN
 
 

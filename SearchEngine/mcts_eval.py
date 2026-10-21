@@ -1,7 +1,7 @@
 """Evaluation of terminal and current state"""
 import random
 import numpy as np
-from numba import njit
+from Utils.jit import njit
 from Models.idx_const import(
     Pok, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, Field
 )

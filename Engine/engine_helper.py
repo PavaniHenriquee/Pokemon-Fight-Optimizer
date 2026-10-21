@@ -1,7 +1,7 @@
 """Helpers that are only needed in the engine directory"""
 import random
 import numpy as np
-from numba import njit
+from Utils.jit import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.status_calc import  freeze, paralysis, synchronize_reflect
 from Engine.damage_calc import (

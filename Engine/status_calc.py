@@ -1,6 +1,6 @@
 """Calculate Status effects moves"""
 import random
-from numba import njit
+from Utils.jit import njit
 from Models.helper import TARGET_OPP_SIDE, TARGET_SELF_SIDE, STEEL_POISON
 from Models.constants import (
     _POK_STATUS, _STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_SLEEP, _STATUS_FREEZE,

@@ -64,39 +64,11 @@ def run_single():
         Stats(profile).strip_dirs().sort_stats(SortKey.TIME).print_stats()
 
 
-def run_parallel():
-    """Run Faster but can't debug or profile"""
-    #import os
-    #os.environ['NUMBA_DISABLE_JIT'] = '1'
-    import time
-    s_time = time.perf_counter()
-    from numba import njit
-    @njit
-    def seed_numba(seed_value):
-        """
-        This executes at the C-level and forces Numba's internal 
-        RNG state to sync with your desired seed.
-        """
-        random.seed(seed_value)
-        np.random.seed(seed_value)
-    seed_numba(37)
-    from SearchEngine.mcts_async import mcts_async, GameState
-    from Engine.engine_helper import start_of_battle
-    battle = build_battle()
-    if battle[_FIELD_TURN] == 0:
-        start_of_battle(battle)
-    root = GameState(battle)
-    print("-----------------------MCTS ASYNC-----------------------------")
-    mcts_async(root)
-    e_time = time.perf_counter()
-    print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
-
-
 def run_jit():
-    """Run Faster but can't debug or profile"""
+    """Run Faster but can't debug and bad profile results because of compile"""
     import time
     s_time = time.perf_counter()
-    from numba import njit
+    from Utils.jit import njit
     @njit
     def seed_numba(seed_value):
         """
@@ -116,6 +88,37 @@ def run_jit():
     mcts(root, max_iterations=100_000)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
+
+
+def run_jit_profile():
+    """Run Faster but can't debug or profile"""
+    import time
+    s_time = time.perf_counter()
+    import os
+    CACHE_DIR = ".numba_cache"
+    os.environ["NUMBA_CACHE_ON"] = "1"
+    os.environ["NUMBA_CACHE_DIR"] = os.path.abspath(CACHE_DIR)
+    from Utils.jit import njit
+    @njit
+    def seed_numba(seed_value):
+        """
+        This executes at the C-level and forces Numba's internal 
+        RNG state to sync with your desired seed.
+        """
+        random.seed(seed_value)
+        np.random.seed(seed_value)
+    seed_numba(37)
+    from SearchEngine.my_mcts import mcts, GameState
+    from Engine.engine_helper import start_of_battle
+    battle = build_battle()
+    if battle[_FIELD_TURN] == 0:
+        start_of_battle(battle)
+    root = GameState(battle)
+    print("-----------------------MCTS NJIT-----------------------------")
+    mcts(root, max_iterations=100_000)
+    e_time = time.perf_counter()
+    print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
+
 
 def run_jit_base_time():
     """Compare to see real performance changes that numba is doing"""
@@ -142,7 +145,7 @@ if __name__ =='__main__':
     np.random.seed(SEED)
 
     #run_single()
-    #run_parallel()
     #run_jit()
-    run_jit_base_time()
+    #run_jit_base_time()
+    run_jit_profile()
     print_peak_memory()

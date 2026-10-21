@@ -1,7 +1,7 @@
 """Battle class where it follows battle flow, doing the sequence selection, start of turn, actions,
 end of turn and repeat"""
 import random
-from numba import njit
+from Utils.jit import njit
 from Engine.engine_helper import (
     check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     flinch_checker, thaw, early_returns, switch_in,

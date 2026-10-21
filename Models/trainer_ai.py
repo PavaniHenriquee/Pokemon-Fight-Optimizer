@@ -1,7 +1,7 @@
 """Gives the class for the trainer Ai to be what the game would do"""
 import random
 import numpy as np
-from numba import njit
+from Utils.jit import njit
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
 from Utils.helper import (
     get_type_effectiveness, batch_independent_score_from_rand

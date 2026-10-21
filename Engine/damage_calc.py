@@ -1,7 +1,7 @@
 """Damage calculations"""
 import random
 import numpy as np
-from numba import njit
+from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
 from Models.constants import (
     _ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW,

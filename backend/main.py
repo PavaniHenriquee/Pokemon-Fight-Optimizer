@@ -15,7 +15,7 @@ import traceback
 from typing import Optional, cast
 from pydantic import BaseModel, Field
 import numpy as np
-from numba import njit
+from Utils.jit import njit
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from Models.idx_const import Pok, POK_LEN

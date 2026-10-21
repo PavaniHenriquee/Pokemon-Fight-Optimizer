@@ -3,7 +3,7 @@ Helper to make the trainer ai more readable and everything more organized
 """
 import random
 import numpy as np
-from numba import njit
+from Utils.jit import njit
 from Utils.loader import TYPE_CHART
 from Utils.helper import get_type_effectiveness
 from DataBase.PkDB import POKEMON_ABILITY_POOL, POKEMON_LENGTH

@@ -60,7 +60,7 @@ Usage:
     continuous, ability_ids = split_features(combined)
 """
 import numpy as np
-from numba import njit
+from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
 from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_WATER_ELECTRIC
 from Models.idx_const import POK_LEN, MOVE_STRIDE, OFFSET_MOVE, Field
