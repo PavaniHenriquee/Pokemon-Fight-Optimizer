@@ -204,9 +204,9 @@ def _mcts_worker(session: Session, root_state: GameState) -> None:
                 break
 
             state = root_state.clone()
-            state, path = _select_expand(state, root)
+            state, path, actions = _select_expand(state, root)
             value, win, dead = _rollout(state)
-            _backprop(path, value, win, dead)
+            _backprop(path, actions, value, win, dead)
             session.iterations = i + 1
 
             if i % 2500 == 0 and i > 0:

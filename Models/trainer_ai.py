@@ -1,8 +1,8 @@
 """Gives the class for the trainer Ai to be what the game would do"""
 import random
 import numpy as np
-from Utils.jit import njit
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
+from Utils.jit import njit
 from Utils.helper import (
     get_type_effectiveness, batch_independent_score_from_rand
 )
@@ -31,7 +31,7 @@ from Models.trainer_ai_helper import (
     check_any_damaging_move_pty,
     ABSORB_ABI,
     check_absorb_abi_pty,
-    check_immunity_pty, check_resistence_pty
+    check_immunity_pty, check_resistance_pty
 )
 from Models.helper import count_party
 
@@ -218,7 +218,7 @@ def choose_move(battle_array):
             if im.size > 0:
                 _evaluated_moves[0] = [im[0]-6,0,0,False]
                 return _evaluated_moves
-            res = check_resistence_pty(ai_pty, user_pok, took_dmg, opp_active)
+            res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active)
             if res.size > 0:
                 _evaluated_moves[0] = [res[0]-6,0,0,False]
                 return _evaluated_moves
@@ -353,7 +353,7 @@ def choose_move(battle_array):
                     return _evaluated_moves
             # 7. A party member resists the previous attack and can hit the foe supereffectively
             if random.random() < 0.3333:
-                res = check_resistence_pty(ai_pty, user_pok, took_dmg, opp_active)
+                res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active)
                 if res.size > 0:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [res[0]-6,0,0,False]

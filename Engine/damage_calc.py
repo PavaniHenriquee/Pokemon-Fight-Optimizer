@@ -160,7 +160,7 @@ def multipliers(
         move: np.ndarray, attacker: np.ndarray, defender: np.ndarray,
         weather:int, crit: bool, roll_mult: int, damage: int
 ) -> int:
-    """Calc Multiplers for base formula damage"""
+    """Calc multipliers for base formula damage"""
     m_type = move[_MOVE_TYPE]
     atk_type1 = attacker[_POK_TYPE1]
     atk_type2 = attacker[_POK_TYPE2]

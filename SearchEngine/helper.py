@@ -119,6 +119,7 @@ def _truncate_subtree(node: Node, keep_depth: int):
     """Clear children below keep_depth levels."""
     if keep_depth <= 0:
         node.children.clear()
+        node.stats = None
         return
     for nodes in node.children.values():
         for child in nodes:

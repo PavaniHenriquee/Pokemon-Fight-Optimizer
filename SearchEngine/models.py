@@ -11,6 +11,7 @@ from Models.constants import _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MO
 from Models.trainer_ai import return_idx
 from Models.helper import count_party, ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action
+from Utils.jit import njit
 
 
 _MOVE_ID_IDXS = tuple(Pok.MOVE1_ID + i * MOVE_STRIDE for i in range(4))
@@ -23,6 +24,13 @@ _PP_IDXS = (
     Pok.MOVE3_ID + Move.PP,
     Pok.MOVE4_ID + Move.PP,
 )
+ACTION_ORDER = (
+    tuple((ActionType.MOVE, i) for i in (0, 1, 2, 3, 10))
+    + tuple((ActionType.SWITCH, i) for i in range(6))
+)
+ACTION_SLOT = {action: slot for slot, action in enumerate(ACTION_ORDER)}
+N_SLOTS = len(ACTION_ORDER)
+STATS_COLS = 2 + N_BINS
 
 
 class GameState():
@@ -244,7 +252,7 @@ def reconstruct_battle_array(snap: NodeSnapshot, initial: np.ndarray) -> np.ndar
     return out
 
 
-
+@njit
 def cvar_from_hist(hist, visits, alpha=0.15):
     """Mean of the worst alpha fraction of outcomes"""
     cutoff = visits * alpha
@@ -267,17 +275,32 @@ def cvar_from_hist(hist, visits, alpha=0.15):
     return total_val / cutoff if cutoff > 0 else 0.0
 
 
-HIST = np.zeros(N_BINS, dtype=np.uint32)
+@njit
+def best_slot(stats, parent_visits, c, risk_lambda, alpha):
+    """UCB with CVaR penalty over the per-action stats rows, returns the winning slot"""
+    log_parent_visits = math.log(parent_visits) if parent_visits > 1 else 0.0
+    best = -1
+    best_val = -np.inf
+    for i in range(stats.shape[0]):
+        visits = stats[i, 0]
+        if visits == 0:
+            continue
+        avg = stats[i, 1] / visits
+        cvar = cvar_from_hist(stats[i, 2:], visits, alpha)
+        tail_gap = max(0.0, avg - cvar)
+        exploration = c * math.sqrt(2 * log_parent_visits / visits)
+        ucb_val = avg - risk_lambda * tail_gap + exploration
+        if ucb_val > best_val or (ucb_val == best_val and random.getrandbits(1)):
+            best_val = ucb_val
+            best = i
+    return best
 
 
 class Node():
-    """
-    - Store: state, parent, children, visit count, total value, untried actions
-    - Key: nodes represent decision points, not chance outcomes
-    """
+    """Tree node, stats holds one row per action: visits, total value, outcome histogram"""
     __slots__ = (
         'snapshot', 'children', 'visits', 'total_value',
-        'wins', 'dead', 'win_chance', 'dead_avg', 'hist'
+        'wins', 'dead', 'win_chance', 'dead_avg', 'stats'
     )
     def __init__(self, state):
         self.snapshot = NodeSnapshot.from_state(state)
@@ -288,33 +311,12 @@ class Node():
         self.dead = 0
         self.win_chance = 0.0
         self.dead_avg = 0
-        self.hist = HIST.copy()
+        self.stats = None
 
     def best_action(self, c=0.42, risk_lambda=0.3, alpha=0.15):
-        """Best outcome using UCB; break ties and unvisited bias fairly."""
-
-        best_key, best_node = None, None
-        best_val = -float("inf")
-
-        # guard: if parent visits is 0/1, exploration term becomes 0
-        log_parent_visits = math.log(self.visits) if self.visits > 1 else 0.0
-
-        for key, child in self.children.items():
-            c_total_value = 0
-            c_visits = 0
-            c_hist = HIST.copy()
-            for chi in child:
-                c_total_value += chi.total_value
-                c_visits      += chi.visits
-                c_hist        += chi.hist
-
-            avg         = c_total_value / c_visits
-            cvar        = cvar_from_hist(c_hist, c_visits, alpha)
-            tail_gap    = max(0.0, avg - cvar)          # how far the tail falls below the mean
-            exploration = c * math.sqrt(2 * log_parent_visits / c_visits)
-            ucb_val     = avg - risk_lambda * tail_gap + exploration
-
-            if ucb_val > best_val or (ucb_val == best_val and random.getrandbits(1)):
-                best_val, best_key, best_node = ucb_val, key, child
-
-        return best_key, best_node
+        """Best action by risk-adjusted UCB, returns (action key, outcome list)"""
+        slot = best_slot(self.stats, self.visits, c, risk_lambda, alpha)
+        if slot < 0:
+            raise ValueError("best_action called on a node with no explored actions")
+        key = ACTION_ORDER[slot]
+        return key, self.children[key]

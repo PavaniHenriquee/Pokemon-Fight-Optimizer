@@ -1366,7 +1366,7 @@ def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active):
 
 
 @njit
-def check_resistence_pty(ai_party, user_pok, last_move_type, opp_active):
+def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active):
     """
     Check if there's any pokemon with super effective move
     """

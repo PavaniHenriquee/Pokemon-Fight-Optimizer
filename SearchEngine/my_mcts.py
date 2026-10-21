@@ -13,7 +13,9 @@ from typing import List
 import numpy as np
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node, prune_dominated
-from SearchEngine.models import GameState, Node, ActionType, N_BINS
+from SearchEngine.models import (
+    GameState, Node, ActionType, N_BINS, ACTION_SLOT, N_SLOTS, STATS_COLS
+)
 from Models.helper import StatustoName, BattlePhase
 from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move, Field
 from DataBase.MoveDB import MoveIdToName
@@ -29,8 +31,6 @@ def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.48) -> float
     depth = 0
 
     while not sim_state.is_terminal() and depth < max_depth:
-        if depth == 19:
-            pass
         valid_actions = sim_state.get_valid_actions()
         if not valid_actions:
             break
@@ -114,10 +114,6 @@ def propagate_stable_values(node, min_visits=70):
 def recursive_backup(node, min_visits=70):
     """
     Recursively backup values from leaves to root.
-    
-    Args:
-        use_wilson: If True, use Wilson score (v3) which handles sample size naturally.
-                If False, use simple top-tier selection (v1).
     """
     # Base case: terminal node (leaf) - just return its values
     if not node.children:
@@ -231,18 +227,18 @@ def print_best_path(root, battle_array, depth=0, max_depth=50, min_visits=1):
 
 
 def _select_expand(state: GameState, node: Node):
-    """Phases 1 and 2 of MCTS"""
+    """Phases 1 and 2 of MCTS, also returns the action taken at each step of the path"""
     path = [node]
+    actions = []
     while not state.is_terminal():
         untried_actions = [
             a for a in state.get_valid_actions() if a not in node.children
         ]
 
         if untried_actions:
-            # We have unexplored actions, time to expand
             break
         if node.children:
-            action_key, child = node.best_action()  # Pick action with best UCB
+            action_key, child = node.best_action()
             new_state = state.step(action_key)
             new_node = multiple_nodes(child, new_state)
             if not new_node:
@@ -253,6 +249,7 @@ def _select_expand(state: GameState, node: Node):
                 node = new_node
             state = new_state
             path.append(node)
+            actions.append(action_key)
         else:
             raise ValueError("MCTS Selection")
 
@@ -265,8 +262,9 @@ def _select_expand(state: GameState, node: Node):
             node.children[action] = []
             node.children[action].append(child)
         path.append(child)
+        actions.append(action)
 
-    return state, path
+    return state, path, actions
 
 
 def _rollout(state: GameState):
@@ -280,7 +278,7 @@ def _rollout(state: GameState):
 
     return value, win, dead
 
-def _backprop(path: List, value: float, win: int, dead: int):
+def _backprop(path: List, actions: List, value: float, win: int, dead: int):
     """Phase 4 of MCTS"""
     bin_idx = min(int(value * N_BINS), N_BINS - 1)
     for node in reversed(path):
@@ -289,8 +287,15 @@ def _backprop(path: List, value: float, win: int, dead: int):
         node.wins += win
         node.dead += dead if win else 0
         node.dead_avg = node.dead / node.wins if node.wins else 0
-        node.win_chance = node.wins/ node.visits
-        node.hist[bin_idx] += 1
+        node.win_chance = node.wins / node.visits
+    for parent, action in zip(path, actions):
+        stats = parent.stats
+        if stats is None:
+            stats = parent.stats = np.zeros((N_SLOTS, STATS_COLS))
+        row = stats[ACTION_SLOT[action]]
+        row[0] += 1
+        row[1] += value
+        row[2 + bin_idx] += 1
 
 
 def mcts_loop(
@@ -302,9 +307,9 @@ def mcts_loop(
     for iterations in range(max_iterations):
         node = root
         state = root_state.clone()
-        state, path = _select_expand(state, node)
+        state, path, actions = _select_expand(state, node)
         value, win, dead = _rollout(state)
-        _backprop(path, value, win, dead)
+        _backprop(path, actions, value, win, dead)
 
         # Cutoff when results are good enough
         if iterations % 500 == 0 and iterations > 0:

@@ -2,6 +2,7 @@
 import random
 import numpy as np
 from Utils.jit import njit
+from Utils.helper import get_type_effectiveness
 from Models.idx_const import(
     Pok, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, Field
 )
@@ -11,10 +12,9 @@ from Models.constants import (
     _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE, _POK_AB_WHEN
 )
 from Models.helper import count_party, count_Id
-from Models.trainer_ai_helper import check_immunity_pty, check_resistence_pty
+from Models.trainer_ai_helper import check_immunity_pty, check_resistance_pty
 from Engine.damage_calc import calculate_damage
 from Engine.engine_helper import calculate_crit, struggle
-from Utils.helper import get_type_effectiveness
 
 
 def party_hp_fraction(battle_array, offset, maxp):
@@ -44,9 +44,12 @@ def count_fainted(battle_array, offset, maxp):
 def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     """
     Terminal evaluation for MCTS backprop.
-    - Win  => +1
     - Loss => 0
     - draw => 0
+    - Win starts at 1
+    - Win value gets reduced value for each death, where 1 its a heavy penalty and each death
+    after that is a linear small value
+    - Win values gets a small penalty for larger number of turns, so it don't stall unnecessarily 
     """
     # quick terminal check
     my_pty_count = count_Id(sim_state.battle_array[0:(6 * POK_LEN)])
@@ -119,7 +122,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
     weather = battle_array[_FIELD_WEATHER]
     imnty = IMNTY.copy()
     res = RES.copy()
-    # Arbitrary number to accomadate when i died and need to switch, so AI don't have an action
+    # Arbitrary number to accommodate when i died and need to switch, so AI don't have an action
     if opp_choice is None:
         opp_choice = -50
 
@@ -128,7 +131,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
         o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, calculate_crit(c_pok[_POK_AB_WHEN]))
         o_mv_type = o_move[_MOVE_TYPE]
         imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx)
-        res   = check_resistence_pty(my_pty, o_pok, o_mv_type, my_idx)
+        res   = check_resistance_pty(my_pty, o_pok, o_mv_type, my_idx)
     elif opp_choice < 0:  # Switch or potion
         o_dmg = 0
     else:
