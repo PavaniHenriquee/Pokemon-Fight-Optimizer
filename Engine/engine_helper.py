@@ -31,7 +31,7 @@ from Models.constants import (
     _ABILITYNAMES_WATER_ABSORB, _MOVE_DAMAGE, _DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT,
     _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN, _POK_DMG_TAKEN,
     _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEMNAMES_ORAN_BERRY,
-    _ITEM_ID, _ITEMNAMES_SITRUS_BERRY, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _ITEMTYPE_BERRY,
+    _ITEM_ID, _ITEMNAMES_SITRUS_BERRY, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _VOLSTATUS_FOCUS_ENERGY, _MOVE_CRIT_RATIO, _MOVE_WILL_CRIT, _ITEMTYPE_BERRY,
     _ITEM_ITEM_TYPE, _POK_CONFUSION_COUNTER, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE,
     _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN
 )
@@ -252,9 +252,10 @@ def calculate_hit_miss(move, attacker, defender, weather):
 
     # TODO: Move.IGNORE_IMMUNITY is parsed from JSON (e.g. Thunder Wave) but never
     # read anywhere — decide what it should bypass here before relying on it.
-    eff, _ = get_type_effectiveness(move[_MOVE_TYPE], defender[_POK_TYPE1], defender[_POK_TYPE2])
-    if  eff == 0:
-        return _MOVEOUTCOME_INVULNERABLE
+    if move[_MOVE_TARGET] not in TARGET_SELF_SIDE:
+        eff, _ = get_type_effectiveness(move[_MOVE_TYPE], defender[_POK_TYPE1], defender[_POK_TYPE2])
+        if eff == 0:
+            return _MOVEOUTCOME_INVULNERABLE
 
     if move_acc == -1:
         return _MOVEOUTCOME_HIT
@@ -275,14 +276,33 @@ def calculate_hit_miss(move, attacker, defender, weather):
 
 
 @njit
-def calculate_crit(def_aw):
-    """Returns a boolean if the move passed the crit check"""
-    # TODO: doesn't take move.CRIT_RATIO into account — Karate Chop/Razor Leaf etc.
-    # currently crit at the base 1/16 rate like anything else. Needs a `move` param
-    # and the Gen4 crit-stage table (1/16, 1/8, 1/4, always) whenever that's a priority.
-    if def_aw & _ABILITYACTIVATION_ON_CRITICAL:
+def calculate_crit(attacker, defender, move=None):
+    """Returns a boolean if the move passed the crit check based on Gen IV mechanics."""
+    if defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CRITICAL:
         return False
-    return random.getrandbits(4) == 0
+
+    if move is not None and move[_MOVE_WILL_CRIT]:
+        return True
+
+    stage = 0
+    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_FOCUS_ENERGY:
+        stage += 2
+
+    if move is not None:
+        crit_ratio = move[_MOVE_CRIT_RATIO]
+        if crit_ratio > 1:
+            stage += (crit_ratio - 1)
+
+    if stage <= 0:
+        return random.getrandbits(4) == 0      # 1/16 (6.25%)
+    elif stage == 1:
+        return random.getrandbits(3) == 0      # 1/8  (12.5%)
+    elif stage == 2:
+        return random.getrandbits(2) == 0      # 1/4  (25.0%)
+    elif stage == 3:
+        return random.randint(1, 3) == 1       # 1/3  (33.33%)
+    else:
+        return random.getrandbits(1) == 0      # 1/2  (50.0%)
 
 
 # ── Switch handling ──────────────────────────────────────────────────────────────
@@ -607,8 +627,7 @@ def struggle(attacker, defender, rec=True):
     atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
     def_stage = defender[_POK_DEFENSE_STAT_STAGE]
     level = attacker[_POK_LEVEL]
-    def_aw = defender[_POK_AB_WHEN]
-    crit = calculate_crit(def_aw)
+    crit = calculate_crit(attacker, defender)
 
     if crit:
         def_stage = min(def_stage, 0)

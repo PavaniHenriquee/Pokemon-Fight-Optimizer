@@ -116,7 +116,7 @@ def _resolve_move_damage(attacker, defender, move, weather):
         return struggle(attacker, defender)
     move_damage = move[_MOVE_DAMAGE]
     if not move_damage:
-        crit = calculate_crit(defender[_POK_AB_WHEN])
+        crit = calculate_crit(attacker, defender, move)
         return calculate_damage(attacker, defender, move, weather, crit)
     if move_damage == _DAMAGESOURCES_BIDE:
         # Bide damage

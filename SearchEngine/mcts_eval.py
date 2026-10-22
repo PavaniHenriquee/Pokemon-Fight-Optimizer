@@ -128,7 +128,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
 
     if opp_choice != 10 and opp_choice>=0:  # Struggle
         o_move = o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE]
-        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, calculate_crit(c_pok[_POK_AB_WHEN]))
+        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, calculate_crit(o_pok, c_pok, o_move))
         o_mv_type = o_move[_MOVE_TYPE]
         imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx)
         res   = check_resistance_pty(my_pty, o_pok, o_mv_type, my_idx)

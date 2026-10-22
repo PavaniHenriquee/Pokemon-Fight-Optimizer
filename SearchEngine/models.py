@@ -20,8 +20,7 @@ from Utils.jit import njit
 
 _MOVE_ID_IDXS = tuple(Pok.MOVE1_ID + i * MOVE_STRIDE for i in range(4))
 _MOVE_PP_IDXS = tuple(idx + Move.PP for idx in _MOVE_ID_IDXS)
-_POK_HP_OFFSETS = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
-N_BINS = 10
+N_BINS = 6
 _PP_IDXS = (
     Pok.MOVE1_ID + Move.PP,
     Pok.MOVE2_ID + Move.PP,

@@ -12,7 +12,7 @@ from Models.constants import (
     _POK_EVASION_STAT_STAGE, _POK_BADLY_POISON, _POK_SLEEP_COUNTER, _POK_ACCURACY_STAT_STAGE,
     _POK_AB_ID, _POK_MAX_HP, _POK_TYPE1, _POK_TYPE2, _STATUS_PARALYSIS, _MOVENAME_CURSE,
     _TYPES_FIRE, _TYPES_ELECTRIC, _POK_CURRENT_HP, _SEC_BOOST_ACC, _MOVE_ID,
-    _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_SYNCHRONIZE, _VOLSTATUS_DEFENSE_CURL,
+    _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_SYNCHRONIZE, _VOLSTATUS_DEFENSE_CURL, _VOLSTATUS_FOCUS_ENERGY,
     _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL, _MOVE_VOL_STATUS,
     _VOLSTATUS_CONFUSION, _POK_VOL_STATUS, _POK_CONFUSION_COUNTER, _SEC_VOL_STATUS
 )
@@ -155,6 +155,10 @@ def vol_status(move, pok, source, sec=False):
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_DEFENSE_CURL:
             pok[_POK_VOL_STATUS] += _VOLSTATUS_DEFENSE_CURL
 
+    if v_status & _VOLSTATUS_FOCUS_ENERGY:
+        if not pok[_POK_VOL_STATUS] & _VOLSTATUS_FOCUS_ENERGY:
+            pok[_POK_VOL_STATUS] += _VOLSTATUS_FOCUS_ENERGY
+
 
 @njit
 def calculate_effects(attacker, defender, move, weather):
@@ -172,7 +176,8 @@ def calculate_effects(attacker, defender, move, weather):
             raise ValueError("Shouldn't have self status change in this block")
 
     if move[_MOVE_VOL_STATUS] != 0:
-        vol_status(move, defender, attacker)
+        target_pok = attacker if move[_MOVE_TARGET] in TARGET_SELF_SIDE else defender
+        vol_status(move, target_pok, attacker)
 
 
 @njit

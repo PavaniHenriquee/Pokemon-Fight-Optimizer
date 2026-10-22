@@ -55,6 +55,7 @@ class VolStatus:
     ATTRACT           = 32
     BIDE              = 64
     DEFENSE_CURL      = 128
+    FOCUS_ENERGY      = 256
 
 
 @dataclass(slots=True)

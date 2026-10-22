@@ -86,7 +86,7 @@
 [X]Fake Out(B/E) !
 [X]Fire Punch
 [X]Flail(E) !
-[]Focus Energy(B) !?
+[]Focus Energy(B) (Engine done)
 []Force Palm
 []Foresight(B/E) !
 []Fury Cutter !
