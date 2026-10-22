@@ -14,7 +14,8 @@ import numpy as np
 from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node, prune_dominated
 from SearchEngine.models import (
-    GameState, Node, ActionType, N_BINS, ACTION_SLOT, N_SLOTS, STATS_COLS
+    GameState, Node, ActionType, N_BINS, ACTION_SLOT, ACTION_ORDER, N_SLOTS, STATS_COLS,
+    node_key, valid_action_mask, valid_actions_array
 )
 from Models.helper import StatustoName, BattlePhase
 from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move, Field
@@ -30,19 +31,18 @@ def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.48) -> float
     sim_state = state
     depth = 0
 
-    while not sim_state.is_terminal() and depth < max_depth:
-        valid_actions = sim_state.get_valid_actions()
-        if not valid_actions:
+    while depth < max_depth and not sim_state.is_terminal():
+        actions_arr = valid_actions_array(sim_state.battle_array)
+        n = len(actions_arr)
+        if n == 0:
             break
 
         if random.random() < heuristic_prob:
-            # Use heuristic occasionally
-            actions_arr = np.array(valid_actions, dtype=np.int16)
             act = rollout_pref(sim_state.battle_array, sim_state.opp_move, actions_arr)
             action = (int(act[0]), int(act[1]))
         else:
-            # Pure random most of the time
-            action = random.choice(valid_actions)
+            row = actions_arr[random.randrange(n)]
+            action = (int(row[0]), int(row[1]))
 
         sim_state = sim_state.step(action)
         depth += 1
@@ -230,37 +230,33 @@ def _select_expand(state: GameState, node: Node):
     """Phases 1 and 2 of MCTS, also returns the action taken at each step of the path"""
     path = [node]
     actions = []
+    untried = 0
     while not state.is_terminal():
-        untried_actions = [
-            a for a in state.get_valid_actions() if a not in node.children
-        ]
-
-        if untried_actions:
+        untried = valid_action_mask(state.battle_array) & ~node.expanded
+        if untried:
             break
-        if node.children:
-            action_key, child = node.best_action()
-            new_state = state.step(action_key)
-            new_node = multiple_nodes(child, new_state)
-            if not new_node:
-                new_child = Node(new_state)
-                child.append(new_child)
-                node = new_child
-            else:
-                node = new_node
-            state = new_state
-            path.append(node)
-            actions.append(action_key)
-        else:
+        if node.stats is None:
             raise ValueError("MCTS Selection")
+        action_key, child = node.best_action()
+        new_state = state.step(action_key)
+        key = node_key(new_state.battle_array)
+        new_node = multiple_nodes(child, key)
+        if new_node is None:
+            new_node = Node(new_state, key)
+            child.append(new_node)
+        node = new_node
+        state = new_state
+        path.append(node)
+        actions.append(action_key)
 
     # 2) Expansion (if not terminal)
-    if not state.is_terminal() and untried_actions:
-        action = random.choice(untried_actions)
+    if untried:
+        slots = [s for s in range(N_SLOTS) if untried >> s & 1]
+        action = ACTION_ORDER[random.choice(slots)]
         state = state.step(action)
         child = Node(state)
-        if action not in node.children:
-            node.children[action] = []
-            node.children[action].append(child)
+        node.children[action] = [child]
+        node.expanded |= 1 << ACTION_SLOT[action]
         path.append(child)
         actions.append(action)
 

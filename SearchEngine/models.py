@@ -7,9 +7,13 @@ import numpy as np
 from Models.idx_const import (
     Pok, Field, POK_LEN, MOVE_STRIDE, Move, FIELD_LEN
 )
-from Models.constants import _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE
+from Models.constants import (
+    _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _POK_CURRENT_HP, _POK_MAX_HP,
+    _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
+    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN
+)
 from Models.trainer_ai import return_idx
-from Models.helper import count_party, ActionType, BattlePhase
+from Models.helper import ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action
 from Utils.jit import njit
 
@@ -31,6 +35,110 @@ ACTION_ORDER = (
 ACTION_SLOT = {action: slot for slot, action in enumerate(ACTION_ORDER)}
 N_SLOTS = len(ACTION_ORDER)
 STATS_COLS = 2 + N_BINS
+_SLOT_TYPE = tuple(a[0] for a in ACTION_ORDER)
+_SLOT_IDX = tuple(a[1] for a in ACTION_ORDER)
+
+
+@njit
+def valid_action_mask(battle_array):
+    """Valid actions as a bitmask over ACTION_ORDER slots:
+    bits 0-3 moves, bit 4 Struggle, bits 5-10 switches to party slots 0-5"""
+    my_active = battle_array[_FIELD_MY_POK]
+    mask = 0
+    if battle_array[_FIELD_PHASE] != _BATTLEPHASE_DEATH_END_OF_TURN:
+        base = my_active * POK_LEN
+        usable = False
+        for i in range(4):
+            if battle_array[base + _MOVE_ID_IDXS[i]] == 0:
+                break
+            if battle_array[base + _MOVE_PP_IDXS[i]] > 0:
+                mask |= 1 << i
+                usable = True
+        if not usable:
+            mask |= 1 << 4
+    for i in range(6):
+        if i != my_active and battle_array[i * POK_LEN + _POK_CURRENT_HP] > 0:
+            mask |= 1 << (5 + i)
+    return mask
+
+
+@njit
+def valid_actions_array(battle_array):
+    """Valid actions as an (n, 2) int16 array of (action_type, idx), the format rollout_pref takes"""
+    mask = valid_action_mask(battle_array)
+    out = np.empty((N_SLOTS, 2), dtype=np.int16)
+    n = 0
+    for s in range(N_SLOTS):
+        if mask & (1 << s):
+            out[n, 0] = _SLOT_TYPE[s]
+            out[n, 1] = _SLOT_IDX[s]
+            n += 1
+    return out[:n]
+
+
+@njit
+def is_terminal_arr(battle_array):
+    """True when either side has no Pokemon left alive"""
+    my_alive = False
+    opp_alive = False
+    for i in range(6):
+        if battle_array[i * POK_LEN + _POK_CURRENT_HP] > 0:
+            my_alive = True
+        if battle_array[(i + 6) * POK_LEN + _POK_CURRENT_HP] > 0:
+            opp_alive = True
+    return not (my_alive and opp_alive)
+
+
+@njit
+def _hp_bracket(hp, max_hp):
+    """HP bracket shifted to 0..5 (fainted=0, full=5), same thresholds as the old _bracket"""
+    if hp <= 0:
+        return 0
+    if hp == max_hp:
+        return 5
+    if hp * 4 >= max_hp * 3:
+        return 4
+    if hp * 2 >= max_hp:
+        return 3
+    if hp * 4 >= max_hp:
+        return 2
+    return 1
+
+
+@njit
+def _stages_key(pok):
+    """The 7 stat stages (atk..evasion) packed 4 bits each"""
+    packed = np.int64(0)
+    for i in range(7):
+        packed = (packed << 4) | np.int64(pok[_POK_ATTACK_STAT_STAGE + i] + 6)
+    return packed
+
+
+@njit
+def node_key(battle_array):
+    """Integer fingerprint of what decides whether two outcomes of an action share a node:
+    phase, opp slot, status, vol status, HP bracket and stat stages of both actives"""
+    opp_idx = battle_array[_FIELD_OPP_POK]
+    opp = battle_array[(opp_idx + 6) * POK_LEN:(opp_idx + 7) * POK_LEN]
+    is_death = battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN
+
+    k1 = np.int64(1 if is_death else 0)
+    k1 |= np.int64(opp_idx) << 1
+    k1 |= np.int64(opp[_POK_STATUS]) << 4
+    k1 |= np.int64(_hp_bracket(opp[_POK_CURRENT_HP], opp[_POK_MAX_HP])) << 7
+    k1 |= (np.int64(opp[_POK_VOL_STATUS]) & 0xFFFF) << 10
+    k2 = _stages_key(opp)
+
+    if not is_death:
+        my_idx = battle_array[_FIELD_MY_POK]
+        me = battle_array[my_idx * POK_LEN:(my_idx + 1) * POK_LEN]
+        k1 |= np.int64(me[_POK_STATUS]) << 26
+        k1 |= np.int64(_hp_bracket(me[_POK_CURRENT_HP], me[_POK_MAX_HP])) << 29
+        k1 |= (np.int64(me[_POK_VOL_STATUS]) & 0xFFFF) << 32
+        k2 = (k2 << 28) | _stages_key(me)
+    else:
+        k2 = k2 << 28
+    return k1, k2
 
 
 class GameState():
@@ -91,40 +199,12 @@ class GameState():
 
     def is_terminal(self) -> bool:
         """Check if battle is over"""
-        return count_party(self.my_pty) == 0 or count_party(self.opp_pty) == 0
+        return is_terminal_arr(self.battle_array)
 
     def get_valid_actions(self) -> List[Tuple[int, int]]:
         """Get all valid actions for current player"""
-        actions = []
-        ba = self.battle_array
-        my_active = self.my_active
-
-        if self.phase == BattlePhase.DEATH_END_OF_TURN:
-            for i, hp_off in enumerate(_POK_HP_OFFSETS):
-                if ba[hp_off] > 0 and i != my_active:
-                    actions.append((ActionType.SWITCH, i))
-            return actions
-
-        pok_start = my_active * POK_LEN
-        usable_moves = False
-        for i, (mid, mpp) in enumerate(zip(_MOVE_ID_IDXS, _MOVE_PP_IDXS)):
-            if ba[pok_start + mid] != 0:
-                if ba[pok_start + mpp] > 0:
-                    actions.append((ActionType.MOVE, i))
-                    usable_moves = True
-                else:
-                    break
-            else:
-                break
-
-        if not usable_moves:
-            actions.append((ActionType.MOVE, 10))
-
-        for i, hp_off in enumerate(_POK_HP_OFFSETS):
-            if ba[hp_off] > 0 and i != my_active:
-                actions.append((ActionType.SWITCH, i))
-
-        return actions
+        mask = valid_action_mask(self.battle_array)
+        return [ACTION_ORDER[s] for s in range(N_SLOTS) if mask >> s & 1]
 
     def opp_move_choice(self) -> int:
         """Uses the trainer AI to choose the move"""
@@ -136,6 +216,7 @@ class GameState():
         if self.phase == BattlePhase.DEATH_END_OF_TURN:
             switch_in_action(self.battle_array, my_move_idx[1])
             self.my_active = my_move_idx[1]
+            self.opp_active = self.battle_array[Field.OPP_POK]
             self.phase = BattlePhase.TURN_START
             self.opp_move_last = None
             return self
@@ -299,11 +380,13 @@ def best_slot(stats, parent_visits, c, risk_lambda, alpha):
 class Node():
     """Tree node, stats holds one row per action: visits, total value, outcome histogram"""
     __slots__ = (
-        'snapshot', 'children', 'visits', 'total_value',
-        'wins', 'dead', 'win_chance', 'dead_avg', 'stats'
+        'snapshot', 'children', 'visits', 'total_value', 'key',
+        'wins', 'dead', 'win_chance', 'dead_avg', 'stats', 'expanded'
     )
-    def __init__(self, state):
+    def __init__(self, state, key=None):
         self.snapshot = NodeSnapshot.from_state(state)
+        self.key = node_key(state.battle_array) if key is None else key
+        self.expanded = 0
         self.children = {}
         self.visits = 0
         self.total_value = 0

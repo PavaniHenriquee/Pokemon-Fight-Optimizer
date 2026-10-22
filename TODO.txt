@@ -118,11 +118,11 @@
 []Pursuit(E) !
 []Quick Attack
 []Razor Leaf
-[]Roar
+[]Roar(B/E) !
 []Rock Polish
 []Rock Throw
 []Rock Tomb
-[]Rollout !! (Defense Curl interaction)
+[]Rollout !! (Defense Curl interaction)(Will need a counter to see how much damage[can be same as Fury Cutter?])
 []Sand Attack
 []Sandstorm !
 []Scary Face
@@ -132,10 +132,10 @@
 []Slam
 []Spark
 []Splash !(Gravity interaction)
-[]Stealth Rock !
+[]Stealth Rock !! (Hazards/What happens if either mine or opponent switches and instantly dies)
 []Stomp !(Minimize interaction)
 []String Shot
-[]Struggle
+[]Struggle !(Already done, but should check it 100%)
 []Supersonic
 []Sweet Scent
 []Tackle

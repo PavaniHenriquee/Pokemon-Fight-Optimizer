@@ -4,9 +4,7 @@ import copy
 import numpy as np
 from DataBase.pok_sets import charmander, squirtle, bulbasaur
 from Utils.helper import to_battle_array
-from Models.idx_const import Pok
-from Models.constants import _BATTLEPHASE_DEATH_END_OF_TURN
-from SearchEngine.models import Node, GameState, NodeSnapshot
+from SearchEngine.models import Node
 
 
 def create_random_initial_state():
@@ -44,54 +42,11 @@ def _bracket(pct: float) -> int:
 EOT_ZEROS = np.zeros(7).tobytes()
 
 
-def multiple_nodes(child: list, new_state: GameState):
-    """Check to see if the current state needs to create a new node"""
-    #TODO: Weather because speed ties can result in different weathers
-    new_snap      = NodeSnapshot.from_state(new_state)
-
-    # If phase is to choose a new one, i don't have a current one, ->
-    # so most checks are not only useless they will give errors
-    new_phase_eot = new_snap.phase == _BATTLEPHASE_DEATH_END_OF_TURN
-
-    if new_phase_eot:
-        new_my_brack = _bracket(0)
-    else:
-        new_my_brack  = _bracket(new_snap.my_slice[Pok.CURRENT_HP]  / new_snap.my_slice[Pok.MAX_HP])
-    new_opp_brack = _bracket(new_snap.opp_slice[Pok.CURRENT_HP] / new_snap.opp_slice[Pok.MAX_HP])
-
-    # .tobytes() → C-level bytes comparison
-    if new_phase_eot:
-        new_my_stages = EOT_ZEROS
-    else:
-        new_my_stages  = new_snap.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
-    new_opp_stages = new_snap.opp_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()
-
+def multiple_nodes(child: list, key):
+    """Return the existing outcome node with the same key, or None"""
     for c in child:
-        # Cheapest checks first (scalar int comparisons) → bail early
-        s = c.snapshot
-        s_phase_eot = s.phase == _BATTLEPHASE_DEATH_END_OF_TURN
-        if s.phase      != new_snap.phase:      continue
-        if s.opp_active != new_snap.opp_active: continue
-        if not s_phase_eot and s.my_slice[Pok.STATUS]    != new_snap.my_slice[Pok.STATUS]:  continue
-        if s.opp_slice[Pok.STATUS]   != new_snap.opp_slice[Pok.STATUS]: continue
-        if not s_phase_eot and s.my_slice[Pok.VOL_STATUS]  != new_snap.my_slice[Pok.VOL_STATUS]: continue
-        if s.opp_slice[Pok.VOL_STATUS] != new_snap.opp_slice[Pok.VOL_STATUS]: continue
-        if (
-            not s_phase_eot
-            and _bracket(s.my_slice[Pok.CURRENT_HP]  / s.my_slice[Pok.MAX_HP])  != new_my_brack
-        ):
-            continue
-        if _bracket(s.opp_slice[Pok.CURRENT_HP] / s.opp_slice[Pok.MAX_HP]) != new_opp_brack: continue
-        if (
-            not s_phase_eot
-            and s.my_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes()  != new_my_stages
-        ):
-            continue
-        if s.opp_slice[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].tobytes() != new_opp_stages: continue
-
-        c.snapshot = new_snap
-        return c
-
+        if c.key == key:
+            return c
     return None
 
 def find_best_terminal_node(root: Node):
@@ -120,6 +75,7 @@ def _truncate_subtree(node: Node, keep_depth: int):
     if keep_depth <= 0:
         node.children.clear()
         node.stats = None
+        node.expanded = 0
         return
     for nodes in node.children.values():
         for child in nodes:

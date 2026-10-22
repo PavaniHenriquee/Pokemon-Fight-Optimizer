@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 from Utils.jit import njit
 from Models.idx_const import Pok, POK_LEN
+from Models.constants import _POK_ID
 
 
 @dataclass(slots=True)
@@ -178,10 +179,12 @@ def count_party(pty) -> int:
             n += 1
     return n
 
+
+@njit
 def count_Id(pty):
     """Pokemon in party, no matter if alive or dead"""
     pok_features = POK_LEN
-    return np.count_nonzero(pty[Pok.ID :: pok_features])
+    return np.count_nonzero(pty[_POK_ID :: pok_features])
 
 
 @dataclass(slots=True)

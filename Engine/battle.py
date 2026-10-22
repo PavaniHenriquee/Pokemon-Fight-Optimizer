@@ -550,6 +550,8 @@ def switch_in_action(battle_array, switch_idx: int):
             (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
         ]
 
+        # I actually don't know if when both are switching in the order matters, but its better be safe
+        # than sorry
         my_s, opp_s = check_speed(
             my_switch, opp_switch, battle_array[_FIELD_WEATHER]
         )
@@ -575,7 +577,7 @@ def switch_in_action(battle_array, switch_idx: int):
             # Switch in effects after they are already switched
             switch_in(current_pokemon, current_opp)
             switch_in(current_opp, current_pokemon)
-        elif my_s < opp_s:
+        else:
             # Opponent Pokemon
             battle_array[_FIELD_OPP_POK] = i
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
