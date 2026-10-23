@@ -4,26 +4,30 @@ import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
 from Models.idx_const import(
-    Pok, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, Field
+    Pok, POK_LEN, OFFSET_MOVE, MOVE_STRIDE
 )
 from Models.constants import (
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_SPEED, _MOVE_TYPE, _ACTIONTYPE_MOVE, _MOVECATEGORY_STATUS, _MOVE_CATEGORY,
-    _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE, _POK_AB_WHEN
+    _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE, _FIELD_TURN, _FIELD_PHASE,
+    _BATTLEPHASE_DEATH_END_OF_TURN
 )
 from Models.helper import count_party, count_Id
 from Models.trainer_ai_helper import check_immunity_pty, check_resistance_pty
+from Models.trainer_ai import return_idx
+from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage
 from Engine.engine_helper import calculate_crit, struggle
 
 
+@njit
 def party_hp_fraction(battle_array, offset, maxp):
     """Compute sum(current_hp / max_hp) across a party (0..6)"""
     total_frac = 0.0
     for i in range(maxp):
         start = offset + i * POK_LEN
-        curr = battle_array[start + Pok.CURRENT_HP]
-        mx = battle_array[start + Pok.MAX_HP]
+        curr = battle_array[start + _POK_CURRENT_HP]
+        mx = battle_array[start + _POK_MAX_HP]
         if mx <= 0:
             frac = 0.0
         else:
@@ -41,7 +45,8 @@ def count_fainted(battle_array, offset, maxp):
     return fallen
 
 
-def evaluate_terminal(sim_state) -> tuple[float, int, int]:
+@njit
+def evaluate_terminal(battle_array):
     """
     Terminal evaluation for MCTS backprop.
     - Loss => 0
@@ -49,29 +54,30 @@ def evaluate_terminal(sim_state) -> tuple[float, int, int]:
     - Win starts at 1
     - Win value gets reduced value for each death, where 1 its a heavy penalty and each death
     after that is a linear small value
-    - Win values gets a small penalty for larger number of turns, so it don't stall unnecessarily 
+    - Win values gets a small penalty for larger number of turns, so it don't stall unnecessarily
     """
-    # quick terminal check
-    my_pty_count = count_Id(sim_state.battle_array[0:(6 * POK_LEN)])
-    my_alive = count_party(sim_state.battle_array[0:(6 * POK_LEN)])
+    my_pty = battle_array[0:(6 * POK_LEN)]
+    opp_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
+    my_pty_count = count_Id(my_pty)
+    my_alive = count_party(my_pty)
     dead = my_pty_count - my_alive
     if my_alive == 0:
         return 0.0, 0, dead
-    opp_alive = count_party(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
+    opp_alive = count_party(opp_pty)
     if dead:
-        win_value = 0.67 - (0.1*dead)
+        win_value = 0.67 - (0.1 * dead)
     else:
         win_value = 1.0
 
-    if opp_alive == 0 and my_alive > 0:
-        turn = sim_state.battle_array[Field.TURN]
+    if opp_alive == 0:
+        turn = battle_array[_FIELD_TURN]
         turn_penalty = min(0.10, turn * 0.0005)
-        return win_value-turn_penalty, 1, dead
+        return win_value - turn_penalty, 1, dead
 
     # Fallback to if the game haven't finished yet, but max depth reached
-    opp_pty_count = count_Id(sim_state.battle_array[(6 * POK_LEN):(12 * POK_LEN)])
-    my_hp = party_hp_fraction(sim_state.battle_array, 0, my_pty_count)
-    opp_hp = party_hp_fraction(sim_state.battle_array, 6 * POK_LEN, opp_pty_count)
+    opp_pty_count = count_Id(opp_pty)
+    my_hp = party_hp_fraction(battle_array, 0, my_pty_count)
+    opp_hp = party_hp_fraction(battle_array, 6 * POK_LEN, opp_pty_count)
     heuristic = my_hp / (my_hp + opp_hp + 1e-9)  # 0..1 continuous
     return heuristic * 0.35, 0, dead
 
@@ -224,3 +230,36 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
         return actions[r, 0], actions[r, 1]
 
     return _weighted_choice(act_types, act_idxs, weights, n_ev)
+
+
+@njit
+def rollout_arr(battle_array, max_depth=100, heuristic_prob=0.48):
+    """
+    Mixed rollout fully in njit, plays on battle_array in place: sometimes uses the
+    rollout heuristic, sometimes a random action, then evaluates the final state.
+    Returns (value, win, dead)
+    """
+    depth = 0
+    while depth < max_depth and not is_terminal_arr(battle_array):
+        actions = valid_actions_array(battle_array)
+        n = len(actions)
+        if n == 0:
+            break
+
+        if battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN:
+            opp_move = -50  # Death phase, only my replacement is chosen
+        else:
+            opp_move = return_idx(battle_array)
+
+        if random.random() < heuristic_prob:
+            act = rollout_pref(battle_array, opp_move, actions)
+            a_type = act[0]
+            a_idx = act[1]
+        else:
+            r = random.randrange(n)
+            a_type = actions[r, 0]
+            a_idx = actions[r, 1]
+
+        step_arr(battle_array, int(a_type), int(a_idx), opp_move)
+        depth += 1
+    return evaluate_terminal(battle_array)

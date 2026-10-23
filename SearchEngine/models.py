@@ -10,7 +10,7 @@ from Models.idx_const import (
 from Models.constants import (
     _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
-    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN
+    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
@@ -86,6 +86,36 @@ def is_terminal_arr(battle_array):
         if battle_array[(i + 6) * POK_LEN + _POK_CURRENT_HP] > 0:
             opp_alive = True
     return not (my_alive and opp_alive)
+
+
+@njit
+def step_arr(battle_array, action_type, action_idx, opp_move):
+    """
+    Array version of GameState.step: simulates one whole turn in place, including the extra
+    turns forced by locked/charging moves. opp_move is the trainer AI move already chosen
+    (unused in the death phase, where only my replacement is picked).
+    Returns the last opponent move used.
+    """
+    if battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN:
+        switch_in_action(battle_array, action_idx)
+        return opp_move
+
+    a_type = action_type
+    a_idx = action_idx
+    # Bounded on purpose, an infinite loop inside njit can't be interrupted
+    for _ in range(16):
+        phase, _opp_idx = turn_sim(opp_move, (a_type, a_idx), battle_array)
+        battle_array[_FIELD_PHASE] = phase
+        if phase == _BATTLEPHASE_DEATH_END_OF_TURN or is_terminal_arr(battle_array):
+            break
+        my_idx = battle_array[_FIELD_MY_POK]
+        active = battle_array[my_idx * POK_LEN:(my_idx + 1) * POK_LEN]
+        if active[_POK_CHARGE_RECHARGE] == 0:
+            break
+        a_type = _ACTIONTYPE_MOVE
+        a_idx = int(active[_POK_LOCKED_MOVE])
+        opp_move = return_idx(battle_array)
+    return opp_move
 
 
 @njit
@@ -213,29 +243,20 @@ class GameState():
     def step(self, my_move_idx):
         """Simulate the entire turn"""
         if self.phase == BattlePhase.DEATH_END_OF_TURN:
-            switch_in_action(self.battle_array, my_move_idx[1])
-            self.my_active = my_move_idx[1]
-            self.opp_active = self.battle_array[Field.OPP_POK]
-            self.phase = BattlePhase.TURN_START
+            step_arr(self.battle_array, my_move_idx[0], my_move_idx[1], -50)
             self.opp_move_last = None
-            return self
-        opp_move_idx = self.opp_move
-        self.opp_move_last = int(opp_move_idx)
-        self.phase, opp_idx = turn_sim(opp_move_idx, my_move_idx, self.battle_array)
-        self.battle_array[Field.PHASE] = self.phase
-        if opp_idx >= 0:
-            self.opp_active = opp_idx
-        if my_move_idx[0] == ActionType.SWITCH:
-            self.my_active = my_move_idx[1]
+        else:
+            self.opp_move_last = int(step_arr(
+                self.battle_array, my_move_idx[0], my_move_idx[1], int(self.opp_move)
+            ))
+        self.opp_move_cache = None  # Needs to clear the cache so it picks a new one next time
+        battle = self.battle_array
+        self.phase = int(battle[Field.PHASE])
+        self.opp_active = int(battle[Field.OPP_POK])
         if self.phase == BattlePhase.DEATH_END_OF_TURN:
             self.my_active = -1
-
-        self.opp_move_cache = None # Needs to clear the cache so it picks a new one next time
-        if self.phase != BattlePhase.DEATH_END_OF_TURN and not self.is_terminal():
-            active_pok = self.get_my_active()
-            if active_pok[_POK_CHARGE_RECHARGE] != 0:
-                locked_move = int(active_pok[_POK_LOCKED_MOVE])
-                return self.step((ActionType.MOVE, locked_move))
+        else:
+            self.my_active = int(battle[Field.MY_POK])
         return self
 
 

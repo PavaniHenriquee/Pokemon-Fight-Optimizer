@@ -4,7 +4,7 @@ import numpy as np
 import psutil
 from Models.constants import _FIELD_TURN, _FIELD_AI_ITEM1, _POTIONS_POTION
 # Profile command
-# py-spy record -s -f speedscope -r 250 -o flamegraph.speedscope.json -- python main.py
+# py-spy record -s -f speedscope -r 333 -o flamegraph.speedscope.json -- python main.py
 
 
 def build_battle():
@@ -115,7 +115,7 @@ def run_jit_profile():
         start_of_battle(battle)
     root = GameState(battle)
     print("-----------------------MCTS NJIT-----------------------------")
-    mcts(root, max_iterations=100_000)
+    mcts(root, max_iterations=1_000_000)
     e_time = time.perf_counter()
     print(f"\nTime to finish search: {e_time - s_time:.2f} seconds")
 

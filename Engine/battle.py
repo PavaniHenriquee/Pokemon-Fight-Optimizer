@@ -529,6 +529,7 @@ def turn_sim(opp_move, current_action, battle_array):
     return _BATTLEPHASE_TURN_START, opp_idx
 
 
+@njit
 def switch_in_action(battle_array, switch_idx: int):
     """Grab the switch idx from MCTS and progress it"""
     opp_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]

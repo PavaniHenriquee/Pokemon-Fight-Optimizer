@@ -11,42 +11,16 @@ import math
 import random
 from typing import List
 import numpy as np
-from SearchEngine.mcts_eval import evaluate_terminal, rollout_pref
+from SearchEngine.mcts_eval import rollout_arr
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node, prune_dominated
 from SearchEngine.models import (
     GameState, Node, ActionType, N_BINS, ACTION_SLOT, ACTION_ORDER, N_SLOTS, STATS_COLS,
-    node_key, valid_action_mask, valid_actions_array
+    node_key, valid_action_mask
 )
 from Models.helper import StatustoName, BattlePhase
 from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move, Field
 from DataBase.MoveDB import MoveIdToName
 from DataBase.PkDB import PokIdToName
-
-
-def mixed_rollout(state: GameState, max_depth=100, heuristic_prob=0.48) -> float:
-    """
-    Mixed rollout: sometimes use heuristics, sometimes pure random
-    This reduces bias while still getting some benefit from domain knowledge
-    """
-    sim_state = state
-    depth = 0
-
-    while depth < max_depth and not sim_state.is_terminal():
-        actions_arr = valid_actions_array(sim_state.battle_array)
-        n = len(actions_arr)
-        if n == 0:
-            break
-
-        if random.random() < heuristic_prob:
-            act = rollout_pref(sim_state.battle_array, sim_state.opp_move, actions_arr)
-            action = (int(act[0]), int(act[1]))
-        else:
-            row = actions_arr[random.randrange(n)]
-            action = (int(row[0]), int(row[1]))
-
-        sim_state = sim_state.step(action)
-        depth += 1
-    return sim_state
 
 
 def wilson_lower_bound(wins, total, confidence=0.95):
@@ -264,15 +238,8 @@ def _select_expand(state: GameState, node: Node):
 
 
 def _rollout(state: GameState):
-    """Phase 3 of MCTS"""
-    if not state.is_terminal():
-        sim_state = mixed_rollout(state)
-        value, win, dead = evaluate_terminal(sim_state)
-    # If state is terminal there's no need to rollout
-    else:
-        value, win, dead = evaluate_terminal(state)
-
-    return value, win, dead
+    """Phase 3 of MCTS, the whole rollout is a single njit call that plays on the state's array"""
+    return rollout_arr(state.battle_array)
 
 def _backprop(path: List, actions: List, value: float, win: int, dead: int):
     """Phase 4 of MCTS"""
