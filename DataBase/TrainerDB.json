@@ -375,5 +375,1052 @@
         }
       }
     ]
+  },
+  "School Kid Christine 1": {
+    "sprite": "schoolkidf-gen4",
+    "trainer_items": ["Potion"],
+    "team": [
+      {
+        "name": "Ralts",
+        "gender": "Female",
+        "level": 8,
+        "ability": "Synchronize",
+        "nature": "Modest",
+        "moves": ["Confusion", "Hidden Power", "", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Staryu",
+        "gender": null,
+        "level": 8,
+        "ability": "Illuminate",
+        "nature": "Serious",
+        "moves": ["Hidden Power", "Water Gun", "", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Reporter Kayla 1": {
+    "sprite": "reporter",
+    "team": [
+      {
+        "name": "Bulbasaur",
+        "gender": "Female",
+        "level": 5,
+        "ability": "Chlorophyll",
+        "nature": "Lax",
+        "moves": ["Tail Whip", "Growl", "Vine Whip", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Charmander",
+        "gender": "Female",
+        "level": 5,
+        "ability": "Solar Power",
+        "nature": "Lonely",
+        "moves": ["Ember", "Growl", "Scratch", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Squirtle",
+        "gender": "Female",
+        "level": 5,
+        "ability": "Rain Dish",
+        "nature": "Serious",
+        "moves": ["Water Gun", "Tail Whip", "Tackle", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Lass Sarah 1": {
+    "sprite": "lass-gen4dp",
+    "team": [
+      {
+        "name": "Shinx",
+        "gender": "Female",
+        "level": 8,
+        "ability": "Intimidate",
+        "nature": "Brave",
+        "moves": ["Quick Attack", "Howl", "Leer", "Tackle"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Nidoran_f",
+        "gender": "Female",
+        "level": 8,
+        "ability": "Poison Point",
+        "nature": "Brave",
+        "moves": ["Fury Swipes", "Poison Sting", "Tail Whip", "Scratch"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Pidgey",
+        "gender": "Female",
+        "level": 8,
+        "ability": "Keen Eye",
+        "nature": "Hardy",
+        "moves": ["Quick Attack", "Gust", "Sand Attack", "Tackle"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Youngster Tyler 1": {
+    "sprite": "youngster-gen4dp",
+    "team": [
+      {
+        "name": "Magikarp",
+        "gender": "Male",
+        "level": 11,
+        "ability": "Swift Swim",
+        "nature": "Gentle",
+        "moves": ["Flail", "Tackle", "Splash", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Lass Samantha 1": {
+    "sprite": "lass-gen4dp",
+    "team": [
+      {
+        "name": "Oddish",
+        "gender": "Female",
+        "level": 8,
+        "ability": "Chlorophyll",
+        "nature": "Naive",
+        "moves": ["Sweet Scent", "Acid", "Growth", "Absorb"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Budew",
+        "gender": "Female",
+        "level": 8,
+        "ability": "Poison Point",
+        "nature": "Naive",
+        "moves": ["Water Sport", "Growth", "Absorb", ""],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Bellsprout",
+        "gender": "Female",
+        "level": 8,
+        "ability": "Chlorophyll",
+        "nature": "Adamant",
+        "moves": ["Wrap", "Acid", "Growth", "Vine Whip"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Barry 2-P": {
+    "sprite": "barry",
+    "trainer_items": ["Potion"],
+    "team": [
+      {
+        "name": "Starly",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Reckless",
+        "nature": "Gentle",
+        "moves": ["Wing Attack", "Quick Attack", "Growl", ""],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      },
+      {
+        "name": "Munchlax",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Thick Fat",
+        "nature": "Docile",
+        "moves": ["Metronome", "Tackle", "Amnesia", "Rock Tomb"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      },
+      {
+        "name": "Turtwig",
+        "gender": "Male",
+        "level": 11,
+        "item": "Oran Berry",
+        "ability": "Overgrow",
+        "nature": "Rash",
+        "moves": ["Razor Leaf", "Curse", "Tackle", ""],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Barry 2-T": {
+    "sprite": "barry",
+    "trainer_items": ["Potion"],
+    "team": [
+      {
+        "name": "Starly",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Reckless",
+        "nature": "Docile",
+        "moves": ["Wing Attack", "Quick Attack", "Growl", ""],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      },
+      {
+        "name": "Munchlax",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Thick Fat",
+        "nature": "Mild",
+        "moves": ["Metronome", "Tackle", "Amnesia", "Rock Tomb"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      },
+      {
+        "name": "Chimchar",
+        "gender": "Male",
+        "level": 11,
+        "item": "Oran Berry",
+        "ability": "Iron Fist",
+        "nature": "Quiet",
+        "moves": ["Fury Swipes", "Ember", "Taunt", ""],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Barry 2-C": {
+    "sprite": "barry",
+    "trainer_items": ["Potion"],
+    "team": [
+      {
+        "name": "Starly",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Reckless",
+        "nature": "Hardy",
+        "moves": ["Wing Attack", "Quick Attack", "Growl", ""],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      },
+      {
+        "name": "Munchlax",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Thick Fat",
+        "nature": "Mild",
+        "moves": ["Metronome", "Tackle", "Amnesia", "Rock Tomb"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      },
+      {
+        "name": "Piplup",
+        "gender": "Male",
+        "level": 11,
+        "item": "Oran Berry",
+        "ability": "Torrent",
+        "nature": "Gentle",
+        "moves": ["Water Pulse", "Peck", "Pound", ""],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
+  },
+  "Youngster Dallas 1": {
+    "sprite": "youngster-gen4dp",
+    "team": [
+      {
+        "name": "Shinx",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Intimidate",
+        "nature": "Sassy",
+        "moves": ["Spark", "Quick Attack", "Howl", "Leer"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Sandshrew",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Sand Veil",
+        "nature": "Bold",
+        "moves": ["Bulldoze", "Rollout", "Poison Sting", "Sand Attack"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Youngster Michael 1": {
+    "sprite": "youngster-gen4dp",
+    "team": [
+      {
+        "name": "Kricketot",
+        "gender": "Male",
+        "level": 9,
+        "ability": "Run Away",
+        "nature": "Bashful",
+        "moves": ["String Shot", "Bug Bite", "Bide", "Growl"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Zubat",
+        "gender": "Male",
+        "level": 9,
+        "ability": "Inner Focus",
+        "nature": "Modest",
+        "moves": ["Bite", "Astonish", "Supersonic", "Absorb"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Rattata",
+        "gender": "Male",
+        "level": 9,
+        "ability": "Hustle",
+        "nature": "Hasty",
+        "moves": ["Bite", "Quick Attack", "Tail Whip", "Tackle"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Youngster Sebastian 1": {
+    "sprite": "youngster-gen4dp",
+    "team": [
+      {
+        "name": "Makuhita",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Thick Fat",
+        "nature": "Relaxed",
+        "moves": ["Fake Out", "Arm Thrust", "Sand Attack", "Focus Energy"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Machop",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Guts",
+        "nature": "Bashful",
+        "moves": ["Foresight", "Karate Chop", "Focus Energy", "Leer"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Lass Madeline 1": {
+    "sprite": "lass-gen4dp",
+    "team": [
+      {
+        "name": "Psyduck",
+        "gender": "Female",
+        "level": 10,
+        "ability": "Damp",
+        "nature": "Relaxed",
+        "moves": ["Confusion", "Water Gun", "Tail Whip", "Scratch"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Sunkern",
+        "gender": "Female",
+        "level": 10,
+        "ability": "Chlorophyll",
+        "nature": "Bold",
+        "moves": ["Mega Drain", "Grass Whistle", "Ingrain", "Growth"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Lass Kaitlin 1": {
+    "sprite": "lass-gen4dp",
+    "team": [
+      {
+        "name": "Spearow",
+        "gender": "Female",
+        "level": 9,
+        "ability": "Keen Eye",
+        "nature": "Gentle",
+        "moves": ["Pursuit", "Leer", "Growl", "Peck"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Cubone",
+        "gender": "Female",
+        "level": 9,
+        "ability": "Rock Head",
+        "nature": "Naughty",
+        "moves": ["Headbutt", "Sing", "Bone Club", "Tail Whip"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Azurill",
+        "gender": "Female",
+        "level": 9,
+        "ability": "Huge Power",
+        "nature": "Serious",
+        "moves": ["Charm", "Bubble", "Water Sport", "Tail Whip"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Camper Curtis 1": {
+    "sprite": "camper",
+    "team": [
+      {
+        "name": "Seedot",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Chlorophyll",
+        "nature": "Careful",
+        "moves": ["Nature Power", "Bullet Seed", "Growth", "Harden"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Diglett",
+        "gender": "Male",
+        "level": 10,
+        "ability": "Sand Veil",
+        "nature": "Brave",
+        "moves": ["Bulldoze", "Astonish", "Growl", "Mud-Slap"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Picnicker Diana 1": {
+    "sprite": "picnicker",
+    "team": [
+      {
+        "name": "Whismur",
+        "gender": "Female",
+        "level": 10,
+        "ability": "Soundproof",
+        "nature": "Serious",
+        "moves": ["Uproar", "Astonish", "Disarming Voice", "Howl"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Wooper",
+        "gender": "Female",
+        "level": 10,
+        "ability": "Water Absorb",
+        "nature": "Lonely",
+        "moves": ["Slam", "Mud Shot", "Mud Sport", "Tail Whip"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Reporter Helen 1": {
+    "sprite": "reporter",
+    "team": [
+      {
+        "name": "Treecko",
+        "gender": "Female",
+        "level": 10,
+        "ability": "Unburden",
+        "nature": "Sassy",
+        "moves": ["Quick Attack", "Absorb", "Leer", "Pound"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Torchic",
+        "gender": "Female",
+        "level": 10,
+        "ability": "Speed Boost",
+        "nature": "Bold",
+        "moves": ["Sand Attack", "Ember", "Growl", "Scratch"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Mudkip",
+        "gender": "Female",
+        "level": 10,
+        "ability": "Torrent",
+        "nature": "Mild",
+        "moves": ["Mud-Slap", "Water Gun", "Growl", "Tackle"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Worker Mason 1": {
+    "sprite": "worker-gen4",
+    "team": [
+      {
+        "name": "Aron",
+        "gender": "Male",
+        "level": 12,
+        "ability": "Rock Head",
+        "nature": "Relaxed",
+        "moves": ["Metal Claw", "Headbutt", "Mud-Slap", "Harden"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Phanpy",
+        "gender": "Male",
+        "level": 12,
+        "ability": "Sand Veil",
+        "nature": "Jolly",
+        "moves": ["Rollout", "Headbutt", "Mud-Slap", "Defense Curl"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Riolu",
+        "gender": "Male",
+        "level": 12,
+        "ability": "Steadfast",
+        "nature": "Careful",
+        "moves": ["Force Palm", "Counter", "Bite", "Low Kick"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Worker Colin 1": {
+    "sprite": "worker-gen4",
+    "team": [
+      {
+        "name": "Geodude",
+        "gender": "Male",
+        "level": 12,
+        "ability": "Rock Head",
+        "nature": "Mild",
+        "moves": ["Rock Throw", "Rock Polish", "Mud Sport", "Defense Curl"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Whismur",
+        "gender": "Male",
+        "level": 12,
+        "ability": "Soundproof",
+        "nature": "Timid",
+        "moves": ["Uproar", "Astonish", "Disarming Voice", "Howl"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      },
+      {
+        "name": "Machop",
+        "gender": "Male",
+        "level": 12,
+        "ability": "Guts",
+        "nature": "Naive",
+        "moves": ["Foresight", "Karate Chop", "Focus Energy", "Leer"],
+        "ivs": {
+          "HP": 12,
+          "Attack": 12,
+          "Defense": 12,
+          "Special Attack": 12,
+          "Special Defense": 12,
+          "Speed": 12
+        }
+      }
+    ]
+  },
+  "Youngster Jonathon 1": {
+    "sprite": "youngster-gen4dp",
+    "team": [
+      {
+        "name": "Rhyhorn",
+        "gender": "Male",
+        "level": 13,
+        "ability": "Rock Head",
+        "nature": "Lax",
+        "moves": ["Stomp", "Bulldoze", "Scary Face", "Fury Attack"],
+        "ivs": {
+          "HP": 24,
+          "Attack": 24,
+          "Defense": 24,
+          "Special Attack": 24,
+          "Special Defense": 24,
+          "Speed": 24
+        }
+      },
+      {
+        "name": "Omanyte",
+        "gender": "Male",
+        "level": 13,
+        "ability": "Swift Swim",
+        "nature": "Docile",
+        "moves": ["Rollout", "Bite", "Leer", "Withdraw"],
+        "ivs": {
+          "HP": 24,
+          "Attack": 24,
+          "Defense": 24,
+          "Special Attack": 24,
+          "Special Defense": 24,
+          "Speed": 24
+        }
+      },
+      {
+        "name": "Kabuto",
+        "gender": "Male",
+        "level": 13,
+        "ability": "Swift Swim",
+        "nature": "Impish",
+        "moves": ["Rollout", "Aqua Jet", "Absorb", "Leer"],
+        "ivs": {
+          "HP": 24,
+          "Attack": 24,
+          "Defense": 24,
+          "Special Attack": 24,
+          "Special Defense": 24,
+          "Speed": 24
+        }
+      }
+    ]
+  },
+  "Youngster Darius 1": {
+    "sprite": "youngster-gen4dp",
+    "team": [
+      {
+        "name": "Aron",
+        "gender": "Male",
+        "level": 13,
+        "ability": "Rock Head",
+        "nature": "Relaxed",
+        "moves": ["Rock Throw", "Metal Claw", "Headbutt", "Mud-Slap"],
+        "ivs": {
+          "HP": 24,
+          "Attack": 24,
+          "Defense": 24,
+          "Special Attack": 24,
+          "Special Defense": 24,
+          "Speed": 24
+        }
+      },
+      {
+        "name": "Anorith",
+        "gender": "Male",
+        "level": 13,
+        "ability": "Battle Armor",
+        "nature": "Lax",
+        "moves": ["Fury Cutter", "Aqua Jet", "Mud Sport", "Water Gun"],
+        "ivs": {
+          "HP": 24,
+          "Attack": 24,
+          "Defense": 24,
+          "Special Attack": 24,
+          "Special Defense": 24,
+          "Speed": 24
+        }
+      },
+      {
+        "name": "Lileep",
+        "gender": "Male",
+        "level": 13,
+        "ability": "Suction Cups",
+        "nature": "Lonely",
+        "moves": ["Confuse Ray", "Ingrain", "Acid", "Astonish"],
+        "ivs": {
+          "HP": 24,
+          "Attack": 24,
+          "Defense": 24,
+          "Special Attack": 24,
+          "Special Defense": 24,
+          "Speed": 24
+        }
+      }
+    ]
+  },
+  "Gym Leader Roark 1": {
+    "sprite": "roark",
+    "trainer_items": ["Super Potion", "Potion"],
+    "team": [
+      {
+        "name": "Nosepass",
+        "gender": "Male",
+        "level": 15,
+        "item": "Smooth Rock",
+        "ability": "Sturdy",
+        "nature": "Modest",
+        "moves": ["Stealth Rock", "Sandstorm", "Thunder Wave", "Shock Wave"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      },
+      {
+        "name": "Bonsly",
+        "gender": "Male",
+        "level": 15,
+        "item": "Rindo Berry",
+        "ability": "Rock Head",
+        "nature": "Impish",
+        "moves": ["Stealth Rock", "Brick Break", "Rollout", "Defense Curl"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      },
+      {
+        "name": "Geodude",
+        "gender": "Male",
+        "level": 15,
+        "item": "Expert Belt",
+        "ability": "Rock Head",
+        "nature": "Adamant",
+        "moves": ["Bulldoze", "Rock Tomb", "Fire Punch", "Thunder Punch"],
+        "ivs": {
+          "HP": 29,
+          "Attack": 29,
+          "Defense": 29,
+          "Special Attack": 29,
+          "Special Defense": 29,
+          "Speed": 29
+        }
+      },
+      {
+        "name": "Onix",
+        "gender": "Male",
+        "level": 15,
+        "item": "Muscle Band",
+        "ability": "Rock Head",
+        "nature": "Jolly",
+        "moves": ["Stealth Rock", "Rock Tomb", "Bulldoze", "Sandstorm"],
+        "ivs": {
+          "HP": 29,
+          "Attack": 29,
+          "Defense": 29,
+          "Special Attack": 29,
+          "Special Defense": 29,
+          "Speed": 29
+        }
+      },
+      {
+        "name": "Larvitar",
+        "gender": "Male",
+        "level": 15,
+        "item": "Flame Orb",
+        "ability": "Guts",
+        "nature": "Jolly",
+        "moves": ["Rock Tomb", "Bulldoze", "Bite", "Protect"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      },
+      {
+        "name": "Cranidos",
+        "gender": "Male",
+        "level": 16,
+        "item": "Sitrus Berry",
+        "ability": "Rock Head",
+        "nature": "Hasty",
+        "moves": ["Zen Headbutt", "Rock Tomb", "Thunder Punch", "Scary Face"],
+        "ivs": {
+          "HP": 30,
+          "Attack": 30,
+          "Defense": 30,
+          "Special Attack": 30,
+          "Special Defense": 30,
+          "Speed": 30
+        }
+      }
+    ]
   }
 }

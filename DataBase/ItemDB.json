@@ -1,4 +1,209 @@
 {
+  "Babiri Berry": {
+    "name": "babiri_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Steel",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Berry Juice": {
+    "fling_power": 30,
+    "name": "berry_juice",
+    "type": "consumable",
+    "when": "on_receive_damage"
+  },
+  "Black Belt": {
+    "fling_power": 30,
+    "name": "black_belt",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Black Sludge": {
+    "fling_power": 30,
+    "name": "black_sludge",
+    "type": "held",
+    "when": "on_end"
+  },
+  "Bright Powder": {
+    "fling_power": 10,
+    "name": "bright_powder",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Charcoal": {
+    "fling_power": 30,
+    "name": "charcoal",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Charti Berry": {
+    "name": "charti_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Rock",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Chesto Berry": {
+    "name": "chesto_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Water",
+    "type": "berry",
+    "when": "on_end"
+  },
+  "Chilan Berry": {
+    "name": "chilan_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Normal",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Chople Berry": {
+    "name": "chople_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Fighting",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Coba Berry": {
+    "name": "coba_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Flying",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Colbur Berry": {
+    "name": "colbur_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Dark",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Expert Belt": {
+    "fling_power": 10,
+    "name": "expert_belt",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Flame Orb": {
+    "fling_power": 30,
+    "name": "flame_orb",
+    "type": "held",
+    "when": "on_end"
+  },
+  "Focus Band": {
+    "fling_power": 10,
+    "name": "focus_band",
+    "type": "held",
+    "when": "on_damage"
+  },
+  "Haban Berry": {
+    "name": "haban_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Dragon",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Hard Stone": {
+    "fling_power": 100,
+    "name": "hard_stone",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Kasib Berry": {
+    "name": "kasib_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Ghost",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Kebia Berry": {
+    "name": "kebia_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Poison",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Lax Incense": {
+    "fling_power": 10,
+    "name": "lax_incense",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Leftovers": {
+    "fling_power": 10,
+    "name": "leftovers",
+    "type": "held",
+    "when": "on_end"
+  },
+  "Light Ball": {
+    "fling_power": 30,
+    "item_user": "Pikachu",
+    "name": "light_ball",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Light Clay": {
+    "fling_power": 30,
+    "name": "light_clay",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Lum Berry": {
+    "name": "lum_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Flying",
+    "type": "berry",
+    "when": "on_end"
+  },
+  "Mental Herb": {
+    "fling_power": 10,
+    "name": "mental_herb",
+    "type": "consumable",
+    "when": "on_end"
+  },
+  "Metal Coat": {
+    "fling_power": 30,
+    "name": "metal_coat",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Metronome": {
+    "fling_power": 30,
+    "name": "metronome",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Miracle Seed": {
+    "fling_power": 30,
+    "name": "miracle_seed",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Muscle Band": {
+    "fling_power": 10,
+    "name": "muscle_band",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Mystic Water": {
+    "fling_power": 30,
+    "name": "mystic_water",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Never-Melt Ice": {
+    "fling_power": 30,
+    "name": "never_melt_ice",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Occa Berry": {
+    "name": "occa_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Fire",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
   "Oran Berry": {
     "name": "oran_berry",
     "when": "on_receive_damage",
@@ -6,11 +211,146 @@
     "natural_gift_power": 80,
     "natural_gift_type": "Poison"
   },
+  "Passho Berry": {
+    "name": "passho_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Water",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Payapa Berry": {
+    "name": "payapa_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Psychic",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Pecha Berry": {
+    "name": "pecha_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Electric",
+    "type": "berry",
+    "when": "on_end"
+  },
+  "Poison Barb": {
+    "fling_power": 70,
+    "name": "poison_barb",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Power Herb": {
+    "fling_power": 10,
+    "name": "power_herb",
+    "type": "consumable",
+    "when": "on_prepare_hit"
+  },
+  "Quick Claw": {
+    "fling_power": 80,
+    "name": "quick_claw",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Rindo Berry": {
+    "name": "rindo_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Grass",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Scope Lens": {
+    "fling_power": 30,
+    "name": "scope_lens",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Sea Incense": {
+    "fling_power": 10,
+    "name": "sea_incense",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Sharp Beak": {
+    "fling_power": 50,
+    "name": "sharp_beak",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Shed Shell": {
+    "fling_power": 10,
+    "name": "shed_shell",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Shuca Berry": {
+    "name": "shuca_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Ground",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Silk Scarf": {
+    "fling_power": 10,
+    "name": "silk_scarf",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Silver Powder": {
+    "fling_power": 10,
+    "name": "silver_powder",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
   "Sitrus Berry": {
     "name": "sitrus_berry",
     "when": "on_receive_damage",
     "type": "berry",
     "natural_gift_power": 80,
     "natural_gift_type": "Psychic"
+  },
+  "Smooth Rock": {
+    "fling_power": 10,
+    "name": "smooth_rock",
+    "type": "held",
+    "when": "on_weather_change"
+  },
+  "Soft Sand": {
+    "fling_power": 10,
+    "name": "soft_sand",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Tanga Berry": {
+    "name": "tanga_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Bug",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Thick Club": {
+    "fling_power": 90,
+    "item_user": "Marowak",
+    "name": "thick_club",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Twisted Spoon": {
+    "fling_power": 30,
+    "name": "twisted_spoon",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Wacan Berry": {
+    "name": "wacan_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Electric",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Yache Berry": {
+    "name": "yache_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Ice",
+    "type": "berry",
+    "when": "on_receive_damage"
   }
 }

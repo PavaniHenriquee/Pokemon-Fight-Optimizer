@@ -510,10 +510,44 @@ class PokemonName:
     DARKRAI = 491
     SHAYMIN = 492
     ARCEUS = 493
+    # Alternate forms, the base name above is the default form
+    DEOXYS_ATTACK = 494
+    DEOXYS_DEFENSE = 495
+    DEOXYS_SPEED = 496
+    WORMADAM_SANDY = 497
+    WORMADAM_TRASH = 498
+    ROTOM_HEAT = 499
+    ROTOM_WASH = 500
+    ROTOM_FROST = 501
+    ROTOM_FAN = 502
+    ROTOM_MOW = 503
+    GIRATINA_ORIGIN = 504
+    SHAYMIN_SKY = 505
 
 
 PokIdToName = {v: k for k, v in PokemonName.__dict__.items() if not k.startswith("__")}
 POKEMON_LENGTH = _length(PokemonName)
+
+# PokeAPI sprite ids for the forms, every other id is already its dex number
+FORM_SPRITE_ID = {
+    PokemonName.DEOXYS_ATTACK: 10001,
+    PokemonName.DEOXYS_DEFENSE: 10002,
+    PokemonName.DEOXYS_SPEED: 10003,
+    PokemonName.WORMADAM_SANDY: 10004,
+    PokemonName.WORMADAM_TRASH: 10005,
+    PokemonName.SHAYMIN_SKY: 10006,
+    PokemonName.GIRATINA_ORIGIN: 10007,
+    PokemonName.ROTOM_HEAT: 10008,
+    PokemonName.ROTOM_WASH: 10009,
+    PokemonName.ROTOM_FROST: 10010,
+    PokemonName.ROTOM_FAN: 10011,
+    PokemonName.ROTOM_MOW: 10012,
+}
+
+
+def sprite_id(pok_id: int) -> int:
+    """Id used by the frontend for PokeAPI sprites"""
+    return FORM_SPRITE_ID.get(pok_id, pok_id)
 
 _MAX_ABILITIES = 2  # adjust if you ever add 3-ability Pokemon
 _pool_np = np.zeros((POKEMON_LENGTH + 1, _MAX_ABILITIES), dtype=np.int16)

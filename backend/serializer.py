@@ -4,7 +4,7 @@ import os
 import sys
 from Models.idx_const import Pok, Move, MOVE_STRIDE, POK_LEN, Field as FieldIdx
 from Models.helper import BattlePhase, VolStatus
-from DataBase.PkDB import PokIdToName
+from DataBase.PkDB import PokIdToName, sprite_id
 from DataBase.MoveDB import MoveIdToName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
 from DataBase.loader import moveDB as _moveDB
@@ -93,7 +93,7 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
     moves = _extract_moves(battle_array[base : base + POK_LEN], current_pps=bench_pps)
     return {
         "slot":   i,
-        "id":     pok_id,
+        "id":     sprite_id(pok_id),
         "name":   PokIdToName.get(pok_id, "?").capitalize(),
         "hp":     int(snap.bench_delta[delta_i, 0]),
         "max_hp": int(battle_array[base + Pok.MAX_HP]),
@@ -110,7 +110,7 @@ def _pok(arr) -> dict | None:
         return None
     pok_id = int(arr[Pok.ID])
     return {
-        "id":         pok_id,
+        "id":         sprite_id(pok_id),
         "name":       PokIdToName.get(pok_id, "?").capitalize(),
         "hp":         int(arr[Pok.CURRENT_HP]),
         "max_hp":     int(arr[Pok.MAX_HP]),

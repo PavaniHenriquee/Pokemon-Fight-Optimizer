@@ -1,6 +1,31 @@
 {
+  "Adaptability": {
+    "name": "adaptability",
+    "when": null
+  },
   "Aftermath": {
-    "name": "aftermath"
+    "name": "aftermath",
+    "when": null
+  },
+  "Air Lock": {
+    "name": "air_lock",
+    "when": "on_switch_in"
+  },
+  "Anger Point": {
+    "name": "anger_point",
+    "when": null
+  },
+  "Anticipation": {
+    "name": "anticipation",
+    "when": "on_switch_in"
+  },
+  "Arena Trap": {
+    "name": "arena_trap",
+    "when": null
+  },
+  "Bad Dreams": {
+    "name": "bad_dreams",
+    "when": "on_residual"
   },
   "Battle Armor": {
     "breakable": true,
@@ -15,14 +40,104 @@
     "name": "chlorophyll",
     "when": "on_modify_speed"
   },
+  "Clear Body": {
+    "breakable": true,
+    "name": "clear_body",
+    "when": null
+  },
+  "Cloud Nine": {
+    "name": "cloud_nine",
+    "when": "on_switch_in"
+  },
+  "Color Change": {
+    "name": "color_change",
+    "when": "on_contact"
+  },
+  "Compound Eyes": {
+    "name": "compound_eyes",
+    "when": "on_try_move"
+  },
+  "Cute Charm": {
+    "name": "cute_charm",
+    "when": "on_contact"
+  },
   "Damp": {
     "breakable": true,
     "name": "damp",
     "when": "on_try_move"
   },
+  "Download": {
+    "name": "download",
+    "when": "on_switch_in"
+  },
+  "Drizzle": {
+    "name": "drizzle",
+    "when": "on_switch_in"
+  },
+  "Drought": {
+    "name": "drought",
+    "when": "on_switch_in"
+  },
+  "Dry Skin": {
+    "breakable": true,
+    "name": "dry_skin",
+    "when": ["on_modify_stat", "on_try_move", "on_residual"]
+  },
+  "Early Bird": {
+    "name": "early_bird",
+    "when": null
+  },
+  "Effect Spore": {
+    "name": "effect_spore",
+    "when": "on_contact"
+  },
+  "Filter": {
+    "breakable": true,
+    "name": "filter",
+    "when": null
+  },
+  "Flame Body": {
+    "name": "flame_body",
+    "when": "on_contact"
+  },
+  "Flash Fire": {
+    "breakable": true,
+    "name": "flash_fire",
+    "when": "on_try_move"
+  },
+  "Flower Gift": {
+    "breakable": true,
+    "name": "flower_gift",
+    "when": "on_switch_in"
+  },
+  "Forecast": {
+    "name": "forecast",
+    "when": "on_switch_in"
+  },
+  "Forewarn": {
+    "name": "forewarn",
+    "when": "on_switch_in"
+  },
+  "Frisk": {
+    "name": "frisk",
+    "when": "on_switch_in"
+  },
+  "Gluttony": {
+    "name": "gluttony",
+    "when": ["on_damage", "on_switch_in"]
+  },
   "Guts": {
     "name": "guts",
     "when": "on_modify_stat"
+  },
+  "Heatproof": {
+    "breakable": true,
+    "name": "heatproof",
+    "when": ["on_modify_stat", "on_damage"]
+  },
+  "Honey Gather": {
+    "name": "honey_gather",
+    "when": null
   },
   "Huge Power": {
     "name": "huge_power",
@@ -32,12 +147,37 @@
     "name": "hustle",
     "when": ["on_modify_stat", "on_try_move"]
   },
+  "Hydration": {
+    "name": "hydration",
+    "when": "on_residual"
+  },
+  "Hyper Cutter": {
+    "breakable": true,
+    "name": "hyper_cutter",
+    "when": null
+  },
+  "Ice Body": {
+    "name": "ice_body",
+    "when": "on_residual"
+  },
   "Illuminate": {
-    "name": "illuminate"
+    "name": "illuminate",
+    "when": null
+  },
+  "Immunity": {
+    "breakable": true,
+    "name": "immunity",
+    "when": null
   },
   "Inner Focus": {
     "breakable": true,
-    "name": "inner_focus"
+    "name": "inner_focus",
+    "when": null
+  },
+  "Insomnia": {
+    "breakable": true,
+    "name": "insomnia",
+    "when": null
   },
   "Intimidate": {
     "name": "intimidate",
@@ -49,48 +189,215 @@
   },
   "Keen Eye": {
     "breakable": true,
-    "name": "keen_eye"
+    "name": "keen_eye",
+    "when": null
+  },
+  "Leaf Guard": {
+    "breakable": true,
+    "name": "leaf_guard",
+    "when": null
+  },
+  "Levitate": {
+    "breakable": true,
+    "name": "levitate",
+    "when": null
+  },
+  "Lightning Rod": {
+    "breakable": true,
+    "name": "lightning_rod",
+    "when": null
+  },
+  "Limber": {
+    "breakable": true,
+    "name": "limber",
+    "when": null
+  },
+  "Liquid Ooze": {
+    "name": "liquid_ooze",
+    "when": null
   },
   "Magic Guard": {
-    "name": "magic_guard"
+    "name": "magic_guard",
+    "when": null
+  },
+  "Magma Armor": {
+    "breakable": true,
+    "name": "magma_armor",
+    "when": null
+  },
+  "Magnet Pull": {
+    "name": "magnet_pull",
+    "when": null
+  },
+  "Marvel Scale": {
+    "breakable": true,
+    "name": "marvel_scale",
+    "when": "on_modify_stat"
+  },
+  "Minus": {
+    "name": "minus",
+    "when": "on_modify_stat"
+  },
+  "Mold Breaker": {
+    "name": "mold_breaker",
+    "when": "on_switch_in"
+  },
+  "Motor Drive": {
+    "breakable": true,
+    "name": "motor_drive",
+    "when": "on_try_move"
+  },
+  "Multitype": {
+    "name": "multitype",
+    "when": null
+  },
+  "Natural Cure": {
+    "name": "natural_cure",
+    "when": null
+  },
+  "No Guard": {
+    "name": "no_guard",
+    "when": null
+  },
+  "Normalize": {
+    "name": "normalize",
+    "when": null
+  },
+  "Oblivious": {
+    "breakable": true,
+    "name": "oblivious",
+    "when": "on_try_move"
   },
   "Overgrow": {
     "name": "overgrow",
     "when": "on_base_power"
   },
+  "Own Tempo": {
+    "breakable": true,
+    "name": "own_tempo",
+    "when": null
+  },
   "Pickup": {
-    "name": "pickup"
+    "name": "pickup",
+    "when": null
+  },
+  "Plus": {
+    "name": "plus",
+    "when": "on_modify_stat"
+  },
+  "Poison Heal": {
+    "name": "poison_heal",
+    "when": "on_damage"
   },
   "Poison Point": {
     "name": "poison_point",
     "when": "on_contact"
   },
+  "Pressure": {
+    "name": "pressure",
+    "when": "on_switch_in"
+  },
+  "Pure Power": {
+    "name": "pure_power",
+    "when": "on_modify_stat"
+  },
+  "Quick Feet": {
+    "name": "quick_feet",
+    "when": "on_modify_speed"
+  },
   "Rain Dish": {
-    "name": "rain_dish"
+    "name": "rain_dish",
+    "when": null
   },
   "Reckless": {
     "name": "reckless",
+    "when": "on_base_power"
+  },
+  "Rivalry": {
+    "name": "rivalry",
     "when": "on_base_power"
   },
   "Rock Head": {
     "name": "rock_head",
     "when": "on_damage"
   },
+  "Rough Skin": {
+    "name": "rough_skin",
+    "when": "on_contact"
+  },
   "Run Away": {
-    "name": "run_away"
+    "name": "run_away",
+    "when": null
+  },
+  "Sand Stream": {
+    "name": "sand_stream",
+    "when": "on_switch_in"
   },
   "Sand Veil": {
     "breakable": true,
     "name": "sand_veil",
     "when": "on_try_move"
   },
+  "Scrappy": {
+    "name": "scrappy",
+    "when": null
+  },
+  "Serene Grace": {
+    "name": "serene_grace",
+    "when": null
+  },
+  "Shadow Tag": {
+    "name": "shadow_tag",
+    "when": null
+  },
+  "Shed Skin": {
+    "name": "shed_skin",
+    "when": "on_residual"
+  },
+  "Shell Armor": {
+    "breakable": true,
+    "name": "shell_armor",
+    "when": "on_critical"
+  },
+  "Shield Dust": {
+    "breakable": true,
+    "name": "shield_dust",
+    "when": null
+  },
   "Simple": {
     "breakable": true,
-    "name": "simple"
+    "name": "simple",
+    "when": null
+  },
+  "Skill Link": {
+    "name": "skill_link",
+    "when": null
+  },
+  "Slow Start": {
+    "name": "slow_start",
+    "when": ["on_modify_stat", "on_switch_in", "on_modify_speed", "on_residual"]
+  },
+  "Sniper": {
+    "name": "sniper",
+    "when": null
+  },
+  "Snow Cloak": {
+    "breakable": true,
+    "name": "snow_cloak",
+    "when": "on_try_move"
+  },
+  "Snow Warning": {
+    "name": "snow_warning",
+    "when": "on_switch_in"
   },
   "Solar Power": {
     "name": "solar_power",
     "when": "on_modify_stat"
+  },
+  "Solid Rock": {
+    "breakable": true,
+    "name": "solid_rock",
+    "when": null
   },
   "Soundproof": {
     "breakable": true,
@@ -101,8 +408,31 @@
     "name": "speed_boost",
     "when": "on_residual"
   },
+  "Stall": {
+    "name": "stall",
+    "when": null
+  },
+  "Static": {
+    "name": "static",
+    "when": "on_contact"
+  },
   "Steadfast": {
-    "name": "steadfast"
+    "name": "steadfast",
+    "when": null
+  },
+  "Stench": {
+    "name": "stench",
+    "when": null
+  },
+  "Sticky Hold": {
+    "breakable": true,
+    "name": "sticky_hold",
+    "when": null
+  },
+  "Storm Drain": {
+    "breakable": true,
+    "name": "storm_drain",
+    "when": null
   },
   "Sturdy": {
     "breakable": true,
@@ -111,15 +441,33 @@
   },
   "Suction Cups": {
     "breakable": true,
-    "name": "suction cups",
+    "name": "suction_cups",
     "when": "on_residual"
+  },
+  "Super Luck": {
+    "name": "super_luck",
+    "when": null
+  },
+  "Swarm": {
+    "name": "swarm",
+    "when": "on_base_power"
   },
   "Swift Swim": {
     "name": "swift_swim",
     "when": "on_modify_speed"
   },
   "Synchronize": {
-    "name": "synchronize"
+    "name": "synchronize",
+    "when": null
+  },
+  "Tangled Feet": {
+    "breakable": true,
+    "name": "tangled_feet",
+    "when": "on_try_move"
+  },
+  "Technician": {
+    "name": "technician",
+    "when": "on_base_power"
   },
   "Thick Fat": {
     "breakable": true,
@@ -127,19 +475,58 @@
     "when": "on_modify_stat"
   },
   "Tinted Lens": {
-    "name": "tinted_lens"
+    "name": "tinted_lens",
+    "when": null
   },
   "Torrent": {
     "name": "torrent",
     "when": "on_base_power"
   },
+  "Trace": {
+    "name": "trace",
+    "when": "on_switch_in"
+  },
+  "Truant": {
+    "name": "truant",
+    "when": ["on_switch_in", "on_residual"]
+  },
+  "Unaware": {
+    "breakable": true,
+    "name": "unaware",
+    "when": null
+  },
   "Unburden": {
     "name": "unburden",
     "when": "on_residual"
   },
+  "Vital Spirit": {
+    "breakable": true,
+    "name": "vital_spirit",
+    "when": null
+  },
+  "Volt Absorb": {
+    "breakable": true,
+    "name": "volt_absorb",
+    "when": "on_try_move"
+  },
   "Water Absorb": {
     "breakable": true,
     "name": "water_absorb",
+    "when": "on_try_move"
+  },
+  "Water Veil": {
+    "breakable": true,
+    "name": "water_veil",
+    "when": null
+  },
+  "White Smoke": {
+    "breakable": true,
+    "name": "white_smoke",
+    "when": null
+  },
+  "Wonder Guard": {
+    "breakable": true,
+    "name": "wonder_guard",
     "when": "on_try_move"
   }
 }

@@ -1,94 +1,189 @@
 # Abilities
+[]Adaptability *
 [X]Aftermath
+[]Anticipation *
+[]Arena Trap *
 [X]Battle Armor
 [X]Chlorophyll
+[]Clear Body *
+[]Cloud Nine *
+[]Compound Eyes *
+[]Cute Charm *
 [X]Damp
+[]Early Bird *
+[]Filter *
+[]Flame Body *
+[]Flash Fire *
+[]Forewarn *
+[]Gluttony *
 [X]Guts
 [X]Huge Power
 [X]Hustle
+[]Hydration *
+[]Hyper Cutter *
+[]Ice Body *
 [X]Inner Focus
+[]Insomnia *
 [X]Intimidate
 [X]Keen Eye
+[]Levitate *
+[]Lightning Rod *
 []Magic Guard (Needs a lot of other implementations first, but half done)
+[]Natural Cure *
+[]No Guard *
+[]Oblivious *
 [X]Pickup
 [X]Poison Point
+[]Quick Feet *
 [X]Rain Dish
 [X]Reckless
+[]Rivalry *
 []Rock Head (Need to implement recoil)
 [X]Sand Veil
+[]Scrappy *
+[]Serene Grace *
+[]Shadow Tag *
+[]Shed Skin *
+[]Shell Armor *
+[]Shield Dust *
 [X]Simple
+[]Sniper *
 [X]Solar Power
 [X]Soundproof
 [X]Speed Boost
+[]Static *
 [X]Steadfast
+[]Storm Drain *
 []Sturdy (Need to implement OHKO moves)
 []Suction Cups (Need to implement force switches moves)
+[]Super Luck *
+[]Swarm *
 [X]Swift Swim
 [X]Synchronize
+[]Tangled Feet *
+[]Technician *
 [X]Thick Fat
 [X]Tinted Lens
+[]Trace *
+[]Unaware *
 []Unburden (Need to implement usable held items)
+[]Vital Spirit *
 [X]Water Absorb
+[]Water Veil *
 
 ## Abilities that isn't used until 1st gym, but Trainer AI or engine has current special conditions
-[]Adaptability
-[]Arena Trap
-[]Clear Body
-[]Filter
-[]Flash Fire
-[]Forewarn
-[]Hydration
-[]Hyper Cutter
-[]Immunity - Partial(on synchronize)
-[]Leaf Guard
-[]Levitate
-[]Limber
-[]Magnet Pull
-[]Motor Drive
-[]Natural Cure
-[]Oblivious
-[]Own Tempo
-[]Poison Heal
-[]Shadow Tag
-[]Solid Rock
-[]Trace
-[]Vital Spirit
-[]Volt Absorb
-[]Water Veil
-[]White Smoke
-[]Wonder Guard
+[]Air Lock *
+[]Anger Point *
+[]Bad Dreams *
+[]Color Change *
+[]Download *
+[]Drizzle *
+[]Drought *
+[]Dry Skin *
+[]Effect Spore *
+[]Flower Gift *
+[]Forecast *
+[]Frisk *
+[]Heatproof *
+[]Honey Gather *
+[]Immunity - Partial(on synchronize) *
+[]Leaf Guard *
+[]Limber *
+[]Liquid Ooze *
+[]Magma Armor *
+[]Magnet Pull *
+[]Marvel Scale *
+[]Minus *
+[]Motor Drive *
+[]Multitype *
+[]Normalize *
+[]Own Tempo *
+[]Plus *
+[]Poison Heal *
+[]Pressure *
+[]Pure Power *
+[]Rough Skin *
+[]Sand Stream *
+[]Skill Link *
+[]Slow Start *
+[]Snow Cloak *
+[]Snow Warning *
+[]Solid Rock *
+[]Stall *
+[]Stench *
+[]Sticky Hold *
+[]Truant *
+[]Volt Absorb *
+[]White Smoke *
+[]Wonder Guard *
 
 # Moves
 [X]Absorb !
 [X]Acid
+[]Aerial Ace(E) *
+[]Agility *
+[]Air Cutter(E) *
 [X]Amnesia
 [X]Aqua Jet
+[]Aqua Ring(B/E) ! *
 [X]Arm Thrust !
+[]Assurance(E) ! *
 [X]Astonish
+[]Attract(B) ! *
+[]Aurora Beam *
+[]Barrier *
+[]Baton Pass(B/E) ! *
 [X]Bide(E) !
+[]Bind(E) ! *
 [X]Bite
 [X]Bone Club
+[]Bounce(E) ! *
 []Brick Break(E) ! (Need Screens)
 [X]Bubble
+[]Bubble Beam *
 [X]Bug Bite(E) !
+[]Bulk Up(B) *
 [X]Bulldoze
 [X]Bullet Seed
+[]Charge ! *
 [X]Charm
+[]Clamp(E) ! *
+[]Comet Punch *
 [X]Confuse Ray !
 [X]Confusion
+[]Copycat(B/E) ! *
 [X]Counter(E) !
 [X]Covet(E) !
 [X]Curse(B/E) !
 [X]Defense Curl !
+[]Destiny Bond(E) ! *
 [X]Disarming Voice
+[]Double Kick *
+[]Double Slap *
+[]Double Team *
+[]Dragon Breath *
 [X]Dragon Rage !
+[]Draining Kiss *
 [X]Ember
+[]Encore(B/E) ! *
+[]Endure(E) ! *
+[]Extrasensory *
+[]Extreme Speed *
 [X]Fake Out(B/E) !
+[]Fake Tears *
+[]Feint(E) ! *
+[]Feint Attack(E) *
+[]Fire Fang *
 [X]Fire Punch
+[]Fire Spin(E) ! *
 [X]Flail(E) !
+[]Flame Wheel *
+[]Flash *
 []Focus Energy(B) (Engine done)
+[]Follow Me ! *
 []Force Palm
 []Foresight(B/E) !
+[]Fury Attack *
 []Fury Cutter !
 []Fury Swipes
 []Grass Whistle
@@ -97,102 +192,158 @@
 []Gust
 []Harden
 []Headbutt
+[]Helping Hand(B) ! *
 []Hidden Power !!
+[]Horn Attack *
 []Howl
+[]Hyper Fang *
 []Hypnosis
+[]Ice Ball ! *
+[]Icy Wind(E) *
 []Ingrain(B) !
-[]Karate Chop
+[]Iron Defense *
+[]Iron Head *
+[]Karate Chop(E)
+[]Kinesis *
+[]Knock Off(B/E) ! *
+[]Leech Seed(B/E) ! *
 []Leer
+[]Lick *
+[]Light Screen(B/E) ! *
 []Low Kick !
+[]Lucky Chant(B/E) ! *
+[]Mach Punch *
+[]Magical Leaf(E) *
+[]Magnitude(B) ! *
+[]Meditate *
 []Mega Drain
 []Metal Claw
 []Metronome!!!!!!
-[]Mud Shot
+[]Mirror Coat(E) ! *
+[]Mirror Move(E) ! *
+[]Mist(B) ! *
+[]Mud Bomb *
+[]Mud Shot(E)
 []Mud Sport(B/E) !
 []Mud-Slap
+[]Nasty Plot *
+[]Natural Gift(B) ! *
 []Nature Power !(maybe unnecessary)
+[]Night Shade *
+[]Odor Sleuth(B/E) ! *
 []Peck
+[]Perish Song(B) ! *
+[]Pin Missile *
+[]Poison Fang *
+[]Poison Powder *
 []Poison Sting
 []Pound
+[]Powder Snow *
 []Protect(E) !
+[]Psybeam *
+[]Psywave ! *
 []Pursuit(E) !
 []Quick Attack
-[]Razor Leaf
+[]Rage ! *
+[]Rain Dance(B/E) ! *
+[]Rapid Spin ! *
+[]Razor Leaf(E)
+[]Recover(B/E) ! *
+[]Recycle(B/E) ! *
+[]Reflect(B/E) ! *
+[]Refresh(B/E) ! *
 []Roar(B/E) !
+[]Rock Blast *
 []Rock Polish
+[]Rock Slide *
 []Rock Throw
-[]Rock Tomb
+[]Rock Tomb(E)
 []Rollout !! (Defense Curl interaction)(Will need a counter to see how much damage[can be same as Fury Cutter?])
+[]Safeguard(B) ! *
 []Sand Attack
-[]Sandstorm !
+[]Sandstorm(B) !
 []Scary Face
-[]Schock Wave
+[]Schock Wave(E)
 []Scratch
+[]Screech *
+[]Seismic Toss *
+[]Silver Wind *
 []Sing
 []Slam
+[]Sleep Powder *
+[]Smog *
+[]Smokescreen *
 []Spark
 []Splash !(Gravity interaction)
-[]Stealth Rock !! (Hazards/What happens if either mine or opponent switches and instantly dies)
+[]Stealth Rock(B/E) !! (Hazards/What happens if either mine or opponent switches and instantly dies)
 []Stomp !(Minimize interaction)
 []String Shot
 []Struggle !(Already done, but should check it 100%)
+[]Stun Spore *
 []Supersonic
-[]Sweet Scent
+[]Sweet Kiss *
+[]Sweet Scent *
+[]Swift(E) *
+[]Synthesis(B/E) ! *
 []Tackle
 []Tail Whip
+[]Take Down(E) *
 []Taunt !
+[]Teleport(B) *
 []Thunder Punch
+[]Thunder Shock *
 []Thunder Wave
+[]Tickle(B) *
+[]Toxic Spikes(B/E) ! *
+[]Twineedle *
 []Uproar !
+[]Vice Grip *
 []Vine Whip
+[]Water Gun *
 []Water Pulse
 []Water Sport(B/E) !
+[]Whirlpool ! *
+[]Whirlwind(B/E) *
+[]Will-O-Wisp *
 []Wing Attack
 []Withdraw
-[]Wrap !
+[]Worry Seed(B/E) ! *
+[]Wrap(E) !
+[]Yawn ! *
 []Zen Headbutt
 
 
 ## Moves that isn't used until 1st gym, but Trainer AI or engine has current special conditions
 []Acupressure(B/E)
-[]Aqua Ring(B/E)
 []Aromatherapy(E)
-[]Assurance(E)
-[]Baton Pass(B/E)
 []Belly Drum(B/E)
 []Blizzard(E)
 []Brine(E)
-[]Bulk Up(B)
 []Camouflage(B)
 []Calm Mind(B)
 []Captivate(B/E)
 []Close Combat(E)
 []Conversion(E)
-[]Copycat(B/E)
 []Cosmic Power(B)
 []Crush Grip(E)
 []Defog(B/E)
-[]Destiny Bond(E)
 []Detect(E)
-[]Dig
+[]Dig ! *
 []Disable(B/E)
 []Doom Desire(B)
-[]Dragon Dance(B/E)
-[]Dream Eater
+[]Dragon Dance(B/E) *
+[]Dream Eater ! *
 []Embargo(B/E)
-[]Encore(B/E)
 []Endeavor(E)
-[]Endure(E)
-[]Explosion(B/E)
+[]Explosion(B/E) ! *
 []Facade(E)
-[]Feint(E)
-[]Flatter
+[]Flatter *
 []Fling(B/E)
-[]Focus Punch(E)
-[]Future Sight(B) !
+[]Focus Punch(E) ! *
+[]Future Sight(B) ! *
 []Gastro Acid(B/E)
 []Gravity(B/E)
-[]Gyro Ball
+[]Gyro Ball ! *
 []Guard Swap(B/E)
 []Hail(E)
 []Hammer Arm(E)
@@ -201,15 +352,10 @@
 []Heal Block(B/E)
 []Heart Swap(E)
 []Healing Wish(B/E)
-[]Helping Hand
-[]Hyper Beam
+[]Hyper Beam *
 []Imprison(B/E)
-[]Knock Off(B/E)
 []Last Resort(B/E)
-[]Leech Seed(B/E)
 []Lock On(B/E)
-[]Light Screen(B/E)
-[]Lucky Chant(B/E)
 []Lunar Dance(B/E)
 []Magic Coat(E)
 []Magnet Rise(B/E)
@@ -219,30 +365,19 @@
 []Me First(E)
 []Mind Reader(E)
 []Miracle Eye(B/E)
-[]Mirror Coat(E)
-[]Mirror Move(E)
-[]Mist(B)
-[]Natural Gift(B)
-[]Nightmare(B/E)
-[]Odor Sleuth(E)
+[]Nightmare(B/E) ! *
 []Pain Split(E)
 []Payback(E)
-[]Perish Song(B)
 []Pluck(E)
 []Power Swap(B/E)
 []Power Trick(B/E)
-[]Psych Up(E)
+[]Psych Up(E) ! *
 []Psycho Shift(B/E)
 []Punishment(E)
-[]Rain Dance(E)
-[]Recycle(E)
-[]Reflect(B/E)
-[]Refresh(B/E)
 []Rest(E)
 []Reversal(E)
-[]Safeguard(B)
-[]Selfdestruct(B/E)
-[]Sleep Talk(B/E)
+[]Selfdestruct(B/E) ! *
+[]Sleep Talk(B/E) ! *
 []Smelling Salt(E)
 []Snatch(E)
 []Snore(B)
@@ -251,123 +386,83 @@
 []Stealth Rock(E)
 []Stockpile(B)
 []Substitute(B/E)
-[]Sucker Punch(E)
+[]Sucker Punch(E) ! *
 []Sunny Day(E)
 []Super Fang(E)
 []Superpower(E)
-[]Swagger
+[]Swagger *
 []Swallow(B)
 []Switcheroo(B/E)
 []Tailwind(B/E)
 []Thief(E)
-[]Tickle(B)
 []Torment(B)
 []Toxic(E)
-[]Toxic Spikes(E)
 []Trick(B/E)
-[]Trick Room(B/E)
+[]Trick Room(B/E) ! *
 []Trump Card(E)
 []U-Turn(E)
 []Vital Throw(E)
 []Wake-Up Slap(E)
-[]Worry Seed(B/E)
 []Wring Out(E)
 
 # Items
-[]Expert Belt
-[]Flame Orb
-[]Muscle Band
+[]Black Belt *
+[]Bright Powder *
+[]Charcoal *
+[]Expert Belt *
+[]Flame Orb *
+[]Focus Band *
+[]Hard Stone *
+[]Leftovers *
+[]Light Clay *
+[]Mental Herb *
+[]Metal Coat *
+[]Metronome *
+[]Miracle Seed *
+[]Muscle Band *
+[]Mystic Water *
+[]Never-Melt Ice *
 [X]Oran Berry
-[]Rindo Berry
+[]Pecha Berry *
+[]Poison Barb *
+[]Power Herb *
+[]Quick Claw *
+[]Rindo Berry *
+[]Scope Lens *
+[]Sea Incense *
+[]Sharp Beak *
+[]Shed Shell *
+[]Silk Scarf *
+[]Silver Powder *
 [X]Sitrus Berry
-[]Smooth Rock
+[]Smooth Rock *
+[]Soft Sand *
+[]Thick Club *
+[]Twisted Spoon *
 
 ## Items that isn't used until 1st gym, but Trainer AI or engine has current special conditions
-[]Babiri Berry
-[]Berry Juice
-[]Black Sludge
-[]Bright Powder
-[]Charti Berry
-[]Chesto Berry
-[]Chilan Berry
-[]Chople Berry
-[]Coba Berry
-[]Colbur Berry
-[]Focus Band
-[]Haban Berry
-[]Kasib Berry
-[]Kebia Berry
-[]Lax Incense
-[]Leftovers
-[]Light Ball
-[]Lum Berry
-[]Occa Berry
-[]Passho Berry
-[]Payapa Berry
-[]Quick Claw
-[]Shuca Berry
-[]Tanga Berry
-[]Thick Club
-[]Wacan Berry
-[]Yache Berry
-
-# Pokemon for checking
-[]Abra
-[]Anorith
-[]Aron
-[]Azurill
-[]Bellsprout
-[]Bidoof
-[]Bonsly
-[]Budew
-[]Bulbasaur
-[]Burmy
-[]Charmander
-[]Chimchar
-[]Cranidos
-[]Cubone
-[]Diglett
-[]Geodude
-[]Growlithe
-[]Hoothoot
-[]Kabuto
-[]Kricketot
-[]larvitar
-[]Lileep
-[]Machop
-[]Magikarp
-[]Makuhita
-[]Mudkip
-[]Munchlax
-[]Nidoran
-[]Nosepass
-[]Oddish
-[]Omanyte
-[]Onix
-[]Phanpy
-[]Pidgey
-[]Piplup
-[]Psyduck
-[]Ralts
-[]Rattata
-[]Rhyhorn
-[]Riolu
-[]Sandshrew
-[]Seedot
-[]Sentret
-[]Shinx
-[]Spearow
-[]Squirtle
-[]Starly
-[]Staryu
-[]Sunkern
-[]Torchic
-[]Treecko
-[]Turtwig
-[]Whismur
-[]Wooper
-[]Zigzagoon
-[]Zubat
+[]Babiri Berry *
+[]Berry Juice *
+[]Black Sludge *
+[]Charti Berry *
+[]Chesto Berry *
+[]Chilan Berry *
+[]Chople Berry *
+[]Coba Berry *
+[]Colbur Berry *
+[]Haban Berry *
+[]Kasib Berry *
+[]Kebia Berry *
+[]Lax Incense *
+[]Light Ball *
+[]Lum Berry *
+[]Occa Berry *
+[]Passho Berry *
+[]Payapa Berry *
+[]Shuca Berry *
+[]Tanga Berry *
+[]Wacan Berry *
+[]Yache Berry *
 
 # Misc.
 [X]Trainer AI potion

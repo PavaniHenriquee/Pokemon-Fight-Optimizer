@@ -126,7 +126,7 @@ class Moves():
             return move_flags_array
         flags = self.move.get('flags', {})
         off = BASE_MOVE_LEN
-        move_flags_array[MoveFlags.BYPASS_SUB - off]       = int(flags.get('bypasssub', False))
+        move_flags_array[MoveFlags.BYPASS_SUB - off]       = int(flags.get('bypass_sub', False))
         move_flags_array[MoveFlags.BULLET - off]           = int(flags.get('bullet', False))
         move_flags_array[MoveFlags.BITE - off]             = int(flags.get('bite', False))
         move_flags_array[MoveFlags.CHARGE - off]           = int(flags.get('charge', False))
