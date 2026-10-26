@@ -31,6 +31,8 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - `backend/`: FastAPI + WebSocket, MCTS in a background thread. `frontend/`: React + TS +
   Vite + Tailwind + shadcn/ui.
 - `UserData/box.json`: my saved Pokemon box.
+- `tests/`: pytest suite. `battle_driver.py` (engine-only battle loop + fixed scenarios),
+  `golden/engine_battles.json` (engine snapshots), `conftest.py` (fixtures, JIT off).
 
 ## Commands
 
@@ -40,6 +42,10 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Numba cache is off by default; set `NUMBA_CACHE_ON=1` to enable (see `Utils/jit.py`)
 - After changing any enum or index class (`Pok`, `Move`, `Flags`, `Sec`, `Field`, `Item`,
   `MoveName`, `AbilityNames`, etc.): run `python generate_constants.py`
+- Tests: `pytest` (fast, ~10s, JIT off), `pytest -m jit` (compiled engine + MCTS, ~1 min
+  after any source change, seconds otherwise), `pytest -m slow` (long fuzz, ~30s)
+- Re-bless engine snapshots after an intended engine change:
+  `pytest tests/test_engine_golden.py --update-golden`, then review the JSON diff
 
 ## Generated / derived files: don't hand-edit
 
@@ -86,6 +92,9 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - JAX is ruled out; staying with Numba. Rollouts mix heuristic and random play
   (`heuristic_prob`) to limit bias. That's deliberate.
 - The `"Test"` trainer in `TrainerDB.json` and odd entries in `box.json` are test data.
+- Unchecked items in `TODO.txt` are unimplemented, not bugs (e.g. Seismic Toss / Night Shade
+  `'level'` damage, moves whose VolStatus/SideCondition doesn't exist yet). A checked item
+  that misbehaves IS a bug.
 - Search tuning (`c`, `risk_lambda`, `alpha`, `N_BINS`, `terminal_iterations`) lives in
   `SearchEngine/models.py` and `my_mcts.py`. The code is the source of truth; ask before
   changing values. Keep `terminal_iterations` low enough to be reachable at tree depth.
@@ -98,6 +107,36 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   at small n.
 - Don't re-roll the full status gate on every hit of a multihit move. Only check for a faint
   mid-sequence.
+
+## Trainer AI constraints
+
+- `expert_flag` routes status moves by what the move is for, not by which field is set: a
+  volatile on the FOE goes to `expert_vol_status` (Swagger, Flatter: confusion + boost); a
+  self-side volatile next to a boost is only a marker and goes to `expert_stat` (Defense Curl,
+  Charge); a self volatile with no boost goes to `expert_vol_status` (Focus Energy). Don't
+  special-case individual moves to fix routing.
+
+## Testing
+
+- The suite runs with `NUMBA_DISABLE_JIT=1` (set in `conftest.py`), so Python's `random`
+  drives every roll and `random.seed` makes tests reproducible. Typing errors in `@njit` code
+  only show up in `pytest -m jit`; run it whenever njit code changed.
+- `test_jit_smoke.py` runs in a subprocess with its own Numba cache under
+  `.numba_cache/tests/<hash of sources>`. Numba's cache doesn't notice edits to callees in
+  other files, so the hash forces a clean compile on any change. It seeds Numba's RNG itself.
+- Golden snapshots (`test_engine_golden.py`) are ENGINE ONLY: `battle_driver.py` uses Engine
+  + trainer AI, never `SearchEngine/`. They should only change when implementing a move or
+  fixing a bug; any RNG call-order change moves them too. Changing a scenario in
+  `battle_driver.py` also changes its snapshot.
+- Search tests are structural only (no snapshots, no tuning values asserted) because the search
+  is still changing.
+- `test_known_bugs.py` holds strict xfails that assert the correct mechanic. When one gets
+  implemented/fixed it fails with XPASS(strict): move it to the matching test file without the
+  marker. `UNSUPPORTED_MOVES` in `test_database.py` works the same way for MoveDB entries.
+- Backend tests redirect `_BOX_PATH` to a temp file; never let a test write the real
+  `UserData/box.json`.
+- Fuzz invariants (`test_battle.py`): during the death phase after a double KO the opponent's
+  active can be fainted; its replacement waits for `switch_in_action`. That's expected.
 
 ## Code conventions
 
@@ -117,5 +156,5 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 
 ## Before finishing a task
 
-- Run the project's checks (tests once they exist, or a quick seeded `python main.py` run).
+- Run the project's checks: `pytest`, plus `pytest -m jit` if any `@njit` code changed.
 - Summarize what changed, and list anything you noticed but did NOT change.

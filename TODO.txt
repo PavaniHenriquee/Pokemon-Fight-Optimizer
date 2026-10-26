@@ -383,7 +383,6 @@
 []Snore(B)
 []Spikes(E)
 []Spit Up(B/E)
-[]Stealth Rock(E)
 []Stockpile(B)
 []Substitute(B/E)
 []Sucker Punch(E) ! *
