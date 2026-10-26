@@ -682,7 +682,7 @@ def expert_status(
         add_adjustment(rand, idx, 1, 128)
         return 0
 
-    raise ValueError("Expert Status is receiving a improper status condition")
+    return 0
 
 
 @njit
@@ -1040,18 +1040,19 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
                 move, hp_pct_ai, hp_pct_u, rand,
                 ai_pok, move_first, idx
             )
-        if move[_MOVE_VOL_STATUS]:
-            return expert_vol_status(
-                move, ai_pok, u_pok, turn,
-                rand, idx, hp_pct_u
-            )
-        if (move[_MOVE_BOOST_ATK]          #pylint: disable=too-many-boolean-expressions
+        has_boost = (move[_MOVE_BOOST_ATK]          #pylint: disable=too-many-boolean-expressions
             or move[_MOVE_BOOST_DEF]
             or move[_MOVE_BOOST_SPATK]
             or move[_MOVE_BOOST_SPDEF]
             or move[_MOVE_BOOST_SPEED]
             or move[_MOVE_BOOST_ACC]
-            or move[_MOVE_BOOST_EV]):
+            or move[_MOVE_BOOST_EV])
+        if move[_MOVE_VOL_STATUS] and (move[_MOVE_TARGET] in TARGET_OPP_SIDE or not has_boost):
+            return expert_vol_status(
+                move, ai_pok, u_pok, turn,
+                rand, idx, hp_pct_u
+            )
+        if has_boost:
             return expert_stat(
                 move, ai_pok, rand, idx, hp_pct_ai,
                 move_first, u_pok, hp_pct_u, my_last_move

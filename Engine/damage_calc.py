@@ -91,11 +91,11 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
         atk_stage = attacker[_POK_SPECIAL_ATTACK_STAT_STAGE]
         def_stage = defender[_POK_SPECIAL_DEFENSE_STAT_STAGE]
         # Sandstorm Sp.Def boost for Rock types
-        if weather == (
-            _WEATHER_SANDSTORM
+        if (
+            weather == _WEATHER_SANDSTORM
             and (
-                attacker[_POK_TYPE1] == _TYPES_ROCK
-                or attacker[_POK_TYPE2] == _TYPES_ROCK
+                defender[_POK_TYPE1] == _TYPES_ROCK
+                or defender[_POK_TYPE2] == _TYPES_ROCK
             )
         ):
             raw_defense = (raw_defense * 3) // 2

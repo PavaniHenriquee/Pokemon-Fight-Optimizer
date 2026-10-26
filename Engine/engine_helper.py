@@ -263,10 +263,11 @@ def calculate_hit_miss(move, attacker, defender, weather):
         return _MOVEOUTCOME_MISS
 
     acc_stage = attacker[_POK_ACCURACY_STAT_STAGE] - defender[_POK_EVASION_STAT_STAGE]
+    acc_stage = max(-6, min(6, acc_stage))
     if acc_stage == 0:
         accuracy = move_acc
     elif acc_stage < 0:
-        accuracy = move_acc*(3)/(3+acc_stage)
+        accuracy = move_acc*(3)/(3-acc_stage)
     else:
         accuracy = move_acc*(acc_stage+3)/3
 
@@ -438,8 +439,8 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
         attacker[_POK_STATUS] = 0
     # Flinch
     if flinch and idx >= 2:
-        if defender[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
-            defender[_POK_SPEED_STAT_STAGE] = min(6, defender[_POK_SPEED_STAT_STAGE] + 1)
+        if attacker[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
+            attacker[_POK_SPEED_STAT_STAGE] = min(6, attacker[_POK_SPEED_STAT_STAGE] + 1)
         return True
     # Confusion
     if attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
