@@ -74,6 +74,8 @@ class VolStatus:
     UPROAR            = 16777216
     HELPING_HAND      = 33554432
     FOLLOW_ME         = 67108864
+    SEMI_INVULNERABLE = 134217728
+    HURT_THIS_TURN    = 268435456
 
 
 @dataclass(slots=True)
@@ -297,3 +299,4 @@ class DamageSources:
     COUNTER    = -2
     MAGIC_COAT = -3
     LEVEL      = -4
+    PSYWAVE    = -5

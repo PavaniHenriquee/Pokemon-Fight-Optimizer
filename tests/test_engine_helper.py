@@ -1,13 +1,15 @@
 """Engine helpers: speed, turn order, accuracy, crits, switching, items, residuals"""
 import random
 import pytest
+from Engine import engine_helper
 from Engine.engine_helper import (
     check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     switch_in, trainer_ai_items, eat_berry, drain, weather_dmg, early_returns, struggle,
-    thaw, heal_weather, on_residual, flinch_checker,
+    thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
+    natural_gift,
 )
 from Models.idx_const import Pok, Move, Item, Sec
-from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome
+from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome, Types
 from DataBase.ItemDB import ItemNames
 from battle_driver import move_slice
 
@@ -472,3 +474,120 @@ def test_flinch_checker_second_slot(poke):
     assert not flinch_checker(mv, d)
     d2 = poke("Rattata", 50, "Inner Focus", ["Tackle"])
     assert not flinch_checker(mv, d2, True)
+
+
+# ── Phase 2: semi-invulnerability, locks, recoil, Struggle ──────────────────
+
+def test_airborne_target_dodges_all_but_gust(poke):
+    """Bounce's airborne turn: aimed moves miss, Gust still hits, self moves still work"""
+    a = poke("Pidgey", 50, "Keen Eye", ["Tackle", "Gust", "Growl", "Harden"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.SEMI_INVULNERABLE
+    assert calculate_hit_miss(move_slice(a, 1), a, d, 0) == MoveOutcome.HIT
+    assert calculate_hit_miss(move_slice(a, 2), a, d, 0) == MoveOutcome.SEMI_INVULNERABLE
+    assert calculate_hit_miss(move_slice(a, 3), a, d, 0) == MoveOutcome.HIT
+
+
+@pytest.mark.parametrize("block", ["paralysis", "flinch", "confusion", "sleep"])
+def test_blocked_turn_ends_charge_and_lock(monkeypatch, poke, block):
+    """pokeplatinum UnlockMoveChoice on full paralysis, flinch, confusion self-hit and sleep"""
+    a = poke("Pidgey", 50, "Keen Eye", ["Bounce"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.CHARGE_RECHARGE] = 1
+    a[Pok.LOCKED_MOVE] = 0
+    a[Pok.CONSEC_COUNT] = 3
+    a[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    flinch = block == "flinch"
+    if block == "paralysis":
+        a[Pok.STATUS] = Status.PARALYSIS
+        monkeypatch.setattr(engine_helper, "paralysis", lambda: True)
+    elif block == "confusion":
+        a[Pok.VOL_STATUS] |= VolStatus.CONFUSION
+        a[Pok.CONFUSION_COUNTER] = 3
+        monkeypatch.setattr(random, "getrandbits", lambda n: 1)
+    elif block == "sleep":
+        a[Pok.STATUS] = Status.SLEEP
+        a[Pok.SLEEP_COUNTER] = 2
+    assert early_returns(a, d, 2, flinch, move_slice(a, 0))
+    assert a[Pok.LOCKED_MOVE] == -1
+    assert a[Pok.CHARGE_RECHARGE] == a[Pok.CONSEC_COUNT] == 0
+    assert not a[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+
+
+def test_freeze_keeps_the_lock(monkeypatch, poke):
+    """subscript_frozen has no UnlockMoveChoice, so a frozen Rollout user stays locked"""
+    a = poke("Geodude", 50, "Sturdy", ["Rollout"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.LOCKED_MOVE] = 0
+    a[Pok.CONSEC_COUNT] = 2
+    a[Pok.STATUS] = Status.FREEZE
+    monkeypatch.setattr(engine_helper, "freeze", lambda: True)
+    assert early_returns(a, d, 1, False, move_slice(a, 0))
+    assert a[Pok.LOCKED_MOVE] == 0 and a[Pok.CONSEC_COUNT] == 2
+
+
+def test_unlock_leaves_bide_alone(poke):
+    """Bide keeps its own pause rule"""
+    a = poke("Geodude", 50, "Sturdy", ["Bide"])
+    a[Pok.VOL_STATUS] = VolStatus.BIDE
+    a[Pok.CHARGE_RECHARGE] = 2
+    a[Pok.LOCKED_MOVE] = 0
+    unlock_move(a)
+    assert a[Pok.CHARGE_RECHARGE] == 2 and a[Pok.LOCKED_MOVE] == 0
+
+
+def test_reset_switch_out_clears_phase2_state(poke):
+    """Switching out drops the Rollout/Fury Cutter count and the airborne/hurt bits"""
+    p = poke("Geodude", 50, "Sturdy", ["Rollout"])
+    p[Pok.CONSEC_COUNT] = 4
+    p[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE | VolStatus.HURT_THIS_TURN
+    reset_switch_out(p)
+    assert p[Pok.CONSEC_COUNT] == 0 and p[Pok.VOL_STATUS] == 0
+
+
+def _struggle(a, d):
+    random.seed(7)
+    return struggle(a, d, rec=False)
+
+
+def test_struggle_uses_attack_abilities(poke):
+    """Struggle goes through the normal formula: Huge Power, Guts (no burn halving), Hustle"""
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    base = _struggle(poke("Rattata", 50, "Run Away", ["Tackle"]), d)
+    assert _struggle(poke("Rattata", 50, "Huge Power", ["Tackle"]), d) > base * 1.8
+    assert _struggle(poke("Rattata", 50, "Hustle", ["Tackle"]), d) > base * 1.3
+    guts = poke("Rattata", 50, "Guts", ["Tackle"])
+    guts[Pok.STATUS] = Status.BURN
+    burned = poke("Rattata", 50, "Run Away", ["Tackle"])
+    burned[Pok.STATUS] = Status.BURN
+    assert _struggle(guts, d) > base * 1.3
+    assert _struggle(burned, d) < base * 0.6
+
+
+@pytest.mark.parametrize("dealt, recoil", [(0, 0), (1, 1), (3, 1), (4, 1), (8, 2), (99, 24)])
+def test_take_down_recoil(poke, dealt, recoil):
+    """A quarter of the HP the target lost, at least 1"""
+    a = poke("Rattata", 50, "Run Away", ["Take Down"])
+    assert move_recoil(move_slice(a, 0), dealt) == recoil
+
+
+def test_recoil_marks_hurt_and_faints(poke):
+    """Recoil counts as HP lost this turn and can make the user faint"""
+    a = poke("Rattata", 50, "Run Away", ["Take Down"])
+    hp = a[Pok.CURRENT_HP]
+    apply_recoil(a, 5)
+    assert a[Pok.CURRENT_HP] == hp - 5 and a[Pok.VOL_STATUS] & VolStatus.HURT_THIS_TURN
+    apply_recoil(a, 10_000)
+    assert a[Pok.CURRENT_HP] == 0
+
+
+def test_natural_gift_uses_berry(poke, make_pokemon):
+    """Type and power from the berry (Gen IV 60), the berry is used up and remembered"""
+    a = make_pokemon("Rattata", 50, "Run Away", ["Natural Gift"], item="Sitrus Berry").to_np()
+    mv = move_slice(a, 0)
+    assert natural_gift(a, mv)
+    assert (mv[Move.TYPE], mv[Move.POWER]) == (Types.PSYCHIC, 60)
+    assert a[Pok.ITEM_ID] == 0 and a[Pok.CONSUMED_ITEM] == ItemNames.SITRUS_BERRY
+    assert not natural_gift(a, mv)
+    assert not natural_gift(poke("Rattata", 50, "Run Away", ["Natural Gift"]), mv)

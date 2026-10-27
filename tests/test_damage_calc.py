@@ -1,11 +1,13 @@
 """Damage formula, stat stages and modifiers (roll fixed at 100 unless stated)"""
+import random
 import pytest
 from Engine.damage_calc import (
     apply_stat_stage, calculate_damage, calculate_damage_confusion, flail,
+    weight_power, magnitude_power, variable_power, base_power_ability,
 )
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
 from Models.idx_const import Pok
-from Models.helper import Types, Status, Weather
+from Models.helper import Types, Status, Weather, VolStatus
 from battle_driver import move_slice
 
 
@@ -229,3 +231,75 @@ def test_confusion_self_hit_damage(poke):
     p = poke("Rattata", 50, "Run Away", ["Tackle"])
     for _ in range(50):
         assert 1 <= calculate_damage_confusion(p) < p[Pok.MAX_HP]
+
+
+# ── Variable power ───────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("weight, power", [
+    (1, 20), (100, 20), (101, 40), (250, 40), (251, 60), (500, 60), (501, 80),
+    (1000, 80), (1001, 100), (2000, 100), (2001, 120),
+])
+def test_low_kick_weight_table_is_inclusive(poke, weight, power):
+    """pokeplatinum sWeightToPower: hectograms, each limit belongs to the lower band"""
+    a = poke("Machop", 20, "Guts", ["Low Kick"])
+    d = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    d[Pok.WEIGHT] = weight
+    assert weight_power(d) == power
+    assert variable_power(a, d, move_slice(a, 0)) == power
+
+
+@pytest.mark.parametrize("roll, power", [
+    (0, 10), (4, 10), (5, 30), (14, 30), (15, 50), (34, 50), (35, 70), (64, 70),
+    (65, 90), (84, 90), (85, 110), (94, 110), (95, 150), (99, 150),
+])
+def test_magnitude_table(monkeypatch, roll, power):
+    """pokeplatinum CalcMagnitudePower on a 0..99 roll"""
+    monkeypatch.setattr(random, "randint", lambda lo, hi: roll)
+    assert magnitude_power() == power
+
+
+@pytest.mark.parametrize("count, power", [(0, 40), (1, 40), (2, 80), (3, 160), (4, 320), (5, 640)])
+def test_fury_cutter_doubles_without_cap(poke, count, power):
+    """Gen IV counter up to 5 on MoveDB's 40 base power, no 160 cap"""
+    a = poke("Anorith", 20, "Battle Armor", ["Fury Cutter"])
+    d = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    a[Pok.CONSEC_COUNT] = count
+    assert variable_power(a, d, move_slice(a, 0)) == power
+
+
+@pytest.mark.parametrize("move", ["Rollout", "Ice Ball"])
+@pytest.mark.parametrize("count, power", [(1, 30), (2, 60), (3, 120), (4, 240), (5, 480)])
+def test_rollout_power_and_defense_curl(poke, move, count, power):
+    """30 * 2^(use - 1), doubled again after Defense Curl"""
+    a = poke("Geodude", 20, "Sturdy", [move])
+    d = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    a[Pok.CONSEC_COUNT] = count
+    assert variable_power(a, d, move_slice(a, 0)) == power
+    a[Pok.VOL_STATUS] = VolStatus.DEFENSE_CURL
+    assert variable_power(a, d, move_slice(a, 0)) == power * 2
+
+
+def test_assurance_doubles_on_hurt_target(poke):
+    """Assurance doubles if the target already lost HP this turn"""
+    a = poke("Murkrow", 20, "Insomnia", ["Assurance"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert variable_power(a, d, move_slice(a, 0)) == 60
+    d[Pok.VOL_STATUS] = VolStatus.HURT_THIS_TURN
+    assert variable_power(a, d, move_slice(a, 0)) == 120
+
+
+def test_gust_doubles_on_airborne_target(poke):
+    """Gust hits a Bouncing target for double power (effect script 0149)"""
+    a = poke("Pidgey", 20, "Keen Eye", ["Gust"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert variable_power(a, d, move_slice(a, 0)) == 40
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    assert variable_power(a, d, move_slice(a, 0)) == 80
+
+
+def test_reckless_matches_gen4_rounding(poke):
+    """Gen IV Reckless is power * 12 // 10 (effect script 0048), Take Down 90 -> 108"""
+    a = poke("Starly", 20, "Reckless", ["Take Down"])
+    mult = base_power_ability(a, move_slice(a, 0))
+    assert 90 * mult // 4096 == 108
+    assert all(p * mult // 4096 == p * 12 // 10 for p in range(1, 1024))

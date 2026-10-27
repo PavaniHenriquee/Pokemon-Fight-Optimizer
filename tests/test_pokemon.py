@@ -1,4 +1,6 @@
 """Pokemon stat formulas and the conversion to its array block"""
+import pytest
+from Models.pokemon import Pokemon
 from Models.idx_const import Pok, Move, Item, MOVE_STRIDE, POK_LEN
 from Models.helper import Types, Gender
 from DataBase.PkDB import PokemonName
@@ -91,3 +93,27 @@ def test_item_encoded(make_pokemon):
     assert with_item[Item.ID] == ItemNames.ORAN_BERRY
     assert with_item[Item.ITEM_TYPE] != 0 and with_item[Item.WHEN] != 0
     assert not without[Item.ID:].any()
+
+
+def test_weight_in_hectograms(make_pokemon):
+    """Gen IV keeps weight in hectograms (Low Kick's table needs the decimal)"""
+    assert make_pokemon("Machop", 5, "Guts", ["Low Kick"]).to_np()[Pok.WEIGHT] == 195
+    assert make_pokemon("Onix", 5, "Sturdy", ["Tackle"]).to_np()[Pok.WEIGHT] == 2100
+
+
+STATS = ("HP", "Attack", "Defense", "Special Attack", "Special Defense", "Speed")
+
+
+@pytest.mark.parametrize("ivs, hp_type, power", [
+    ({s: 12 for s in STATS}, Types.FIGHTING, 30),   # uniform even trainer IVs
+    ({s: 30 for s in STATS}, Types.FIGHTING, 70),
+    ({s: 31 for s in STATS}, Types.DARK, 70),
+    ({**{s: 30 for s in STATS}, "HP": 31, "Speed": 31}, Types.POISON, 70),
+])
+def test_hidden_power_from_ivs(ivs, hp_type, power):
+    """pokeplatinum CalcHiddenPowerParams, written into the move's type and power"""
+    arr = Pokemon("Abra", "Male", 8, "Synchronize", "Hardy", ["Tackle", "Hidden Power"],
+                  ivs=ivs).to_np()
+    hidden_power = Pok.MOVE2_ID
+    assert (arr[hidden_power + Move.TYPE], arr[hidden_power + Move.POWER]) == (hp_type, power)
+    assert arr[Pok.MOVE1_ID + Move.TYPE] == Types.NORMAL

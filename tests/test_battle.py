@@ -4,7 +4,8 @@ import pytest
 from Engine import battle
 from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
 from Models.idx_const import Pok, Move, Field, POK_LEN
-from Models.helper import ActionType, BattlePhase, Status, Potions
+from Models.helper import ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, Types
+from Models.move import STRUGGLE
 from battle_driver import (
     SCENARIOS, build_scenario, play_battle, pok_slice, my_active, opp_active, move_slice,
     is_over, MAX_TURNS,
@@ -216,3 +217,179 @@ def test_multihit_secondary_rolls_every_hit(monkeypatch, poke, ko_first_hit, rol
         d[Pok.CURRENT_HP] = 1
     battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
     assert len(calls) == rolls
+
+
+# ── Phase 2: damage mechanics ────────────────────────────────────────────────
+
+@pytest.mark.parametrize("move", ["Seismic Toss", "Night Shade"])
+def test_level_damage_moves_deal_user_level(poke, move):
+    """Bulbapedia: Seismic Toss / Night Shade deal damage equal to the user's level"""
+    a = poke("Machop", 14, "Guts", [move])
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    d[Pok.CURRENT_HP] -= 20
+    hp = d[Pok.CURRENT_HP]
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.CURRENT_HP] == hp - 14
+
+
+@pytest.mark.parametrize("level, roll, expected", [(30, 0, 15), (30, 10, 45), (30, 5, 30), (1, 0, 1)])
+def test_psywave_gen4_formula(monkeypatch, poke, level, roll, expected):
+    """Effect script 0088: level * (rand(0..10) + 5) / 10, at least 1"""
+    monkeypatch.setattr(battle.random, "randint", lambda lo, hi: roll)
+    a = poke("Abra", level, "Synchronize", ["Psywave"])
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    assert battle._resolve_move_damage(a, d, move_slice(a, 0), 0) == expected
+
+
+@pytest.mark.parametrize("target_hp", [None, 5])
+def test_take_down_recoil_from_hp_lost(poke, target_hp):
+    """Recoil is a quarter of what the target actually lost, so a KO caps it"""
+    a = poke("Rattata", 50, "Run Away", ["Take Down"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    if target_hp:
+        d[Pok.CURRENT_HP] = target_hp
+    a_hp, d_hp = a[Pok.CURRENT_HP], d[Pok.CURRENT_HP]
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    dealt = d_hp - d[Pok.CURRENT_HP]
+    assert dealt > 0
+    assert a_hp - a[Pok.CURRENT_HP] == max(1, dealt // 4)
+
+
+def test_struggle_recoil_after_the_hit(poke):
+    """The target takes the hit even when the recoil makes the user faint"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.CURRENT_HP] = 1
+    hp = d[Pok.CURRENT_HP]
+    battle.ps_moves(a, d, STRUGGLE.copy(), 0, False, False)
+    assert d[Pok.CURRENT_HP] < hp and a[Pok.CURRENT_HP] == 0
+
+
+def _always_hit(monkeypatch, damage=1):
+    """Every move hits and does `damage`, so long locks can't KO anything"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    monkeypatch.setattr(battle, "calculate_damage", lambda *a, **k: damage)
+
+
+def test_rollout_locks_for_five_uses(monkeypatch, make_pokemon, make_battle):
+    """Locked for 5 uses, PP only once, the count drives the power, then it unlocks"""
+    _always_hit(monkeypatch)
+    arr = make_battle([make_pokemon("Geodude", 50, "Sturdy", ["Rollout", "Tackle"])],
+                      [make_pokemon("Onix", 50, "Sturdy", ["Harden"])])
+    me = my_active(arr)
+    pp = move_slice(me, 0)[Move.PP]
+    for use in range(1, 6):
+        turn_sim(0, (MOVE, 0), arr)
+        if use < 5:
+            assert (me[Pok.LOCKED_MOVE], me[Pok.CONSEC_COUNT]) == (0, use)
+    assert (me[Pok.LOCKED_MOVE], me[Pok.CONSEC_COUNT]) == (-1, 0)
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+
+
+def test_rollout_miss_unlocks(monkeypatch, make_pokemon, make_battle):
+    """A miss ends the lock and the count (subscript_missed's UnlockMoveChoice)"""
+    _always_hit(monkeypatch)
+    arr = make_battle([make_pokemon("Geodude", 50, "Sturdy", ["Rollout"])],
+                      [make_pokemon("Onix", 50, "Sturdy", ["Harden"])])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CONSEC_COUNT] == 2
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.MISS)
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.LOCKED_MOVE], me[Pok.CONSEC_COUNT]) == (-1, 0)
+
+
+def test_fury_cutter_count_resets_on_other_move_and_miss(monkeypatch, make_pokemon, make_battle):
+    """Consecutive hits count up, another move or a miss starts over"""
+    _always_hit(monkeypatch)
+    arr = make_battle([make_pokemon("Anorith", 50, "Battle Armor", ["Fury Cutter", "Harden"])],
+                      [make_pokemon("Onix", 50, "Sturdy", ["Harden"])])
+    me = my_active(arr)
+    for count in (1, 2, 3):
+        turn_sim(0, (MOVE, 0), arr)
+        assert me[Pok.CONSEC_COUNT] == count
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.CONSEC_COUNT] == 0
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CONSEC_COUNT] == 1
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.MISS)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CONSEC_COUNT] == 0
+
+
+def test_bounce_charges_airborne_then_lands(make_pokemon, make_battle):
+    """Turn 1: airborne and the foe's Tackle misses. Turn 2: attacks and lands"""
+    arr = make_battle([make_pokemon("Pidgey", 50, "Keen Eye", ["Bounce"])],
+                      [make_pokemon("Rattata", 5, "Run Away", ["Tackle"])])
+    me = my_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert (me[Pok.LOCKED_MOVE], me[Pok.CHARGE_RECHARGE]) == (0, 1)
+    assert me[Pok.CURRENT_HP] == hp
+    turn_sim(0, (MOVE, 0), arr)
+    assert not me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert me[Pok.LOCKED_MOVE] == -1
+
+
+@pytest.mark.parametrize("outcome", [MoveOutcome.HIT, MoveOutcome.MISS])
+def test_natural_gift_berry_used_even_on_miss(monkeypatch, make_pokemon, make_battle, outcome):
+    """The effect script removes the berry before the accuracy check"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: outcome)
+    arr = make_battle(
+        [make_pokemon("Rattata", 50, "Run Away", ["Natural Gift"], item="Sitrus Berry")],
+        [make_pokemon("Onix", 50, "Sturdy", ["Harden"])])
+    me, foe = my_active(arr), opp_active(arr)
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.ITEM_ID] == 0
+    assert (move_slice(me, 0)[Move.TYPE], move_slice(me, 0)[Move.POWER]) == (Types.PSYCHIC, 60)
+    assert (foe[Pok.CURRENT_HP] < hp) == (outcome == MoveOutcome.HIT)
+
+
+def test_natural_gift_fails_without_berry(make_pokemon, make_battle):
+    """No berry, no Natural Gift"""
+    arr = make_battle([make_pokemon("Rattata", 50, "Run Away", ["Natural Gift"])],
+                      [make_pokemon("Onix", 50, "Sturdy", ["Harden"])])
+    hp = opp_active(arr)[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.CURRENT_HP] == hp
+
+
+@pytest.mark.parametrize("foe_move, reflects", [("Water Gun", True), ("Tackle", False)])
+def test_mirror_coat_doubles_special_damage(make_pokemon, make_battle, foe_move, reflects):
+    """Mirror Coat returns twice the special damage taken this turn, nothing after a physical hit"""
+    arr = make_battle([make_pokemon("Wobbuffet", 50, "Shadow Tag", ["Mirror Coat"])],
+                      [make_pokemon("Squirtle", 50, "Torrent", [foe_move])])
+    me, foe = my_active(arr), opp_active(arr)
+    my_hp, foe_hp = me[Pok.CURRENT_HP], foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    taken = my_hp - me[Pok.CURRENT_HP]
+    assert taken > 0
+    assert foe_hp - foe[Pok.CURRENT_HP] == (2 * taken if reflects else 0)
+
+
+def test_hurt_this_turn_set_on_damage_and_cleared_at_turn_end(poke, make_pokemon, make_battle):
+    """Losing HP sets the Assurance bit, the turn ends with it cleared (no extra search nodes)"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.VOL_STATUS] & VolStatus.HURT_THIS_TURN
+    arr = make_battle([make_pokemon("Rattata", 50, "Run Away", ["Harden"])],
+                      [make_pokemon("Rattata", 50, "Run Away", ["Tackle"])])
+    me = my_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] < hp
+    assert not me[Pok.VOL_STATUS] & VolStatus.HURT_THIS_TURN
+
+
+def test_drain_heals_from_hp_lost(poke):
+    """subscript_drain_half_damage_dealt uses the capped hit damage, so a KO heals less"""
+    a = poke("Oddish", 50, "Chlorophyll", ["Mega Drain"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.CURRENT_HP] = 1
+    d[Pok.CURRENT_HP] = 6
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.CURRENT_HP] == 0 and a[Pok.CURRENT_HP] == 1 + 3

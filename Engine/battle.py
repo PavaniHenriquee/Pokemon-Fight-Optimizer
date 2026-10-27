@@ -7,10 +7,11 @@ from Engine.engine_helper import (
     flinch_checker, thaw, early_returns, switch_in,
     contact_ability, heal_weather, on_residual, trainer_ai_items, drain,
     item_on_rdmg, eat_berry_bug_bite, struggle, switch_items,
-    RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN
+    RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
+    mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift
 )
 from Engine.status_calc import sec_effects, calculate_effects
-from Engine.damage_calc import calculate_damage
+from Engine.damage_calc import calculate_damage, ROLLOUT_MOVES
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
     POK_LEN, MOVE_STRIDE, OFFSET_MOVE
@@ -32,12 +33,17 @@ from Models.constants import (
     _POK_LOCKED_MOVE, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_DAMAGE, _MOVE_VOL_STATUS,
     _MOVENAME_BUG_BITE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _DAMAGESOURCES_BIDE, _DAMAGESOURCES_MAGIC_COAT,
     _STATUS_POISON, _STATUS_TOXIC, _STATUS_BURN, _VOLSTATUS_CURSE, _ABILITYNAMES_MAGIC_GUARD,
-    _POK_BADLY_POISON
+    _POK_BADLY_POISON, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL, _MOVE_RECOIL,
+    _MOVENAME_FURY_CUTTER, _MOVENAME_NATURAL_GIFT, _MOVENAME_BOUNCE, _POK_CONSEC_COUNT,
+    _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN
 )
 from Models.move import STRUGGLE
 
 
 MULTIHIT_PROB=(2,2,2,3,3,3,4,5)
+SEMI_INVULNERABLE_MOVES = (_MOVENAME_BOUNCE,)
+ROLLOUT_MAX_USES = 5
+FURY_CUTTER_MAX_COUNT = 5
 
 @njit
 def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx):
@@ -114,11 +120,15 @@ def start_of_turn(opp_move, switch_idx, battle_array):
 def _resolve_move_damage(attacker, defender, move, weather):
     """Figure out how much damage this hit does, independent of applying it"""
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
-        return struggle(attacker, defender)
+        return struggle(attacker, defender, False)
     move_damage = move[_MOVE_DAMAGE]
     if not move_damage:
         crit = calculate_crit(attacker, defender, move)
         return calculate_damage(attacker, defender, move, weather, crit)
+    if move_damage == _DAMAGESOURCES_LEVEL:
+        return attacker[_POK_LEVEL]
+    if move_damage == _DAMAGESOURCES_PSYWAVE:
+        return max(1, attacker[_POK_LEVEL] * (random.randint(0, 10) + 5) // 10)
     if move_damage == _DAMAGESOURCES_BIDE:
         # Bide damage
         dmg = attacker[_POK_DMG_TAKEN]*2
@@ -139,6 +149,8 @@ def _resolve_move_damage(attacker, defender, move, weather):
 def _apply_move_damage(attacker, defender, move, damage):
     """Subtracts HP, checks contact abilities, flinch, item-on-damage, and Aftermath on kill.
     Returns (flinch, both_dead)"""
+    if damage > 0:
+        mark_hurt(defender)
     if damage < defender[_POK_CURRENT_HP]:
         defender[_POK_CURRENT_HP] -= damage
         flinch = False
@@ -167,6 +179,7 @@ def _apply_move_damage(attacker, defender, move, damage):
         and attacker[_POK_AB_ID] != _ABILITYNAMES_DAMP
     ):
         dmg = attacker[_POK_MAX_HP] // 4
+        mark_hurt(attacker)
         if dmg < attacker[_POK_CURRENT_HP]:
             attacker[_POK_CURRENT_HP] -= dmg
             if attacker[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
@@ -179,11 +192,21 @@ def _apply_move_damage(attacker, defender, move, damage):
 @njit
 def _ps_moves_core(attacker, defender, move, weather):
     """
-    Checks for damage and for flinch
+    Checks for damage and for flinch. Also returns the HP the defender actually lost
     """
     damage = _resolve_move_damage(attacker, defender, move, weather)
+    dealt = min(damage, defender[_POK_CURRENT_HP])
     flinch= _apply_move_damage(attacker, defender, move, damage)
-    return flinch, damage
+    return flinch, damage, dealt
+
+
+@njit
+def _recoil(attacker, move, dealt):
+    """Recoil after the hit, Struggle's comes from max HP and the rest from the damage dealt"""
+    if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
+        apply_recoil(attacker, struggle_recoil(attacker))
+    elif move[_MOVE_RECOIL]:
+        apply_recoil(attacker, move_recoil(move, dealt))
 
 
 @njit
@@ -192,6 +215,7 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s):
     mult_hit_min = move[_MOVE_MULTI_HIT_MIN]
     mult_hit_max = move[_MOVE_MULTI_HIT_MAX]
     dmg = 0
+    dealt_total = 0
     flinch = False
     if mult_hit_min == 2 and mult_hit_max == 5:
         multhit = MULTIHIT_PROB[random.getrandbits(3)]
@@ -202,17 +226,18 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s):
     for i in range(multhit):
         if i and defender[_POK_CURRENT_HP]<=0:
             break
-        flinch_c, damage = _ps_moves_core(attacker, defender, move, weather)
+        flinch_c, damage, dealt = _ps_moves_core(attacker, defender, move, weather)
         if flinch_c:
             flinch = True
         dmg += damage
+        dealt_total += dealt
         # Check for secondary effects and apply them
         if move[_SEC_CHANCE]:
             sec_effects(move, attacker, defender, weather)
 
-    # TODO: recoil
+    _recoil(attacker, move, dealt_total)
     if move[_MOVE_DRAIN]:
-        drain(attacker, move, dmg)
+        drain(attacker, move, dealt_total)
 
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         #Only last damage counts i think, needs check TODO
@@ -230,11 +255,11 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s):
 @njit
 def ps_moves(attacker, defender, move, weather, rec_p, rec_s):
     """Physical or Special moves, where I need to calculate damage and secondary effects"""
-    flinch, damage = _ps_moves_core(attacker, defender, move, weather)
+    flinch, damage, dealt = _ps_moves_core(attacker, defender, move, weather)
 
-    # TODO: recoil
+    _recoil(attacker, move, dealt)
     if move[_MOVE_DRAIN]:
-        drain(attacker, move, damage)
+        drain(attacker, move, dealt)
 
     # Check for secondary effects and apply them
     if move[_SEC_CHANCE]:
@@ -258,6 +283,26 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s):
         switch_items(attacker, defender)
 
     return flinch
+
+
+@njit
+def _consec_before_move(atk, mv, slot):
+    """Rollout/Ice Ball lock in on their first use, any other move resets Fury Cutter's count"""
+    move_id = mv[_MOVE_ID]
+    if move_id in ROLLOUT_MOVES:
+        if atk[_POK_LOCKED_MOVE] == -1:
+            atk[_POK_LOCKED_MOVE] = slot
+            atk[_POK_CONSEC_COUNT] = 0
+    elif move_id != _MOVENAME_FURY_CUTTER:
+        atk[_POK_CONSEC_COUNT] = 0
+
+
+@njit
+def _consec_on_hit(atk, mv):
+    """Fury Cutter, Rollout and Ice Ball count their consecutive hits, the power reads it"""
+    move_id = mv[_MOVE_ID]
+    if move_id == _MOVENAME_FURY_CUTTER or move_id in ROLLOUT_MOVES:
+        atk[_POK_CONSEC_COUNT] = min(atk[_POK_CONSEC_COUNT] + 1, FURY_CUTTER_MAX_COUNT)
 
 
 @njit
@@ -289,21 +334,32 @@ def _execute_move_slot(
         atk[_POK_LOCKED_MOVE] = current_move if is_mine else opp_move
         if mv[_MOVE_VOL_STATUS] & _VOLSTATUS_BIDE:
             atk[_POK_VOL_STATUS] += _VOLSTATUS_BIDE
+        if mv[_MOVE_ID] in SEMI_INVULNERABLE_MOVES:
+            atk[_POK_VOL_STATUS] |= _VOLSTATUS_SEMI_INVULNERABLE
         return False
 
     # Reset locked Move
     if mv[_MOVE_CHARGE_RECHARGE] > 0:
         atk[_POK_LOCKED_MOVE] = -1
+        atk[_POK_VOL_STATUS] &= ~_VOLSTATUS_SEMI_INVULNERABLE
+
+    _consec_before_move(atk, mv, current_move if is_mine else opp_move)
+    if mv[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and not natural_gift(atk, mv):
+        return False
 
     move_hit = calculate_hit_miss(mv, atk, defn, weather)
     if move_hit != _MOVEOUTCOME_HIT:
+        unlock_move(atk)
         return False
 
     if mv[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
+        _consec_on_hit(atk, mv)
         if mv[_MOVE_MULTI_HIT_MIN]:
             flinch = ps_moves_multihit(atk, defn, mv, weather, rec_p, rec_s)
         else:
             flinch = ps_moves(atk, defn, mv, weather, rec_p, rec_s)
+        if mv[_MOVE_ID] in ROLLOUT_MOVES and atk[_POK_CONSEC_COUNT] >= ROLLOUT_MAX_USES:
+            unlock_move(atk)
         # Information for trainer ai logic
         if is_mine:
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = mv[_MOVE_TYPE]
@@ -517,6 +573,9 @@ def turn_sim(opp_move, current_action, battle_array):
         ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):
         ((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
     ]
+
+    current_pokemon[_POK_VOL_STATUS] &= ~_VOLSTATUS_HURT_THIS_TURN
+    current_opp[_POK_VOL_STATUS] &= ~_VOLSTATUS_HURT_THIS_TURN
 
     if opp_idx == -1:
         opp_idx = battle_array[_FIELD_OPP_POK]

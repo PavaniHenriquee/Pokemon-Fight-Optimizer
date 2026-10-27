@@ -19,7 +19,8 @@ from Models.constants import (
     _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1,
     _FIELD_AI_ITEM4, _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
-    _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE
+    _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE,
+    _MOVENAME_MAGNITUDE, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -31,7 +32,8 @@ from Models.trainer_ai_helper import (
     check_any_damaging_move_pty,
     ABSORB_ABI,
     check_absorb_abi_pty,
-    check_immunity_pty, check_resistance_pty
+    check_immunity_pty, check_resistance_pty,
+    ai_move_view
 )
 from Models.helper import count_party
 
@@ -253,6 +255,7 @@ def choose_move(battle_array):
         move_pp = move[_MOVE_PP]
         if move_pp < 1:
             continue
+        move = ai_move_view(move, ai_pok, user_pok)
 
         move_category = move[_MOVE_CATEGORY]
         move_is_status = move_category == _MOVECATEGORY_STATUS
@@ -260,12 +263,20 @@ def choose_move(battle_array):
         effectiveness, s_e_check = trainer_ai_effectiveness(move, ai_pok, user_pok)
 
         if not move_is_status:
-            if not move[_MOVE_DAMAGE]:
+            if move_id == _MOVENAME_MAGNITUDE:
+                final_damage = 0
+            elif not move[_MOVE_DAMAGE]:
                 final_damage = calculate_ai_logic_damage(effectiveness, ai_pok, user_pok, move, weather)
+            elif move[_MOVE_DAMAGE] == _DAMAGESOURCES_LEVEL:
+                final_damage = ai_pok[_POK_LEVEL] if effectiveness != 0 else 0
+            elif move[_MOVE_DAMAGE] == _DAMAGESOURCES_PSYWAVE:
+                final_damage = ai_pok[_POK_LEVEL] * (random.randint(0, 10) + 5) // 10
+                if effectiveness == 0:
+                    final_damage = 0
             elif move[_MOVE_DAMAGE] < 0:
                 final_damage = 0
             else:
-                final_damage = move[_MOVE_DAMAGE]
+                final_damage = move[_MOVE_DAMAGE] if effectiveness != 0 else 0
             not_status_counter +=1
             if s_e_check:
                 s_e = True

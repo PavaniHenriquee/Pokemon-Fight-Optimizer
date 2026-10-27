@@ -306,6 +306,7 @@
   "Bounce": {
     "accuracy": 85,
     "category": "Physical",
+    "charge": 1,
     "flags": {
       "charge": true,
       "contact": true,
@@ -1756,6 +1757,7 @@
   "Mirror Coat": {
     "accuracy": 100,
     "category": "Special",
+    "damage": "magic_coat",
     "flags": {
       "fail_copycat": true,
       "fail_me_first": true,
@@ -2127,6 +2129,7 @@
   "Psywave": {
     "accuracy": 100,
     "category": "Special",
+    "damage": "psywave",
     "flags": {
       "metronome": true,
       "mirror": true,

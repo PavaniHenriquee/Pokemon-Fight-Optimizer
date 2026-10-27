@@ -1,7 +1,7 @@
 {
   "Babiri Berry": {
     "name": "babiri_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Steel",
     "type": "berry",
     "when": "on_receive_damage"
@@ -38,42 +38,42 @@
   },
   "Charti Berry": {
     "name": "charti_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Rock",
     "type": "berry",
     "when": "on_receive_damage"
   },
   "Chesto Berry": {
     "name": "chesto_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Water",
     "type": "berry",
     "when": "on_end"
   },
   "Chilan Berry": {
     "name": "chilan_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Normal",
     "type": "berry",
     "when": "on_receive_damage"
   },
   "Chople Berry": {
     "name": "chople_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Fighting",
     "type": "berry",
     "when": "on_receive_damage"
   },
   "Coba Berry": {
     "name": "coba_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Flying",
     "type": "berry",
     "when": "on_receive_damage"
   },
   "Colbur Berry": {
     "name": "colbur_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Dark",
     "type": "berry",
     "when": "on_receive_damage"
@@ -98,7 +98,7 @@
   },
   "Haban Berry": {
     "name": "haban_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Dragon",
     "type": "berry",
     "when": "on_receive_damage"
@@ -111,14 +111,14 @@
   },
   "Kasib Berry": {
     "name": "kasib_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Ghost",
     "type": "berry",
     "when": "on_receive_damage"
   },
   "Kebia Berry": {
     "name": "kebia_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Poison",
     "type": "berry",
     "when": "on_receive_damage"
@@ -150,7 +150,7 @@
   },
   "Lum Berry": {
     "name": "lum_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Flying",
     "type": "berry",
     "when": "on_end"
@@ -199,7 +199,7 @@
   },
   "Occa Berry": {
     "name": "occa_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Fire",
     "type": "berry",
     "when": "on_receive_damage"
@@ -208,26 +208,26 @@
     "name": "oran_berry",
     "when": "on_receive_damage",
     "type": "berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Poison"
   },
   "Passho Berry": {
     "name": "passho_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Water",
     "type": "berry",
     "when": "on_receive_damage"
   },
   "Payapa Berry": {
     "name": "payapa_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Psychic",
     "type": "berry",
     "when": "on_receive_damage"
   },
   "Pecha Berry": {
     "name": "pecha_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Electric",
     "type": "berry",
     "when": "on_end"
@@ -252,7 +252,7 @@
   },
   "Rindo Berry": {
     "name": "rindo_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Grass",
     "type": "berry",
     "when": "on_receive_damage"
@@ -283,7 +283,7 @@
   },
   "Shuca Berry": {
     "name": "shuca_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Ground",
     "type": "berry",
     "when": "on_receive_damage"
@@ -304,7 +304,7 @@
     "name": "sitrus_berry",
     "when": "on_receive_damage",
     "type": "berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Psychic"
   },
   "Smooth Rock": {
@@ -321,7 +321,7 @@
   },
   "Tanga Berry": {
     "name": "tanga_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Bug",
     "type": "berry",
     "when": "on_receive_damage"
@@ -341,14 +341,14 @@
   },
   "Wacan Berry": {
     "name": "wacan_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Electric",
     "type": "berry",
     "when": "on_receive_damage"
   },
   "Yache Berry": {
     "name": "yache_berry",
-    "natural_gift_power": 80,
+    "natural_gift_power": 60,
     "natural_gift_type": "Ice",
     "type": "berry",
     "when": "on_receive_damage"

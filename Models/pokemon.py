@@ -4,6 +4,8 @@ import numpy as np
 from Utils.loader import natures
 from DataBase.loader import pkDB, abDB, itemDB, moveDB
 from DataBase.PkDB import PokemonName
+from DataBase.MoveDB import MoveName
+from Models.idx_const import Move as MoveIdx
 from Models.helper import type_to_number, Status, gender_to_number
 from Models.move import Moves
 from Models.ability import ability_to_np
@@ -28,7 +30,7 @@ class Pokemon:
         self.name = name
         self.base_data = pkDB[name]
         self.gender = gender  # Male, Female, None
-        self.weight = int(self.base_data.get("weight"))
+        self.weight = int(round(self.base_data.get("weight") * 10))
         self.level = level
         self.ability = abDB[ability]
         self.item = itemDB[item] if item else None
@@ -98,6 +100,13 @@ class Pokemon:
         stat = math.floor(((((2 * base + iv + (ev // 4)) * lvl) // 100) + 5) * nat)
         return stat
 
+    def hidden_power(self):
+        """Gen IV Hidden Power type and power from the IVs (pokeplatinum CalcHiddenPowerParams)"""
+        order = ('HP', 'Attack', 'Defense', 'Speed', 'Special Attack', 'Special Defense')
+        type_bits = sum((self.ivs[s] & 1) << i for i, s in enumerate(order))
+        power_bits = sum(((self.ivs[s] >> 1) & 1) << i for i, s in enumerate(order))
+        return type_bits * 15 // 63 + 2, power_bits * 40 // 63 + 30
+
     def to_np(self):
         """Transforming everything in np array"""
         status_val = getattr(Status, self, self.status.upper()) if self.status else 0
@@ -159,6 +168,9 @@ class Pokemon:
         move3 = move_helper.to_array()
         move_helper = Moves(self.move4)
         move4 = move_helper.to_array()
+        for move in (move1, move2, move3, move4):
+            if move[MoveIdx.ID] == MoveName.HIDDEN_POWER:
+                move[MoveIdx.TYPE], move[MoveIdx.POWER] = self.hidden_power()
 
         item = item_to_np(self.item)
 

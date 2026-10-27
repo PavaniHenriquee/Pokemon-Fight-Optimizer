@@ -14,9 +14,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Moves in MoveDB.json whose VolStatus/SideCondition/damage type isn't in the engine yet.
 # Strict xfail: once you implement one, its test XPASSes and fails, telling you to drop it
 # from this list.
-UNSUPPORTED_MOVES = {
-    "Low Kick",
-}
+UNSUPPORTED_MOVES = set()
 
 
 def _mark_unsupported(names):

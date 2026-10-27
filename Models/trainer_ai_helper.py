@@ -48,13 +48,24 @@ from Models.constants import (
     _ITEMNAMES_CHARTI_BERRY, _ITEMNAMES_KASIB_BERRY, _ITEMNAMES_HABAN_BERRY, _ITEMNAMES_COLBUR_BERRY,
     _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE, _POK_TURNS_ACTIVE,
     _MOVE_CRIT_RATIO, _MOVE_CHARGE_RECHARGE, _MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB,
-    _MOVENAME_MUD_SHOT, _MOVENAME_TICKLE, _MOVENAME_BULK_UP, _VOLSTATUS_FOCUS_ENERGY
+    _MOVENAME_MUD_SHOT, _MOVENAME_TICKLE, _MOVENAME_BULK_UP, _VOLSTATUS_FOCUS_ENERGY,
+    _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE, _ABILITYNAMES_ROUGH_SKIN, _ABILITYNAMES_ROCK_HEAD,
+    _MOVENAME_NATURAL_GIFT, _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _MOVENAME_LOW_KICK,
+    _MOVE_POWER, _MOVENAME_BOUNCE, _ITEMNAMES_POWER_HERB, _WEATHER_SANDSTORM, _WEATHER_HAIL,
+    _TYPES_ICE, _MOVE_RECOIL, _TYPES_GRASS,
+    _TYPES_PSYCHIC, _TYPES_DRAGON, _TYPES_DARK
 )
+from Engine.damage_calc import weight_power
 
 COUNTER_EX_TYPES = (
     _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
     _TYPES_ROCK, _TYPES_BUG, _TYPES_GHOST, _TYPES_STEEL
 )
+MIRROR_COAT_EX_TYPES = (
+    _TYPES_FIRE, _TYPES_WATER, _TYPES_GRASS, _TYPES_ELECTRIC, _TYPES_PSYCHIC,
+    _TYPES_ICE, _TYPES_DRAGON, _TYPES_DARK
+)
+SAND_IMMUNE_TYPES = (_TYPES_GROUND, _TYPES_ROCK, _TYPES_STEEL)
 ELEC_AB_IM = (_ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE)
 POISON_AB_IM = (_ABILITYNAMES_IMMUNITY, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_POINT)
 PARA_AB_IM = (_ABILITYNAMES_LIMBER, _ABILITYNAMES_MAGIC_GUARD)
@@ -150,7 +161,9 @@ ITEMS_STEAL = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_J
 
 #--------------Move tuples-----------------------------
 EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET, _MOVENAME_CURSE,
-    _MOVENAME_FAKE_OUT, _MOVENAME_FLAIL)
+    _MOVENAME_FAKE_OUT, _MOVENAME_FLAIL, _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE)
+CHARGE_INVULNERABLE_M = (_MOVENAME_BOUNCE,)
+RECOIL_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE)
 SPEED_DOWN_ON_HIT = (_MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB, _MOVENAME_MUD_SHOT)
 
@@ -166,6 +179,37 @@ def match_2tuple_any(tup1, tup2):
         return True
     return False
 
+
+
+@njit
+def knows_move(pok, move_id):
+    """If any of the Pokemon's 4 moves is move_id"""
+    return (
+        pok[_POK_MOVE1_ID] == move_id
+        or pok[_POK_MOVE2_ID] == move_id
+        or pok[_POK_MOVE3_ID] == move_id
+        or pok[_POK_MOVE4_ID] == move_id
+    )
+
+
+@njit
+def ai_move_view(move, ai_pok, user_pok):
+    """
+    The AI damage calc sees Natural Gift's berry type and power and Low Kick's weight power
+    (pokeplatinum TrainerAI_CalcDamage), every other move is returned as is
+    """
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_NATURAL_GIFT:
+        view = move.copy()
+        power = ai_pok[_ITEM_NATURAL_GIFT_POWER]
+        view[_MOVE_POWER] = power
+        view[_MOVE_TYPE] = ai_pok[_ITEM_NATURAL_GIFT_TYPE] if power else _TYPES_NORMAL
+        return view
+    if move_id == _MOVENAME_LOW_KICK:
+        view = move.copy()
+        view[_MOVE_POWER] = weight_power(user_pok)
+        return view
+    return move
 
 
 @njit
@@ -239,26 +283,27 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
 
 
 @njit
-def basic_ability(move, ability, user_pok, move_category) -> bool:
+def basic_ability(move, ability, user_pok, move_category) -> int:
     """
-    Checks to see if ability triggers on basic flag
+    Score for the target's ability making the move useless (Pokemow Basic checks):
+    -12 for the absorbing abilities, Levitate and Wonder Guard, -10 for Soundproof, else 0
     """
     move_type = move[_MOVE_TYPE]
     if move_type == _TYPES_ELECTRIC and ability in ELEC_AB_IM:
-        return True
+        return -12
     if move_type == _TYPES_WATER and ability == _ABILITYNAMES_WATER_ABSORB:
-        return True
+        return -12
     if move_type == _TYPES_FIRE and ability == _ABILITYNAMES_FLASH_FIRE:
-        return True
+        return -12
     if move_type == _TYPES_GROUND and ability == _ABILITYNAMES_LEVITATE:
-        return True
+        return -12
     if move[_FLAGS_SOUND] and ability == _ABILITYNAMES_SOUNDPROOF:
-        return True
+        return -10
     if ability == _ABILITYNAMES_WONDER_GUARD and move_category != _MOVECATEGORY_STATUS:
         eff, den = get_type_effectiveness(move_type, user_pok[_POK_TYPE1], user_pok[_POK_TYPE2])
-        if eff // den >= 2:
-            return True
-    return False
+        if eff // den < 2:
+            return -12
+    return 0
 
 
 @njit
@@ -505,8 +550,11 @@ def basic_flag(
         return -10
     # Check for abilities
     if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and ability in ABILITY_BASIC_FLAG:
-        if basic_ability(move, ability, user_pok, move_category):
-            return -10
+        ability_score = basic_ability(move, ability, user_pok, move_category)
+        if ability_score:
+            return ability_score
+    if move[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and ai_pok[_ITEM_NATURAL_GIFT_POWER] == 0:
+        return -10
     if move_category == _MOVECATEGORY_STATUS:
         # TODO: Safeguard for all conditions
         if move[_MOVE_STATUS] != 0:
@@ -974,7 +1022,9 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
             add_adjustment(rand, idx, -1, 246)
         if ai_hp_pct < 51:
             add_adjustment(rand, idx, -1, 156)
-        #TODO: AI knows Mirror Coat
+        if knows_move(ai_pok, _MOVENAME_MIRROR_COAT):
+            add_adjustment(rand, idx, 4, 156)
+            return 0
         #TODO: User is taunted
         if t_dmg:
             if ml_move in SPECIAL:
@@ -985,6 +1035,40 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
             pass
         else:
             add_adjustment(rand, idx, 4, 126)
+    elif m_id == _MOVENAME_MIRROR_COAT:
+        if (
+            u_pok[_POK_STATUS] == _STATUS_SLEEP
+            or u_pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION
+            or u_pok[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT
+        ):
+            return -1
+        if ai_hp_pct < 31:
+            add_adjustment(rand, idx, -1, 246)
+        if ai_hp_pct < 51:
+            add_adjustment(rand, idx, -1, 156)
+        if knows_move(ai_pok, _MOVENAME_COUNTER):
+            add_adjustment(rand, idx, 4, 156)
+            return 0
+        #TODO: User is taunted
+        if t_dmg:
+            if ml_move in PHYSICAL:
+                return -1
+            add_adjustment(rand, idx, 1, 156)
+            return 0
+        if u_pok[_POK_TYPE1] in MIRROR_COAT_EX_TYPES or u_pok[_POK_TYPE2] in MIRROR_COAT_EX_TYPES:
+            pass
+        else:
+            add_adjustment(rand, idx, 4, 126)
+    elif m_id == _MOVENAME_ASSURANCE:
+        if effectiveness <= 0.5:
+            return -1
+        if move_first:
+            return 0
+        # TODO: Jaboca and Rowap Berry also count, once they're in ItemDB
+        if ai_pok[_POK_AB_ID] == _ABILITYNAMES_ROUGH_SKIN:
+            add_adjustment(rand, idx, 1, 128)
+        else:
+            add_adjustment(rand, idx, 1, 64)
     elif m_id == _MOVENAME_COVET:
         # AI cheats to see the user items
         if u_pok[_POK_ITEM_ID] in ITEMS_STEAL:
@@ -1033,6 +1117,38 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
         add_adjustment(rand, idx, 1, 156)
 
     return score
+
+
+@njit
+def expert_charge_invulnerable(ai_pok, u_pok, effectiveness, rand, idx, weather, move_first):
+    """
+    pokeplatinum Expert_ChargeTurnWithInvuln, including its +1 when the target resists or is
+    immune
+    """
+    if ai_pok[_POK_ITEM_ID] == _ITEMNAMES_POWER_HERB:
+        return 2
+    # TODO: -1 if the AI knows the target has Protect/Detect (needs revealed-move tracking)
+    if effectiveness <= 0.5:
+        return 1
+    if (
+        u_pok[_POK_STATUS] == _STATUS_TOXIC
+        or u_pok[_POK_VOL_STATUS] & _VOLSTATUS_CURSE
+        or u_pok[_POK_VOL_STATUS] & _VOLSTATUS_LEECH_SEED
+    ):
+        add_adjustment(rand, idx, 1, 176)
+        return 0
+    ai_types = (ai_pok[_POK_TYPE1], ai_pok[_POK_TYPE2])
+    if weather == _WEATHER_SANDSTORM and (
+        ai_types[0] in SAND_IMMUNE_TYPES or ai_types[1] in SAND_IMMUNE_TYPES
+    ):
+        add_adjustment(rand, idx, 1, 176)
+        return 0
+    if weather == _WEATHER_HAIL and _TYPES_ICE in ai_types:
+        add_adjustment(rand, idx, 1, 176)
+        return 0
+    if move_first:
+        add_adjustment(rand, idx, 1, 176)
+    return 0
 
 
 @njit
@@ -1122,6 +1238,20 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
             return -3
         add_adjustment(rand, idx, 2, 186)
         return 0
+
+    # Recoil Moves (e.g. Take Down, Double-Edge)
+    if move[_MOVE_RECOIL]:
+        if effectiveness <= 0.5:
+            return 0
+        if ai_pok[_POK_AB_ID] in RECOIL_AB:
+            return 1
+        return 0
+
+    # Charge Turn Moves With Invulnerability (Bounce)
+    if move[_MOVE_ID] in CHARGE_INVULNERABLE_M:
+        return expert_charge_invulnerable(
+            ai_pok, u_pok, effectiveness, rand, idx, weather, move_first
+        )
 
     """
     TODO:

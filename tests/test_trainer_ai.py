@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from Models import trainer_ai_helper as ai
 from Models.trainer_ai import return_idx
-from Models.idx_const import Pok
-from Models.helper import VolStatus
+from Models.idx_const import Pok, Move
+from Models.helper import VolStatus, Status, Types
 from DataBase.AbilitiesDB import AbilityNames
 from battle_driver import move_slice
 
@@ -199,3 +199,125 @@ def test_expert_tickle_uses_defense_down(poke):
     assert _expert(ai_pok, user) == (0, [])
     user[Pok.DEFENSE_STAT_STAGE] = -3
     assert _expert(ai_pok, user) == (0, [(-2, 206)])
+
+
+# ── Phase 2: damage mechanics ────────────────────────────────────────────────
+
+def test_basic_natural_gift_needs_berry(make_pokemon, poke):
+    """pokeplatinum Basic_CheckNaturalGift: -10 without an eligible berry"""
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    no_berry = poke("Rattata", 20, "Run Away", ["Natural Gift"])
+    berry = make_pokemon("Rattata", 20, "Run Away", ["Natural Gift"], item="Sitrus Berry").to_np()
+    assert _basic(no_berry, user, AbilityNames.RUN_AWAY) == -10
+    assert _basic(berry, user, AbilityNames.RUN_AWAY) == 0
+
+
+@pytest.mark.parametrize("move, ai_ability, expected", [
+    ("Seismic Toss", "Guts", -12),        # neutral on Normal/Flying
+    ("Seismic Toss", "Mold Breaker", 0),
+    ("Rock Throw", "Guts", 0),            # super effective goes through
+])
+def test_basic_wonder_guard(poke, move, ai_ability, expected):
+    """Pokemow Check_WonderGuard: -12 unless the move is 2x/4x (or the AI has Mold Breaker)"""
+    ai_pok = poke("Machop", 20, ai_ability, [move])
+    user = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.WONDER_GUARD) == expected
+
+
+@pytest.mark.parametrize("move, ability, expected", [
+    ("Thunder Shock", "Volt Absorb", -12), ("Thunder Shock", "Motor Drive", -12),
+    ("Water Gun", "Water Absorb", -12), ("Ember", "Flash Fire", -12),
+    ("Mud-Slap", "Levitate", -12), ("Growl", "Soundproof", -10), ("Tackle", "Levitate", 0),
+])
+def test_basic_absorbing_abilities(poke, move, ability, expected):
+    """Pokemow Basic ability checks"""
+    ai_pok = poke("Pikachu", 20, "Static", [move])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    target = getattr(AbilityNames, ability.upper().replace(" ", "_"))
+    assert _basic(ai_pok, user, target) == expected
+
+
+@pytest.mark.parametrize("ai_ability, effectiveness, expected", [
+    ("Rock Head", 1.0, 1), ("Magic Guard", 1.0, 1), ("Run Away", 1.0, 0), ("Rock Head", 0.5, 0),
+])
+def test_expert_recoil(poke, ai_ability, effectiveness, expected):
+    """pokeplatinum Expert_RecoilMove: +1 with Rock Head or Magic Guard unless resisted"""
+    ai_pok = poke("Rattata", 20, ai_ability, ["Take Down"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert(ai_pok, user, effectiveness) == (expected, [])
+
+
+@pytest.mark.parametrize("ai_ability, ai_level, effectiveness, expected", [
+    ("Insomnia", 20, 0.5, (-1, [])),
+    ("Insomnia", 50, 1.0, (0, [])),           # AI faster
+    ("Insomnia", 5, 1.0, (0, [(1, 64)])),     # slower: 25%
+    ("Rough Skin", 5, 1.0, (0, [(1, 128)])),  # slower with Rough Skin: 50%
+])
+def test_expert_assurance(poke, ai_ability, ai_level, effectiveness, expected):
+    """pokeplatinum Expert_Assurance"""
+    ai_pok = poke("Murkrow", ai_level, ai_ability, ["Assurance"])
+    user = poke("Pikachu", 30, "Static", ["Tackle"])
+    assert _expert(ai_pok, user, effectiveness) == expected
+
+
+def test_expert_mirror_coat(poke):
+    """pokeplatinum Expert_MirrorCoat: -1 vs a sleeping target, +4 at 60.9% with Counter known"""
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    ai_pok = poke("Wobbuffet", 20, "Shadow Tag", ["Mirror Coat", "Counter"])
+    assert _expert(ai_pok, user) == (0, [(4, 156)])
+    user[Pok.STATUS] = Status.SLEEP
+    assert _expert(ai_pok, user) == (-1, [])
+    user[Pok.STATUS] = 0
+    alone = poke("Wobbuffet", 20, "Shadow Tag", ["Mirror Coat"])
+    assert _expert(alone, user) == (0, [(4, 126)])          # Geodude has no special type
+    assert _expert(alone, poke("Abra", 20, "Synchronize", ["Tackle"])) == (0, [])
+
+
+def test_expert_counter_knows_mirror_coat(poke):
+    """pokeplatinum Expert_Counter: +4 at 60.9% if the AI also knows Mirror Coat"""
+    user = poke("Abra", 20, "Synchronize", ["Tackle"])
+    ai_pok = poke("Wobbuffet", 20, "Shadow Tag", ["Counter", "Mirror Coat"])
+    assert _expert(ai_pok, user) == (0, [(4, 156)])
+
+
+@pytest.mark.parametrize("setup, ai_level, effectiveness, expected", [
+    ("power_herb", 20, 1.0, (2, [])),
+    (None, 20, 0.5, (1, [])),               # resisted: +1 (pokeplatinum quirk)
+    ("toxic", 5, 1.0, (0, [(1, 176)])),
+    (None, 50, 1.0, (0, [(1, 176)])),       # AI faster
+    (None, 5, 1.0, (0, [])),                # AI slower
+])
+def test_expert_bounce(make_pokemon, poke, setup, ai_level, effectiveness, expected):
+    """pokeplatinum Expert_ChargeTurnWithInvuln"""
+    item = "Power Herb" if setup == "power_herb" else None
+    ai_pok = make_pokemon("Pidgey", ai_level, "Keen Eye", ["Bounce"], item=item).to_np()
+    user = poke("Rattata", 30, "Run Away", ["Tackle"])
+    if setup == "toxic":
+        user[Pok.STATUS] = Status.TOXIC
+    assert _expert(ai_pok, user, effectiveness) == expected
+
+
+def test_ai_move_view(make_pokemon, poke):
+    """The AI damage calc sees Natural Gift's berry and Low Kick's weight power"""
+    user = poke("Onix", 20, "Sturdy", ["Tackle"])
+    gift = make_pokemon("Rattata", 20, "Run Away", ["Natural Gift"], item="Sitrus Berry").to_np()
+    view = ai.ai_move_view(move_slice(gift, 0), gift, user)
+    assert (view[Move.TYPE], view[Move.POWER]) == (Types.PSYCHIC, 60)
+    assert move_slice(gift, 0)[Move.POWER] == 0
+    kick = poke("Machop", 20, "Guts", ["Low Kick", "Tackle"])
+    assert ai.ai_move_view(move_slice(kick, 0), kick, user)[Move.POWER] == 120
+    tackle = move_slice(kick, 1)
+    assert ai.ai_move_view(tackle, kick, user) is tackle
+
+
+@pytest.mark.parametrize("move", [
+    "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
+    "Natural Gift", "Mirror Coat", "Assurance", "Take Down", "Bounce", "Fury Cutter", "Rollout",
+])
+def test_ai_picks_a_move_with_phase2_kit(make_pokemon, make_battle, move):
+    """The AI scores every Phase 2 move without crashing and returns a legal slot"""
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])
+    opp = make_pokemon("Machop", 20, "Guts", ["Tackle", move], item="Sitrus Berry")
+    arr = make_battle([me], [opp])
+    for _ in range(20):
+        assert return_idx(arr) in (0, 1)

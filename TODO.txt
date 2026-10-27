@@ -127,7 +127,7 @@
 [X]Aqua Jet
 []Aqua Ring(B/E) ! *
 [X]Arm Thrust !
-[]Assurance(E) ! *
+[X]Assurance(E) ! *
 [X]Astonish
 []Attract(B) ! *
 [X]Aurora Beam *
@@ -137,7 +137,7 @@
 []Bind(E) ! *
 [X]Bite
 [X]Bone Club
-[]Bounce(E) ! *
+[X]Bounce(E) ! *
 []Brick Break(E) ! (Need Screens)
 [X]Bubble
 [X]Bubble Beam *
@@ -184,21 +184,21 @@
 [X]Force Palm
 []Foresight(B/E) !
 [X]Fury Attack *
-[]Fury Cutter !
+[X]Fury Cutter !
 [X]Fury Swipes
 [X]Grass Whistle
 [X]Growl
 [X]Growth !
-[]Gust
+[X]Gust
 [X]Harden
 [X]Headbutt
 []Helping Hand(B) ! *
-[]Hidden Power !!
+[X]Hidden Power !!
 [X]Horn Attack *
 [X]Howl
 [X]Hyper Fang *
 [X]Hypnosis
-[]Ice Ball ! *
+[X]Ice Ball ! *
 [X]Icy Wind(E) *
 []Ingrain(B) !
 [X]Iron Defense *
@@ -210,16 +210,16 @@
 [X]Leer
 [X]Lick *
 []Light Screen(B/E) ! *
-[]Low Kick !
+[X]Low Kick !
 []Lucky Chant(B/E) ! *
 [X]Mach Punch *
 [X]Magical Leaf(E) *
-[]Magnitude(B) ! *
+[X]Magnitude(B) ! *
 [X]Meditate *
 [X]Mega Drain
 [X]Metal Claw
 []Metronome!!!!!!
-[]Mirror Coat(E) ! *
+[X]Mirror Coat(E) ! *
 []Mirror Move(E) ! *
 []Mist(B) ! *
 [X]Mud Bomb *
@@ -227,9 +227,9 @@
 []Mud Sport(B/E) !
 [X]Mud-Slap
 [X]Nasty Plot *
-[]Natural Gift(B) ! *
+[X]Natural Gift(B) ! *
 []Nature Power !(maybe unnecessary)
-[]Night Shade *
+[X]Night Shade *
 []Odor Sleuth(B/E) ! *
 [X]Peck
 []Perish Song(B) ! *
@@ -241,7 +241,7 @@
 [X]Powder Snow *
 []Protect(E) !
 [X]Psybeam *
-[]Psywave ! *
+[X]Psywave ! *
 []Pursuit(E) !
 [X]Quick Attack
 []Rage ! *
@@ -258,7 +258,7 @@
 [X]Rock Slide *
 [X]Rock Throw
 [X]Rock Tomb(E)
-[]Rollout !! (Defense Curl interaction)(Will need a counter to see how much damage[can be same as Fury Cutter?])
+[X]Rollout !! (Defense Curl interaction)(Will need a counter to see how much damage[can be same as Fury Cutter?])
 []Safeguard(B) ! *
 [X]Sand Attack
 []Sandstorm(B) !
@@ -266,7 +266,7 @@
 [X]Schock Wave(E)
 [X]Scratch
 [X]Screech *
-[]Seismic Toss *
+[X]Seismic Toss *
 [X]Silver Wind *
 [X]Sing
 [X]Slam
@@ -278,7 +278,7 @@
 []Stealth Rock(B/E) !! (Hazards/What happens if either mine or opponent switches and instantly dies)
 []Stomp !(Minimize interaction)
 [X]String Shot
-[]Struggle !(Already done, but should check it 100%)
+[X]Struggle !(Already done, but should check it 100%)
 [X]Stun Spore *
 [X]Supersonic
 [X]Sweet Kiss *
@@ -287,7 +287,7 @@
 []Synthesis(B/E) ! *
 [X]Tackle
 [X]Tail Whip
-[]Take Down(E) *
+[X]Take Down(E) *
 []Taunt !
 []Teleport(B) *
 [X]Thunder Punch

@@ -8,7 +8,7 @@ from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS
 )
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
-from Models.helper import TARGET_SELF_SIDE, STEEL_POISON
+from Models.helper import TARGET_SELF_SIDE, STEEL_POISON, Target
 from Models.constants import (
     _POK_SPEED, _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
     _ABILITYACTIVATION_ON_MODIFY_SPEED, _WEATHER_SUN,_ABILITYNAMES_CHLOROPHYLL, _MOVENAME_FAKE_OUT,
@@ -34,7 +34,10 @@ from Models.constants import (
     _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEMNAMES_ORAN_BERRY,
     _ITEM_ID, _ITEMNAMES_SITRUS_BERRY, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _VOLSTATUS_FOCUS_ENERGY, _MOVE_CRIT_RATIO, _MOVE_WILL_CRIT, _ITEMTYPE_BERRY,
     _ITEM_ITEM_TYPE, _POK_CONFUSION_COUNTER, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE,
-    _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN
+    _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN,
+    _MOVEOUTCOME_SEMI_INVULNERABLE, _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN,
+    _POK_CONSEC_COUNT, _MOVENAME_GUST, _ABILITYNAMES_GUTS, _ABILITYNAMES_HUGE_POWER, _MOVE_RECOIL,
+    _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _POK_CONSUMED_ITEM, _MOVE_POWER
 )
 
 
@@ -43,6 +46,31 @@ DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 ITEM_50HP = (_ITEMNAMES_ORAN_BERRY, _ITEMNAMES_SITRUS_BERRY)
 RECORD_DAMAGE = (_DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT)
+HITS_SEMI_INVULNERABLE = (_MOVENAME_GUST,)
+SIDE_OR_FIELD_TARGETS = (Target.ALL, Target.FOE_SIDE, Target.ALLY_TEAM)
+
+
+# ── Volatile bookkeeping ───────────────────────────────────────────────────────
+
+@njit
+def mark_hurt(pok):
+    """The Pokemon lost HP this turn (read by Assurance)"""
+    pok[_POK_VOL_STATUS] |= _VOLSTATUS_HURT_THIS_TURN
+
+
+@njit
+def unlock_move(pok):
+    """
+    Ends a lock (Rollout, Ice Ball), a charge (Bounce) and the Fury Cutter/Rollout counter when
+    the move doesn't go through. Bide keeps its own pause rule
+    """
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+        return
+    if pok[_POK_CHARGE_RECHARGE] > 0:
+        pok[_POK_CHARGE_RECHARGE] = 0
+    pok[_POK_LOCKED_MOVE] = -1
+    pok[_POK_CONSEC_COUNT] = 0
+    pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_SEMI_INVULNERABLE
 
 
 # ── Item / berry helpers ───────────────────────────────────────────────────────
@@ -241,6 +269,15 @@ def ab_on_try_move(move, attacker, defender, accuracy:int, weather):
 def calculate_hit_miss(move, attacker, defender, weather):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
+    if (
+        defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE
+        and move[_MOVE_ID] not in HITS_SEMI_INVULNERABLE
+        and move[_MOVE_ID] != _MOVENAME_BIDE
+        and not move[_MOVE_OH_KO]
+        and move[_MOVE_TARGET] not in TARGET_SELF_SIDE
+        and move[_MOVE_TARGET] not in SIDE_OR_FIELD_TARGETS
+    ):
+        return _MOVEOUTCOME_SEMI_INVULNERABLE
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE or move[_MOVE_ID] == _MOVENAME_BIDE:
         return _MOVEOUTCOME_HIT
     if move[_MOVE_ID] == _MOVENAME_FAKE_OUT and attacker[_POK_TURNS_ACTIVE] > 1:
@@ -317,6 +354,7 @@ def reset_switch_out(pok):
     pok[_POK_CHARGE_RECHARGE] = 0
     pok[_POK_TURNS_ACTIVE] = 0
     pok[_POK_LOCKED_MOVE] = -1
+    pok[_POK_CONSEC_COUNT] = 0
 
 
 @njit
@@ -366,6 +404,8 @@ def confusion(pok):
         return
     damage = calculate_damage_confusion(pok)
     pok[_POK_CURRENT_HP] = max(0, (pok[_POK_CURRENT_HP]-damage))
+    if damage > 0:
+        mark_hurt(pok)
     if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
         item_on_rdmg(pok)
 
@@ -413,18 +453,16 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
     Paralysis: 1
     Default:   0
 
-    NOTE: charge/recharge tick-vs-pause is still open. Bulbapedia's answer for Bide
-    is "pause" (a blocked turn doesn't count toward the charge), which the Sleep/
-    Freeze ticking below doesn't currently do — left as-is on purpose pending a pass
-    across all charge-type moves (Bide, Solar Beam, Dig, ...) together, rather than
-    fixed piecemeal here. Attract isn't implemented at all yet.
+    A blocked turn (sleep, flinch, confusion self-hit, full paralysis) ends charge moves and
+    locks via unlock_move, Bide pauses instead, freeze keeps the lock. Attract isn't
+    implemented at all yet.
     """
     atker_status = attacker[_POK_STATUS]
     # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
     if atker_status == _STATUS_SLEEP:
+        unlock_move(attacker)
         if attacker[_POK_SLEEP_COUNTER] > 0:
             attacker[_POK_SLEEP_COUNTER] -= 1
-            _tick_charge_if_blocked(attacker)
             return True
         attacker[_POK_STATUS] = 0
     # Freeze
@@ -439,6 +477,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
         attacker[_POK_STATUS] = 0
     # Flinch
     if flinch and idx >= 2:
+        unlock_move(attacker)
         if attacker[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
             attacker[_POK_SPEED_STAT_STAGE] = min(6, attacker[_POK_SPEED_STAT_STAGE] + 1)
         return True
@@ -447,6 +486,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
         attacker[_POK_CONFUSION_COUNTER] -= 1
         if attacker[_POK_CONFUSION_COUNTER] > 0:
             if random.getrandbits(1):
+                unlock_move(attacker)
                 confusion(attacker)
                 return True
         else:
@@ -458,6 +498,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
         and paralysis()
         and attacker[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD
     ):
+        unlock_move(attacker)
         return True
     # Charging poke e.g. solarbeam, bide
     if attacker[_POK_CHARGE_RECHARGE] > 0 and not attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
@@ -634,14 +675,24 @@ def struggle(attacker, defender, rec=True):
         def_stage = min(def_stage, 0)
         atk_stage = max(atk_stage, 0)
 
-    attack = apply_stat_stage(attacker[_POK_ATTACK], atk_stage, atk_is_simple)
+    raw_attack = attacker[_POK_ATTACK]
+    atk_ab = attacker[_POK_AB_ID]
+    is_guts = atk_ab == _ABILITYNAMES_GUTS
+    if is_guts and attacker[_POK_STATUS] != 0:
+        raw_attack = (raw_attack * 3) // 2
+    elif atk_ab == _ABILITYNAMES_HUGE_POWER:
+        raw_attack *= 2
+    elif atk_ab == _ABILITYNAMES_HUSTLE:
+        raw_attack = (raw_attack * 3) // 2
+
+    attack = apply_stat_stage(raw_attack, atk_stage, atk_is_simple)
     defense = apply_stat_stage(defender[_POK_DEFENSE], def_stage, def_is_simple)
 
     # Base damage formula for Struggle with power 50
     damage = (((2 * level / 5) + 2) * 50 * (attack / defense)) // 50
 
     # Burn
-    if attacker[_POK_STATUS] == _STATUS_BURN:
+    if attacker[_POK_STATUS] == _STATUS_BURN and not is_guts:
         damage //= 2
 
     # TODO: Screen
@@ -655,10 +706,50 @@ def struggle(attacker, defender, rec=True):
     damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
 
     if rec:
-        recoil = max(1, attacker[_POK_MAX_HP] // 4)
-        if recoil >= attacker[_POK_CURRENT_HP]:
-            attacker[_POK_CURRENT_HP] = 0
-        else:
-            attacker[_POK_CURRENT_HP] -= recoil
+        apply_recoil(attacker, struggle_recoil(attacker))
 
     return damage
+
+
+@njit
+def natural_gift(pok, move):
+    """
+    Natural Gift takes its type and power from the held berry and uses it up, even if it misses
+    later. Returns False (move fails) without a berry
+    """
+    power = pok[_ITEM_NATURAL_GIFT_POWER]
+    if power == 0:
+        return False
+    move[_MOVE_TYPE] = pok[_ITEM_NATURAL_GIFT_TYPE]
+    move[_MOVE_POWER] = power
+    pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
+    clear_item(pok)
+    return True
+
+
+@njit
+def struggle_recoil(pok):
+    """Struggle recoil, a quarter of max HP that ignores Rock Head and Magic Guard"""
+    return max(1, pok[_POK_MAX_HP] // 4)
+
+
+@njit
+def move_recoil(move, dealt):
+    """Recoil from a recoil move (Take Down), from the HP the target actually lost"""
+    if dealt <= 0:
+        return 0
+    return max(1, dealt * move[_MOVE_RECOIL] // 100)
+
+
+@njit
+def apply_recoil(pok, recoil):
+    """Recoil damage to the attacker"""
+    if recoil <= 0:
+        return
+    mark_hurt(pok)
+    if recoil >= pok[_POK_CURRENT_HP]:
+        pok[_POK_CURRENT_HP] = 0
+        return
+    pok[_POK_CURRENT_HP] -= recoil
+    if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+        item_on_rdmg(pok)

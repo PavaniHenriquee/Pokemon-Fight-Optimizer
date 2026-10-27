@@ -110,7 +110,7 @@ def step_arr(battle_array, action_type, action_idx, opp_move):
             break
         my_idx = battle_array[_FIELD_MY_POK]
         active = battle_array[my_idx * POK_LEN:(my_idx + 1) * POK_LEN]
-        if active[_POK_CHARGE_RECHARGE] == 0:
+        if active[_POK_CHARGE_RECHARGE] == 0 and active[_POK_LOCKED_MOVE] == -1:
             break
         a_type = _ACTIONTYPE_MOVE
         a_idx = int(active[_POK_LOCKED_MOVE])
@@ -146,7 +146,7 @@ def _stages_key(pok):
 @njit
 def node_key(battle_array):
     """Integer fingerprint of what decides whether two outcomes of an action share a node:
-    phase, opp slot, status, vol status, HP bracket and stat stages of both actives"""
+    phase, opp slot, status, every vol status bit, HP bracket and stat stages of both actives"""
     opp_idx = battle_array[_FIELD_OPP_POK]
     opp = battle_array[(opp_idx + 6) * POK_LEN:(opp_idx + 7) * POK_LEN]
     is_death = battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN
@@ -155,19 +155,19 @@ def node_key(battle_array):
     k1 |= np.int64(opp_idx) << 1
     k1 |= np.int64(opp[_POK_STATUS]) << 4
     k1 |= np.int64(_hp_bracket(opp[_POK_CURRENT_HP], opp[_POK_MAX_HP])) << 7
-    k1 |= (np.int64(opp[_POK_VOL_STATUS]) & 0xFFFF) << 10
     k2 = _stages_key(opp)
+    k3 = np.int64(opp[_POK_VOL_STATUS])
 
     if not is_death:
         my_idx = battle_array[_FIELD_MY_POK]
         me = battle_array[my_idx * POK_LEN:(my_idx + 1) * POK_LEN]
         k1 |= np.int64(me[_POK_STATUS]) << 26
         k1 |= np.int64(_hp_bracket(me[_POK_CURRENT_HP], me[_POK_MAX_HP])) << 29
-        k1 |= (np.int64(me[_POK_VOL_STATUS]) & 0xFFFF) << 32
         k2 = (k2 << 28) | _stages_key(me)
+        k3 |= np.int64(me[_POK_VOL_STATUS]) << 32
     else:
         k2 = k2 << 28
-    return k1, k2
+    return k1, k2, k3
 
 
 class GameState():

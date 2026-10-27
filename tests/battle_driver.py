@@ -92,7 +92,7 @@ def forced_action(arr):
     if arr[Field.PHASE] == BattlePhase.DEATH_END_OF_TURN:
         return None
     active = my_active(arr)
-    if active[Pok.CHARGE_RECHARGE] > 0 and active[Pok.LOCKED_MOVE] >= 0:
+    if active[Pok.LOCKED_MOVE] >= 0:
         return (ActionType.MOVE, int(active[Pok.LOCKED_MOVE]))
     return None
 

@@ -50,6 +50,8 @@ class Moves():
             dmg_result = DamageSources.COUNTER
         elif dmg_val == 'magic_coat':
             dmg_result = DamageSources.MAGIC_COAT
+        elif dmg_val == 'psywave':
+            dmg_result = DamageSources.PSYWAVE
         else:
             dmg_result = 0
 
@@ -57,7 +59,9 @@ class Moves():
         base_move_array[Move.CATEGORY] = getattr(MoveCategory, self.move['category'].upper())
         base_move_array[Move.TYPE]     = getattr(Types,self.move['type'].upper())
         base_move_array[Move.TARGET]   = getattr(Target,self.move['target'].upper())
-        base_move_array[Move.POWER]    = self.move.get('power', 0)
+        base_move_array[Move.POWER]    = (
+            self.move.get('power', 0) if isinstance(self.move.get('power', 0), int) else 0
+        )
         base_move_array[Move.ACCURACY] = (
             -1 if self.move.get('accuracy', 0) is True
             else self.move.get('accuracy', 0)

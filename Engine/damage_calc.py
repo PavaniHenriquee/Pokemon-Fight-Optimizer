@@ -16,6 +16,10 @@ from Models.constants import (
     _ABILITYACTIVATION_ON_BASE_POWER, _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
     _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE, _ABILITYNAMES_SOLAR_POWER,
     _ABILITYNAMES_THICK_FAT, _TYPES_ICE, _ABILITYNAMES_TINTED_LENS, _MOVE_ID, _MOVENAME_FLAIL,
+    _MOVENAME_LOW_KICK, _MOVENAME_MAGNITUDE, _MOVENAME_FURY_CUTTER, _MOVENAME_ROLLOUT,
+    _MOVENAME_ICE_BALL, _MOVENAME_ASSURANCE, _MOVENAME_GUST, _POK_WEIGHT, _POK_CONSEC_COUNT,
+    _POK_VOL_STATUS, _VOLSTATUS_DEFENSE_CURL, _VOLSTATUS_HURT_THIS_TURN,
+    _VOLSTATUS_SEMI_INVULNERABLE,
 )
 
 # ==========================================
@@ -29,6 +33,11 @@ STAGES_TABLE = (
     (2, 2),                                         # 0
     (3, 2), (4, 2), (5, 2), (6, 2), (7, 2), (8, 2)  # +1 to +6
 )
+# (upper limit inclusive in hectograms, power), heavier than the last one is 120
+WEIGHT_TO_POWER = ((100, 20), (250, 40), (500, 60), (1000, 80), (2000, 100))
+# (roll 0..99 below this, power), the rest is 150
+MAGNITUDE_TABLE = ((5, 10), (15, 30), (35, 50), (65, 70), (85, 90), (95, 110))
+ROLLOUT_MOVES = (_MOVENAME_ROLLOUT, _MOVENAME_ICE_BALL)
 
 
 # ==========================================
@@ -140,7 +149,7 @@ def base_power_ability(attacker, move) -> float:
 
     # Iron Fist
     if att_ab == _ABILITYNAMES_IRON_FIST and move[_FLAGS_PUNCH]:
-        return 4915  # 1.2
+        return 4916  # Same floor as Gen IV power*12//10 for any power < 1024
 
     # Reckless
     if (
@@ -150,7 +159,7 @@ def base_power_ability(attacker, move) -> float:
             or move[_MOVE_HAS_CRASH_DAMAGE]
         )
     ):
-        return 4915  #1.2
+        return 4916  # Same floor as Gen IV power*12//10 for any power < 1024
 
     return 0
 
@@ -261,6 +270,54 @@ def flail(attacker):
     return 20
 
 
+@njit
+def weight_power(defender):
+    """Low Kick power from the target's weight in hectograms"""
+    weight = defender[_POK_WEIGHT]
+    for limit, power in WEIGHT_TO_POWER:
+        if weight <= limit:
+            return power
+    return 120
+
+
+@njit
+def magnitude_power():
+    """Rolls Magnitude's power"""
+    roll = random.randint(0, 99)
+    for limit, power in MAGNITUDE_TABLE:
+        if roll < limit:
+            return power
+    return 150
+
+
+@njit
+def variable_power(attacker, defender, move):
+    """
+    Base power for moves whose power depends on the battle state. Counters are only read here,
+    the battle flow updates them
+    """
+    move_id = move[_MOVE_ID]
+    power = move[_MOVE_POWER]
+    if move_id == _MOVENAME_FLAIL:
+        return flail(attacker)
+    if move_id == _MOVENAME_LOW_KICK:
+        return weight_power(defender)
+    if move_id == _MOVENAME_MAGNITUDE:
+        return magnitude_power()
+    if move_id == _MOVENAME_FURY_CUTTER:
+        return power << (max(attacker[_POK_CONSEC_COUNT], 1) - 1)
+    if move_id in ROLLOUT_MOVES:
+        power <<= max(attacker[_POK_CONSEC_COUNT], 1) - 1
+        if attacker[_POK_VOL_STATUS] & _VOLSTATUS_DEFENSE_CURL:
+            power *= 2
+        return power
+    if move_id == _MOVENAME_ASSURANCE and defender[_POK_VOL_STATUS] & _VOLSTATUS_HURT_THIS_TURN:
+        return power * 2
+    if move_id == _MOVENAME_GUST and defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE:
+        return power * 2
+    return power
+
+
 
 # ==========================================
 # 4. CORE DAMAGE FUNCTIONS
@@ -274,9 +331,7 @@ def calculate_damage(
 
     attack, defense = raw_atk_def(move, attacker, defender, weather, crit)
 
-    power = move[_MOVE_POWER]
-    if move[_MOVE_ID] == _MOVENAME_FLAIL:
-        power = flail(attacker)
+    power = variable_power(attacker, defender, move)
 
     # Ability
     if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
