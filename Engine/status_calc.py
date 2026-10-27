@@ -11,7 +11,7 @@ from Models.constants import (
     _POK_SPECIAL_ATTACK_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE, _POK_SPEED_STAT_STAGE,
     _POK_EVASION_STAT_STAGE, _POK_BADLY_POISON, _POK_SLEEP_COUNTER, _POK_ACCURACY_STAT_STAGE,
     _POK_AB_ID, _POK_MAX_HP, _POK_TYPE1, _POK_TYPE2, _STATUS_PARALYSIS, _MOVENAME_CURSE,
-    _TYPES_FIRE, _TYPES_ELECTRIC, _POK_CURRENT_HP, _SEC_BOOST_ACC, _MOVE_ID,
+    _TYPES_FIRE, _TYPES_ICE, _POK_CURRENT_HP, _SEC_BOOST_ACC, _MOVE_ID, _SEC_TARGET,
     _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_SYNCHRONIZE, _VOLSTATUS_DEFENSE_CURL, _VOLSTATUS_FOCUS_ENERGY,
     _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL, _MOVE_VOL_STATUS,
     _VOLSTATUS_CONFUSION, _POK_VOL_STATUS, _POK_CONFUSION_COUNTER, _SEC_VOL_STATUS
@@ -61,7 +61,7 @@ def synchronize_reflect(recipient, applied_status, source):
         source[_POK_STATUS] = applied_status
         return
     if applied_status == _STATUS_PARALYSIS:
-        if t1 == _TYPES_ELECTRIC or t2 == _TYPES_ELECTRIC or source[_POK_AB_ID] == _ABILITYNAMES_LIMBER:
+        if source[_POK_AB_ID] == _ABILITYNAMES_LIMBER:
             return
         source[_POK_STATUS] = applied_status
         return
@@ -81,6 +81,17 @@ def apply_status(move, pok, weather, source, sec=False):
 
     m_status = move[_SEC_STATUS] if sec else move[_MOVE_STATUS]
     if m_status == 0:
+        return
+
+    t1 = pok[_POK_TYPE1]
+    t2 = pok[_POK_TYPE2]
+    if m_status == _STATUS_BURN and (t1 == _TYPES_FIRE or t2 == _TYPES_FIRE):
+        return
+    if m_status == _STATUS_FREEZE and (t1 == _TYPES_ICE or t2 == _TYPES_ICE):
+        return
+    if (m_status == _STATUS_POISON or m_status == _STATUS_TOXIC) and (
+        t1 in STEEL_POISON or t2 in STEEL_POISON
+    ):
         return
 
     if m_status == _STATUS_FREEZE and weather == _WEATHER_SUN:
@@ -117,7 +128,7 @@ def stat_changes(move, attacker, defender, sec=False):
         return
 
     # 2. Assign target exactly once
-    m_target = move[_MOVE_TARGET]
+    m_target = move[_SEC_TARGET] if sec else move[_MOVE_TARGET]
     target_pok = attacker if m_target in TARGET_SELF_SIDE else defender
 
     # 3. Apply stats safely to the evaluated target
@@ -183,7 +194,7 @@ def calculate_effects(attacker, defender, move, weather):
 @njit
 def sec_effects(move, attacker, defender, weather):
     """Calculate secondary move effects (e.g., 10% Burn)."""
-    m_target = move[_MOVE_TARGET]
+    m_target = move[_SEC_TARGET]
     target_opp = m_target in TARGET_OPP_SIDE
 
     if target_opp and defender[_POK_CURRENT_HP] <= 0:

@@ -14,7 +14,8 @@ GENERATED_CLASSES = (
     I.Pok, I.Move, I.Flags, I.Sec, I.Field, I.Item, H.MoveCategory, AbilityNames,
     H.Types, H.Weather, H.AbilityActivation, H.Status, MoveName, H.VolStatus,
     H.Gender, H.Enemy_AI_Knows, H.Potions, H.MoveOutcome, H.ActionType,
-    H.BattlePhase, H.ItemActivation, H.ItemType, ItemNames, H.DamageSources,
+    H.BattlePhase, H.ItemActivation, H.ItemType, ItemNames, H.SideCondition,
+    H.DamageSources,
 )
 
 
@@ -69,6 +70,26 @@ def test_volstatus_are_distinct_bits():
     values = list(_int_attrs(H.VolStatus).values())
     assert all(v > 0 and v & (v - 1) == 0 for v in values)
     assert len(set(values)) == len(values)
+
+
+def test_volstatus_fits_int32():
+    """The bitmap lives in an int32 slot, so no bit may reach the sign bit"""
+    assert sum(_int_attrs(H.VolStatus).values()) < 2**31
+
+
+def test_side_condition_are_distinct_bits():
+    """SideCondition is a per-side bitmap, every value must be its own power of two"""
+    values = list(_int_attrs(H.SideCondition).values())
+    assert all(v > 0 and v & (v - 1) == 0 for v in values)
+    assert len(set(values)) == len(values)
+
+
+def test_new_pokemon_counters_start_at_zero(make_pokemon):
+    """Counters for volatiles and move history start empty when a Pokemon is built"""
+    arr = make_pokemon("Pikachu", 10, "Static", ["Thunder Shock"]).to_np()
+    assert arr.shape == (I.POK_LEN,)
+    assert not arr[I.Pok.PROTECT_COUNT : I.Pok.CONSUMED_ITEM + 1].any()
+    assert arr[I.Pok.WEIGHT] > 0
 
 
 def test_empty_battle_array_shape():

@@ -25,6 +25,7 @@ from Models.constants import (
     _ABILITYACTIVATION_ON_CONTACT, _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER, _POK_TURNS_ACTIVE,
     _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_ID, _MOVE_PP, _MOVENAME_COVET,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
+    _SEC_VOL_STATUS2,
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START, _MOVECATEGORY_PHYSICAL,
     _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN, _MOVE_MULTI_HIT_MIN, _MOVE_MULTI_HIT_MAX,
     _POK_VOL_STATUS, _VOLSTATUS_BIDE, _POK_DMG_TAKEN, _MOVE_CHARGE_RECHARGE, _POK_CHARGE_RECHARGE,
@@ -151,6 +152,8 @@ def _apply_move_damage(attacker, defender, move, damage):
             contact_ability(attacker, defender)
         if move[_SEC_VOL_STATUS] & _VOLSTATUS_FLINCH:
             flinch = flinch_checker(move, defender)
+        elif move[_SEC_VOL_STATUS2] & _VOLSTATUS_FLINCH:
+            flinch = flinch_checker(move, defender, True)
         if defender[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
             item_on_rdmg(defender)
         return flinch
@@ -203,14 +206,13 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s):
         if flinch_c:
             flinch = True
         dmg += damage
+        # Check for secondary effects and apply them
+        if move[_SEC_CHANCE]:
+            sec_effects(move, attacker, defender, weather)
 
     # TODO: recoil
     if move[_MOVE_DRAIN]:
         drain(attacker, move, dmg)
-
-    # Check for secondary effects and apply them
-    if move[_SEC_CHANCE]:
-        sec_effects(move, attacker, defender, weather)
 
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         #Only last damage counts i think, needs check TODO

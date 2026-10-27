@@ -1,6 +1,7 @@
 """Turn flow (start_of_turn / action / end_of_turn / switches) and a seeded fuzz over
 whole battles that checks state invariants after every decision"""
 import pytest
+from Engine import battle
 from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
 from Models.idx_const import Pok, Move, Field, POK_LEN
 from Models.helper import ActionType, BattlePhase, Status, Potions
@@ -201,3 +202,17 @@ def test_fuzz_battles(name):
 def test_fuzz_battles_long(name):
     """Same as above with 1000 seeds, run with `pytest -m slow`"""
     _fuzz(name, range(1000, 2000))
+
+
+
+@pytest.mark.parametrize("ko_first_hit, rolls", [(False, 2), (True, 1)])
+def test_multihit_secondary_rolls_every_hit(monkeypatch, poke, ko_first_hit, rolls):
+    """Showdown rolls secondaries inside the hit loop: Twineedle gets a poison roll per hit"""
+    calls = []
+    monkeypatch.setattr(battle, "sec_effects", lambda *a: calls.append(1))
+    a = poke("Beedrill", 50, "Swarm", ["Twineedle"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    if ko_first_hit:
+        d[Pok.CURRENT_HP] = 1
+    battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+    assert len(calls) == rolls

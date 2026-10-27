@@ -46,7 +46,9 @@ from Models.constants import (
     _ITEMNAMES_RINDO_BERRY, _ITEMNAMES_YACHE_BERRY, _ITEMNAMES_CHOPLE_BERRY, _ITEMNAMES_KEBIA_BERRY,
     _ITEMNAMES_SHUCA_BERRY, _ITEMNAMES_COBA_BERRY, _ITEMNAMES_PAYAPA_BERRY, _ITEMNAMES_TANGA_BERRY,
     _ITEMNAMES_CHARTI_BERRY, _ITEMNAMES_KASIB_BERRY, _ITEMNAMES_HABAN_BERRY, _ITEMNAMES_COLBUR_BERRY,
-    _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE, _POK_TURNS_ACTIVE
+    _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE, _POK_TURNS_ACTIVE,
+    _MOVE_CRIT_RATIO, _MOVE_CHARGE_RECHARGE, _MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB,
+    _MOVENAME_MUD_SHOT, _MOVENAME_TICKLE, _MOVENAME_BULK_UP, _VOLSTATUS_FOCUS_ENERGY
 )
 
 COUNTER_EX_TYPES = (
@@ -149,7 +151,8 @@ ITEMS_STEAL = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_J
 #--------------Move tuples-----------------------------
 EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET, _MOVENAME_CURSE,
     _MOVENAME_FAKE_OUT, _MOVENAME_FLAIL)
-BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT)
+BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE)
+SPEED_DOWN_ON_HIT = (_MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB, _MOVENAME_MUD_SHOT)
 
 
 @njit
@@ -354,6 +357,9 @@ def basic_move_vol_status(move, ability, user_pok, ai_pok):
             )
         ):
             return -10
+    elif vol_status == _VOLSTATUS_FOCUS_ENERGY:
+        if ai_pok[_POK_VOL_STATUS] & _VOLSTATUS_FOCUS_ENERGY:
+            return -10
 
     return 0
 
@@ -461,6 +467,22 @@ def basic_moves(move, ai_pok, user_pok, ability, effectiveness):
             return -12
         if ai_pok[_POK_TURNS_ACTIVE] > 1:
             return -10
+    elif move_id == _MOVENAME_BULK_UP:
+        if ai_pok[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
+            if ai_pok[_POK_ATTACK_STAT_STAGE] >= 3 or ai_pok[_POK_DEFENSE_STAT_STAGE] >= 3:
+                return -10
+        else:
+            if ai_pok[_POK_ATTACK_STAT_STAGE] >= 6:
+                return -10
+            if ai_pok[_POK_DEFENSE_STAT_STAGE] >= 6:
+                return -8
+    elif move_id == _MOVENAME_TICKLE:
+        if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and ability in STAT_AB_IM:
+            return -10
+        if user_pok[_POK_ATTACK_STAT_STAGE] <= -6:
+            return -10
+        if user_pok[_POK_DEFENSE_STAT_STAGE] <= -6:
+            return -8
 
     return 0
 
@@ -514,7 +536,7 @@ def basic_flag(
     Dream Eater
     Belly Drum
     Reflect / Light Screen / Mist / Safeguard
-    Focus Energy / Ingrain / Mud Sport / Water Sport / Camouflage / Power Trick / Lucky Chant / Aqua Ring / Magnet Rise
+    Ingrain / Mud Sport / Water Sport / Camouflage / Power Trick / Lucky Chant / Aqua Ring / Magnet Rise
     Substitute
     Leech Seed
     Disable / Encore
@@ -529,8 +551,7 @@ def basic_flag(
     Trick / Switcheroo / Knock Off
     Imprison
     Refresh
-    Tickle
-    Cosmic Power / Bulk Up / Calm Mind / Dragon Dance
+    Cosmic Power / Calm Mind / Dragon Dance
     Gravity / Tailwind
     Trick Room
     Healing Wish / Lunar Dance
@@ -720,6 +741,8 @@ def expert_vol_status(move, ai_pok, u_pok, turn, rand, idx, hp_pct_u):
             if hp_pct_u < 51:
                 score += -1
         return score
+    if move[_MOVE_VOL_STATUS] == _VOLSTATUS_FOCUS_ENERGY:
+        return 0
     raise ValueError("Need implementation")
 
 @njit(inline='always')
@@ -827,7 +850,7 @@ def _expert_stat_opp(
     move_first, u_pok, hp_pct_u, my_last_move
 ):
     """Handles adjustments for moves targeting opponent side"""
-    if move[_MOVE_BOOST_ATK]:
+    if move[_MOVE_BOOST_ATK] and not move[_MOVE_BOOST_DEF]:
         score = 0
         atk_stage = u_pok[_POK_ATTACK_STAT_STAGE]
         if atk_stage != 0:
@@ -855,7 +878,7 @@ def _expert_stat_opp(
 
     if move[_MOVE_BOOST_SPDEF]:
         score = 0
-        if hp_pct_ai < 70 or ai_pok[_POK_SPECIAL_DEFENSE_STAT_STAGE] <= -3:
+        if hp_pct_ai < 70 or u_pok[_POK_SPECIAL_DEFENSE_STAT_STAGE] <= -3:
             add_adjustment(rand, idx, -2, 206)
         if hp_pct_u < 71:
             score += -2
@@ -878,7 +901,7 @@ def _expert_stat_opp(
             add_adjustment(rand, idx, 2, 186)
         if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
             add_adjustment(rand, idx, 2, 186)
-        if hp_pct_ai >= 70 or ai_pok[_POK_ACCURACY_STAT_STAGE] == 0:
+        if hp_pct_ai > 70 or u_pok[_POK_ACCURACY_STAT_STAGE] == 0:
             return 0
         if hp_pct_ai < 40 or hp_pct_u < 40:
             return -2
@@ -1081,6 +1104,25 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
             add_adjustment(rand, idx, -3, 206)
         return 0
 
+    # High Critical Hit Rate (e.g. Karate Chop, Razor Leaf, Air Cutter)
+    if move[_MOVE_CRIT_RATIO] > 1 and move[_MOVE_CHARGE_RECHARGE] == 0:
+        if effectiveness <= 0.5:
+            return 0
+        if effectiveness >= 2:
+            add_adjustment(rand, idx, 1, 128)
+        else:
+            add_adjustment(rand, idx, 1, 64)
+        return 0
+
+    # Speed-Lowering Attacks, only these exact moves (Icy Wind, Rock Tomb, Mud Shot)
+    if move[_MOVE_ID] in SPEED_DOWN_ON_HIT:
+        if effectiveness <= 0.5:
+            return 0
+        if move_first:
+            return -3
+        add_adjustment(rand, idx, 2, 186)
+        return 0
+
     """
     TODO:
     --------------Specific Moves---------------
@@ -1176,16 +1218,13 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
     Stealth Rock
 
     --------------Effect Moves-----------------
-    Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
     Switch-Forcing Moves (Roar, Whirlwind)
     Recovery Moves (e.g., Recover, Synthesis, Swallow)
     OHKO Moves (Example moves: Horn Drill, Fissure, Sheer Cold, Guillotine)
     Charge Turn Moves Without Invulnerability (Razor Wind, Skull Bash, Sky Attack, Solar Beam/Blade)
     Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)
     Binding Moves (e.g. Wrap, Clamp)
-    High Critical Hit Rate (e.g. Slash, Razor Leaf, Cross Poison)
     Recoil Moves (e.g. Submission, Flare Blitz, Double-Edge)
-    Speed-Lowering Attacks (e.g. Rock Tomb, Mud Shot, Icy Wind)
     Recharge-Turn Attacks (e.g. Hyper Beam, Giga Impact)
     Moves Which Change the User's Ability (Role Play, Skill Swap)
     Moves Which Decrease in Power With Less User HP (Water Spout, Eruption)

@@ -4,9 +4,9 @@ import pytest
 from Engine.engine_helper import (
     check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     switch_in, trainer_ai_items, eat_berry, drain, weather_dmg, early_returns, struggle,
-    thaw, heal_weather, on_residual,
+    thaw, heal_weather, on_residual, flinch_checker,
 )
-from Models.idx_const import Pok, Move, Item
+from Models.idx_const import Pok, Move, Item, Sec
 from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome
 from DataBase.ItemDB import ItemNames
 from battle_driver import move_slice
@@ -439,3 +439,36 @@ def test_random_is_seeded_per_test():
     first = random.random()
     random.seed(1234)
     assert random.random() == first
+
+
+
+@pytest.mark.parametrize("move, target", [
+    ("Growl", "Gastly"),        # Normal status move into Ghost
+    ("Leer", "Gastly"),
+    ("Sand Attack", "Pidgey"),  # Ground status move into Flying
+])
+def test_status_moves_ignore_type_immunity(poke, move, target):
+    """Showdown: ignoreImmunity defaults to true for Status moves"""
+    a = poke("Rattata", 50, "Run Away", [move])
+    d = poke(target, 50, "Run Away", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.HIT
+
+
+def test_thunder_wave_respects_ground_immunity(poke):
+    """Thunder Wave sets ignoreImmunity: false, so Ground types are immune"""
+    a = poke("Pikachu", 50, "Static", ["Thunder Wave"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.INVULNERABLE
+
+
+def test_flinch_checker_second_slot(poke):
+    """Fire Fang's flinch lives in the second secondary slot"""
+    a = poke("Growlithe", 50, "Intimidate", ["Fire Fang"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0).copy()
+    mv[Sec.CHANCE] = 0
+    mv[Sec.CHANCE2] = 100
+    assert flinch_checker(mv, d, True)
+    assert not flinch_checker(mv, d)
+    d2 = poke("Rattata", 50, "Inner Focus", ["Tackle"])
+    assert not flinch_checker(mv, d2, True)

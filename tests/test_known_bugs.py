@@ -7,7 +7,6 @@ the test instead.
 import pytest
 from Engine.battle import ps_moves
 from Models.idx_const import Pok
-from Models.trainer_ai import return_idx
 from battle_driver import move_slice
 
 
@@ -28,13 +27,3 @@ def test_level_damage_moves_deal_user_level(poke, move):
     ps_moves(a, d, move_slice(a, 0), 0, False, False)
     assert d[Pok.CURRENT_HP] == hp - 14
 
-
-@bug("Not implemented yet (TODO.txt: Focus Energy (B)): expert_vol_status raises "
-     "'Need implementation' for volatiles other than confusion")
-def test_ai_with_focus_energy(make_pokemon, make_battle):
-    """The AI can score Focus Energy without crashing"""
-    arr = make_battle(
-        [make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])],
-        [make_pokemon("Rattata", 10, "Run Away", ["Tackle", "Focus Energy"])],
-    )
-    assert 0 <= return_idx(arr) <= 1

@@ -137,7 +137,17 @@ class Pokemon:
             self.turns,
             0,   # This is for active turns
             gender,
-            self.weight
+            self.weight,
+            0,   # Protect count
+            0,   # Trap turns
+            0,   # Taunt turns
+            0,   # Encore turns
+            0,   # Yawn turns
+            0,   # Perish turns
+            0,   # Uproar turns
+            0,   # Consecutive count (Rollout, Ice Ball, Fury Cutter)
+            0,   # Last move id, 0 means none
+            0    # Consumed item, 0 means none
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 

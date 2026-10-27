@@ -1242,7 +1242,6 @@
   },
   "Growth": {
     "accuracy": true,
-    "boost_atk": 1,
     "boost_spatk": 1,
     "category": "Status",
     "flags": {
@@ -2984,7 +2983,7 @@
       "protect": true,
       "reflectable": true
     },
-    "ignore_immunity": true,
+    "ignore_immunity": false,
     "name": "thunder_wave",
     "pp": 20,
     "status": "paralysis",

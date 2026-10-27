@@ -5,7 +5,7 @@ from Models.idx_const import Pok, Move, Flags, Sec, Field, Item
 from Models.helper import (
     MoveCategory, Types, Weather, AbilityActivation, Status, VolStatus, Gender,
     Enemy_AI_Knows, Potions, MoveOutcome, ActionType, BattlePhase, ItemActivation,
-    ItemType, DamageSources
+    ItemType, DamageSources, SideCondition
 )
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.MoveDB import MoveName
@@ -26,7 +26,7 @@ def build_constants_file():
             Gender, Enemy_AI_Knows, Potions, MoveOutcome, ActionType,
             BattlePhase, ItemActivation, ItemType, ItemNames,
 
-            DamageSources
+            SideCondition, DamageSources
         ):
             f.write(f"# --- {_cls.__name__.upper()} CONSTANTS ---\n")
             for _attr, _val in vars(_cls).items():

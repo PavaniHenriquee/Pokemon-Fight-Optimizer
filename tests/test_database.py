@@ -7,7 +7,7 @@ from Models.move import Moves
 from Models.ability import ability_to_np
 from Models.item import item_to_np
 from Models.pokemon import Pokemon
-from Models.idx_const import MOVE_STRIDE, AB_LEN, ITEM_LEN, POK_LEN
+from Models.idx_const import MOVE_STRIDE, AB_LEN, ITEM_LEN, POK_LEN, Move
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -15,9 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Strict xfail: once you implement one, its test XPASSes and fails, telling you to drop it
 # from this list.
 UNSUPPORTED_MOVES = {
-    "Aqua Ring", "Bind", "Charge", "Clamp", "Destiny Bond", "Encore", "Endure", "Fire Spin",
-    "Follow Me", "Foresight", "Helping Hand", "Ingrain", "Low Kick", "Lucky Chant", "Mist",
-    "Nightmare", "Odor Sleuth", "Protect", "Safeguard", "Taunt", "Whirlpool", "Wrap", "Yawn",
+    "Low Kick",
 }
 
 
@@ -110,3 +108,21 @@ def test_trainer_db_shape():
 def test_box_pokemon_builds(entry):
     """Every saved box entry builds"""
     assert _team_entry_to_pokemon(entry).to_np().shape == (POK_LEN,)
+
+
+
+@pytest.mark.parametrize("name, expected", [
+    ("Growl", 1),         # Status: defaults to ignoring type immunity
+    ("Sand Attack", 1),
+    ("Thunder Wave", 0),  # explicit ignoreImmunity: false
+    ("Tackle", 0),        # damaging moves respect immunity
+])
+def test_ignore_immunity_flag(name, expected):
+    """Move.IGNORE_IMMUNITY follows Showdown's ignoreImmunity default"""
+    assert Moves(moveDB[name]).to_array()[Move.IGNORE_IMMUNITY] == expected
+
+
+def test_growth_is_gen4():
+    """Gen IV Growth raises only Sp. Atk (RP sheet, Showdown gen4 mod)"""
+    arr = Moves(moveDB["Growth"]).to_array()
+    assert (arr[Move.BOOST_ATK], arr[Move.BOOST_SPATK]) == (0, 1)

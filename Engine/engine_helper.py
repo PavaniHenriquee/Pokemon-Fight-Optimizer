@@ -24,6 +24,7 @@ from Models.constants import (
     _POK_TYPE1, _POK_TYPE2, _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _POK_ATTACK_STAT_STAGE,
     _POK_VOL_STATUS, _POK_BADLY_POISON, _POK_TURNS, _POK_MAX_HP, _POK_SLEEP_COUNTER, _POK_CURRENT_HP,
     _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_CHANCE, _POK_TURNS_ACTIVE,
+    _SEC_CHANCE2, _MOVE_IGNORE_IMMUNITY,
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _FIELD_TURN, _STATUS_TOXIC, _STATUS_POISON,
     _STATUS_SLEEP, _STATUS_FREEZE, _VOLSTATUS_CONFUSION, _POTIONS_FULL_HEAL,
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
@@ -250,9 +251,7 @@ def calculate_hit_miss(move, attacker, defender, weather):
     if ab_a & _ABILITYACTIVATION_ON_TRY_MOVE or ab_d & _ABILITYACTIVATION_ON_TRY_MOVE:
         move_acc = ab_on_try_move(move, attacker, defender, move_acc, weather)
 
-    # TODO: Move.IGNORE_IMMUNITY is parsed from JSON (e.g. Thunder Wave) but never
-    # read anywhere — decide what it should bypass here before relying on it.
-    if move[_MOVE_TARGET] not in TARGET_SELF_SIDE:
+    if move[_MOVE_TARGET] not in TARGET_SELF_SIDE and not move[_MOVE_IGNORE_IMMUNITY]:
         eff, _ = get_type_effectiveness(move[_MOVE_TYPE], defender[_POK_TYPE1], defender[_POK_TYPE2])
         if eff == 0:
             return _MOVEOUTCOME_INVULNERABLE
@@ -337,11 +336,12 @@ def switch_in(attacker, defender):
 # ── In-battle status / contact effects ────────────────────────────────────────────
 
 @njit
-def flinch_checker(move, defender):
+def flinch_checker(move, defender, second=False):
     """Returns true or false if move has a flinch percent and it should flinch"""
     if defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS:
         return False
-    if random.randint(1,100) <= move[_SEC_CHANCE]:
+    chance = move[_SEC_CHANCE2] if second else move[_SEC_CHANCE]
+    if random.randint(1,100) <= chance:
         return True
     return False
 

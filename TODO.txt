@@ -120,9 +120,9 @@
 # Moves
 [X]Absorb !
 [X]Acid
-[]Aerial Ace(E) *
-[]Agility *
-[]Air Cutter(E) *
+[X]Aerial Ace(E) *
+[X]Agility *
+[X]Air Cutter(E) *
 [X]Amnesia
 [X]Aqua Jet
 []Aqua Ring(B/E) ! *
@@ -130,8 +130,8 @@
 []Assurance(E) ! *
 [X]Astonish
 []Attract(B) ! *
-[]Aurora Beam *
-[]Barrier *
+[X]Aurora Beam *
+[X]Barrier *
 []Baton Pass(B/E) ! *
 [X]Bide(E) !
 []Bind(E) ! *
@@ -140,15 +140,15 @@
 []Bounce(E) ! *
 []Brick Break(E) ! (Need Screens)
 [X]Bubble
-[]Bubble Beam *
+[X]Bubble Beam *
 [X]Bug Bite(E) !
-[]Bulk Up(B) *
+[X]Bulk Up(B) *
 [X]Bulldoze
 [X]Bullet Seed
 []Charge ! *
 [X]Charm
 []Clamp(E) ! *
-[]Comet Punch *
+[X]Comet Punch *
 [X]Confuse Ray !
 [X]Confusion
 []Copycat(B/E) ! *
@@ -158,159 +158,159 @@
 [X]Defense Curl !
 []Destiny Bond(E) ! *
 [X]Disarming Voice
-[]Double Kick *
-[]Double Slap *
-[]Double Team *
-[]Dragon Breath *
+[X]Double Kick *
+[X]Double Slap *
+[X]Double Team *
+[X]Dragon Breath *
 [X]Dragon Rage !
-[]Draining Kiss *
+[X]Draining Kiss *
 [X]Ember
 []Encore(B/E) ! *
 []Endure(E) ! *
-[]Extrasensory *
-[]Extreme Speed *
+[X]Extrasensory *
+[X]Extreme Speed *
 [X]Fake Out(B/E) !
-[]Fake Tears *
+[X]Fake Tears *
 []Feint(E) ! *
-[]Feint Attack(E) *
-[]Fire Fang *
+[X]Feint Attack(E) *
+[X]Fire Fang *
 [X]Fire Punch
 []Fire Spin(E) ! *
 [X]Flail(E) !
-[]Flame Wheel *
-[]Flash *
-[]Focus Energy(B) (Engine done)
+[X]Flame Wheel *
+[X]Flash *
+[X]Focus Energy(B) (Engine done)
 []Follow Me ! *
-[]Force Palm
+[X]Force Palm
 []Foresight(B/E) !
-[]Fury Attack *
+[X]Fury Attack *
 []Fury Cutter !
-[]Fury Swipes
-[]Grass Whistle
-[]Growl
-[]Growth !
+[X]Fury Swipes
+[X]Grass Whistle
+[X]Growl
+[X]Growth !
 []Gust
-[]Harden
-[]Headbutt
+[X]Harden
+[X]Headbutt
 []Helping Hand(B) ! *
 []Hidden Power !!
-[]Horn Attack *
-[]Howl
-[]Hyper Fang *
-[]Hypnosis
+[X]Horn Attack *
+[X]Howl
+[X]Hyper Fang *
+[X]Hypnosis
 []Ice Ball ! *
-[]Icy Wind(E) *
+[X]Icy Wind(E) *
 []Ingrain(B) !
-[]Iron Defense *
-[]Iron Head *
-[]Karate Chop(E)
-[]Kinesis *
+[X]Iron Defense *
+[X]Iron Head *
+[X]Karate Chop(E)
+[X]Kinesis *
 []Knock Off(B/E) ! *
 []Leech Seed(B/E) ! *
-[]Leer
-[]Lick *
+[X]Leer
+[X]Lick *
 []Light Screen(B/E) ! *
 []Low Kick !
 []Lucky Chant(B/E) ! *
-[]Mach Punch *
-[]Magical Leaf(E) *
+[X]Mach Punch *
+[X]Magical Leaf(E) *
 []Magnitude(B) ! *
-[]Meditate *
-[]Mega Drain
-[]Metal Claw
+[X]Meditate *
+[X]Mega Drain
+[X]Metal Claw
 []Metronome!!!!!!
 []Mirror Coat(E) ! *
 []Mirror Move(E) ! *
 []Mist(B) ! *
-[]Mud Bomb *
-[]Mud Shot(E)
+[X]Mud Bomb *
+[X]Mud Shot(E)
 []Mud Sport(B/E) !
-[]Mud-Slap
-[]Nasty Plot *
+[X]Mud-Slap
+[X]Nasty Plot *
 []Natural Gift(B) ! *
 []Nature Power !(maybe unnecessary)
 []Night Shade *
 []Odor Sleuth(B/E) ! *
-[]Peck
+[X]Peck
 []Perish Song(B) ! *
-[]Pin Missile *
-[]Poison Fang *
-[]Poison Powder *
-[]Poison Sting
-[]Pound
-[]Powder Snow *
+[X]Pin Missile *
+[X]Poison Fang *
+[X]Poison Powder *
+[X]Poison Sting
+[X]Pound
+[X]Powder Snow *
 []Protect(E) !
-[]Psybeam *
+[X]Psybeam *
 []Psywave ! *
 []Pursuit(E) !
-[]Quick Attack
+[X]Quick Attack
 []Rage ! *
 []Rain Dance(B/E) ! *
 []Rapid Spin ! *
-[]Razor Leaf(E)
+[X]Razor Leaf(E)
 []Recover(B/E) ! *
 []Recycle(B/E) ! *
 []Reflect(B/E) ! *
 []Refresh(B/E) ! *
 []Roar(B/E) !
-[]Rock Blast *
-[]Rock Polish
-[]Rock Slide *
-[]Rock Throw
-[]Rock Tomb(E)
+[X]Rock Blast *
+[X]Rock Polish
+[X]Rock Slide *
+[X]Rock Throw
+[X]Rock Tomb(E)
 []Rollout !! (Defense Curl interaction)(Will need a counter to see how much damage[can be same as Fury Cutter?])
 []Safeguard(B) ! *
-[]Sand Attack
+[X]Sand Attack
 []Sandstorm(B) !
-[]Scary Face
-[]Schock Wave(E)
-[]Scratch
-[]Screech *
+[X]Scary Face
+[X]Schock Wave(E)
+[X]Scratch
+[X]Screech *
 []Seismic Toss *
-[]Silver Wind *
-[]Sing
-[]Slam
-[]Sleep Powder *
-[]Smog *
-[]Smokescreen *
-[]Spark
+[X]Silver Wind *
+[X]Sing
+[X]Slam
+[X]Sleep Powder *
+[X]Smog *
+[X]Smokescreen *
+[X]Spark
 []Splash !(Gravity interaction)
 []Stealth Rock(B/E) !! (Hazards/What happens if either mine or opponent switches and instantly dies)
 []Stomp !(Minimize interaction)
-[]String Shot
+[X]String Shot
 []Struggle !(Already done, but should check it 100%)
-[]Stun Spore *
-[]Supersonic
-[]Sweet Kiss *
-[]Sweet Scent *
-[]Swift(E) *
+[X]Stun Spore *
+[X]Supersonic
+[X]Sweet Kiss *
+[X]Sweet Scent *
+[X]Swift(E) *
 []Synthesis(B/E) ! *
-[]Tackle
-[]Tail Whip
+[X]Tackle
+[X]Tail Whip
 []Take Down(E) *
 []Taunt !
 []Teleport(B) *
-[]Thunder Punch
-[]Thunder Shock *
-[]Thunder Wave
-[]Tickle(B) *
+[X]Thunder Punch
+[X]Thunder Shock *
+[X]Thunder Wave
+[X]Tickle(B) *
 []Toxic Spikes(B/E) ! *
-[]Twineedle *
+[X]Twineedle *
 []Uproar !
-[]Vice Grip *
-[]Vine Whip
-[]Water Gun *
-[]Water Pulse
+[X]Vice Grip *
+[X]Vine Whip
+[X]Water Gun *
+[X]Water Pulse
 []Water Sport(B/E) !
 []Whirlpool ! *
 []Whirlwind(B/E) *
-[]Will-O-Wisp *
-[]Wing Attack
-[]Withdraw
+[X]Will-O-Wisp *
+[X]Wing Attack
+[X]Withdraw
 []Worry Seed(B/E) ! *
 []Wrap(E) !
 []Yawn ! *
-[]Zen Headbutt
+[X]Zen Headbutt
 
 
 ## Moves that isn't used until 1st gym, but Trainer AI or engine has current special conditions

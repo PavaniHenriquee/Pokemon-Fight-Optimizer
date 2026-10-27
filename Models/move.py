@@ -77,7 +77,11 @@ class Moves():
             else 0
         )
         base_move_array[Move.IGNORE_DEF]      = int(self.move.get('ignore_def', False))
-        base_move_array[Move.IGNORE_IMMUNITY] = int(self.move.get('ignore_immunity', False))
+        ignore_immunity = self.move.get('ignore_immunity')
+        base_move_array[Move.IGNORE_IMMUNITY] = (
+            int(self.move['category'] == 'Status') if ignore_immunity is None
+            else int(ignore_immunity)
+        )
         base_move_array[Move.PP]              = self.move.get('pp',0)
         base_move_array[Move.PP_UP]           = 0  # Move wont tell pp up, need to manually tell
         mult_hit = self.move.get('multi_hit',[0,0])

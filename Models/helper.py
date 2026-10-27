@@ -56,6 +56,24 @@ class VolStatus:
     BIDE              = 64
     DEFENSE_CURL      = 128
     FOCUS_ENERGY      = 256
+    PROTECT           = 512
+    ENDURE            = 1024
+    FORESIGHT         = 2048
+    TAUNT             = 4096
+    ENCORE            = 8192
+    PARTIALLY_TRAPPED = 16384
+    AQUA_RING         = 32768
+    INGRAIN           = 65536
+    YAWN              = 131072
+    DESTINY_BOND      = 262144
+    CHARGE            = 524288
+    NIGHTMARE         = 1048576
+    MUD_SPORT         = 2097152
+    WATER_SPORT       = 4194304
+    RAGE              = 8388608
+    UPROAR            = 16777216
+    HELPING_HAND      = 33554432
+    FOLLOW_ME         = 67108864
 
 
 @dataclass(slots=True)
@@ -64,10 +82,13 @@ class SideCondition:
     STEALTH_ROCK = 1
     SPIKES = 2
     TOXIC_SPIKES = 4
-    STIKCY_WEBS = 8
+    STICKY_WEBS = 8
     REFLECT = 16
     LIGHT_SCREEN = 32
     AURORA_VEIL = 64
+    MIST = 128
+    SAFEGUARD = 256
+    LUCKY_CHANT = 512
 
 
 @dataclass(slots=True)
