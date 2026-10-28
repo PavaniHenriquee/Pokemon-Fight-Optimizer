@@ -701,6 +701,11 @@ export default function BattleView({
           ⚠ Your Pokémon fainted — choose a replacement below
         </div>
       )}
+      {snapshot.phase === "BATON_PASS" && (
+        <div className="opp-move-banner">
+          Baton Pass: choose who receives it below
+        </div>
+      )}
       {snapshot.opp_move && (
         <div className="opp-move-banner">
           Opp used: <strong>{snapshot.opp_move}</strong>

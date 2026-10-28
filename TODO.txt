@@ -55,7 +55,7 @@
 [X]Steadfast
 []Storm Drain *
 []Sturdy (Need to implement OHKO moves)
-[]Suction Cups (Need to implement force switches moves)
+[X]Suction Cups (Need to implement force switches moves)
 []Super Luck *
 []Swarm *
 [X]Swift Swim
@@ -132,7 +132,7 @@
 [X]Attract(B) ! *
 [X]Aurora Beam *
 [X]Barrier *
-[]Baton Pass(B/E) ! *
+[X]Baton Pass(B/E) ! *
 [X]Bide(E) !
 [X]Bind(E) ! *
 [X]Bite
@@ -242,7 +242,7 @@
 [X]Protect(E) !
 [X]Psybeam *
 [X]Psywave ! *
-[]Pursuit(E) !
+[X]Pursuit(E) !
 [X]Quick Attack
 [X]Rage ! *
 [X]Rain Dance(B/E) ! *
@@ -252,7 +252,7 @@
 []Recycle(B/E) ! *
 [X]Reflect(B/E) ! *
 []Refresh(B/E) ! *
-[]Roar(B/E) !
+[X]Roar(B/E) !
 [X]Rock Blast *
 [X]Rock Polish
 [X]Rock Slide *
@@ -289,7 +289,7 @@
 [X]Tail Whip
 [X]Take Down(E) *
 [X]Taunt !
-[]Teleport(B) *
+[X]Teleport(B) *
 [X]Thunder Punch
 [X]Thunder Shock *
 [X]Thunder Wave
@@ -303,7 +303,7 @@
 [X]Water Pulse
 [X]Water Sport(B/E) !
 [X]Whirlpool ! *
-[]Whirlwind(B/E) *
+[X]Whirlwind(B/E) *
 [X]Will-O-Wisp *
 [X]Wing Attack
 [X]Withdraw

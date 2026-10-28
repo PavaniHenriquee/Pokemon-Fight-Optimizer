@@ -5,7 +5,7 @@ from Engine import battle
 from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
 from Models.idx_const import (
     Pok, Move, Field, POK_LEN, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS,
-    SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES,
+    SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, FIELD_LEN,
 )
 from Models.helper import (
     ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, Types, SideCondition, Weather,
@@ -179,15 +179,17 @@ def check_invariants(arr, action):
         assert 0 <= arr[field] < 6
     assert pok_slice(arr, int(arr[Field.MY_POK]))[Pok.ID] != 0
     assert pok_slice(arr, int(arr[Field.OPP_POK]), True)[Pok.ID] != 0
-    assert arr[Field.PHASE] in (BattlePhase.TURN_START, BattlePhase.DEATH_END_OF_TURN)
+    assert arr[Field.PHASE] in (
+        BattlePhase.TURN_START, BattlePhase.DEATH_END_OF_TURN, BattlePhase.BATON_PASS
+    )
     if not is_over(arr):
-        if arr[Field.PHASE] == BattlePhase.TURN_START:
+        if arr[Field.PHASE] != BattlePhase.DEATH_END_OF_TURN:
             assert my_active(arr)[Pok.CURRENT_HP] > 0, "my active fainted outside death phase"
             assert opp_active(arr)[Pok.CURRENT_HP] > 0, "opponent active fainted mid-battle"
         else:
             # Double KO: the opponent's replacement waits for switch_in_action
             assert my_active(arr)[Pok.CURRENT_HP] == 0, "death phase with my active alive"
-    assert len(arr) == 12 * POK_LEN + (Field.AI_KNOWS - Field.MY_POK + 1)
+    assert len(arr) == 12 * POK_LEN + FIELD_LEN
 
 
 def _fuzz(name, seeds):
@@ -1058,3 +1060,211 @@ def test_move_into_a_fainted_foe(make_pokemon, make_battle, slot, works):
         me[Pok.DEFENSE_STAT_STAGE] == 1, arr[OPP_SIDE] == SR, arr[Field.WEATHER] == Weather.RAIN
     )
     assert any(changed) == works
+
+
+# ── Phase 6 switching moves ──────────────────────────────────────────────────
+
+def _pp(pok, slot):
+    return int(move_slice(pok, slot)[Move.PP])
+
+
+def test_roar_drags_out_a_random_bench_pokemon(make_pokemon, make_battle):
+    """The replacement comes from the bench and takes the hazards on entry"""
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Roar"])
+    opp = [make_pokemon(n, 20, a, ["Growl"]) for n, a in
+           (("Rattata", "Run Away"), ("Machop", "Guts"), ("Zubat", "Inner Focus"))]
+    arr = make_battle([me], opp)
+    arr[OPP_SIDE] = SR
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.OPP_POK] in (1, 2)
+    assert opp_active(arr)[Pok.CURRENT_HP] < opp_active(arr)[Pok.MAX_HP]
+    assert pok_slice(arr, 0, opp=True)[Pok.ATTACK_STAT_STAGE] == 0
+
+
+def test_dragged_out_pokemon_doesnt_move(make_pokemon, make_battle):
+    """Both use Roar, the faster drags the other out and the one sent in doesn't act"""
+    mine = [make_pokemon("Rattata", 30, "Run Away", ["Roar"]),
+            make_pokemon("Geodude", 30, "Sturdy", ["Tackle"])]
+    opp = [make_pokemon("Geodude", 10, "Sturdy", ["Roar"]),
+           make_pokemon("Machop", 10, "Guts", ["Roar"])]
+    arr = make_battle(mine, opp)
+    machop_pp = _pp(pok_slice(arr, 1, opp=True), 0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.OPP_POK] == 1 and arr[Field.MY_POK] == 0
+    assert _pp(opp_active(arr), 0) == machop_pp
+
+
+@pytest.mark.parametrize("atk_ab, def_ab, vol, bench, works", [
+    ("Sturdy", "Run Away", 0, True, True),
+    ("Sturdy", "Suction Cups", 0, True, False),
+    ("Mold Breaker", "Suction Cups", 0, True, True),
+    ("Sturdy", "Run Away", VolStatus.INGRAIN, True, False),
+    ("Sturdy", "Run Away", 0, False, False),
+])
+def test_force_switch_failures(make_pokemon, make_battle, atk_ab, def_ab, vol, bench, works):
+    """Suction Cups (unless Mold Breaker), Ingrain and an empty bench make it fail"""
+    me = make_pokemon("Geodude", 20, atk_ab, ["Roar"])
+    opp = [make_pokemon("Rattata", 20, def_ab, ["Growl"])]
+    if bench:
+        opp.append(make_pokemon("Machop", 20, "Guts", ["Growl"]))
+    arr = make_battle([me], opp)
+    opp_active(arr)[Pok.VOL_STATUS] = vol
+    assert battle._force_switch(my_active(arr), opp_active(arr), arr, False) == works
+    assert (arr[Field.OPP_POK] == 1) == works
+
+
+@pytest.mark.parametrize("roll, works", [(0, False), (None, True)])
+def test_force_switch_level_roll(monkeypatch, make_pokemon, make_battle, roll, works):
+    """A lower level user fails unless (rand * (lv sum) >> 8) + 1 > target lv / 4"""
+    me = make_pokemon("Geodude", 10, "Sturdy", ["Roar"])
+    opp = [make_pokemon("Rattata", 40, "Run Away", ["Growl"]),
+           make_pokemon("Machop", 40, "Guts", ["Growl"])]
+    arr = make_battle([me], opp)
+    monkeypatch.setattr(battle.random, "randrange", lambda n: n - 1 if roll is None else roll)
+    assert battle._force_switch(my_active(arr), opp_active(arr), arr, False) == works
+
+
+def _baton_battle(make_pokemon, make_battle, my_lv, opp_lv, bench=True):
+    mine = [make_pokemon("Rattata", my_lv, "Run Away", ["Baton Pass"])]
+    if bench:
+        mine.append(make_pokemon("Geodude", 20, "Sturdy", ["Tackle"]))
+    opp = [make_pokemon("Machop", opp_lv, "Guts", ["Tackle"])]
+    return make_battle(mine, opp)
+
+
+def test_my_baton_pass_pauses_the_turn(make_pokemon, make_battle):
+    """Faster: the turn waits for my pick, then the foe's move hits who came in"""
+    arr = _baton_battle(make_pokemon, make_battle, 30, 10)
+    rattata = my_active(arr)
+    rattata[Pok.ATTACK_STAT_STAGE] = 2
+    rattata[Pok.VOL_STATUS] = VolStatus.FOCUS_ENERGY | VolStatus.AQUA_RING | VolStatus.DEFENSE_CURL
+    turn = arr[Field.TURN]
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert phase == arr[Field.PHASE] == BattlePhase.BATON_PASS
+    assert arr[Field.PENDING_OPP_MOVE] == 1 and arr[Field.TURN] == turn
+    pp = _pp(opp_active(arr), 0)
+    assert battle.baton_pass_action(arr, 1) == BattlePhase.TURN_START
+    geodude = my_active(arr)
+    assert arr[Field.MY_POK] == 1 and arr[Field.TURN] == turn + 1
+    assert arr[Field.PENDING_OPP_MOVE] == 0 and arr[Field.PHASE] == BattlePhase.TURN_START
+    assert geodude[Pok.ATTACK_STAT_STAGE] == 2 and rattata[Pok.ATTACK_STAT_STAGE] == 0
+    assert geodude[Pok.VOL_STATUS] & VolStatus.FOCUS_ENERGY
+    assert not geodude[Pok.VOL_STATUS] & VolStatus.DEFENSE_CURL
+    assert _pp(opp_active(arr), 0) == pp - 1
+
+
+def test_slower_baton_pass_has_nothing_pending(make_pokemon, make_battle):
+    """The foe already moved, the pick just finishes the turn"""
+    arr = _baton_battle(make_pokemon, make_battle, 30, 10)
+    my_active(arr)[Pok.SPEED] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.PHASE] == BattlePhase.BATON_PASS and arr[Field.PENDING_OPP_MOVE] == 0
+    pp = _pp(opp_active(arr), 0)
+    battle.baton_pass_action(arr, 1)
+    assert _pp(opp_active(arr), 0) == pp and arr[Field.MY_POK] == 1
+
+
+def test_baton_pass_fails_without_a_bench(make_pokemon, make_battle):
+    """Last Pokemon: no phase change, the turn ends normally"""
+    arr = _baton_battle(make_pokemon, make_battle, 30, 10, bench=False)
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert phase == BattlePhase.TURN_START
+
+
+def test_pass_baton_keeps_confusion_and_its_counter(make_pokemon, make_battle):
+    """Confusion and its turns left go over, Attract doesn't"""
+    arr = _baton_battle(make_pokemon, make_battle, 30, 10)
+    old, new = pok_slice(arr, 0), pok_slice(arr, 1)
+    old[Pok.VOL_STATUS] = VolStatus.CONFUSION | VolStatus.ATTRACT
+    old[Pok.CONFUSION_COUNTER] = 3
+    battle._pass_baton(old, new)
+    assert new[Pok.VOL_STATUS] == VolStatus.CONFUSION and new[Pok.CONFUSION_COUNTER] == 3
+
+
+def test_baton_pass_into_the_rocks_ends_in_the_death_phase(make_pokemon, make_battle):
+    """The replacement faints on entry, the foe's move has no target, I pick at the end"""
+    mine = [make_pokemon("Rattata", 30, "Run Away", ["Baton Pass"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Machop", 10, "Guts", ["Tackle"])])
+    arr[MY_SIDE] = SR
+    pok_slice(arr, 1)[Pok.CURRENT_HP] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert battle.baton_pass_action(arr, 1) == BattlePhase.DEATH_END_OF_TURN
+    assert pok_slice(arr, 1)[Pok.CURRENT_HP] == 0
+
+
+def test_ai_baton_pass_picks_with_post_ko_logic(make_pokemon, make_battle):
+    """The AI passes right away, never to itself, my slower move hits who it sent"""
+    me = make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])
+    opp = [make_pokemon("Ninjask", 30, "Run Away", ["Baton Pass"]),
+           make_pokemon("Rattata", 10, "Run Away", ["Growl"])]
+    arr = make_battle([me], opp)
+    pok_slice(arr, 0, opp=True)[Pok.DEFENSE_STAT_STAGE] = 2
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.OPP_POK] == 1 and arr[Field.PHASE] != BattlePhase.BATON_PASS
+    rattata = opp_active(arr)
+    assert rattata[Pok.DEFENSE_STAT_STAGE] == 2
+    assert rattata[Pok.CURRENT_HP] < rattata[Pok.MAX_HP]
+
+
+def _spy_power(monkeypatch):
+    hits = []
+    real = battle.ps_moves
+
+    def spy(atk, defn, mv, *args):
+        hits.append((int(defn[Pok.ID]), int(mv[Move.POWER])))
+        return real(atk, defn, mv, *args)
+    monkeypatch.setattr(battle, "ps_moves", spy)
+    return hits
+
+
+def test_ai_pursuit_hits_my_switch_at_double_power(monkeypatch, make_pokemon, make_battle):
+    """Before the switch, double power, and the AI's turn is used up"""
+    mine = [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Murkrow", 20, "Insomnia", ["Pursuit"])])
+    hits = _spy_power(monkeypatch)
+    rattata_id = int(pok_slice(arr, 0)[Pok.ID])
+    pp = _pp(opp_active(arr), 0)
+    turn_sim(0, (SWITCH, 1), arr)
+    assert hits == [(rattata_id, 80)]
+    assert pok_slice(arr, 0)[Pok.CURRENT_HP] < pok_slice(arr, 0)[Pok.MAX_HP]
+    assert my_active(arr)[Pok.CURRENT_HP] == my_active(arr)[Pok.MAX_HP]
+    assert _pp(opp_active(arr), 0) == pp - 1
+
+
+def test_my_pursuit_hits_the_ai_switch(monkeypatch, make_pokemon, make_battle):
+    """The AI switching out to slot 1 takes my Pursuit first"""
+    me = make_pokemon("Murkrow", 20, "Insomnia", ["Pursuit"])
+    opp = [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+           make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    arr = make_battle([me], opp)
+    hits = _spy_power(monkeypatch)
+    pp = _pp(my_active(arr), 0)
+    turn_sim(-5, (MOVE, 0), arr)
+    assert arr[Field.OPP_POK] == 1
+    assert hits == [(int(pok_slice(arr, 0, opp=True)[Pok.ID]), 80)]
+    assert opp_active(arr)[Pok.CURRENT_HP] == opp_active(arr)[Pok.MAX_HP]
+    assert _pp(my_active(arr), 0) == pp - 1
+    assert arr[Field.MY_LAST_MOVE] == move_slice(my_active(arr), 0)[Move.ID]
+
+
+def test_pursuit_without_a_switch_is_normal(monkeypatch, make_pokemon, make_battle):
+    """No switch, no double power"""
+    me = make_pokemon("Murkrow", 20, "Insomnia", ["Pursuit"])
+    arr = make_battle([me], [make_pokemon("Rattata", 20, "Run Away", ["Growl"])])
+    hits = _spy_power(monkeypatch)
+    turn_sim(0, (MOVE, 0), arr)
+    assert [power for _, power in hits] == [40]
+
+
+def test_sleeping_pursuer_doesnt_pursue(monkeypatch, make_pokemon, make_battle):
+    """Asleep: no Pursuit before the switch, and no move after it either"""
+    mine = [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Murkrow", 20, "Insomnia", ["Pursuit"])])
+    opp_active(arr)[Pok.STATUS] = Status.SLEEP
+    opp_active(arr)[Pok.SLEEP_COUNTER] = 3
+    hits = _spy_power(monkeypatch)
+    turn_sim(0, (SWITCH, 1), arr)
+    assert hits == []

@@ -50,10 +50,11 @@ MOVE_EXCEP = (
 
 
 @njit
-def sub_after_death(ai_party, user_pok, deadmon, user_side=0, weather=0):
+def sub_after_death(ai_party, user_pok, deadmon, user_side=0, weather=0, exclude=-1):
     """
     Implements the switch-in logic. user_side is user_pok's Field.SIDE_COND, its screens and the
-    weather count in the damage (pokeplatinum BattleAI_PostKOSwitchIn)
+    weather count in the damage (pokeplatinum BattleAI_PostKOSwitchIn). exclude is a slot that
+    can't be picked, the active that's still in after Baton Pass
 
     Phase 1:
     --------
@@ -77,6 +78,7 @@ def sub_after_death(ai_party, user_pok, deadmon, user_side=0, weather=0):
     """
     off = POK_LEN
     candidates = np.where(ai_party[_POK_CURRENT_HP::off] > 0)[0]
+    candidates = candidates[candidates != exclude]
     if len(candidates) == 1:
         return candidates[0]
 
@@ -208,21 +210,24 @@ def choose_move(battle_array):
     user_tspikes = battle_array[_FIELD_MY_TOXIC_SPIKES]
     # The target's living party besides the active (pokeplatinum CountAlivePartyBattlers)
     user_bench = count_party(battle_array[0:(6 * POK_LEN)]) - 1
+    ai_bench = count_party(battle_array[(6 * POK_LEN):(12 * POK_LEN)]) - 1
     # TODO: 1. Perish Song about to hit 0
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
     # pokeplatinum TrainerAI_ShouldSwitch skips every withdraw check when Ingrain roots the active
     # or a bind traps it
     can_switch = not ai_pok[_POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED)
-    # Withdraw 5 - The active Pokémon is asleep and has the ability Natural Cure
+    # Withdraw 5 - The active Pokémon is asleep and has the ability Natural Cure. Like every
+    # withdraw it needs a living bench, and the pick skips the active (pokeplatinum)
     if (
         can_switch
+        and ai_bench > 0
         and ai_pok[_POK_AB_ID] == _ABILITYNAMES_NATURAL_CURE
         and ai_pok[_POK_STATUS] == _STATUS_SLEEP
         and ai_pok[_POK_CURRENT_HP]/ai_pok[_POK_MAX_HP] >= 0.50
     ):
         if not took_dmg and random.getrandbits(1):
-            sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather)
+            sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active)
             if sub == opp_active:
                 pass
             else:
@@ -238,7 +243,7 @@ def choose_move(battle_array):
                 _evaluated_moves[0] = [res[0]-6,0,0,False]
                 return _evaluated_moves
             if random.getrandbits(1):
-                sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather)
+                sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active)
                 _evaluated_moves[0] = [sub-6,0,0,False]
                 return _evaluated_moves
 
@@ -306,7 +311,7 @@ def choose_move(battle_array):
         eval_atk = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, _rand)
         score = eval_atk + basic_flag(
             move, ability, ai_pok, user_pok, effectiveness, weather, ai_side, user_side,
-            user_tspikes, user_bench
+            user_tspikes, user_bench, ai_bench
         )
 
         expert = expert_flag(

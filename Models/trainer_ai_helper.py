@@ -15,7 +15,7 @@ from Models.idx_const import POK_LEN
 from Models.helper import TARGET_SELF_SIDE, TARGET_OPP_SIDE, STEEL_POISON
 from Models.constants import (
     _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE, _ABILITYNAMES_IMMUNITY,
-    _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_POINT, _ABILITYNAMES_LIMBER,
+    _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_POINT, _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_LIMBER,
     _ABILITYNAMES_WATER_VEIL, _ABILITYNAMES_CLEAR_BODY, _ABILITYNAMES_WHITE_SMOKE,
     _ABILITYNAMES_WATER_ABSORB, _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_LEVITATE,
     _ABILITYNAMES_SOUNDPROOF, _ABILITYNAMES_WONDER_GUARD, _MOVENAME_COVET, _MOVENAME_CURSE,
@@ -66,7 +66,8 @@ from Models.constants import (
     _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK, _MOVENAME_RAIN_DANCE,
     _MOVENAME_SANDSTORM, _MOVENAME_BRICK_BREAK, _MOVENAME_REFLECT, _MOVENAME_LIGHT_SCREEN,
     _MOVENAME_LUCKY_CHANT, _MOVENAME_TOXIC_SPIKES, _MOVENAME_STEALTH_ROCK, _MOVENAME_ROAR,
-    _MOVENAME_WHIRLWIND, _ABILITYNAMES_SWIFT_SWIM, _ABILITYNAMES_RAIN_DISH
+    _MOVENAME_WHIRLWIND, _ABILITYNAMES_SWIFT_SWIM, _ABILITYNAMES_RAIN_DISH, _MOVE_FORCE_SWITCH,
+    _MOVENAME_BATON_PASS, _MOVENAME_TELEPORT, _MOVENAME_PURSUIT, _SIDECONDITION_SPIKES
 )
 from Engine.damage_calc import weight_power, matchup_types
 
@@ -80,7 +81,7 @@ MIRROR_COAT_EX_TYPES = (
 )
 SAND_IMMUNE_TYPES = (_TYPES_GROUND, _TYPES_ROCK, _TYPES_STEEL)
 ELEC_AB_IM = (_ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE)
-POISON_AB_IM = (_ABILITYNAMES_IMMUNITY, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_POINT)
+POISON_AB_IM = (_ABILITYNAMES_IMMUNITY, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_HEAL)
 PARA_AB_IM = (_ABILITYNAMES_LIMBER, _ABILITYNAMES_MAGIC_GUARD)
 BURN_AB_IM = (_ABILITYNAMES_WATER_VEIL, _ABILITYNAMES_MAGIC_GUARD)
 STAT_AB_IM = (_ABILITYNAMES_CLEAR_BODY, _ABILITYNAMES_WHITE_SMOKE)
@@ -197,6 +198,13 @@ SCREEN_MIST_SAFEGUARD = (
 SCREENS = _SIDECONDITION_REFLECT | _SIDECONDITION_LIGHT_SCREEN
 HAZARD_M = (_MOVENAME_TOXIC_SPIKES, _MOVENAME_STEALTH_ROCK)
 FORCE_SWITCH_M = (_MOVENAME_ROAR, _MOVENAME_WHIRLWIND)
+SWITCH_EXPERT_M = (_MOVENAME_BATON_PASS, _MOVENAME_PURSUIT, _MOVENAME_TELEPORT)
+TARGET_HAZARDS = _SIDECONDITION_SPIKES | _SIDECONDITION_STEALTH_ROCK | _SIDECONDITION_TOXIC_SPIKES
+# Stages Expert Roar / Whirlwind and Baton Pass look at, accuracy and speed aren't among them
+SWITCH_STAGES = (
+    _POK_ATTACK_STAT_STAGE, _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE,
+    _POK_SPECIAL_DEFENSE_STAT_STAGE, _POK_EVASION_STAT_STAGE
+)
 RAIN_DANCE_GOOD_WEATHER = (_WEATHER_HAIL, _WEATHER_SUN, _WEATHER_SANDSTORM)
 TOXIC_SPIKES_MAX = 2
 AI_KNOWS_MOVE_BITS = (
@@ -480,9 +488,9 @@ def basic_move_vol_status(move, ability, user_pok, ai_pok, user_side=0):
         if ai_pok[_POK_VOL_STATUS] & vol_status:
             return -10
     elif vol_status == _VOLSTATUS_YAWN:
-        # TODO: Safeguard
         if (
             user_pok[_POK_STATUS] != 0
+            or user_side & _SIDECONDITION_SAFEGUARD
             or ability == _ABILITYNAMES_INSOMNIA
             or ability == _ABILITYNAMES_VITAL_SPIRIT
         ):
@@ -656,15 +664,35 @@ def basic_field(move, ability, ai_pok, user_pok, weather, ai_side, user_side, us
 
 
 @njit
+def basic_switch(move, ability, ai_pok, user_bench, ai_bench):
+    """
+    pokeplatinum Basic_CheckCanForceSwitch and Basic_CheckBatonPass, Teleport always fails in
+    a trainer battle (BATTLE_EFFECT_FLEE_FROM_WILD_BATTLE)
+    """
+    if move[_MOVE_FORCE_SWITCH]:
+        if user_bench <= 0:
+            return -10
+        if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and ability == _ABILITYNAMES_SUCTION_CUPS:
+            return -10
+        return 0
+    if move[_MOVE_ID] == _MOVENAME_BATON_PASS:
+        return -10 if ai_bench <= 0 else 0
+    if move[_MOVE_ID] == _MOVENAME_TELEPORT:
+        return -10
+    return 0
+
+
+@njit
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
-            weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1
+            weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1
     ):
     """
     Basic Flag, every trainer has this,
     it discourages moves that would have no effect or that would make no sense.
     ai_side and user_side are both Field.SIDE_COND, user_tspikes the Toxic Spikes layers on the
-    target's side and user_bench how many Pokemon it has alive besides the active
+    target's side and user_bench how many Pokemon it has alive besides the active, ai_bench the
+    same for the AI
     """
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
@@ -685,8 +713,9 @@ def basic_flag(
             return ability_score
     if move[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and ai_pok[_ITEM_NATURAL_GIFT_POWER] == 0:
         return -10
+    if move[_MOVE_FORCE_SWITCH] or move[_MOVE_ID] in SWITCH_EXPERT_M:
+        return basic_switch(move, ability, ai_pok, user_bench, ai_bench)
     if move_category == _MOVECATEGORY_STATUS:
-        # TODO: Safeguard for all conditions
         if move[_MOVE_STATUS] != 0:
             if basic_move_status(move, ability, user_pok, ai_pok, weather, user_side):
                 return -10
@@ -1511,6 +1540,53 @@ def expert_field(move, ai_pok, u_pok, rand, idx, weather, my_last_move, ai_know,
 
 
 @njit
+def max_switch_stage(pok):
+    """Highest of the stages Expert Roar / Whirlwind and Baton Pass check"""
+    best = pok[SWITCH_STAGES[0]]
+    for stage in SWITCH_STAGES:
+        best = max(best, pok[stage])
+    return best
+
+
+@njit
+def expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first):
+    """pokeplatinum Expert_ForceSwitch, Expert_BatonPass and Expert_Pursuit, none for Teleport"""
+    if move[_MOVE_FORCE_SWITCH]:
+        # The target's turn count is TURNS_ACTIVE - 1, a 75% +2 that falls into the 50% +2
+        if u_pok[_POK_TURNS_ACTIVE] - 1 > 3:
+            add_adjustment(rand, idx, 2, 192)
+            add_adjustment(rand, idx, 2, 128)
+            return 0
+        if user_side & TARGET_HAZARDS or max_switch_stage(u_pok) >= 3:
+            add_adjustment(rand, idx, 2, 128)
+            return 0
+        return -3
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_BATON_PASS:
+        # Follows the script, its comment doesn't match it
+        ai_hp_pct = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+        stage = max_switch_stage(ai_pok)
+        if stage >= 3:
+            if ai_hp_pct <= (60 if move_first else 70):
+                add_adjustment(rand, idx, 2, 176)
+            return 0
+        if stage == 2:
+            if move_first:
+                return -2 if ai_hp_pct > 60 else 0
+            return 0 if ai_hp_pct < 70 else -2
+        return -2
+    if move_id == _MOVENAME_PURSUIT:
+        # TODO: +1 50% when the target knows U-turn, once it's in MoveDB
+        if (
+            ai_pok[_POK_TURNS_ACTIVE] == 1
+            or u_pok[_POK_TYPE1] == _TYPES_GHOST or u_pok[_POK_TYPE1] == _TYPES_PSYCHIC
+            or u_pok[_POK_TYPE2] == _TYPES_GHOST or u_pok[_POK_TYPE2] == _TYPES_PSYCHIC
+        ):
+            add_adjustment(rand, idx, 1, 128)
+    return 0
+
+
+@njit
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
     user_side=0
@@ -1538,6 +1614,8 @@ def expert_flag(
         )
     if move[_MOVE_ID] == _MOVENAME_FEINT:
         return expert_feint(ai_pok, u_pok, rand, idx, ai_know)
+    if move[_MOVE_FORCE_SWITCH] or move[_MOVE_ID] in SWITCH_EXPERT_M:
+        return expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first)
     if move[_MOVE_SIDE_CONDITION] or move[_MOVE_ID] in FIELD_EXPERT_M:
         return expert_field(
             move, ai_pok, u_pok, rand, idx, weather, my_last_move, ai_know, user_side, move_first

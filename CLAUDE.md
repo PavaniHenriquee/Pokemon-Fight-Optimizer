@@ -17,6 +17,7 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Validate architectural decisions with me before implementing them.
 - Verify mechanics against the references (Bulbapedia, pret/pokeplatinum, Pokemow trainer AI
   page, Pokemon Showdown source) rather than memory.
+- The Neural Network is just a shell right now, can ignore everything about it until further development
 
 ## Layout
 

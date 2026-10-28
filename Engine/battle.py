@@ -55,7 +55,10 @@ from Models.constants import (
     _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _SIDECONDITION_LUCKY_CHANT,
     _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK, _SIDECONDITION_SPIKES,
     _MOVENAME_BRICK_BREAK, _MOVENAME_RAPID_SPIN, _MOVENAME_RAIN_DANCE, _MOVENAME_SANDSTORM,
-    _WEATHER_RAIN, _WEATHER_SANDSTORM
+    _WEATHER_RAIN, _WEATHER_SANDSTORM, _MOVE_FORCE_SWITCH, _MOVE_SELF_SWITCH, _MOVE_POWER,
+    _ABILITYNAMES_SUCTION_CUPS, _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_PURSUIT, _POK_CONFUSION_COUNTER,
+    _POK_EVASION_STAT_STAGE, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _VOLSTATUS_HEAL_BLOCK,
+    _BATTLEPHASE_BATON_PASS, _FIELD_PENDING_OPP_MOVE
 )
 from Models.move import STRUGGLE
 
@@ -103,10 +106,84 @@ WEATHER_MOVES = ((_MOVENAME_RAIN_DANCE, _WEATHER_RAIN), (_MOVENAME_SANDSTORM, _W
 FOE_SIDE_TARGET = Target.FOE_SIDE
 # Self, side and field moves still work against a fainted foe
 NO_FOE_TARGETS = TARGET_SELF_SIDE + SIDE_OR_FIELD_TARGETS
+# What Baton Pass hands over besides the stat stages (pokeplatinum VOLATILE_CONDITION_BATON_PASSED
+# and MOVE_EFFECT_BATON_PASSED, the ones the engine has)
+BATON_PASS_VOLS = (
+    _VOLSTATUS_CONFUSION | _VOLSTATUS_FOCUS_ENERGY | _VOLSTATUS_CURSE | _VOLSTATUS_LEECH_SEED
+    | _VOLSTATUS_INGRAIN | _VOLSTATUS_AQUA_RING | _VOLSTATUS_MUD_SPORT | _VOLSTATUS_WATER_SPORT
+    | _VOLSTATUS_HEAL_BLOCK
+)
+# A move or switch already resolved before action (Pursuit on a switching Pokemon)
+NO_ACTION = -50
 
 @njit
-def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx):
+def _pass_baton(old, new):
+    """Baton Pass: the stat stages and the passable volatiles go to the Pokemon coming in"""
+    new[_POK_ATTACK_STAT_STAGE:_POK_EVASION_STAT_STAGE + 1] = (
+        old[_POK_ATTACK_STAT_STAGE:_POK_EVASION_STAT_STAGE + 1]
+    )
+    new[_POK_VOL_STATUS] = old[_POK_VOL_STATUS] & BATON_PASS_VOLS
+    new[_POK_CONFUSION_COUNTER] = old[_POK_CONFUSION_COUNTER]
+
+
+@njit
+def _bench_alive(battle_array, is_mine):
+    """How many of that side's Pokemon besides the active are still alive"""
+    base = 0 if is_mine else 6
+    active = battle_array[_FIELD_MY_POK] if is_mine else battle_array[_FIELD_OPP_POK]
+    n = 0
+    for i in range(6):
+        if i != active and battle_array[(base + i) * POK_LEN + _POK_CURRENT_HP] > 0:
+            n += 1
+    return n
+
+
+@njit
+def _random_bench(battle_array, is_mine, n):
+    """Uniform pick among the n alive Pokemon on that side's bench, like pokeplatinum's reroll"""
+    base = 0 if is_mine else 6
+    active = battle_array[_FIELD_MY_POK] if is_mine else battle_array[_FIELD_OPP_POK]
+    pick = random.randrange(n)
+    for i in range(6):
+        if i != active and battle_array[(base + i) * POK_LEN + _POK_CURRENT_HP] > 0:
+            if pick == 0:
+                return i
+            pick -= 1
+    return -1
+
+
+@njit
+def _force_switch(atk, defn, battle_array, target_is_mine):
+    """
+    Roar and Whirlwind: Suction Cups (unless Mold Breaker), Ingrain or an empty bench make them
+    fail, and so does the level roll when the user is lower level (pokeplatinum
+    BattleSystem_CanWhirlwind, also in trainer battles). The target is replaced by a random
+    Pokemon from its bench. Returns True if it was dragged out
+    """
+    if defn[_POK_AB_ID] == _ABILITYNAMES_SUCTION_CUPS and atk[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER:
+        return False
+    if defn[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN:
+        return False
+    n = _bench_alive(battle_array, target_is_mine)
+    if n == 0:
+        return False
+    atk_lv = atk[_POK_LEVEL]
+    def_lv = defn[_POK_LEVEL]
+    if atk_lv < def_lv and ((random.randrange(256) * (atk_lv + def_lv)) >> 8) + 1 <= def_lv // 4:
+        return False
+    slot = _random_bench(battle_array, target_is_mine, n)
+    if target_is_mine:
+        _switch_my_side(battle_array, defn, atk, slot)
+    else:
+        _switch_opp_side(battle_array, defn, atk, slot)
+    return True
+
+
+@njit
+def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx, baton=False):
     """Perform my-side switch-in bookkeeping, return the new active slice"""
+    if baton:
+        _pass_baton(current_pokemon, battle_array[(switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)])
     reset_switch_out(current_pokemon)
     battle_array[_FIELD_MY_POK] = switch_idx
     battle_array[_FIELD_AI_KNOWS] = 0
@@ -120,8 +197,12 @@ def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx):
 
 
 @njit
-def _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch):
+def _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch, baton=False):
     """Perform opp-side switch-in bookkeeping, return the new active slice"""
+    if baton:
+        _pass_baton(
+            current_opp, battle_array[((opp_switch+6) * POK_LEN):((opp_switch+7) * POK_LEN)]
+        )
     reset_switch_out(current_opp)
     battle_array[_FIELD_OPP_POK] = opp_switch
     battle_array[_FIELD_OPP_ENTER_FIELD] = 1
@@ -133,8 +214,12 @@ def _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch):
 
 
 @njit
-def start_of_turn(opp_move, switch_idx, battle_array):
-    """What happens before everything in the turn order, so switches and trainer items"""
+def start_of_turn(opp_move, switch_idx, battle_array, current_move=-1):
+    """
+    What happens before everything in the turn order, so switches and trainer items.
+    Pursuit hits a Pokemon switching out before it leaves and uses up the pursuer's turn.
+    Returns (current_move, opp_move) for action, NO_ACTION for a move already used
+    """
     # TODO: Opponent Items
     opp_switch = -1
     opp_active = battle_array[_FIELD_OPP_POK]
@@ -166,13 +251,52 @@ def start_of_turn(opp_move, switch_idx, battle_array):
         else:
             current_opp = _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch)
             _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx)
-        return
+        return current_move, opp_move
 
     if opp_switch >= 0:
+        if _pursuit(current_pokemon, current_opp, current_move, True, battle_array):
+            current_move = NO_ACTION
         _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch)
 
     if switch_idx >= 0:
+        if opp_move >= 0 and _pursuit(current_opp, current_pokemon, opp_move, False, battle_array):
+            opp_move = NO_ACTION
         _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx)
+    return current_move, opp_move
+
+
+@njit
+def _pursuit(atk, defn, slot, is_mine, battle_array):
+    """
+    pokeplatinum BtlCmd_TryPursuit: the pursuer hasn't moved, is alive and not asleep or frozen,
+    its move (the encored one if Encore holds) is Pursuit with PP left. It hits at double power
+    before the switch, the other checks of a normal turn (paralysis, confusion) don't happen.
+    Returns True if Pursuit was used
+    """
+    if slot < 0 or atk[_POK_CURRENT_HP] <= 0:
+        return False
+    slot = _encore_slot(atk, slot)
+    if slot >= 4 or atk[_POK_STATUS] == _STATUS_SLEEP or atk[_POK_STATUS] == _STATUS_FREEZE:
+        return False
+    mv = atk[OFFSET_MOVE + slot * MOVE_STRIDE : OFFSET_MOVE + (slot + 1) * MOVE_STRIDE]
+    if mv[_MOVE_ID] != _MOVENAME_PURSUIT or mv[_MOVE_PP] <= 0:
+        return False
+    mv[_MOVE_PP] -= 1
+    atk[_POK_LAST_MOVE_ID] = mv[_MOVE_ID]
+    if is_mine:
+        battle_array[_FIELD_MY_LAST_MOVE] = mv[_MOVE_ID]
+        battle_array[_FIELD_AI_KNOWS] |= AI_KNOWS_MOVES[slot]
+    doubled = mv.copy()
+    doubled[_MOVE_POWER] *= 2
+    weather = battle_array[_FIELD_WEATHER]
+    if calculate_hit_miss(doubled, atk, defn, weather) == _MOVEOUTCOME_HIT:
+        ps_moves(atk, defn, doubled, weather, False, False, battle_array[side_base(not is_mine)])
+        if is_mine:
+            battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = mv[_MOVE_TYPE]
+        if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
+            mark_hurt(atk)
+            atk[_POK_CURRENT_HP] = 0
+    return True
 
 
 @njit
@@ -551,6 +675,12 @@ def _execute_move_slot(
             thaw(mv, defn)
         return flinch
 
+    if mv[_MOVE_FORCE_SWITCH]:
+        _force_switch(atk, defn, battle_array, not is_mine)
+        return False
+    if mv[_MOVE_SELF_SWITCH]:
+        _baton_pass(atk, defn, battle_array, is_mine)
+        return False
     if mv[_MOVE_SIDE_CONDITION]:
         _set_side_condition(
             mv[_MOVE_SIDE_CONDITION], battle_array,
@@ -563,6 +693,26 @@ def _execute_move_slot(
         return False
     calculate_effects(atk, defn, mv, weather, battle_array[def_side])
     return False
+
+
+@njit
+def _baton_pass(atk, defn, battle_array, is_mine):
+    """
+    Fails with nobody left to switch in. Mine stops the turn in the Baton Pass phase so I pick
+    the replacement, the AI picks its own right away with its post-KO logic (pokeplatinum
+    Task_TrainerShowPartyMenu → BattleAI_PostKOSwitchIn)
+    """
+    if _bench_alive(battle_array, is_mine) == 0:
+        return
+    if is_mine:
+        battle_array[_FIELD_PHASE] = _BATTLEPHASE_BATON_PASS
+        return
+    opp_idx = battle_array[_FIELD_OPP_POK]
+    i = sub_after_death(
+        battle_array[(6 * POK_LEN):(12 * POK_LEN)], defn, atk, battle_array[_FIELD_MY_SIDE_COND],
+        battle_array[_FIELD_WEATHER], opp_idx
+    )
+    _switch_opp_side(battle_array, atk, defn, i, True)
 
 
 @njit
@@ -627,12 +777,31 @@ def action(current_move, opp_move, battle_array):
         record_phy = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER
         record_sp  = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT
 
+    my_before = battle_array[_FIELD_MY_POK]
+    opp_before = battle_array[_FIELD_OPP_POK]
     if count >= 1:
         flinch = _execute_move_slot(
             atk1, def1, mv1, first_is_mine, current_move, opp_move,
             flinch, 1, count == 1, battle_array, weather, record_phy, record_sp
         )
         _clear_charge(atk1, mv1)
+
+    # My Baton Pass: the turn waits for my pick, the slower opponent's move runs after it
+    if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
+        if count >= 2:
+            battle_array[_FIELD_PENDING_OPP_MOVE] = mv2_slot + 1
+        return
+    if count >= 2:
+        # Roar or Whirlwind dragged the slower Pokemon out, the one coming in doesn't move
+        if battle_array[_FIELD_OPP_POK if first_is_mine else _FIELD_MY_POK] != (
+            opp_before if first_is_mine else my_before
+        ):
+            return
+        # The AI Baton Passed first, my move goes into the one it sent
+        if not first_is_mine and battle_array[_FIELD_OPP_POK] != opp_before:
+            def2 = battle_array[
+                ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
+            ]
 
     if count >= 2:
         # Encore landed before the slower Pokemon moved
@@ -963,8 +1132,16 @@ def turn_sim(opp_move, current_action, battle_array):
     ]
     _rage_glitch(my_pok, _selected_move_id(my_pok, current_move))
     _rage_glitch(opp_pok, _selected_move_id(opp_pok, opp_move))
-    start_of_turn(opp_move, switch_idx, battle_array)
+    current_move, opp_move = start_of_turn(opp_move, switch_idx, battle_array, current_move)
     action(current_move, opp_move, battle_array)
+    if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
+        return _BATTLEPHASE_BATON_PASS, battle_array[_FIELD_OPP_POK]
+    return _finish_turn(battle_array)
+
+
+@njit
+def _finish_turn(battle_array):
+    """End of turn and the turn counters, returns (phase, opp_idx) like turn_sim"""
     opp_idx = end_of_turn(battle_array)
     current_pokemon = battle_array[
         (battle_array[_FIELD_MY_POK] * POK_LEN):
@@ -1095,3 +1272,33 @@ def switch_in_action(battle_array, switch_idx: int):
     battle_array[_FIELD_AI_KNOWS] = 0
     battle_array[_FIELD_MY_LAST_MOVE] = 0
     battle_array[_FIELD_PHASE] = _BATTLEPHASE_TURN_START
+
+
+@njit
+def baton_pass_action(battle_array, switch_idx: int):
+    """
+    My pick for Baton Pass: switch with the stages and volatiles, run the opponent's move if it
+    was slower, then the rest of the turn. Returns the phase, also stored in Field.PHASE
+    """
+    current_pokemon = battle_array[
+        (battle_array[_FIELD_MY_POK] * POK_LEN):((battle_array[_FIELD_MY_POK]+1) * POK_LEN)
+    ]
+    current_opp = battle_array[
+        ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
+    ]
+    current_pokemon = _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx, True)
+    pending = battle_array[_FIELD_PENDING_OPP_MOVE] - 1
+    battle_array[_FIELD_PENDING_OPP_MOVE] = 0
+    battle_array[_FIELD_PHASE] = _BATTLEPHASE_TURN_START
+    if pending >= 0:
+        slot = _encore_slot(current_opp, pending)
+        mv = (current_opp[OFFSET_MOVE + slot * MOVE_STRIDE : OFFSET_MOVE + (slot + 1) * MOVE_STRIDE]
+              if slot != 10 else STRUGGLE.copy())
+        _execute_move_slot(
+            current_opp, current_pokemon, mv, False, -1, slot, False, 2, True, battle_array,
+            battle_array[_FIELD_WEATHER]
+        )
+        _clear_charge(current_opp, mv)
+    phase, _opp_idx = _finish_turn(battle_array)
+    battle_array[_FIELD_PHASE] = phase
+    return phase

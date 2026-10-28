@@ -380,3 +380,51 @@ def test_step_stays_in_death_phase_when_the_replacement_faints(make_pokemon, mak
     assert mask_actions(state.battle_array) == [(SWITCH, 2)]
     state.step((SWITCH, 2))
     assert state.phase == BattlePhase.TURN_START and state.my_active == 2
+
+
+# ── Phase 6: Baton Pass phase and Roar ───────────────────────────────────────
+
+def _baton_pass_paused(make_pokemon, make_battle):
+    mine = [make_pokemon("Rattata", 30, "Run Away", ["Baton Pass", "Tackle"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"]),
+            make_pokemon("Zubat", 20, "Inner Focus", ["Bite"])]
+    arr = make_battle(mine, [make_pokemon("Machop", 10, "Guts", ["Tackle"])])
+    step_arr(arr, MOVE, 0, 0)
+    assert arr[Field.PHASE] == BattlePhase.BATON_PASS
+    return arr
+
+
+def test_baton_pass_phase_only_offers_switches(make_pokemon, make_battle):
+    """Mid-turn pick: the bench, not the moves, not the passer"""
+    arr = _baton_pass_paused(make_pokemon, make_battle)
+    assert mask_actions(arr) == [(SWITCH, 1), (SWITCH, 2)] == legal_actions(arr)
+
+
+def test_step_arr_finishes_the_paused_turn(make_pokemon, make_battle):
+    """The pick runs the foe's pending move and the end of turn"""
+    arr = _baton_pass_paused(make_pokemon, make_battle)
+    turn = arr[Field.TURN]
+    step_arr(arr, SWITCH, 2, -50)
+    assert arr[Field.PHASE] == BattlePhase.TURN_START and arr[Field.MY_POK] == 2
+    assert arr[Field.TURN] == turn + 1
+
+
+def test_game_state_steps_through_the_baton_pass_phase(make_pokemon, make_battle):
+    """No AI move is asked for while I pick"""
+    state = GameState(_baton_pass_paused(make_pokemon, make_battle))
+    assert state.opp_move is None
+    state.step((SWITCH, 1))
+    assert state.phase == BattlePhase.TURN_START and state.my_active == 1
+
+
+def test_node_key_sees_my_slot_and_the_baton_pass_phase(make_pokemon, make_battle):
+    """Roar's random pick on my side and the paused turn are different nodes"""
+    mine = [make_pokemon("Rattata", 10, "Run Away", ["Tackle"]) for _ in range(2)]
+    arr = make_battle(mine, [make_pokemon("Rattata", 10, "Run Away", ["Tackle"])])
+    key = node_key(arr)
+    other = arr.copy()
+    other[Field.MY_POK] = 1
+    assert node_key(other) != key
+    other = arr.copy()
+    other[Field.PHASE] = BattlePhase.BATON_PASS
+    assert node_key(other) != key

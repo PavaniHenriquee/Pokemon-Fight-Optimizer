@@ -3,11 +3,11 @@ pick a move with any implemented status move in its kit"""
 import numpy as np
 import pytest
 from Models import trainer_ai_helper as ai
-from Models.trainer_ai import return_idx
-from Models.idx_const import Pok, Move
+from Models.trainer_ai import return_idx, sub_after_death
+from Models.idx_const import Pok, Move, POK_LEN, Field
 from Models.helper import VolStatus, Status, Types, Enemy_AI_Knows, SideCondition, Weather
 from DataBase.AbilitiesDB import AbilityNames
-from battle_driver import move_slice, pok_slice, _p
+from battle_driver import move_slice, pok_slice, _p, opp_active
 
 # Status moves that carry both a volatile and a stat boost are the tricky ones
 ROUTING = [
@@ -692,9 +692,11 @@ def test_basic_side_and_weather_moves(move, kwargs, expected):
     assert _basic_field(move, **kwargs) == expected
 
 
-@pytest.mark.parametrize("move", ["Stun Spore", "Confuse Ray", "Will-O-Wisp", "Hypnosis"])
+@pytest.mark.parametrize("move", [
+    "Stun Spore", "Confuse Ray", "Will-O-Wisp", "Hypnosis", "Poison Powder", "Yawn"
+])
 def test_basic_safeguard_blocks_status_moves(move):
-    """Safeguard on the target's side scores status and confusion moves -10"""
+    """Safeguard on the target's side scores status, confusion and Yawn -10"""
     assert _basic_field(move) != -10
     assert _basic_field(move, user_side=SC.SAFEGUARD) == -10
 
@@ -790,6 +792,7 @@ def test_expert_side_moves_without_a_check(poke, move):
 
 @pytest.mark.parametrize("target, ability, expected", [
     ("Geodude", "Sturdy", False), ("Steelix", "Sturdy", True), ("Zubat", "Inner Focus", True),
+    ("Geodude", "Poison Heal", True), ("Geodude", "Poison Point", False),
 ])
 def test_basic_poison_only_fails_on_steel_and_poison(target, ability, expected):
     """pokeplatinum Basic poison check: -10 into Steel or Poison types, not the others"""
@@ -797,3 +800,117 @@ def test_basic_poison_only_fails_on_steel_and_poison(target, ability, expected):
     user = poke_np(target, 20, ability, ["Tackle"])
     ab = getattr(AbilityNames, ability.upper().replace(" ", "_"))
     assert ai.basic_move_status(move_slice(ai_pok, 0), ab, user, ai_pok, 0) == expected
+
+
+# ── Phase 6 switching moves ──────────────────────────────────────────────────
+
+def _basic_switch(move, user_bench=1, ai_bench=1, ai_ability="Run Away", user_ability="Sturdy"):
+    ai_pok = poke_np("Rattata", 20, ai_ability, [move])
+    user = poke_np("Geodude", 20, user_ability, ["Tackle"])
+    ability = getattr(AbilityNames, user_ability.upper().replace(" ", "_"))
+    return ai.basic_flag(
+        move_slice(ai_pok, 0), ability, ai_pok, user, 1.0, 0, 0, 0, 0, user_bench, ai_bench
+    )
+
+
+@pytest.mark.parametrize("move, kwargs, expected", [
+    ("Roar", {}, 0),
+    ("Roar", {"user_bench": 0}, -10),
+    ("Whirlwind", {"user_ability": "Suction Cups"}, -10),
+    ("Whirlwind", {"user_ability": "Suction Cups", "ai_ability": "Mold Breaker"}, 0),
+    ("Roar", {"user_ability": "Soundproof"}, -10),
+    ("Baton Pass", {}, 0),
+    ("Baton Pass", {"ai_bench": 0}, -10),
+    ("Teleport", {}, -10),
+    ("Pursuit", {}, 0),
+])
+def test_basic_switching_moves(move, kwargs, expected):
+    """pokeplatinum Basic_CheckCanForceSwitch / Basic_CheckBatonPass, Teleport flees"""
+    assert _basic_switch(move, **kwargs) == expected
+
+
+@pytest.mark.parametrize("turns_active, user_side, stage, expected", [
+    (5, 0, 0, (0, [(2, 192), (2, 128)])),
+    (4, 0, 0, (-3, [])),
+    (1, SC.STEALTH_ROCK, 0, (0, [(2, 128)])),
+    (1, SC.TOXIC_SPIKES, 0, (0, [(2, 128)])),
+    (1, 0, 3, (0, [(2, 128)])),
+    (1, 0, 2, (-3, [])),
+])
+def test_expert_force_switch(poke, turns_active, user_side, stage, expected):
+    """pokeplatinum Expert_ForceSwitch, its turn count is TURNS_ACTIVE - 1"""
+    ai_pok = poke("Growlithe", 20, "Intimidate", ["Roar"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    user[Pok.TURNS_ACTIVE] = turns_active
+    user[Pok.SPECIAL_ATTACK_STAT_STAGE] = stage
+    assert _expert_field(ai_pok, user, user_side=user_side) == expected
+
+
+@pytest.mark.parametrize("ai_name, stage, hp_pct, expected", [
+    ("Rattata", 3, 60, (0, [(2, 176)])),     # faster, HP <= 60
+    ("Rattata", 3, 65, (0, [])),
+    ("Geodude", 3, 70, (0, [(2, 176)])),     # slower, HP <= 70
+    ("Geodude", 3, 75, (0, [])),
+    ("Rattata", 2, 65, (-2, [])),
+    ("Rattata", 2, 60, (0, [])),
+    ("Geodude", 2, 80, (-2, [])),
+    ("Geodude", 2, 60, (0, [])),
+    ("Rattata", 0, 100, (-2, [])),
+])
+def test_expert_baton_pass(poke, ai_name, stage, hp_pct, expected):
+    """pokeplatinum Expert_BatonPass as the script runs it"""
+    ai_pok = poke(ai_name, 20, "Sturdy", ["Baton Pass"])
+    ai_pok[Pok.EVASION_STAT_STAGE] = stage
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * hp_pct // 100
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert _expert_field(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("turns_active, target, expected", [
+    (1, "Geodude", [(1, 128)]),
+    (2, "Gastly", [(1, 128)]),
+    (2, "Abra", [(1, 128)]),
+    (2, "Geodude", []),
+])
+def test_expert_pursuit(poke, turns_active, target, expected):
+    """50% +1 on the AI's first turn, or against a Ghost or Psychic type"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Pursuit"])
+    ai_pok[Pok.TURNS_ACTIVE] = turns_active
+    user = poke(target, 20, "Levitate", ["Tackle"])
+    assert _expert_field(ai_pok, user) == (0, expected)
+
+
+def test_sub_after_death_skips_the_excluded_slot(poke):
+    """Baton Pass: the passer is alive but can't be picked"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Karate Chop"])
+    party[POK_LEN:2 * POK_LEN] = poke("Rattata", 20, "Run Away", ["Tackle"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert sub_after_death(party, user, party[:POK_LEN], 0, 0, 0) == 1
+
+
+@pytest.mark.parametrize("took_dmg", [0, Types.NORMAL])
+def test_natural_cure_withdraw_never_picks_the_active(monkeypatch, make_pokemon, make_battle, took_dmg):
+    """Asleep with Natural Cure: the AI's best pick is its own active, it sends the bench one"""
+    from Models import trainer_ai
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])
+    opp = [make_pokemon("Staryu", 20, "Natural Cure", ["Water Gun"]),
+           make_pokemon("Rattata", 20, "Run Away", ["Tackle"])]
+    arr = make_battle([me], opp)
+    pok_slice(arr, 0, opp=True)[Pok.STATUS] = Status.SLEEP
+    pok_slice(arr, 0, opp=True)[Pok.SLEEP_COUNTER] = 3
+    arr[Field.AI_TOOK_DMG_LAST_TURN] = took_dmg
+    monkeypatch.setattr(trainer_ai.random, "getrandbits", lambda k: 1)
+    assert return_idx(arr) == 1 - 6
+
+
+def test_natural_cure_withdraw_needs_a_bench(monkeypatch, make_pokemon, make_battle):
+    """Last Pokemon: no withdraw, it picks a move"""
+    from Models import trainer_ai
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])
+    arr = make_battle([me], [make_pokemon("Staryu", 20, "Natural Cure", ["Water Gun"])])
+    opp_active(arr)[Pok.STATUS] = Status.SLEEP
+    opp_active(arr)[Pok.SLEEP_COUNTER] = 3
+    arr[Field.AI_TOOK_DMG_LAST_TURN] = Types.NORMAL
+    monkeypatch.setattr(trainer_ai.random, "getrandbits", lambda k: 1)
+    assert return_idx(arr) >= 0

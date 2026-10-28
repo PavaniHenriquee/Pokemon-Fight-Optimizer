@@ -12,7 +12,7 @@ from Models.constants import _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_FU
 from Models.trainer_ai import return_idx
 from Utils.helper import to_battle_array
 from Engine.engine_helper import start_of_battle
-from Engine.battle import turn_sim, switch_in_action
+from Engine.battle import turn_sim, switch_in_action, baton_pass_action
 
 MAX_TURNS = 400
 
@@ -63,7 +63,7 @@ def legal_actions(arr):
     """My legal actions, computed independently of SearchEngine.valid_action_mask"""
     me = int(arr[Field.MY_POK])
     switches = [(ActionType.SWITCH, i) for i in alive_slots(arr) if i != me]
-    if arr[Field.PHASE] == BattlePhase.DEATH_END_OF_TURN:
+    if arr[Field.PHASE] != BattlePhase.TURN_START:
         return switches
     active = my_active(arr)
     moves = []
@@ -94,6 +94,9 @@ def play_turn(arr, action):
     if arr[Field.PHASE] == BattlePhase.DEATH_END_OF_TURN:
         switch_in_action(arr, action[1])
         return
+    if arr[Field.PHASE] == BattlePhase.BATON_PASS:
+        baton_pass_action(arr, action[1])
+        return
     opp_move = int(return_idx(arr))
     phase, _ = turn_sim(opp_move, action, arr)
     arr[Field.PHASE] = phase
@@ -101,7 +104,7 @@ def play_turn(arr, action):
 
 def forced_action(arr):
     """Locked/charging move the engine expects me to keep using, or None"""
-    if arr[Field.PHASE] == BattlePhase.DEATH_END_OF_TURN:
+    if arr[Field.PHASE] != BattlePhase.TURN_START:
         return None
     active = my_active(arr)
     if active[Pok.LOCKED_MOVE] >= 0:
@@ -210,12 +213,31 @@ def scenario_weather_charge():
     return my, opp, (_POTIONS_POTION,)
 
 
+def scenario_switching():
+    """Roar, Whirlwind, Baton Pass both ways, Pursuit on a switch, Teleport, Suction Cups, Ingrain,
+    Stealth Rock on forced switch-ins"""
+    my = [
+        _p("Rattata", 14, "Run Away", ["Baton Pass", "Focus Energy", "Agility", "Tackle"]),
+        _p("Geodude", 14, "Sturdy", ["Stealth Rock", "Roar", "Tackle", "Defense Curl"]),
+        _p("Murkrow", 14, "Insomnia", ["Pursuit", "Peck", "Teleport", "Confuse Ray"]),
+        _p("Zubat", 12, "Inner Focus", ["Whirlwind", "Bite", "Leech Seed"]),
+    ]
+    opp = [
+        _p("Growlithe", 14, "Intimidate", ["Roar", "Ember", "Leer", "Bite"]),
+        _p("Starly", 14, "Keen Eye", ["Pursuit", "Quick Attack", "Growl"]),
+        _p("Ninjask", 14, "Speed Boost", ["Baton Pass", "Harden", "Agility", "Absorb"]),
+        _p("Machop", 15, "Suction Cups", ["Whirlwind", "Low Kick", "Leer", "Ingrain"]),
+    ]
+    return my, opp, (_POTIONS_POTION,)
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
     "damage_sources": scenario_damage_sources,
     "multihit_items": scenario_multihit_items,
     "weather_charge": scenario_weather_charge,
+    "switching": scenario_switching,
 }
 
 

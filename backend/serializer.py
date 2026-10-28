@@ -193,6 +193,9 @@ def _opp_move_label(opp_move_idx: int, parent_opp_slice) -> str | None:
     return f"Move {opp_move_idx}"
 
 
+_PHASE_NAMES = {BattlePhase.TURN_START: "TURN_START", BattlePhase.BATON_PASS: "BATON_PASS"}
+
+
 def _snapshot(snap, parent_opp_slice=None, battle_array=None) -> dict:
     is_death = snap.phase == BattlePhase.DEATH_END_OF_TURN
     opp_move = None
@@ -210,7 +213,7 @@ def _snapshot(snap, parent_opp_slice=None, battle_array=None) -> dict:
                 if e:
                     opp_bench.append(e)
     return {
-        "phase":         "DEATH" if is_death else "TURN_START",
+        "phase":         "DEATH" if is_death else _PHASE_NAMES.get(int(snap.phase), "TURN_START"),
         "opp_active":    int(snap.opp_active),
         "terminal":      bool(snap.terminal),
         "opp_move":      opp_move,

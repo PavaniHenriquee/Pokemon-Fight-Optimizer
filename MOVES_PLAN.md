@@ -2,20 +2,20 @@
 
 ## Progress (update at the end of every session)
 
-| Phase                                     | Status                       | Notes                                                                              |
-| ----------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------- |
-| Step 0: save plan                         | Done                         |                                                                                    |
-| Phase 0: layout infrastructure            | Done (2026-10-26), committed | See "Phase 0: as built" below                                                      |
-| Phase 1: data-driven moves                | Done (2026-10-27), committed | B1-B10 fixed, 97 TODO boxes ticked; Gust and Stomp left open                       |
-| Phase 2: damage mechanics                 | Done (2026-10-27), committed | See "Phase 2: findings and decisions" and "Phase 2: outcome"; 16 TODO boxes ticked |
-| Phase 3: volatiles, no action restriction | Done (2026-10-27), committed | See "Phase 3: findings and decisions" and "Phase 3: outcome"; 17 TODO boxes ticked |
-| Phase 4: action-restricting volatiles     | Done (2026-10-27), committed | See "Phase 4: findings and decisions" and "Phase 4: outcome"; Disable added       |
-| Phase 5: side conditions and field        | Done (2026-10-28), not committed | See "Phase 5: findings and decisions" and "Phase 5: outcome"; frontend shows the field |
-| Phase 6: switching moves                  | **Next**                     |                                                                                    |
-| Phase 7: healing, items, misc             | Not started                  |                                                                                    |
-| Phase 8: move-calling                     | Not started                  |                                                                                    |
+| Phase                                     | Status                       | Notes                                                                                  |
+| ----------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------- |
+| Step 0: save plan                         | Done                         |                                                                                        |
+| Phase 0: layout infrastructure            | Done (2026-10-26), committed | See "Phase 0: as built" below                                                          |
+| Phase 1: data-driven moves                | Done (2026-10-27), committed | B1-B10 fixed, 97 TODO boxes ticked; Gust and Stomp left open                           |
+| Phase 2: damage mechanics                 | Done (2026-10-27), committed | See "Phase 2: findings and decisions" and "Phase 2: outcome"; 16 TODO boxes ticked     |
+| Phase 3: volatiles, no action restriction | Done (2026-10-27), committed | See "Phase 3: findings and decisions" and "Phase 3: outcome"; 17 TODO boxes ticked     |
+| Phase 4: action-restricting volatiles     | Done (2026-10-27), committed | See "Phase 4: findings and decisions" and "Phase 4: outcome"; Disable added            |
+| Phase 5: side conditions and field        | Done (2026-10-28), committed | See "Phase 5: findings and decisions" and "Phase 5: outcome"; frontend shows the field |
+| Phase 6: switching moves                  | Done (2026-10-28), not committed | See "Phase 6: findings and decisions" and "Phase 6: outcome"; new Baton Pass phase |
+| Phase 7: healing, items, misc             | **Next**                     |                                                                                        |
+| Phase 8: move-calling                     | Not started                  |                                                                                        |
 
-**Where to start next session:** Phase 6, validate the architecture first (see Phase 6 below), after you've reviewed and committed Phase 5.
+**Where to start next session:** Phase 7 (see Phase 7 below), after you've reviewed and committed Phase 6.
 
 **Open issues carried forward:**
 
@@ -297,7 +297,7 @@ Sources: pokeplatinum `battle_script.c` (TryProtection, TryYawn, TryHelpingHand,
 
 Sources: pokeplatinum `battle_script.c` (TryEncore, TryDisable, Random), `battle_controller_player.c` (CheckMonConditions, CheckStatusDisruption order, FightCommand, UpdateMoveBuffers), `battle_lib.c` (CheckInvalidMoves, Battler_IsTrapped, Battler_CanPickCommand, MoveFailed, faint cleanup), effect scripts and subscripts (bind, encore, taunt, uproar, fall asleep), `trainer_ai.c` and `trainer_ai/script.s`; Showdown gen4 `moves.ts` / `conditions.ts`; Pokemow; RP MOVES sheet (all match MoveDB; Disable 100% from RP, Showdown gen4 has 80).
 
-**Your decisions:** B1 (Attract checked before paralysis, pokeplatinum has it after) stays as Showdown has it. Encore packs its slot into `ENCORE_TURNS` (turns * 4 + slot). Disable added to the phase, with a new `Pok.DISABLE_TURNS` packed the same way and a new `VolStatus.DISABLE` bit. The two `#TODO: User is taunted` lines in Counter / Mirror Coat were replaced by the check.
+**Your decisions:** B1 (Attract checked before paralysis, pokeplatinum has it after) stays as Showdown has it. Encore packs its slot into `ENCORE_TURNS` (turns \* 4 + slot). Disable added to the phase, with a new `Pok.DISABLE_TURNS` packed the same way and a new `VolStatus.DISABLE` bit. The two `#TODO: User is taunted` lines in Counter / Mirror Coat were replaced by the check.
 
 **Mechanics as built:**
 
@@ -319,6 +319,15 @@ Sources: pokeplatinum `battle_script.c` (TryEncore, TryDisable, Random), `battle
 - Golden re-blessed: hashes only, 100/100 outcomes identical to the old file (new field in the layout).
 - Checks: `pytest` 1657 passed, `pytest -m jit` 6 passed, `pytest -m slow` 5 passed. Benchmark (main.py battle, 100k iterations, compile excluded, best of 3): 8.16s vs 8.29s at the Phase 3 commit.
 - TODO boxes that can be ticked: Taunt, Encore, Bind, Clamp, Fire Spin, Whirlpool, Wrap, Uproar, Disable. Waiting on other passes: Rapid Spin freeing a bind (Phase 5), Shed Shell, Grip Claw (not in ItemDB), Uproar vs Rest (Rest not in MoveDB).
+
+## Phase 5: Side conditions and field
+
+- Reflect and Light Screen (B/E, !): damage modifiers, 5 turns. Then Brick Break (E, !) and Light Clay. Light Clay is an item; I'll ask before touching it.
+- Mist (B, !), Safeguard (B, !), Lucky Chant (B/E, !): this also clears the Safeguard TODO in `basic_move_status`.
+- Stealth Rock (B/E, !!): a per-side hazard applied in `switch_in`. Needs your call on the faint-on-switch-in flow, i.e. replacement after a hazard KO for both sides, including the AI's `sub_after_death`.
+- Toxic Spikes (B/E, !)
+- Rapid Spin (!)
+- Rain Dance (B/E, !) and Sandstorm (B, !): weather setting with a 5-turn countdown.
 
 ### Phase 5: findings and decisions (2026-10-28)
 
@@ -409,21 +418,82 @@ Sources: pokeplatinum `battle_lib.c` (BattleSystem_CalcDamage screens, crit roll
   - The rollout heuristic in `mcts_eval` ignores screens.
   - The now-implemented `# TODO: Screen`, `# TODO: Safeguard`, the hazard TODO in `switch_in`, the weather TODO in `end_of_turn` and the matching docstring TODO entries are still in place.
 
-## Phase 5: Side conditions and field
-
-- Reflect and Light Screen (B/E, !): damage modifiers, 5 turns. Then Brick Break (E, !) and Light Clay. Light Clay is an item; I'll ask before touching it.
-- Mist (B, !), Safeguard (B, !), Lucky Chant (B/E, !): this also clears the Safeguard TODO in `basic_move_status`.
-- Stealth Rock (B/E, !!): a per-side hazard applied in `switch_in`. Needs your call on the faint-on-switch-in flow, i.e. replacement after a hazard KO for both sides, including the AI's `sub_after_death`.
-- Toxic Spikes (B/E, !)
-- Rapid Spin (!)
-- Rain Dance (B/E, !) and Sandstorm (B, !): weather setting with a 5-turn countdown.
-
 ## Phase 6: Switching moves (validate the architecture first)
 
 - Roar and Whirlwind (B/E, !): fail on the first turn of a trainer battle? Check that. Random replacement, which is a chance node for MCTS.
 - Baton Pass (B/E, !): passes stages and the passable volatiles. My replacement becomes a decision; the AI's follows the Gen IV AI switch logic.
 - Teleport (B): fails in trainer battles.
 - Pursuit (E, !): doubles power and hits before the switch.
+
+### Phase 6: findings and decisions (2026-10-28)
+
+Sources: pokeplatinum subscripts (`force_target_to_switch_or_flee`, `baton_pass`, `pursuit`, `switch_pokemon`, `teleport`), `battle_script.c` (BtlCmd_TryWhirlwind, BtlCmd_TryPursuit), `battle_lib.c` (BattleSystem_CanWhirlwind, BattleSystem_UpdateAfterSwitch, BattleAI_PostKOSwitchIn), `battle_display.c` (Task_TrainerShowPartyMenu), `constants/battle/condition.h` and `moves.h` (the BATON_PASSED masks), `trainer_ai/script.s`.
+
+**Your decisions:**
+
+- My Baton Pass replacement is a mid-turn decision (option B), not a per-target action. Profiled below.
+- Roar / Whirlwind: my random replacement makes separate outcomes, so my active slot is in `node_key`.
+- The AI's Baton Pass replacement is `sub_after_death`. Confirmed: every AI party prompt goes through `BattleAI_PostKOSwitchIn`.
+- Pursuit on a switch is resolved in `start_of_turn`, and `action` skips the pursuer.
+- `POISON_AB_IM` has Poison Heal instead of Poison Point (pokeplatinum Basic_CheckCannotPoison). Basic Yawn now checks Safeguard (Basic_CheckCannotSleep).
+
+**Mechanics as built:**
+
+- Layout:
+  - New `Field.PENDING_OPP_MOVE` (opp move slot + 1 still to run, 0 none). `FIELD_LEN` follows it.
+  - New `BattlePhase.BATON_PASS = 2`.
+- Roar and Whirlwind:
+  - They fail on Suction Cups (unless Mold Breaker), Ingrain, an empty bench, or a semi-invulnerable target (the hit check already did that).
+  - In trainer battles too, a lower level user fails unless `(rand(256) * (atk lv + def lv) >> 8) + 1 > def lv / 4`. There's no turn 1 rule.
+  - The replacement is uniform among the alive bench. Hazards and switch-in abilities apply.
+  - A dragged-out Pokemon that hadn't moved loses its move.
+- Baton Pass:
+  - It fails with nobody to switch in.
+  - It passes the stat stages, confusion with its counter, Focus Energy, Curse, Leech Seed, Ingrain, Aqua Ring, Mud Sport, Water Sport and Heal Block. Substitute, Perish Song, Mean Look, Lock-On, Embargo and Magnet Rise pass in pokeplatinum but aren't in the engine yet.
+  - Mine: `_baton_pass` sets the phase, `action` stores the slower foe's move and stops, `turn_sim` returns `BATON_PASS` before the end of turn. `baton_pass_action` switches with the pass, runs the pending move (Encore re-checked) and then `_finish_turn` (the old tail of `turn_sim`).
+  - The AI's: `sub_after_death` with the new `exclude` param, so it never picks the passer. My slower move hits the replacement.
+- Pursuit:
+  - It only triggers on a voluntary switch, not on Baton Pass, Roar or a post-KO replacement.
+  - It needs the pursuer alive and not asleep or frozen. Paralysis, confusion and the other turn checks don't apply.
+  - It hits at double power before the switch, spends PP, and Destiny Bond triggers on a KO. The chosen replacement still comes in.
+  - There's no Pressure in the engine, so it costs 1 PP either way.
+- Teleport does nothing in a trainer battle, as before. Only the AI score changed.
+- Search:
+  - `valid_action_mask` only offers switches outside `TURN_START`.
+  - `step_arr`, `rollout_arr` and `GameState` route the Baton Pass phase like the death phase: no AI move, `baton_pass_action` instead.
+  - `node_key`: my slot at bits 59-61 and the Baton Pass phase at bit 62 of `k1`.
+- Frontend: a "Baton Pass: choose who receives it" banner and a "Baton Pass to:" switch label. The serializer sends `phase: "BATON_PASS"`.
+
+**AI:**
+
+- Basic:
+  - Roar / Whirlwind -10 with no bench or against Suction Cups (unless Mold Breaker). Soundproof still -10 through the ability check.
+  - Baton Pass -10 on the AI's last Pokemon. Teleport -10.
+- Expert:
+  - Roar / Whirlwind: target in for more than 3 turns (`TURNS_ACTIVE - 1 > 3`) queues 75% +2 and 50% +2. Otherwise hazards on its side or a +3 stage (Atk, Def, SpA, SpD, Eva) gives 50% +2, else -3.
+  - Baton Pass follows the script (its comment doesn't match it). At +3: +2 at 176/256 when HP <= 60% (faster) or <= 70% (slower). At +2: -2 when HP > 60% (faster) or >= 70% (slower). No boost: -2.
+  - Pursuit: 50% +1 on the AI's first turn, or against a Ghost or Psychic target. The U-turn part waits for U-turn in MoveDB.
+  - Teleport scores 0 (it no longer falls into the always-hit branch).
+
+### Phase 6: outcome (2026-10-28)
+
+- Tests:
+  - Roar and its failures and level roll, the dragged-out Pokemon losing its move, my Baton Pass faster and slower, the carry-over, Baton Pass into Stealth Rock, the AI's Baton Pass, and Pursuit both ways, without a switch and asleep (`test_battle`).
+  - The Baton Pass phase's actions, `step_arr` and `GameState` through it, and `node_key` (`test_search`).
+  - Every new Basic / Expert branch and `sub_after_death`'s exclude (`test_trainer_ai`).
+  - New `switching` scenario in `battle_driver.py`, so the fuzz and golden tests cover these moves. Over 20 seeds: 32 Roar / Whirlwind drag-outs, 24 failures, 15 Pursuits on a switch, 7 Baton Pass picks of mine.
+- Golden re-blessed:
+  - The five old scenarios have the same turns and HP on every seed. Their hash changed only because the array grew by one slot (checked by hashing without it: 100/100 match).
+  - `switching` is new.
+- Checks: `pytest` 1831 passed, `pytest -m jit` 6 passed, `pytest -m slow` 6 passed.
+- Benchmarks (compile excluded, best of 3):
+  - main.py battle, 100k iterations: 19.35s against 19.19s before this phase.
+  - Baton Pass profile, 30k iterations on a Ninjask Baton Pass team: 4.93s with Baton Pass against 4.89s with it swapped for Focus Energy. The tree had 796 Baton Pass nodes with 238 expanded picks, so option B costs about 1% and does branch.
+- TODO boxes ticked: Baton Pass, Pursuit, Roar, Teleport, Whirlwind, Suction Cups (line 58).
+- Fixed after review, Natural Cure withdraw (`choose_move`): it ran with no bench and its `sub_after_death` pick could be the active, so the AI either dropped the withdraw or "switched" into itself (stages reset, hazards again). It now needs `ai_bench > 0` and passes `exclude=opp_active`, like pokeplatinum TrainerAI_ShouldSwitch / BattleAI_PostKOSwitchIn. `if sub == opp_active: pass` is unreachable now and left in place. Golden unchanged.
+- Noticed, not changed:
+  - No Pressure in the engine.
+  - `NeuralNetwork/models.py` has an is-death feature but nothing for the Baton Pass phase.
 
 ## Phase 7: Healing, items, misc
 

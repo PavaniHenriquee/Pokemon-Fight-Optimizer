@@ -10,7 +10,7 @@ from Models.constants import (
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_SPEED, _MOVE_TYPE, _ACTIONTYPE_MOVE, _MOVECATEGORY_STATUS, _MOVE_CATEGORY,
     _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE, _FIELD_TURN, _FIELD_PHASE,
-    _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _MOVE_ID,
+    _BATTLEPHASE_TURN_START, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _MOVE_ID,
     _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_TOXIC_SPIKES
 )
 from Models.helper import count_party, count_Id
@@ -268,8 +268,8 @@ def rollout_arr(battle_array, max_depth=100, heuristic_prob=0.48):
         if n == 0:
             break
 
-        if battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN:
-            opp_move = -50  # Death phase, only my replacement is chosen
+        if battle_array[_FIELD_PHASE] != _BATTLEPHASE_TURN_START:
+            opp_move = -50  # Death or Baton Pass phase, only my replacement is chosen
         else:
             opp_move = return_idx(battle_array)
 

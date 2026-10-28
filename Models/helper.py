@@ -250,6 +250,7 @@ class BattlePhase:
     """
     TURN_START = 0
     DEATH_END_OF_TURN = 1
+    BATON_PASS = 2  # My Baton Pass went through, I pick who it passes to mid-turn
 
 
 TARGET_SELF_SIDE = (

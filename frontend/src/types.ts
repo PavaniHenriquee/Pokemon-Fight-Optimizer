@@ -20,7 +20,7 @@ export interface PokemonState {
 }
 
 export interface SnapshotData {
-  phase: "TURN_START" | "DEATH";
+  phase: "TURN_START" | "DEATH" | "BATON_PASS";
   opp_active: number;
   terminal: boolean;
   opp_move: string | null;

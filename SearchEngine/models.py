@@ -12,11 +12,12 @@ from Models.constants import (
     _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
     _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _VOLSTATUS_INGRAIN,
     _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_WEATHER, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND,
-    _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES
+    _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
+    _BATTLEPHASE_BATON_PASS
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
-from Engine.battle import turn_sim, switch_in_action
+from Engine.battle import turn_sim, switch_in_action, baton_pass_action
 from Engine.engine_helper import move_blocked
 from Utils.jit import njit
 
@@ -44,10 +45,11 @@ _SLOT_IDX = tuple(a[1] for a in ACTION_ORDER)
 @njit
 def valid_action_mask(battle_array):
     """Valid actions as a bitmask over ACTION_ORDER slots:
-    bits 0-3 moves, bit 4 Struggle, bits 5-10 switches to party slots 0-5"""
+    bits 0-3 moves, bit 4 Struggle, bits 5-10 switches to party slots 0-5.
+    The death and Baton Pass phases only pick who comes in"""
     my_active = battle_array[_FIELD_MY_POK]
     mask = 0
-    if battle_array[_FIELD_PHASE] != _BATTLEPHASE_DEATH_END_OF_TURN:
+    if battle_array[_FIELD_PHASE] == _BATTLEPHASE_TURN_START:
         base = my_active * POK_LEN
         usable = False
         for i in range(4):
@@ -102,11 +104,15 @@ def step_arr(battle_array, action_type, action_idx, opp_move):
     """
     Array version of GameState.step: simulates one whole turn in place, including the extra
     turns forced by locked/charging moves. opp_move is the trainer AI move already chosen
-    (unused in the death phase, where only my replacement is picked).
+    (unused in the death and Baton Pass phases, where only my replacement is picked, the Baton
+    Pass one finishing the paused turn).
     Returns the last opponent move used.
     """
     if battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN:
         switch_in_action(battle_array, action_idx)
+        return opp_move
+    if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
+        baton_pass_action(battle_array, action_idx)
         return opp_move
 
     a_type = action_type
@@ -115,7 +121,7 @@ def step_arr(battle_array, action_type, action_idx, opp_move):
     for _ in range(16):
         phase, _opp_idx = turn_sim(opp_move, (a_type, a_idx), battle_array)
         battle_array[_FIELD_PHASE] = phase
-        if phase == _BATTLEPHASE_DEATH_END_OF_TURN or is_terminal_arr(battle_array):
+        if phase != _BATTLEPHASE_TURN_START or is_terminal_arr(battle_array):
             break
         my_idx = battle_array[_FIELD_MY_POK]
         active = battle_array[my_idx * POK_LEN:(my_idx + 1) * POK_LEN]
@@ -156,7 +162,8 @@ def _stages_key(pok):
 def node_key(battle_array):
     """Integer fingerprint of what decides whether two outcomes of an action share a node:
     phase, opp slot, status, every vol status bit, HP bracket and stat stages of both actives,
-    the weather, each side's conditions and Toxic Spikes layers (not the turns left)"""
+    the weather, each side's conditions and Toxic Spikes layers (not the turns left), my active
+    slot (Roar picks it at random) and the Baton Pass phase"""
     opp_idx = battle_array[_FIELD_OPP_POK]
     opp = battle_array[(opp_idx + 6) * POK_LEN:(opp_idx + 7) * POK_LEN]
     is_death = battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN
@@ -180,6 +187,9 @@ def node_key(battle_array):
         k3 |= np.int64(me[_POK_VOL_STATUS]) << 32
         k1 |= np.int64(battle_array[_FIELD_MY_SIDE_COND]) << 47
         k1 |= np.int64(battle_array[_FIELD_MY_TOXIC_SPIKES]) << 57
+        k1 |= np.int64(my_idx) << 59
+        if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
+            k1 |= np.int64(1) << 62
     else:
         k2 = k2 << 28
     return k1, k2, k3
@@ -203,7 +213,7 @@ class GameState():
     @property
     def opp_move(self):
         """Only do opp ai moves when necessary"""
-        if self.opp_move_cache is None and self.phase != BattlePhase.DEATH_END_OF_TURN:
+        if self.opp_move_cache is None and self.phase == BattlePhase.TURN_START:
             self.opp_move_cache = self.opp_move_choice()
         return self.opp_move_cache
 
@@ -257,7 +267,7 @@ class GameState():
 
     def step(self, my_move_idx):
         """Simulate the entire turn"""
-        if self.phase == BattlePhase.DEATH_END_OF_TURN:
+        if self.phase != BattlePhase.TURN_START:
             step_arr(self.battle_array, my_move_idx[0], my_move_idx[1], -50)
             self.opp_move_last = None
         else:

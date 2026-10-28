@@ -10,7 +10,7 @@ from Engine.engine_helper import (
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
 )
 from DataBase.MoveDB import MoveName
-from Models.idx_const import Pok, Move, Item, Sec, Field, SIDE_TOXIC_SPIKES
+from Models.idx_const import Pok, Move, Item, Sec, Field, SIDE_TOXIC_SPIKES, FIELD_LEN
 from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome, Types, SideCondition
 from DataBase.ItemDB import ItemNames
 from battle_driver import move_slice
@@ -18,7 +18,7 @@ from battle_driver import move_slice
 
 def empty_field():
     """A battle array with every field slot at 0, enough for switch_in's side lookups"""
-    return np.zeros(Field.AI_KNOWS + 1, dtype=np.int32)
+    return np.zeros(Field.MY_POK + FIELD_LEN, dtype=np.int32)
 
 
 # ── Speed & order ────────────────────────────────────────────────────────────

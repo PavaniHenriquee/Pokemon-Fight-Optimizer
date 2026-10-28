@@ -105,6 +105,7 @@ export default function ActionPanel({
   const moves = sorted.filter(([, a]) => a.action_type === 1);
   const switches = sorted.filter(([, a]) => a.action_type === 2);
   const isDeath = snapshot.phase === "DEATH";
+  const isBatonPass = snapshot.phase === "BATON_PASS";
 
   function ActionCard({
     actionKey,
@@ -242,7 +243,7 @@ export default function ActionPanel({
       {switches.length > 0 && (
         <div>
           <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
-            {isDeath ? "Switch to:" : "Switches"}
+            {isDeath ? "Switch to:" : isBatonPass ? "Baton Pass to:" : "Switches"}
           </p>
           <div className="grid grid-cols-5 gap-2">
             {switches.map(([key, action]) => (
