@@ -235,3 +235,73 @@ def test_status_type_immunities(poke, name, status, applied, sec):
     mv[Sec.STATUS if sec else Move.STATUS] = status
     apply_status(mv, d, 0, a, sec)
     assert d[Pok.STATUS] == (status if applied else 0)
+
+
+# ── Phase 3 volatiles ────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("target, ability, seeded", [
+    ("Rattata", "Run Away", True), ("Bulbasaur", "Overgrow", False),
+])
+def test_leech_seed_not_on_grass(poke, target, ability, seeded):
+    """Grass types can't be seeded"""
+    a = poke("Bulbasaur", 20, "Overgrow", ["Leech Seed"])
+    d = poke(target, 20, ability, ["Tackle"])
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert bool(d[Pok.VOL_STATUS] & VolStatus.LEECH_SEED) == seeded
+    assert not a[Pok.VOL_STATUS] & VolStatus.LEECH_SEED
+
+
+@pytest.mark.parametrize("user_gender, target_gender, attracted", [
+    ("Male", "Female", True), ("Female", "Male", True), ("Male", "Male", False),
+    ("Female", "Female", False), ("Male", "Genderless", False), ("Genderless", "Female", False),
+])
+def test_attract_needs_opposite_genders(poke, user_gender, target_gender, attracted):
+    """Infatuation only between a male and a female"""
+    a = poke("Pikachu", 20, "Static", ["Attract"], gender=user_gender)
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], gender=target_gender)
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert bool(d[Pok.VOL_STATUS] & VolStatus.ATTRACT) == attracted
+
+
+@pytest.mark.parametrize("status, drowsy", [(0, True), (Status.PARALYSIS, False)])
+def test_yawn_sets_two_turn_counter(poke, status, drowsy):
+    """Yawn fails on a target with a status, otherwise it counts 2 turns"""
+    a = poke("Rattata", 20, "Run Away", ["Yawn"])
+    d = poke("Pikachu", 20, "Static", ["Tackle"])
+    d[Pok.STATUS] = status
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert bool(d[Pok.VOL_STATUS] & VolStatus.YAWN) == drowsy
+    assert d[Pok.YAWN_TURNS] == (2 if drowsy else 0)
+
+
+@pytest.mark.parametrize("move, vol, on_user", [
+    ("Mud Sport", VolStatus.MUD_SPORT, True), ("Water Sport", VolStatus.WATER_SPORT, True),
+    ("Ingrain", VolStatus.INGRAIN, True), ("Aqua Ring", VolStatus.AQUA_RING, True),
+    ("Destiny Bond", VolStatus.DESTINY_BOND, True), ("Foresight", VolStatus.FORESIGHT, False),
+    ("Odor Sleuth", VolStatus.FORESIGHT, False),
+])
+def test_phase3_volatile_targets(poke, move, vol, on_user):
+    """Field-targeted Sports and self moves mark the user, Foresight marks the target"""
+    a = poke("Rattata", 20, "Run Away", [move])
+    d = poke("Gastly", 20, "Levitate", ["Lick"])
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert bool(a[Pok.VOL_STATUS] & vol) == on_user
+    assert bool(d[Pok.VOL_STATUS] & vol) != on_user
+
+
+def test_charge_sets_volatile_and_spdef(poke):
+    """Charge raises SpDef by one and marks the next Electric move"""
+    a = poke("Pikachu", 20, "Static", ["Charge"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert a[Pok.VOL_STATUS] & VolStatus.CHARGE
+    assert a[Pok.SPECIAL_DEFENSE_STAT_STAGE] == 1
+
+
+@pytest.mark.parametrize("move", ["Helping Hand", "Follow Me"])
+def test_singles_only_moves_do_nothing(poke, move):
+    """Helping Hand fails and Follow Me has no effect in a single battle"""
+    a = poke("Rattata", 20, "Run Away", [move])
+    d = poke("Pikachu", 20, "Static", ["Tackle"])
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert a[Pok.VOL_STATUS] == 0 == d[Pok.VOL_STATUS]

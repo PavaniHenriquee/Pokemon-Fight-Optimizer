@@ -8,9 +8,10 @@ from Engine.engine_helper import (
     contact_ability, heal_weather, on_residual, trainer_ai_items, drain,
     item_on_rdmg, eat_berry_bug_bite, struggle, switch_items,
     RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
-    mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift
+    mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
+    try_protect, endure_damage
 )
-from Engine.status_calc import sec_effects, calculate_effects
+from Engine.status_calc import sec_effects, calculate_effects, TURNS_2_5
 from Engine.damage_calc import calculate_damage, ROLLOUT_MOVES
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
@@ -35,7 +36,14 @@ from Models.constants import (
     _STATUS_POISON, _STATUS_TOXIC, _STATUS_BURN, _VOLSTATUS_CURSE, _ABILITYNAMES_MAGIC_GUARD,
     _POK_BADLY_POISON, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL, _MOVE_RECOIL,
     _MOVENAME_FURY_CUTTER, _MOVENAME_NATURAL_GIFT, _MOVENAME_BOUNCE, _POK_CONSEC_COUNT,
-    _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN
+    _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN, _VOLSTATUS_PROTECT, _VOLSTATUS_ENDURE,
+    _VOLSTATUS_RAGE, _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_CHARGE, _VOLSTATUS_INGRAIN,
+    _VOLSTATUS_AQUA_RING, _VOLSTATUS_LEECH_SEED, _VOLSTATUS_YAWN, _VOLSTATUS_ATTRACT,
+    _VOLSTATUS_CONFUSION, _VOLSTATUS_UPROAR, _VOLSTATUS_PARTIALLY_TRAPPED,
+    _VOLSTATUS_FOCUS_ENERGY, _VOLSTATUS_NIGHTMARE, _VOLSTATUS_FORESIGHT, _VOLSTATUS_DEFENSE_CURL,
+    _MOVENAME_PROTECT, _MOVENAME_ENDURE, _MOVENAME_FEINT, _MOVENAME_RAGE, _MOVENAME_CHARGE,
+    _POK_PROTECT_COUNT, _POK_ATTACK_STAT_STAGE, _POK_YAWN_TURNS, _POK_SLEEP_COUNTER, _STATUS_SLEEP,
+    _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4
 )
 from Models.move import STRUGGLE
 
@@ -44,6 +52,20 @@ MULTIHIT_PROB=(2,2,2,3,3,3,4,5)
 SEMI_INVULNERABLE_MOVES = (_MOVENAME_BOUNCE,)
 ROLLOUT_MAX_USES = 5
 FURY_CUTTER_MAX_COUNT = 5
+STALL_MOVES = (_MOVENAME_PROTECT, _MOVENAME_ENDURE)
+# Volatiles that only last for the turn they were set in
+TURN_VOLATILES = _VOLSTATUS_HURT_THIS_TURN | _VOLSTATUS_PROTECT | _VOLSTATUS_ENDURE
+# Bits of pokeplatinum's statusVolatile that the Gen IV Rage glitch wipes. Bide is left out so
+# its lock (CHARGE_RECHARGE) stays consistent
+RAGE_GLITCH_CLEARS = (
+    _VOLSTATUS_FLINCH | _VOLSTATUS_CONFUSION | _VOLSTATUS_UPROAR | _VOLSTATUS_PARTIALLY_TRAPPED
+    | _VOLSTATUS_ATTRACT | _VOLSTATUS_FOCUS_ENERGY | _VOLSTATUS_DESTINY_BOND | _VOLSTATUS_NIGHTMARE
+    | _VOLSTATUS_CURSE | _VOLSTATUS_FORESIGHT | _VOLSTATUS_DEFENSE_CURL
+)
+# Bit in Field.AI_KNOWS for each of my move slots, set once the AI sees the move used
+AI_KNOWS_MOVES = (
+    _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4
+)
 
 @njit
 def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx):
@@ -153,6 +175,9 @@ def _apply_move_damage(attacker, defender, move, damage):
         mark_hurt(defender)
     if damage < defender[_POK_CURRENT_HP]:
         defender[_POK_CURRENT_HP] -= damage
+        # Rage builds on every damaging hit the user survives
+        if defender[_POK_VOL_STATUS] & _VOLSTATUS_RAGE and damage > 0:
+            defender[_POK_ATTACK_STAT_STAGE] = min(6, defender[_POK_ATTACK_STAT_STAGE] + 1)
         flinch = False
         if (
             move[_FLAGS_CONTACT]
@@ -194,7 +219,7 @@ def _ps_moves_core(attacker, defender, move, weather):
     """
     Checks for damage and for flinch. Also returns the HP the defender actually lost
     """
-    damage = _resolve_move_damage(attacker, defender, move, weather)
+    damage = endure_damage(defender, _resolve_move_damage(attacker, defender, move, weather))
     dealt = min(damage, defender[_POK_CURRENT_HP])
     flinch= _apply_move_damage(attacker, defender, move, damage)
     return flinch, damage, dealt
@@ -306,25 +331,40 @@ def _consec_on_hit(atk, mv):
 
 
 @njit
+def _clear_charge(atk, mv):
+    """Charge lasts until the user's next move attempt that isn't Charge"""
+    if mv[_MOVE_ID] != _MOVENAME_CHARGE:
+        atk[_POK_VOL_STATUS] &= ~_VOLSTATUS_CHARGE
+
+
+@njit
 def _execute_move_slot(
         atk, defn, mv, is_mine, current_move, opp_move,
-        flinch_in, slot_num, battle_array, weather,
+        flinch_in, slot_num, is_last, battle_array, weather,
         rec_p=False, rec_s=False
 ):
     """
     Run one move-slot (whichever attacker acts in this position) end to end:
     early-return checks, PP, last-move bookkeeping, charge/lock, hit check,
     damage/effects, trainer-ai bookkeeping.
+    is_last: nothing acts after this slot (Protect and Endure fail).
     Returns the flinch this slot produced (False if it didn't attack/hit).
     """
-    if not (atk[_POK_CURRENT_HP] > 0 and not early_returns(atk, defn, slot_num, flinch_in, mv)):
+    if atk[_POK_CURRENT_HP] <= 0:
         return False
+    if early_returns(atk, defn, slot_num, flinch_in, mv):
+        # A turn without the move resets Protect's consecutive count
+        atk[_POK_PROTECT_COUNT] = 0
+        return False
+    if mv[_MOVE_ID] not in STALL_MOVES:
+        atk[_POK_PROTECT_COUNT] = 0
 
     if mv[_MOVE_ID] != _MOVENAME_STRUGGLE:
         if atk[_POK_LOCKED_MOVE] == -1:
             mv[_MOVE_PP] -= 1
         if is_mine:
             battle_array[_FIELD_MY_LAST_MOVE] = mv[_MOVE_ID]
+            battle_array[_FIELD_AI_KNOWS] |= AI_KNOWS_MOVES[current_move]
     elif is_mine:
         battle_array[_FIELD_MY_LAST_MOVE] = -1  #-1 Means Struggle
 
@@ -346,6 +386,14 @@ def _execute_move_slot(
     _consec_before_move(atk, mv, current_move if is_mine else opp_move)
     if mv[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and not natural_gift(atk, mv):
         return False
+    if mv[_MOVE_ID] in STALL_MOVES:
+        try_protect(atk, mv[_MOVE_ID], is_last)
+        return False
+    # Gen IV Feint fails unless the target is protecting, then it lifts the protection
+    if mv[_MOVE_ID] == _MOVENAME_FEINT:
+        if not defn[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT:
+            return False
+        defn[_POK_VOL_STATUS] &= ~_VOLSTATUS_PROTECT
 
     move_hit = calculate_hit_miss(mv, atk, defn, weather)
     if move_hit != _MOVEOUTCOME_HIT:
@@ -360,6 +408,12 @@ def _execute_move_slot(
             flinch = ps_moves(atk, defn, mv, weather, rec_p, rec_s)
         if mv[_MOVE_ID] in ROLLOUT_MOVES and atk[_POK_CONSEC_COUNT] >= ROLLOUT_MAX_USES:
             unlock_move(atk)
+        if mv[_MOVE_ID] == _MOVENAME_RAGE:
+            atk[_POK_VOL_STATUS] |= _VOLSTATUS_RAGE
+        # Destiny Bond, after drain and recoil like the Gen IV faint check
+        if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
+            mark_hurt(atk)
+            atk[_POK_CURRENT_HP] = 0
         # Information for trainer ai logic
         if is_mine:
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = mv[_MOVE_TYPE]
@@ -429,14 +483,16 @@ def action(current_move, opp_move, battle_array):
     if count >= 1:
         flinch = _execute_move_slot(
             atk1, def1, mv1, first_is_mine, current_move, opp_move,
-            flinch, 1, battle_array, weather, record_phy, record_sp
+            flinch, 1, count == 1, battle_array, weather, record_phy, record_sp
         )
+        _clear_charge(atk1, mv1)
 
     if count >= 2:
         _execute_move_slot(
             atk2, def2, mv2, not first_is_mine, current_move, opp_move,
-            flinch, 2, battle_array, weather
+            flinch, 2, True, battle_array, weather
         )
+        _clear_charge(atk2, mv2)
 
 
 @njit
@@ -456,29 +512,77 @@ def _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_f
 
 
 @njit
-def _apply_residual(pok, weather, enter_field_flag_idx, battle_array):
-    """Heal, weather/status damage, on-residual ability, enter-field clear — one side"""
+def _residual_heal(pok):
+    """Ingrain and Aqua Ring heal 1/16 of max HP"""
+    max_hp = pok[_POK_MAX_HP]
+    if pok[_POK_CURRENT_HP] < max_hp:
+        pok[_POK_CURRENT_HP] = min(max_hp, pok[_POK_CURRENT_HP] + max(1, max_hp // 16))
+
+
+@njit
+def _yawn(pok):
+    """Yawn counts down at the end of the turn, at 0 the target falls asleep if it has no status"""
+    pok[_POK_YAWN_TURNS] -= 1
+    if pok[_POK_YAWN_TURNS] > 0:
+        return
+    pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_YAWN
+    if pok[_POK_STATUS] == 0:
+        pok[_POK_STATUS] = _STATUS_SLEEP
+        pok[_POK_SLEEP_COUNTER] = TURNS_2_5[random.getrandbits(2)]
+
+
+@njit
+def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
+    """Weather heal and damage for one side, Gen IV runs it for everyone before any other residual"""
+    if pok[_POK_CURRENT_HP] <= 0:
+        return
+    heal_weather(pok, weather)
+    if pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD and weather not in WEATHER_NOT_END_OF_TURN:
+        w_dmg = weather_dmg(pok, weather, pok[_POK_MAX_HP])
+        _apply_residual_damage(
+            pok, w_dmg, enter_field_flag_idx, battle_array, battle_array[enter_field_flag_idx]
+        )
+
+
+@njit
+def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     """
-    Lower goes first:
-    Weather:     1
-    Psn/Tox:     9
-    Burn:        10
-    Curse:       12
-    Speed Boost: 28 - 2
+    Per-Pokemon residuals after the weather, on-residual ability, enter-field clear — one side.
+    foe is the opposing active, which Leech Seed heals
+    """
+    """
+    Gen IV order (pokeplatinum CheckMonConditions, Showdown gen4 residual suborders):
+    Ingrain, Aqua Ring, Speed Boost, Leech Seed, Psn/Tox, Burn, Curse, Yawn
     """
     if pok[_POK_CURRENT_HP] <= 0:
         return
     enter_field = battle_array[enter_field_flag_idx]
     is_magic_guard = pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD
 
-    # 1. Weather: 1
-    heal_weather(pok, weather)
-    if not is_magic_guard and weather not in WEATHER_NOT_END_OF_TURN:
-        w_dmg = weather_dmg(pok, weather, pok[_POK_MAX_HP])
-        if _apply_residual_damage(pok, w_dmg, enter_field_flag_idx, battle_array, enter_field):
+    # 1. Ingrain and Aqua Ring
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN:
+        _residual_heal(pok)
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_AQUA_RING:
+        _residual_heal(pok)
+
+    # 2. Speed Boost
+    if pok[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_RESIDUAL:
+        on_residual(pok, enter_field)
+
+    # 3. Leech Seed
+    if (
+        pok[_POK_VOL_STATUS] & _VOLSTATUS_LEECH_SEED
+        and not is_magic_guard
+        and foe[_POK_CURRENT_HP] > 0
+    ):
+        dmg = max(1, pok[_POK_MAX_HP] // 8)
+        dealt = min(dmg, pok[_POK_CURRENT_HP])
+        fainted = _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field)
+        foe[_POK_CURRENT_HP] = min(foe[_POK_MAX_HP], foe[_POK_CURRENT_HP] + dealt)
+        if fainted:
             return
 
-    # 2. Psn/Tox: 9
+    # 4. Psn/Tox
     status = pok[_POK_STATUS]
     if status == _STATUS_POISON or status == _STATUS_TOXIC:
         if status == _STATUS_TOXIC:
@@ -493,23 +597,23 @@ def _apply_residual(pok, weather, enter_field_flag_idx, battle_array):
             if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                 return
 
-    # 3. Burn: 10
+    # 5. Burn
     if pok[_POK_STATUS] == _STATUS_BURN:
         if not is_magic_guard:
             dmg = pok[_POK_MAX_HP] // 8
             if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                 return
 
-    # 4. Curse: 12
+    # 6. Curse
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
         if not is_magic_guard:
             dmg = pok[_POK_MAX_HP] // 4
             if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                 return
 
-    # 5. Speed Boost: 28 - 2
-    if pok[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_RESIDUAL:
-        on_residual(pok, enter_field)
+    # 7. Yawn
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN:
+        _yawn(pok)
 
     if enter_field:
         battle_array[enter_field_flag_idx] = 0
@@ -533,8 +637,19 @@ def end_of_turn(battle_array):
     # TODO: Items
     # TODO: Weather end before what happens to pokemon
 
-    _apply_residual(current_pokemon, weather, _FIELD_MY_ENTER_FIELD, battle_array)
-    _apply_residual(current_opp, weather, _FIELD_OPP_ENTER_FIELD, battle_array)
+    # Gen IV re-sorts by speed before the end of the turn, then weather hits everyone before the
+    # per-Pokemon residuals
+    my_s, opp_s = check_speed(current_pokemon, current_opp, weather)
+    if my_s > opp_s or (my_s == opp_s and random.getrandbits(1)):
+        first, second = current_pokemon, current_opp
+        first_flag, second_flag = _FIELD_MY_ENTER_FIELD, _FIELD_OPP_ENTER_FIELD
+    else:
+        first, second = current_opp, current_pokemon
+        first_flag, second_flag = _FIELD_OPP_ENTER_FIELD, _FIELD_MY_ENTER_FIELD
+    _residual_weather(first, weather, first_flag, battle_array)
+    _residual_weather(second, weather, second_flag, battle_array)
+    _apply_residual(first, second, first_flag, battle_array)
+    _apply_residual(second, first, second_flag, battle_array)
 
     # If Opponent is dead
     opp_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
@@ -548,9 +663,29 @@ def end_of_turn(battle_array):
         battle_array[_FIELD_MY_LAST_MOVE] = 0
         battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
         current_opp = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
-        switch_in(current_pokemon, current_opp)
+        switch_in(current_opp, current_pokemon)
         return i
     return -1
+
+
+@njit
+def _selected_move_id(pok, move_idx):
+    """Id of the move picked this turn, 0 for a switch or an item (Battler_SelectedMove)"""
+    if move_idx == 10:
+        return _MOVENAME_STRUGGLE
+    if move_idx < 0:
+        return 0
+    return pok[OFFSET_MOVE + move_idx * MOVE_STRIDE + _MOVE_ID]
+
+
+@njit
+def _rage_glitch(pok, move_id):
+    """
+    Gen IV Rage glitch (pokeplatinum PRE_MOVE_ACTION_STATE_CHECK_RAGE_FLAG): a raging Pokemon
+    that picks anything but Rage keeps Rage and loses its other volatiles instead
+    """
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_RAGE and move_id != _MOVENAME_RAGE:
+        pok[_POK_VOL_STATUS] &= ~RAGE_GLITCH_CLEARS
 
 
 @njit
@@ -562,6 +697,14 @@ def turn_sim(opp_move, current_action, battle_array):
     else:
         current_move = -1
         switch_idx = current_action[1]
+    my_pok = battle_array[
+        (battle_array[_FIELD_MY_POK] * POK_LEN):((battle_array[_FIELD_MY_POK]+1) * POK_LEN)
+    ]
+    opp_pok = battle_array[
+        ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
+    ]
+    _rage_glitch(my_pok, _selected_move_id(my_pok, current_move))
+    _rage_glitch(opp_pok, _selected_move_id(opp_pok, opp_move))
     start_of_turn(opp_move, switch_idx, battle_array)
     action(current_move, opp_move, battle_array)
     opp_idx = end_of_turn(battle_array)
@@ -574,8 +717,8 @@ def turn_sim(opp_move, current_action, battle_array):
         ((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
     ]
 
-    current_pokemon[_POK_VOL_STATUS] &= ~_VOLSTATUS_HURT_THIS_TURN
-    current_opp[_POK_VOL_STATUS] &= ~_VOLSTATUS_HURT_THIS_TURN
+    current_pokemon[_POK_VOL_STATUS] &= ~TURN_VOLATILES
+    current_opp[_POK_VOL_STATUS] &= ~TURN_VOLATILES
 
     if opp_idx == -1:
         opp_idx = battle_array[_FIELD_OPP_POK]
@@ -668,6 +811,7 @@ def switch_in_action(battle_array, switch_idx: int):
     current_pokemon = my_pty[
         (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
     ]
+    switch_in(current_pokemon, current_opp)
     battle_array[_FIELD_TURN] += 1
     current_opp[_POK_TURNS] += 1
     current_pokemon[_POK_TURNS] += 1

@@ -10,7 +10,7 @@ from Models.idx_const import (
 from Models.constants import (
     _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
-    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE
+    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _VOLSTATUS_INGRAIN
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
@@ -55,6 +55,9 @@ def valid_action_mask(battle_array):
                 usable = True
         if not usable:
             mask |= 1 << 4
+        # Ingrain roots the active, no switching out
+        if battle_array[base + _POK_VOL_STATUS] & _VOLSTATUS_INGRAIN:
+            return mask
     for i in range(6):
         if i != my_active and battle_array[i * POK_LEN + _POK_CURRENT_HP] > 0:
             mask |= 1 << (5 + i)

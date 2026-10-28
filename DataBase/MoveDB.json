@@ -1845,7 +1845,8 @@
     "name": "mud_sport",
     "pp": 15,
     "target": "all",
-    "type": "Ground"
+    "type": "Ground",
+    "vol_status": "mud_sport"
   },
   "Mud-Slap": {
     "accuracy": 100,
@@ -3147,7 +3148,8 @@
     "name": "water_sport",
     "pp": 15,
     "target": "all",
-    "type": "Water"
+    "type": "Water",
+    "vol_status": "water_sport"
   },
   "Whirlpool": {
     "accuracy": 85,

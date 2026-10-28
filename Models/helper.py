@@ -290,6 +290,7 @@ class MoveOutcome:
     MISS              = 2
     INVULNERABLE      = 3
     SEMI_INVULNERABLE = 4
+    PROTECTED         = 5
 
 
 @dataclass(slots=True)

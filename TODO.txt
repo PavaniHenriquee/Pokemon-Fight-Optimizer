@@ -125,11 +125,11 @@
 [X]Air Cutter(E) *
 [X]Amnesia
 [X]Aqua Jet
-[]Aqua Ring(B/E) ! *
+[X]Aqua Ring(B/E) ! *
 [X]Arm Thrust !
 [X]Assurance(E) ! *
 [X]Astonish
-[]Attract(B) ! *
+[X]Attract(B) ! *
 [X]Aurora Beam *
 [X]Barrier *
 []Baton Pass(B/E) ! *
@@ -145,7 +145,7 @@
 [X]Bulk Up(B) *
 [X]Bulldoze
 [X]Bullet Seed
-[]Charge ! *
+[X]Charge ! *
 [X]Charm
 []Clamp(E) ! *
 [X]Comet Punch *
@@ -156,7 +156,7 @@
 [X]Covet(E) !
 [X]Curse(B/E) !
 [X]Defense Curl !
-[]Destiny Bond(E) ! *
+[X]Destiny Bond(E) ! *
 [X]Disarming Voice
 [X]Double Kick *
 [X]Double Slap *
@@ -166,12 +166,12 @@
 [X]Draining Kiss *
 [X]Ember
 []Encore(B/E) ! *
-[]Endure(E) ! *
+[X]Endure(E) ! *
 [X]Extrasensory *
 [X]Extreme Speed *
 [X]Fake Out(B/E) !
 [X]Fake Tears *
-[]Feint(E) ! *
+[X]Feint(E) ! *
 [X]Feint Attack(E) *
 [X]Fire Fang *
 [X]Fire Punch
@@ -180,9 +180,9 @@
 [X]Flame Wheel *
 [X]Flash *
 [X]Focus Energy(B) (Engine done)
-[]Follow Me ! *
+[X]Follow Me ! *
 [X]Force Palm
-[]Foresight(B/E) !
+[X]Foresight(B/E) !
 [X]Fury Attack *
 [X]Fury Cutter !
 [X]Fury Swipes
@@ -192,7 +192,7 @@
 [X]Gust
 [X]Harden
 [X]Headbutt
-[]Helping Hand(B) ! *
+[X]Helping Hand(B) ! *
 [X]Hidden Power !!
 [X]Horn Attack *
 [X]Howl
@@ -200,13 +200,13 @@
 [X]Hypnosis
 [X]Ice Ball ! *
 [X]Icy Wind(E) *
-[]Ingrain(B) !
+[X]Ingrain(B) !
 [X]Iron Defense *
 [X]Iron Head *
 [X]Karate Chop(E)
 [X]Kinesis *
 []Knock Off(B/E) ! *
-[]Leech Seed(B/E) ! *
+[X]Leech Seed(B/E) ! *
 [X]Leer
 [X]Lick *
 []Light Screen(B/E) ! *
@@ -224,13 +224,13 @@
 []Mist(B) ! *
 [X]Mud Bomb *
 [X]Mud Shot(E)
-[]Mud Sport(B/E) !
+[X]Mud Sport(B/E) !
 [X]Mud-Slap
 [X]Nasty Plot *
 [X]Natural Gift(B) ! *
 []Nature Power !(maybe unnecessary)
 [X]Night Shade *
-[]Odor Sleuth(B/E) ! *
+[X]Odor Sleuth(B/E) ! *
 [X]Peck
 []Perish Song(B) ! *
 [X]Pin Missile *
@@ -239,12 +239,12 @@
 [X]Poison Sting
 [X]Pound
 [X]Powder Snow *
-[]Protect(E) !
+[X]Protect(E) !
 [X]Psybeam *
 [X]Psywave ! *
 []Pursuit(E) !
 [X]Quick Attack
-[]Rage ! *
+[X]Rage ! *
 []Rain Dance(B/E) ! *
 []Rapid Spin ! *
 [X]Razor Leaf(E)
@@ -301,7 +301,7 @@
 [X]Vine Whip
 [X]Water Gun *
 [X]Water Pulse
-[]Water Sport(B/E) !
+[X]Water Sport(B/E) !
 []Whirlpool ! *
 []Whirlwind(B/E) *
 [X]Will-O-Wisp *
@@ -309,7 +309,7 @@
 [X]Withdraw
 []Worry Seed(B/E) ! *
 []Wrap(E) !
-[]Yawn ! *
+[X]Yawn ! *
 [X]Zen Headbutt
 
 

@@ -6,8 +6,9 @@ from Engine.engine_helper import (
     check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     switch_in, trainer_ai_items, eat_berry, drain, weather_dmg, early_returns, struggle,
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
-    natural_gift,
+    natural_gift, try_protect, endure_damage,
 )
+from DataBase.MoveDB import MoveName
 from Models.idx_const import Pok, Move, Item, Sec
 from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome, Types
 from DataBase.ItemDB import ItemNames
@@ -591,3 +592,124 @@ def test_natural_gift_uses_berry(poke, make_pokemon):
     assert a[Pok.ITEM_ID] == 0 and a[Pok.CONSUMED_ITEM] == ItemNames.SITRUS_BERRY
     assert not natural_gift(a, mv)
     assert not natural_gift(poke("Rattata", 50, "Run Away", ["Natural Gift"]), mv)
+
+
+# ── Phase 3: Protect, Endure, Foresight, Ingrain, Destiny Bond, Attract ─────────
+
+def test_protect_success_chance_halves_and_caps(poke):
+    """1, 1/2, 1/4, then 1/8 for every further consecutive use"""
+    p = poke("Rattata", 20, "Run Away", ["Protect"])
+    n = 20_000
+    for count, expected in [(1, 0.5), (2, 0.25), (3, 0.125)]:
+        hits = 0
+        for _ in range(n):
+            p[Pok.PROTECT_COUNT] = count
+            p[Pok.VOL_STATUS] = 0
+            try_protect(p, MoveName.PROTECT, False)
+            hits += bool(p[Pok.VOL_STATUS] & VolStatus.PROTECT)
+        assert hits / n == pytest.approx(expected, abs=0.015)
+
+
+def test_protect_count_and_failure(poke):
+    """A success counts up to 3, failing (also by moving last) resets the count"""
+    p = poke("Rattata", 20, "Run Away", ["Protect"])
+    try_protect(p, MoveName.PROTECT, False)
+    assert p[Pok.VOL_STATUS] & VolStatus.PROTECT and p[Pok.PROTECT_COUNT] == 1
+    p[Pok.PROTECT_COUNT] = 3
+    p[Pok.VOL_STATUS] = 0
+    random.seed(0)
+    while not p[Pok.VOL_STATUS] & VolStatus.PROTECT:
+        p[Pok.PROTECT_COUNT] = 3
+        try_protect(p, MoveName.PROTECT, False)
+    assert p[Pok.PROTECT_COUNT] == 3
+    p[Pok.VOL_STATUS] = 0
+    try_protect(p, MoveName.PROTECT, True)
+    assert not p[Pok.VOL_STATUS] & VolStatus.PROTECT and p[Pok.PROTECT_COUNT] == 0
+
+
+def test_endure_sets_its_own_bit(poke):
+    """Endure shares the count with Protect but marks ENDURE"""
+    p = poke("Rattata", 20, "Run Away", ["Endure"])
+    try_protect(p, MoveName.ENDURE, False)
+    assert p[Pok.VOL_STATUS] == VolStatus.ENDURE and p[Pok.PROTECT_COUNT] == 1
+
+
+@pytest.mark.parametrize("move, outcome", [("Tackle", MoveOutcome.PROTECTED), ("Feint", MoveOutcome.HIT)])
+def test_protect_blocks_flagged_moves(poke, move, outcome):
+    """Only moves with the protect flag are blocked"""
+    a = poke("Rattata", 20, "Run Away", [move])
+    d = poke("Rattata", 20, "Run Away", ["Protect"])
+    d[Pok.VOL_STATUS] = VolStatus.PROTECT
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == outcome
+
+
+def test_foresight_lets_normal_hit_ghost_and_ignores_evasion(poke):
+    """Ghost loses its Normal immunity, positive evasion counts as 0"""
+    a = poke("Rattata", 20, "Run Away", ["Tackle"])
+    d = poke("Gastly", 20, "Levitate", ["Lick"])
+    mv = move_slice(a, 0)
+    assert calculate_hit_miss(mv, a, d, 0) == MoveOutcome.INVULNERABLE
+    d[Pok.VOL_STATUS] = VolStatus.FORESIGHT
+    d[Pok.EVASION_STAT_STAGE] = 6
+    assert all(calculate_hit_miss(mv, a, d, 0) == MoveOutcome.HIT for _ in range(50))
+
+
+def test_ingrain_grounds_flying_types(poke):
+    """An Ingrained Flying type can be hit by Ground moves"""
+    a = poke("Geodude", 20, "Sturdy", ["Mud-Slap"])
+    d = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    mv = move_slice(a, 0)
+    assert calculate_hit_miss(mv, a, d, 0) == MoveOutcome.INVULNERABLE
+    d[Pok.VOL_STATUS] = VolStatus.INGRAIN
+    assert calculate_hit_miss(mv, a, d, 0) == MoveOutcome.HIT
+
+
+@pytest.mark.parametrize("vol, hp, damage, expected", [
+    (VolStatus.ENDURE, 10, 30, 9), (VolStatus.ENDURE, 10, 5, 5), (0, 10, 30, 30),
+])
+def test_endure_damage(poke, vol, hp, damage, expected):
+    """Endure caps a would-be KO at current HP - 1"""
+    d = poke("Rattata", 20, "Run Away", ["Endure"])
+    d[Pok.VOL_STATUS] = vol
+    d[Pok.CURRENT_HP] = hp
+    assert endure_damage(d, damage) == expected
+
+
+def test_destiny_bond_ends_when_user_tries_to_move(poke):
+    """Cleared at the start of the user's next move attempt, even a blocked one"""
+    a = poke("Gastly", 20, "Levitate", ["Lick"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    a[Pok.VOL_STATUS] = VolStatus.DESTINY_BOND
+    a[Pok.STATUS] = Status.SLEEP
+    a[Pok.SLEEP_COUNTER] = 2
+    assert early_returns(a, d, 1, False, move_slice(a, 0))
+    assert not a[Pok.VOL_STATUS] & VolStatus.DESTINY_BOND
+
+
+@pytest.mark.parametrize("roll, blocked", [(1, True), (0, False)])
+def test_attract_immobilizes_half_the_time(monkeypatch, poke, roll, blocked):
+    """Infatuation blocks the move on a 50% roll"""
+    a = poke("Rattata", 20, "Run Away", ["Tackle"])
+    d = poke("Pikachu", 20, "Static", ["Tackle"])
+    a[Pok.VOL_STATUS] = VolStatus.ATTRACT
+    monkeypatch.setattr(engine_helper.random, "getrandbits", lambda k: roll)
+    assert early_returns(a, d, 1, False, move_slice(a, 0)) == blocked
+
+
+def test_switch_in_ends_foe_attract(poke):
+    """The foe's infatuation was with the Pokemon that left"""
+    new = poke("Rattata", 20, "Run Away", ["Tackle"])
+    foe = poke("Pikachu", 20, "Static", ["Tackle"])
+    foe[Pok.VOL_STATUS] = VolStatus.ATTRACT | VolStatus.CONFUSION
+    switch_in(new, foe)
+    assert foe[Pok.VOL_STATUS] == VolStatus.CONFUSION
+
+
+def test_reset_switch_out_clears_phase3_counters(poke):
+    """Protect's consecutive count and the Yawn countdown don't survive a switch"""
+    p = poke("Rattata", 50, "Run Away", ["Protect"])
+    p[Pok.PROTECT_COUNT] = 2
+    p[Pok.YAWN_TURNS] = 1
+    p[Pok.VOL_STATUS] = VolStatus.INGRAIN | VolStatus.YAWN
+    reset_switch_out(p)
+    assert p[Pok.PROTECT_COUNT] == p[Pok.YAWN_TURNS] == p[Pok.VOL_STATUS] == 0

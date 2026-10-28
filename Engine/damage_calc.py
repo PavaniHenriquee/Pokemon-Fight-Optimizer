@@ -19,7 +19,9 @@ from Models.constants import (
     _MOVENAME_LOW_KICK, _MOVENAME_MAGNITUDE, _MOVENAME_FURY_CUTTER, _MOVENAME_ROLLOUT,
     _MOVENAME_ICE_BALL, _MOVENAME_ASSURANCE, _MOVENAME_GUST, _POK_WEIGHT, _POK_CONSEC_COUNT,
     _POK_VOL_STATUS, _VOLSTATUS_DEFENSE_CURL, _VOLSTATUS_HURT_THIS_TURN,
-    _VOLSTATUS_SEMI_INVULNERABLE,
+    _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_CHARGE,
+    _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_GHOST,
+    _TYPES_GROUND, _TYPES_FLYING, _TYPES_ELECTRIC,
 )
 
 # ==========================================
@@ -38,6 +40,7 @@ WEIGHT_TO_POWER = ((100, 20), (250, 40), (500, 60), (1000, 80), (2000, 100))
 # (roll 0..99 below this, power), the rest is 150
 MAGNITUDE_TABLE = ((5, 10), (15, 30), (35, 50), (65, 70), (85, 90), (95, 110))
 ROLLOUT_MOVES = (_MOVENAME_ROLLOUT, _MOVENAME_ICE_BALL)
+FORESIGHT_TYPES = (_TYPES_NORMAL, _TYPES_FIGHTING)
 
 
 # ==========================================
@@ -54,6 +57,28 @@ def apply_stat_stage(raw_stat: int, stage: int, is_simple: bool) -> int:
 
     n_stat, d_stat = STAGES_TABLE[stage + 6]
     return (raw_stat * n_stat) // d_stat
+
+
+@njit
+def matchup_types(move_type, defender):
+    """
+    Defender types the type chart reads. Foresight drops the Ghost type against Normal and
+    Fighting, Ingrain drops the Flying type against Ground, a dropped type is 0 (neutral)
+    """
+    t1 = defender[_POK_TYPE1]
+    t2 = defender[_POK_TYPE2]
+    vol = defender[_POK_VOL_STATUS]
+    if vol & _VOLSTATUS_FORESIGHT and move_type in FORESIGHT_TYPES:
+        if t1 == _TYPES_GHOST:
+            t1 = 0
+        if t2 == _TYPES_GHOST:
+            t2 = 0
+    if vol & _VOLSTATUS_INGRAIN and move_type == _TYPES_GROUND:
+        if t1 == _TYPES_FLYING:
+            t1 = 0
+        if t2 == _TYPES_FLYING:
+            t2 = 0
+    return t1, t2
 
 
 # ==========================================
@@ -173,7 +198,7 @@ def multipliers(
     m_type = move[_MOVE_TYPE]
     atk_type1 = attacker[_POK_TYPE1]
     atk_type2 = attacker[_POK_TYPE2]
-    def_type2 = defender[_POK_TYPE2]
+    def_type1, def_type2 = matchup_types(m_type, defender)
 
     # Burn
     if attacker[_POK_STATUS] == _STATUS_BURN:
@@ -224,7 +249,7 @@ def multipliers(
         damage = (damage*3) // 2
 
     # Effectiveness type 1
-    effectiveness, _ = get_type_effectiveness(m_type, defender[_POK_TYPE1], 0)
+    effectiveness, _ = get_type_effectiveness(m_type, def_type1, 0)
     if effectiveness != 2:
         damage = (effectiveness * damage)//2
 
@@ -318,6 +343,26 @@ def variable_power(attacker, defender, move):
     return power
 
 
+@njit
+def charge_power(attacker, move, power):
+    """Charge doubles the power of the user's Electric move"""
+    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_CHARGE and move[_MOVE_TYPE] == _TYPES_ELECTRIC:
+        return power * 2
+    return power
+
+
+@njit
+def sport_power(attacker, defender, move, power):
+    """Mud Sport halves Electric power and Water Sport halves Fire power while either active has it"""
+    vol = attacker[_POK_VOL_STATUS] | defender[_POK_VOL_STATUS]
+    m_type = move[_MOVE_TYPE]
+    if m_type == _TYPES_ELECTRIC and vol & _VOLSTATUS_MUD_SPORT:
+        return power // 2
+    if m_type == _TYPES_FIRE and vol & _VOLSTATUS_WATER_SPORT:
+        return power // 2
+    return power
+
+
 
 # ==========================================
 # 4. CORE DAMAGE FUNCTIONS
@@ -331,13 +376,14 @@ def calculate_damage(
 
     attack, defense = raw_atk_def(move, attacker, defender, weather, crit)
 
-    power = variable_power(attacker, defender, move)
+    power = charge_power(attacker, move, variable_power(attacker, defender, move))
 
     # Ability
     if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
         base_power_mult = base_power_ability(attacker, move)
         if base_power_mult:
             power = base_power_mult*power // 4096
+    power = sport_power(attacker, defender, move, power)
 
     level = attacker[_POK_LEVEL]
 
@@ -392,11 +438,12 @@ def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather):
     attack, defense = raw_atk_def(move, attacker, defender, weather)
 
     # Ability
-    power = move[_MOVE_POWER]
+    power = charge_power(attacker, move, move[_MOVE_POWER])
     if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
         base_power_mult = base_power_ability(attacker, move)
         if base_power_mult:
             power = base_power_mult*power//4096
+    power = sport_power(attacker, defender, move, power)
 
     level = attacker[_POK_LEVEL]
 

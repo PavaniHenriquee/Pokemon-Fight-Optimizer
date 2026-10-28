@@ -13,7 +13,7 @@ from SearchEngine.my_mcts import (
 )
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
 from Models.idx_const import Pok, Move, Field
-from Models.helper import ActionType, BattlePhase
+from Models.helper import ActionType, BattlePhase, VolStatus
 from Models.trainer_ai import return_idx
 from battle_driver import (
     SCENARIOS, build_scenario, play_battle, legal_actions, is_over, my_active, opp_active,
@@ -64,6 +64,17 @@ def test_death_phase_only_switches(make_pokemon, make_battle):
     my_active(arr)[Pok.CURRENT_HP] = 0
     arr[Field.PHASE] = BattlePhase.DEATH_END_OF_TURN
     assert mask_actions(arr) == [(SWITCH, 1)]
+
+
+def test_ingrain_blocks_switching_but_not_replacing(make_pokemon, make_battle):
+    """An Ingrained active can't switch out, its replacement after fainting is still picked"""
+    team = [make_pokemon(n, 10, "Run Away", ["Tackle"]) for n in ("Rattata", "Pidgey")]
+    arr = make_battle(team, [make_pokemon("Rattata", 10, "Run Away", ["Tackle"])])
+    my_active(arr)[Pok.VOL_STATUS] = VolStatus.INGRAIN
+    assert mask_actions(arr) == [(MOVE, 0)] == legal_actions(arr)
+    my_active(arr)[Pok.CURRENT_HP] = 0
+    arr[Field.PHASE] = BattlePhase.DEATH_END_OF_TURN
+    assert mask_actions(arr) == [(SWITCH, 1)] == legal_actions(arr)
 
 
 def test_valid_actions_array_matches_mask(one_v_one):

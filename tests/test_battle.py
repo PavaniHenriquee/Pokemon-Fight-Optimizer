@@ -6,6 +6,7 @@ from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
 from Models.idx_const import Pok, Move, Field, POK_LEN
 from Models.helper import ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, Types
 from Models.move import STRUGGLE
+from Models.constants import _ENEMY_AI_KNOWS_MOVE2
 from battle_driver import (
     SCENARIOS, build_scenario, play_battle, pok_slice, my_active, opp_active, move_slice,
     is_over, MAX_TURNS,
@@ -393,3 +394,243 @@ def test_drain_heals_from_hp_lost(poke):
     d[Pok.CURRENT_HP] = 6
     battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
     assert d[Pok.CURRENT_HP] == 0 and a[Pok.CURRENT_HP] == 1 + 3
+
+
+# ── Phase 3 volatiles ────────────────────────────────────────────────────────
+
+def _phase3_battle(make_pokemon, make_battle, my_moves, opp_moves, my_level=50, opp_level=5,
+                   my_name="Rattata"):
+    """My Pokemon vs a Rattata, both sides with a Geodude to switch to"""
+    my = [make_pokemon(my_name, my_level, "Run Away", my_moves),
+          make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])]
+    opp = [make_pokemon("Rattata", opp_level, "Run Away", opp_moves),
+           make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])]
+    return make_battle(my, opp)
+
+
+def test_protect_blocks_then_wears_off(make_pokemon, make_battle):
+    """Protect blocks the foe's Tackle this turn and is gone at the end of it"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Protect"], ["Tackle"], my_level=5,
+                         opp_level=50)
+    me = my_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == hp
+    assert not me[Pok.VOL_STATUS] & VolStatus.PROTECT and me[Pok.PROTECT_COUNT] == 1
+
+
+def test_protect_fails_when_nothing_acts_after(make_pokemon, make_battle):
+    """The foe switching leaves no one after the user, Protect fails and the count resets"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Protect"], ["Tackle"])
+    me = my_active(arr)
+    me[Pok.PROTECT_COUNT] = 1
+    turn_sim(-5, (MOVE, 0), arr)
+    assert me[Pok.PROTECT_COUNT] == 0
+
+
+def test_other_move_resets_protect_count(make_pokemon, make_battle):
+    """Only Protect/Endure keep the consecutive count"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Protect", "Tackle"], ["Tackle"])
+    me = my_active(arr)
+    me[Pok.PROTECT_COUNT] = 2
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.PROTECT_COUNT] == 0
+
+
+def test_endure_survives_with_one_hp(make_pokemon, make_battle):
+    """A KO hit on an enduring Pokemon leaves it at 1 HP"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Endure"], ["Tackle"], my_level=5,
+                         opp_level=50)
+    me = my_active(arr)
+    me[Pok.CURRENT_HP] = 2
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == 1
+
+
+@pytest.mark.parametrize("my_move, hits", [("Protect", True), ("Growl", False)])
+def test_feint_needs_and_breaks_protect(make_pokemon, make_battle, my_move, hits):
+    """Gen IV Feint only works on a protecting target, and goes through the protection"""
+    arr = _phase3_battle(make_pokemon, make_battle, [my_move], ["Feint"], my_level=5,
+                         opp_level=50)
+    me = my_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.CURRENT_HP] < hp) == hits
+
+
+def test_destiny_bond_takes_the_attacker_down(make_pokemon, make_battle):
+    """KOed while Destiny Bond is up: the foe that landed the hit faints too"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Destiny Bond"], ["Tackle"])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.CURRENT_HP] = 1
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == 0 == foe[Pok.CURRENT_HP]
+    assert phase == BattlePhase.DEATH_END_OF_TURN
+
+
+def test_destiny_bond_gone_after_next_move(make_pokemon, make_battle):
+    """The bond lasts until the user's next move"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Destiny Bond", "Tail Whip"], ["Growl"])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.DESTINY_BOND
+    turn_sim(0, (MOVE, 1), arr)
+    assert not me[Pok.VOL_STATUS] & VolStatus.DESTINY_BOND
+
+
+def test_rage_builds_attack_when_hit(make_pokemon, make_battle):
+    """Rage hits first, then the foe's Tackle raises the user's Attack"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Rage"], ["Tackle"], opp_level=30)
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.RAGE
+    assert me[Pok.ATTACK_STAT_STAGE] == 1
+
+
+def test_rage_glitch_wipes_other_volatiles(make_pokemon, make_battle):
+    """Picking another move keeps Rage and clears the statusVolatile bits, not Leech Seed"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Rage", "Tail Whip"], ["Growl"])
+    me = my_active(arr)
+    me[Pok.VOL_STATUS] = (VolStatus.RAGE | VolStatus.CONFUSION | VolStatus.FOCUS_ENERGY
+                          | VolStatus.LEECH_SEED)
+    me[Pok.CONFUSION_COUNTER] = 3
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.VOL_STATUS] == VolStatus.RAGE | VolStatus.LEECH_SEED
+
+
+def test_rage_kept_when_rage_picked_again(make_pokemon, make_battle):
+    """Choosing Rage again doesn't trigger the glitch"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Rage"], ["Growl"])
+    me = my_active(arr)
+    me[Pok.VOL_STATUS] = VolStatus.RAGE | VolStatus.FOCUS_ENERGY
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.FOCUS_ENERGY
+
+
+def test_charge_lasts_until_next_move(make_pokemon, make_battle):
+    """Charge stays through the turn it's used and ends after the next move"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Charge", "Thunder Shock"], ["Growl"],
+                         my_name="Pikachu")
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.CHARGE
+    turn_sim(0, (MOVE, 1), arr)
+    assert not me[Pok.VOL_STATUS] & VolStatus.CHARGE
+
+
+def test_leech_seed_drains_into_foe(make_pokemon, make_battle):
+    """1/8 of the seeded Pokemon's max HP goes to the opposing active"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle"], ["Tackle"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.LEECH_SEED
+    me[Pok.CURRENT_HP] = 10
+    foe_hp = foe[Pok.CURRENT_HP]
+    end_of_turn(arr)
+    drained = max(1, foe[Pok.MAX_HP] // 8)
+    assert foe[Pok.CURRENT_HP] == foe_hp - drained
+    assert me[Pok.CURRENT_HP] == 10 + drained
+
+
+@pytest.mark.parametrize("vol", [VolStatus.INGRAIN, VolStatus.AQUA_RING])
+def test_ingrain_and_aqua_ring_heal(make_pokemon, make_battle, vol):
+    """1/16 of max HP at the end of the turn"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle"], ["Tackle"])
+    me = my_active(arr)
+    me[Pok.VOL_STATUS] = vol
+    me[Pok.CURRENT_HP] = 10
+    end_of_turn(arr)
+    assert me[Pok.CURRENT_HP] == 10 + max(1, me[Pok.MAX_HP] // 16)
+
+
+@pytest.mark.parametrize("status, sleeps", [(0, True), (Status.BURN, False)])
+def test_yawn_sleep_after_two_turn_ends(make_pokemon, make_battle, status, sleeps):
+    """Drowsy this turn, asleep at the end of the next one unless already statused"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle"], ["Tackle"], opp_level=50)
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.YAWN
+    foe[Pok.YAWN_TURNS] = 2
+    foe[Pok.STATUS] = status
+    end_of_turn(arr)
+    assert foe[Pok.VOL_STATUS] & VolStatus.YAWN and foe[Pok.STATUS] == status
+    end_of_turn(arr)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.YAWN
+    assert (foe[Pok.STATUS] == Status.SLEEP) == sleeps
+    if sleeps:
+        assert 2 <= foe[Pok.SLEEP_COUNTER] <= 5
+
+
+def test_attract_ends_when_source_switches(make_pokemon, make_battle):
+    """My infatuation was with the foe's active, it ends when that Pokemon leaves"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle"], ["Tackle"])
+    me = my_active(arr)
+    me[Pok.VOL_STATUS] = VolStatus.ATTRACT
+    start_of_turn(-5, -1, arr)
+    assert not me[Pok.VOL_STATUS] & VolStatus.ATTRACT
+
+
+def test_ai_learns_my_moves_when_used(make_pokemon, make_battle):
+    """Using a move sets its AI_KNOWS bit, switching out forgets them"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle", "Tail Whip"], ["Growl"])
+    turn_sim(0, (MOVE, 1), arr)
+    assert arr[Field.AI_KNOWS] == _ENEMY_AI_KNOWS_MOVE2
+    turn_sim(0, (SWITCH, 1), arr)
+    assert arr[Field.AI_KNOWS] == 0
+
+
+def test_ai_replacement_switch_in_ability_hits_me(make_pokemon, make_battle):
+    """The AI's replacement after a faint gets its own switch-in (Intimidate on me)"""
+    arr = make_battle(
+        [make_pokemon("Rattata", 20, "Run Away", ["Tackle"])],
+        [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+         make_pokemon("Shinx", 20, "Intimidate", ["Tackle"])])
+    me = my_active(arr)
+    opp_active(arr)[Pok.CURRENT_HP] = 0
+    assert end_of_turn(arr) == 1
+    assert me[Pok.ATTACK_STAT_STAGE] == -1
+    assert opp_active(arr)[Pok.ATTACK_STAT_STAGE] == 0
+
+
+def test_my_replacement_after_faint_gets_switch_in(make_pokemon, make_battle):
+    """My replacement while the foe is still standing triggers its switch-in ability"""
+    arr = make_battle(
+        [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+         make_pokemon("Shinx", 20, "Intimidate", ["Tackle"])],
+        [make_pokemon("Rattata", 20, "Run Away", ["Tackle"])])
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.ATTRACT
+    my_active(arr)[Pok.CURRENT_HP] = 0
+    arr[Field.PHASE] = BattlePhase.DEATH_END_OF_TURN
+    switch_in_action(arr, 1)
+    assert foe[Pok.ATTACK_STAT_STAGE] == -1
+    assert not foe[Pok.VOL_STATUS] & VolStatus.ATTRACT
+
+
+@pytest.mark.parametrize("opp_faster", [True, False])
+def test_residuals_weather_first_then_speed_order(monkeypatch, make_pokemon, make_battle,
+                                                  opp_faster):
+    """Weather for both actives in speed order, then each one's own residuals in speed order"""
+    arr = make_battle([make_pokemon("Rattata", 5 if opp_faster else 50, "Run Away", ["Tackle"])],
+                      [make_pokemon("Rattata", 50 if opp_faster else 5, "Run Away", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    calls = []
+    monkeypatch.setattr(battle, "_residual_weather",
+                        lambda pok, *a: calls.append(("weather", pok.ctypes.data == foe.ctypes.data)))
+    monkeypatch.setattr(battle, "_apply_residual",
+                        lambda pok, *a: calls.append(("own", pok.ctypes.data == foe.ctypes.data)))
+    end_of_turn(arr)
+    fast, slow = (True, False) if opp_faster else (False, True)
+    assert calls == [("weather", fast), ("weather", slow), ("own", fast), ("own", slow)]
+    assert me.ctypes.data != foe.ctypes.data
+
+
+def test_faster_receiver_fainting_skips_my_leech_seed(make_pokemon, make_battle):
+    """The faster foe faints to its burn first, so my Leech Seed has no one to drain into"""
+    arr = make_battle([make_pokemon("Rattata", 5, "Run Away", ["Tackle"])],
+                      [make_pokemon("Rattata", 50, "Run Away", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.VOL_STATUS] = VolStatus.LEECH_SEED
+    foe[Pok.STATUS] = Status.BURN
+    foe[Pok.CURRENT_HP] = foe[Pok.MAX_HP] // 8
+    end_of_turn(arr)
+    assert foe[Pok.CURRENT_HP] == 0
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP]

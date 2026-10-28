@@ -7,7 +7,7 @@ import random
 import numpy as np
 from Models.pokemon import Pokemon
 from Models.idx_const import POK_LEN, Pok, Move, MOVE_STRIDE, Field
-from Models.helper import ActionType, BattlePhase
+from Models.helper import ActionType, BattlePhase, VolStatus
 from Models.constants import _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_FULL_HEAL
 from Models.trainer_ai import return_idx
 from Utils.helper import to_battle_array
@@ -65,6 +65,8 @@ def legal_actions(arr):
             moves.append((ActionType.MOVE, i))
     if not moves:
         moves = [(ActionType.MOVE, 10)]
+    if active[Pok.VOL_STATUS] & VolStatus.INGRAIN:
+        return moves
     return moves + switches
 
 

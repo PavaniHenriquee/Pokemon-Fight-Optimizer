@@ -5,7 +5,7 @@ from Utils.jit import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.status_calc import  freeze, paralysis, synchronize_reflect
 from Engine.damage_calc import (
-    calculate_damage_confusion, apply_stat_stage, MULTIPLIERS
+    calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types
 )
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
 from Models.helper import TARGET_SELF_SIDE, STEEL_POISON, Target
@@ -37,7 +37,10 @@ from Models.constants import (
     _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN,
     _MOVEOUTCOME_SEMI_INVULNERABLE, _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN,
     _POK_CONSEC_COUNT, _MOVENAME_GUST, _ABILITYNAMES_GUTS, _ABILITYNAMES_HUGE_POWER, _MOVE_RECOIL,
-    _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _POK_CONSUMED_ITEM, _MOVE_POWER
+    _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _POK_CONSUMED_ITEM, _MOVE_POWER,
+    _MOVEOUTCOME_PROTECTED, _VOLSTATUS_PROTECT, _VOLSTATUS_ENDURE, _VOLSTATUS_FORESIGHT,
+    _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_ATTRACT, _FLAGS_PROTECT, _POK_PROTECT_COUNT,
+    _POK_YAWN_TURNS, _MOVENAME_PROTECT
 )
 
 
@@ -48,6 +51,7 @@ ITEM_50HP = (_ITEMNAMES_ORAN_BERRY, _ITEMNAMES_SITRUS_BERRY)
 RECORD_DAMAGE = (_DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT)
 HITS_SEMI_INVULNERABLE = (_MOVENAME_GUST,)
 SIDE_OR_FIELD_TARGETS = (Target.ALL, Target.FOE_SIDE, Target.ALLY_TEAM)
+PROTECT_COUNT_MAX = 3  # Success chance 1, 1/2, 1/4, then 1/8 from here on
 
 
 # ── Volatile bookkeeping ───────────────────────────────────────────────────────
@@ -71,6 +75,28 @@ def unlock_move(pok):
     pok[_POK_LOCKED_MOVE] = -1
     pok[_POK_CONSEC_COUNT] = 0
     pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_SEMI_INVULNERABLE
+
+
+@njit
+def try_protect(pok, move_id, is_last):
+    """
+    Protect and Endure share the consecutive-use count. They fail when nothing acts after the
+    user, a failure resets the count
+    """
+    count = pok[_POK_PROTECT_COUNT]
+    if is_last or (count > 0 and random.getrandbits(count) != 0):
+        pok[_POK_PROTECT_COUNT] = 0
+        return
+    pok[_POK_VOL_STATUS] |= _VOLSTATUS_PROTECT if move_id == _MOVENAME_PROTECT else _VOLSTATUS_ENDURE
+    pok[_POK_PROTECT_COUNT] = min(count + 1, PROTECT_COUNT_MAX)
+
+
+@njit
+def endure_damage(defender, damage):
+    """Endure leaves the defender at 1 HP from a hit that would KO it"""
+    if defender[_POK_VOL_STATUS] & _VOLSTATUS_ENDURE and damage >= defender[_POK_CURRENT_HP]:
+        return defender[_POK_CURRENT_HP] - 1
+    return damage
 
 
 # ── Item / berry helpers ───────────────────────────────────────────────────────
@@ -269,6 +295,8 @@ def ab_on_try_move(move, attacker, defender, accuracy:int, weather):
 def calculate_hit_miss(move, attacker, defender, weather):
     '''Returns a boolean if the move passed the accuracy check'''
     # TODO: Semi invulnerable states, like Fly, dig etc.
+    if defender[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT and move[_FLAGS_PROTECT]:
+        return _MOVEOUTCOME_PROTECTED
     if (
         defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE
         and move[_MOVE_ID] not in HITS_SEMI_INVULNERABLE
@@ -289,7 +317,8 @@ def calculate_hit_miss(move, attacker, defender, weather):
         move_acc = ab_on_try_move(move, attacker, defender, move_acc, weather)
 
     if move[_MOVE_TARGET] not in TARGET_SELF_SIDE and not move[_MOVE_IGNORE_IMMUNITY]:
-        eff, _ = get_type_effectiveness(move[_MOVE_TYPE], defender[_POK_TYPE1], defender[_POK_TYPE2])
+        def_t1, def_t2 = matchup_types(move[_MOVE_TYPE], defender)
+        eff, _ = get_type_effectiveness(move[_MOVE_TYPE], def_t1, def_t2)
         if eff == 0:
             return _MOVEOUTCOME_INVULNERABLE
 
@@ -298,7 +327,11 @@ def calculate_hit_miss(move, attacker, defender, weather):
     if move_acc == 0:
         return _MOVEOUTCOME_MISS
 
-    acc_stage = attacker[_POK_ACCURACY_STAT_STAGE] - defender[_POK_EVASION_STAT_STAGE]
+    ev_stage = defender[_POK_EVASION_STAT_STAGE]
+    # Foresight ignores the target's evasion boosts
+    if defender[_POK_VOL_STATUS] & _VOLSTATUS_FORESIGHT and ev_stage > 0:
+        ev_stage = 0
+    acc_stage = attacker[_POK_ACCURACY_STAT_STAGE] - ev_stage
     acc_stage = max(-6, min(6, acc_stage))
     if acc_stage == 0:
         accuracy = move_acc
@@ -355,6 +388,8 @@ def reset_switch_out(pok):
     pok[_POK_TURNS_ACTIVE] = 0
     pok[_POK_LOCKED_MOVE] = -1
     pok[_POK_CONSEC_COUNT] = 0
+    pok[_POK_PROTECT_COUNT] = 0
+    pok[_POK_YAWN_TURNS] = 0
 
 
 @njit
@@ -362,6 +397,8 @@ def switch_in(attacker, defender):
     """
     What happens when a pokemon switches in so, abilities, hazards
     """
+    # The foe's infatuation was with the Pokemon that just left
+    defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_ATTRACT
     # TODO: Hazards damage(needs to put item on rdmg), take in consideration that the pokemon needs to
     # be alive to activiate the ability so before the ability do something like
     # if attacker[_POK_CURRENT_HP] > 0:
@@ -453,10 +490,11 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
     Paralysis: 1
     Default:   0
 
-    A blocked turn (sleep, flinch, confusion self-hit, full paralysis) ends charge moves and
-    locks via unlock_move, Bide pauses instead, freeze keeps the lock. Attract isn't
-    implemented at all yet.
+    A blocked turn (sleep, flinch, confusion self-hit, infatuation, full paralysis) ends charge
+    moves and locks via unlock_move, Bide pauses instead, freeze keeps the lock.
+    Destiny Bond ends as soon as the user tries to move again, even if the turn is blocked.
     """
+    attacker[_POK_VOL_STATUS] &= ~_VOLSTATUS_DESTINY_BOND
     atker_status = attacker[_POK_STATUS]
     # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
     if atker_status == _STATUS_SLEEP:
@@ -491,6 +529,10 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
                 return True
         else:
             attacker[_POK_VOL_STATUS] -= _VOLSTATUS_CONFUSION
+    # Attract, immobilized by love half of the time
+    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT and random.getrandbits(1):
+        unlock_move(attacker)
+        return True
     # Paralysis — Magic Guard still allows getting PAR, it just blocks the roll
     # into full paralysis (Gen 4 specific)
     if (

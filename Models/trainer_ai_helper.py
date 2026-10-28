@@ -53,9 +53,15 @@ from Models.constants import (
     _MOVENAME_NATURAL_GIFT, _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _MOVENAME_LOW_KICK,
     _MOVE_POWER, _MOVENAME_BOUNCE, _ITEMNAMES_POWER_HERB, _WEATHER_SANDSTORM, _WEATHER_HAIL,
     _TYPES_ICE, _MOVE_RECOIL, _TYPES_GRASS,
-    _TYPES_PSYCHIC, _TYPES_DRAGON, _TYPES_DARK
+    _TYPES_PSYCHIC, _TYPES_DRAGON, _TYPES_DARK,
+    _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_AQUA_RING, _VOLSTATUS_MUD_SPORT,
+    _VOLSTATUS_WATER_SPORT, _VOLSTATUS_YAWN, _VOLSTATUS_HELPING_HAND, _VOLSTATUS_PROTECT,
+    _VOLSTATUS_ENDURE, _VOLSTATUS_DESTINY_BOND, _ABILITYNAMES_INSOMNIA, _MOVENAME_PROTECT,
+    _MOVENAME_FEINT, _MOVENAME_RECOVER, _MOVENAME_DEFENSE_CURL, _POK_PROTECT_COUNT,
+    _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4,
+    _MOVECATEGORY_PHYSICAL, _MOVECATEGORY_SPECIAL, _MOVENAME_CHARGE
 )
-from Engine.damage_calc import weight_power
+from Engine.damage_calc import weight_power, matchup_types
 
 COUNTER_EX_TYPES = (
     _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
@@ -165,7 +171,22 @@ EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOV
 CHARGE_INVULNERABLE_M = (_MOVENAME_BOUNCE,)
 RECOIL_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE)
+# Moves Pokemow gives no Basic and no Expert check at all
+NO_AI_CHECK_M = (_MOVENAME_CHARGE,)
 SPEED_DOWN_ON_HIT = (_MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB, _MOVENAME_MUD_SHOT)
+# Moves the Expert AI looks for among the ones it saw the target use. Detect and Shadow Force
+# aren't in MoveDB, Recover is the only RESTORE_HALF_HP move there
+PROTECT_LIKE_M = (_MOVENAME_PROTECT,)
+FEINT_LIKE_M = (_MOVENAME_FEINT,)
+RECOVER_DEF_CURL_M = (_MOVENAME_RECOVER, _MOVENAME_DEFENSE_CURL)
+MOVE_ID_SLOTS = (_POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID, _POK_MOVE4_ID)
+AI_KNOWS_MOVE_BITS = (
+    _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4
+)
+GRADUAL_RECOVERY_ITEMS = (_ITEMNAMES_LEFTOVERS, _ITEMNAMES_BLACK_SLUDGE)
+SELF_ONCE_VOLS = (_VOLSTATUS_INGRAIN, _VOLSTATUS_AQUA_RING, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT)
+DAMAGING_CATEGORIES = (_MOVECATEGORY_PHYSICAL, _MOVECATEGORY_SPECIAL)
+MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 
 
 @njit
@@ -240,8 +261,8 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
     ai_type1 = ai_pok[_POK_TYPE1]
     ai_type2 = ai_pok[_POK_TYPE2]
     ai_ability = ai_pok[_POK_AB_ID]
-    user_type1 = user_pok[_POK_TYPE1]
-    user_type2 = user_pok[_POK_TYPE2]
+    # Foresight and Ingrain go through the same type chart as the battle (BattleSystem_ApplyTypeChart)
+    user_type1, user_type2 = matchup_types(move_type, user_pok)
 
     # STAB
     if move_type == ai_type1 or move_type == ai_type2:  # pylint: disable=consider-using-in
@@ -322,7 +343,7 @@ def basic_move_status(move, ability, user_pok, ai_pok, weather):
     # Sleep
     if (
         move_status == _STATUS_SLEEP
-        and ability == _ABILITYNAMES_VITAL_SPIRIT
+        and (ability == _ABILITYNAMES_VITAL_SPIRIT or ability == _ABILITYNAMES_INSOMNIA)
     ):
         return True
 
@@ -399,12 +420,39 @@ def basic_move_vol_status(move, ability, user_pok, ai_pok):
             or (
                 user_pok[_POK_GENDER] == ai_pok[_POK_GENDER]
                 or user_pok[_POK_GENDER] == _GENDER_GENDERLESS
+                or ai_pok[_POK_GENDER] == _GENDER_GENDERLESS
             )
         ):
             return -10
     elif vol_status == _VOLSTATUS_FOCUS_ENERGY:
         if ai_pok[_POK_VOL_STATUS] & _VOLSTATUS_FOCUS_ENERGY:
             return -10
+    elif vol_status == _VOLSTATUS_LEECH_SEED:
+        if (
+            user_vol_status & _VOLSTATUS_LEECH_SEED
+            or user_pok[_POK_TYPE1] == _TYPES_GRASS
+            or user_pok[_POK_TYPE2] == _TYPES_GRASS
+            or ability == _ABILITYNAMES_MAGIC_GUARD
+        ):
+            return -10
+    elif vol_status == _VOLSTATUS_FORESIGHT:
+        if user_vol_status & _VOLSTATUS_FORESIGHT:
+            return -10
+    elif vol_status in SELF_ONCE_VOLS:
+        # Ingrain, Aqua Ring, Mud Sport, Water Sport: the AI already has it
+        if ai_pok[_POK_VOL_STATUS] & vol_status:
+            return -10
+    elif vol_status == _VOLSTATUS_YAWN:
+        # TODO: Safeguard
+        if (
+            user_pok[_POK_STATUS] != 0
+            or ability == _ABILITYNAMES_INSOMNIA
+            or ability == _ABILITYNAMES_VITAL_SPIRIT
+        ):
+            return -10
+    elif vol_status == _VOLSTATUS_HELPING_HAND:
+        # Singles only
+        return -10
 
     return 0
 
@@ -542,6 +590,8 @@ def basic_flag(
     Basic Flag, every trainer has this,
     it discourages moves that would have no effect or that would make no sense
     """
+    if move[_MOVE_ID] in NO_AI_CHECK_M:
+        return 0
     if move[_MOVE_ID] in BASIC_SPECIFIC_M:
         return basic_moves(move, ai_pok, user_pok, ability, effectiveness)
     move_category = move[_MOVE_CATEGORY]
@@ -755,7 +805,87 @@ def expert_status(
 
 
 @njit
-def expert_vol_status(move, ai_pok, u_pok, turn, rand, idx, hp_pct_u):
+def seen_move(pok, ai_know, move_ids):
+    """If the AI saw pok use one of move_ids (Field.AI_KNOWS move bits)"""
+    for i in range(4):
+        if ai_know & AI_KNOWS_MOVE_BITS[i] and pok[MOVE_ID_SLOTS[i]] in move_ids:
+            return True
+    return False
+
+
+@njit
+def has_damaging_move(pok):
+    """If any of the Pokemon's moves deals damage"""
+    for i in range(4):
+        if pok[MOVE_CATEGORY_SLOTS[i]] in DAMAGING_CATEGORIES:
+            return True
+    return False
+
+
+@njit
+def wearing_down(pok):
+    """
+    Toxic, Curse, Attract, Leech Seed or Yawn, the list Expert Protect and Feint check.
+    TODO: Perish Song
+    """
+    return (
+        pok[_POK_STATUS] == _STATUS_TOXIC
+        or pok[_POK_VOL_STATUS] & (
+            _VOLSTATUS_CURSE | _VOLSTATUS_ATTRACT | _VOLSTATUS_LEECH_SEED | _VOLSTATUS_YAWN
+        ) != 0
+    )
+
+
+@njit
+def expert_protect(ai_pok, u_pok, rand, idx, ai_know):
+    """Pokemow Expert Protect. TODO: Lock-On / Mind Reader on the AI"""
+    score = 0
+    if seen_move(u_pok, ai_know, FEINT_LIKE_M):
+        add_adjustment(rand, idx, -2, 128)
+    chain = ai_pok[_POK_PROTECT_COUNT]
+    if chain >= 2:
+        return score - 2
+    if wearing_down(ai_pok) or seen_move(u_pok, ai_know, RECOVER_DEF_CURL_M):
+        return score - 2
+    if wearing_down(u_pok):
+        score += 2
+    else:
+        add_adjustment(rand, idx, 2, 85)
+    add_adjustment(rand, idx, -1, 128)
+    if chain == 1:
+        score -= 1
+        add_adjustment(rand, idx, -1, 128)
+    return score
+
+
+@njit
+def expert_feint(ai_pok, u_pok, rand, idx, ai_know):
+    """
+    Pokemow Expert Feint, which differs from pokeplatinum: the HP/item condition is an "or" and a
+    target Protect chain of 2 already scores -2
+    """
+    if not seen_move(u_pok, ai_know, PROTECT_LIKE_M) and random.getrandbits(8) >= 64:
+        return 0
+    if (
+        wearing_down(ai_pok)
+        or u_pok[_POK_CURRENT_HP] != u_pok[_POK_MAX_HP]
+        or u_pok[_POK_ITEM_ID] in GRADUAL_RECOVERY_ITEMS
+    ):
+        add_adjustment(rand, idx, 1, 128)
+    chain = u_pok[_POK_PROTECT_COUNT]
+    if chain == 0:
+        add_adjustment(rand, idx, 1, 128)
+        return 0
+    if chain == 1:
+        add_adjustment(rand, idx, 1, 64)
+        return 0
+    return -2
+
+
+@njit
+def expert_vol_status(
+    move, ai_pok, u_pok, turn, rand, idx, hp_pct_u, hp_pct_ai=100, move_first=False, ai_know=0
+):
     """
     Expert flag volatile status checks
     """
@@ -789,9 +919,59 @@ def expert_vol_status(move, ai_pok, u_pok, turn, rand, idx, hp_pct_u):
             if hp_pct_u < 51:
                 score += -1
         return score
-    if move[_MOVE_VOL_STATUS] == _VOLSTATUS_FOCUS_ENERGY:
+    vol_status = move[_MOVE_VOL_STATUS]
+    if vol_status == _VOLSTATUS_PROTECT:
+        return expert_protect(ai_pok, u_pok, rand, idx, ai_know)
+    if vol_status == _VOLSTATUS_ENDURE:
+        if hp_pct_ai < 4:
+            return -1
+        if hp_pct_ai < 35:
+            add_adjustment(rand, idx, 1, 186)
+            return 0
+        return -1
+    if vol_status == _VOLSTATUS_FORESIGHT:
+        # pokeplatinum and Pokemow check the AI's own Ghost typing, not the target's
+        if ai_pok[_POK_TYPE1] == _TYPES_GHOST or ai_pok[_POK_TYPE2] == _TYPES_GHOST:
+            add_adjustment(rand, idx, 2, 121)
+            return 0
+        if u_pok[_POK_EVASION_STAT_STAGE] >= 3:
+            add_adjustment(rand, idx, 2, 176)
+            return 0
+        return -2
+    if vol_status == _VOLSTATUS_DESTINY_BOND:
+        if not move_first or hp_pct_ai > 70:
+            return -1
+        add_adjustment(rand, idx, -1, 128)
+        if hp_pct_ai < 51:
+            add_adjustment(rand, idx, 1, 128)
+        if hp_pct_ai < 31:
+            add_adjustment(rand, idx, 2, 156)
         return 0
-    raise ValueError("Need implementation")
+    if vol_status == _VOLSTATUS_LEECH_SEED:
+        # Pokemow's Toxic check, which Leech Seed shares
+        if has_damaging_move(ai_pok):
+            if hp_pct_ai < 51:
+                add_adjustment(rand, idx, -3, 206)
+            if hp_pct_u < 51:
+                add_adjustment(rand, idx, -3, 206)
+        for move_id_slot in MOVE_ID_SLOTS:
+            if ai_pok[move_id_slot] in PROTECT_LIKE_M:
+                add_adjustment(rand, idx, 2, 196)
+                break
+        return 0
+    if vol_status == _VOLSTATUS_MUD_SPORT or vol_status == _VOLSTATUS_WATER_SPORT:
+        if hp_pct_ai < 50:
+            return -1
+        sport_type = _TYPES_ELECTRIC if vol_status == _VOLSTATUS_MUD_SPORT else _TYPES_FIRE
+        if u_pok[_POK_TYPE1] == sport_type or u_pok[_POK_TYPE2] == sport_type:
+            return 1
+        return -1
+    if vol_status == _VOLSTATUS_AQUA_RING:
+        if hp_pct_ai >= 30:
+            add_adjustment(rand, idx, 1, 128)
+        return 0
+    # Focus Energy, Ingrain, Attract, Yawn, Helping Hand, Follow Me have no Expert check
+    return 0
 
 @njit(inline='always')
 def _expert_stat_self(
@@ -1120,14 +1300,18 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
 
 
 @njit
-def expert_charge_invulnerable(ai_pok, u_pok, effectiveness, rand, idx, weather, move_first):
+def expert_charge_invulnerable(
+    ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know=0
+):
     """
     pokeplatinum Expert_ChargeTurnWithInvuln, including its +1 when the target resists or is
     immune
     """
     if ai_pok[_POK_ITEM_ID] == _ITEMNAMES_POWER_HERB:
         return 2
-    # TODO: -1 if the AI knows the target has Protect/Detect (needs revealed-move tracking)
+    # The AI saw the target use Protect
+    if seen_move(u_pok, ai_know, PROTECT_LIKE_M):
+        return -1
     if effectiveness <= 0.5:
         return 1
     if (
@@ -1152,10 +1336,13 @@ def expert_charge_invulnerable(ai_pok, u_pok, effectiveness, rand, idx, weather,
 
 
 @njit
-def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg):
+def expert_flag(
+    ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0
+):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
-    for ROM HACKS every trainer has it
+    for ROM HACKS every trainer has it.
+    ai_know is Field.AI_KNOWS, its move bits are the target's moves the AI saw
     """
     # Check if move first (TODO add Trick room logic here)
     ai_s, u_s = check_speed(ai_pok, u_pok, weather)
@@ -1166,10 +1353,14 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
     else:
         move_first = False
 
+    if move[_MOVE_ID] in NO_AI_CHECK_M:
+        return 0
     if move[_MOVE_ID] in EXPERT_SPECIFIC_M:
         return expert_moves(
             move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first
         )
+    if move[_MOVE_ID] == _MOVENAME_FEINT:
+        return expert_feint(ai_pok, u_pok, rand, idx, ai_know)
     if move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
         hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
         hp_pct_u = (u_pok[_POK_CURRENT_HP]*100) // u_pok[_POK_MAX_HP]
@@ -1189,7 +1380,7 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
         if move[_MOVE_VOL_STATUS] and (move[_MOVE_TARGET] in TARGET_OPP_SIDE or not has_boost):
             return expert_vol_status(
                 move, ai_pok, u_pok, turn,
-                rand, idx, hp_pct_u
+                rand, idx, hp_pct_u, hp_pct_ai, move_first, ai_know
             )
         if has_boost:
             return expert_stat(
@@ -1250,7 +1441,7 @@ def expert_flag(ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, eff
     # Charge Turn Moves With Invulnerability (Bounce)
     if move[_MOVE_ID] in CHARGE_INVULNERABLE_M:
         return expert_charge_invulnerable(
-            ai_pok, u_pok, effectiveness, rand, idx, weather, move_first
+            ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know
         )
 
     """

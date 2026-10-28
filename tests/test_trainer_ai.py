@@ -5,9 +5,9 @@ import pytest
 from Models import trainer_ai_helper as ai
 from Models.trainer_ai import return_idx
 from Models.idx_const import Pok, Move
-from Models.helper import VolStatus, Status, Types
+from Models.helper import VolStatus, Status, Types, Enemy_AI_Knows
 from DataBase.AbilitiesDB import AbilityNames
-from battle_driver import move_slice
+from battle_driver import move_slice, pok_slice
 
 # Status moves that carry both a volatile and a stat boost are the tricky ones
 ROUTING = [
@@ -321,3 +321,223 @@ def test_ai_picks_a_move_with_phase2_kit(make_pokemon, make_battle, move):
     arr = make_battle([me], [opp])
     for _ in range(20):
         assert return_idx(arr) in (0, 1)
+
+
+# ── Phase 3 volatiles ────────────────────────────────────────────────────────
+
+def _expert_knows(ai_pok, user, ai_know=0):
+    """_expert with the AI_KNOWS field passed through"""
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0, ai_know)
+    queued = [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+    return score, queued
+
+
+@pytest.mark.parametrize("move, setup, expected", [
+    ("Leech Seed", {}, 0),
+    ("Leech Seed", {"user_vol": VolStatus.LEECH_SEED}, -10),
+    ("Leech Seed", {"user": ("Bulbasaur", "Overgrow")}, -10),
+    ("Leech Seed", {"user": ("Abra", "Magic Guard")}, -10),
+    ("Foresight", {}, 0),
+    ("Foresight", {"user_vol": VolStatus.FORESIGHT}, -10),
+    ("Odor Sleuth", {"user_vol": VolStatus.FORESIGHT}, -10),
+    ("Ingrain", {}, 0),
+    ("Ingrain", {"ai_vol": VolStatus.INGRAIN}, -10),
+    ("Aqua Ring", {"ai_vol": VolStatus.AQUA_RING}, -10),
+    ("Mud Sport", {"ai_vol": VolStatus.MUD_SPORT}, -10),
+    ("Water Sport", {"ai_vol": VolStatus.WATER_SPORT}, -10),
+    ("Water Sport", {"user_vol": VolStatus.WATER_SPORT}, 0),
+    ("Yawn", {}, 0),
+    ("Yawn", {"user_status": Status.BURN}, -10),
+    ("Yawn", {"user": ("Hoothoot", "Insomnia")}, -10),
+    ("Helping Hand", {}, -10),
+    ("Follow Me", {}, 0),
+])
+def test_basic_phase3_volatiles(poke, move, setup, expected):
+    """pokeplatinum / Pokemow Basic checks for the Phase 3 volatiles"""
+    ai_pok = poke("Bulbasaur", 20, "Overgrow", [move])
+    name, ability = setup.get("user", ("Rattata", "Run Away"))
+    user = poke(name, 20, ability, ["Tackle"])
+    ai_pok[Pok.VOL_STATUS] = setup.get("ai_vol", 0)
+    user[Pok.VOL_STATUS] = setup.get("user_vol", 0)
+    user[Pok.STATUS] = setup.get("user_status", 0)
+    target_ability = getattr(AbilityNames, ability.upper().replace(" ", "_"))
+    assert _basic(ai_pok, user, target_ability) == expected
+
+
+@pytest.mark.parametrize("ai_gender, user_gender, expected", [
+    ("Male", "Female", 0), ("Male", "Male", -10), ("Genderless", "Female", -10),
+    ("Female", "Genderless", -10),
+])
+def test_basic_attract_genders(poke, ai_gender, user_gender, expected):
+    """Basic_CheckCannotAttract, a genderless AI can't Attract either (E1)"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Attract"], gender=ai_gender)
+    user = poke("Pikachu", 20, "Static", ["Tackle"], gender=user_gender)
+    assert _basic(ai_pok, user, AbilityNames.STATIC) == expected
+
+
+def test_expert_protect(poke):
+    """Pokemow Expert Protect: chain, the AI's or the foe's residual damage, seen Feint/Recover"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Protect"])
+    user = poke("Machop", 20, "Guts", ["Feint", "Recover"])
+    assert _expert_knows(ai_pok, user) == (0, [(2, 85), (-1, 128)])
+    ai_pok[Pok.PROTECT_COUNT] = 1
+    assert _expert_knows(ai_pok, user) == (-1, [(2, 85), (-1, 128), (-1, 128)])
+    ai_pok[Pok.PROTECT_COUNT] = 2
+    assert _expert_knows(ai_pok, user) == (-2, [])
+    ai_pok[Pok.PROTECT_COUNT] = 0
+    user[Pok.STATUS] = Status.TOXIC
+    assert _expert_knows(ai_pok, user) == (2, [(-1, 128)])
+    ai_pok[Pok.VOL_STATUS] = VolStatus.LEECH_SEED
+    assert _expert_knows(ai_pok, user) == (-2, [])
+    ai_pok[Pok.VOL_STATUS] = 0
+    user[Pok.STATUS] = 0
+    assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE1) == (0, [(-2, 128), (2, 85), (-1, 128)])
+    assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE2) == (-2, [])
+
+
+@pytest.mark.parametrize("hp, expected", [(3, (-1, [])), (20, (0, [(1, 186)])), (50, (-1, []))])
+def test_expert_endure(poke, hp, expected):
+    """Pokemow Expert Endure by the AI's HP percent"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Endure"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * hp // 100 + (1 if hp == 20 else 0)
+    if hp == 3:
+        ai_pok[Pok.CURRENT_HP] = 1
+    assert _expert_knows(ai_pok, user) == expected
+
+
+def test_expert_foresight_checks_its_own_ghost_type(poke):
+    """The AI's own Ghost type (pokeplatinum bug), then the target's evasion"""
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert_knows(poke("Gastly", 20, "Levitate", ["Foresight"]), user) == (0, [(2, 121)])
+    ai_pok = poke("Machop", 20, "Guts", ["Foresight"])
+    assert _expert_knows(ai_pok, user) == (-2, [])
+    user[Pok.EVASION_STAT_STAGE] = 3
+    assert _expert_knows(ai_pok, user) == (0, [(2, 176)])
+
+
+def test_expert_destiny_bond(poke):
+    """Slower or above 70% HP: -1, otherwise rolls by HP"""
+    ai_pok = poke("Gastly", 50, "Levitate", ["Destiny Bond"])
+    user = poke("Rattata", 5, "Run Away", ["Tackle"])
+    assert _expert_knows(ai_pok, user) == (-1, [])
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] // 4
+    assert _expert_knows(ai_pok, user) == (0, [(-1, 128), (1, 128), (2, 156)])
+    slow_ai = poke("Gastly", 5, "Levitate", ["Destiny Bond"])
+    slow_ai[Pok.CURRENT_HP] = 1
+    assert _expert_knows(slow_ai, poke("Rattata", 50, "Run Away", ["Tackle"])) == (-1, [])
+
+
+def test_expert_leech_seed(poke):
+    """Pokemow's Toxic check: low HP with a damaging move, knowing Protect"""
+    ai_pok = poke("Bulbasaur", 20, "Overgrow", ["Leech Seed", "Tackle", "Protect"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert_knows(ai_pok, user) == (0, [(2, 196)])
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] // 2
+    user[Pok.CURRENT_HP] = user[Pok.MAX_HP] // 2
+    assert _expert_knows(ai_pok, user) == (0, [(-3, 206), (-3, 206), (2, 196)])
+    status_only = poke("Bulbasaur", 20, "Overgrow", ["Leech Seed"])
+    status_only[Pok.CURRENT_HP] = 1
+    assert _expert_knows(status_only, user) == (0, [])
+
+
+@pytest.mark.parametrize("move, target, ai_hp_half, expected", [
+    ("Mud Sport", "Pikachu", False, 1), ("Mud Sport", "Rattata", False, -1),
+    ("Mud Sport", "Pikachu", True, -1), ("Water Sport", "Charmander", False, 1),
+    ("Water Sport", "Pikachu", False, -1),
+])
+def test_expert_sports(poke, move, target, ai_hp_half, expected):
+    """Pokemow Expert Mud Sport / Water Sport"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    user = poke(target, 20, "Static", ["Tackle"])
+    if ai_hp_half:
+        ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] // 3
+    assert _expert_knows(ai_pok, user) == (expected, [])
+
+
+def test_expert_aqua_ring(poke):
+    """50% of +1 from 30% HP up"""
+    ai_pok = poke("Squirtle", 20, "Torrent", ["Aqua Ring"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert_knows(ai_pok, user) == (0, [(1, 128)])
+    ai_pok[Pok.CURRENT_HP] = 1
+    assert _expert_knows(ai_pok, user) == (0, [])
+
+
+def test_expert_feint(poke):
+    """Pokemow Expert Feint once the AI saw Protect, by the target's Protect chain"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Feint"])
+    user = poke("Machop", 20, "Guts", ["Protect"])
+    seen = Enemy_AI_Knows.MOVE1
+    assert _expert_knows(ai_pok, user, seen) == (0, [(1, 128)])
+    user[Pok.CURRENT_HP] -= 1
+    assert _expert_knows(ai_pok, user, seen) == (0, [(1, 128), (1, 128)])
+    user[Pok.PROTECT_COUNT] = 1
+    assert _expert_knows(ai_pok, user, seen) == (0, [(1, 128), (1, 64)])
+    user[Pok.PROTECT_COUNT] = 2
+    assert _expert_knows(ai_pok, user, seen) == (-2, [(1, 128)])
+
+
+@pytest.mark.parametrize("move", ["Attract", "Yawn", "Ingrain", "Charge", "Rage", "Follow Me",
+                                  "Helping Hand"])
+def test_expert_phase3_without_check_scores_zero(poke, move):
+    """No Expert script, the fallback scores 0 instead of raising"""
+    ai_pok = poke("Pikachu", 20, "Static", [move])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"], gender="Female")
+    assert _expert_knows(ai_pok, user)[0] == 0
+
+
+@pytest.mark.parametrize("move", [
+    "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
+    "Ingrain", "Aqua Ring", "Attract", "Leech Seed", "Charge", "Destiny Bond", "Yawn", "Rage",
+    "Helping Hand", "Follow Me",
+])
+def test_ai_picks_a_move_with_phase3_kit(make_pokemon, make_battle, move):
+    """The AI scores every Phase 3 move without crashing and returns a legal slot"""
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"], gender="Female")
+    opp = make_pokemon("Machop", 20, "Guts", ["Tackle", move])
+    arr = make_battle([me], [opp])
+    for _ in range(20):
+        assert return_idx(arr) in (0, 1)
+
+
+def test_ingrained_ai_never_switches(make_pokemon, make_battle):
+    """Withdraw checks are skipped while Ingrain roots the AI's active"""
+    me = make_pokemon("Gastly", 20, "Levitate", ["Lick"])
+    opp = [make_pokemon("Rattata", 20, "Run Away", ["Tackle", "Quick Attack"]),
+           make_pokemon("Pikachu", 20, "Static", ["Thunder Shock"])]
+    arr = make_battle([me], opp)
+    picks = [return_idx(arr) for _ in range(30)]
+    assert any(p < 0 for p in picks)
+    pok_slice(arr, 0, opp=True)[Pok.VOL_STATUS] = VolStatus.INGRAIN
+    assert all(return_idx(arr) in (0, 1) for _ in range(30))
+
+
+def test_expert_bounce_seen_protect(poke):
+    """Pokemow Fly check: -1 once the AI saw the target use Protect"""
+    ai_pok = poke("Pidgey", 50, "Keen Eye", ["Bounce"])
+    user = poke("Rattata", 30, "Run Away", ["Tackle", "Protect"])
+    assert _expert_knows(ai_pok, user) == (0, [(1, 176)])
+    assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE1) == (0, [(1, 176)])
+    assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE2) == (-1, [])
+
+
+@pytest.mark.parametrize("ability, expected", [
+    ("Run Away", 0), ("Insomnia", -10), ("Vital Spirit", -10),
+])
+def test_basic_sleep_move_vs_insomnia(poke, ability, expected):
+    """Basic_CheckCannotSleep: Insomnia blocks sleep moves like Vital Spirit"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Hypnosis"])
+    user = poke("Hoothoot", 20, ability, ["Tackle"])
+    target_ability = getattr(AbilityNames, ability.upper().replace(" ", "_"))
+    assert _basic(ai_pok, user, target_ability) == expected
+
+
+def test_charge_has_no_ai_check(poke):
+    """Pokemow has no Basic or Expert check for Charge, even at +6 SpDef or vs Volt Absorb"""
+    ai_pok = poke("Pikachu", 20, "Static", ["Charge"])
+    user = poke("Rattata", 20, "Volt Absorb", ["Tackle"])
+    ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE] = 6
+    assert _basic(ai_pok, user, AbilityNames.VOLT_ABSORB) == 0
+    assert _expert_knows(ai_pok, user) == (0, [])

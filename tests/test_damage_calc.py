@@ -3,7 +3,8 @@ import random
 import pytest
 from Engine.damage_calc import (
     apply_stat_stage, calculate_damage, calculate_damage_confusion, flail,
-    weight_power, magnitude_power, variable_power, base_power_ability,
+    weight_power, magnitude_power, variable_power, base_power_ability, charge_power,
+    sport_power, matchup_types,
 )
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
 from Models.idx_const import Pok
@@ -303,3 +304,59 @@ def test_reckless_matches_gen4_rounding(poke):
     mult = base_power_ability(a, move_slice(a, 0))
     assert 90 * mult // 4096 == 108
     assert all(p * mult // 4096 == p * 12 // 10 for p in range(1, 1024))
+
+
+# ── Phase 3: Charge, Mud Sport, Water Sport, Foresight, Ingrain ──────────────
+
+@pytest.mark.parametrize("move, doubled", [("Thunder Shock", True), ("Tackle", False)])
+def test_charge_doubles_electric_power(poke, move, doubled):
+    """Charge doubles the base power of an Electric move only"""
+    a = poke("Pikachu", 20, "Static", [move])
+    mv = move_slice(a, 0)
+    a[Pok.VOL_STATUS] = VolStatus.CHARGE
+    assert charge_power(a, mv, 40) == (80 if doubled else 40)
+
+
+@pytest.mark.parametrize("vol, move, halved", [
+    (VolStatus.MUD_SPORT, "Thunder Shock", True), (VolStatus.MUD_SPORT, "Ember", False),
+    (VolStatus.WATER_SPORT, "Ember", True), (VolStatus.WATER_SPORT, "Thunder Shock", False),
+])
+@pytest.mark.parametrize("on_attacker", [True, False])
+def test_sports_halve_power_from_either_side(poke, vol, move, halved, on_attacker):
+    """Mud Sport / Water Sport halve Electric / Fire power whoever has them"""
+    a = poke("Pikachu", 20, "Static", [move])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    (a if on_attacker else d)[Pok.VOL_STATUS] = vol
+    assert sport_power(a, d, move_slice(a, 0), 41) == (20 if halved else 41)
+
+
+def test_charge_and_mud_sport_in_damage(poke):
+    """Both modifiers reach the full damage formula"""
+    a = poke("Pikachu", 30, "Static", ["Thunder Shock"])
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    base = dmg(a, d)
+    a[Pok.VOL_STATUS] = VolStatus.CHARGE
+    charged = dmg(a, d)
+    a[Pok.VOL_STATUS] = VolStatus.MUD_SPORT
+    muddy = dmg(a, d)
+    assert charged > base > muddy
+
+
+def test_matchup_types(poke):
+    """Foresight drops Ghost vs Normal/Fighting, Ingrain drops Flying vs Ground"""
+    gastly = poke("Gastly", 20, "Levitate", ["Lick"])
+    gastly[Pok.VOL_STATUS] = VolStatus.FORESIGHT
+    assert matchup_types(Types.NORMAL, gastly) == (0, Types.POISON)
+    assert matchup_types(Types.FIRE, gastly) == (Types.GHOST, Types.POISON)
+    pidgey = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    pidgey[Pok.VOL_STATUS] = VolStatus.INGRAIN
+    assert matchup_types(Types.GROUND, pidgey) == (Types.NORMAL, 0)
+
+
+def test_foresight_normal_damages_ghost_neutrally(poke):
+    """Tackle on an identified Gastly deals what it would to a Poison type"""
+    a = poke("Rattata", 30, "Run Away", ["Tackle"])
+    d = poke("Gastly", 30, "Levitate", ["Lick"])
+    assert dmg(a, d) == 0
+    d[Pok.VOL_STATUS] = VolStatus.FORESIGHT
+    assert dmg(a, d) > 0

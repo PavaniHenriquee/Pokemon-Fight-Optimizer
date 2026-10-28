@@ -1,7 +1,7 @@
 """Calculate Status effects moves"""
 import random
 from Utils.jit import njit
-from Models.helper import TARGET_OPP_SIDE, TARGET_SELF_SIDE, STEEL_POISON
+from Models.helper import TARGET_OPP_SIDE, TARGET_SELF_SIDE, STEEL_POISON, Target
 from Models.constants import (
     _POK_STATUS, _STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_SLEEP, _STATUS_FREEZE,
     _MOVE_BOOST_ATK, _MOVE_BOOST_DEF, _MOVE_BOOST_SPATK, _MOVE_BOOST_SPDEF, _MOVE_BOOST_SPEED,
@@ -14,13 +14,25 @@ from Models.constants import (
     _TYPES_FIRE, _TYPES_ICE, _POK_CURRENT_HP, _SEC_BOOST_ACC, _MOVE_ID, _SEC_TARGET,
     _ABILITYNAMES_KEEN_EYE, _ABILITYNAMES_SYNCHRONIZE, _VOLSTATUS_DEFENSE_CURL, _VOLSTATUS_FOCUS_ENERGY,
     _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_LIMBER, _ABILITYNAMES_WATER_VEIL, _MOVE_VOL_STATUS,
-    _VOLSTATUS_CONFUSION, _POK_VOL_STATUS, _POK_CONFUSION_COUNTER, _SEC_VOL_STATUS
+    _VOLSTATUS_CONFUSION, _POK_VOL_STATUS, _POK_CONFUSION_COUNTER, _SEC_VOL_STATUS,
+    _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_AQUA_RING, _VOLSTATUS_LEECH_SEED,
+    _VOLSTATUS_ATTRACT, _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_YAWN, _VOLSTATUS_CHARGE,
+    _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _TYPES_GRASS, _POK_GENDER, _POK_YAWN_TURNS,
+    _GENDER_GENDERLESS
 )
 from Models.move import CURSE_BOOST
 
 # --- Global Tuples ---
 B_P_P = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 TURNS_2_5 = (2, 3, 4, 5)
+# Volatiles without extra conditions, set only if the target doesn't have them yet
+SET_ONCE_VOLS = (
+    _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_AQUA_RING, _VOLSTATUS_DESTINY_BOND,
+    _VOLSTATUS_CHARGE, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT
+)
+# Mud Sport and Water Sport target the field but the volatile goes on the user
+SELF_VOL_TARGETS = TARGET_SELF_SIDE + (Target.ALL,)
+YAWN_DURATION = 2
 
 STAT_MAPPING = (
     (_MOVE_BOOST_ATK, _POK_ATTACK_STAT_STAGE),
@@ -170,6 +182,37 @@ def vol_status(move, pok, source, sec=False):
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_FOCUS_ENERGY:
             pok[_POK_VOL_STATUS] += _VOLSTATUS_FOCUS_ENERGY
 
+    for vol in SET_ONCE_VOLS:
+        if v_status & vol and not pok[_POK_VOL_STATUS] & vol:
+            pok[_POK_VOL_STATUS] |= vol
+
+    # Grass types can't be seeded
+    if v_status & _VOLSTATUS_LEECH_SEED:
+        if (
+            not pok[_POK_VOL_STATUS] & _VOLSTATUS_LEECH_SEED
+            and pok[_POK_TYPE1] != _TYPES_GRASS
+            and pok[_POK_TYPE2] != _TYPES_GRASS
+        ):
+            pok[_POK_VOL_STATUS] |= _VOLSTATUS_LEECH_SEED
+
+    # Only between a male and a female
+    if v_status & _VOLSTATUS_ATTRACT:
+        pok_gender = pok[_POK_GENDER]
+        src_gender = source[_POK_GENDER]
+        if (
+            not pok[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT
+            and pok_gender != _GENDER_GENDERLESS
+            and src_gender != _GENDER_GENDERLESS
+            and pok_gender != src_gender
+        ):
+            pok[_POK_VOL_STATUS] |= _VOLSTATUS_ATTRACT
+
+    # Fails on a target that already has a status or is already drowsy
+    if v_status & _VOLSTATUS_YAWN:
+        if not pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN and pok[_POK_STATUS] == 0:
+            pok[_POK_VOL_STATUS] |= _VOLSTATUS_YAWN
+            pok[_POK_YAWN_TURNS] = YAWN_DURATION
+
 
 @njit
 def calculate_effects(attacker, defender, move, weather):
@@ -187,7 +230,7 @@ def calculate_effects(attacker, defender, move, weather):
             raise ValueError("Shouldn't have self status change in this block")
 
     if move[_MOVE_VOL_STATUS] != 0:
-        target_pok = attacker if move[_MOVE_TARGET] in TARGET_SELF_SIDE else defender
+        target_pok = attacker if move[_MOVE_TARGET] in SELF_VOL_TARGETS else defender
         vol_status(move, target_pok, attacker)
 
 

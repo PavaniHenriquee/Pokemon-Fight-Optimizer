@@ -8,19 +8,19 @@
 | Phase 0: layout infrastructure            | Done (2026-10-26), committed | See "Phase 0: as built" below                                                      |
 | Phase 1: data-driven moves                | Done (2026-10-27), committed | B1-B10 fixed, 97 TODO boxes ticked; Gust and Stomp left open                       |
 | Phase 2: damage mechanics                 | Done (2026-10-27), committed | See "Phase 2: findings and decisions" and "Phase 2: outcome"; 16 TODO boxes ticked |
-| Phase 3: volatiles, no action restriction | **Next**                     |                                                                                    |
-| Phase 4: action-restricting volatiles     | Not started                  |                                                                                    |
+| Phase 3: volatiles, no action restriction | Done (2026-10-27), not committed | See "Phase 3: findings and decisions" and "Phase 3: outcome"; 17 TODO boxes ticked |
+| Phase 4: action-restricting volatiles     | **Next**                     |                                                                                    |
 | Phase 5: side conditions and field        | Not started                  |                                                                                    |
 | Phase 6: switching moves                  | Not started                  |                                                                                    |
 | Phase 7: healing, items, misc             | Not started                  |                                                                                    |
 | Phase 8: move-calling                     | Not started                  |                                                                                    |
 
-**Where to start next session:** Phase 3, workflow step 1 (mechanics notes). The `expert_vol_status` crash fallback is the first thing to settle there.
+**Where to start next session:** Phase 4, workflow step 1 (mechanics notes), after you've reviewed and committed Phase 3.
 
 **Open issues carried forward:**
 
-- Trainers with Protect, Taunt, Foresight or Ingrain now build, but the trainer AI raises `ValueError("Need implementation")` in `expert_vol_status` when it scores those status moves. Expert scoring runs for every trainer, so this hits Lucas 1, Dawn 1 and Barry 2 (Chimchar, Taunt), Natalie, Tristan, Sebastian and Colin (Foresight), Logan and Roark (Protect), Madeline and Darius (Ingrain). Confirmed with a non-JIT battle vs Youngster Logan (seed 2). Samantha's Wrap is damaging and doesn't hit this path. Before Phase 0 these trainers failed earlier, at team build. The safe "0, no crash" fallback is scheduled for Phase 3; consider pulling it forward if you want to run those trainers sooner.
-- In battle, the new volatile bits are no-ops until their phase implements them. `vol_status` in `Engine/status_calc.py` only applies the bits it knows, so Protect and friends act like Splash, and Wrap etc. deal damage without trapping.
+- (Fixed in Phase 3) `expert_vol_status` no longer raises: volatiles without an Expert check score 0, so Lucas 1, Dawn 1, Barry 2 (Taunt), the Foresight, Protect and Ingrain trainers all run.
+- In battle, the Phase 4+ volatile bits (Taunt, Encore, partial trapping, Uproar, Nightmare) are still no-ops: Taunt acts like Splash, Wrap etc. deal damage without trapping.
 
 ## Step 0: Save this plan in the project
 
@@ -242,6 +242,48 @@ Sources: pokeplatinum `src/battle/battle_script.c`, `battle_lib.c`, `battle_cont
 - End-of-turn hooks go into `_apply_residual` (`Engine/battle.py`), in the Gen IV residual order: Aqua Ring, Ingrain, Leech Seed, Yawn.
 - `reset_switch_out` must clear each of these, except Ingrain's trap, which only matters while the Pokemon is on the field.
 - AI: replace `expert_vol_status`'s `raise ValueError("Need implementation")` with per-volatile branches. Until a move gets its real branch, it gets a safe "0, no crash" fallback so that moves on your own Pokemon don't crash anything.
+
+### Phase 3: findings and decisions (2026-10-27)
+
+Sources: pokeplatinum `battle_script.c` (TryProtection, TryYawn, TryHelpingHand, FollowMe), `battle_controller_player.c` (CheckMonConditions order, CheckMoveHitOverrides, CheckStatusDisruption, RageBuilding, the Rage flag pre-move state), `battle_lib.c` (ApplyTypeChart, BasicTypeMulApplies, CalcMoveDamage), effect scripts and subscripts, `res/moves/*/data.json`, `trainer_ai/script.s` and `trainer_ai.c`; Showdown `data/moves.ts`, gen4-gen8 mods, gen4 `conditions.ts`; RP MOVES sheet (the CSV export works again); Pokemow `ExpertCheckText.js` / `BasicCheckText.js` / `getBasicAI.js` / `getExpertAI.js`; Bulbapedia Rage glitch page.
+
+**Data:** all 17 moves match the RP sheet. Priorities are USUM (Protect/Endure +4, Feint/Follow Me +2, Helping Hand +5). Feint is 30 in RP with the Gen IV fail rule. MoveDB Mud Sport / Water Sport got `vol_status`.
+
+**Mechanics as built:**
+
+- Protect / Endure: share PROTECT_COUNT, chance 1, 1/2, 1/4, then 1/8. Fail when nothing acts after the user (also when the foe switches or uses an item). The count resets on another move, a blocked turn, or a failure. Protect blocks moves with the `protect` flag (`MoveOutcome.PROTECTED`, new). Endure caps a KO hit at 1 HP (`endure_damage`, before drain/recoil/Counter see the damage). Both bits clear at the end of the turn.
+- Feint: fails unless the target is protecting, then lifts the protection and hits.
+- Foresight / Odor Sleuth: `matchup_types` drops the Ghost type against Normal/Fighting in the hit check, the damage calc and the AI effectiveness; positive evasion counts as 0.
+- Mud Sport / Water Sport: user volatile, halves Electric / Fire base power while either active has it (`sport_power`, also in the AI damage calc).
+- Ingrain: heal max HP // 16 (min 1), no switching for either side (`valid_action_mask`, `battle_driver.legal_actions`, every withdraw check in `choose_move`), grounds Flying types for Ground moves (`matchup_types`).
+- Aqua Ring: heal max HP // 16 (min 1).
+- Leech Seed: fails vs Grass / already seeded. Drains max HP // 8 (min 1) into the opposing active, not if it's fainted, not through Magic Guard.
+- Attract: male + female only, 50% immobilized after confusion, ends when the source leaves (`switch_in` clears the foe's bit, plus the end-of-turn replacement and the death-phase replacement of mine).
+- Charge: doubles the next Electric move's base power (`charge_power`, also in the AI damage calc), cleared after every move attempt that isn't Charge (`_clear_charge` in `action`).
+- Destiny Bond: cleared at the top of `early_returns`; if the holder faints from a move, the attacker faints after drain/recoil.
+- Yawn: fails on a statused / drowsy target; YAWN_TURNS 2, last residual step; at 0 sleep 2-5 turns if still no status.
+- Rage: set when Rage hits; +1 Atk per damaging hit survived. Your decision Q1: the Gen IV glitch is copied (`_rage_glitch` in `turn_sim`): a raging Pokemon that picks anything but Rage keeps Rage and loses Flinch, Confusion, Uproar, partial trap, Attract, Focus Energy, Destiny Bond, Nightmare, Curse, Foresight, Defense Curl. Bide is left out of the wipe so its CHARGE_RECHARGE lock stays consistent.
+- Helping Hand / Follow Me: no effect in singles.
+- Residual order (Gen IV): weather for both actives, then per Pokemon Ingrain, Aqua Ring, Speed Boost, Leech Seed, poison/burn, Curse, Yawn. Both steps go in speed order (follow-up below).
+- Your decision Q2: the AI learns my moves. `_execute_move_slot` sets my slot's `ENEMY_AI_KNOWS_MOVEn` bit when the move gets past `early_returns`; it's already cleared on my switch.
+
+**AI:** Basic Leech Seed, Foresight/Odor Sleuth, Ingrain, Aqua Ring, Mud/Water Sport, Yawn (status, Insomnia, Vital Spirit), Helping Hand; E1 fixed (a genderless AI can't Attract). Expert Protect, Endure, Foresight (own-Ghost quirk), Destiny Bond, Leech Seed (Pokemow's Toxic check), Mud/Water Sport, Aqua Ring, Feint; everything else scores 0. Feint follows Pokemow where it differs from pokeplatinum: the "HP not full or Leftovers/Black Sludge" condition is an or, and a target Protect chain of 2 already scores -2.
+
+### Phase 3: outcome (2026-10-27)
+
+- Tests: volatile targets and fail rules (`test_status_calc`), Protect chance/count, Protect flag, Foresight, Ingrain grounding, Endure, Destiny Bond clear, Attract roll, switch resets (`test_engine_helper`), Charge/Sports/matchup types (`test_damage_calc`), turn flow for every move plus residuals, Rage glitch and AI_KNOWS bits (`test_battle`), Ingrain valid actions (`test_search`), Basic/Expert scores, the 0 fallback, every Phase 3 move in an AI kit, an Ingrained AI never switching (`test_trainer_ai`).
+- Golden re-blessed: every hash changed and no outcome did (turns and HP identical for all 100 seeds). Replaying with the AI_KNOWS bits disabled matches the old file 100/100, so the only change is the new revealed-move bits. No scenario uses a Phase 3 move.
+- Checks: `pytest` 1579 passed, `pytest -m jit` 6 passed, `pytest -m slow` 5 passed.
+- Follow-up fixes (your OK):
+  - `end_of_turn` called `switch_in(current_pokemon, current_opp)` after the AI's replacement; it's now `switch_in(new_opp, current_pokemon)`, so the replacement's Intimidate fires.
+  - `switch_in_action` now runs `switch_in` for my replacement when the foe is still standing.
+  - Bounce: Expert -1 once the AI saw the target use Protect (Pokemow Fly check).
+  - Basic sleep moves: Insomnia scores -10 like Vital Spirit.
+  - Charge: no Basic or Expert check, per Pokemow (`NO_AI_CHECK_M`).
+  - Residuals: weather for both actives first, then the per-Pokemon list, both in speed order (pokeplatinum re-sorts speed before the end of the turn; a tie is a coin flip). Speed Boost moved to its Gen IV slot after Aqua Ring.
+  - Golden re-blessed. Outcome changes: starters 16/20, weather_charge 6/20 and damage_sources seeds 2 and 18 from the residual order and its tie roll; damage_sources seeds 1, 4, 7, 11, 19 from the end-of-turn `switch_in` fix. With the old order and the old call patched back in, all 100 outcomes match the previous file, so the death-phase `switch_in` fix changed none.
+  - Checks: `pytest` 1589 passed, `-m jit` 6, `-m slow` 5.
+- TODO boxes ticked on 2026-10-27 at your request: Aqua Ring, Attract, Charge, Destiny Bond, Endure, Feint, Follow Me, Foresight, Helping Hand, Ingrain, Leech Seed, Mud Sport, Odor Sleuth, Protect, Rage, Water Sport, Yawn. Waiting on other passes: Oblivious vs Attract and Insomnia/Vital Spirit vs Yawn (abilities), Safeguard vs Yawn (Phase 5), Uproar vs Yawn (Phase 4), Roar failing on Ingrain (Phase 6), Liquid Ooze / Big Root (abilities/items).
 
 ## Phase 4: Volatiles that restrict actions (touches SearchEngine valid actions and trainer AI `return_idx`)
 

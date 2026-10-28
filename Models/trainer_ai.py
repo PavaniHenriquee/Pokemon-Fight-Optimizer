@@ -20,7 +20,8 @@ from Models.constants import (
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1,
     _FIELD_AI_ITEM4, _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
     _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE,
-    _MOVENAME_MAGNITUDE, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL
+    _MOVENAME_MAGNITUDE, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL,
+    _POK_VOL_STATUS, _VOLSTATUS_INGRAIN
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -202,9 +203,12 @@ def choose_move(battle_array):
     # TODO: 1. Perish Song about to hit 0
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
+    # pokeplatinum TrainerAI_ShouldSwitch skips every withdraw check when Ingrain roots the active
+    can_switch = not ai_pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN
     # Withdraw 5 - The active Pokémon is asleep and has the ability Natural Cure
     if (
-        ai_pok[_POK_AB_ID] == _ABILITYNAMES_NATURAL_CURE
+        can_switch
+        and ai_pok[_POK_AB_ID] == _ABILITYNAMES_NATURAL_CURE
         and ai_pok[_POK_STATUS] == _STATUS_SLEEP
         and ai_pok[_POK_CURRENT_HP]/ai_pok[_POK_MAX_HP] >= 0.50
     ):
@@ -289,7 +293,8 @@ def choose_move(battle_array):
         score = eval_atk + basic_flag(move, ability, ai_pok, user_pok, effectiveness, weather)
 
         expert = expert_flag(
-            ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg
+            ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg,
+            ai_know
         )
         score += expert
 
@@ -304,7 +309,7 @@ def choose_move(battle_array):
 
     # Withdraw 2 - The active Pokémon is facing a foe with Wonder Guard and cannot hit it supereffectively
     cand = None
-    if ab == _ABILITYNAMES_WONDER_GUARD and not s_e:
+    if can_switch and ab == _ABILITYNAMES_WONDER_GUARD and not s_e:
         cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active)
         if cand.size > 0:
             for i in cand:
@@ -314,7 +319,7 @@ def choose_move(battle_array):
                     return _evaluated_moves
 
     # Withdraw 3 - More than 2 damaging moves and All of them do not affect the target
-    if not_status_counter>1 and not can_hit:
+    if can_switch and not_status_counter>1 and not can_hit:
         if not cand:
             cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active)
         if cand.size> 0:
@@ -333,7 +338,7 @@ def choose_move(battle_array):
 
     # Withdraw 4 - The last move the active Pokémon was hit by in the last turn was Fire, Water,
     # or Electric-type, and a party Pokémon has the ability Flash Fire, Water Absorb, or Volt Absorb
-    if my_last_move in FIRE_WATER_ELECTRIC and ai_pok[_POK_AB_ID] not in ABSORB_ABI:
+    if can_switch and my_last_move in FIRE_WATER_ELECTRIC and ai_pok[_POK_AB_ID] not in ABSORB_ABI:
         if s_e and random.random()<0.6666 and not took_dmg:
             pass
         else:
@@ -354,7 +359,7 @@ def choose_move(battle_array):
     if s_e or ai_pok[_POK_ATTACK_STAT_STAGE:(_POK_EVASION_STAT_STAGE + 1)].sum()>= 4:
         pass
     else:
-        if took_dmg:
+        if can_switch and took_dmg:
             # 6. A party member is immune to the previous attack and can hit the foe supereffectively
             if random.getrandbits(1):
                 im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active)
