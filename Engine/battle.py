@@ -11,7 +11,9 @@ from Engine.engine_helper import (
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
     try_protect, endure_damage
 )
-from Engine.status_calc import sec_effects, calculate_effects, TURNS_2_5
+from Engine.status_calc import (
+    sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP
+)
 from Engine.damage_calc import calculate_damage, ROLLOUT_MOVES
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
@@ -43,7 +45,11 @@ from Models.constants import (
     _VOLSTATUS_FOCUS_ENERGY, _VOLSTATUS_NIGHTMARE, _VOLSTATUS_FORESIGHT, _VOLSTATUS_DEFENSE_CURL,
     _MOVENAME_PROTECT, _MOVENAME_ENDURE, _MOVENAME_FEINT, _MOVENAME_RAGE, _MOVENAME_CHARGE,
     _POK_PROTECT_COUNT, _POK_ATTACK_STAT_STAGE, _POK_YAWN_TURNS, _POK_SLEEP_COUNTER, _STATUS_SLEEP,
-    _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4
+    _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4,
+    _POK_LAST_MOVE_ID, _MOVENAME_UPROAR, _POK_UPROAR_TURNS, _POK_TRAP_TURNS, _POK_TAUNT_TURNS,
+    _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _VOLSTATUS_TAUNT, _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE,
+    _MOVEOUTCOME_MISS, _MOVEOUTCOME_SEMI_INVULNERABLE, _MOVEOUTCOME_PROTECTED,
+    _ABILITYNAMES_SOUNDPROOF
 )
 from Models.move import STRUGGLE
 
@@ -66,6 +72,8 @@ RAGE_GLITCH_CLEARS = (
 AI_KNOWS_MOVES = (
     _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4
 )
+# An uproar keeps going through these, only a blocked turn or an immune target ends it early
+UPROAR_KEEPS_ON = (_MOVEOUTCOME_MISS, _MOVEOUTCOME_SEMI_INVULNERABLE, _MOVEOUTCOME_PROTECTED)
 
 @njit
 def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx):
@@ -353,9 +361,11 @@ def _execute_move_slot(
     if atk[_POK_CURRENT_HP] <= 0:
         return False
     if early_returns(atk, defn, slot_num, flinch_in, mv):
-        # A turn without the move resets Protect's consecutive count
+        # A turn without the move resets Protect's consecutive count and the last move
         atk[_POK_PROTECT_COUNT] = 0
+        atk[_POK_LAST_MOVE_ID] = 0
         return False
+    atk[_POK_LAST_MOVE_ID] = mv[_MOVE_ID]
     if mv[_MOVE_ID] not in STALL_MOVES:
         atk[_POK_PROTECT_COUNT] = 0
 
@@ -397,7 +407,8 @@ def _execute_move_slot(
 
     move_hit = calculate_hit_miss(mv, atk, defn, weather)
     if move_hit != _MOVEOUTCOME_HIT:
-        unlock_move(atk)
+        if not (atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and move_hit in UPROAR_KEEPS_ON):
+            unlock_move(atk)
         return False
 
     if mv[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
@@ -410,6 +421,19 @@ def _execute_move_slot(
             unlock_move(atk)
         if mv[_MOVE_ID] == _MOVENAME_RAGE:
             atk[_POK_VOL_STATUS] |= _VOLSTATUS_RAGE
+        # Uproar locks in on its first hit for 3-6 turns, this one included
+        if mv[_MOVE_ID] == _MOVENAME_UPROAR and not atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR:
+            atk[_POK_VOL_STATUS] |= _VOLSTATUS_UPROAR
+            atk[_POK_UPROAR_TURNS] = random.randint(3, 6)
+            atk[_POK_LOCKED_MOVE] = current_move if is_mine else opp_move
+        # Wrap and co. trap a target that survived for 3-6 turns, it isn't refreshed
+        if (
+            mv[_MOVE_VOL_STATUS] & _VOLSTATUS_PARTIALLY_TRAPPED
+            and defn[_POK_CURRENT_HP] > 0
+            and not defn[_POK_VOL_STATUS] & _VOLSTATUS_PARTIALLY_TRAPPED
+        ):
+            defn[_POK_VOL_STATUS] |= _VOLSTATUS_PARTIALLY_TRAPPED
+            defn[_POK_TRAP_TURNS] = random.randint(3, 6)
         # Destiny Bond, after drain and recoil like the Gen IV faint check
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
@@ -424,6 +448,14 @@ def _execute_move_slot(
 
     calculate_effects(atk, defn, mv, weather)
     return False
+
+
+@njit
+def _encore_slot(pok, slot):
+    """Encore forces the encored move when the Pokemon acts, also on the turn Encore lands"""
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_ENCORE and 0 <= slot < 4:
+        return pok[_POK_ENCORE_TURNS] & SLOT_MASK
+    return slot
 
 
 @njit
@@ -488,6 +520,15 @@ def action(current_move, opp_move, battle_array):
         _clear_charge(atk1, mv1)
 
     if count >= 2:
+        # Encore landed before the slower Pokemon moved
+        enc_slot = _encore_slot(atk2, mv2_slot)
+        if enc_slot != mv2_slot:
+            mv2_slot = enc_slot
+            mv2 = atk2[OFFSET_MOVE + mv2_slot * MOVE_STRIDE : OFFSET_MOVE + (mv2_slot + 1) * MOVE_STRIDE]
+            if first_is_mine:
+                opp_move = mv2_slot
+            else:
+                current_move = mv2_slot
         _execute_move_slot(
             atk2, def2, mv2, not first_is_mine, current_move, opp_move,
             flinch, 2, True, battle_array, weather
@@ -520,15 +561,40 @@ def _residual_heal(pok):
 
 
 @njit
-def _yawn(pok):
-    """Yawn counts down at the end of the turn, at 0 the target falls asleep if it has no status"""
+def _yawn(pok, foe):
+    """
+    Yawn counts down at the end of the turn, at 0 the target falls asleep if it has no status
+    and there's no uproar
+    """
     pok[_POK_YAWN_TURNS] -= 1
     if pok[_POK_YAWN_TURNS] > 0:
         return
     pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_YAWN
-    if pok[_POK_STATUS] == 0:
+    if pok[_POK_STATUS] == 0 and not sleep_blocked(pok, foe):
         pok[_POK_STATUS] = _STATUS_SLEEP
         pok[_POK_SLEEP_COUNTER] = TURNS_2_5[random.getrandbits(2)]
+
+
+@njit
+def _uproar_wake(pok):
+    """The uproar wakes up a sleeping Pokemon that isn't Soundproof"""
+    if (
+        pok[_POK_STATUS] == _STATUS_SLEEP
+        and pok[_POK_CURRENT_HP] > 0
+        and pok[_POK_AB_ID] != _ABILITYNAMES_SOUNDPROOF
+    ):
+        pok[_POK_STATUS] = 0
+        pok[_POK_SLEEP_COUNTER] = 0
+
+
+@njit
+def _count_down_slot_lock(pok, counter_idx, vol):
+    """Encore/Disable counter (turns * SLOT_STEP + slot): one less turn, ends a turn after reaching 0"""
+    if pok[counter_idx] >= SLOT_STEP:
+        pok[counter_idx] -= SLOT_STEP
+    else:
+        pok[_POK_VOL_STATUS] &= ~vol
+        pok[counter_idx] = 0
 
 
 @njit
@@ -552,7 +618,8 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     """
     """
     Gen IV order (pokeplatinum CheckMonConditions, Showdown gen4 residual suborders):
-    Ingrain, Aqua Ring, Speed Boost, Leech Seed, Psn/Tox, Burn, Curse, Yawn
+    Ingrain, Aqua Ring, Speed Boost, Leech Seed, Psn/Tox, Burn, Curse, Bind, Uproar, Disable,
+    Encore, Taunt, Yawn
     """
     if pok[_POK_CURRENT_HP] <= 0:
         return
@@ -611,9 +678,48 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
             if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                 return
 
-    # 7. Yawn
+    # 7. Bind, freed once the binder has fainted
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_PARTIALLY_TRAPPED:
+        if foe[_POK_CURRENT_HP] <= 0:
+            pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_PARTIALLY_TRAPPED
+        else:
+            pok[_POK_TRAP_TURNS] -= 1
+            if pok[_POK_TRAP_TURNS] <= 0:
+                pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_PARTIALLY_TRAPPED
+            elif not is_magic_guard:
+                dmg = max(1, pok[_POK_MAX_HP] // 16)
+                if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
+                    return
+
+    # 8. Uproar, wakes everyone up then counts down
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR:
+        _uproar_wake(pok)
+        _uproar_wake(foe)
+        pok[_POK_UPROAR_TURNS] -= 1
+        if pok[_POK_UPROAR_TURNS] <= 0:
+            pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_UPROAR
+            pok[_POK_LOCKED_MOVE] = -1
+
+    # 9. Disable
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_DISABLE:
+        _count_down_slot_lock(pok, _POK_DISABLE_TURNS, _VOLSTATUS_DISABLE)
+
+    # 10. Encore, also ends when the encored move is out of PP
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_ENCORE:
+        slot = pok[_POK_ENCORE_TURNS] & SLOT_MASK
+        if pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_PP] == 0:
+            pok[_POK_ENCORE_TURNS] = slot
+        _count_down_slot_lock(pok, _POK_ENCORE_TURNS, _VOLSTATUS_ENCORE)
+
+    # 11. Taunt
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT:
+        pok[_POK_TAUNT_TURNS] -= 1
+        if pok[_POK_TAUNT_TURNS] <= 0:
+            pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_TAUNT
+
+    # 12. Yawn
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN:
-        _yawn(pok)
+        _yawn(pok, foe)
 
     if enter_field:
         battle_array[enter_field_flag_idx] = 0

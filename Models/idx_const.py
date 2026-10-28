@@ -47,7 +47,8 @@ class Pok:
     TRAP_TURNS                = PROTECT_COUNT + 1
     TAUNT_TURNS               = TRAP_TURNS + 1
     ENCORE_TURNS              = TAUNT_TURNS + 1
-    YAWN_TURNS                = ENCORE_TURNS + 1
+    DISABLE_TURNS             = ENCORE_TURNS + 1
+    YAWN_TURNS                = DISABLE_TURNS + 1
     PERISH_TURNS              = YAWN_TURNS + 1
     UPROAR_TURNS              = PERISH_TURNS + 1
     CONSEC_COUNT              = UPROAR_TURNS + 1

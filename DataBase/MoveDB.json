@@ -638,6 +638,21 @@
     "target": "normal",
     "type": "Ground"
   },
+  "Disable": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "disable",
+    "pp": 20,
+    "target": "normal",
+    "type": "Normal",
+    "vol_status": "disable"
+  },
   "Disarming Voice": {
     "accuracy": true,
     "category": "Special",

@@ -7,7 +7,7 @@ import random
 import numpy as np
 from Models.pokemon import Pokemon
 from Models.idx_const import POK_LEN, Pok, Move, MOVE_STRIDE, Field
-from Models.helper import ActionType, BattlePhase, VolStatus
+from Models.helper import ActionType, BattlePhase, VolStatus, MoveCategory
 from Models.constants import _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_FULL_HEAL
 from Models.trainer_ai import return_idx
 from Utils.helper import to_battle_array
@@ -49,6 +49,16 @@ def is_over(arr):
     return not alive_slots(arr) or not alive_slots(arr, opp=True)
 
 
+def _blocked(active, i, mv):
+    """Disable, Encore and Taunt (the slot is packed as turns * 4 + slot)"""
+    vol = active[Pok.VOL_STATUS]
+    if vol & VolStatus.DISABLE and i == active[Pok.DISABLE_TURNS] % 4:
+        return True
+    if vol & VolStatus.ENCORE and i != active[Pok.ENCORE_TURNS] % 4:
+        return True
+    return bool(vol & VolStatus.TAUNT and mv[Move.CATEGORY] == MoveCategory.STATUS)
+
+
 def legal_actions(arr):
     """My legal actions, computed independently of SearchEngine.valid_action_mask"""
     me = int(arr[Field.MY_POK])
@@ -61,11 +71,11 @@ def legal_actions(arr):
         mv = move_slice(active, i)
         if mv[Move.ID] == 0:
             break
-        if mv[Move.PP] > 0:
+        if mv[Move.PP] > 0 and not _blocked(active, i, mv):
             moves.append((ActionType.MOVE, i))
     if not moves:
         moves = [(ActionType.MOVE, 10)]
-    if active[Pok.VOL_STATUS] & VolStatus.INGRAIN:
+    if active[Pok.VOL_STATUS] & (VolStatus.INGRAIN | VolStatus.PARTIALLY_TRAPPED):
         return moves
     return moves + switches
 

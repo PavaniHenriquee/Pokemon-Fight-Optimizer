@@ -7,7 +7,7 @@ from Utils.jit import njit
 from Utils.loader import TYPE_CHART
 from Utils.helper import get_type_effectiveness
 from DataBase.PkDB import POKEMON_ABILITY_POOL, POKEMON_LENGTH
-from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC_MOVES
+from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC_MOVES, MoveName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
 from Engine.engine_helper import check_speed
@@ -59,7 +59,9 @@ from Models.constants import (
     _VOLSTATUS_ENDURE, _VOLSTATUS_DESTINY_BOND, _ABILITYNAMES_INSOMNIA, _MOVENAME_PROTECT,
     _MOVENAME_FEINT, _MOVENAME_RECOVER, _MOVENAME_DEFENSE_CURL, _POK_PROTECT_COUNT,
     _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4,
-    _MOVECATEGORY_PHYSICAL, _MOVECATEGORY_SPECIAL, _MOVENAME_CHARGE
+    _MOVECATEGORY_PHYSICAL, _MOVECATEGORY_SPECIAL, _MOVENAME_CHARGE, _VOLSTATUS_TAUNT,
+    _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE, _VOLSTATUS_PARTIALLY_TRAPPED, _POK_LAST_MOVE_ID,
+    _MOVENAME_WHIRLPOOL
 )
 from Engine.damage_calc import weight_power, matchup_types
 
@@ -186,6 +188,21 @@ AI_KNOWS_MOVE_BITS = (
 GRADUAL_RECOVERY_ITEMS = (_ITEMNAMES_LEFTOVERS, _ITEMNAMES_BLACK_SLUDGE)
 SELF_ONCE_VOLS = (_VOLSTATUS_INGRAIN, _VOLSTATUS_AQUA_RING, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT)
 DAMAGING_CATEGORIES = (_MOVECATEGORY_PHYSICAL, _MOVECATEGORY_SPECIAL)
+# Pokemow List_Encore: last moves of the target that Expert Encore likes, the ones in MoveDB
+ENCORE_ENCOURAGED_M = (
+    MoveName.DREAM_EATER, MoveName.MEDITATE, MoveName.HOWL, MoveName.HARDEN, MoveName.WITHDRAW,
+    MoveName.GROWTH, MoveName.WHIRLWIND, MoveName.ROAR, MoveName.LIGHT_SCREEN, MoveName.AMNESIA,
+    MoveName.SUPERSONIC, MoveName.CONFUSE_RAY, MoveName.SWEET_KISS, MoveName.POISON_POWDER,
+    MoveName.STUN_SPORE, MoveName.THUNDER_WAVE, MoveName.LEECH_SEED, MoveName.SPLASH,
+    MoveName.ENCORE, MoveName.NIGHTMARE, MoveName.PROTECT, MoveName.FORESIGHT,
+    MoveName.ODOR_SLEUTH, MoveName.PERISH_SONG, MoveName.SANDSTORM, MoveName.ENDURE,
+    MoveName.SWAGGER, MoveName.ATTRACT, MoveName.SAFEGUARD, MoveName.RAIN_DANCE,
+    MoveName.PSYCH_UP, MoveName.FUTURE_SIGHT, MoveName.FAKE_OUT, MoveName.WILL_O_WISP,
+    MoveName.FOLLOW_ME, MoveName.CHARGE, MoveName.INGRAIN, MoveName.RECYCLE, MoveName.KNOCK_OFF,
+    MoveName.REFRESH, MoveName.MUD_SPORT, MoveName.WATER_SPORT, MoveName.DRAGON_DANCE,
+    MoveName.NATURAL_GIFT, MoveName.FEINT, MoveName.LUCKY_CHANT, MoveName.WORRY_SEED,
+    MoveName.AQUA_RING, MoveName.TRICK_ROOM
+)
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 
 
@@ -269,7 +286,7 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
         effectiveness *= 1.5 if ai_ability != _ABILITYNAMES_ADAPTABILITY else 2
 
     # Common type effectiveness
-    # TODO: Scrappy, Mold Breaker, Odor Sleuth, Foresight,
+    # TODO: Scrappy, Mold Breaker,
     # Gastro Acid, Miracle Eye, Iron Ball
     # Gravity, Magnet Rise, Levitate, Wonder Guard, more...
     s_e = False
@@ -453,6 +470,12 @@ def basic_move_vol_status(move, ability, user_pok, ai_pok):
     elif vol_status == _VOLSTATUS_HELPING_HAND:
         # Singles only
         return -10
+    elif vol_status == _VOLSTATUS_ENCORE:
+        if user_vol_status & _VOLSTATUS_ENCORE:
+            return -8
+    elif vol_status == _VOLSTATUS_DISABLE:
+        if user_vol_status & _VOLSTATUS_DISABLE:
+            return -8
 
     return 0
 
@@ -634,18 +657,15 @@ def basic_flag(
     Dream Eater
     Belly Drum
     Reflect / Light Screen / Mist / Safeguard
-    Ingrain / Mud Sport / Water Sport / Camouflage / Power Trick / Lucky Chant / Aqua Ring / Magnet Rise
+    Camouflage / Power Trick / Lucky Chant / Magnet Rise
     Substitute
-    Leech Seed
-    Disable / Encore
     Snore / Sleep Talk
-    Lock On / Mean Look / Foresight / Perish Song / Torment / Miracle Eye / Heal Block / Gastro Acid
+    Lock On / Mean Look / Perish Song / Torment / Miracle Eye / Heal Block / Gastro Acid
     Future Sight / Doom Desire
     Baton Pass
     Stockpile
     Spit Up / Swallow
     Memento
-    Helping Hand
     Trick / Switcheroo / Knock Off
     Imprison
     Refresh
@@ -970,7 +990,26 @@ def expert_vol_status(
         if hp_pct_ai >= 30:
             add_adjustment(rand, idx, 1, 128)
         return 0
-    # Focus Energy, Ingrain, Attract, Yawn, Helping Hand, Follow Me have no Expert check
+    if vol_status == _VOLSTATUS_ENCORE:
+        if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_DISABLE:
+            add_adjustment(rand, idx, 3, 226)
+            return 0
+        if not move_first:
+            return -2
+        if u_pok[_POK_LAST_MOVE_ID] in ENCORE_ENCOURAGED_M:
+            add_adjustment(rand, idx, 3, 226)
+            return 0
+        return -2
+    if vol_status == _VOLSTATUS_DISABLE:
+        if not move_first:
+            return 0
+        last = u_pok[_POK_LAST_MOVE_ID]
+        # No move yet or a status one (power 0)
+        if last not in PHYSICAL and last not in SPECIAL:
+            add_adjustment(rand, idx, -1, 156)
+            return 0
+        return 1
+    # Focus Energy, Ingrain, Attract, Yawn, Helping Hand, Follow Me, Taunt have no Expert check
     return 0
 
 @njit(inline='always')
@@ -1205,7 +1244,8 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
         if knows_move(ai_pok, _MOVENAME_MIRROR_COAT):
             add_adjustment(rand, idx, 4, 156)
             return 0
-        #TODO: User is taunted
+        if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT:
+            add_adjustment(rand, idx, 1, 156)
         if t_dmg:
             if ml_move in SPECIAL:
                 return -1
@@ -1229,7 +1269,8 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
         if knows_move(ai_pok, _MOVENAME_COUNTER):
             add_adjustment(rand, idx, 4, 156)
             return 0
-        #TODO: User is taunted
+        if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT:
+            add_adjustment(rand, idx, 1, 156)
         if t_dmg:
             if ml_move in PHYSICAL:
                 return -1
@@ -1444,6 +1485,16 @@ def expert_flag(
             ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know
         )
 
+    # Binding Moves (Wrap, Bind, Clamp, Fire Spin), Whirlpool has its own effect and no check
+    # TODO: Perish Song
+    if move[_MOVE_VOL_STATUS] & _VOLSTATUS_PARTIALLY_TRAPPED and move[_MOVE_ID] != _MOVENAME_WHIRLPOOL:
+        if (
+            u_pok[_POK_STATUS] == _STATUS_TOXIC
+            or u_pok[_POK_VOL_STATUS] & (_VOLSTATUS_CURSE | _VOLSTATUS_ATTRACT)
+        ):
+            add_adjustment(rand, idx, 1, 128)
+        return 0
+
     """
     TODO:
     --------------Specific Moves---------------
@@ -1456,28 +1507,22 @@ def expert_flag(
     Haze
     Conversion
     Rest
-    Toxic, Leech Seed
+    Toxic
     Light Screen
     Reflect
     Spit Up
     Super Fang
-    Disable
-    Encore
-    Mirror Coat
     Metal Burst
     Pain Split
     Nightmare
     Lock On, Mind Reader
     Sleep Talk
-    Destiny Bond
     Reversal, Flail
     Heal Bell, Aromatherapy
     Thief, Covet
-    Protect, Detect
+    Detect
     Spikes
-    Foresight, Odor Sleuth
     Miracle Eye
-    Endure
     Substitute
     Baton Pass
     Pursuit
@@ -1502,10 +1547,8 @@ def expert_flag(
     Imprison
     Refresh
     Snatch
-    Mud Sport, Water Sport
     Hammer Arm
     Brine
-    Feint
     Pluck
     U-turn
     Close Combat
@@ -1530,7 +1573,6 @@ def expert_flag(
     Sucker Punch
     Toxic Spikes
     Heart Swap
-    Aqua Ring
     Magnet Rise
     Defog
     Trick Room
@@ -1544,7 +1586,6 @@ def expert_flag(
     OHKO Moves (Example moves: Horn Drill, Fissure, Sheer Cold, Guillotine)
     Charge Turn Moves Without Invulnerability (Razor Wind, Skull Bash, Sky Attack, Solar Beam/Blade)
     Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)
-    Binding Moves (e.g. Wrap, Clamp)
     Recoil Moves (e.g. Submission, Flare Blitz, Double-Edge)
     Recharge-Turn Attacks (e.g. Hyper Beam, Giga Impact)
     Moves Which Change the User's Ability (Role Play, Skill Swap)

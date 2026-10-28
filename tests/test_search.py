@@ -296,3 +296,27 @@ def test_mcts_loop_small_search(capsys):
     recursive_backup(root)
     print_best_path(root, root_state.battle_array, max_depth=3)
     assert "Best at depth 0" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("vol, field, packed, moves", [
+    (VolStatus.DISABLE, Pok.DISABLE_TURNS, 3 * 4 + 0, [(MOVE, 1)]),
+    (VolStatus.ENCORE, Pok.ENCORE_TURNS, 3 * 4 + 0, [(MOVE, 0)]),
+    (VolStatus.TAUNT, Pok.TAUNT_TURNS, 3, [(MOVE, 0)]),
+    (VolStatus.TAUNT | VolStatus.ENCORE, Pok.ENCORE_TURNS, 3 * 4 + 1, [(MOVE, 10)]),
+])
+def test_disable_encore_taunt_filter_moves(make_pokemon, make_battle, vol, field, packed, moves):
+    """Blocked moves can't be picked, Struggle when nothing is left, switching stays open"""
+    team = [make_pokemon("Rattata", 10, "Run Away", ["Tackle", "Growl"]),
+            make_pokemon("Pidgey", 10, "Run Away", ["Tackle"])]
+    arr = make_battle(team, [make_pokemon("Rattata", 10, "Run Away", ["Tackle"])])
+    my_active(arr)[Pok.VOL_STATUS] = vol
+    my_active(arr)[field] = packed
+    assert mask_actions(arr) == moves + [(SWITCH, 1)] == legal_actions(arr)
+
+
+def test_bind_blocks_switching(make_pokemon, make_battle):
+    """A partially trapped active can't switch out"""
+    team = [make_pokemon(n, 10, "Run Away", ["Tackle"]) for n in ("Rattata", "Pidgey")]
+    arr = make_battle(team, [make_pokemon("Rattata", 10, "Run Away", ["Wrap"])])
+    my_active(arr)[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED
+    assert mask_actions(arr) == [(MOVE, 0)] == legal_actions(arr)

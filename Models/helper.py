@@ -76,6 +76,7 @@ class VolStatus:
     FOLLOW_ME         = 67108864
     SEMI_INVULNERABLE = 134217728
     HURT_THIS_TURN    = 268435456
+    DISABLE           = 536870912
 
 
 @dataclass(slots=True)

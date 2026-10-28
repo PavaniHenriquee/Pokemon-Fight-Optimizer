@@ -3,6 +3,7 @@ import pytest
 from Engine.status_calc import (
     apply_status, stat_changes, vol_status, calculate_effects, sec_effects, synchronize_reflect,
 )
+from DataBase.MoveDB import MoveName
 from Models.idx_const import Pok, Move, Sec
 from Models.helper import Status, Weather, VolStatus
 from battle_driver import move_slice
@@ -305,3 +306,104 @@ def test_singles_only_moves_do_nothing(poke, move):
     d = poke("Pikachu", 20, "Static", ["Tackle"])
     calculate_effects(a, d, move_slice(a, 0), 0)
     assert a[Pok.VOL_STATUS] == 0 == d[Pok.VOL_STATUS]
+
+
+# ── Phase 4 volatiles ────────────────────────────────────────────────────────
+
+def _use(pok, slot):
+    """The move in this slot is the one the Pokemon used last"""
+    pok[Pok.LAST_MOVE_ID] = move_slice(pok, slot)[Move.ID]
+
+
+def test_taunt_lasts_3_to_5_turns_and_isnt_refreshed(poke):
+    """Gen IV Taunt: 3-5 turns, fails on a taunted target"""
+    a = poke("Murkrow", 20, "Run Away", ["Taunt"])
+    d = poke("Rattata", 20, "Run Away", ["Growl"])
+    seen = set()
+    for _ in range(200):
+        d[Pok.VOL_STATUS] = 0
+        vol_status(move_slice(a, 0), d, a)
+        assert d[Pok.VOL_STATUS] & VolStatus.TAUNT
+        seen.add(int(d[Pok.TAUNT_TURNS]))
+    assert seen == {3, 4, 5}
+    d[Pok.TAUNT_TURNS] = 1
+    vol_status(move_slice(a, 0), d, a)
+    assert d[Pok.TAUNT_TURNS] == 1
+
+
+@pytest.mark.parametrize("move, vol, field, turns", [
+    ("Encore", VolStatus.ENCORE, Pok.ENCORE_TURNS, {3, 4, 5, 6, 7}),
+    ("Disable", VolStatus.DISABLE, Pok.DISABLE_TURNS, {3, 4, 5, 6}),
+])
+def test_encore_disable_pack_the_last_move_slot(poke, move, vol, field, turns):
+    """The counter holds turns * 4 + the slot of the target's last move"""
+    a = poke("Rattata", 20, "Run Away", [move])
+    d = poke("Rattata", 20, "Run Away", ["Tackle", "Growl"])
+    _use(d, 1)
+    seen = set()
+    for _ in range(300):
+        d[Pok.VOL_STATUS] = 0
+        vol_status(move_slice(a, 0), d, a)
+        assert d[Pok.VOL_STATUS] & vol and d[field] % 4 == 1
+        seen.add(int(d[field]) // 4)
+    assert seen == turns
+
+
+@pytest.mark.parametrize("move, vol, field", [
+    ("Encore", VolStatus.ENCORE, Pok.ENCORE_TURNS),
+    ("Disable", VolStatus.DISABLE, Pok.DISABLE_TURNS),
+])
+@pytest.mark.parametrize("case", ["no_last_move", "no_pp", "already", "struggle"])
+def test_encore_disable_fail(poke, move, vol, field, case):
+    """Both fail without a last move, on a move out of PP, on Struggle, or when already set"""
+    a = poke("Rattata", 20, "Run Away", [move])
+    d = poke("Rattata", 20, "Run Away", ["Tackle", "Growl"])
+    _use(d, 0)
+    if case == "no_last_move":
+        d[Pok.LAST_MOVE_ID] = 0
+    elif case == "no_pp":
+        move_slice(d, 0)[Move.PP] = 0
+    elif case == "already":
+        d[Pok.VOL_STATUS] = vol
+        d[field] = 5 * 4 + 1
+    else:
+        d[Pok.LAST_MOVE_ID] = MoveName.STRUGGLE
+    before = int(d[field])
+    vol_status(move_slice(a, 0), d, a)
+    assert d[field] == before
+    assert bool(d[Pok.VOL_STATUS] & vol) == (case == "already")
+
+
+def test_encore_fails_on_encore_and_mirror_move_disable_doesnt(poke):
+    """Gen IV can't Encore Encore or Mirror Move, Disable has no such list"""
+    encore = poke("Rattata", 20, "Run Away", ["Encore"])
+    disable = poke("Rattata", 20, "Run Away", ["Disable"])
+    d = poke("Pidgey", 20, "Run Away", ["Encore", "Mirror Move"])
+    for slot in (0, 1):
+        _use(d, slot)
+        d[Pok.VOL_STATUS] = 0
+        vol_status(move_slice(encore, 0), d, encore)
+        assert not d[Pok.VOL_STATUS] & VolStatus.ENCORE
+        vol_status(move_slice(disable, 0), d, disable)
+        assert d[Pok.VOL_STATUS] & VolStatus.DISABLE
+
+
+@pytest.mark.parametrize("holder", ["source", "target"])
+@pytest.mark.parametrize("ability, sleeps", [("Run Away", False), ("Soundproof", True)])
+def test_sleep_fails_during_uproar(poke, holder, ability, sleeps):
+    """Nobody falls asleep while either active makes an uproar, except a Soundproof target"""
+    a = poke("Abra", 20, "Run Away", ["Hypnosis"])
+    d = poke("Rattata", 20, ability, ["Tackle"])
+    (a if holder == "source" else d)[Pok.VOL_STATUS] = VolStatus.UPROAR
+    apply_status(move_slice(a, 0), d, 0, a)
+    assert (d[Pok.STATUS] == Status.SLEEP) == sleeps
+
+
+def test_fainted_uproar_holder_doesnt_block_sleep(poke):
+    """The uproar ends with its user"""
+    a = poke("Abra", 20, "Run Away", ["Hypnosis"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    a[Pok.VOL_STATUS] = VolStatus.UPROAR
+    a[Pok.CURRENT_HP] = 0
+    apply_status(move_slice(a, 0), d, 0, a)
+    assert d[Pok.STATUS] == Status.SLEEP

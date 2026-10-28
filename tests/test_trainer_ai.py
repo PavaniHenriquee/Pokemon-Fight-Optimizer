@@ -541,3 +541,104 @@ def test_charge_has_no_ai_check(poke):
     ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE] = 6
     assert _basic(ai_pok, user, AbilityNames.VOLT_ABSORB) == 0
     assert _expert_knows(ai_pok, user) == (0, [])
+
+
+# ── Phase 4 volatiles ────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("move, vol", [("Encore", VolStatus.ENCORE), ("Disable", VolStatus.DISABLE)])
+def test_basic_encore_disable_already_set(poke, move, vol):
+    """Basic_CheckCannotEncore / Basic_CheckCannotDisable: -8 on a target that already has it"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.RUN_AWAY) == 0
+    user[Pok.VOL_STATUS] = vol
+    assert _basic(ai_pok, user, AbilityNames.RUN_AWAY) == -8
+
+
+def test_expert_encore(poke):
+    """Pokemow Encore: Disabled target 88.3% +3, AI slower -2, last move on the list 88.3% +3"""
+    user = poke("Rattata", 30, "Run Away", ["Tackle", "Protect"])
+    slow_ai = poke("Rattata", 10, "Run Away", ["Encore"])
+    fast_ai = poke("Rattata", 60, "Run Away", ["Encore"])
+    assert _expert(slow_ai, user) == (-2, [])
+    user[Pok.LAST_MOVE_ID] = move_slice(user, 0)[Move.ID]
+    assert _expert(fast_ai, user) == (-2, [])
+    user[Pok.LAST_MOVE_ID] = move_slice(user, 1)[Move.ID]
+    assert _expert(fast_ai, user) == (0, [(3, 226)])
+    user[Pok.VOL_STATUS] = VolStatus.DISABLE
+    assert _expert(slow_ai, user) == (0, [(3, 226)])
+
+
+def test_expert_disable(poke):
+    """Pokemow Disable: AI slower no change, status or no last move 60.9% -1, damaging +1"""
+    user = poke("Rattata", 30, "Run Away", ["Tackle", "Protect"])
+    slow_ai = poke("Rattata", 10, "Run Away", ["Disable"])
+    fast_ai = poke("Rattata", 60, "Run Away", ["Disable"])
+    user[Pok.LAST_MOVE_ID] = move_slice(user, 0)[Move.ID]
+    assert _expert(slow_ai, user) == (0, [])
+    assert _expert(fast_ai, user) == (1, [])
+    user[Pok.LAST_MOVE_ID] = move_slice(user, 1)[Move.ID]
+    assert _expert(fast_ai, user) == (0, [(-1, 156)])
+    user[Pok.LAST_MOVE_ID] = 0
+    assert _expert(fast_ai, user) == (0, [(-1, 156)])
+
+
+@pytest.mark.parametrize("move", ["Wrap", "Bind", "Clamp", "Fire Spin"])
+def test_expert_binding_moves(poke, move):
+    """pokeplatinum Expert_BindingMove: 50% +1 vs Toxic, Curse or Attract (not plain poison)"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, [])
+    user[Pok.STATUS] = Status.POISON
+    assert _expert(ai_pok, user) == (0, [])
+    user[Pok.STATUS] = Status.TOXIC
+    assert _expert(ai_pok, user) == (0, [(1, 128)])
+    user[Pok.STATUS] = 0
+    for vol in (VolStatus.CURSE, VolStatus.ATTRACT):
+        user[Pok.VOL_STATUS] = vol
+        assert _expert(ai_pok, user) == (0, [(1, 128)])
+
+
+def test_expert_whirlpool_has_no_check(poke):
+    """Whirlpool has its own effect in Gen IV, without an Expert check"""
+    ai_pok = poke("Psyduck", 20, "Damp", ["Whirlpool"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    user[Pok.STATUS] = Status.TOXIC
+    assert _expert(ai_pok, user) == (0, [])
+
+
+@pytest.mark.parametrize("move", ["Counter", "Mirror Coat"])
+def test_expert_counter_mirror_coat_taunted_target(poke, move):
+    """60.9% chance of +1 more when the target is taunted"""
+    user = poke("Psyduck", 20, "Damp", ["Tackle"])
+    ai_pok = poke("Wobbuffet", 20, "Shadow Tag", [move])
+    score, queued = _expert(ai_pok, user)
+    user[Pok.VOL_STATUS] = VolStatus.TAUNT
+    assert _expert(ai_pok, user) == (score, [(1, 156)] + queued)
+
+
+@pytest.mark.parametrize("vol, field, packed, moves, pick", [
+    (VolStatus.TAUNT, Pok.TAUNT_TURNS, 3, ["Growl", "Tackle"], 1),
+    (VolStatus.ENCORE, Pok.ENCORE_TURNS, 3 * 4 + 0, ["Growl", "Tackle"], 0),
+    (VolStatus.DISABLE, Pok.DISABLE_TURNS, 3 * 4 + 1, ["Growl", "Tackle"], 0),
+    (VolStatus.TAUNT, Pok.TAUNT_TURNS, 3, ["Growl"], 10),
+])
+def test_ai_skips_blocked_moves(make_pokemon, make_battle, vol, field, packed, moves, pick):
+    """Taunt, Encore and Disable make moves invalid for the AI, Struggle if none is left"""
+    me = make_pokemon("Rattata", 20, "Run Away", ["Tackle"])
+    opp = make_pokemon("Rattata", 20, "Run Away", moves)
+    arr = make_battle([me], [opp])
+    ai_pok = pok_slice(arr, 0, opp=True)
+    ai_pok[Pok.VOL_STATUS] = vol
+    ai_pok[field] = packed
+    assert all(return_idx(arr) == pick for _ in range(30))
+
+
+def test_bound_ai_never_switches(make_pokemon, make_battle):
+    """Withdraw checks are skipped while a bind traps the AI's active"""
+    me = make_pokemon("Gastly", 20, "Levitate", ["Lick"])
+    opp = [make_pokemon("Rattata", 20, "Run Away", ["Tackle", "Quick Attack"]),
+           make_pokemon("Pikachu", 20, "Static", ["Thunder Shock"])]
+    arr = make_battle([me], opp)
+    pok_slice(arr, 0, opp=True)[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED
+    assert all(return_idx(arr) in (0, 1) for _ in range(30))

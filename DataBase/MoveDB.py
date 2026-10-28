@@ -48,7 +48,8 @@ class MoveName:
     DEFENSE_CURL    = CURSE + 1
     DESTINY_BOND    = DEFENSE_CURL + 1
     DIG             = DESTINY_BOND + 1
-    DISARMING_VOICE = DIG + 1
+    DISABLE         = DIG + 1
+    DISARMING_VOICE = DISABLE + 1
     DOUBLE_KICK     = DISARMING_VOICE + 1
     DOUBLE_SLAP     = DOUBLE_KICK + 1
     DOUBLE_TEAM     = DOUBLE_SLAP + 1

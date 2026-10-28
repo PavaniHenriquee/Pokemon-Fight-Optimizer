@@ -151,6 +151,7 @@ class Pokemon:
             0,   # Trap turns
             0,   # Taunt turns
             0,   # Encore turns
+            0,   # Disable turns
             0,   # Yawn turns
             0,   # Perish turns
             0,   # Uproar turns

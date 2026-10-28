@@ -8,19 +8,19 @@
 | Phase 0: layout infrastructure            | Done (2026-10-26), committed | See "Phase 0: as built" below                                                      |
 | Phase 1: data-driven moves                | Done (2026-10-27), committed | B1-B10 fixed, 97 TODO boxes ticked; Gust and Stomp left open                       |
 | Phase 2: damage mechanics                 | Done (2026-10-27), committed | See "Phase 2: findings and decisions" and "Phase 2: outcome"; 16 TODO boxes ticked |
-| Phase 3: volatiles, no action restriction | Done (2026-10-27), not committed | See "Phase 3: findings and decisions" and "Phase 3: outcome"; 17 TODO boxes ticked |
-| Phase 4: action-restricting volatiles     | **Next**                     |                                                                                    |
-| Phase 5: side conditions and field        | Not started                  |                                                                                    |
+| Phase 3: volatiles, no action restriction | Done (2026-10-27), committed | See "Phase 3: findings and decisions" and "Phase 3: outcome"; 17 TODO boxes ticked |
+| Phase 4: action-restricting volatiles     | Done (2026-10-27), not committed | See "Phase 4: findings and decisions" and "Phase 4: outcome"; Disable added       |
+| Phase 5: side conditions and field        | **Next**                     |                                                                                    |
 | Phase 6: switching moves                  | Not started                  |                                                                                    |
 | Phase 7: healing, items, misc             | Not started                  |                                                                                    |
 | Phase 8: move-calling                     | Not started                  |                                                                                    |
 
-**Where to start next session:** Phase 4, workflow step 1 (mechanics notes), after you've reviewed and committed Phase 3.
+**Where to start next session:** Phase 5, workflow step 1 (mechanics notes), after you've reviewed and committed Phase 4.
 
 **Open issues carried forward:**
 
 - (Fixed in Phase 3) `expert_vol_status` no longer raises: volatiles without an Expert check score 0, so Lucas 1, Dawn 1, Barry 2 (Taunt), the Foresight, Protect and Ingrain trainers all run.
-- In battle, the Phase 4+ volatile bits (Taunt, Encore, partial trapping, Uproar, Nightmare) are still no-ops: Taunt acts like Splash, Wrap etc. deal damage without trapping.
+- (Fixed in Phase 4) Taunt, Encore, partial trapping and Uproar work in battle. Nightmare is still a no-op.
 
 ## Step 0: Save this plan in the project
 
@@ -292,6 +292,33 @@ Sources: pokeplatinum `battle_script.c` (TryProtection, TryYawn, TryHelpingHand,
 - Partial trapping: Wrap (E, !) is trainer-used; Bind, Clamp, Fire Spin, Whirlpool are starred. Covers 2-5 turns, 1/16 residual damage, and no switching.
 - Uproar (!)
 - The architecture check comes first: where valid actions get filtered for my side (MCTS) and for the AI. Locked states keep looping inside `step()` and are never exposed as decision nodes.
+
+### Phase 4: findings and decisions (2026-10-27)
+
+Sources: pokeplatinum `battle_script.c` (TryEncore, TryDisable, Random), `battle_controller_player.c` (CheckMonConditions, CheckStatusDisruption order, FightCommand, UpdateMoveBuffers), `battle_lib.c` (CheckInvalidMoves, Battler_IsTrapped, Battler_CanPickCommand, MoveFailed, faint cleanup), effect scripts and subscripts (bind, encore, taunt, uproar, fall asleep), `trainer_ai.c` and `trainer_ai/script.s`; Showdown gen4 `moves.ts` / `conditions.ts`; Pokemow; RP MOVES sheet (all match MoveDB; Disable 100% from RP, Showdown gen4 has 80).
+
+**Your decisions:** B1 (Attract checked before paralysis, pokeplatinum has it after) stays as Showdown has it. Encore packs its slot into `ENCORE_TURNS` (turns * 4 + slot). Disable added to the phase, with a new `Pok.DISABLE_TURNS` packed the same way and a new `VolStatus.DISABLE` bit. The two `#TODO: User is taunted` lines in Counter / Mirror Coat were replaced by the check.
+
+**Mechanics as built:**
+
+- Last move (`Pok.LAST_MOVE_ID`): set once the move gets past `early_returns` (a miss still counts), 0 after a blocked turn, reset on switch.
+- Taunt: fails on a taunted target, 3-5 turns counted down at every residual including the one it landed. Status-category moves can't be selected and fail if picked before Taunt landed (after flinch, before confusion).
+- Encore: needs a last move with PP that isn't Encore, Mirror Move or Struggle; 3-7 turns; the slower target uses the encored move the turn it lands; ends a residual after its counter reaches 0, or when the encored move is out of PP. Not a lock: switching stays open.
+- Disable: needs a last move with PP; 3-6 turns, same countdown as Encore; the disabled move can't be selected and fails if picked before (after flinch, before Taunt).
+- Wrap, Bind, Clamp, Fire Spin, Whirlpool: a hit target that survives and isn't bound gets 3-6 turns; at the residual (after Curse) the counter drops, then 1/16 (min 1, not with Magic Guard) while it's above 0, so 2-5 hits. No switching. Freed when the binder switches out (`switch_in`) or faints (no damage that turn).
+- Uproar: locks in on its first hit for 3-6 turns, PP only once. Nobody falls asleep while an active is making an uproar (sleep moves, Yawn's sleep), except Soundproof; a sleeper wakes when it tries to move, and the Uproar residual wakes everyone. A blocked turn or an immune target ends it at that residual; a miss or Protect doesn't.
+- Residual order: ...Curse, Bind, Uproar, Disable, Encore, Taunt, Yawn.
+- Valid actions (`valid_action_mask`, `battle_driver.legal_actions`) and the AI (`choose_move`) skip moves blocked by Disable, Encore or Taunt through `move_blocked`, Struggle if none is left. A bound active can't switch (also every AI withdraw check).
+
+**AI:** Basic Encore / Disable -8 on a target that already has it. Expert Encore (Pokemow list, the moves in MoveDB), Expert Disable, Expert binding moves (Wrap, Bind, Clamp, Fire Spin: Toxic, Curse, Attract; Perish Song left as a TODO), Counter / Mirror Coat +1 at 60.9% vs a taunted target. Taunt, Uproar and Whirlpool have no Expert check; Uproar's Basic Soundproof check already existed.
+
+### Phase 4: outcome (2026-10-27)
+
+- Layout: `Pok.DISABLE_TURNS`, `VolStatus.DISABLE`, MoveDB Disable (MoveName shifts by one after Dig). `Pokemon.to_np` lists the counters by hand, so it got the new slot too.
+- Tests: Taunt/Encore/Disable fail rules and durations, Uproar sleep block (`test_status_calc`), `move_blocked`, the Disable/Taunt execution check, Uproar wake-up and early end, trap freed on switch, switch resets (`test_engine_helper`), trap damage and countdown, binder fainting, Magic Guard, Uproar lock/PP/wake/miss, Yawn vs Uproar, last move, Encore on the slower target, countdowns (`test_battle`), move filters and the bind switch block (`test_search`), every AI branch, blocked moves and a bound AI never switching (`test_trainer_ai`).
+- Golden re-blessed: hashes only, 100/100 outcomes identical to the old file (new field in the layout).
+- Checks: `pytest` 1657 passed, `pytest -m jit` 6 passed, `pytest -m slow` 5 passed. Benchmark (main.py battle, 100k iterations, compile excluded, best of 3): 8.16s vs 8.29s at the Phase 3 commit.
+- TODO boxes that can be ticked: Taunt, Encore, Bind, Clamp, Fire Spin, Whirlpool, Wrap, Uproar, Disable. Waiting on other passes: Rapid Spin freeing a bind (Phase 5), Shed Shell, Grip Claw (not in ItemDB), Uproar vs Rest (Rest not in MoveDB).
 
 ## Phase 5: Side conditions and field
 

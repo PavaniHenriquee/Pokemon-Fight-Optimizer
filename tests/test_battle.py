@@ -634,3 +634,193 @@ def test_faster_receiver_fainting_skips_my_leech_seed(make_pokemon, make_battle)
     end_of_turn(arr)
     assert foe[Pok.CURRENT_HP] == 0
     assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP]
+
+
+# ── Phase 4 volatiles ────────────────────────────────────────────────────────
+
+def test_wrap_traps_and_hurts_until_freed(monkeypatch, make_pokemon, make_battle):
+    """3-6 counter, ticking from this turn: 2-5 hits of 1/16, then the target is freed"""
+    _always_hit(monkeypatch)
+    arr = _phase3_battle(make_pokemon, make_battle, ["Wrap", "Growl"], ["Growl"])
+    foe = opp_active(arr)
+    tick = max(1, foe[Pok.MAX_HP] // 16)
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS] & VolStatus.PARTIALLY_TRAPPED
+    assert 2 <= foe[Pok.TRAP_TURNS] <= 5
+    assert foe[Pok.CURRENT_HP] == hp - 1 - tick
+    hits = 1
+    while foe[Pok.VOL_STATUS] & VolStatus.PARTIALLY_TRAPPED:
+        hp = foe[Pok.CURRENT_HP]
+        turn_sim(0, (MOVE, 1), arr)
+        if foe[Pok.VOL_STATUS] & VolStatus.PARTIALLY_TRAPPED:
+            assert foe[Pok.CURRENT_HP] == hp - tick
+            hits += 1
+        else:
+            assert foe[Pok.CURRENT_HP] == hp
+    assert 2 <= hits <= 5
+
+
+def test_wrap_doesnt_refresh_the_bind(monkeypatch, make_pokemon, make_battle):
+    """Hitting a bound target again leaves its counter alone"""
+    _always_hit(monkeypatch)
+    arr = _phase3_battle(make_pokemon, make_battle, ["Wrap"], ["Growl"])
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED
+    foe[Pok.TRAP_TURNS] = 3
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.TRAP_TURNS] == 2
+
+
+def test_bind_ends_when_the_binder_faints(make_pokemon, make_battle):
+    """Freed right away, no damage that turn"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Wrap"], ["Growl"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED
+    foe[Pok.TRAP_TURNS] = 4
+    me[Pok.CURRENT_HP] = 0
+    hp = foe[Pok.CURRENT_HP]
+    end_of_turn(arr)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.PARTIALLY_TRAPPED
+    assert foe[Pok.CURRENT_HP] == hp
+
+
+def test_magic_guard_takes_no_bind_damage(make_pokemon, make_battle):
+    """Magic Guard skips the damage, the counter still runs"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Wrap"])],
+                      [make_pokemon("Abra", 20, "Magic Guard", ["Growl"])])
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED
+    foe[Pok.TRAP_TURNS] = 4
+    hp = foe[Pok.CURRENT_HP]
+    end_of_turn(arr)
+    assert foe[Pok.CURRENT_HP] == hp and foe[Pok.TRAP_TURNS] == 3
+
+
+def test_uproar_locks_3_to_6_turns_and_wakes_the_foe(monkeypatch, make_pokemon, make_battle):
+    """PP only on the first turn, the sleeping foe wakes, the lock ends with the counter"""
+    _always_hit(monkeypatch)
+    arr = _phase3_battle(make_pokemon, make_battle, ["Uproar", "Growl"], ["Growl"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.STATUS] = Status.SLEEP
+    foe[Pok.SLEEP_COUNTER] = 5
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.UPROAR and me[Pok.LOCKED_MOVE] == 0
+    assert foe[Pok.STATUS] == 0
+    turns = 1
+    while me[Pok.VOL_STATUS] & VolStatus.UPROAR:
+        turn_sim(0, (MOVE, 0), arr)
+        turns += 1
+    assert 3 <= turns <= 6 and me[Pok.LOCKED_MOVE] == -1
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+
+
+@pytest.mark.parametrize("outcome, keeps", [
+    (MoveOutcome.MISS, True), (MoveOutcome.PROTECTED, True), (MoveOutcome.INVULNERABLE, False),
+])
+def test_uproar_goes_on_through_a_miss(monkeypatch, make_pokemon, make_battle, outcome, keeps):
+    """A miss or Protect doesn't end the uproar, an immune target does"""
+    _always_hit(monkeypatch)
+    arr = _phase3_battle(make_pokemon, make_battle, ["Uproar"], ["Growl"])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    me[Pok.UPROAR_TURNS] = 3
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: outcome)
+    turn_sim(0, (MOVE, 0), arr)
+    assert bool(me[Pok.VOL_STATUS] & VolStatus.UPROAR) == keeps
+    assert me[Pok.LOCKED_MOVE] == (0 if keeps else -1)
+
+
+def test_yawn_sleep_blocked_by_uproar(poke):
+    """The drowsy Pokemon doesn't fall asleep while someone makes an uproar"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle"])
+    foe = poke("Rattata", 20, "Run Away", ["Uproar"])
+    p[Pok.VOL_STATUS] = VolStatus.YAWN
+    p[Pok.YAWN_TURNS] = 1
+    foe[Pok.VOL_STATUS] = VolStatus.UPROAR
+    battle._yawn(p, foe)  # pylint: disable=protected-access
+    assert p[Pok.STATUS] == 0 and not p[Pok.VOL_STATUS] & VolStatus.YAWN
+
+
+def test_last_move_id_set_and_cleared(make_pokemon, make_battle):
+    """The move that got past the status checks, 0 after a blocked turn"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Growl"], ["Growl"])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.LAST_MOVE_ID] == move_slice(me, 0)[Move.ID]
+    me[Pok.STATUS] = Status.SLEEP
+    me[Pok.SLEEP_COUNTER] = 3
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.LAST_MOVE_ID] == 0
+
+
+def test_encore_forces_the_slower_target_this_turn(make_pokemon, make_battle):
+    """The foe picked Tackle, Encore lands first and it uses its last move (Growl) instead"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Encore"], ["Growl", "Tackle"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.LAST_MOVE_ID] = move_slice(foe, 0)[Move.ID]
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(1, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS] & VolStatus.ENCORE and foe[Pok.ENCORE_TURNS] % 4 == 0
+    assert me[Pok.CURRENT_HP] == hp and me[Pok.ATTACK_STAT_STAGE] == -1
+
+
+@pytest.mark.parametrize("vol, field", [
+    (VolStatus.ENCORE, Pok.ENCORE_TURNS), (VolStatus.DISABLE, Pok.DISABLE_TURNS),
+])
+def test_encore_disable_count_down(make_pokemon, make_battle, vol, field):
+    """One turn less per residual, the slot stays, it ends a turn after reaching 0"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Growl"], ["Tackle", "Growl"])
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS] = vol
+    foe[field] = 1 * 4 + 1
+    end_of_turn(arr)
+    assert foe[Pok.VOL_STATUS] & vol and foe[field] == 1
+    end_of_turn(arr)
+    assert not foe[Pok.VOL_STATUS] & vol and foe[field] == 0
+
+
+def test_encore_ends_when_the_move_runs_out_of_pp(make_pokemon, make_battle):
+    """At the residual, whatever turns were left"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Growl"], ["Tackle", "Growl"])
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.ENCORE
+    foe[Pok.ENCORE_TURNS] = 5 * 4 + 0
+    move_slice(foe, 0)[Move.PP] = 0
+    end_of_turn(arr)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.ENCORE
+
+
+def test_taunt_counts_down(make_pokemon, make_battle):
+    """Gone at the residual where the counter reaches 0"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Growl"], ["Growl"])
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.TAUNT
+    foe[Pok.TAUNT_TURNS] = 2
+    end_of_turn(arr)
+    assert foe[Pok.VOL_STATUS] & VolStatus.TAUNT and foe[Pok.TAUNT_TURNS] == 1
+    end_of_turn(arr)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.TAUNT
+
+
+def test_taunt_stops_a_status_move_picked_before(make_pokemon, make_battle):
+    """The faster foe taunts me, my Growl this turn fails"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Growl"], ["Taunt"], my_level=5,
+                         opp_level=50)
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.TAUNT
+    assert foe[Pok.ATTACK_STAT_STAGE] == 0
+
+
+def test_disable_stops_the_move_this_turn(make_pokemon, make_battle):
+    """The faster foe disables the Tackle I used last turn, my Tackle this turn fails"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle"], ["Disable"], my_level=5,
+                         opp_level=50)
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.LAST_MOVE_ID] = move_slice(me, 0)[Move.ID]
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.DISABLE and me[Pok.DISABLE_TURNS] % 4 == 0
+    assert foe[Pok.CURRENT_HP] == hp

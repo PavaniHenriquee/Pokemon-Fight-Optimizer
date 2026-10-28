@@ -18,8 +18,11 @@ from Models.constants import (
     _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_AQUA_RING, _VOLSTATUS_LEECH_SEED,
     _VOLSTATUS_ATTRACT, _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_YAWN, _VOLSTATUS_CHARGE,
     _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _TYPES_GRASS, _POK_GENDER, _POK_YAWN_TURNS,
-    _GENDER_GENDERLESS
+    _GENDER_GENDERLESS, _VOLSTATUS_TAUNT, _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE, _POK_TAUNT_TURNS,
+    _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _VOLSTATUS_UPROAR, _MOVE_PP,
+    _ABILITYNAMES_SOUNDPROOF, _MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE
 )
+from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from Models.move import CURSE_BOOST
 
 # --- Global Tuples ---
@@ -33,6 +36,11 @@ SET_ONCE_VOLS = (
 # Mud Sport and Water Sport target the field but the volatile goes on the user
 SELF_VOL_TARGETS = TARGET_SELF_SIDE + (Target.ALL,)
 YAWN_DURATION = 2
+# Encore and Disable keep the move slot in the low bits of their counter: turns * SLOT_STEP + slot
+SLOT_STEP = 4
+SLOT_MASK = 3
+# Gen IV Encore fails on these last moves (Transform, Mimic, Sketch aren't in MoveDB)
+ENCORE_FAIL_MOVES = (_MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE)
 
 STAT_MAPPING = (
     (_MOVE_BOOST_ATK, _POK_ATTACK_STAT_STAGE),
@@ -85,6 +93,33 @@ def synchronize_reflect(recipient, applied_status, source):
 
 
 @njit
+def uproar_active(p1, p2):
+    """Either active is making an uproar"""
+    return bool(
+        (p1[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and p1[_POK_CURRENT_HP] > 0)
+        or (p2[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and p2[_POK_CURRENT_HP] > 0)
+    )
+
+
+@njit
+def sleep_blocked(pok, foe):
+    """Nobody falls asleep during an uproar, except a Soundproof Pokemon"""
+    return pok[_POK_AB_ID] != _ABILITYNAMES_SOUNDPROOF and uproar_active(pok, foe)
+
+
+@njit
+def last_move_slot(pok):
+    """Slot of the move the Pokemon used last, -1 if none or it isn't one of its moves (Struggle)"""
+    last = pok[_POK_LAST_MOVE_ID]
+    if last == 0:
+        return -1
+    for i in range(4):
+        if pok[OFFSET_MOVE + i * MOVE_STRIDE + _MOVE_ID] == last:
+            return i
+    return -1
+
+
+@njit
 def apply_status(move, pok, weather, source, sec=False):
     """Apply non-volatile status effects."""
     # Gen 4: Cannot apply a new status if one already exists
@@ -107,6 +142,8 @@ def apply_status(move, pok, weather, source, sec=False):
         return
 
     if m_status == _STATUS_FREEZE and weather == _WEATHER_SUN:
+        return
+    if m_status == _STATUS_SLEEP and sleep_blocked(pok, source):
         return
 
     pok[_POK_STATUS] = m_status
@@ -212,6 +249,34 @@ def vol_status(move, pok, source, sec=False):
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN and pok[_POK_STATUS] == 0:
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_YAWN
             pok[_POK_YAWN_TURNS] = YAWN_DURATION
+
+    # Gen IV: 3-5 turns, counting down from the end of this turn
+    if v_status & _VOLSTATUS_TAUNT:
+        if not pok[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT:
+            pok[_POK_VOL_STATUS] |= _VOLSTATUS_TAUNT
+            pok[_POK_TAUNT_TURNS] = random.randint(3, 5)
+
+    # Both lock onto the target's last move, which needs PP left. Encore 3-7 turns, Disable 3-6
+    if v_status & _VOLSTATUS_ENCORE:
+        slot = last_move_slot(pok)
+        if (
+            not pok[_POK_VOL_STATUS] & _VOLSTATUS_ENCORE
+            and slot >= 0
+            and pok[_POK_LAST_MOVE_ID] not in ENCORE_FAIL_MOVES
+            and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_PP] > 0
+        ):
+            pok[_POK_VOL_STATUS] |= _VOLSTATUS_ENCORE
+            pok[_POK_ENCORE_TURNS] = random.randint(3, 7) * SLOT_STEP + slot
+
+    if v_status & _VOLSTATUS_DISABLE:
+        slot = last_move_slot(pok)
+        if (
+            not pok[_POK_VOL_STATUS] & _VOLSTATUS_DISABLE
+            and slot >= 0
+            and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_PP] > 0
+        ):
+            pok[_POK_VOL_STATUS] |= _VOLSTATUS_DISABLE
+            pok[_POK_DISABLE_TURNS] = random.randint(3, 6) * SLOT_STEP + slot
 
 
 @njit

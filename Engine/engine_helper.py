@@ -3,7 +3,7 @@ import random
 import numpy as np
 from Utils.jit import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
-from Engine.status_calc import  freeze, paralysis, synchronize_reflect
+from Engine.status_calc import  freeze, paralysis, synchronize_reflect, sleep_blocked, SLOT_MASK
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types
 )
@@ -40,7 +40,9 @@ from Models.constants import (
     _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _POK_CONSUMED_ITEM, _MOVE_POWER,
     _MOVEOUTCOME_PROTECTED, _VOLSTATUS_PROTECT, _VOLSTATUS_ENDURE, _VOLSTATUS_FORESIGHT,
     _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_ATTRACT, _FLAGS_PROTECT, _POK_PROTECT_COUNT,
-    _POK_YAWN_TURNS, _MOVENAME_PROTECT
+    _POK_YAWN_TURNS, _MOVENAME_PROTECT, _VOLSTATUS_UPROAR, _POK_UPROAR_TURNS, _VOLSTATUS_TAUNT,
+    _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE, _VOLSTATUS_PARTIALLY_TRAPPED, _POK_TRAP_TURNS,
+    _POK_TAUNT_TURNS, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _MOVECATEGORY_STATUS
 )
 
 
@@ -66,15 +68,31 @@ def mark_hurt(pok):
 def unlock_move(pok):
     """
     Ends a lock (Rollout, Ice Ball), a charge (Bounce) and the Fury Cutter/Rollout counter when
-    the move doesn't go through. Bide keeps its own pause rule
+    the move doesn't go through. Bide keeps its own pause rule. Uproar ends at this turn's residual
     """
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         return
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR:
+        pok[_POK_UPROAR_TURNS] = 1
     if pok[_POK_CHARGE_RECHARGE] > 0:
         pok[_POK_CHARGE_RECHARGE] = 0
     pok[_POK_LOCKED_MOVE] = -1
     pok[_POK_CONSEC_COUNT] = 0
     pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_SEMI_INVULNERABLE
+
+
+@njit
+def move_blocked(pok, slot):
+    """Disable, Encore or Taunt keep this move slot from being selected (PP is checked apart)"""
+    vol = pok[_POK_VOL_STATUS]
+    if vol & _VOLSTATUS_DISABLE and slot == pok[_POK_DISABLE_TURNS] & SLOT_MASK:
+        return True
+    if vol & _VOLSTATUS_ENCORE and slot != pok[_POK_ENCORE_TURNS] & SLOT_MASK:
+        return True
+    return bool(
+        vol & _VOLSTATUS_TAUNT
+        and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_CATEGORY] == _MOVECATEGORY_STATUS
+    )
 
 
 @njit
@@ -390,6 +408,12 @@ def reset_switch_out(pok):
     pok[_POK_CONSEC_COUNT] = 0
     pok[_POK_PROTECT_COUNT] = 0
     pok[_POK_YAWN_TURNS] = 0
+    pok[_POK_TRAP_TURNS] = 0
+    pok[_POK_TAUNT_TURNS] = 0
+    pok[_POK_ENCORE_TURNS] = 0
+    pok[_POK_DISABLE_TURNS] = 0
+    pok[_POK_UPROAR_TURNS] = 0
+    pok[_POK_LAST_MOVE_ID] = 0
 
 
 @njit
@@ -399,6 +423,8 @@ def switch_in(attacker, defender):
     """
     # The foe's infatuation was with the Pokemon that just left
     defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_ATTRACT
+    # and so was the bind
+    defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_PARTIALLY_TRAPPED
     # TODO: Hazards damage(needs to put item on rdmg), take in consideration that the pokemon needs to
     # be alive to activiate the ability so before the ability do something like
     # if attacker[_POK_CURRENT_HP] > 0:
@@ -485,6 +511,8 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
     Sleep:     10
     Freeze:    10
     Flinch:    8
+    Disable:   7
+    Taunt:     5
     Confusion: 3
     Attract:   2
     Paralysis: 1
@@ -495,6 +523,10 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
     Destiny Bond ends as soon as the user tries to move again, even if the turn is blocked.
     """
     attacker[_POK_VOL_STATUS] &= ~_VOLSTATUS_DESTINY_BOND
+    # A sleeping Pokemon wakes up when it tries to move during an uproar
+    if attacker[_POK_STATUS] == _STATUS_SLEEP and sleep_blocked(attacker, defender):
+        attacker[_POK_STATUS] = 0
+        attacker[_POK_SLEEP_COUNTER] = 0
     atker_status = attacker[_POK_STATUS]
     # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
     if atker_status == _STATUS_SLEEP:
@@ -518,6 +550,18 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
         unlock_move(attacker)
         if attacker[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
             attacker[_POK_SPEED_STAT_STAGE] = min(6, attacker[_POK_SPEED_STAT_STAGE] + 1)
+        return True
+    # Disable and Taunt, a move picked before they landed fails
+    if (
+        attacker[_POK_VOL_STATUS] & _VOLSTATUS_DISABLE
+        and move[_MOVE_ID] == attacker[
+            OFFSET_MOVE + (attacker[_POK_DISABLE_TURNS] & SLOT_MASK) * MOVE_STRIDE + _MOVE_ID
+        ]
+    ):
+        unlock_move(attacker)
+        return True
+    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT and move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
+        unlock_move(attacker)
         return True
     # Confusion
     if attacker[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:

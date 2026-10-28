@@ -2,6 +2,7 @@
 import random
 import numpy as np
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
+from Engine.engine_helper import move_blocked
 from Utils.jit import njit
 from Utils.helper import (
     get_type_effectiveness, batch_independent_score_from_rand
@@ -21,7 +22,7 @@ from Models.constants import (
     _FIELD_AI_ITEM4, _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
     _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE,
     _MOVENAME_MAGNITUDE, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL,
-    _POK_VOL_STATUS, _VOLSTATUS_INGRAIN
+    _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _VOLSTATUS_PARTIALLY_TRAPPED
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -204,7 +205,8 @@ def choose_move(battle_array):
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
     # pokeplatinum TrainerAI_ShouldSwitch skips every withdraw check when Ingrain roots the active
-    can_switch = not ai_pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN
+    # or a bind traps it
+    can_switch = not ai_pok[_POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED)
     # Withdraw 5 - The active Pokémon is asleep and has the ability Natural Cure
     if (
         can_switch
@@ -258,6 +260,9 @@ def choose_move(battle_array):
 
         move_pp = move[_MOVE_PP]
         if move_pp < 1:
+            continue
+        # Disable, Encore and Taunt make the move invalid, scored like a move without PP
+        if move_blocked(ai_pok, i):
             continue
         move = ai_move_view(move, ai_pok, user_pok)
 

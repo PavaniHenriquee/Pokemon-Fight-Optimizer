@@ -10,11 +10,13 @@ from Models.idx_const import (
 from Models.constants import (
     _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
-    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _VOLSTATUS_INGRAIN
+    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _VOLSTATUS_INGRAIN,
+    _VOLSTATUS_PARTIALLY_TRAPPED
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action
+from Engine.engine_helper import move_blocked
 from Utils.jit import njit
 
 
@@ -50,13 +52,16 @@ def valid_action_mask(battle_array):
         for i in range(4):
             if battle_array[base + _MOVE_ID_IDXS[i]] == 0:
                 break
-            if battle_array[base + _MOVE_PP_IDXS[i]] > 0:
+            if (
+                battle_array[base + _MOVE_PP_IDXS[i]] > 0
+                and not move_blocked(battle_array[base:base + POK_LEN], i)
+            ):
                 mask |= 1 << i
                 usable = True
         if not usable:
             mask |= 1 << 4
-        # Ingrain roots the active, no switching out
-        if battle_array[base + _POK_VOL_STATUS] & _VOLSTATUS_INGRAIN:
+        # Ingrain roots the active and a bind traps it, no switching out
+        if battle_array[base + _POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED):
             return mask
     for i in range(6):
         if i != my_active and battle_array[i * POK_LEN + _POK_CURRENT_HP] > 0:

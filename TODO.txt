@@ -134,7 +134,7 @@
 [X]Barrier *
 []Baton Pass(B/E) ! *
 [X]Bide(E) !
-[]Bind(E) ! *
+[X]Bind(E) ! *
 [X]Bite
 [X]Bone Club
 [X]Bounce(E) ! *
@@ -147,7 +147,7 @@
 [X]Bullet Seed
 [X]Charge ! *
 [X]Charm
-[]Clamp(E) ! *
+[X]Clamp(E) ! *
 [X]Comet Punch *
 [X]Confuse Ray !
 [X]Confusion
@@ -165,7 +165,7 @@
 [X]Dragon Rage !
 [X]Draining Kiss *
 [X]Ember
-[]Encore(B/E) ! *
+[X]Encore(B/E) ! *
 [X]Endure(E) ! *
 [X]Extrasensory *
 [X]Extreme Speed *
@@ -175,7 +175,7 @@
 [X]Feint Attack(E) *
 [X]Fire Fang *
 [X]Fire Punch
-[]Fire Spin(E) ! *
+[X]Fire Spin(E) ! *
 [X]Flail(E) !
 [X]Flame Wheel *
 [X]Flash *
@@ -288,7 +288,7 @@
 [X]Tackle
 [X]Tail Whip
 [X]Take Down(E) *
-[]Taunt !
+[X]Taunt !
 []Teleport(B) *
 [X]Thunder Punch
 [X]Thunder Shock *
@@ -296,19 +296,19 @@
 [X]Tickle(B) *
 []Toxic Spikes(B/E) ! *
 [X]Twineedle *
-[]Uproar !
+[X]Uproar !
 [X]Vice Grip *
 [X]Vine Whip
 [X]Water Gun *
 [X]Water Pulse
 [X]Water Sport(B/E) !
-[]Whirlpool ! *
+[X]Whirlpool ! *
 []Whirlwind(B/E) *
 [X]Will-O-Wisp *
 [X]Wing Attack
 [X]Withdraw
 []Worry Seed(B/E) ! *
-[]Wrap(E) !
+[X]Wrap(E) !
 [X]Yawn ! *
 [X]Zen Headbutt
 
@@ -329,7 +329,7 @@
 []Defog(B/E)
 []Detect(E)
 []Dig ! *
-[]Disable(B/E)
+[X]Disable(B/E)
 []Doom Desire(B)
 []Dragon Dance(B/E) *
 []Dream Eater ! *

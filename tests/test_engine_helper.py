@@ -6,7 +6,7 @@ from Engine.engine_helper import (
     check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     switch_in, trainer_ai_items, eat_berry, drain, weather_dmg, early_returns, struggle,
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
-    natural_gift, try_protect, endure_damage,
+    natural_gift, try_protect, endure_damage, move_blocked,
 )
 from DataBase.MoveDB import MoveName
 from Models.idx_const import Pok, Move, Item, Sec
@@ -713,3 +713,76 @@ def test_reset_switch_out_clears_phase3_counters(poke):
     p[Pok.VOL_STATUS] = VolStatus.INGRAIN | VolStatus.YAWN
     reset_switch_out(p)
     assert p[Pok.PROTECT_COUNT] == p[Pok.YAWN_TURNS] == p[Pok.VOL_STATUS] == 0
+
+
+# ── Phase 4 volatiles ────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("vol, field, packed, blocked", [
+    (VolStatus.DISABLE, Pok.DISABLE_TURNS, 3 * 4 + 1, [False, True, False]),
+    (VolStatus.ENCORE, Pok.ENCORE_TURNS, 3 * 4 + 1, [True, False, True]),
+    (VolStatus.TAUNT, Pok.TAUNT_TURNS, 3, [False, True, False]),
+])
+def test_move_blocked(poke, vol, field, packed, blocked):
+    """Disable blocks its slot, Encore every other slot, Taunt the status moves (Growl)"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle", "Growl", "Quick Attack"])
+    assert [move_blocked(p, i) for i in range(3)] == [False] * 3
+    p[Pok.VOL_STATUS] = vol
+    p[field] = packed
+    assert [move_blocked(p, i) for i in range(3)] == blocked
+
+
+@pytest.mark.parametrize("vol, field, packed, slot, blocked", [
+    (VolStatus.DISABLE, Pok.DISABLE_TURNS, 3 * 4 + 0, 0, True),
+    (VolStatus.DISABLE, Pok.DISABLE_TURNS, 3 * 4 + 0, 1, False),
+    (VolStatus.TAUNT, Pok.TAUNT_TURNS, 3, 1, True),
+    (VolStatus.TAUNT, Pok.TAUNT_TURNS, 3, 0, False),
+])
+def test_disable_and_taunt_stop_a_move_picked_before(poke, vol, field, packed, slot, blocked):
+    """A move chosen before Disable/Taunt landed fails when the Pokemon tries it"""
+    a = poke("Rattata", 20, "Run Away", ["Tackle", "Growl"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    a[Pok.VOL_STATUS] = vol
+    a[field] = packed
+    assert early_returns(a, d, 1, False, move_slice(a, slot)) == blocked
+
+
+@pytest.mark.parametrize("ability, wakes", [("Run Away", True), ("Soundproof", False)])
+def test_sleeper_wakes_when_moving_during_uproar(poke, ability, wakes):
+    """During an uproar a sleeping Pokemon wakes up as it tries to move, unless Soundproof"""
+    a = poke("Rattata", 20, ability, ["Tackle"])
+    d = poke("Rattata", 20, "Run Away", ["Uproar"])
+    a[Pok.STATUS] = Status.SLEEP
+    a[Pok.SLEEP_COUNTER] = 3
+    d[Pok.VOL_STATUS] = VolStatus.UPROAR
+    assert early_returns(a, d, 1, False, move_slice(a, 0)) != wakes
+    assert (a[Pok.STATUS] == 0) == wakes
+
+
+def test_blocked_turn_ends_uproar_at_the_residual(poke):
+    """unlock_move frees the lock and leaves the uproar one last tick"""
+    p = poke("Rattata", 20, "Run Away", ["Uproar"])
+    p[Pok.VOL_STATUS] = VolStatus.UPROAR
+    p[Pok.UPROAR_TURNS] = 4
+    p[Pok.LOCKED_MOVE] = 0
+    unlock_move(p)
+    assert (p[Pok.UPROAR_TURNS], p[Pok.LOCKED_MOVE]) == (1, -1)
+
+
+def test_switch_in_frees_the_foe_from_the_bind(poke):
+    """The bind ends when the binder leaves, other volatiles stay"""
+    new = poke("Rattata", 20, "Run Away", ["Tackle"])
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    foe[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED | VolStatus.CONFUSION
+    switch_in(new, foe)
+    assert foe[Pok.VOL_STATUS] == VolStatus.CONFUSION
+
+
+def test_switch_out_clears_phase4_counters(poke):
+    """Every Phase 4 counter and the last move reset on switch out"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle"])
+    fields = (Pok.TRAP_TURNS, Pok.TAUNT_TURNS, Pok.ENCORE_TURNS, Pok.DISABLE_TURNS,
+              Pok.UPROAR_TURNS, Pok.LAST_MOVE_ID)
+    for f in fields:
+        p[f] = 5
+    reset_switch_out(p)
+    assert all(p[f] == 0 for f in fields)
