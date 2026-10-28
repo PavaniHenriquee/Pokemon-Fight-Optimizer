@@ -5,9 +5,9 @@ import pytest
 from Models import trainer_ai_helper as ai
 from Models.trainer_ai import return_idx
 from Models.idx_const import Pok, Move
-from Models.helper import VolStatus, Status, Types, Enemy_AI_Knows
+from Models.helper import VolStatus, Status, Types, Enemy_AI_Knows, SideCondition, Weather
 from DataBase.AbilitiesDB import AbilityNames
-from battle_driver import move_slice, pok_slice
+from battle_driver import move_slice, pok_slice, _p
 
 # Status moves that carry both a volatile and a stat boost are the tricky ones
 ROUTING = [
@@ -642,3 +642,158 @@ def test_bound_ai_never_switches(make_pokemon, make_battle):
     arr = make_battle([me], opp)
     pok_slice(arr, 0, opp=True)[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED
     assert all(return_idx(arr) in (0, 1) for _ in range(30))
+
+
+# ── Phase 5 side conditions and weather ──────────────────────────────────────
+
+SC = SideCondition
+
+
+def poke_np(*args):
+    """Pokemon array outside a fixture, for the parametrized Basic table"""
+    return _p(*args).to_np()
+
+
+def _basic_field(move, ai_side=0, user_side=0, tspikes=0, bench=1, weather=0,
+                 ai_ability="Run Away", user_ability="Sturdy", user_status=0):
+    ai_pok = poke_np("Rattata", 20, ai_ability, [move])
+    user = poke_np("Geodude", 20, user_ability, ["Tackle"])
+    user[Pok.STATUS] = user_status
+    ability = getattr(AbilityNames, user_ability.upper().replace(" ", "_"))
+    return ai.basic_flag(
+        move_slice(ai_pok, 0), ability, ai_pok, user, 1.0, weather, ai_side, user_side,
+        tspikes, bench
+    )
+
+
+@pytest.mark.parametrize("move, kwargs, expected", [
+    ("Reflect", {}, 0),
+    ("Reflect", {"ai_side": SC.REFLECT}, -8),
+    ("Light Screen", {"ai_side": SC.LIGHT_SCREEN}, -8),
+    ("Light Screen", {"ai_side": SC.REFLECT}, 0),
+    ("Mist", {"ai_side": SC.MIST}, -8),
+    ("Safeguard", {"ai_side": SC.SAFEGUARD}, -8),
+    ("Lucky Chant", {"ai_side": SC.LUCKY_CHANT}, -10),
+    ("Toxic Spikes", {"tspikes": 1}, 0),
+    ("Toxic Spikes", {"tspikes": 2}, -10),
+    ("Toxic Spikes", {"bench": 0}, -10),
+    ("Stealth Rock", {}, 0),
+    ("Stealth Rock", {"user_side": SC.STEALTH_ROCK}, -10),
+    ("Stealth Rock", {"bench": 0}, -10),
+    ("Sandstorm", {"weather": Weather.SANDSTORM}, -8),
+    ("Sandstorm", {"weather": Weather.RAIN}, 0),
+    ("Rain Dance", {"weather": Weather.RAIN}, -8),
+    ("Rain Dance", {"user_ability": "Hydration", "user_status": Status.BURN}, -8),
+    ("Rain Dance", {"user_ability": "Hydration", "user_status": Status.BURN,
+                    "ai_ability": "Swift Swim"}, 0),
+])
+def test_basic_side_and_weather_moves(move, kwargs, expected):
+    """pokeplatinum Basic checks for screens, Mist, Safeguard, Lucky Chant, hazards, weather"""
+    assert _basic_field(move, **kwargs) == expected
+
+
+@pytest.mark.parametrize("move", ["Stun Spore", "Confuse Ray", "Will-O-Wisp", "Hypnosis"])
+def test_basic_safeguard_blocks_status_moves(move):
+    """Safeguard on the target's side scores status and confusion moves -10"""
+    assert _basic_field(move) != -10
+    assert _basic_field(move, user_side=SC.SAFEGUARD) == -10
+
+
+def _expert_field(ai_pok, user, my_last_move=0, ai_know=0, user_side=0, weather=0):
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, weather, my_last_move, 1.0, 0,
+        ai_know, user_side
+    )
+    queued = [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+    return score, queued
+
+
+@pytest.mark.parametrize("move, hp_pct, expected", [
+    ("Reflect", 40, (-2, [])),
+    ("Reflect", 100, (0, [(1, 128), (1, 192)])),    # no move yet counts as Physical
+    ("Reflect", 70, (0, [(1, 192)])),
+    ("Light Screen", 100, (0, [(1, 128)])),
+])
+def test_expert_screens(poke, move, hp_pct, expected):
+    """pokeplatinum Expert_Reflect / Expert_LightScreen"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * hp_pct // 100
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert_field(ai_pok, user) == expected
+
+
+def test_expert_light_screen_after_a_special_move(poke):
+    """The target's last move was special: 75% of +1"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Light Screen"])
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * 70 // 100
+    user = poke("Charmander", 20, "Blaze", ["Ember"])
+    last = move_slice(user, 0)[Move.ID]
+    assert _expert_field(ai_pok, user, my_last_move=last) == (0, [(1, 192)])
+
+
+@pytest.mark.parametrize("user_side, expected", [(0, 0), (SC.REFLECT, 1), (SC.LIGHT_SCREEN, 1)])
+def test_expert_brick_break(poke, user_side, expected):
+    """+1 when the target's side has a screen"""
+    ai_pok = poke("Machop", 20, "Guts", ["Brick Break"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert_field(ai_pok, user, user_side=user_side) == (expected, [])
+
+
+def test_expert_lucky_chant(poke):
+    """-1 under 70% HP, +1 after seeing a high crit move, else 25% of +1"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Lucky Chant"])
+    user = poke("Machop", 20, "Guts", ["Tackle", "Karate Chop"])
+    assert _expert_field(ai_pok, user) == (0, [(1, 64)])
+    assert _expert_field(ai_pok, user, ai_know=Enemy_AI_Knows.MOVE2) == (1, [])
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] // 2
+    assert _expert_field(ai_pok, user) == (-1, [])
+
+
+@pytest.mark.parametrize("move", ["Stealth Rock", "Toxic Spikes"])
+@pytest.mark.parametrize("skip, roar, expected", [
+    (1, False, (0, [])),
+    (0, False, (1, [])),
+    (0, True, (1, [(1, 192)])),
+])
+def test_expert_hazards(monkeypatch, poke, move, skip, roar, expected):
+    """50% to skip, else +1 and 75% of another +1 with Roar or Whirlwind"""
+    moves = [move, "Roar"] if roar else [move]
+    ai_pok = poke("Geodude", 20, "Sturdy", moves)
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    monkeypatch.setattr(ai.random, "getrandbits", lambda k: skip)
+    assert _expert_field(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("ai_level, ai_ability, hp_pct, weather, expected", [
+    (10, "Swift Swim", 100, 0, 1),                 # slower with Swift Swim
+    (60, "Swift Swim", 100, 0, 0),
+    (60, "Rain Dish", 30, 0, -1),
+    (60, "Run Away", 100, Weather.SANDSTORM, 1),
+    (60, "Rain Dish", 100, 0, 1),
+])
+def test_expert_rain_dance(poke, ai_level, ai_ability, hp_pct, weather, expected):
+    """pokeplatinum Expert_RainDance"""
+    ai_pok = poke("Lotad", ai_level, ai_ability, ["Rain Dance"])
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * hp_pct // 100
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert_field(ai_pok, user, weather=weather) == (expected, [])
+
+
+@pytest.mark.parametrize("move", ["Mist", "Safeguard", "Sandstorm"])
+def test_expert_side_moves_without_a_check(poke, move):
+    """No Expert script, and not the always-hit branch either"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert_field(ai_pok, user) == (0, [])
+
+
+@pytest.mark.parametrize("target, ability, expected", [
+    ("Geodude", "Sturdy", False), ("Steelix", "Sturdy", True), ("Zubat", "Inner Focus", True),
+])
+def test_basic_poison_only_fails_on_steel_and_poison(target, ability, expected):
+    """pokeplatinum Basic poison check: -10 into Steel or Poison types, not the others"""
+    ai_pok = poke_np("Rattata", 20, "Run Away", ["Poison Powder"])
+    user = poke_np(target, 20, ability, ["Tackle"])
+    ab = getattr(AbilityNames, ability.upper().replace(" ", "_"))
+    assert ai.basic_move_status(move_slice(ai_pok, 0), ab, user, ai_pok, 0) == expected

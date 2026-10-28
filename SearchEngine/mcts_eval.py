@@ -4,13 +4,14 @@ import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
 from Models.idx_const import(
-    Pok, POK_LEN, OFFSET_MOVE, MOVE_STRIDE
+    Pok, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, SIDE_TOXIC_SPIKES
 )
 from Models.constants import (
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_SPEED, _MOVE_TYPE, _ACTIONTYPE_MOVE, _MOVECATEGORY_STATUS, _MOVE_CATEGORY,
     _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE, _FIELD_TURN, _FIELD_PHASE,
-    _BATTLEPHASE_DEATH_END_OF_TURN
+    _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _MOVE_ID,
+    _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_TOXIC_SPIKES
 )
 from Models.helper import count_party, count_Id
 from Models.trainer_ai_helper import check_immunity_pty, check_resistance_pty
@@ -18,6 +19,7 @@ from Models.trainer_ai import return_idx
 from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage
 from Engine.engine_helper import calculate_crit, struggle
+from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
 
 
 @njit
@@ -105,6 +107,20 @@ def _weighted_choice(act_types, act_idxs, weights, n):
     return act_types[n - 1], act_idxs[n - 1]  # safety fallback
 
 
+@njit
+def field_move_fails(move, battle_array):
+    """My side or weather move that would do nothing: already up, Toxic Spikes at max layers,
+    or the same weather"""
+    cond = move[_MOVE_SIDE_CONDITION]
+    if cond:
+        side = _FIELD_OPP_SIDE_COND if move[_MOVE_TARGET] == FOE_SIDE_TARGET else _FIELD_MY_SIDE_COND
+        if cond == _SIDECONDITION_TOXIC_SPIKES:
+            return battle_array[side + SIDE_TOXIC_SPIKES] >= TOXIC_SPIKES_MAX
+        return (battle_array[side] & cond) != 0
+    move_weather = _move_weather(move[_MOVE_ID])
+    return move_weather != 0 and move_weather == battle_array[_FIELD_WEATHER]
+
+
 IMNTY = np.full(6,-1, dtype=np.int16)
 RES   = np.full(6,-1, dtype=np.int16)
 
@@ -126,6 +142,8 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
     ]
     my_pty = battle_array[0:(6 * POK_LEN)]
     weather = battle_array[_FIELD_WEATHER]
+    my_side = battle_array[_FIELD_MY_SIDE_COND]
+    opp_side = battle_array[_FIELD_OPP_SIDE_COND]
     imnty = IMNTY.copy()
     res = RES.copy()
     # Arbitrary number to accommodate when i died and need to switch, so AI don't have an action
@@ -134,14 +152,17 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
 
     if opp_choice != 10 and opp_choice>=0:  # Struggle
         o_move = o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE]
-        o_dmg = calculate_damage(o_pok, c_pok, o_move, weather, calculate_crit(o_pok, c_pok, o_move))
+        o_dmg = calculate_damage(
+            o_pok, c_pok, o_move, weather, calculate_crit(o_pok, c_pok, o_move, my_side), None,
+            my_side
+        )
         o_mv_type = o_move[_MOVE_TYPE]
         imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx)
         res   = check_resistance_pty(my_pty, o_pok, o_mv_type, my_idx)
     elif opp_choice < 0:  # Switch or potion
         o_dmg = 0
     else:
-        o_dmg = struggle(o_pok, c_pok, rec=False)
+        o_dmg = struggle(o_pok, c_pok, False, my_side)
     opp_hp_ratio = o_pok[_POK_CURRENT_HP] * 4 // o_pok[_POK_MAX_HP]
     faster = c_pok[_POK_SPEED] > o_pok[_POK_SPEED]
     can_survive = o_dmg < c_pok[_POK_CURRENT_HP]
@@ -163,8 +184,9 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
             cat = move[_MOVE_CATEGORY]
 
             if cat == _MOVECATEGORY_STATUS:
-                # Status moves: give a small base weight so they're not excluded
-                weight = 1
+                # Status moves: give a small base weight so they're not excluded,
+                # unless it's a side or weather move that would fail
+                weight = 0 if field_move_fails(move, battle_array) else 1
 
             else:
                 # Cheap type effectiveness first — no damage calc
@@ -187,7 +209,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                     )
 
                     if likely_strong:
-                        dmg = calculate_damage(c_pok, o_pok, move, weather)
+                        dmg = calculate_damage(c_pok, o_pok, move, weather, False, None, opp_side)
                         if dmg >= o_pok[_POK_CURRENT_HP] and (faster or can_survive):
                             weight = 100  # KO when safe to do so
                         elif eff_ratio == 4:

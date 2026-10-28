@@ -243,3 +243,10 @@ class Field:
 
 # Last one minus first one +1 because idx 0
 FIELD_LEN = Field.AI_KNOWS - Field.MY_POK + 1
+# Per-side slots relative to that side's SIDE_COND, both sides share the layout
+SIDE_REFLECT_TURNS      = Field.MY_REFLECT_TURNS - Field.MY_SIDE_COND
+SIDE_LIGHT_SCREEN_TURNS = Field.MY_LIGHT_SCREEN_TURNS - Field.MY_SIDE_COND
+SIDE_MIST_TURNS         = Field.MY_MIST_TURNS - Field.MY_SIDE_COND
+SIDE_SAFEGUARD_TURNS    = Field.MY_SAFEGUARD_TURNS - Field.MY_SIDE_COND
+SIDE_LUCKY_CHANT_TURNS  = Field.MY_LUCKY_CHANT_TURNS - Field.MY_SIDE_COND
+SIDE_TOXIC_SPIKES       = Field.MY_TOXIC_SPIKES - Field.MY_SIDE_COND

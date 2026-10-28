@@ -21,7 +21,8 @@ from Models.constants import (
     _POK_VOL_STATUS, _VOLSTATUS_DEFENSE_CURL, _VOLSTATUS_HURT_THIS_TURN,
     _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_CHARGE,
     _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_GHOST,
-    _TYPES_GROUND, _TYPES_FLYING, _TYPES_ELECTRIC,
+    _TYPES_GROUND, _TYPES_FLYING, _TYPES_ELECTRIC, _MOVECATEGORY_SPECIAL, _MOVENAME_BRICK_BREAK,
+    _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN,
 )
 
 # ==========================================
@@ -190,11 +191,27 @@ def base_power_ability(attacker, move) -> float:
 
 
 @njit
+def screen_damage(category, move_id, def_side, crit, damage):
+    """
+    Reflect halves physical and Light Screen special damage in singles. A crit and Brick Break
+    go through them (pokeplatinum BattleSystem_CalcDamage)
+    """
+    if crit or move_id == _MOVENAME_BRICK_BREAK:
+        return damage
+    if (
+        (category == _MOVECATEGORY_PHYSICAL and def_side & _SIDECONDITION_REFLECT)
+        or (category == _MOVECATEGORY_SPECIAL and def_side & _SIDECONDITION_LIGHT_SCREEN)
+    ):
+        return damage // 2
+    return damage
+
+
+@njit
 def multipliers(
         move: np.ndarray, attacker: np.ndarray, defender: np.ndarray,
-        weather:int, crit: bool, roll_mult: int, damage: int
+        weather:int, crit: bool, roll_mult: int, damage: int, def_side: int=0
 ) -> int:
-    """Calc multipliers for base formula damage"""
+    """Calc multipliers for base formula damage, def_side is the defender's Field.SIDE_COND"""
     m_type = move[_MOVE_TYPE]
     atk_type1 = attacker[_POK_TYPE1]
     atk_type2 = attacker[_POK_TYPE2]
@@ -208,7 +225,7 @@ def multipliers(
         ):
             damage //= 2
 
-    # TODO: Screen
+    damage = screen_damage(move[_MOVE_CATEGORY], move[_MOVE_ID], def_side, crit, damage)
 
     # TODO: Targets
 
@@ -338,6 +355,8 @@ def variable_power(attacker, defender, move):
         return power
     if move_id == _MOVENAME_ASSURANCE and defender[_POK_VOL_STATUS] & _VOLSTATUS_HURT_THIS_TURN:
         return power * 2
+    # TODO: since bounce is the only Semi_invulnerable right now this is fine, but needs fix for
+    # Moves like dig and phantom force
     if move_id == _MOVENAME_GUST and defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE:
         return power * 2
     return power
@@ -370,7 +389,7 @@ def sport_power(attacker, defender, move, power):
 @njit
 def calculate_damage(
         attacker: np.ndarray, defender: np.ndarray, move: np.ndarray,
-        weather: int=0, crit: bool=False, roll_multiplier: int=None,
+        weather: int=0, crit: bool=False, roll_multiplier: int=None, def_side: int=0,
 ) -> int:
     """Standard damage calculation"""
 
@@ -390,7 +409,7 @@ def calculate_damage(
     # Base damage formula
     damage = (((2 * level / 5) + 2) * power * (attack / defense)) // 50
 
-    return multipliers(move, attacker, defender, weather, crit, roll_multiplier, damage)
+    return multipliers(move, attacker, defender, weather, crit, roll_multiplier, damage, def_side)
 
 
 @njit
@@ -430,7 +449,7 @@ def calculate_damage_confusion(pok):
 
 
 @njit
-def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather):
+def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather, def_side=0):
     """
     AI calculates damages from its damage a little different, so here i do it
     like it is in the games
@@ -455,7 +474,7 @@ def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather):
         if move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL:
             damage //= 2
 
-    # TODO: Screen
+    damage = screen_damage(move[_MOVE_CATEGORY], move[_MOVE_ID], def_side, False, damage)
 
     # TODO: Targets
 

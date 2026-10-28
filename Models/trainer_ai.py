@@ -22,7 +22,8 @@ from Models.constants import (
     _FIELD_AI_ITEM4, _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
     _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE,
     _MOVENAME_MAGNITUDE, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL,
-    _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _VOLSTATUS_PARTIALLY_TRAPPED
+    _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_MY_SIDE_COND,
+    _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -49,9 +50,10 @@ MOVE_EXCEP = (
 
 
 @njit
-def sub_after_death(ai_party, user_pok, deadmon):
+def sub_after_death(ai_party, user_pok, deadmon, user_side=0, weather=0):
     """
-    Implements the switch-in logic
+    Implements the switch-in logic. user_side is user_pok's Field.SIDE_COND, its screens and the
+    weather count in the damage (pokeplatinum BattleAI_PostKOSwitchIn)
 
     Phase 1:
     --------
@@ -134,7 +136,7 @@ def sub_after_death(ai_party, user_pok, deadmon):
                 break
             if mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
                 continue
-            raw_dmg = calculate_damage(deadmon, user_pok, mv, 0, False, 1)
+            raw_dmg = calculate_damage(deadmon, user_pok, mv, weather, False, 1, user_side)
             #overflow bug:
             dmg = raw_dmg - 255 if raw_dmg > 255 else raw_dmg
             dmg = min(dmg, user_hp)
@@ -201,6 +203,11 @@ def choose_move(battle_array):
     took_dmg = battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN]
     ai_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
     ai_items= battle_array[_FIELD_AI_ITEM1:(_FIELD_AI_ITEM4+1)]
+    ai_side = battle_array[_FIELD_OPP_SIDE_COND]
+    user_side = battle_array[_FIELD_MY_SIDE_COND]
+    user_tspikes = battle_array[_FIELD_MY_TOXIC_SPIKES]
+    # The target's living party besides the active (pokeplatinum CountAlivePartyBattlers)
+    user_bench = count_party(battle_array[0:(6 * POK_LEN)]) - 1
     # TODO: 1. Perish Song about to hit 0
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
@@ -215,7 +222,7 @@ def choose_move(battle_array):
         and ai_pok[_POK_CURRENT_HP]/ai_pok[_POK_MAX_HP] >= 0.50
     ):
         if not took_dmg and random.getrandbits(1):
-            sub = sub_after_death(ai_pty, user_pok, ai_pok)
+            sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather)
             if sub == opp_active:
                 pass
             else:
@@ -231,7 +238,7 @@ def choose_move(battle_array):
                 _evaluated_moves[0] = [res[0]-6,0,0,False]
                 return _evaluated_moves
             if random.getrandbits(1):
-                sub = sub_after_death(ai_pty, user_pok, ai_pok)
+                sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather)
                 _evaluated_moves[0] = [sub-6,0,0,False]
                 return _evaluated_moves
 
@@ -275,7 +282,9 @@ def choose_move(battle_array):
             if move_id == _MOVENAME_MAGNITUDE:
                 final_damage = 0
             elif not move[_MOVE_DAMAGE]:
-                final_damage = calculate_ai_logic_damage(effectiveness, ai_pok, user_pok, move, weather)
+                final_damage = calculate_ai_logic_damage(
+                    effectiveness, ai_pok, user_pok, move, weather, user_side
+                )
             elif move[_MOVE_DAMAGE] == _DAMAGESOURCES_LEVEL:
                 final_damage = ai_pok[_POK_LEVEL] if effectiveness != 0 else 0
             elif move[_MOVE_DAMAGE] == _DAMAGESOURCES_PSYWAVE:
@@ -295,11 +304,14 @@ def choose_move(battle_array):
             final_damage = 0
 
         eval_atk = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, _rand)
-        score = eval_atk + basic_flag(move, ability, ai_pok, user_pok, effectiveness, weather)
+        score = eval_atk + basic_flag(
+            move, ability, ai_pok, user_pok, effectiveness, weather, ai_side, user_side,
+            user_tspikes, user_bench
+        )
 
         expert = expert_flag(
             ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg,
-            ai_know
+            ai_know, user_side
         )
         score += expert
 

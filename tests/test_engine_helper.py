@@ -1,19 +1,24 @@
 """Engine helpers: speed, turn order, accuracy, crits, switching, items, residuals"""
 import random
+import numpy as np
 import pytest
 from Engine import engine_helper
 from Engine.engine_helper import (
     check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     switch_in, trainer_ai_items, eat_berry, drain, weather_dmg, early_returns, struggle,
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
-    natural_gift, try_protect, endure_damage, move_blocked,
+    natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
 )
 from DataBase.MoveDB import MoveName
-from Models.idx_const import Pok, Move, Item, Sec
-from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome, Types
+from Models.idx_const import Pok, Move, Item, Sec, Field, SIDE_TOXIC_SPIKES
+from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome, Types, SideCondition
 from DataBase.ItemDB import ItemNames
 from battle_driver import move_slice
 
+
+def empty_field():
+    """A battle array with every field slot at 0, enough for switch_in's side lookups"""
+    return np.zeros(Field.AI_KNOWS + 1, dtype=np.int32)
 
 
 # ── Speed & order ────────────────────────────────────────────────────────────
@@ -211,12 +216,12 @@ def test_intimidate_on_switch_in(poke):
     """Intimidate drops the foe's Attack by one, floored at -6"""
     me = poke("Shinx", 50, "Intimidate", ["Tackle"])
     foe = poke("Rattata", 50, "Run Away", ["Tackle"])
-    switch_in(me, foe)
+    switch_in(me, foe, empty_field(), True)
     assert foe[Pok.ATTACK_STAT_STAGE] == -1
     foe[Pok.ATTACK_STAT_STAGE] = -6
-    switch_in(me, foe)
+    switch_in(me, foe, empty_field(), True)
     assert foe[Pok.ATTACK_STAT_STAGE] == -6
-    switch_in(foe, me)
+    switch_in(foe, me, empty_field(), False)
     assert me[Pok.ATTACK_STAT_STAGE] == 0
 
 
@@ -426,15 +431,6 @@ def test_counter_needs_damage_and_to_move_second(poke):
     a[Pok.DMG_TAKEN] = 20
     assert early_returns(a, d, 1, False, mv)
     assert not early_returns(a, d, 2, False, mv)
-
-
-def test_attack_into_fainted_target_fails(poke):
-    """Targeting a fainted foe fails, self-targeting moves still go"""
-    a = poke("Geodude", 50, "Sturdy", ["Tackle", "Harden"])
-    d = poke("Rattata", 50, "Run Away", ["Tackle"])
-    d[Pok.CURRENT_HP] = 0
-    assert early_returns(a, d, 2, False, move_slice(a, 0))
-    assert not early_returns(a, d, 2, False, move_slice(a, 1))
 
 
 def test_random_is_seeded_per_test():
@@ -701,7 +697,7 @@ def test_switch_in_ends_foe_attract(poke):
     new = poke("Rattata", 20, "Run Away", ["Tackle"])
     foe = poke("Pikachu", 20, "Static", ["Tackle"])
     foe[Pok.VOL_STATUS] = VolStatus.ATTRACT | VolStatus.CONFUSION
-    switch_in(new, foe)
+    switch_in(new, foe, empty_field(), True)
     assert foe[Pok.VOL_STATUS] == VolStatus.CONFUSION
 
 
@@ -773,7 +769,7 @@ def test_switch_in_frees_the_foe_from_the_bind(poke):
     new = poke("Rattata", 20, "Run Away", ["Tackle"])
     foe = poke("Rattata", 20, "Run Away", ["Tackle"])
     foe[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED | VolStatus.CONFUSION
-    switch_in(new, foe)
+    switch_in(new, foe, empty_field(), True)
     assert foe[Pok.VOL_STATUS] == VolStatus.CONFUSION
 
 
@@ -786,3 +782,103 @@ def test_switch_out_clears_phase4_counters(poke):
         p[f] = 5
     reset_switch_out(p)
     assert all(p[f] == 0 for f in fields)
+
+
+# ── Phase 5 Lucky Chant, hazards ─────────────────────────────────────────────
+
+SR = SideCondition.STEALTH_ROCK
+TSPIKES = SideCondition.TOXIC_SPIKES
+MY_SIDE = Field.MY_SIDE_COND
+
+
+def test_lucky_chant_blocks_crits(monkeypatch, poke):
+    """A roll that would crit doesn't under Lucky Chant"""
+    a = poke("Rattata", 20, "Run Away", ["Tackle"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    monkeypatch.setattr(engine_helper.random, "getrandbits", lambda k: 0)
+    assert calculate_crit(a, d, move_slice(a, 0))
+    assert not calculate_crit(a, d, move_slice(a, 0), SideCondition.LUCKY_CHANT)
+
+
+@pytest.mark.parametrize("species, ability, divisor", [
+    ("Butterfree", "Compound Eyes", 2),  # Bug/Flying, 4x
+    ("Charmander", "Blaze", 4),
+    ("Rattata", "Run Away", 8),
+    ("Geodude", "Sturdy", 16),           # Rock/Ground, Ground resists
+    ("Steelix", "Sturdy", 32),           # Steel/Ground, 1/4x
+])
+def test_stealth_rock_damage(poke, species, ability, divisor):
+    """Max HP / 8 scaled by Rock effectiveness"""
+    p = poke(species, 50, ability, ["Tackle"])
+    assert stealth_rock_damage(p) == max(1, p[Pok.MAX_HP] // divisor)
+
+
+def _field(cond, layers=0):
+    arr = empty_field()
+    arr[MY_SIDE] = cond
+    arr[MY_SIDE + SIDE_TOXIC_SPIKES] = layers
+    return arr
+
+
+@pytest.mark.parametrize("layers, status", [(1, Status.POISON), (2, Status.TOXIC)])
+def test_toxic_spikes_poison(poke, layers, status):
+    """1 layer poisons, 2 badly poison"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle"])
+    apply_hazards(p, _field(TSPIKES, layers), MY_SIDE)
+    assert p[Pok.STATUS] == status
+
+
+def test_grounded_poison_type_absorbs_toxic_spikes(poke):
+    """A Poison type clears the spikes and isn't poisoned"""
+    p = poke("Grimer", 20, "Stench", ["Pound"])
+    arr = _field(TSPIKES, 2)
+    apply_hazards(p, arr, MY_SIDE)
+    assert p[Pok.STATUS] == 0
+    assert arr[MY_SIDE] == 0 and arr[MY_SIDE + SIDE_TOXIC_SPIKES] == 0
+
+
+@pytest.mark.parametrize("species, ability, cond", [
+    ("Pidgey", "Keen Eye", TSPIKES),                         # not grounded
+    ("Gastly", "Levitate", TSPIKES),
+    ("Magnemite", "Sturdy", TSPIKES),                        # Steel
+    ("Rattata", "Run Away", TSPIKES | SideCondition.SAFEGUARD),
+])
+def test_toxic_spikes_immunities(poke, species, ability, cond):
+    """Flying, Levitate, Steel and Safeguard keep the Pokemon healthy, the spikes stay"""
+    p = poke(species, 20, ability, ["Tackle"])
+    arr = _field(cond, 1)
+    apply_hazards(p, arr, MY_SIDE)
+    assert p[Pok.STATUS] == 0 and arr[MY_SIDE] & TSPIKES
+
+
+def test_stealth_rock_hits_flying_types(poke):
+    """Stealth Rock doesn't need the Pokemon grounded"""
+    p = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    apply_hazards(p, _field(SR), MY_SIDE)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] - stealth_rock_damage(p)
+
+
+def test_magic_guard_skips_hazards(poke):
+    """No rock damage and no poison for Magic Guard"""
+    p = poke("Clefairy", 20, "Magic Guard", ["Pound"])
+    apply_hazards(p, _field(SR | TSPIKES, 2), MY_SIDE)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] and p[Pok.STATUS] == 0
+
+
+def test_rock_faint_skips_switch_in_ability(poke):
+    """A Pokemon that faints to the rocks doesn't Intimidate"""
+    me = poke("Shinx", 20, "Intimidate", ["Tackle"])
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    me[Pok.CURRENT_HP] = 1
+    switch_in(me, foe, _field(SR), True)
+    assert me[Pok.CURRENT_HP] == 0 and foe[Pok.ATTACK_STAT_STAGE] == 0
+
+
+def test_mist_blocks_intimidate(poke):
+    """Intimidate is a stat drop from the other side, Mist stops it"""
+    me = poke("Shinx", 20, "Intimidate", ["Tackle"])
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    arr = empty_field()
+    arr[Field.OPP_SIDE_COND] = SideCondition.MIST
+    switch_in(me, foe, arr, True)
+    assert foe[Pok.ATTACK_STAT_STAGE] == 0

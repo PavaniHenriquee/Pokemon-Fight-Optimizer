@@ -138,7 +138,7 @@
 [X]Bite
 [X]Bone Club
 [X]Bounce(E) ! *
-[]Brick Break(E) ! (Need Screens)
+[X]Brick Break(E) ! (Need Screens)
 [X]Bubble
 [X]Bubble Beam *
 [X]Bug Bite(E) !
@@ -209,9 +209,9 @@
 [X]Leech Seed(B/E) ! *
 [X]Leer
 [X]Lick *
-[]Light Screen(B/E) ! *
+[X]Light Screen(B/E) ! *
 [X]Low Kick !
-[]Lucky Chant(B/E) ! *
+[X]Lucky Chant(B/E) ! *
 [X]Mach Punch *
 [X]Magical Leaf(E) *
 [X]Magnitude(B) ! *
@@ -221,7 +221,7 @@
 []Metronome!!!!!!
 [X]Mirror Coat(E) ! *
 []Mirror Move(E) ! *
-[]Mist(B) ! *
+[X]Mist(B) ! *
 [X]Mud Bomb *
 [X]Mud Shot(E)
 [X]Mud Sport(B/E) !
@@ -245,12 +245,12 @@
 []Pursuit(E) !
 [X]Quick Attack
 [X]Rage ! *
-[]Rain Dance(B/E) ! *
-[]Rapid Spin ! *
+[X]Rain Dance(B/E) ! *
+[X]Rapid Spin ! *
 [X]Razor Leaf(E)
 []Recover(B/E) ! *
 []Recycle(B/E) ! *
-[]Reflect(B/E) ! *
+[X]Reflect(B/E) ! *
 []Refresh(B/E) ! *
 []Roar(B/E) !
 [X]Rock Blast *
@@ -259,9 +259,9 @@
 [X]Rock Throw
 [X]Rock Tomb(E)
 [X]Rollout !! (Defense Curl interaction)(Will need a counter to see how much damage[can be same as Fury Cutter?])
-[]Safeguard(B) ! *
+[X]Safeguard(B) ! *
 [X]Sand Attack
-[]Sandstorm(B) !
+[X]Sandstorm(B) !
 [X]Scary Face
 [X]Schock Wave(E)
 [X]Scratch
@@ -275,7 +275,7 @@
 [X]Smokescreen *
 [X]Spark
 []Splash !(Gravity interaction)
-[]Stealth Rock(B/E) !! (Hazards/What happens if either mine or opponent switches and instantly dies)
+[X]Stealth Rock(B/E) !! (Hazards/What happens if either mine or opponent switches and instantly dies)
 []Stomp !(Minimize interaction)
 [X]String Shot
 [X]Struggle !(Already done, but should check it 100%)
@@ -294,7 +294,7 @@
 [X]Thunder Shock *
 [X]Thunder Wave
 [X]Tickle(B) *
-[]Toxic Spikes(B/E) ! *
+[X]Toxic Spikes(B/E) ! *
 [X]Twineedle *
 [X]Uproar !
 [X]Vice Grip *

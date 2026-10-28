@@ -11,7 +11,8 @@ from Models.constants import (
     _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
     _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _VOLSTATUS_INGRAIN,
-    _VOLSTATUS_PARTIALLY_TRAPPED
+    _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_WEATHER, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND,
+    _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
@@ -154,7 +155,8 @@ def _stages_key(pok):
 @njit
 def node_key(battle_array):
     """Integer fingerprint of what decides whether two outcomes of an action share a node:
-    phase, opp slot, status, every vol status bit, HP bracket and stat stages of both actives"""
+    phase, opp slot, status, every vol status bit, HP bracket and stat stages of both actives,
+    the weather, each side's conditions and Toxic Spikes layers (not the turns left)"""
     opp_idx = battle_array[_FIELD_OPP_POK]
     opp = battle_array[(opp_idx + 6) * POK_LEN:(opp_idx + 7) * POK_LEN]
     is_death = battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN
@@ -165,6 +167,9 @@ def node_key(battle_array):
     k1 |= np.int64(_hp_bracket(opp[_POK_CURRENT_HP], opp[_POK_MAX_HP])) << 7
     k2 = _stages_key(opp)
     k3 = np.int64(opp[_POK_VOL_STATUS])
+    k1 |= np.int64(battle_array[_FIELD_WEATHER]) << 32
+    k1 |= np.int64(battle_array[_FIELD_OPP_SIDE_COND]) << 35
+    k1 |= np.int64(battle_array[_FIELD_OPP_TOXIC_SPIKES]) << 45
 
     if not is_death:
         my_idx = battle_array[_FIELD_MY_POK]
@@ -173,6 +178,8 @@ def node_key(battle_array):
         k1 |= np.int64(_hp_bracket(me[_POK_CURRENT_HP], me[_POK_MAX_HP])) << 29
         k2 = (k2 << 28) | _stages_key(me)
         k3 |= np.int64(me[_POK_VOL_STATUS]) << 32
+        k1 |= np.int64(battle_array[_FIELD_MY_SIDE_COND]) << 47
+        k1 |= np.int64(battle_array[_FIELD_MY_TOXIC_SPIKES]) << 57
     else:
         k2 = k2 << 28
     return k1, k2, k3

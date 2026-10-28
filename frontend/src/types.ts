@@ -30,6 +30,21 @@ export interface SnapshotData {
   opp_bench: BenchEntry[];
   trainer_items?: string[];
   turn: number;
+  field?: FieldState;
+}
+
+// A side condition that's up: timed ones carry turns left, Toxic Spikes its layers
+export interface SideEffect {
+  name: string;
+  turns?: number;
+  layers?: number;
+}
+
+export interface FieldState {
+  weather: string; // "" | "Rain" | "Sandstorm" | "Sun" | "Hail"
+  weather_turns: number; // 0 = permanent
+  my_side: SideEffect[];
+  opp_side: SideEffect[];
 }
 
 export interface ActionData {

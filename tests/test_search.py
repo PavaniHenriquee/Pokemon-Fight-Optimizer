@@ -7,13 +7,15 @@ from SearchEngine.models import (
     cvar_from_hist, best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array,
     ACTION_ORDER, ACTION_SLOT, N_SLOTS, N_BINS,
 )
-from SearchEngine.mcts_eval import evaluate_terminal, rollout_arr, rollout_pref
+from SearchEngine.mcts_eval import (
+    evaluate_terminal, rollout_arr, rollout_pref, field_move_fails
+)
 from SearchEngine.my_mcts import (
     _select_expand, _backprop, mcts_loop, recursive_backup, print_best_path, wilson_lower_bound,
 )
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
 from Models.idx_const import Pok, Move, Field
-from Models.helper import ActionType, BattlePhase, VolStatus
+from Models.helper import ActionType, BattlePhase, VolStatus, SideCondition
 from Models.trainer_ai import return_idx
 from battle_driver import (
     SCENARIOS, build_scenario, play_battle, legal_actions, is_over, my_active, opp_active,
@@ -137,6 +139,47 @@ def test_node_key_buckets(one_v_one):
     assert node_key(arr) != k_hurt
     my_active(arr)[Pok.ATTACK_STAT_STAGE] = -1
     assert node_key(arr) != key
+
+
+def test_node_key_sees_field_but_not_timers(one_v_one):
+    """Weather, side conditions and Toxic Spikes layers split nodes, the turns left don't"""
+    arr = one_v_one()
+    key = node_key(arr)
+    for slot, value in (
+        (Field.WEATHER, 2), (Field.MY_SIDE_COND, SideCondition.REFLECT),
+        (Field.OPP_SIDE_COND, SideCondition.STEALTH_ROCK), (Field.MY_TOXIC_SPIKES, 1),
+        (Field.OPP_TOXIC_SPIKES, 2),
+    ):
+        other = arr.copy()
+        other[slot] = value
+        assert node_key(other) != key
+    other = arr.copy()
+    other[Field.MY_REFLECT_TURNS] = 3
+    other[Field.WEATHER_DURATION] = 4
+    assert node_key(other) == key
+
+
+@pytest.mark.parametrize("move, field, fails", [
+    ("Reflect", {}, False),
+    ("Reflect", {Field.MY_SIDE_COND: SideCondition.REFLECT}, True),
+    ("Reflect", {Field.OPP_SIDE_COND: SideCondition.REFLECT}, False),
+    ("Stealth Rock", {Field.OPP_SIDE_COND: SideCondition.STEALTH_ROCK}, True),
+    ("Stealth Rock", {Field.MY_SIDE_COND: SideCondition.STEALTH_ROCK}, False),
+    ("Toxic Spikes", {Field.OPP_TOXIC_SPIKES: 1}, False),
+    ("Toxic Spikes", {Field.OPP_TOXIC_SPIKES: 2}, True),
+    ("Rain Dance", {Field.WEATHER: 2}, True),
+    ("Rain Dance", {Field.WEATHER: 4}, False),
+    ("Growl", {}, False),
+])
+def test_rollout_skips_field_moves_that_would_fail(
+        make_pokemon, make_battle, move, field, fails
+):
+    """field_move_fails reads the side the move lands on"""
+    pok = make_pokemon("Geodude", 20, "Sturdy", [move])
+    arr = make_battle([pok], [make_pokemon("Rattata", 20, "Run Away", ["Tackle"])])
+    for slot, value in field.items():
+        arr[slot] = value
+    assert field_move_fails(move_slice(my_active(arr), 0), arr) == fails
 
 
 # ── CVaR / UCB / backprop ────────────────────────────────────────────────────
@@ -320,3 +363,20 @@ def test_bind_blocks_switching(make_pokemon, make_battle):
     arr = make_battle(team, [make_pokemon("Rattata", 10, "Run Away", ["Wrap"])])
     my_active(arr)[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED
     assert mask_actions(arr) == [(MOVE, 0)] == legal_actions(arr)
+
+
+def test_step_stays_in_death_phase_when_the_replacement_faints(make_pokemon, make_battle):
+    """A replacement that faints to Stealth Rock leaves the state in the death phase, offering
+    only the Pokemon still alive"""
+    team = [make_pokemon("Rattata", 10, "Run Away", ["Tackle"]) for _ in range(3)]
+    arr = make_battle(team, [make_pokemon("Rattata", 10, "Run Away", ["Tackle"])])
+    arr[Field.MY_SIDE_COND] = SideCondition.STEALTH_ROCK
+    my_active(arr)[Pok.CURRENT_HP] = 0
+    pok_slice(arr, 1)[Pok.CURRENT_HP] = 1
+    arr[Field.PHASE] = BattlePhase.DEATH_END_OF_TURN
+    state = GameState(arr)
+    state.step((SWITCH, 1))
+    assert state.phase == BattlePhase.DEATH_END_OF_TURN and state.my_active == -1
+    assert mask_actions(state.battle_array) == [(SWITCH, 2)]
+    state.step((SWITCH, 2))
+    assert state.phase == BattlePhase.TURN_START and state.my_active == 2

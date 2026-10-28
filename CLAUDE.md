@@ -89,12 +89,7 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - MCTS is single-threaded ON PURPOSE. Parallel only inflated visit counts, and async rollout
   workers made select/expand as expensive as a rollout. Don't "optimize" this with threads or
   processes.
-- JAX is ruled out; staying with Numba. Rollouts mix heuristic and random play
-  (`heuristic_prob`) to limit bias. That's deliberate.
 - The `"Test"` trainer in `TrainerDB.json` and odd entries in `box.json` are test data.
-- Unchecked items in `TODO.txt` are unimplemented, not bugs (e.g. Seismic Toss / Night Shade
-  `'level'` damage, moves whose VolStatus/SideCondition doesn't exist yet). A checked item
-  that misbehaves IS a bug.
 - Search tuning (`c`, `risk_lambda`, `alpha`, `N_BINS`, `terminal_iterations`) lives in
   `SearchEngine/models.py` and `my_mcts.py`. The code is the source of truth; ask before
   changing values. Keep `terminal_iterations` low enough to be reachable at tree depth.
@@ -125,9 +120,9 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   `.numba_cache/tests/<hash of sources>`. Numba's cache doesn't notice edits to callees in
   other files, so the hash forces a clean compile on any change. It seeds Numba's RNG itself.
 - Golden snapshots (`test_engine_golden.py`) are ENGINE ONLY: `battle_driver.py` uses Engine
-  + trainer AI, never `SearchEngine/`. They should only change when implementing a move or
-  fixing a bug; any RNG call-order change moves them too. Changing a scenario in
-  `battle_driver.py` also changes its snapshot.
+  - trainer AI, never `SearchEngine/`. They should only change when implementing a move or
+    fixing a bug; any RNG call-order change moves them too. Changing a scenario in
+    `battle_driver.py` also changes its snapshot.
 - Search tests are structural only (no snapshots, no tuning values asserted) because the search
   is still changing.
 - `test_known_bugs.py` holds strict xfails that assert the correct mechanic. When one gets

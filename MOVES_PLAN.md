@@ -9,13 +9,13 @@
 | Phase 1: data-driven moves                | Done (2026-10-27), committed | B1-B10 fixed, 97 TODO boxes ticked; Gust and Stomp left open                       |
 | Phase 2: damage mechanics                 | Done (2026-10-27), committed | See "Phase 2: findings and decisions" and "Phase 2: outcome"; 16 TODO boxes ticked |
 | Phase 3: volatiles, no action restriction | Done (2026-10-27), committed | See "Phase 3: findings and decisions" and "Phase 3: outcome"; 17 TODO boxes ticked |
-| Phase 4: action-restricting volatiles     | Done (2026-10-27), not committed | See "Phase 4: findings and decisions" and "Phase 4: outcome"; Disable added       |
-| Phase 5: side conditions and field        | **Next**                     |                                                                                    |
-| Phase 6: switching moves                  | Not started                  |                                                                                    |
+| Phase 4: action-restricting volatiles     | Done (2026-10-27), committed | See "Phase 4: findings and decisions" and "Phase 4: outcome"; Disable added       |
+| Phase 5: side conditions and field        | Done (2026-10-28), not committed | See "Phase 5: findings and decisions" and "Phase 5: outcome"; frontend shows the field |
+| Phase 6: switching moves                  | **Next**                     |                                                                                    |
 | Phase 7: healing, items, misc             | Not started                  |                                                                                    |
 | Phase 8: move-calling                     | Not started                  |                                                                                    |
 
-**Where to start next session:** Phase 5, workflow step 1 (mechanics notes), after you've reviewed and committed Phase 4.
+**Where to start next session:** Phase 6, validate the architecture first (see Phase 6 below), after you've reviewed and committed Phase 5.
 
 **Open issues carried forward:**
 
@@ -319,6 +319,95 @@ Sources: pokeplatinum `battle_script.c` (TryEncore, TryDisable, Random), `battle
 - Golden re-blessed: hashes only, 100/100 outcomes identical to the old file (new field in the layout).
 - Checks: `pytest` 1657 passed, `pytest -m jit` 6 passed, `pytest -m slow` 5 passed. Benchmark (main.py battle, 100k iterations, compile excluded, best of 3): 8.16s vs 8.29s at the Phase 3 commit.
 - TODO boxes that can be ticked: Taunt, Encore, Bind, Clamp, Fire Spin, Whirlpool, Wrap, Uproar, Disable. Waiting on other passes: Rapid Spin freeing a bind (Phase 5), Shed Shell, Grip Claw (not in ItemDB), Uproar vs Rest (Rest not in MoveDB).
+
+### Phase 5: findings and decisions (2026-10-28)
+
+Sources: pokeplatinum `battle_lib.c` (BattleSystem_CalcDamage screens, crit roll and Lucky Chant, BattleAI_PostKOSwitchIn), `battle_controller_player.c` (CheckFieldConditions before CheckMonConditions, PP spent before the target-exists check), effect scripts and subscripts (break screens, hazards check, Toxic Spikes, Stealth Rock, Rapid Spin, Mist, Safeguard, Yawn), `trainer_ai.c` (TrainerAI_CalcDamage passes the defender's side conditions) and `trainer_ai/script.s`; Showdown gen4 `moves.ts`; Pokemow.
+
+**Your decisions:**
+
+- Faint on entry:
+  - A switch-in that faints to the hazards is replaced right away.
+  - My replacement during the death phase that faints keeps the phase on `DEATH_END_OF_TURN`, and the turn doesn't advance. After a double KO the AI's replacement is already in when I pick again, as in Gen IV.
+  - The AI loops `sub_after_death` until one survives, capped at 6.
+- A move aimed at a fainted foe has no effect. `early_returns` already covers this, so nothing new was added there (see the PP note below).
+- Light Clay and Smooth Rock wait for the items pass.
+- Side info reaches the hot path as an int mask (the defender's `Field.SIDE_COND`), passed like `weather`. `switch_in` takes `battle_array` and `is_mine`.
+- Rapid Spin is done as a whole. It also clears the Spikes bit, though Spikes isn't in MoveDB.
+- The frontend shows the field.
+
+**Mechanics as built:**
+
+- Per-side slots are derived in `idx_const.py` (`SIDE_REFLECT_TURNS = Field.MY_REFLECT_TURNS - Field.MY_SIDE_COND`, etc.). `side_base(is_mine)` gives either side's `SIDE_COND`.
+- Reflect and Light Screen:
+  - They halve physical / special damage after burn (`screen_damage`), in `multipliers`, Struggle and the AI's damage calc.
+  - A crit and Brick Break ignore them.
+  - Each lasts 5 turns and fails while it's up.
+- Brick Break: on a hit it clears both screens of the target's side. A miss or a Ghost-type target clears nothing.
+- Mist:
+  - It blocks drops coming from the foe: primary moves, secondary effects (`stat_changes` with `def_side`) and Intimidate (`switch_in`).
+  - The user's own drops and any raises (Swagger) go through.
+  - 5 turns.
+- Safeguard:
+  - It blocks major status (primary and secondary), confusion, Yawn landing and Toxic Spikes.
+  - It doesn't block an already-landed Yawn's sleep, Synchronize or Leech Seed.
+  - 5 turns.
+- Lucky Chant: no crit roll against that side, 5 turns.
+- Stealth Rock:
+  - Set once on the foe's side.
+  - On entry it deals max HP × Rock effectiveness / 8, minimum 1, and also hits Flying types.
+  - It triggers the on-damage berry check.
+- Toxic Spikes:
+  - Up to 2 layers. On entry, 1 layer poisons and 2 badly poison.
+  - Only grounded Pokemon are affected (not Flying types, not Levitate). A grounded Poison type absorbs them.
+  - Steel types, Immunity, Leaf Guard in sun, Safeguard and an existing status block it.
+- Entry order: Magic Guard skips the hazards entirely. Otherwise Toxic Spikes, then Stealth Rock, then switch-in abilities if the Pokemon is still alive.
+- Rapid Spin: on a hit it frees the user from a bind and Leech Seed and clears Stealth Rock, Spikes and Toxic Spikes from its side. Screens stay.
+- Rain Dance and Sandstorm:
+  - They fail under the same weather, otherwise they set it for 5 turns.
+  - The slower mover sees weather the faster mover set that turn.
+- End of turn (`_count_down_field`): the side timers (Reflect, Light Screen, Mist, Safeguard, Lucky Chant, both sides) count down first, then the weather, then the residuals.
+  - A weather that runs out this turn doesn't hit this turn.
+  - `WEATHER_DURATION` 0 means permanent.
+
+**AI:**
+
+- Basic:
+  - -8 for Reflect / Light Screen / Mist / Safeguard already on the AI's side; -10 for Lucky Chant.
+  - Toxic Spikes -10 at 2 layers; Stealth Rock -10 if already set. Both -10 when the target has nobody else alive.
+  - Sandstorm and Rain Dance -8 under the same weather. Rain Dance also -8 against a statused Hydration target, unless the AI's Pokemon has Swift Swim or Hydration.
+  - Safeguard on the target's side gives -10 to the status checks and to confusion.
+- Expert:
+  - Reflect / Light Screen: -2 under 50% HP; at 90% HP or more, 50% of +1; 75% of +1 if the target's last move matches (no move yet counts as Physical).
+  - Rain Dance: Swift Swim and slower +1; under 40% HP -1; Hail, Sun or Sand +1; Rain Dish, or Hydration while statused, +1.
+  - Brick Break +1 against a screen.
+  - Lucky Chant: -1 under 70% HP; +1 after seeing a high-crit move; else 25% of +1.
+  - Toxic Spikes / Stealth Rock: 50% to skip; else +1, plus 75% of +1 with Roar / Whirlwind.
+  - Mist, Safeguard and Sandstorm score 0 (before, they fell into the always-hit branch).
+- The AI's damage calc and `sub_after_death` see my screens.
+
+### Phase 5: outcome (2026-10-28)
+
+- Tests:
+  - Screens, crits and the AI damage calc (`test_damage_calc`).
+  - Mist and Safeguard, primary and secondary (`test_status_calc`).
+  - Lucky Chant, Stealth Rock damage by type, Toxic Spikes layers / absorb / immunities, Magic Guard, faint before Intimidate, Mist vs Intimidate (`test_engine_helper`).
+  - Timers, failing while up, layering, the side each move lands on, Brick Break, Rapid Spin, the weather countdown and its last turn, permanent weather, the second mover seeing the new weather, and every faint-on-entry flow (`test_battle`).
+  - The death phase staying on after a hazard KO (`test_search`).
+  - Every Basic / Expert branch (`test_trainer_ai`).
+- Golden re-blessed:
+  - `multihit_items` (16/20 seeds) and `weather_charge` (19/20) changed: Rain Dance and Sandstorm now set the weather, and the AI scores them through their own checks.
+  - `starters`, `status` and `damage_sources` are identical.
+- Checks: `pytest` 1751 passed, `pytest -m jit` 6 passed, `pytest -m slow` 5 passed.
+- Benchmark: main.py battle, 100k iterations, compile excluded, best of 3. 19.49s against 18.88s at HEAD, run back to back. That battle has no Phase 5 moves, so the ~3% is the plumbing.
+- TODO boxes that can be ticked: Brick Break, Light Screen, Lucky Chant, Mist, Rain Dance, Rapid Spin, Reflect, Safeguard, Sandstorm, Stealth Rock, Toxic Spikes. Waiting on other passes: Light Clay, Smooth Rock and Damp Rock (items), Spikes damage (Spikes isn't in MoveDB), Magnet Rise / Gravity / Iron Ball grounding, Drizzle / Sand Stream setting weather (abilities).
+- Noticed, not changed:
+  - `early_returns` fails a move aimed at a fainted foe before PP is spent and clears the last move. pokeplatinum spends PP first (`BEFORE_MOVE_STATE_DECREMENT_PP` before `CHECK_TARGET_EXISTS`).
+  - Weather and side moves (target `all` / `foe_side`) also fail while the foe is fainted.
+  - `sub_after_death` passes weather 0, but pokeplatinum passes the field conditions.
+  - `node_key` doesn't include side conditions or weather.
+  - The rollout heuristic in `mcts_eval` ignores screens.
+  - The now-implemented `# TODO: Screen`, `# TODO: Safeguard`, the hazard TODO in `switch_in`, the weather TODO in `end_of_turn` and the matching docstring TODO entries are still in place.
 
 ## Phase 5: Side conditions and field
 

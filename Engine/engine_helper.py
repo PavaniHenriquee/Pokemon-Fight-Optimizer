@@ -5,9 +5,9 @@ from Utils.jit import njit
 from Utils.helper import stage_to_multiplier, get_type_effectiveness
 from Engine.status_calc import  freeze, paralysis, synchronize_reflect, sleep_blocked, SLOT_MASK
 from Engine.damage_calc import (
-    calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types
+    calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage
 )
-from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE
+from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES
 from Models.helper import TARGET_SELF_SIDE, STEEL_POISON, Target
 from Models.constants import (
     _POK_SPEED, _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
@@ -42,7 +42,11 @@ from Models.constants import (
     _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_ATTRACT, _FLAGS_PROTECT, _POK_PROTECT_COUNT,
     _POK_YAWN_TURNS, _MOVENAME_PROTECT, _VOLSTATUS_UPROAR, _POK_UPROAR_TURNS, _VOLSTATUS_TAUNT,
     _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE, _VOLSTATUS_PARTIALLY_TRAPPED, _POK_TRAP_TURNS,
-    _POK_TAUNT_TURNS, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _MOVECATEGORY_STATUS
+    _POK_TAUNT_TURNS, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _MOVECATEGORY_STATUS,
+    _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _SIDECONDITION_LUCKY_CHANT, _SIDECONDITION_MIST,
+    _SIDECONDITION_SAFEGUARD, _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK,
+    _TYPES_FLYING, _TYPES_POISON, _ABILITYNAMES_LEVITATE, _ABILITYNAMES_IMMUNITY,
+    _ABILITYNAMES_LEAF_GUARD
 )
 
 
@@ -54,6 +58,8 @@ RECORD_DAMAGE = (_DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT)
 HITS_SEMI_INVULNERABLE = (_MOVENAME_GUST,)
 SIDE_OR_FIELD_TARGETS = (Target.ALL, Target.FOE_SIDE, Target.ALLY_TEAM)
 PROTECT_COUNT_MAX = 3  # Success chance 1, 1/2, 1/4, then 1/8 from here on
+# Stealth Rock takes max HP * Rock effectiveness / STEALTH_ROCK_DIV, 1/8 when neutral
+STEALTH_ROCK_DIV = 8
 
 
 # ── Volatile bookkeeping ───────────────────────────────────────────────────────
@@ -364,9 +370,12 @@ def calculate_hit_miss(move, attacker, defender, weather):
 
 
 @njit
-def calculate_crit(attacker, defender, move=None):
-    """Returns a boolean if the move passed the crit check based on Gen IV mechanics."""
+def calculate_crit(attacker, defender, move=None, def_side=0):
+    """Returns a boolean if the move passed the crit check based on Gen IV mechanics.
+    def_side is the defender's Field.SIDE_COND, Lucky Chant there blocks crits"""
     if defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CRITICAL:
+        return False
+    if def_side & _SIDECONDITION_LUCKY_CHANT:
         return False
 
     if move is not None and move[_MOVE_WILL_CRIT]:
@@ -417,20 +426,98 @@ def reset_switch_out(pok):
 
 
 @njit
-def switch_in(attacker, defender):
+def side_base(is_mine):
+    """Field.SIDE_COND of my side or the opponent's, the per-side slots follow it"""
+    return _FIELD_MY_SIDE_COND if is_mine else _FIELD_OPP_SIDE_COND
+
+
+@njit
+def is_grounded(pok):
+    """Spikes and Toxic Spikes only reach a grounded Pokemon. TODO: Magnet Rise, Gravity, Iron Ball"""
+    return not (
+        pok[_POK_TYPE1] == _TYPES_FLYING
+        or pok[_POK_TYPE2] == _TYPES_FLYING
+        or pok[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
+    )
+
+
+@njit
+def _toxic_spikes(pok, battle_array, side, weather):
     """
-    What happens when a pokemon switches in so, abilities, hazards
+    A grounded Poison type absorbs the spikes, otherwise 1 layer poisons and 2 badly poison.
+    Steel types, Immunity, Leaf Guard in sun, Safeguard and a status already there block it
+    """
+    if pok[_POK_TYPE1] == _TYPES_POISON or pok[_POK_TYPE2] == _TYPES_POISON:
+        battle_array[side] &= ~_SIDECONDITION_TOXIC_SPIKES
+        battle_array[side + SIDE_TOXIC_SPIKES] = 0
+        return
+    ability = pok[_POK_AB_ID]
+    if (
+        pok[_POK_STATUS] != 0
+        or pok[_POK_TYPE1] == _TYPES_STEEL
+        or pok[_POK_TYPE2] == _TYPES_STEEL
+        or ability == _ABILITYNAMES_IMMUNITY
+        or (ability == _ABILITYNAMES_LEAF_GUARD and weather == _WEATHER_SUN)
+        or battle_array[side] & _SIDECONDITION_SAFEGUARD
+    ):
+        return
+    if battle_array[side + SIDE_TOXIC_SPIKES] >= 2:
+        pok[_POK_STATUS] = _STATUS_TOXIC
+        pok[_POK_BADLY_POISON] = 1
+    else:
+        pok[_POK_STATUS] = _STATUS_POISON
+
+
+@njit
+def stealth_rock_damage(pok):
+    """Max HP / 32 up to / 2 by Rock effectiveness, at least 1"""
+    eff, den = get_type_effectiveness(_TYPES_ROCK, pok[_POK_TYPE1], pok[_POK_TYPE2])
+    return max(1, pok[_POK_MAX_HP] * eff // (den * STEALTH_ROCK_DIV))
+
+
+@njit
+def apply_hazards(pok, battle_array, side):
+    """
+    Entry hazards of the side pok just came into (pokeplatinum subscript_hazards_check):
+    Toxic Spikes, then Stealth Rock. Magic Guard skips them all, only the spikes need the
+    Pokemon grounded. TODO: Spikes damage once the move is in MoveDB
+    """
+    cond = battle_array[side]
+    if cond == 0 or pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
+        return
+    if cond & _SIDECONDITION_TOXIC_SPIKES and is_grounded(pok):
+        _toxic_spikes(pok, battle_array, side, battle_array[_FIELD_WEATHER])
+    if cond & _SIDECONDITION_STEALTH_ROCK:
+        dmg = stealth_rock_damage(pok)
+        mark_hurt(pok)
+        if dmg >= pok[_POK_CURRENT_HP]:
+            pok[_POK_CURRENT_HP] = 0
+            return
+        pok[_POK_CURRENT_HP] -= dmg
+        if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+            item_on_rdmg(pok)
+
+
+@njit
+def switch_in(attacker, defender, battle_array, is_mine):
+    """
+    What happens when a pokemon switches in so, abilities, hazards.
+    is_mine: attacker is coming into my side
     """
     # The foe's infatuation was with the Pokemon that just left
     defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_ATTRACT
     # and so was the bind
     defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_PARTIALLY_TRAPPED
-    # TODO: Hazards damage(needs to put item on rdmg), take in consideration that the pokemon needs to
-    # be alive to activiate the ability so before the ability do something like
-    # if attacker[_POK_CURRENT_HP] > 0:
+    apply_hazards(attacker, battle_array, side_base(is_mine))
+    if attacker[_POK_CURRENT_HP] <= 0:
+        return
     if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
         ability = attacker[_POK_AB_ID]
-        if ability == _ABILITYNAMES_INTIMIDATE:
+        # Mist on the foe's side blocks it like any stat drop from the other side
+        if (
+            ability == _ABILITYNAMES_INTIMIDATE
+            and not battle_array[side_base(not is_mine)] & _SIDECONDITION_MIST
+        ):
             defender[_POK_ATTACK_STAT_STAGE] = max(-6, defender[_POK_ATTACK_STAT_STAGE] - 1)
 
 
@@ -604,16 +691,6 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
         and (idx == 1 or attacker[_POK_DMG_TAKEN] == 0)
     ):
         return True
-    # In cases like after recoil damage, selfdestruct etc.
-    if defender[_POK_CURRENT_HP] <= 0:
-        # Move not targeting the defender, so don't matter its dead
-        if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
-            return False
-        # Charge move on its first turn
-        if move[_MOVE_CHARGE_RECHARGE] > 0 and attacker[_POK_LOCKED_MOVE] == -1:
-            return False
-        #TODO: Some moves still go through, like future sight
-        return True
     return False
 
 
@@ -636,11 +713,11 @@ def start_of_battle(array):
     if p1_speed == p2_speed:
         speed_tie = random.getrandbits(1)
     if p1_speed > p2_speed or speed_tie:
-        switch_in(current_pokemon, current_opp)
-        switch_in(current_opp, current_pokemon)
+        switch_in(current_pokemon, current_opp, array, True)
+        switch_in(current_opp, current_pokemon, array, False)
     else:
-        switch_in(current_opp, current_pokemon)
-        switch_in(current_pokemon, current_opp)
+        switch_in(current_opp, current_pokemon, array, False)
+        switch_in(current_pokemon, current_opp, array, True)
     current_pokemon[_POK_TURNS] = 1
     current_opp[_POK_TURNS] = 1
     current_opp[_POK_TURNS_ACTIVE] = 1
@@ -744,18 +821,18 @@ def drain(pok, move, dmg):
 
 
 @njit
-def struggle(attacker, defender, rec=True):
+def struggle(attacker, defender, rec=True, def_side=0):
     """
     Struggle damage to the defender, plus recoil to the attacker. rec=False skips
     the recoil application — used by rollout heuristics that only want a damage
-    estimate without mutating the attacker's HP.
+    estimate without mutating the attacker's HP. def_side is the defender's Field.SIDE_COND
     """
     atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
     def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
     atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
     def_stage = defender[_POK_DEFENSE_STAT_STAGE]
     level = attacker[_POK_LEVEL]
-    crit = calculate_crit(attacker, defender)
+    crit = calculate_crit(attacker, defender, None, def_side)
 
     if crit:
         def_stage = min(def_stage, 0)
@@ -781,7 +858,7 @@ def struggle(attacker, defender, rec=True):
     if attacker[_POK_STATUS] == _STATUS_BURN and not is_guts:
         damage //= 2
 
-    # TODO: Screen
+    damage = screen_damage(_MOVECATEGORY_PHYSICAL, _MOVENAME_STRUGGLE, def_side, crit, damage)
 
     # Adding 2 after the above
     damage += 2

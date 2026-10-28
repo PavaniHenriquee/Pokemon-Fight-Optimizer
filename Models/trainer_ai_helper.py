@@ -61,7 +61,12 @@ from Models.constants import (
     _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4,
     _MOVECATEGORY_PHYSICAL, _MOVECATEGORY_SPECIAL, _MOVENAME_CHARGE, _VOLSTATUS_TAUNT,
     _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE, _VOLSTATUS_PARTIALLY_TRAPPED, _POK_LAST_MOVE_ID,
-    _MOVENAME_WHIRLPOOL
+    _MOVENAME_WHIRLPOOL, _MOVE_SIDE_CONDITION, _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN,
+    _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _SIDECONDITION_LUCKY_CHANT,
+    _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK, _MOVENAME_RAIN_DANCE,
+    _MOVENAME_SANDSTORM, _MOVENAME_BRICK_BREAK, _MOVENAME_REFLECT, _MOVENAME_LIGHT_SCREEN,
+    _MOVENAME_LUCKY_CHANT, _MOVENAME_TOXIC_SPIKES, _MOVENAME_STEALTH_ROCK, _MOVENAME_ROAR,
+    _MOVENAME_WHIRLWIND, _ABILITYNAMES_SWIFT_SWIM, _ABILITYNAMES_RAIN_DISH
 )
 from Engine.damage_calc import weight_power, matchup_types
 
@@ -182,6 +187,18 @@ PROTECT_LIKE_M = (_MOVENAME_PROTECT,)
 FEINT_LIKE_M = (_MOVENAME_FEINT,)
 RECOVER_DEF_CURL_M = (_MOVENAME_RECOVER, _MOVENAME_DEFENSE_CURL)
 MOVE_ID_SLOTS = (_POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID, _POK_MOVE4_ID)
+# Side condition and weather moves, scored by basic_field / expert_field
+WEATHER_M = (_MOVENAME_RAIN_DANCE, _MOVENAME_SANDSTORM)
+FIELD_EXPERT_M = WEATHER_M + (_MOVENAME_BRICK_BREAK,)
+SCREEN_MIST_SAFEGUARD = (
+    _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN, _SIDECONDITION_MIST,
+    _SIDECONDITION_SAFEGUARD
+)
+SCREENS = _SIDECONDITION_REFLECT | _SIDECONDITION_LIGHT_SCREEN
+HAZARD_M = (_MOVENAME_TOXIC_SPIKES, _MOVENAME_STEALTH_ROCK)
+FORCE_SWITCH_M = (_MOVENAME_ROAR, _MOVENAME_WHIRLWIND)
+RAIN_DANCE_GOOD_WEATHER = (_WEATHER_HAIL, _WEATHER_SUN, _WEATHER_SANDSTORM)
+TOXIC_SPIKES_MAX = 2
 AI_KNOWS_MOVE_BITS = (
     _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4
 )
@@ -345,16 +362,18 @@ def basic_ability(move, ability, user_pok, move_category) -> int:
 
 
 @njit
-def basic_move_status(move, ability, user_pok, ai_pok, weather):
+def basic_move_status(move, ability, user_pok, ai_pok, weather, user_side=0):
     """
-    Checks to see if any of the conditions for move status being irrelevant comes back as true
+    Checks to see if any of the conditions for move status being irrelevant comes back as true.
+    user_side is the target's Field.SIDE_COND
     """
-    # TODO: Safeguard
     u_type12 = (user_pok[_POK_TYPE1],user_pok[_POK_TYPE2])
     move_status = move[_MOVE_STATUS]
     user_status = user_pok[_POK_STATUS] != 0
 
     if user_status:
+        return True
+    if user_side & _SIDECONDITION_SAFEGUARD:
         return True
 
     # Sleep
@@ -368,7 +387,7 @@ def basic_move_status(move, ability, user_pok, ai_pok, weather):
     if (
         move_status in (_STATUS_POISON, _STATUS_TOXIC)
     ):
-        if not match_2tuple_any(STEEL_POISON, u_type12):
+        if match_2tuple_any(STEEL_POISON, u_type12):
             return True
         if ability in POISON_AB_IM:
             return True
@@ -414,20 +433,21 @@ def basic_move_status(move, ability, user_pok, ai_pok, weather):
 
 
 @njit
-def basic_move_vol_status(move, ability, user_pok, ai_pok):
+def basic_move_vol_status(move, ability, user_pok, ai_pok, user_side=0):
     """
     Checks to see if any of the conditions for a move that has volatile status
-    is irrelevant
+    is irrelevant. user_side is the target's Field.SIDE_COND
     """
     # TODO: Every volatile status
     vol_status = move[_MOVE_VOL_STATUS]
     user_vol_status = user_pok[_POK_VOL_STATUS]
 
     if vol_status == _VOLSTATUS_CONFUSION:
-        # TODO: Safeguard
         if user_vol_status & _VOLSTATUS_CONFUSION:
             return -5
         if ability == _ABILITYNAMES_OWN_TEMPO:
+            return -10
+        if user_side & _SIDECONDITION_SAFEGUARD:
             return -10
     # Attract
     elif vol_status == _VOLSTATUS_ATTRACT:
@@ -605,16 +625,53 @@ def basic_moves(move, ai_pok, user_pok, ability, effectiveness):
 
 
 @njit
+def basic_field(move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench):
+    """
+    pokeplatinum Basic checks for the side condition and weather moves. ability is the target's,
+    user_bench how many Pokemon the target has alive besides the active
+    """
+    cond = move[_MOVE_SIDE_CONDITION]
+    if cond == _SIDECONDITION_LUCKY_CHANT:
+        return -10 if ai_side & cond else 0
+    if cond in SCREEN_MIST_SAFEGUARD:
+        return -8 if ai_side & cond else 0
+    if cond == _SIDECONDITION_TOXIC_SPIKES:
+        return -10 if user_tspikes >= TOXIC_SPIKES_MAX or user_bench <= 0 else 0
+    if cond == _SIDECONDITION_STEALTH_ROCK:
+        return -10 if user_side & cond or user_bench <= 0 else 0
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_SANDSTORM:
+        return -8 if weather == _WEATHER_SANDSTORM else 0
+    if move_id == _MOVENAME_RAIN_DANCE:
+        ai_ab = ai_pok[_POK_AB_ID]
+        if (
+            ai_ab != _ABILITYNAMES_SWIFT_SWIM
+            and ai_ab != _ABILITYNAMES_HYDRATION
+            and ability == _ABILITYNAMES_HYDRATION
+            and user_pok[_POK_STATUS] != 0
+        ):
+            return -8
+        return -8 if weather == _WEATHER_RAIN else 0
+    return 0
+
+
+@njit
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
-            weather
+            weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1
     ):
     """
     Basic Flag, every trainer has this,
-    it discourages moves that would have no effect or that would make no sense
+    it discourages moves that would have no effect or that would make no sense.
+    ai_side and user_side are both Field.SIDE_COND, user_tspikes the Toxic Spikes layers on the
+    target's side and user_bench how many Pokemon it has alive besides the active
     """
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
+    if move[_MOVE_SIDE_CONDITION] or move[_MOVE_ID] in WEATHER_M:
+        return basic_field(
+            move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench
+        )
     if move[_MOVE_ID] in BASIC_SPECIFIC_M:
         return basic_moves(move, ai_pok, user_pok, ability, effectiveness)
     move_category = move[_MOVE_CATEGORY]
@@ -631,10 +688,10 @@ def basic_flag(
     if move_category == _MOVECATEGORY_STATUS:
         # TODO: Safeguard for all conditions
         if move[_MOVE_STATUS] != 0:
-            if basic_move_status(move, ability, user_pok, ai_pok, weather):
+            if basic_move_status(move, ability, user_pok, ai_pok, weather, user_side):
                 return -10
         if move[_MOVE_VOL_STATUS] != 0:
-            vol_status = basic_move_vol_status(move, ability, user_pok, ai_pok)
+            vol_status = basic_move_vol_status(move, ability, user_pok, ai_pok, user_side)
             if vol_status:
                 return vol_status
         if (
@@ -1377,13 +1434,92 @@ def expert_charge_invulnerable(
 
 
 @njit
+def last_move_category(u_pok, my_last_move):
+    """
+    Category of the target's last move. No move yet (0) reads as Physical like pokeplatinum's
+    move 0, and Struggle (-1) is Physical
+    """
+    if my_last_move <= 0:
+        return _MOVECATEGORY_PHYSICAL
+    for i in range(4):
+        if u_pok[MOVE_ID_SLOTS[i]] == my_last_move:
+            return u_pok[MOVE_CATEGORY_SLOTS[i]]
+    return _MOVECATEGORY_PHYSICAL
+
+
+@njit
+def seen_high_crit(pok, ai_know):
+    """If the AI saw pok use a high crit move that doesn't charge (pokeplatinum HIGH_CRITICAL effects)"""
+    for i in range(4):
+        slot = MOVE_ID_SLOTS[i]
+        if (
+            ai_know & AI_KNOWS_MOVE_BITS[i]
+            and pok[slot + _MOVE_CRIT_RATIO - _MOVE_ID] > 1
+            and pok[slot + _MOVE_CHARGE_RECHARGE - _MOVE_ID] == 0
+        ):
+            return True
+    return False
+
+
+@njit
+def expert_field(move, ai_pok, u_pok, rand, idx, weather, my_last_move, ai_know, user_side, move_first):
+    """
+    pokeplatinum Expert checks for the side condition and weather moves and Brick Break. Mist,
+    Safeguard and Sandstorm have none
+    """
+    move_id = move[_MOVE_ID]
+    ai_hp_pct = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+    if move_id == _MOVENAME_REFLECT or move_id == _MOVENAME_LIGHT_SCREEN:
+        if ai_hp_pct < 50:
+            return -2
+        if ai_hp_pct >= 90:
+            add_adjustment(rand, idx, 1, 128)
+        want = _MOVECATEGORY_PHYSICAL if move_id == _MOVENAME_REFLECT else _MOVECATEGORY_SPECIAL
+        if last_move_category(u_pok, my_last_move) == want:
+            add_adjustment(rand, idx, 1, 192)
+        return 0
+    if move_id == _MOVENAME_RAIN_DANCE:
+        ai_ab = ai_pok[_POK_AB_ID]
+        if not move_first and ai_ab == _ABILITYNAMES_SWIFT_SWIM:
+            return 1
+        if ai_hp_pct < 40:
+            return -1
+        if weather in RAIN_DANCE_GOOD_WEATHER:
+            return 1
+        if ai_ab == _ABILITYNAMES_RAIN_DISH:
+            return 1
+        if ai_ab == _ABILITYNAMES_HYDRATION and ai_pok[_POK_STATUS] != 0:
+            return 1
+        return 0
+    if move_id == _MOVENAME_BRICK_BREAK:
+        return 1 if user_side & SCREENS else 0
+    if move_id == _MOVENAME_LUCKY_CHANT:
+        if ai_hp_pct < 70:
+            return -1
+        if seen_high_crit(u_pok, ai_know):
+            return 1
+        add_adjustment(rand, idx, 1, 64)
+        return 0
+    if move_id in HAZARD_M:
+        # 50% to skip every other modifier
+        if random.getrandbits(1):
+            return 0
+        if knows_move(ai_pok, FORCE_SWITCH_M[0]) or knows_move(ai_pok, FORCE_SWITCH_M[1]):
+            add_adjustment(rand, idx, 1, 192)
+        return 1
+    return 0
+
+
+@njit
 def expert_flag(
-    ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0
+    ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
+    user_side=0
 ):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it.
-    ai_know is Field.AI_KNOWS, its move bits are the target's moves the AI saw
+    ai_know is Field.AI_KNOWS, its move bits are the target's moves the AI saw.
+    user_side is the target's Field.SIDE_COND
     """
     # Check if move first (TODO add Trick room logic here)
     ai_s, u_s = check_speed(ai_pok, u_pok, weather)
@@ -1402,6 +1538,10 @@ def expert_flag(
         )
     if move[_MOVE_ID] == _MOVENAME_FEINT:
         return expert_feint(ai_pok, u_pok, rand, idx, ai_know)
+    if move[_MOVE_SIDE_CONDITION] or move[_MOVE_ID] in FIELD_EXPERT_M:
+        return expert_field(
+            move, ai_pok, u_pok, rand, idx, weather, my_last_move, ai_know, user_side, move_first
+        )
     if move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
         hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
         hp_pct_u = (u_pok[_POK_CURRENT_HP]*100) // u_pok[_POK_MAX_HP]

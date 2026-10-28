@@ -20,7 +20,8 @@ from Models.constants import (
     _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _TYPES_GRASS, _POK_GENDER, _POK_YAWN_TURNS,
     _GENDER_GENDERLESS, _VOLSTATUS_TAUNT, _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE, _POK_TAUNT_TURNS,
     _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _VOLSTATUS_UPROAR, _MOVE_PP,
-    _ABILITYNAMES_SOUNDPROOF, _MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE
+    _ABILITYNAMES_SOUNDPROOF, _MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE,
+    _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from Models.move import CURSE_BOOST
@@ -120,10 +121,12 @@ def last_move_slot(pok):
 
 
 @njit
-def apply_status(move, pok, weather, source, sec=False):
-    """Apply non-volatile status effects."""
+def apply_status(move, pok, weather, source, sec=False, side=0):
+    """Apply non-volatile status effects. side is pok's Field.SIDE_COND, Safeguard blocks it"""
     # Gen 4: Cannot apply a new status if one already exists
     if pok[_POK_STATUS] != 0:
+        return
+    if side & _SIDECONDITION_SAFEGUARD:
         return
 
     m_status = move[_SEC_STATUS] if sec else move[_MOVE_STATUS]
@@ -158,8 +161,9 @@ def apply_status(move, pok, weather, source, sec=False):
 
 
 @njit
-def stat_changes(move, attacker, defender, sec=False):
-    """Check and apply stat changes."""
+def stat_changes(move, attacker, defender, sec=False, def_side=0):
+    """Check and apply stat changes. def_side is the defender's Field.SIDE_COND, Mist there
+    blocks the drops this move causes it"""
     stat_map = SECONDARY_STAT_MAPPING if sec else STAT_MAPPING
     has_stat_boost = False
 
@@ -179,16 +183,19 @@ def stat_changes(move, attacker, defender, sec=False):
     # 2. Assign target exactly once
     m_target = move[_SEC_TARGET] if sec else move[_MOVE_TARGET]
     target_pok = attacker if m_target in TARGET_SELF_SIDE else defender
+    misted = m_target not in TARGET_SELF_SIDE and (def_side & _SIDECONDITION_MIST) != 0
 
     # 3. Apply stats safely to the evaluated target
     for move_idx, stat_idx in stat_map:
         boost = move[move_idx]
-        if boost != 0:
+        if boost != 0 and not (misted and boost < 0):
             target_pok[stat_idx] = max(-6, min(6, target_pok[stat_idx] + boost))
 
     # Apply Accuracy (Requires Keen Eye exception for Opponent target)
     if acc_boost != 0:
-        if m_target in TARGET_OPP_SIDE and acc_boost < 0 and defender[_POK_AB_ID] == _ABILITYNAMES_KEEN_EYE:
+        if misted and acc_boost < 0:
+            pass  # Blocked
+        elif m_target in TARGET_OPP_SIDE and acc_boost < 0 and defender[_POK_AB_ID] == _ABILITYNAMES_KEEN_EYE:
             pass  # Blocked
         else:
             target_pok[_POK_ACCURACY_STAT_STAGE] = (
@@ -197,11 +204,13 @@ def stat_changes(move, attacker, defender, sec=False):
 
 
 @njit
-def vol_status(move, pok, source, sec=False):
-    """Check and apply volatile status."""
+def vol_status(move, pok, source, sec=False, side=0):
+    """Check and apply volatile status. side is pok's Field.SIDE_COND, Safeguard there blocks
+    confusion and Yawn"""
     v_status = move[_SEC_VOL_STATUS] if sec else move[_MOVE_VOL_STATUS]
+    safeguard = side & _SIDECONDITION_SAFEGUARD
 
-    if v_status & _VOLSTATUS_CONFUSION:
+    if v_status & _VOLSTATUS_CONFUSION and not safeguard:
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
             pok[_POK_VOL_STATUS] += _VOLSTATUS_CONFUSION
             pok[_POK_CONFUSION_COUNTER] = TURNS_2_5[random.getrandbits(2)]
@@ -245,7 +254,7 @@ def vol_status(move, pok, source, sec=False):
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_ATTRACT
 
     # Fails on a target that already has a status or is already drowsy
-    if v_status & _VOLSTATUS_YAWN:
+    if v_status & _VOLSTATUS_YAWN and not safeguard:
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN and pok[_POK_STATUS] == 0:
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_YAWN
             pok[_POK_YAWN_TURNS] = YAWN_DURATION
@@ -280,28 +289,30 @@ def vol_status(move, pok, source, sec=False):
 
 
 @njit
-def calculate_effects(attacker, defender, move, weather):
-    """Calculate primary move effects."""
+def calculate_effects(attacker, defender, move, weather, def_side=0):
+    """Calculate primary move effects. def_side is the defender's Field.SIDE_COND"""
     # Curse different moves
     if move[_MOVE_ID] == _MOVENAME_CURSE:
         if attacker[_POK_TYPE1] != _TYPES_GHOST and attacker[_POK_TYPE2] != _TYPES_GHOST:
             move = CURSE_BOOST
-    stat_changes(move, attacker, defender)
+    stat_changes(move, attacker, defender, False, def_side)
 
     if move[_MOVE_STATUS] != 0:
         if move[_MOVE_TARGET] in TARGET_OPP_SIDE:
-            apply_status(move, defender, weather, attacker)
+            apply_status(move, defender, weather, attacker, False, def_side)
         else:
             raise ValueError("Shouldn't have self status change in this block")
 
     if move[_MOVE_VOL_STATUS] != 0:
-        target_pok = attacker if move[_MOVE_TARGET] in SELF_VOL_TARGETS else defender
-        vol_status(move, target_pok, attacker)
+        if move[_MOVE_TARGET] in SELF_VOL_TARGETS:
+            vol_status(move, attacker, attacker)
+        else:
+            vol_status(move, defender, attacker, False, def_side)
 
 
 @njit
-def sec_effects(move, attacker, defender, weather):
-    """Calculate secondary move effects (e.g., 10% Burn)."""
+def sec_effects(move, attacker, defender, weather, def_side=0):
+    """Calculate secondary move effects (e.g., 10% Burn). def_side is the defender's Field.SIDE_COND"""
     m_target = move[_SEC_TARGET]
     target_opp = m_target in TARGET_OPP_SIDE
 
@@ -311,13 +322,13 @@ def sec_effects(move, attacker, defender, weather):
     chance = move[_SEC_CHANCE]
 
     if chance == 100 or random.randint(1, 100) <= chance:
-        stat_changes(move, attacker, defender, sec=True)
+        stat_changes(move, attacker, defender, True, def_side)
 
         if target_opp:
             if move[_SEC_STATUS] != 0:
-                apply_status(move, defender, weather, attacker, sec=True)
+                apply_status(move, defender, weather, attacker, True, def_side)
             if move[_SEC_VOL_STATUS] != 0:
-                vol_status(move, defender, attacker, sec=True)
+                vol_status(move, defender, attacker, True, def_side)
 
 
 @njit

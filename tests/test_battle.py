@@ -3,8 +3,13 @@ whole battles that checks state invariants after every decision"""
 import pytest
 from Engine import battle
 from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
-from Models.idx_const import Pok, Move, Field, POK_LEN
-from Models.helper import ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, Types
+from Models.idx_const import (
+    Pok, Move, Field, POK_LEN, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS,
+    SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES,
+)
+from Models.helper import (
+    ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, Types, SideCondition, Weather,
+)
 from Models.move import STRUGGLE
 from Models.constants import _ENEMY_AI_KNOWS_MOVE2
 from battle_driver import (
@@ -824,3 +829,232 @@ def test_disable_stops_the_move_this_turn(make_pokemon, make_battle):
     turn_sim(0, (MOVE, 0), arr)
     assert me[Pok.VOL_STATUS] & VolStatus.DISABLE and me[Pok.DISABLE_TURNS] % 4 == 0
     assert foe[Pok.CURRENT_HP] == hp
+
+
+# ── Phase 5 side conditions, weather, hazards ────────────────────────────────
+
+MY_SIDE = Field.MY_SIDE_COND
+OPP_SIDE = Field.OPP_SIDE_COND
+SR = SideCondition.STEALTH_ROCK
+
+
+@pytest.mark.parametrize("cond, turns", [
+    (SideCondition.REFLECT, SIDE_REFLECT_TURNS),
+    (SideCondition.LIGHT_SCREEN, SIDE_LIGHT_SCREEN_TURNS),
+    (SideCondition.MIST, SIDE_MIST_TURNS),
+    (SideCondition.SAFEGUARD, SIDE_SAFEGUARD_TURNS),
+    (SideCondition.LUCKY_CHANT, SIDE_LUCKY_CHANT_TURNS),
+])
+def test_timed_side_condition_lasts_five_turns(one_v_one, cond, turns):
+    """Set to 5, counted down at the end of the turn it was set, gone after the 5th"""
+    arr = one_v_one()
+    battle._set_side_condition(cond, arr, OPP_SIDE)
+    assert arr[OPP_SIDE] == cond and arr[OPP_SIDE + turns] == 5
+    for left in (4, 3, 2, 1):
+        battle._count_down_field(arr)
+        assert arr[OPP_SIDE] == cond and arr[OPP_SIDE + turns] == left
+    battle._count_down_field(arr)
+    assert arr[OPP_SIDE] == 0 and arr[OPP_SIDE + turns] == 0
+
+
+def test_side_condition_fails_while_up(one_v_one):
+    """Using Reflect again doesn't refresh it"""
+    arr = one_v_one()
+    battle._set_side_condition(SideCondition.REFLECT, arr, MY_SIDE)
+    battle._count_down_field(arr)
+    battle._set_side_condition(SideCondition.REFLECT, arr, MY_SIDE)
+    assert arr[MY_SIDE + SIDE_REFLECT_TURNS] == 4
+
+
+def test_toxic_spikes_stack_to_two_and_rocks_once(one_v_one):
+    """A third Toxic Spikes and a second Stealth Rock fail"""
+    arr = one_v_one()
+    for _ in range(3):
+        battle._set_side_condition(SideCondition.TOXIC_SPIKES, arr, OPP_SIDE)
+        battle._set_side_condition(SR, arr, OPP_SIDE)
+    assert arr[OPP_SIDE + SIDE_TOXIC_SPIKES] == 2
+    assert arr[OPP_SIDE] == SideCondition.TOXIC_SPIKES | SR
+
+
+def _phase5_battle(make_pokemon, make_battle, my_moves, opp=("Rattata", "Run Away")):
+    me = make_pokemon("Machop", 20, "Guts", my_moves)
+    foe = make_pokemon(opp[0], 20, opp[1], ["Growl"])
+    return make_battle([me], [foe])
+
+
+def test_reflect_and_hazards_go_on_the_right_side(make_pokemon, make_battle):
+    """Reflect on the user's side, Stealth Rock on the foe's"""
+    arr = _phase5_battle(make_pokemon, make_battle, ["Reflect", "Stealth Rock"])
+    turn_sim(0, (MOVE, 0), arr)
+    turn_sim(0, (MOVE, 1), arr)
+    assert arr[MY_SIDE] == SideCondition.REFLECT
+    assert arr[OPP_SIDE] == SR
+
+
+@pytest.mark.parametrize("opp, breaks", [
+    (("Rattata", "Run Away"), True), (("Gastly", "Levitate"), False),
+])
+def test_brick_break_shatters_screens(make_pokemon, make_battle, opp, breaks):
+    """Brick Break clears the target side's screens on a hit, a Ghost type isn't hit"""
+    arr = _phase5_battle(make_pokemon, make_battle, ["Brick Break"], opp)
+    arr[OPP_SIDE] = SideCondition.REFLECT | SideCondition.LIGHT_SCREEN | SR
+    arr[OPP_SIDE + SIDE_REFLECT_TURNS] = arr[OPP_SIDE + SIDE_LIGHT_SCREEN_TURNS] = 3
+    turn_sim(0, (MOVE, 0), arr)
+    if breaks:
+        assert arr[OPP_SIDE] == SR
+        assert arr[OPP_SIDE + SIDE_REFLECT_TURNS] == arr[OPP_SIDE + SIDE_LIGHT_SCREEN_TURNS] == 0
+    else:
+        assert arr[OPP_SIDE] & SideCondition.REFLECT
+
+
+def test_rapid_spin_clears_hazards_seed_and_bind(make_pokemon, make_battle):
+    """Rapid Spin frees the user and clears every hazard on its side, the screens stay"""
+    arr = _phase5_battle(make_pokemon, make_battle, ["Rapid Spin"])
+    me = my_active(arr)
+    arr[MY_SIDE] = SR | SideCondition.SPIKES | SideCondition.TOXIC_SPIKES | SideCondition.REFLECT
+    arr[MY_SIDE + SIDE_TOXIC_SPIKES] = 2
+    arr[MY_SIDE + SIDE_REFLECT_TURNS] = 3
+    me[Pok.VOL_STATUS] = VolStatus.LEECH_SEED | VolStatus.PARTIALLY_TRAPPED
+    me[Pok.TRAP_TURNS] = 3
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[MY_SIDE] == SideCondition.REFLECT
+    assert arr[MY_SIDE + SIDE_TOXIC_SPIKES] == 0
+    assert not me[Pok.VOL_STATUS] & (VolStatus.LEECH_SEED | VolStatus.PARTIALLY_TRAPPED)
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP]
+
+
+def test_rain_dance_lasts_five_turns(make_pokemon, make_battle):
+    """Rain for the turn it's set plus 4, Rain Dance again during it fails"""
+    arr = _phase5_battle(make_pokemon, make_battle, ["Rain Dance"])
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.WEATHER] == Weather.RAIN and arr[Field.WEATHER_DURATION] == 4
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.WEATHER_DURATION] == 3
+    for _ in range(3):
+        end_of_turn(arr)
+    assert arr[Field.WEATHER] == 0 and arr[Field.WEATHER_DURATION] == 0
+
+
+def test_sandstorm_doesnt_hit_on_its_last_turn(one_v_one):
+    """The turn the sandstorm ends nobody takes damage"""
+    arr = one_v_one()
+    me = my_active(arr)
+    arr[Field.WEATHER] = Weather.SANDSTORM
+    arr[Field.WEATHER_DURATION] = 2
+    end_of_turn(arr)
+    hp = me[Pok.CURRENT_HP]
+    assert hp < me[Pok.MAX_HP]
+    end_of_turn(arr)
+    assert me[Pok.CURRENT_HP] == hp and arr[Field.WEATHER] == 0
+
+
+def test_weather_without_duration_is_permanent(one_v_one):
+    """Weather set with no turns left (abilities, scenarios) never ends"""
+    arr = one_v_one()
+    arr[Field.WEATHER] = Weather.SANDSTORM
+    for _ in range(8):
+        end_of_turn(arr)
+    assert arr[Field.WEATHER] == Weather.SANDSTORM
+
+
+def test_second_mover_sees_the_new_weather(monkeypatch, make_pokemon, make_battle):
+    """Rain Dance from the faster side boosts the slower side's Water move the same turn"""
+    fast = make_pokemon("Rattata", 30, "Run Away", ["Rain Dance"])
+    slow = make_pokemon("Squirtle", 10, "Torrent", ["Water Gun"])
+    arr = make_battle([fast], [slow])
+    seen = []
+    real = battle._execute_move_slot
+
+    def spy(*args, **kwargs):
+        seen.append(int(args[10]))
+        return real(*args, **kwargs)
+    monkeypatch.setattr(battle, "_execute_move_slot", spy)
+    turn_sim(0, (MOVE, 0), arr)
+    assert seen == [0, Weather.RAIN]
+
+
+def test_my_switch_in_faints_to_the_rocks(two_v_two):
+    """My switch-in dies on entry: the foe's move has no target and I pick again"""
+    arr = two_v_two()
+    arr[MY_SIDE] = SR
+    geodude = pok_slice(arr, 1)
+    geodude[Pok.CURRENT_HP] = 1
+    rattata = pok_slice(arr, 0)
+    phase, _ = turn_sim(0, (SWITCH, 1), arr)    # foe Tackles
+    assert phase == BattlePhase.DEATH_END_OF_TURN
+    assert geodude[Pok.CURRENT_HP] == 0
+    arr[Field.PHASE] = phase
+    switch_in_action(arr, 0)
+    assert arr[Field.PHASE] == BattlePhase.TURN_START
+    assert rattata[Pok.CURRENT_HP] == rattata[Pok.MAX_HP] - rattata[Pok.MAX_HP] // 8
+
+
+def test_death_phase_replacement_faints_to_the_rocks(make_pokemon, make_battle):
+    """The replacement dies on entry: still the death phase, the turn doesn't advance"""
+    team = [make_pokemon("Rattata", 10, "Run Away", ["Tackle"]) for _ in range(3)]
+    arr = make_battle(team, [make_pokemon("Rattata", 10, "Run Away", ["Tackle"])])
+    arr[MY_SIDE] = SR
+    pok_slice(arr, 0)[Pok.CURRENT_HP] = 0
+    pok_slice(arr, 1)[Pok.CURRENT_HP] = 1
+    arr[Field.PHASE] = BattlePhase.DEATH_END_OF_TURN
+    turn = arr[Field.TURN]
+    switch_in_action(arr, 1)
+    assert arr[Field.PHASE] == BattlePhase.DEATH_END_OF_TURN and arr[Field.TURN] == turn
+    assert pok_slice(arr, 1)[Pok.CURRENT_HP] == 0
+    switch_in_action(arr, 2)
+    assert arr[Field.PHASE] == BattlePhase.TURN_START and arr[Field.TURN] == turn + 1
+    assert arr[Field.MY_POK] == 2
+
+
+def test_ai_keeps_replacing_while_its_switch_ins_faint(make_pokemon, make_battle):
+    """The AI's replacements die to the rocks until one survives (Magic Guard)"""
+    me = make_pokemon("Machop", 20, "Guts", ["Karate Chop"])
+    opp = [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]) for _ in range(3)]
+    opp.append(make_pokemon("Clefairy", 20, "Magic Guard", ["Growl"]))
+    arr = make_battle([me], opp)
+    arr[OPP_SIDE] = SR
+    pok_slice(arr, 0, opp=True)[Pok.CURRENT_HP] = 0
+    for slot in (1, 2):
+        pok_slice(arr, slot, opp=True)[Pok.CURRENT_HP] = 1
+    assert end_of_turn(arr) == 3 == arr[Field.OPP_POK]
+    assert all(pok_slice(arr, slot, opp=True)[Pok.CURRENT_HP] == 0 for slot in (1, 2))
+    assert opp_active(arr)[Pok.CURRENT_HP] == opp_active(arr)[Pok.MAX_HP]
+
+
+def test_double_ko_my_replacement_faints_after_seeing_the_ai_pick(make_pokemon, make_battle):
+    """Both send in, mine dies to the rocks: I pick again with the AI's new Pokemon already in"""
+    team = [make_pokemon("Rattata", 10, "Run Away", ["Tackle"]) for _ in range(3)]
+    foes = [make_pokemon("Rattata", 10, "Run Away", ["Tackle"]) for _ in range(2)]
+    arr = make_battle(team, foes)
+    arr[MY_SIDE] = SR
+    pok_slice(arr, 0)[Pok.CURRENT_HP] = 0
+    pok_slice(arr, 1)[Pok.CURRENT_HP] = 1
+    pok_slice(arr, 0, opp=True)[Pok.CURRENT_HP] = 0
+    arr[Field.PHASE] = BattlePhase.DEATH_END_OF_TURN
+    switch_in_action(arr, 1)
+    assert arr[Field.PHASE] == BattlePhase.DEATH_END_OF_TURN
+    assert arr[Field.OPP_POK] == 1 and opp_active(arr)[Pok.CURRENT_HP] > 0
+    switch_in_action(arr, 2)
+    assert arr[Field.PHASE] == BattlePhase.TURN_START and arr[Field.OPP_POK] == 1
+
+
+# ── Moves into a fainted foe ─────────────────────────────────────────────────
+
+@pytest.mark.parametrize("slot, works", [(0, False), (1, True), (2, True), (3, True)])
+def test_move_into_a_fainted_foe(make_pokemon, make_battle, slot, works):
+    """PP is spent either way, a move aimed at the fainted foe fails, self/side/field moves go"""
+    arr = _phase5_battle(
+        make_pokemon, make_battle, ["Tackle", "Harden", "Stealth Rock", "Rain Dance"]
+    )
+    me = my_active(arr)
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] = 0
+    mv = move_slice(me, slot)
+    pp = mv[Move.PP]
+    battle._execute_move_slot(me, foe, mv, True, slot, 0, False, 1, True, arr, 0)
+    assert mv[Move.PP] == pp - 1
+    assert me[Pok.LAST_MOVE_ID] == mv[Move.ID] == arr[Field.MY_LAST_MOVE]
+    changed = (
+        me[Pok.DEFENSE_STAT_STAGE] == 1, arr[OPP_SIDE] == SR, arr[Field.WEATHER] == Weather.RAIN
+    )
+    assert any(changed) == works

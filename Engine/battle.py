@@ -4,12 +4,12 @@ import random
 from Utils.jit import njit
 from Engine.engine_helper import (
     check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
-    flinch_checker, thaw, early_returns, switch_in,
+    flinch_checker, thaw, early_returns, switch_in, SIDE_OR_FIELD_TARGETS,
     contact_ability, heal_weather, on_residual, trainer_ai_items, drain,
     item_on_rdmg, eat_berry_bug_bite, struggle, switch_items,
     RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
-    try_protect, endure_damage
+    try_protect, endure_damage, side_base
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP
@@ -17,10 +17,11 @@ from Engine.status_calc import (
 from Engine.damage_calc import calculate_damage, ROLLOUT_MOVES
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
-    POK_LEN, MOVE_STRIDE, OFFSET_MOVE
+    POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS,
+    SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES
 )
 from Models.helper import (
-    count_party, PHYSICAL_SPECIAL
+    count_party, PHYSICAL_SPECIAL, Target, TARGET_SELF_SIDE
 )
 from Models.constants import (
     _FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1, _FIELD_WEATHER,
@@ -49,7 +50,12 @@ from Models.constants import (
     _POK_LAST_MOVE_ID, _MOVENAME_UPROAR, _POK_UPROAR_TURNS, _POK_TRAP_TURNS, _POK_TAUNT_TURNS,
     _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _VOLSTATUS_TAUNT, _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE,
     _MOVEOUTCOME_MISS, _MOVEOUTCOME_SEMI_INVULNERABLE, _MOVEOUTCOME_PROTECTED,
-    _ABILITYNAMES_SOUNDPROOF
+    _ABILITYNAMES_SOUNDPROOF, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _FIELD_WEATHER_DURATION,
+    _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN,
+    _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _SIDECONDITION_LUCKY_CHANT,
+    _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK, _SIDECONDITION_SPIKES,
+    _MOVENAME_BRICK_BREAK, _MOVENAME_RAPID_SPIN, _MOVENAME_RAIN_DANCE, _MOVENAME_SANDSTORM,
+    _WEATHER_RAIN, _WEATHER_SANDSTORM
 )
 from Models.move import STRUGGLE
 
@@ -74,6 +80,29 @@ AI_KNOWS_MOVES = (
 )
 # An uproar keeps going through these, only a blocked turn or an immune target ends it early
 UPROAR_KEEPS_ON = (_MOVEOUTCOME_MISS, _MOVEOUTCOME_SEMI_INVULNERABLE, _MOVEOUTCOME_PROTECTED)
+SIDES = (_FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND)
+# Timed side conditions and their turn counter, in the order the end of turn counts them down
+TIMED_SIDE_CONDITIONS = (
+    (_SIDECONDITION_REFLECT, SIDE_REFLECT_TURNS),
+    (_SIDECONDITION_LIGHT_SCREEN, SIDE_LIGHT_SCREEN_TURNS),
+    (_SIDECONDITION_MIST, SIDE_MIST_TURNS),
+    (_SIDECONDITION_SAFEGUARD, SIDE_SAFEGUARD_TURNS),
+    (_SIDECONDITION_LUCKY_CHANT, SIDE_LUCKY_CHANT_TURNS),
+)
+SCREENS = _SIDECONDITION_REFLECT | _SIDECONDITION_LIGHT_SCREEN
+TIMED_SIDE_MASK = (
+    _SIDECONDITION_REFLECT | _SIDECONDITION_LIGHT_SCREEN | _SIDECONDITION_MIST
+    | _SIDECONDITION_SAFEGUARD | _SIDECONDITION_LUCKY_CHANT
+)
+RAPID_SPIN_CLEARS = _SIDECONDITION_STEALTH_ROCK | _SIDECONDITION_SPIKES | _SIDECONDITION_TOXIC_SPIKES
+# Screens, Mist, Safeguard, Lucky Chant and move weather
+FIELD_EFFECT_TURNS = 5
+TOXIC_SPIKES_MAX = 2
+WEATHER_MOVES = ((_MOVENAME_RAIN_DANCE, _WEATHER_RAIN), (_MOVENAME_SANDSTORM, _WEATHER_SANDSTORM))
+# Stealth Rock and Toxic Spikes go on the foe's side, the other side conditions on the user's
+FOE_SIDE_TARGET = Target.FOE_SIDE
+# Self, side and field moves still work against a fainted foe
+NO_FOE_TARGETS = TARGET_SELF_SIDE + SIDE_OR_FIELD_TARGETS
 
 @njit
 def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx):
@@ -86,7 +115,7 @@ def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx):
     new_pokemon = battle_array[
         (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
     ]
-    switch_in(new_pokemon, current_opp)
+    switch_in(new_pokemon, current_opp, battle_array, True)
     return new_pokemon
 
 
@@ -99,7 +128,7 @@ def _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch):
     new_opp = battle_array[
         ((opp_switch+6) * POK_LEN):((opp_switch+7) * POK_LEN)
     ]
-    switch_in(new_opp, current_pokemon)
+    switch_in(new_opp, current_pokemon, battle_array, False)
     return new_opp
 
 
@@ -147,14 +176,15 @@ def start_of_turn(opp_move, switch_idx, battle_array):
 
 
 @njit
-def _resolve_move_damage(attacker, defender, move, weather):
-    """Figure out how much damage this hit does, independent of applying it"""
+def _resolve_move_damage(attacker, defender, move, weather, def_side=0):
+    """Figure out how much damage this hit does, independent of applying it.
+    def_side is the defender's Field.SIDE_COND"""
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
-        return struggle(attacker, defender, False)
+        return struggle(attacker, defender, False, def_side)
     move_damage = move[_MOVE_DAMAGE]
     if not move_damage:
-        crit = calculate_crit(attacker, defender, move)
-        return calculate_damage(attacker, defender, move, weather, crit)
+        crit = calculate_crit(attacker, defender, move, def_side)
+        return calculate_damage(attacker, defender, move, weather, crit, None, def_side)
     if move_damage == _DAMAGESOURCES_LEVEL:
         return attacker[_POK_LEVEL]
     if move_damage == _DAMAGESOURCES_PSYWAVE:
@@ -223,11 +253,13 @@ def _apply_move_damage(attacker, defender, move, damage):
 
 
 @njit
-def _ps_moves_core(attacker, defender, move, weather):
+def _ps_moves_core(attacker, defender, move, weather, def_side=0):
     """
     Checks for damage and for flinch. Also returns the HP the defender actually lost
     """
-    damage = endure_damage(defender, _resolve_move_damage(attacker, defender, move, weather))
+    damage = endure_damage(
+        defender, _resolve_move_damage(attacker, defender, move, weather, def_side)
+    )
     dealt = min(damage, defender[_POK_CURRENT_HP])
     flinch= _apply_move_damage(attacker, defender, move, damage)
     return flinch, damage, dealt
@@ -243,7 +275,7 @@ def _recoil(attacker, move, dealt):
 
 
 @njit
-def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s):
+def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=0):
     """Physical or Special multihit moves, where I need to calculate damage and secondary effects"""
     mult_hit_min = move[_MOVE_MULTI_HIT_MIN]
     mult_hit_max = move[_MOVE_MULTI_HIT_MAX]
@@ -259,14 +291,14 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s):
     for i in range(multhit):
         if i and defender[_POK_CURRENT_HP]<=0:
             break
-        flinch_c, damage, dealt = _ps_moves_core(attacker, defender, move, weather)
+        flinch_c, damage, dealt = _ps_moves_core(attacker, defender, move, weather, def_side)
         if flinch_c:
             flinch = True
         dmg += damage
         dealt_total += dealt
         # Check for secondary effects and apply them
         if move[_SEC_CHANCE]:
-            sec_effects(move, attacker, defender, weather)
+            sec_effects(move, attacker, defender, weather, def_side)
 
     _recoil(attacker, move, dealt_total)
     if move[_MOVE_DRAIN]:
@@ -286,9 +318,10 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s):
 
 
 @njit
-def ps_moves(attacker, defender, move, weather, rec_p, rec_s):
-    """Physical or Special moves, where I need to calculate damage and secondary effects"""
-    flinch, damage, dealt = _ps_moves_core(attacker, defender, move, weather)
+def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0):
+    """Physical or Special moves, where I need to calculate damage and secondary effects.
+    def_side is the defender's Field.SIDE_COND"""
+    flinch, damage, dealt = _ps_moves_core(attacker, defender, move, weather, def_side)
 
     _recoil(attacker, move, dealt)
     if move[_MOVE_DRAIN]:
@@ -296,7 +329,7 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s):
 
     # Check for secondary effects and apply them
     if move[_SEC_CHANCE]:
-        sec_effects(move, attacker, defender, weather)
+        sec_effects(move, attacker, defender, weather, def_side)
 
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         defender[_POK_DMG_TAKEN] += damage
@@ -346,6 +379,71 @@ def _clear_charge(atk, mv):
 
 
 @njit
+def _set_side_condition(cond, battle_array, side):
+    """
+    Screens, Mist, Safeguard and Lucky Chant last 5 turns and fail while up, Stealth Rock fails if
+    already set and Toxic Spikes stacks up to 2 layers. side is that side's Field.SIDE_COND
+    """
+    if cond == _SIDECONDITION_TOXIC_SPIKES:
+        layers = battle_array[side + SIDE_TOXIC_SPIKES]
+        if layers < TOXIC_SPIKES_MAX:
+            battle_array[side + SIDE_TOXIC_SPIKES] = layers + 1
+            battle_array[side] |= cond
+        return
+    if battle_array[side] & cond:
+        return
+    battle_array[side] |= cond
+    for bit, turns in TIMED_SIDE_CONDITIONS:
+        if bit == cond:
+            battle_array[side + turns] = FIELD_EFFECT_TURNS
+
+
+@njit
+def _move_weather(move_id):
+    """Weather the move sets, 0 if it isn't a weather move"""
+    for weather_move, weather in WEATHER_MOVES:
+        if move_id == weather_move:
+            return weather
+    return 0
+
+
+@njit
+def _set_weather(battle_array, weather):
+    """Rain Dance and Sandstorm fail under the same weather, else it lasts 5 turns.
+    TODO: Damp Rock, Smooth Rock"""
+    if battle_array[_FIELD_WEATHER] == weather:
+        return
+    battle_array[_FIELD_WEATHER] = weather
+    battle_array[_FIELD_WEATHER_DURATION] = FIELD_EFFECT_TURNS
+
+
+@njit
+def _clear_side(battle_array, side, conds):
+    """Removes these side conditions with their turn counters and Toxic Spikes layers"""
+    battle_array[side] &= ~conds
+    for bit, turns in TIMED_SIDE_CONDITIONS:
+        if bit & conds:
+            battle_array[side + turns] = 0
+    if conds & _SIDECONDITION_TOXIC_SPIKES:
+        battle_array[side + SIDE_TOXIC_SPIKES] = 0
+
+
+@njit
+def _after_hit_field(atk, mv, battle_array, atk_side, def_side):
+    """
+    Brick Break shatters the target side's screens, Rapid Spin frees the user from a bind and Leech
+    Seed and clears the hazards on its own side. Both only once the move hit
+    """
+    move_id = mv[_MOVE_ID]
+    if move_id == _MOVENAME_BRICK_BREAK:
+        _clear_side(battle_array, def_side, SCREENS)
+    elif move_id == _MOVENAME_RAPID_SPIN:
+        atk[_POK_VOL_STATUS] &= ~(_VOLSTATUS_LEECH_SEED | _VOLSTATUS_PARTIALLY_TRAPPED)
+        atk[_POK_TRAP_TURNS] = 0
+        _clear_side(battle_array, atk_side, RAPID_SPIN_CLEARS)
+
+
+@njit
 def _execute_move_slot(
         atk, defn, mv, is_mine, current_move, opp_move,
         flinch_in, slot_num, is_last, battle_array, weather,
@@ -392,6 +490,10 @@ def _execute_move_slot(
     if mv[_MOVE_CHARGE_RECHARGE] > 0:
         atk[_POK_LOCKED_MOVE] = -1
         atk[_POK_VOL_STATUS] &= ~_VOLSTATUS_SEMI_INVULNERABLE
+    # The foe fainted (recoil, Explosion...): PP is spent, a move aimed at it fails.
+    # TODO: Some moves still go through, like future sight
+    if defn[_POK_CURRENT_HP] <= 0 and mv[_MOVE_TARGET] not in NO_FOE_TARGETS:
+        return False
 
     _consec_before_move(atk, mv, current_move if is_mine else opp_move)
     if mv[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and not natural_gift(atk, mv):
@@ -411,12 +513,15 @@ def _execute_move_slot(
             unlock_move(atk)
         return False
 
+    atk_side = side_base(is_mine)
+    def_side = side_base(not is_mine)
     if mv[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
         _consec_on_hit(atk, mv)
         if mv[_MOVE_MULTI_HIT_MIN]:
-            flinch = ps_moves_multihit(atk, defn, mv, weather, rec_p, rec_s)
+            flinch = ps_moves_multihit(atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side])
         else:
-            flinch = ps_moves(atk, defn, mv, weather, rec_p, rec_s)
+            flinch = ps_moves(atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side])
+        _after_hit_field(atk, mv, battle_array, atk_side, def_side)
         if mv[_MOVE_ID] in ROLLOUT_MOVES and atk[_POK_CONSEC_COUNT] >= ROLLOUT_MAX_USES:
             unlock_move(atk)
         if mv[_MOVE_ID] == _MOVENAME_RAGE:
@@ -446,7 +551,17 @@ def _execute_move_slot(
             thaw(mv, defn)
         return flinch
 
-    calculate_effects(atk, defn, mv, weather)
+    if mv[_MOVE_SIDE_CONDITION]:
+        _set_side_condition(
+            mv[_MOVE_SIDE_CONDITION], battle_array,
+            def_side if mv[_MOVE_TARGET] == FOE_SIDE_TARGET else atk_side
+        )
+        return False
+    move_weather = _move_weather(mv[_MOVE_ID])
+    if move_weather:
+        _set_weather(battle_array, move_weather)
+        return False
+    calculate_effects(atk, defn, mv, weather, battle_array[def_side])
     return False
 
 
@@ -531,7 +646,7 @@ def action(current_move, opp_move, battle_array):
                 current_move = mv2_slot
         _execute_move_slot(
             atk2, def2, mv2, not first_is_mine, current_move, opp_move,
-            flinch, 2, True, battle_array, weather
+            flinch, 2, True, battle_array, battle_array[_FIELD_WEATHER]
         )
         _clear_charge(atk2, mv2)
 
@@ -726,6 +841,54 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
 
 
 @njit
+def _count_down_field(battle_array):
+    """
+    pokeplatinum CheckFieldConditions, before any Pokemon's residual: Reflect, Light Screen, Mist,
+    Safeguard and Lucky Chant of both sides, then the weather. Each one counts the turn it was set
+    in, and a weather that ends does nothing this turn. A weather with no turns left set is
+    permanent. Returns the weather for the rest of the turn
+    """
+    if (battle_array[_FIELD_MY_SIDE_COND] | battle_array[_FIELD_OPP_SIDE_COND]) & TIMED_SIDE_MASK:
+        for bit, turns in TIMED_SIDE_CONDITIONS:
+            for side in SIDES:
+                if battle_array[side] & bit:
+                    battle_array[side + turns] -= 1
+                    if battle_array[side + turns] <= 0:
+                        battle_array[side] &= ~bit
+                        battle_array[side + turns] = 0
+    if battle_array[_FIELD_WEATHER_DURATION] > 0:
+        battle_array[_FIELD_WEATHER_DURATION] -= 1
+        if battle_array[_FIELD_WEATHER_DURATION] == 0:
+            battle_array[_FIELD_WEATHER] = 0
+    return battle_array[_FIELD_WEATHER]
+
+
+@njit
+def _replace_fainted_opp(battle_array, current_pokemon, current_opp):
+    """
+    The AI sends in a replacement for its fainted active, and keeps doing it while the one it sent
+    faints to the hazards on entry. Returns the slot sent last, -1 if it had nobody left
+    """
+    opp_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
+    i = -1
+    for _ in range(6):
+        if count_party(opp_pty) == 0:
+            break
+        i = sub_after_death(
+            opp_pty, current_pokemon, current_opp, battle_array[_FIELD_MY_SIDE_COND],
+            battle_array[_FIELD_WEATHER]
+        )
+        battle_array[_FIELD_OPP_POK] = i
+        battle_array[_FIELD_MY_LAST_MOVE] = 0
+        battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
+        current_opp = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
+        switch_in(current_opp, current_pokemon, battle_array, False)
+        if current_opp[_POK_CURRENT_HP] > 0:
+            break
+    return i
+
+
+@njit
 def end_of_turn(battle_array):
     """Does end of turn calculations like switch if dead, burn, poison, leech seed, ...,\n
     items like leftovers\n
@@ -741,7 +904,7 @@ def end_of_turn(battle_array):
     weather = battle_array[_FIELD_WEATHER]
 
     # TODO: Items
-    # TODO: Weather end before what happens to pokemon
+    weather = _count_down_field(battle_array)
 
     # Gen IV re-sorts by speed before the end of the turn, then weather hits everyone before the
     # per-Pokemon residuals
@@ -758,19 +921,8 @@ def end_of_turn(battle_array):
     _apply_residual(second, first, second_flag, battle_array)
 
     # If Opponent is dead
-    opp_pty = battle_array[(6 * POK_LEN):(12 * POK_LEN)]
     if current_opp[_POK_CURRENT_HP] == 0 and current_pokemon[_POK_CURRENT_HP] != 0:
-        if count_party(opp_pty) == 0:
-            return -1
-        i = sub_after_death(
-            opp_pty, current_pokemon, current_opp
-        )
-        battle_array[_FIELD_OPP_POK] = i
-        battle_array[_FIELD_MY_LAST_MOVE] = 0
-        battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
-        current_opp = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
-        switch_in(current_opp, current_pokemon)
-        return i
+        return _replace_fainted_opp(battle_array, current_pokemon, current_opp)
     return -1
 
 
@@ -854,7 +1006,8 @@ def switch_in_action(battle_array, switch_idx: int):
     ]
     if current_opp[_POK_CURRENT_HP] <= 0:
         i = sub_after_death(
-            opp_pty, current_pokemon, current_opp
+            opp_pty, current_pokemon, current_opp, battle_array[_FIELD_MY_SIDE_COND],
+            battle_array[_FIELD_WEATHER]
         )
         opp_switch = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
         my_switch = my_pty[
@@ -886,8 +1039,8 @@ def switch_in_action(battle_array, switch_idx: int):
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
 
             # Switch in effects after they are already switched
-            switch_in(current_pokemon, current_opp)
-            switch_in(current_opp, current_pokemon)
+            switch_in(current_pokemon, current_opp, battle_array, True)
+            switch_in(current_opp, current_pokemon, battle_array, False)
         else:
             # Opponent Pokemon
             battle_array[_FIELD_OPP_POK] = i
@@ -903,8 +1056,18 @@ def switch_in_action(battle_array, switch_idx: int):
             ]
 
             # Switch in effects after they are already switched
-            switch_in(current_opp, current_pokemon)
-            switch_in(current_pokemon, current_opp)
+            switch_in(current_opp, current_pokemon, battle_array, False)
+            switch_in(current_pokemon, current_opp, battle_array, True)
+
+        # Mine fainted to the hazards: I pick again, having seen who the AI sent
+        if current_pokemon[_POK_CURRENT_HP] <= 0:
+            battle_array[_FIELD_PHASE] = _BATTLEPHASE_DEATH_END_OF_TURN
+            return
+        if current_opp[_POK_CURRENT_HP] <= 0:
+            _replace_fainted_opp(battle_array, current_pokemon, current_opp)
+            current_opp = opp_pty[
+                (battle_array[_FIELD_OPP_POK] * POK_LEN):((battle_array[_FIELD_OPP_POK]+1) * POK_LEN)
+            ]
 
         battle_array[_FIELD_TURN] += 1
         current_opp[_POK_TURNS] += 1
@@ -917,7 +1080,13 @@ def switch_in_action(battle_array, switch_idx: int):
     current_pokemon = my_pty[
         (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
     ]
-    switch_in(current_pokemon, current_opp)
+    switch_in(current_pokemon, current_opp, battle_array, True)
+    # Fainted to the hazards, I pick again
+    if current_pokemon[_POK_CURRENT_HP] <= 0:
+        battle_array[_FIELD_AI_KNOWS] = 0
+        battle_array[_FIELD_MY_LAST_MOVE] = 0
+        battle_array[_FIELD_PHASE] = _BATTLEPHASE_DEATH_END_OF_TURN
+        return
     battle_array[_FIELD_TURN] += 1
     current_opp[_POK_TURNS] += 1
     current_pokemon[_POK_TURNS] += 1

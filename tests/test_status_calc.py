@@ -1,11 +1,12 @@
 """Status, volatile status and stat-change effects"""
 import pytest
+from Engine import status_calc
 from Engine.status_calc import (
     apply_status, stat_changes, vol_status, calculate_effects, sec_effects, synchronize_reflect,
 )
 from DataBase.MoveDB import MoveName
 from Models.idx_const import Pok, Move, Sec
-from Models.helper import Status, Weather, VolStatus
+from Models.helper import Status, Weather, VolStatus, SideCondition
 from battle_driver import move_slice
 
 
@@ -407,3 +408,60 @@ def test_fainted_uproar_holder_doesnt_block_sleep(poke):
     a[Pok.CURRENT_HP] = 0
     apply_status(move_slice(a, 0), d, 0, a)
     assert d[Pok.STATUS] == Status.SLEEP
+
+
+# ── Phase 5 Mist and Safeguard ───────────────────────────────────────────────
+
+MIST = SideCondition.MIST
+SAFEGUARD = SideCondition.SAFEGUARD
+
+
+def test_mist_blocks_drops_from_the_foe(poke):
+    """Growl and Sand Attack do nothing to a Misted side, the user's own boosts still apply"""
+    a = poke("Rattata", 20, "Run Away", ["Growl", "Sand Attack", "Harden"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    stat_changes(move_slice(a, 0), a, d, False, MIST)
+    stat_changes(move_slice(a, 1), a, d, False, MIST)
+    assert d[Pok.ATTACK_STAT_STAGE] == 0 and d[Pok.ACCURACY_STAT_STAGE] == 0
+    stat_changes(move_slice(a, 2), a, d, False, MIST)
+    assert a[Pok.DEFENSE_STAT_STAGE] == 1
+
+
+def test_mist_lets_raises_through(poke):
+    """Swagger still raises the Misted target's Attack"""
+    a = poke("Rattata", 20, "Run Away", ["Swagger"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    stat_changes(move_slice(a, 0), a, d, False, MIST)
+    assert d[Pok.ATTACK_STAT_STAGE] == 2
+
+
+def test_mist_blocks_secondary_drops(monkeypatch, poke):
+    """A secondary drop (Bubble's Speed -1) doesn't land through Mist"""
+    a = poke("Squirtle", 20, "Torrent", ["Bubble"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    monkeypatch.setattr(status_calc.random, "randint", lambda lo, hi: lo)
+    sec_effects(move_slice(a, 0), a, d, 0, MIST)
+    assert d[Pok.SPEED_STAT_STAGE] == 0
+    sec_effects(move_slice(a, 0), a, d, 0)
+    assert d[Pok.SPEED_STAT_STAGE] == -1
+
+
+def test_safeguard_blocks_status_confusion_and_yawn(poke):
+    """Safeguard stops major status, confusion and Yawn, not Leech Seed"""
+    a = poke("Pikachu", 20, "Static", ["Thunder Wave", "Confuse Ray", "Yawn", "Leech Seed"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    for slot in range(4):
+        calculate_effects(a, d, move_slice(a, slot), 0, SAFEGUARD)
+    assert d[Pok.STATUS] == 0
+    assert d[Pok.VOL_STATUS] == VolStatus.LEECH_SEED
+
+
+def test_safeguard_blocks_secondary_status(monkeypatch, poke):
+    """Ember's burn doesn't land through Safeguard"""
+    a = poke("Charmander", 20, "Blaze", ["Ember"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    monkeypatch.setattr(status_calc.random, "randint", lambda lo, hi: lo)
+    sec_effects(move_slice(a, 0), a, d, 0, SAFEGUARD)
+    assert d[Pok.STATUS] == 0
+    sec_effects(move_slice(a, 0), a, d, 0)
+    assert d[Pok.STATUS] == Status.BURN

@@ -1,5 +1,5 @@
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "./ui/hover-card";
-import type { TreeNode, PokemonState, BenchEntry } from "../types";
+import type { TreeNode, PokemonState, BenchEntry, SideEffect } from "../types";
 
 // ── Sprite URLs ───────────────────────────────────────────────────────────────
 const animFront = (id: number) =>
@@ -634,6 +634,36 @@ function BenchRow({
   );
 }
 
+// ── Side conditions (screens, hazards...) ─────────────────────────────────────
+function effectLabel(e: SideEffect): string {
+  if (e.layers !== undefined) return `${e.name} ×${e.layers}`;
+  if (e.turns !== undefined) return `${e.name} ${e.turns}`;
+  return e.name;
+}
+
+function SideChips({
+  effects,
+  justify = "flex-start",
+}: {
+  effects?: SideEffect[];
+  justify?: "flex-start" | "flex-end";
+}) {
+  if (!effects || effects.length === 0) return null;
+  return (
+    <div className="badge-row" style={{ justifyContent: justify, marginTop: 0 }}>
+      {effects.map((e) => (
+        <span
+          key={e.name}
+          className="badge field-badge"
+          title={e.turns !== undefined ? `${e.turns} turn(s) left` : undefined}
+        >
+          {effectLabel(e)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function BattleView({
   node,
@@ -696,6 +726,7 @@ export default function BattleView({
             minWidth: 0,
           }}
         >
+          <SideChips effects={snapshot.field?.my_side} />
           {isDeath ? (
             <div
               style={{
@@ -783,6 +814,19 @@ export default function BattleView({
               Turn {snapshot.turn}
             </span>
           )}
+          {snapshot.field?.weather && (
+            <span
+              className="badge field-badge"
+              title={
+                snapshot.field.weather_turns > 0
+                  ? `${snapshot.field.weather_turns} turn(s) left`
+                  : "Permanent"
+              }
+            >
+              {snapshot.field.weather}
+              {snapshot.field.weather_turns > 0 ? ` ${snapshot.field.weather_turns}` : ""}
+            </span>
+          )}
           <span
             style={{
               color: "rgba(120,128,160,0.3)",
@@ -843,6 +887,7 @@ export default function BattleView({
               )}
             </div>
           )}
+          <SideChips effects={snapshot.field?.opp_side} justify="flex-end" />
           {/* Bench above info */}
           <BenchRow entries={snapshot.opp_bench} justify="flex-end" />
           {snapshot.opp && (

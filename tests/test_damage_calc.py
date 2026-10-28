@@ -4,11 +4,11 @@ import pytest
 from Engine.damage_calc import (
     apply_stat_stage, calculate_damage, calculate_damage_confusion, flail,
     weight_power, magnitude_power, variable_power, base_power_ability, charge_power,
-    sport_power, matchup_types,
+    sport_power, matchup_types, calculate_ai_logic_damage,
 )
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
 from Models.idx_const import Pok
-from Models.helper import Types, Status, Weather, VolStatus
+from Models.helper import Types, Status, Weather, VolStatus, SideCondition
 from battle_driver import move_slice
 
 
@@ -360,3 +360,43 @@ def test_foresight_normal_damages_ghost_neutrally(poke):
     assert dmg(a, d) == 0
     d[Pok.VOL_STATUS] = VolStatus.FORESIGHT
     assert dmg(a, d) > 0
+
+
+# ── Phase 5 screens ──────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("slot, screen, halved", [
+    (0, SideCondition.REFLECT, True),        # Tackle
+    (0, SideCondition.LIGHT_SCREEN, False),
+    (1, SideCondition.LIGHT_SCREEN, True),   # Ember
+    (1, SideCondition.REFLECT, False),
+    (2, SideCondition.REFLECT, False),       # Brick Break goes through
+])
+def test_screens_halve_their_category(poke, slot, screen, halved):
+    """Reflect halves physical, Light Screen special damage, Brick Break ignores them"""
+    a = poke("Charmander", 50, "Blaze", ["Tackle", "Ember", "Brick Break"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, slot)
+    base = calculate_damage(a, d, mv, 0, False, 100)
+    screened = calculate_damage(a, d, mv, 0, False, 100, screen)
+    if halved:
+        assert 0.4 < ratio(screened, base) < 0.6
+    else:
+        assert screened == base
+
+
+def test_crit_goes_through_reflect(poke):
+    """A critical hit ignores the screen"""
+    a = poke("Charmander", 50, "Blaze", ["Tackle"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0)
+    assert (calculate_damage(a, d, mv, 0, True, 100, SideCondition.REFLECT)
+            == calculate_damage(a, d, mv, 0, True, 100))
+
+
+def test_ai_damage_sees_screens(poke):
+    """pokeplatinum TrainerAI_CalcDamage passes the defender's side conditions"""
+    a = poke("Charmander", 50, "Blaze", ["Tackle"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0)
+    base = calculate_ai_logic_damage(1.0, a, d, mv, 0)
+    assert 0.4 < ratio(calculate_ai_logic_damage(1.0, a, d, mv, 0, SideCondition.REFLECT), base) < 0.6

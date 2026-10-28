@@ -2,8 +2,12 @@
 from __future__ import annotations
 import os
 import sys
-from Models.idx_const import Pok, Move, MOVE_STRIDE, POK_LEN, Field as FieldIdx
-from Models.helper import BattlePhase, VolStatus
+from Models.idx_const import (
+    Pok, Move, MOVE_STRIDE, POK_LEN, Field as FieldIdx, SIDE_REFLECT_TURNS,
+    SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS,
+    SIDE_TOXIC_SPIKES,
+)
+from Models.helper import BattlePhase, VolStatus, SideCondition, Weather
 from DataBase.PkDB import PokIdToName, sprite_id
 from DataBase.MoveDB import MoveIdToName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
@@ -49,6 +53,24 @@ for _mid, _raw_name in MoveIdToName.items():
 
 _FLD_BASE = FieldIdx.MY_POK
 _FLD_ITEMS = (FieldIdx.AI_ITEM1, FieldIdx.AI_ITEM2, FieldIdx.AI_ITEM3, FieldIdx.AI_ITEM4)
+
+_WEATHER_NAMES = {
+    Weather.SUN: "Sun", Weather.RAIN: "Rain", Weather.HAIL: "Hail",
+    Weather.SANDSTORM: "Sandstorm",
+}
+# (bit, label, turns slot relative to SIDE_COND)
+_SIDE_TIMERS = (
+    (SideCondition.REFLECT, "Reflect", SIDE_REFLECT_TURNS),
+    (SideCondition.LIGHT_SCREEN, "Light Screen", SIDE_LIGHT_SCREEN_TURNS),
+    (SideCondition.MIST, "Mist", SIDE_MIST_TURNS),
+    (SideCondition.SAFEGUARD, "Safeguard", SIDE_SAFEGUARD_TURNS),
+    (SideCondition.LUCKY_CHANT, "Lucky Chant", SIDE_LUCKY_CHANT_TURNS),
+)
+_HAZARDS = (
+    (SideCondition.STEALTH_ROCK, "Stealth Rock"),
+    (SideCondition.SPIKES, "Spikes"),
+    (SideCondition.TOXIC_SPIKES, "Toxic Spikes"),
+)
 
 
 def _extract_moves(base_slice, current_pps=None) -> list[dict]:
@@ -125,6 +147,33 @@ def _pok(arr) -> dict | None:
     }
 
 
+def _side(field_block, side_cond) -> list[dict]:
+    """Side conditions up on one side: timed ones with turns left, Toxic Spikes with layers"""
+    base = side_cond - _FLD_BASE
+    mask = int(field_block[base])
+    out = []
+    for bit, name, turns in _SIDE_TIMERS:
+        if mask & bit:
+            out.append({"name": name, "turns": int(field_block[base + turns])})
+    for bit, name in _HAZARDS:
+        if mask & bit:
+            entry = {"name": name}
+            if bit == SideCondition.TOXIC_SPIKES:
+                entry["layers"] = int(field_block[base + SIDE_TOXIC_SPIKES])
+            out.append(entry)
+    return out
+
+
+def _field(field_block) -> dict:
+    """Weather (0 turns left means permanent) and both sides' conditions"""
+    return {
+        "weather":       _WEATHER_NAMES.get(int(field_block[FieldIdx.WEATHER - _FLD_BASE]), ""),
+        "weather_turns": int(field_block[FieldIdx.WEATHER_DURATION - _FLD_BASE]),
+        "my_side":       _side(field_block, FieldIdx.MY_SIDE_COND),
+        "opp_side":      _side(field_block, FieldIdx.OPP_SIDE_COND),
+    }
+
+
 def _opp_move_label(opp_move_idx: int, parent_opp_slice) -> str | None:
     """
     Turn the raw opp_move_idx into a readable string.
@@ -174,6 +223,7 @@ def _snapshot(snap, parent_opp_slice=None, battle_array=None) -> dict:
             for fi in _FLD_ITEMS
         ],
         "turn":          int(snap.field_block[FieldIdx.TURN - _FLD_BASE]),
+        "field":         _field(snap.field_block),
     }
 
 
