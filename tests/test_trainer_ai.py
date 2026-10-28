@@ -310,6 +310,16 @@ def test_ai_move_view(make_pokemon, poke):
     assert ai.ai_move_view(tackle, kick, user) is tackle
 
 
+def test_ai_move_view_gyro_ball(poke):
+    """The AI sees Gyro Ball's speed power (pokeplatinum TrainerAI_CalcDamage), not MoveDB's 0"""
+    gyro = poke("Bronzor", 20, "Levitate", ["Gyro Ball"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    gyro[Pok.SPEED] = 20
+    user[Pok.SPEED] = 100
+    assert ai.ai_move_view(move_slice(gyro, 0), gyro, user)[Move.POWER] == 126
+    assert move_slice(gyro, 0)[Move.POWER] == 0
+
+
 @pytest.mark.parametrize("move", [
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
     "Natural Gift", "Mirror Coat", "Assurance", "Take Down", "Bounce", "Fury Cutter", "Rollout",

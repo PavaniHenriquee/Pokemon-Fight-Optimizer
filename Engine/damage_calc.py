@@ -3,6 +3,7 @@ import random
 import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
+from Engine.speed import check_speed
 from Models.constants import (
     _ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW,
     _POK_AB_ID, _ABILITYNAMES_GUTS, _POK_STATUS, _ABILITYNAMES_HUGE_POWER,
@@ -22,7 +23,8 @@ from Models.constants import (
     _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_CHARGE,
     _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_GHOST,
     _TYPES_GROUND, _TYPES_FLYING, _TYPES_ELECTRIC, _MOVECATEGORY_SPECIAL, _MOVENAME_BRICK_BREAK,
-    _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN,
+    _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN, _ABILITYNAMES_ADAPTABILITY,
+    _MOVENAME_GYRO_BALL,
 )
 
 # ==========================================
@@ -333,13 +335,24 @@ def magnitude_power():
 
 
 @njit
-def variable_power(attacker, defender, move):
+def gyro_ball_power(attacker, defender, weather):
+    """1 + 25 * target speed / user speed, up to 150, with both effective speeds"""
+    user_speed, target_speed = check_speed(attacker, defender, weather)
+    if user_speed < 1:
+        return 1
+    return min(150, 1 + 25 * target_speed // user_speed)
+
+
+@njit
+def variable_power(attacker, defender, move, weather=0):
     """
     Base power for moves whose power depends on the battle state. Counters are only read here,
     the battle flow updates them
     """
     move_id = move[_MOVE_ID]
     power = move[_MOVE_POWER]
+    if move_id == _MOVENAME_GYRO_BALL:
+        return gyro_ball_power(attacker, defender, weather)
     if move_id == _MOVENAME_FLAIL:
         return flail(attacker)
     if move_id == _MOVENAME_LOW_KICK:
@@ -395,7 +408,7 @@ def calculate_damage(
 
     attack, defense = raw_atk_def(move, attacker, defender, weather, crit)
 
-    power = charge_power(attacker, move, variable_power(attacker, defender, move))
+    power = charge_power(attacker, move, variable_power(attacker, defender, move, weather))
 
     # Ability
     if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
@@ -498,4 +511,30 @@ def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather, d
     # Adding 2 after the above
     damage += 2
 
-    return int(damage*effectivenes)
+    # pokeplatinum TrainerAI_CalcDamage runs the battle's type chart (BattleSystem_ApplyTypeChart):
+    # STAB and each type, the AI's effectiveness only decides the immunities
+    if effectivenes == 0:
+        return 0
+    m_type = move[_MOVE_TYPE]
+    if m_type == attacker[_POK_TYPE1] or m_type == attacker[_POK_TYPE2]:  # pylint: disable=R1714
+        if attacker[_POK_AB_ID] == _ABILITYNAMES_ADAPTABILITY:
+            damage *= 2
+        else:
+            damage = (damage*3) // 2
+    def_type1, def_type2 = matchup_types(m_type, defender)
+    effectiveness1, _ = get_type_effectiveness(m_type, def_type1, 0)
+    damage = (effectiveness1 * damage) // 2
+    effectiveness2 = 2
+    if def_type2:
+        effectiveness2, _ = get_type_effectiveness(m_type, def_type2, 0)
+        damage = (effectiveness2 * damage) // 2
+
+    # TODO: Solid Rock and Filter, Expert belt
+
+    if (
+        attacker[_POK_AB_ID] == _ABILITYNAMES_TINTED_LENS
+        and 0 < effectiveness1 * effectiveness2 < 4
+    ):
+        damage *= 2
+
+    return int(damage)

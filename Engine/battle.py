@@ -2,8 +2,9 @@
 end of turn and repeat"""
 import random
 from Utils.jit import njit
+from Engine.speed import check_speed
 from Engine.engine_helper import (
-    check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
+    move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     flinch_checker, thaw, early_returns, switch_in, SIDE_OR_FIELD_TARGETS,
     contact_ability, heal_weather, on_residual, trainer_ai_items, drain,
     item_on_rdmg, eat_berry_bug_bite, struggle, switch_items,

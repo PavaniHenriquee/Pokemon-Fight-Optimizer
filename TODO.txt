@@ -343,7 +343,7 @@
 []Future Sight(B) ! *
 []Gastro Acid(B/E)
 []Gravity(B/E)
-[]Gyro Ball ! *
+[X]Gyro Ball ! *
 []Guard Swap(B/E)
 []Hail(E)
 []Hammer Arm(E)

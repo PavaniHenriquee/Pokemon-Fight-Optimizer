@@ -10,7 +10,7 @@ from DataBase.PkDB import POKEMON_ABILITY_POOL, POKEMON_LENGTH
 from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC_MOVES, MoveName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
-from Engine.engine_helper import check_speed
+from Engine.speed import check_speed
 from Models.idx_const import POK_LEN
 from Models.helper import TARGET_SELF_SIDE, TARGET_OPP_SIDE, STEEL_POISON
 from Models.constants import (
@@ -19,7 +19,7 @@ from Models.constants import (
     _ABILITYNAMES_WATER_VEIL, _ABILITYNAMES_CLEAR_BODY, _ABILITYNAMES_WHITE_SMOKE,
     _ABILITYNAMES_WATER_ABSORB, _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_LEVITATE,
     _ABILITYNAMES_SOUNDPROOF, _ABILITYNAMES_WONDER_GUARD, _MOVENAME_COVET, _MOVENAME_CURSE,
-    _MOVENAME_EXPLOSION, _MOVE_SELFDESTRUCT, _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH,
+    _MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT, _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH,
     _MOVENAME_FUTURE_SIGHT, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE, _MOVENAME_SWAGGER,
     _MOVENAME_FLATTER, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_LEAF_GUARD, _MOVENAME_GYRO_BALL,
     _ABILITYNAMES_HYDRATION, _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _MOVENAME_FLAIL,
@@ -69,7 +69,7 @@ from Models.constants import (
     _MOVENAME_WHIRLWIND, _ABILITYNAMES_SWIFT_SWIM, _ABILITYNAMES_RAIN_DISH, _MOVE_FORCE_SWITCH,
     _MOVENAME_BATON_PASS, _MOVENAME_TELEPORT, _MOVENAME_PURSUIT, _SIDECONDITION_SPIKES
 )
-from Engine.damage_calc import weight_power, matchup_types
+from Engine.damage_calc import weight_power, matchup_types, gyro_ball_power
 
 COUNTER_EX_TYPES = (
     _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
@@ -94,13 +94,12 @@ ABSORB_ABI = (
     _ABILITYNAMES_WATER_ABSORB, _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_FLASH_FIRE
 )
 
-SELF_KILL_MOVE = (_MOVENAME_EXPLOSION, _MOVE_SELFDESTRUCT)
-WEIRD_PRIO_MOVE = (_MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH, _MOVENAME_FUTURE_SIGHT)
+FUTURE_ATTACK_MOVES = (_MOVENAME_FUTURE_SIGHT,)
 MAYBE_BAD_MOVES = (
     _MOVENAME_SUCKER_PUNCH,
     _MOVENAME_FOCUS_PUNCH,
     _MOVENAME_EXPLOSION,
-    _MOVE_SELFDESTRUCT
+    _MOVENAME_SELFDESTRUCT
 )
 SLEEP_MOVES = (_MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE)
 CONFUSE_SPECIAL_CASES = (_MOVENAME_SWAGGER, _MOVENAME_FLATTER)
@@ -256,10 +255,11 @@ def knows_move(pok, move_id):
 
 
 @njit
-def ai_move_view(move, ai_pok, user_pok):
+def ai_move_view(move, ai_pok, user_pok, weather=0):
     """
-    The AI damage calc sees Natural Gift's berry type and power and Low Kick's weight power
-    (pokeplatinum TrainerAI_CalcDamage), every other move is returned as is
+    The AI damage calc sees Natural Gift's berry type and power, Low Kick's weight power and
+    Gyro Ball's speed power (pokeplatinum TrainerAI_CalcDamage), every other move is returned
+    as is
     """
     move_id = move[_MOVE_ID]
     if move_id == _MOVENAME_NATURAL_GIFT:
@@ -271,6 +271,10 @@ def ai_move_view(move, ai_pok, user_pok):
     if move_id == _MOVENAME_LOW_KICK:
         view = move.copy()
         view[_MOVE_POWER] = weight_power(user_pok)
+        return view
+    if move_id == _MOVENAME_GYRO_BALL:
+        view = move.copy()
+        view[_MOVE_POWER] = gyro_ball_power(ai_pok, user_pok, weather)
         return view
     return move
 
@@ -318,7 +322,7 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
     ef_t1 = TYPE_CHART[(move_type*19)+user_type1] / 2
     effectiveness *= ef_t1
     if user_type2:
-        ef_t2 = TYPE_CHART[(move_type*19)+user_type2] / 4
+        ef_t2 = TYPE_CHART[(move_type*19)+user_type2] / 2
         effectiveness *= ef_t2
         if ef_t1*ef_t2 >= 2:
             s_e = True
@@ -825,30 +829,26 @@ def basic_flag(
 
 @njit
 def evaluate_attack_flag(
-            final_damage, effectiveness, user_pok, move, idx, rand
+            final_damage, effectiveness, user_pok, move, idx, rand, damage_calc
     ):
     """
-    For damage moves it sees if it kill and some move exceptions then add to score
-    For non-damaging moves it checks if its 4x effective, for some reason
+    For moves subject to the damage calc it sees if it kills. If it doesn't, the "a stronger
+    move exists" -1 and the 4x check after it are done in choose_move, since they need every
+    move's damage.
+    The other moves (status and the damage calc exceptions) get the move exceptions penalty
+    and check if its 4x effective
     """
     score = 0
     move_id = move[_MOVE_ID]
-    # Check for kill
-    if final_damage >= user_pok[_POK_CURRENT_HP]:
-        if (
-            move_id
-            in SELF_KILL_MOVE
-        ):
-            pass
-        elif (
-            move_id
-            in WEIRD_PRIO_MOVE
-        ):
-            add_adjustment(rand, idx, 4, 85)
-        elif move[_MOVE_PRIORITY] >= 1 and move_id != _MOVENAME_FAKE_OUT:
-            score = 6
-        else:
-            score = 4
+    if damage_calc:
+        # Check for kill
+        if final_damage >= user_pok[_POK_CURRENT_HP]:
+            if move_id in FUTURE_ATTACK_MOVES:
+                add_adjustment(rand, idx, 4, 85)
+            elif move[_MOVE_PRIORITY] >= 1 and move_id != _MOVENAME_FAKE_OUT:
+                score = 6
+            else:
+                score = 4
         return score
 
     if (

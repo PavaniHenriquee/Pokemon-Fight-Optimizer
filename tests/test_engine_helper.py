@@ -3,8 +3,9 @@ import random
 import numpy as np
 import pytest
 from Engine import engine_helper
+from Engine.speed import check_speed
 from Engine.engine_helper import (
-    check_speed, move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
+    move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     switch_in, trainer_ai_items, eat_berry, drain, weather_dmg, early_returns, struggle,
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,

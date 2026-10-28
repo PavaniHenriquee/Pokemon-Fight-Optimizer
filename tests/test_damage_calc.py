@@ -298,6 +298,35 @@ def test_gust_doubles_on_airborne_target(poke):
     assert variable_power(a, d, move_slice(a, 0)) == 80
 
 
+@pytest.mark.parametrize("user_speed, target_speed, target_status, power", [
+    (20, 100, 0, 126),                  # 1 + 25 * 100 // 20
+    (10, 100, 0, 150),                  # 251 capped at 150
+    (100, 20, 0, 6),                    # faster user, low power
+    (100, 3, 0, 1),                     # 25 * 3 // 100 = 0
+    (20, 100, Status.PARALYSIS, 32),    # target speed 100 // 4 = 25
+    (0, 100, 0, 1),                     # no user speed: no division
+])
+def test_gyro_ball_power(poke, user_speed, target_speed, target_status, power):
+    """pokeplatinum TrainerAI_CalcDamage / Showdown: 1 + 25 * target speed / user speed, max 150,
+    with the effective speeds"""
+    a = poke("Bronzor", 20, "Levitate", ["Gyro Ball"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    a[Pok.SPEED] = user_speed
+    d[Pok.SPEED] = target_speed
+    d[Pok.STATUS] = target_status
+    assert variable_power(a, d, move_slice(a, 0)) == power
+
+
+def test_gyro_ball_uses_weather_speed(poke):
+    """Swift Swim in rain doubles the target's speed for Gyro Ball too"""
+    a = poke("Bronzor", 20, "Levitate", ["Gyro Ball"])
+    d = poke("Magikarp", 20, "Swift Swim", ["Tackle"])
+    a[Pok.SPEED] = 20
+    d[Pok.SPEED] = 40
+    assert variable_power(a, d, move_slice(a, 0)) == 51
+    assert variable_power(a, d, move_slice(a, 0), Weather.RAIN) == 101
+
+
 def test_reckless_matches_gen4_rounding(poke):
     """Gen IV Reckless is power * 12 // 10 (effect script 0048), Take Down 90 -> 108"""
     a = poke("Starly", 20, "Reckless", ["Take Down"])

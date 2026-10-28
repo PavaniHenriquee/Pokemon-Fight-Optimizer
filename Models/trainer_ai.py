@@ -45,7 +45,9 @@ from Models.helper import count_party
 #             'Water Spout','Head Smash']
 MOVE_EXCEP = (
     0, MoveName.EXPLOSION, MoveName.SELFDESTRUCT, MoveName.DREAM_EATER,
-    MoveName.FOCUS_PUNCH, MoveName.SUCKER_PUNCH
+    MoveName.FOCUS_PUNCH, MoveName.SUCKER_PUNCH, MoveName.HYPER_BEAM,
+    # Power 1 in pokeplatinum and not an alt power move: never compared
+    MoveName.COUNTER, MoveName.BIDE, MoveName.MIRROR_COAT, MoveName.FLAIL, MoveName.MAGNITUDE
 )
 
 
@@ -148,6 +150,23 @@ def sub_after_death(ai_party, user_pok, deadmon, user_side=0, weather=0, exclude
             best_dmg = max_move_dmg
             best_idx2 = idx
     return best_idx2
+
+
+@njit
+def ai_move_damage(move, effectiveness, ai_pok, user_pok, weather, user_side):
+    """Damage the AI sees for a damaging move (pokeplatinum TrainerAI_CalcDamage)"""
+    if move[_MOVE_ID] == _MOVENAME_MAGNITUDE:
+        return 0
+    if not move[_MOVE_DAMAGE]:
+        return calculate_ai_logic_damage(effectiveness, ai_pok, user_pok, move, weather, user_side)
+    if move[_MOVE_DAMAGE] == _DAMAGESOURCES_LEVEL:
+        return ai_pok[_POK_LEVEL] if effectiveness != 0 else 0
+    if move[_MOVE_DAMAGE] == _DAMAGESOURCES_PSYWAVE:
+        damage = ai_pok[_POK_LEVEL] * (random.randint(0, 10) + 5) // 10
+        return damage if effectiveness != 0 else 0
+    if move[_MOVE_DAMAGE] < 0:
+        return 0
+    return move[_MOVE_DAMAGE] if effectiveness != 0 else 0
 
 
 @njit
@@ -260,6 +279,7 @@ def choose_move(battle_array):
     max_damage = 0
 
     _rand = np.zeros((4, 5, 2), dtype=np.int16)
+    _eff4x = np.zeros(4, dtype=np.bool_)
     s_e = False
     can_hit = False
     not_status_counter = 0
@@ -270,36 +290,26 @@ def choose_move(battle_array):
         if move_id == 0:
             break
 
-        move_pp = move[_MOVE_PP]
-        if move_pp < 1:
-            continue
-        # Disable, Encore and Taunt make the move invalid, scored like a move without PP
-        if move_blocked(ai_pok, i):
-            continue
-        move = ai_move_view(move, ai_pok, user_pok)
-
         move_category = move[_MOVE_CATEGORY]
         move_is_status = move_category == _MOVECATEGORY_STATUS
+        is_damaging = move_id not in MOVE_EXCEP and not move_is_status
+
+        # Disable, Encore and Taunt make the move invalid, scored like a move without PP. Its
+        # damage still counts as the one to beat (pokeplatinum TrainerAI_CalcAllDamage)
+        if move[_MOVE_PP] < 1 or move_blocked(ai_pok, i):
+            if is_damaging:
+                view = ai_move_view(move, ai_pok, user_pok, weather)
+                eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok)
+                dmg = ai_move_damage(view, eff, ai_pok, user_pok, weather, user_side)
+                if dmg > max_damage:
+                    max_damage = dmg
+            continue
+        move = ai_move_view(move, ai_pok, user_pok, weather)
 
         effectiveness, s_e_check = trainer_ai_effectiveness(move, ai_pok, user_pok)
 
         if not move_is_status:
-            if move_id == _MOVENAME_MAGNITUDE:
-                final_damage = 0
-            elif not move[_MOVE_DAMAGE]:
-                final_damage = calculate_ai_logic_damage(
-                    effectiveness, ai_pok, user_pok, move, weather, user_side
-                )
-            elif move[_MOVE_DAMAGE] == _DAMAGESOURCES_LEVEL:
-                final_damage = ai_pok[_POK_LEVEL] if effectiveness != 0 else 0
-            elif move[_MOVE_DAMAGE] == _DAMAGESOURCES_PSYWAVE:
-                final_damage = ai_pok[_POK_LEVEL] * (random.randint(0, 10) + 5) // 10
-                if effectiveness == 0:
-                    final_damage = 0
-            elif move[_MOVE_DAMAGE] < 0:
-                final_damage = 0
-            else:
-                final_damage = move[_MOVE_DAMAGE] if effectiveness != 0 else 0
+            final_damage = ai_move_damage(move, effectiveness, ai_pok, user_pok, weather, user_side)
             not_status_counter +=1
             if s_e_check:
                 s_e = True
@@ -308,7 +318,10 @@ def choose_move(battle_array):
         else:
             final_damage = 0
 
-        eval_atk = evaluate_attack_flag(final_damage, effectiveness, user_pok, move, i, _rand)
+        _eff4x[i] = is_damaging and effectiveness == 4.0
+        eval_atk = evaluate_attack_flag(
+            final_damage, effectiveness, user_pok, move, i, _rand, is_damaging
+        )
         score = eval_atk + basic_flag(
             move, ability, ai_pok, user_pok, effectiveness, weather, ai_side, user_side,
             user_tspikes, user_bench, ai_bench
@@ -320,7 +333,6 @@ def choose_move(battle_array):
         )
         score += expert
 
-        is_damaging = move_id not in MOVE_EXCEP and not final_damage
         if is_damaging and final_damage > max_damage:
             max_damage = final_damage
 
@@ -342,7 +354,7 @@ def choose_move(battle_array):
 
     # Withdraw 3 - More than 2 damaging moves and All of them do not affect the target
     if can_switch and not_status_counter>1 and not can_hit:
-        if not cand:
+        if cand is None:
             cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active)
         if cand.size> 0:
             for i in cand:
@@ -451,12 +463,14 @@ def choose_move(battle_array):
 
     # Apply penalty only to the already-filtered valid moves
     current_hp = user_pok[_POK_CURRENT_HP]
-    for info in _evaluated_moves:
-        # info[3] is is_damaging
-        if info[3]:
-            # info[2] is dmg
-            if info[2] < max_damage and info[2] < current_hp:
+    for k in range(4):
+        info = _evaluated_moves[k]
+        # info[3] is is_damaging, info[2] is dmg. A kill already ended the check
+        if info[0] != 10 and info[3] and info[2] < current_hp:
+            if info[2] < max_damage:
                 info[1] -= 1 # info[1] is score
+            elif _eff4x[k] and random.getrandbits(8) < 176:
+                info[1] += 2
 
     return _evaluated_moves
 

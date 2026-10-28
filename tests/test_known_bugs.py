@@ -10,3 +10,4 @@ import pytest
 def bug(reason):
     """Strict xfail with the evidence as the reason"""
     return pytest.mark.xfail(strict=True, reason=reason)
+
