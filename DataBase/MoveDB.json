@@ -1382,12 +1382,11 @@
     "category": "Status",
     "flags": {
       "metronome": true,
-      "snatch": true,
-      "sound": true
+      "snatch": true
     },
     "name": "howl",
     "pp": 40,
-    "target": "allies",
+    "target": "self",
     "type": "Normal"
   },
   "Hyper Beam": {

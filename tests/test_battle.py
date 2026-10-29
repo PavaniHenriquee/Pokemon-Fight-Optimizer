@@ -9,7 +9,11 @@ from Models.idx_const import (
 )
 from Models.helper import (
     ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, Types, SideCondition, Weather,
+    Enemy_AI_Knows,
 )
+from Models.idx_const import Item
+from DataBase.ItemDB import ItemNames
+from DataBase.AbilitiesDB import AbilityNames
 from Models.move import STRUGGLE
 from Models.constants import _ENEMY_AI_KNOWS_MOVE2
 from battle_driver import (
@@ -1268,3 +1272,112 @@ def test_sleeping_pursuer_doesnt_pursue(monkeypatch, make_pokemon, make_battle):
     hits = _spy_power(monkeypatch)
     turn_sim(0, (SWITCH, 1), arr)
     assert hits == []
+
+
+# ── Phase 7: healing, items, misc ────────────────────────────────────────────
+
+def test_recover_heals_half_in_a_turn(make_pokemon, make_battle):
+    """Recover through a whole turn"""
+    arr = make_battle([make_pokemon("Machop", 20, "Guts", ["Recover"])],
+                      [make_pokemon("Rattata", 5, "Run Away", ["Growl"])])
+    me = my_active(arr)
+    me[Pok.CURRENT_HP] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == 1 + me[Pok.MAX_HP] // 2
+
+
+def test_perish_song_faints_both_after_four_ends_of_turn(make_pokemon, make_battle):
+    """Used on turn 1, both faint at the end of turn 4, the counts tick down in between"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Perish Song", "Growl"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"])])
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.PERISH_TURNS] == foe[Pok.PERISH_TURNS] == 2
+    for _ in range(2):
+        turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.PERISH_TURNS] == foe[Pok.PERISH_TURNS] == 0
+    assert me[Pok.CURRENT_HP] > 0 and foe[Pok.CURRENT_HP] > 0
+    phase, _ = turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.CURRENT_HP] == 0 and foe[Pok.CURRENT_HP] == 0
+    assert phase == BattlePhase.DEATH_END_OF_TURN
+
+
+def test_perish_song_into_a_soundproof_foe_still_counts_the_user(make_pokemon, make_battle):
+    """No hit check: the Soundproof foe is skipped, the user still gets its count"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Perish Song"])],
+                      [make_pokemon("Machop", 20, "Soundproof", ["Leer"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Pok.VOL_STATUS] & VolStatus.PERISH_SONG
+    assert not opp_active(arr)[Pok.VOL_STATUS] & VolStatus.PERISH_SONG
+
+
+def test_baton_pass_passes_perish_song_and_its_count(make_pokemon, make_battle):
+    """The receiver keeps the count it was passed"""
+    arr = _baton_battle(make_pokemon, make_battle, 30, 10)
+    old, new = pok_slice(arr, 0), pok_slice(arr, 1)
+    old[Pok.VOL_STATUS] = VolStatus.PERISH_SONG
+    old[Pok.PERISH_TURNS] = 1
+    battle._pass_baton(old, new)
+    assert new[Pok.VOL_STATUS] & VolStatus.PERISH_SONG and new[Pok.PERISH_TURNS] == 1
+
+
+def test_knock_off_in_a_turn(make_pokemon, make_battle):
+    """The hit knocks the item off and marks the target"""
+    arr = make_battle([make_pokemon("Murkrow", 20, "Insomnia", ["Knock Off"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"], item="Oran Berry")])
+    turn_sim(0, (MOVE, 0), arr)
+    foe = opp_active(arr)
+    assert foe[Item.ID] == 0 and foe[Pok.ITEM_KNOCKED_OFF] == 1
+
+
+@pytest.mark.parametrize("knocked", ["attacker", "defender", None])
+def test_covet_fails_with_a_knocked_off_pokemon(make_pokemon, make_battle, knocked):
+    """Gen IV: no item changes hands if either side had its item knocked off"""
+    arr = make_battle([make_pokemon("Machop", 20, "Guts", ["Covet"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Leer"], item="Oran Berry")])
+    me, foe = my_active(arr), opp_active(arr)
+    if knocked == "attacker":
+        me[Pok.ITEM_KNOCKED_OFF] = 1
+    elif knocked == "defender":
+        foe[Pok.ITEM_KNOCKED_OFF] = 1
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert (me[Item.ID] == ItemNames.ORAN_BERRY) == (knocked is None)
+
+
+def test_recyclable_item_stays_with_the_slot(two_v_two):
+    """Gen IV: after a switch the Pokemon coming in can Recycle what the other one ate"""
+    arr = two_v_two()
+    pok_slice(arr, 0)[Pok.CONSUMED_ITEM] = ItemNames.ORAN_BERRY
+    turn_sim(1, (SWITCH, 1), arr)
+    assert pok_slice(arr, 0)[Pok.CONSUMED_ITEM] == 0
+    assert pok_slice(arr, 1)[Pok.CONSUMED_ITEM] == ItemNames.ORAN_BERRY
+
+
+def test_recycle_in_a_turn(make_pokemon, make_battle):
+    """Recycle gives the eaten berry back"""
+    arr = make_battle([make_pokemon("Machop", 20, "Guts", ["Recycle"])],
+                      [make_pokemon("Rattata", 5, "Run Away", ["Growl"])])
+    my_active(arr)[Pok.CONSUMED_ITEM] = ItemNames.SITRUS_BERRY
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Item.ID] == ItemNames.SITRUS_BERRY
+
+
+def test_ai_worry_seed_wakes_me_and_learns_my_ability(make_pokemon, make_battle):
+    """My sleeping Pokemon gets Insomnia and wakes, the AI now knows my ability"""
+    arr = make_battle([make_pokemon("Machop", 10, "Guts", ["Leer"])],
+                      [make_pokemon("Rattata", 30, "Run Away", ["Worry Seed"])])
+    me = my_active(arr)
+    me[Pok.STATUS] = Status.SLEEP
+    me[Pok.SLEEP_COUNTER] = 3
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.AB_ID] == AbilityNames.INSOMNIA and me[Pok.STATUS] == 0
+    assert arr[Field.AI_KNOWS] & Enemy_AI_Knows.ABILITY
+
+
+def test_yawn_doesnt_put_an_insomnia_pokemon_to_sleep(poke):
+    """A drowsy Pokemon that got Insomnia meanwhile stays awake"""
+    p = poke("Machop", 20, "Insomnia", ["Tackle"])
+    p[Pok.VOL_STATUS] = VolStatus.YAWN
+    p[Pok.YAWN_TURNS] = 1
+    battle._yawn(p, poke("Rattata", 20, "Run Away", ["Tackle"]))
+    assert p[Pok.STATUS] == 0 and not p[Pok.VOL_STATUS] & VolStatus.YAWN

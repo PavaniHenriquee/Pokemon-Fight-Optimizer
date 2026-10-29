@@ -4,6 +4,7 @@ from Models.helper import ItemActivation, ItemType, Types
 from Models.idx_const import Item as ItemIdx, ITEM_LEN
 from DataBase.ItemDB import ItemNames
 from DataBase.PkDB import PokemonName
+from DataBase.loader import itemDB
 
 
 def item_to_np(item):
@@ -27,3 +28,15 @@ def item_to_np(item):
         natgif_type = 0
     array[ItemIdx.NATURAL_GIFT_TYPE-off] = natgif_type
     return array
+
+
+def _item_table():
+    """Item block of every item by id, so Recycle can rebuild a consumed item"""
+    ids = [v for k, v in vars(ItemNames).items() if k.isupper() and isinstance(v, int)]
+    table = np.zeros((max(ids) + 1, ITEM_LEN), dtype=np.int32)
+    for item in itemDB.values():
+        table[getattr(ItemNames, item['name'].upper())] = item_to_np(item)
+    return table
+
+
+ITEM_TABLE = _item_table()

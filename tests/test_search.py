@@ -141,6 +141,15 @@ def test_node_key_buckets(one_v_one):
     assert node_key(arr) != key
 
 
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_perish_song(one_v_one, mine):
+    """The Perish Song bit splits nodes on either side, like the other volatiles"""
+    arr = one_v_one()
+    key = node_key(arr)
+    (my_active(arr) if mine else opp_active(arr))[Pok.VOL_STATUS] |= VolStatus.PERISH_SONG
+    assert node_key(arr) != key
+
+
 def test_node_key_sees_field_but_not_timers(one_v_one):
     """Weather, side conditions and Toxic Spikes layers split nodes, the turns left don't"""
     arr = one_v_one()

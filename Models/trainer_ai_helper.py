@@ -27,7 +27,7 @@ from Models.constants import (
     _ABILITYNAMES_SPEED_BOOST, _ABILITYNAMES_NO_GUARD, _ABILITYNAMES_KEEN_EYE,
     _ABILITYNAMES_SIMPLE, _MOVE_TYPE, _MOVE_CATEGORY,_POK_TYPE1, _POK_TYPE2, _POK_AB_ID,
     _ABILITYNAMES_ADAPTABILITY, _MOVECATEGORY_STATUS, _TYPES_ELECTRIC, _TYPES_WATER,
-    _TYPES_FIRE, _TYPES_GROUND, _FLAGS_SOUND, _MOVE_STATUS, _POK_STATUS, _STATUS_SLEEP,
+    _TYPES_FIRE, _TYPES_GROUND, _MOVE_STATUS, _POK_STATUS, _STATUS_SLEEP,
     _STATUS_POISON, _STATUS_TOXIC, _WEATHER_SUN, _WEATHER_RAIN, _STATUS_PARALYSIS,
     _ABILITYNAMES_MOLD_BREAKER, _STATUS_BURN, _MOVE_VOL_STATUS, _POK_VOL_STATUS,
     _VOLSTATUS_CONFUSION, _VOLSTATUS_ATTRACT, _POK_GENDER, _GENDER_GENDERLESS, _MOVENAME_TRICK_ROOM,
@@ -67,7 +67,11 @@ from Models.constants import (
     _MOVENAME_SANDSTORM, _MOVENAME_BRICK_BREAK, _MOVENAME_REFLECT, _MOVENAME_LIGHT_SCREEN,
     _MOVENAME_LUCKY_CHANT, _MOVENAME_TOXIC_SPIKES, _MOVENAME_STEALTH_ROCK, _MOVENAME_ROAR,
     _MOVENAME_WHIRLWIND, _ABILITYNAMES_SWIFT_SWIM, _ABILITYNAMES_RAIN_DISH, _MOVE_FORCE_SWITCH,
-    _MOVENAME_BATON_PASS, _MOVENAME_TELEPORT, _MOVENAME_PURSUIT, _SIDECONDITION_SPIKES
+    _MOVENAME_BATON_PASS, _MOVENAME_TELEPORT, _MOVENAME_PURSUIT, _SIDECONDITION_SPIKES,
+    _MOVENAME_SYNTHESIS, _MOVENAME_REFRESH, _MOVENAME_KNOCK_OFF, _MOVENAME_RECYCLE,
+    _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG, _MOVENAME_SPLASH, _MOVENAME_SLEEP_TALK,
+    _VOLSTATUS_PERISH_SONG, _POK_CONSUMED_ITEM, _ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE,
+    _ABILITYNAMES_STICKY_HOLD
 )
 from Engine.damage_calc import weight_power, matchup_types, gyro_ball_power
 
@@ -228,6 +232,28 @@ ENCORE_ENCOURAGED_M = (
     MoveName.AQUA_RING, MoveName.TRICK_ROOM
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
+# pokeplatinum Basic_SoundproofMoves, the ones in MoveDB (Snore, Metal Sound, Bug Buzz and Chatter
+# aren't). Perish Song and Hyper Voice aren't on it
+SOUNDPROOF_M = (
+    MoveName.GROWL, MoveName.ROAR, MoveName.SING, MoveName.SUPERSONIC, MoveName.SCREECH,
+    MoveName.UPROAR, MoveName.GRASS_WHISTLE
+)
+# Recover is the only RESTORE_HALF_HP move in MoveDB, Synthesis the only HEAL_HALF_MORE_IN_SUN one
+HEAL_M = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
+# Scored by basic_misc / expert_misc
+MISC_BASIC_M = HEAL_M + (
+    _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG
+)
+MISC_EXPERT_M = MISC_BASIC_M + (_MOVENAME_KNOCK_OFF, _MOVENAME_SPLASH)
+REFRESH_STATUSES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
+WORRY_SEED_BAD_AB = (
+    _ABILITYNAMES_TRUANT, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_MULTITYPE
+)
+# Snore isn't in MoveDB
+SLEEP_USABLE_M = (_MOVENAME_SLEEP_TALK,)
+SYNTHESIS_BAD_WEATHER = (_WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL)
+# Expert_Recycle_DesirableItems, Starf Berry isn't in ItemDB
+RECYCLE_GOOD_ITEMS = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY)
 
 
 @njit
@@ -364,7 +390,7 @@ def basic_ability(move, ability, user_pok, move_category) -> int:
         return -12
     if move_type == _TYPES_GROUND and ability == _ABILITYNAMES_LEVITATE:
         return -12
-    if move[_FLAGS_SOUND] and ability == _ABILITYNAMES_SOUNDPROOF:
+    if move[_MOVE_ID] in SOUNDPROOF_M and ability == _ABILITYNAMES_SOUNDPROOF:
         return -10
     if ability == _ABILITYNAMES_WONDER_GUARD and move_category != _MOVECATEGORY_STATUS:
         eff, den = get_type_effectiveness(move_type, user_pok[_POK_TYPE1], user_pok[_POK_TYPE2])
@@ -637,6 +663,30 @@ def basic_moves(move, ai_pok, user_pok, ability, effectiveness):
 
 
 @njit
+def basic_misc(move, ability, ai_pok, user_pok, ai_know):
+    """
+    pokeplatinum Basic_CheckCanRecoverHP, Basic_CheckCanRefreshStatus, Basic_CheckCanRecycle,
+    Basic_CheckWorrySeed and Basic_CheckPerishSong. ability is the target's
+    """
+    move_id = move[_MOVE_ID]
+    if move_id in HEAL_M:
+        return -8 if ai_pok[_POK_CURRENT_HP] == ai_pok[_POK_MAX_HP] else 0
+    if move_id == _MOVENAME_REFRESH:
+        return 0 if ai_pok[_POK_STATUS] in REFRESH_STATUSES else -10
+    if move_id == _MOVENAME_RECYCLE:
+        return -10 if ai_pok[_POK_CONSUMED_ITEM] == 0 else 0
+    if move_id == _MOVENAME_WORRY_SEED:
+        if ability in WORRY_SEED_BAD_AB:
+            return -10
+        if user_pok[_POK_STATUS] == _STATUS_SLEEP and not seen_move(user_pok, ai_know, SLEEP_USABLE_M):
+            return -10
+        return 0
+    if move_id == _MOVENAME_PERISH_SONG:
+        return -10 if user_pok[_POK_VOL_STATUS] & _VOLSTATUS_PERISH_SONG else 0
+    return 0
+
+
+@njit
 def basic_field(move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench):
     """
     pokeplatinum Basic checks for the side condition and weather moves. ability is the target's,
@@ -689,14 +739,14 @@ def basic_switch(move, ability, ai_pok, user_bench, ai_bench):
 @njit
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
-            weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1
+            weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1, ai_know=0
     ):
     """
     Basic Flag, every trainer has this,
     it discourages moves that would have no effect or that would make no sense.
     ai_side and user_side are both Field.SIDE_COND, user_tspikes the Toxic Spikes layers on the
     target's side and user_bench how many Pokemon it has alive besides the active, ai_bench the
-    same for the AI
+    same for the AI. ai_know is Field.AI_KNOWS
     """
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
@@ -706,6 +756,8 @@ def basic_flag(
         )
     if move[_MOVE_ID] in BASIC_SPECIFIC_M:
         return basic_moves(move, ai_pok, user_pok, ability, effectiveness)
+    if move[_MOVE_ID] in MISC_BASIC_M:
+        return basic_misc(move, ability, ai_pok, user_pok, ai_know)
     move_category = move[_MOVE_CATEGORY]
     # Check for immunity types
     if move_category != _MOVECATEGORY_STATUS and effectiveness == 0:
@@ -717,6 +769,9 @@ def basic_flag(
             return ability_score
     if move[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and ai_pok[_ITEM_NATURAL_GIFT_POWER] == 0:
         return -10
+    # Basic_CheckCanRemoveItem
+    if move[_MOVE_ID] == _MOVENAME_KNOCK_OFF:
+        return -10 if ability == _ABILITYNAMES_STICKY_HOLD or user_pok[_POK_ITEM_ID] == 0 else 0
     if move[_MOVE_FORCE_SWITCH] or move[_MOVE_ID] in SWITCH_EXPERT_M:
         return basic_switch(move, ability, ai_pok, user_bench, ai_bench)
     if move_category == _MOVECATEGORY_STATUS:
@@ -750,20 +805,17 @@ def basic_flag(
     Camouflage / Power Trick / Lucky Chant / Magnet Rise
     Substitute
     Snore / Sleep Talk
-    Lock On / Mean Look / Perish Song / Torment / Miracle Eye / Heal Block / Gastro Acid
+    Lock On / Mean Look / Torment / Miracle Eye / Heal Block / Gastro Acid
     Future Sight / Doom Desire
-    Baton Pass
     Stockpile
     Spit Up / Swallow
     Memento
-    Trick / Switcheroo / Knock Off
+    Trick / Switcheroo
     Imprison
-    Refresh
     Cosmic Power / Calm Mind / Dragon Dance
     Gravity / Tailwind
     Trick Room
     Healing Wish / Lunar Dance
-    Natural Gift
     Acupressure
     Metal Burst
     Embargo
@@ -772,7 +824,6 @@ def basic_flag(
     Copycat
     Power Swap / Guard Swap
     Last Resort
-    Worry Seed
     Defog
     Captivate
     --------------Effect Moves-----------------
@@ -818,7 +869,7 @@ def basic_flag(
         -Magnitude
     )
     Force Switches(Example moves: Roar, Whirlwind)
-    Recovery Moves(Example moves: Roost, Synthesis, Recover)
+    Recovery Moves(Example moves: Roost)
     OHKO Moves(Example moves: Horn Drill, Fissure, Sheer Cold, Guillotine)
     Hazard-Setting Moves (Spikes, Toxic Spikes, Stealth Rock)
     Weather-Setting Moves (Sandstorm, Rain Dance, Sunny Day, Hail)
@@ -931,13 +982,13 @@ def has_damaging_move(pok):
 @njit
 def wearing_down(pok):
     """
-    Toxic, Curse, Attract, Leech Seed or Yawn, the list Expert Protect and Feint check.
-    TODO: Perish Song
+    Toxic, Curse, Attract, Leech Seed, Yawn or Perish Song, the list Expert Protect and Feint check.
     """
     return (
         pok[_POK_STATUS] == _STATUS_TOXIC
         or pok[_POK_VOL_STATUS] & (
             _VOLSTATUS_CURSE | _VOLSTATUS_ATTRACT | _VOLSTATUS_LEECH_SEED | _VOLSTATUS_YAWN
+            | _VOLSTATUS_PERISH_SONG
         ) != 0
     )
 
@@ -1427,6 +1478,49 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
 
 
 @njit
+def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first):
+    """
+    pokeplatinum Expert_Recovery and Expert_Synthesis, Expert_Refresh, Expert_KnockOff,
+    Expert_Recycle and Pokemow Worry Seed. Perish Song and Splash have no Expert check
+    """
+    move_id = move[_MOVE_ID]
+    hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+    hp_pct_u = (u_pok[_POK_CURRENT_HP]*100) // u_pok[_POK_MAX_HP]
+    if move_id in HEAL_M:
+        score = 0
+        if move_id == _MOVENAME_SYNTHESIS and weather in SYNTHESIS_BAD_WEATHER:
+            score -= 2
+        if hp_pct_ai == 100:
+            return score - 3
+        if move_first:
+            return score - 8
+        # 226/256 of -3 and terminate
+        if hp_pct_ai > 69 and random.getrandbits(8) >= 30:
+            return score - 3
+        # Snatch isn't in MoveDB, a target seen using it would make this 2301/4096
+        add_adjustment(rand, idx, 2, 236)
+        return score
+    if move_id == _MOVENAME_REFRESH:
+        return -1 if hp_pct_u < 50 else 0
+    if move_id == _MOVENAME_KNOCK_OFF:
+        if hp_pct_u >= 30 and ai_pok[_POK_TURNS_ACTIVE] != 1:
+            add_adjustment(rand, idx, 1, 76)
+        return 0
+    if move_id == _MOVENAME_RECYCLE:
+        if ai_pok[_POK_CONSUMED_ITEM] in RECYCLE_GOOD_ITEMS:
+            add_adjustment(rand, idx, 1, 206)
+            return 0
+        return -2
+    if move_id == _MOVENAME_WORRY_SEED:
+        # TODO: +1 when the target knows Rest, once it's in MoveDB
+        # Pokemow reads the target's HP here, pokeplatinum the AI's own
+        if hp_pct_u > 49:
+            add_adjustment(rand, idx, 1, 128)
+        add_adjustment(rand, idx, 1, 192)
+    return 0
+
+
+@njit
 def expert_charge_invulnerable(
     ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know=0
 ):
@@ -1612,6 +1706,8 @@ def expert_flag(
         return expert_moves(
             move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first
         )
+    if move[_MOVE_ID] in MISC_EXPERT_M:
+        return expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first)
     if move[_MOVE_ID] == _MOVENAME_FEINT:
         return expert_feint(ai_pok, u_pok, rand, idx, ai_know)
     if move[_MOVE_FORCE_SWITCH] or move[_MOVE_ID] in SWITCH_EXPERT_M:
@@ -1704,11 +1800,10 @@ def expert_flag(
         )
 
     # Binding Moves (Wrap, Bind, Clamp, Fire Spin), Whirlpool has its own effect and no check
-    # TODO: Perish Song
     if move[_MOVE_VOL_STATUS] & _VOLSTATUS_PARTIALLY_TRAPPED and move[_MOVE_ID] != _MOVENAME_WHIRLPOOL:
         if (
             u_pok[_POK_STATUS] == _STATUS_TOXIC
-            or u_pok[_POK_VOL_STATUS] & (_VOLSTATUS_CURSE | _VOLSTATUS_ATTRACT)
+            or u_pok[_POK_VOL_STATUS] & (_VOLSTATUS_CURSE | _VOLSTATUS_ATTRACT | _VOLSTATUS_PERISH_SONG)
         ):
             add_adjustment(rand, idx, 1, 128)
         return 0
@@ -1726,8 +1821,6 @@ def expert_flag(
     Conversion
     Rest
     Toxic
-    Light Screen
-    Reflect
     Spit Up
     Super Fang
     Metal Burst
@@ -1742,9 +1835,6 @@ def expert_flag(
     Spikes
     Miracle Eye
     Substitute
-    Baton Pass
-    Pursuit
-    Rain Dance
     Sunny Day
     Hail
     Gravity
@@ -1758,12 +1848,8 @@ def expert_flag(
     Trick, Switcheroo
     Superpower
     Magic Coat
-    Recycle
-    Brick Break
-    Knock Off
     Endeavor
     Imprison
-    Refresh
     Snatch
     Hammer Arm
     Brine
@@ -1780,27 +1866,23 @@ def expert_flag(
     Wring Out, Crush Grip
     Power Trick
     Gastro Acid
-    Lucky Chant
     Me First
     Copycat
     Power Swap
     Guard Swap
     Punishment
     Last Resort
-    Worry Seed
     Sucker Punch
-    Toxic Spikes
     Heart Swap
     Magnet Rise
     Defog
     Trick Room
     Blizzard
     Captivate
-    Stealth Rock
 
     --------------Effect Moves-----------------
     Switch-Forcing Moves (Roar, Whirlwind)
-    Recovery Moves (e.g., Recover, Synthesis, Swallow)
+    Recovery Moves (e.g., Swallow)
     OHKO Moves (Example moves: Horn Drill, Fissure, Sheer Cold, Guillotine)
     Charge Turn Moves Without Invulnerability (Razor Wind, Skull Bash, Sky Attack, Solar Beam/Blade)
     Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)

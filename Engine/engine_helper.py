@@ -8,8 +8,10 @@ from Engine.status_calc import  freeze, paralysis, synchronize_reflect, sleep_bl
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage
 )
-from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES
+from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, STEEL_POISON, Target
+from Models.item import ITEM_TABLE
+from Models.ability import ABILITY_TABLE
 from Models.constants import (
     _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
     _WEATHER_SUN, _MOVENAME_FAKE_OUT,
@@ -47,7 +49,9 @@ from Models.constants import (
     _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _SIDECONDITION_LUCKY_CHANT, _SIDECONDITION_MIST,
     _SIDECONDITION_SAFEGUARD, _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK,
     _TYPES_FLYING, _TYPES_POISON, _ABILITYNAMES_LEVITATE, _ABILITYNAMES_IMMUNITY,
-    _ABILITYNAMES_LEAF_GUARD
+    _ABILITYNAMES_LEAF_GUARD, _POK_BASE_AB_ID, _POK_ITEM_KNOCKED_OFF, _POK_PERISH_TURNS,
+    _VOLSTATUS_PERISH_SONG, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_STICKY_HOLD, _ABILITYNAMES_MULTITYPE,
+    _ABILITYNAMES_TRUANT, _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_SYNTHESIS
 )
 
 
@@ -61,6 +65,12 @@ SIDE_OR_FIELD_TARGETS = (Target.ALL, Target.FOE_SIDE, Target.ALLY_TEAM)
 PROTECT_COUNT_MAX = 3  # Success chance 1, 1/2, 1/4, then 1/8 from here on
 # Stealth Rock takes max HP * Rock effectiveness / STEALTH_ROCK_DIV, 1/8 when neutral
 STEALTH_ROCK_DIV = 8
+# Synthesis heals a quarter of max HP in these weathers
+HEAL_QUARTER_WEATHER = (_WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL)
+# Refresh cures these, not sleep or freeze
+REFRESH_CURES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
+WORRY_SEED_FAILS = (_ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE)
+PERISH_SONG_TURNS = 3
 
 
 # ── Volatile bookkeeping ───────────────────────────────────────────────────────
@@ -154,6 +164,7 @@ def eat_berry(pok):
     item_id = pok[_ITEM_ID]
     if item_id in ITEM_50HP and pok[_POK_CURRENT_HP] * 2 <= pok[_POK_MAX_HP]:
         _apply_berry_effect(item_id, pok)
+        pok[_POK_CONSUMED_ITEM] = item_id
         clear_item(pok)
 
 
@@ -172,6 +183,46 @@ def switch_items(pok1, pok2):
     item_copy = np.copy(pok1[item_slice])
     pok1[item_slice] = pok2[item_slice]
     pok2[item_slice] = item_copy
+
+
+@njit
+def knock_off(attacker, defender):
+    """
+    Knock Off removes the target's item. Gen IV marks the Pokemon for the rest of the battle: it
+    can't get a new item and the knocked off one isn't recyclable. Sticky Hold keeps the item
+    unless the user has Mold Breaker
+    """
+    if not defender[_ITEM_ID]:
+        return
+    if (
+        defender[_POK_AB_ID] == _ABILITYNAMES_STICKY_HOLD
+        and attacker[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER
+    ):
+        return
+    clear_item(defender)
+    defender[_POK_ITEM_KNOCKED_OFF] = 1
+
+
+@njit
+def carry_recycle(old, new):
+    """Gen IV keeps the recyclable item with the battle slot, so the Pokemon coming in gets it"""
+    item_id = old[_POK_CONSUMED_ITEM]
+    old[_POK_CONSUMED_ITEM] = 0
+    new[_POK_CONSUMED_ITEM] = item_id
+
+
+@njit
+def recycle(pok):
+    """
+    Recycle gives back the last item used up in this slot if the user holds none. A berry it
+    restores at low HP is eaten right away
+    """
+    item_id = pok[_POK_CONSUMED_ITEM]
+    if pok[_ITEM_ID] or item_id == 0:
+        return
+    pok[_ITEM_ID:_ITEM_ID + ITEM_LEN] = ITEM_TABLE[item_id]
+    pok[_POK_CONSUMED_ITEM] = 0
+    item_on_rdmg(pok)
 
 
 @njit
@@ -387,6 +438,11 @@ def reset_switch_out(pok):
     pok[_POK_DISABLE_TURNS] = 0
     pok[_POK_UPROAR_TURNS] = 0
     pok[_POK_LAST_MOVE_ID] = 0
+    pok[_POK_PERISH_TURNS] = 0
+    # Worry Seed's ability lasts until the Pokemon leaves the field
+    if pok[_POK_BASE_AB_ID]:
+        pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[pok[_POK_BASE_AB_ID]]
+        pok[_POK_BASE_AB_ID] = 0
 
 
 @njit
@@ -472,6 +528,9 @@ def switch_in(attacker, defender, battle_array, is_mine):
     defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_ATTRACT
     # and so was the bind
     defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_PARTIALLY_TRAPPED
+    # Gen IV: a Pokemon whose item was knocked off loses any item it got back (Recycle)
+    if attacker[_POK_ITEM_KNOCKED_OFF] and attacker[_ITEM_ID]:
+        clear_item(attacker)
     apply_hazards(attacker, battle_array, side_base(is_mine))
     if attacker[_POK_CURRENT_HP] <= 0:
         return
@@ -880,3 +939,87 @@ def apply_recoil(pok, recoil):
     pok[_POK_CURRENT_HP] -= recoil
     if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
         item_on_rdmg(pok)
+
+
+# ── Healing, Worry Seed and Perish Song ─────────────────────────────────────────
+
+@njit
+def heal_move(pok, move_id, weather):
+    """
+    Recover heals 1/2 of max HP. Synthesis 1/2 with no weather, 2/3 in sun and 1/4 in rain, sand
+    or hail (pokeplatinum BtlCmd_WeatherHPRecovery). Rounded down, at least 1, nothing at full HP
+    """
+    max_hp = pok[_POK_MAX_HP]
+    if pok[_POK_CURRENT_HP] >= max_hp:
+        return
+    heal = max_hp // 2
+    if move_id == _MOVENAME_SYNTHESIS:
+        if weather == _WEATHER_SUN:
+            heal = max_hp * 20 // 30
+        elif weather in HEAL_QUARTER_WEATHER:
+            heal = max_hp // 4
+    pok[_POK_CURRENT_HP] = min(max_hp, pok[_POK_CURRENT_HP] + max(1, heal))
+
+
+@njit
+def refresh(pok):
+    """Refresh cures burn, poison and paralysis"""
+    if pok[_POK_STATUS] in REFRESH_CURES:
+        pok[_POK_STATUS] = 0
+        pok[_POK_BADLY_POISON] = 0
+
+
+@njit
+def worry_seed(target):
+    """
+    The target's ability becomes Insomnia until it switches out and a sleeping target wakes up
+    right away (Showdown). Fails on Truant and Multitype. Returns True if the ability changed
+    """
+    if target[_POK_AB_ID] in WORRY_SEED_FAILS:
+        return False
+    if target[_POK_BASE_AB_ID] == 0:
+        target[_POK_BASE_AB_ID] = target[_POK_AB_ID]
+    target[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[_ABILITYNAMES_INSOMNIA]
+    if target[_POK_STATUS] == _STATUS_SLEEP:
+        target[_POK_STATUS] = 0
+        target[_POK_SLEEP_COUNTER] = 0
+    return True
+
+
+@njit
+def _start_perish(pok, user):
+    """Skips one that already has it, a fainted one, a Soundproof one (unless the user has Mold
+    Breaker) and, like Showdown, a semi-invulnerable one"""
+    if (
+        pok[_POK_CURRENT_HP] <= 0
+        or pok[_POK_VOL_STATUS] & (_VOLSTATUS_PERISH_SONG | _VOLSTATUS_SEMI_INVULNERABLE)
+        or (
+            pok[_POK_AB_ID] == _ABILITYNAMES_SOUNDPROOF
+            and user[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER
+        )
+    ):
+        return
+    pok[_POK_VOL_STATUS] |= _VOLSTATUS_PERISH_SONG
+    pok[_POK_PERISH_TURNS] = PERISH_SONG_TURNS
+
+
+@njit
+def perish_song(user, foe):
+    """Perish Song gives both actives a count of 3 (pokeplatinum BtlCmd_TryPerishSong)"""
+    _start_perish(user, user)
+    _start_perish(foe, user)
+
+
+@njit
+def perish_count(pok):
+    """
+    End of turn, after every other residual: a count of 0 faints the Pokemon, else it drops by 1
+    (pokeplatinum SIDE_COND_CHECK_STATE_PERISH_SONG). It faints at the 4th end of turn
+    """
+    if pok[_POK_CURRENT_HP] <= 0 or not pok[_POK_VOL_STATUS] & _VOLSTATUS_PERISH_SONG:
+        return
+    if pok[_POK_PERISH_TURNS] == 0:
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_PERISH_SONG
+        pok[_POK_CURRENT_HP] = 0
+    else:
+        pok[_POK_PERISH_TURNS] -= 1

@@ -465,3 +465,17 @@ def test_safeguard_blocks_secondary_status(monkeypatch, poke):
     assert d[Pok.STATUS] == 0
     sec_effects(move_slice(a, 0), a, d, 0)
     assert d[Pok.STATUS] == Status.BURN
+
+
+# ── Phase 7: Insomnia and Vital Spirit ───────────────────────────────────────
+
+@pytest.mark.parametrize("ability", ["Insomnia", "Vital Spirit"])
+@pytest.mark.parametrize("atk_ability, sleeps", [("Run Away", False), ("Mold Breaker", True)])
+def test_sleep_abilities_block_sleep_and_yawn(poke, ability, atk_ability, sleeps):
+    """Insomnia and Vital Spirit stop sleep moves and Yawn landing, Mold Breaker ignores them"""
+    a = poke("Rattata", 20, atk_ability, ["Hypnosis", "Yawn"])
+    d = poke("Murkrow", 20, ability, ["Tackle"])
+    calculate_effects(a, d, move_slice(a, 1), 0)
+    assert bool(d[Pok.VOL_STATUS] & VolStatus.YAWN) == sleeps
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert (d[Pok.STATUS] == Status.SLEEP) == sleeps

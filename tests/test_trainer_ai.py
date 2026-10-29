@@ -7,6 +7,7 @@ from Models.trainer_ai import return_idx, sub_after_death
 from Models.idx_const import Pok, Move, POK_LEN, Field
 from Models.helper import VolStatus, Status, Types, Enemy_AI_Knows, SideCondition, Weather
 from DataBase.AbilitiesDB import AbilityNames
+from DataBase.ItemDB import ItemNames
 from battle_driver import move_slice, pok_slice, _p, opp_active
 
 # Status moves that carry both a volatile and a stat boost are the tricky ones
@@ -923,4 +924,224 @@ def test_natural_cure_withdraw_needs_a_bench(monkeypatch, make_pokemon, make_bat
     opp_active(arr)[Pok.SLEEP_COUNTER] = 3
     arr[Field.AI_TOOK_DMG_LAST_TURN] = Types.NORMAL
     monkeypatch.setattr(trainer_ai.random, "getrandbits", lambda k: 1)
+    assert return_idx(arr) >= 0
+
+
+# ── Phase 7 healing, items, misc ─────────────────────────────────────────────
+
+def _basic_know(ai_pok, user, ability, ai_know=0):
+    return ai.basic_flag(
+        move_slice(ai_pok, 0), ability, ai_pok, user, 1.0, 0, 0, 0, 0, 1, 1, ai_know
+    )
+
+
+@pytest.mark.parametrize("move, hp_full, expected", [
+    ("Recover", True, -8), ("Recover", False, 0), ("Synthesis", True, -8), ("Synthesis", False, 0),
+])
+def test_basic_recovery(poke, move, hp_full, expected):
+    """Basic_CheckCanRecoverHP: -8 at full HP"""
+    ai_pok = poke("Bulbasaur", 20, "Overgrow", [move])
+    if not hp_full:
+        ai_pok[Pok.CURRENT_HP] -= 1
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("status, expected", [
+    (0, -10), (Status.SLEEP, -10), (Status.FREEZE, -10), (Status.BURN, 0), (Status.POISON, 0),
+    (Status.TOXIC, 0), (Status.PARALYSIS, 0),
+])
+def test_basic_refresh(poke, status, expected):
+    """Basic_CheckCanRefreshStatus: -10 unless burned, poisoned or paralyzed"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Refresh"])
+    ai_pok[Pok.STATUS] = status
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("item, ability, expected", [
+    ("Oran Berry", "STURDY", 0), (None, "STURDY", -10), ("Oran Berry", "STICKY_HOLD", -10),
+])
+def test_basic_knock_off(poke, item, ability, expected):
+    """Basic_CheckCanRemoveItem: -10 against Sticky Hold or a target without an item"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Knock Off"])
+    user = poke("Machop", 20, "Guts", ["Tackle"], item=item)
+    assert _basic(ai_pok, user, getattr(AbilityNames, ability)) == expected
+
+
+def test_basic_knock_off_keeps_the_immunity_check(poke):
+    """It still deals damage, so Wonder Guard's -12 comes before the item check"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Knock Off"])
+    user = poke("Machop", 20, "Guts", ["Tackle"], item="Oran Berry")
+    assert _basic(ai_pok, user, AbilityNames.WONDER_GUARD) == -12
+
+
+def test_basic_recycle(poke):
+    """Basic_CheckCanRecycle: -10 with nothing to recycle"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Recycle"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+    ai_pok[Pok.CONSUMED_ITEM] = ItemNames.ORAN_BERRY
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+
+
+@pytest.mark.parametrize("ability, asleep, ai_know, expected", [
+    ("STURDY", False, 0, 0),
+    ("TRUANT", False, 0, -10), ("INSOMNIA", False, 0, -10), ("VITAL_SPIRIT", False, 0, -10),
+    ("MULTITYPE", False, 0, -10),
+    ("STURDY", True, 0, -10),
+    ("STURDY", True, Enemy_AI_Knows.MOVE2, 0),    # saw it use Sleep Talk
+])
+def test_basic_worry_seed(poke, ability, asleep, ai_know, expected):
+    """Basic_CheckWorrySeed, the sleep part needs the target seen using Sleep Talk"""
+    ai_pok = poke("Bulbasaur", 20, "Overgrow", ["Worry Seed"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle", "Sleep Talk"])
+    if asleep:
+        user[Pok.STATUS] = Status.SLEEP
+    assert _basic_know(ai_pok, user, getattr(AbilityNames, ability), ai_know) == expected
+
+
+def test_basic_perish_song(poke):
+    """Basic_CheckPerishSong: -10 if the target has it, no Soundproof check"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Perish Song"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.SOUNDPROOF) == 0
+    user[Pok.VOL_STATUS] = VolStatus.PERISH_SONG
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+
+
+@pytest.mark.parametrize("move, expected", [
+    ("Growl", -10), ("Sing", -10), ("Grass Whistle", -10), ("Disarming Voice", 0),
+])
+def test_basic_soundproof_uses_the_cartridge_list(poke, move, expected):
+    """pokeplatinum Basic_SoundproofMoves, not the sound flag"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.SOUNDPROOF) == expected
+
+
+def _at_pct(pok, pct):
+    """HP percent exactly pct, the AI reads only the percent"""
+    pok[Pok.MAX_HP] = 100
+    pok[Pok.CURRENT_HP] = pct
+
+
+def _expert_weather(ai_pok, user, weather=0):
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, weather, 0, 1.0, 0)
+    queued = [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+    return score, queued
+
+
+@pytest.mark.parametrize("move, weather, ai_lv, hp_pct, roll, expected", [
+    ("Recover", 0, 10, 100, 0, (-3, [])),
+    ("Recover", 0, 40, 50, 0, (-8, [])),          # moves first
+    ("Recover", 0, 10, 80, 30, (-3, [])),         # over 69%, the 226/256 -3
+    ("Recover", 0, 10, 80, 29, (0, [(2, 236)])),
+    ("Recover", 0, 10, 60, 255, (0, [(2, 236)])),
+    ("Synthesis", Weather.RAIN, 10, 60, 0, (-2, [(2, 236)])),
+    ("Synthesis", Weather.SUN, 10, 60, 0, (0, [(2, 236)])),
+    ("Synthesis", Weather.SANDSTORM, 10, 100, 0, (-5, [])),
+])
+def test_expert_recovery(monkeypatch, poke, move, weather, ai_lv, hp_pct, roll, expected):
+    """Expert_Recovery and Expert_Synthesis"""
+    monkeypatch.setattr(ai.random, "getrandbits", lambda k: roll if k == 8 else 0)
+    ai_pok = poke("Bulbasaur", ai_lv, "Overgrow", [move])
+    _at_pct(ai_pok, hp_pct)
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert_weather(ai_pok, user, weather) == expected
+
+
+@pytest.mark.parametrize("hp_pct, expected", [(49, -1), (50, 0)])
+def test_expert_refresh(poke, hp_pct, expected):
+    """Expert_Refresh: -1 when the target is under 50%"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Refresh"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    _at_pct(user, hp_pct)
+    assert _expert(ai_pok, user) == (expected, [])
+
+
+@pytest.mark.parametrize("hp_pct, turns_active, expected", [
+    (100, 2, [(1, 76)]), (100, 1, []), (29, 2, []), (30, 2, [(1, 76)]),
+])
+def test_expert_knock_off(poke, hp_pct, turns_active, expected):
+    """Expert_KnockOff: 76/256 +1 against 30% or more, not on the AI's first turn"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Knock Off"])
+    ai_pok[Pok.TURNS_ACTIVE] = turns_active
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    _at_pct(user, hp_pct)
+    assert _expert(ai_pok, user) == (0, expected)
+
+
+@pytest.mark.parametrize("item, expected", [
+    ("LUM_BERRY", (0, [(1, 206)])), ("CHESTO_BERRY", (0, [(1, 206)])), ("ORAN_BERRY", (-2, [])),
+    (None, (-2, [])),
+])
+def test_expert_recycle(poke, item, expected):
+    """Expert_Recycle likes a Chesto or Lum Berry"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Recycle"])
+    ai_pok[Pok.CONSUMED_ITEM] = getattr(ItemNames, item) if item else 0
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert _expert(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("hp_pct, expected", [(50, [(1, 128), (1, 192)]), (49, [(1, 192)])])
+def test_expert_worry_seed(poke, hp_pct, expected):
+    """Pokemow Worry Seed: 50% +1 with the target over 49%, then 192/256 +1"""
+    ai_pok = poke("Bulbasaur", 20, "Overgrow", ["Worry Seed"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    _at_pct(user, hp_pct)
+    assert _expert(ai_pok, user) == (0, expected)
+
+
+@pytest.mark.parametrize("move", ["Perish Song", "Splash"])
+def test_expert_perish_song_and_splash_score_nothing(poke, move):
+    """No Expert check, they don't fall into the always-hit branch"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    ai_pok[Pok.ACCURACY_STAT_STAGE] = -6
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, [])
+
+
+def test_wearing_down_counts_perish_song(poke):
+    """Expert Protect and Feint treat Perish Song like Toxic or Curse"""
+    p = poke("Machop", 20, "Guts", ["Tackle"])
+    assert not ai.wearing_down(p)
+    p[Pok.VOL_STATUS] = VolStatus.PERISH_SONG
+    assert ai.wearing_down(p)
+
+
+def test_expert_binding_move_vs_perish_song(poke):
+    """Expert_BindingMove: 50% +1 against a target under Perish Song"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Wrap"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    user[Pok.VOL_STATUS] = VolStatus.PERISH_SONG
+    assert _expert(ai_pok, user) == (0, [(1, 128)])
+
+
+def _perish_ai(make_pokemon, make_battle, turns, bench=True, vol=0):
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])
+    opp = [make_pokemon("Machop", 20, "Guts", ["Karate Chop"])]
+    if bench:
+        opp.append(make_pokemon("Rattata", 20, "Run Away", ["Tackle"]))
+    arr = make_battle([me], opp)
+    active = opp_active(arr)
+    active[Pok.VOL_STATUS] = VolStatus.PERISH_SONG | vol
+    active[Pok.PERISH_TURNS] = turns
+    return arr
+
+
+def test_ai_withdraws_on_perish_count_zero(make_pokemon, make_battle):
+    """Withdraw 1: the count is 0, it faints this turn, so it switches to the post-KO pick"""
+    arr = _perish_ai(make_pokemon, make_battle, 0)
+    assert return_idx(arr) == 1 - 6
+
+
+@pytest.mark.parametrize("turns, bench, vol", [
+    (1, True, 0), (0, False, 0), (0, True, VolStatus.INGRAIN),
+])
+def test_ai_perish_withdraw_needs_count_zero_a_bench_and_freedom(
+        make_pokemon, make_battle, turns, bench, vol):
+    """A count left, no bench or rooted by Ingrain: it picks a move"""
+    arr = _perish_ai(make_pokemon, make_battle, turns, bench, vol)
     assert return_idx(arr) >= 0

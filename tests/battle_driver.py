@@ -231,6 +231,25 @@ def scenario_switching():
     return my, opp, (_POTIONS_POTION,)
 
 
+def scenario_healing_misc():
+    """Recover, Synthesis in rain, Refresh, Knock Off (Sticky Hold), Recycle after a berry, Worry Seed
+    vs sleep moves, Perish Song (Soundproof), Splash"""
+    my = [
+        _p("Cherubi", 14, "Chlorophyll", ["Synthesis", "Worry Seed", "Tackle", "Rain Dance"]),
+        _p("Murkrow", 14, "Insomnia", ["Knock Off", "Peck", "Refresh", "Perish Song"]),
+        _p("Abra", 14, "Synchronize", ["Recover", "Recycle", "Confusion"], item="Oran Berry"),
+        _p("Whismur", 14, "Soundproof", ["Perish Song", "Pound", "Splash"]),
+    ]
+    opp = [
+        _p("Misdreavus", 14, "Levitate", ["Perish Song", "Astonish", "Recover"]),
+        _p("Slakoth", 14, "Truant", ["Scratch", "Yawn", "Refresh"]),
+        _p("Shroomish", 14, "Effect Spore", ["Absorb", "Worry Seed", "Hypnosis", "Recycle"],
+           item="Sitrus Berry"),
+        _p("Machop", 14, "Sticky Hold", ["Karate Chop", "Knock Off", "Poison Powder"], item="Oran Berry"),
+    ]
+    return my, opp, (_POTIONS_POTION,)
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -238,6 +257,7 @@ SCENARIOS = {
     "multihit_items": scenario_multihit_items,
     "weather_charge": scenario_weather_charge,
     "switching": scenario_switching,
+    "healing_misc": scenario_healing_misc,
 }
 
 

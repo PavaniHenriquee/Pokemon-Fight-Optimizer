@@ -10,10 +10,11 @@ from Engine.engine_helper import (
     item_on_rdmg, eat_berry_bug_bite, struggle, switch_items,
     RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
-    try_protect, endure_damage, side_base
+    try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
+    worry_seed, perish_song, perish_count
 )
 from Engine.status_calc import (
-    sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP
+    sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP, sleep_ability
 )
 from Engine.damage_calc import calculate_damage, ROLLOUT_MOVES
 from Models.trainer_ai import sub_after_death
@@ -59,7 +60,10 @@ from Models.constants import (
     _WEATHER_RAIN, _WEATHER_SANDSTORM, _MOVE_FORCE_SWITCH, _MOVE_SELF_SWITCH, _MOVE_POWER,
     _ABILITYNAMES_SUCTION_CUPS, _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_PURSUIT, _POK_CONFUSION_COUNTER,
     _POK_EVASION_STAT_STAGE, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _VOLSTATUS_HEAL_BLOCK,
-    _BATTLEPHASE_BATON_PASS, _FIELD_PENDING_OPP_MOVE
+    _BATTLEPHASE_BATON_PASS, _FIELD_PENDING_OPP_MOVE, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
+    _MOVENAME_KNOCK_OFF, _POK_ITEM_KNOCKED_OFF, _MOVENAME_RECOVER, _MOVENAME_SYNTHESIS,
+    _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
+    _ENEMY_AI_KNOWS_ABILITY
 )
 from Models.move import STRUGGLE
 
@@ -112,10 +116,11 @@ NO_FOE_TARGETS = TARGET_SELF_SIDE + SIDE_OR_FIELD_TARGETS
 BATON_PASS_VOLS = (
     _VOLSTATUS_CONFUSION | _VOLSTATUS_FOCUS_ENERGY | _VOLSTATUS_CURSE | _VOLSTATUS_LEECH_SEED
     | _VOLSTATUS_INGRAIN | _VOLSTATUS_AQUA_RING | _VOLSTATUS_MUD_SPORT | _VOLSTATUS_WATER_SPORT
-    | _VOLSTATUS_HEAL_BLOCK
+    | _VOLSTATUS_HEAL_BLOCK | _VOLSTATUS_PERISH_SONG
 )
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
+HEAL_MOVES = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
 
 @njit
 def _pass_baton(old, new):
@@ -125,6 +130,7 @@ def _pass_baton(old, new):
     )
     new[_POK_VOL_STATUS] = old[_POK_VOL_STATUS] & BATON_PASS_VOLS
     new[_POK_CONFUSION_COUNTER] = old[_POK_CONFUSION_COUNTER]
+    new[_POK_PERISH_TURNS] = old[_POK_PERISH_TURNS]
 
 
 @njit
@@ -193,6 +199,7 @@ def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx, bato
     new_pokemon = battle_array[
         (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
     ]
+    carry_recycle(current_pokemon, new_pokemon)
     switch_in(new_pokemon, current_opp, battle_array, True)
     return new_pokemon
 
@@ -210,6 +217,7 @@ def _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch, bat
     new_opp = battle_array[
         ((opp_switch+6) * POK_LEN):((opp_switch+7) * POK_LEN)
     ]
+    carry_recycle(current_opp, new_opp)
     switch_in(new_opp, current_pokemon, battle_array, False)
     return new_opp
 
@@ -470,8 +478,12 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0):
         move[_MOVE_ID] == _MOVENAME_COVET
         and defender[_ITEM_ITEM_TYPE]
         and not attacker[_ITEM_ITEM_TYPE]
+        and not attacker[_POK_ITEM_KNOCKED_OFF]
+        and not defender[_POK_ITEM_KNOCKED_OFF]
     ):
         switch_items(attacker, defender)
+    elif move[_MOVE_ID] == _MOVENAME_KNOCK_OFF:
+        knock_off(attacker, defender)
 
     return flinch
 
@@ -631,6 +643,11 @@ def _execute_move_slot(
         if not defn[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT:
             return False
         defn[_POK_VOL_STATUS] &= ~_VOLSTATUS_PROTECT
+    # Perish Song has no hit check, each Pokemon is checked on its own (a Soundproof foe doesn't
+    # stop the user from getting a count)
+    if mv[_MOVE_ID] == _MOVENAME_PERISH_SONG:
+        perish_song(atk, defn)
+        return False
 
     move_hit = calculate_hit_miss(mv, atk, defn, weather)
     if move_hit != _MOVEOUTCOME_HIT:
@@ -692,8 +709,24 @@ def _execute_move_slot(
     if move_weather:
         _set_weather(battle_array, move_weather)
         return False
+    _status_move(atk, defn, mv, is_mine, battle_array, weather)
     calculate_effects(atk, defn, mv, weather, battle_array[def_side])
     return False
+
+
+@njit
+def _status_move(atk, defn, mv, is_mine, battle_array, weather):
+    """Recover, Synthesis, Refresh, Recycle and Worry Seed"""
+    move_id = mv[_MOVE_ID]
+    if move_id in HEAL_MOVES:
+        heal_move(atk, move_id, weather)
+    elif move_id == _MOVENAME_REFRESH:
+        refresh(atk)
+    elif move_id == _MOVENAME_RECYCLE:
+        recycle(atk)
+    # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
+    elif move_id == _MOVENAME_WORRY_SEED and worry_seed(defn) and not is_mine:
+        battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY
 
 
 @njit
@@ -855,7 +888,8 @@ def _yawn(pok, foe):
     if pok[_POK_YAWN_TURNS] > 0:
         return
     pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_YAWN
-    if pok[_POK_STATUS] == 0 and not sleep_blocked(pok, foe):
+    # No move is being used, so nothing breaks Insomnia or Vital Spirit here
+    if pok[_POK_STATUS] == 0 and not sleep_blocked(pok, foe) and not sleep_ability(pok, pok):
         pok[_POK_STATUS] = _STATUS_SLEEP
         pok[_POK_SLEEP_COUNTER] = TURNS_2_5[random.getrandbits(2)]
 
@@ -1051,7 +1085,9 @@ def _replace_fainted_opp(battle_array, current_pokemon, current_opp):
         battle_array[_FIELD_OPP_POK] = i
         battle_array[_FIELD_MY_LAST_MOVE] = 0
         battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
-        current_opp = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
+        new_opp = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
+        carry_recycle(current_opp, new_opp)
+        current_opp = new_opp
         switch_in(current_opp, current_pokemon, battle_array, False)
         if current_opp[_POK_CURRENT_HP] > 0:
             break
@@ -1089,6 +1125,9 @@ def end_of_turn(battle_array):
     _residual_weather(second, weather, second_flag, battle_array)
     _apply_residual(first, second, first_flag, battle_array)
     _apply_residual(second, first, second_flag, battle_array)
+    # pokeplatinum CheckSideConditions, after every Pokemon's residuals
+    perish_count(first)
+    perish_count(second)
 
     # If Opponent is dead
     if current_opp[_POK_CURRENT_HP] == 0 and current_pokemon[_POK_CURRENT_HP] != 0:
@@ -1191,6 +1230,8 @@ def switch_in_action(battle_array, switch_idx: int):
         my_switch = my_pty[
             (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
         ]
+        carry_recycle(current_pokemon, my_switch)
+        carry_recycle(current_opp, opp_switch)
 
         # I actually don't know if when both are switching in the order matters, but its better be safe
         # than sorry
@@ -1255,9 +1296,11 @@ def switch_in_action(battle_array, switch_idx: int):
         battle_array[_FIELD_PHASE] = _BATTLEPHASE_TURN_START
         return
     battle_array[_FIELD_MY_POK] = switch_idx
-    current_pokemon = my_pty[
+    new_pokemon = my_pty[
         (switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)
     ]
+    carry_recycle(current_pokemon, new_pokemon)
+    current_pokemon = new_pokemon
     switch_in(current_pokemon, current_opp, battle_array, True)
     # Fainted to the hazards, I pick again
     if current_pokemon[_POK_CURRENT_HP] <= 0:

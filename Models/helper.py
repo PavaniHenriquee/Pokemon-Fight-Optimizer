@@ -77,6 +77,7 @@ class VolStatus:
     SEMI_INVULNERABLE = 134217728
     HURT_THIS_TURN    = 268435456
     DISABLE           = 536870912
+    PERISH_SONG       = 1073741824
 
 
 @dataclass(slots=True)

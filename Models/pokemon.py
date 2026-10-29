@@ -157,7 +157,9 @@ class Pokemon:
             0,   # Uproar turns
             0,   # Consecutive count (Rollout, Ice Ball, Fury Cutter)
             0,   # Last move id, 0 means none
-            0    # Consumed item, 0 means none
+            0,   # Consumed item, 0 means none
+            0,   # Base ability while Worry Seed changed it, 0 means unchanged
+            0    # Item knocked off
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 

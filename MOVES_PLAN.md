@@ -11,11 +11,11 @@
 | Phase 3: volatiles, no action restriction | Done (2026-10-27), committed | See "Phase 3: findings and decisions" and "Phase 3: outcome"; 17 TODO boxes ticked     |
 | Phase 4: action-restricting volatiles     | Done (2026-10-27), committed | See "Phase 4: findings and decisions" and "Phase 4: outcome"; Disable added            |
 | Phase 5: side conditions and field        | Done (2026-10-28), committed | See "Phase 5: findings and decisions" and "Phase 5: outcome"; frontend shows the field |
-| Phase 6: switching moves                  | Done (2026-10-28), not committed | See "Phase 6: findings and decisions" and "Phase 6: outcome"; new Baton Pass phase |
-| Phase 7: healing, items, misc             | **Next**                     |                                                                                        |
-| Phase 8: move-calling                     | Not started                  |                                                                                        |
+| Phase 6: switching moves                  | Done (2026-10-28), committed | See "Phase 6: findings and decisions" and "Phase 6: outcome"; new Baton Pass phase |
+| Phase 7: healing, items, misc             | Done (2026-10-28), not committed | See "Phase 7: findings and decisions" and "Phase 7: outcome"; VolStatus is now full |
+| Phase 8: move-calling                     | **Next**                     |                                                                                        |
 
-**Where to start next session:** Phase 7 (see Phase 7 below), after you've reviewed and committed Phase 6.
+**Where to start next session:** Phase 8 (see Phase 8 below), after you've reviewed and committed Phase 7.
 
 **Open issues carried forward:**
 
@@ -505,6 +505,79 @@ Sources: pokeplatinum subscripts (`force_target_to_switch_or_flee`, `baton_pass`
 - Worry Seed (B/E, !): changes the ability to Insomnia and wakes the target
 - Perish Song (B, !): also covers the AI TODO at `trainer_ai.py:200`
 - Splash (!): only interacts with Gravity
+
+### Phase 7: findings and decisions (2026-10-28)
+
+Sources: Showdown gen4/gen5/gen7 mods (`moves.ts`), `sim/battle-actions.ts`, `sim/pokemon.ts`; pokeplatinum effect scripts 0032, 0085, 0114, 0132, 0184, 0188, 0193, 0247 and their subscripts (recover half max HP, recover HP, present heal, recover psn/prz/brn, give target insomnia, perish song start/continue), `battle_script.c` (TryKnockOff, TryRecycle, RemoveItem, WeatherHPRecovery, TryPerishSong, TryStealItem, TrySwapItems), `battle_lib.c` (InitBattleMon, UpdateAfterSwitch, RecoverStatusByAbility), `battle_controller_player.c` (side-condition pass), `trainer_ai.c` (AI_PerishSongKO) and `trainer_ai/script.s`; Pokemow `getBasicAI.js` / `getExpertAI.js` / `BasicCheckText.js` / `ExpertCheckText.js` / `switching.html`; RP MOVES sheet (all 8 match MoveDB).
+
+**Your decisions:**
+
+- Perish Song uses a new `VolStatus.PERISH_SONG` bit (2^30, the last free one). When the next volatile doesn't fit, we figure it out then.
+- New `Pok.BASE_AB_ID` (0 = unchanged) plus `ABILITY_TABLE` (`Models/ability.py`) to restore an ability on switch-out. Reusable for later ability-changing moves.
+- Insomnia and Vital Spirit sleep immunity pulled forward ("as you see fit").
+- Recycle follows Gen IV: the recyclable item belongs to the battle slot.
+- Sticky Hold in Knock Off only, Gen IV rules.
+- Knock Off's Gen IV "can't get a new item" mark is in (new `Pok.ITEM_KNOCKED_OFF`).
+- The noticed items could be fixed too (Howl's sound flag, the AI Soundproof list).
+
+**Mechanics as built:**
+
+- Recover: max HP / 2. Synthesis: 1/2 with no weather, max HP × 20 / 30 in sun, 1/4 in rain, sand or hail. Rounded down, at least 1, nothing at full HP. Heal Block isn't in MoveDB.
+- Refresh: cures burn, poison, Toxic (and its counter) and paralysis on the user. Not sleep or freeze.
+- Knock Off: on a hit, removes the target's item and sets `ITEM_KNOCKED_OFF` for the rest of the battle. Sticky Hold stops it unless the user has Mold Breaker. No power boost (Gen VI), 65 power from RP. The mark makes Covet fail if either side has it, and strips an item the marked Pokemon got back (Recycle) when it switches in. The knocked off item isn't recyclable.
+- Recycle:
+  - `ITEM_TABLE` (`Models/item.py`) rebuilds the whole item block from `CONSUMED_ITEM`.
+  - Fails while holding an item or with nothing to recycle.
+  - `eat_berry` now records the berry (Natural Gift already did). Bug Bite and Covet don't.
+  - A berry restored at half HP or less is eaten right away (Showdown onUpdate).
+  - `carry_recycle` moves `CONSUMED_ITEM` to whoever takes the slot: `_switch_my_side`, `_switch_opp_side`, `_replace_fainted_opp` and both branches of `switch_in_action`.
+- Worry Seed: fails on Truant and Multitype (Griseous Orb isn't in ItemDB). Writes Insomnia's ability block, keeps the first base ability in `BASE_AB_ID`, wakes a sleeper right away (Showdown; pokeplatinum waits for the start of the next turn). When it hits me, the AI learns my ability. `reset_switch_out` restores it.
+- Insomnia and Vital Spirit: no sleep from moves, Yawn doesn't land, Yawn's sleep at 0 doesn't happen. Mold Breaker ignores them during its move.
+- Perish Song:
+  - Skips the hit check (a Soundproof foe made the whole move miss).
+  - Both actives get a count of 3 except one that already has it, a fainted one, a Soundproof one (unless the user has Mold Breaker) and a semi-invulnerable one (Showdown).
+  - End of turn, after both `_apply_residual` calls, in the same speed order: 0 faints, else -1. So it faints at the 4th end of turn.
+  - `reset_switch_out` clears it; Baton Pass passes the bit and the count.
+- Splash: already did nothing. Gravity isn't in the engine.
+- Howl: MoveDB drops the sound flag and targets `self` (Showdown gen7 mod, which gen4 inherits).
+
+**AI:**
+
+- Basic (`basic_misc`, Knock Off after the immunity/ability checks):
+  - Recover / Synthesis -8 at full HP.
+  - Refresh -10 unless burned, poisoned or paralyzed.
+  - Knock Off -10 vs Sticky Hold or no item.
+  - Recycle -10 with nothing to recycle.
+  - Worry Seed -10 vs Truant, Insomnia, Vital Spirit, Multitype, or a sleeping target not seen using Sleep Talk (Snore isn't in MoveDB). `basic_flag` takes `ai_know` for this.
+  - Perish Song -10 if the target has it.
+  - The Soundproof check uses the cartridge list (`SOUNDPROOF_M`) instead of the sound flag: no -10 for Perish Song, Disarming Voice, Howl.
+- Expert (`expert_misc`):
+  - Recover: full HP -3, moving first -8, over 69% HP -3 at 226/256, else 236/256 +2 (Snatch isn't in MoveDB). Synthesis -2 first in rain, sand or hail.
+  - Refresh -1 vs a target under 50%.
+  - Knock Off 76/256 +1 vs a target at 30%+, not on the AI's first turn.
+  - Recycle 206/256 +1 for Chesto / Lum (Starf isn't in ItemDB), else -2.
+  - Worry Seed: 128/256 +1 with the target over 49% (Pokemow; pokeplatinum reads the AI's own HP), then 192/256 +1. Rest isn't in MoveDB (TODO).
+  - Perish Song and Splash score 0 (they used to fall into the always-hit branch).
+- `wearing_down` (Expert Protect / Feint) and the Expert binding check count Perish Song.
+- Withdraw 1 in `choose_move`: count 0, a living bench and not trapped → `sub_after_death`. pret's comment says AI_PerishSongKO never fires; Pokemow and the countdown code say it does, so it follows Pokemow.
+
+### Phase 7: outcome (2026-10-28)
+
+- Tests:
+  - Heal amounts, Refresh, berry → Recycle, slot carry, Knock Off / Sticky Hold / mark, switch-in strip, Worry Seed and its restore, Perish Song targets / count / switch clear (`test_engine_helper`).
+  - Insomnia and Vital Spirit vs sleep moves and Yawn (`test_status_calc`).
+  - Recover, Perish Song over four turns, the Soundproof foe, Baton Pass carrying the count, Knock Off, Covet with the mark, the slot carry on a switch, Recycle, AI Worry Seed waking me and learning my ability, Yawn vs Insomnia (`test_battle`).
+  - `node_key` sees the Perish Song bit (`test_search`).
+  - Every Basic / Expert branch, the Soundproof list, wearing down, binding vs Perish Song, the withdraw and its conditions (`test_trainer_ai`).
+  - New `healing_misc` scenario in `battle_driver.py`. Over the 20 seeds: 24 heals, 5 Refresh cures, 8 knock-offs, 3 Recycles, 13 Worry Seeds, 62 Perish Song uses with 8 faints.
+- Golden re-blessed: the six old scenarios have the same turns and HP on every seed, only the hash moved (two new `Pok` slots). `healing_misc` is new.
+- Checks: `pytest` 1988 passed, `pytest -m jit` 6 passed, `pytest -m slow` 7 passed. Pylint isn't installed in the venv, not run.
+- Benchmark (main.py battle, 100k iterations, compile excluded, best of 3, two back-to-back pairs): 9.29s vs 8.92s and 9.10s vs 8.99s at HEAD, so 1-4%. That battle has no Phase 7 moves.
+- TODO boxes that can be ticked (not ticked): Knock Off, Perish Song, Recover, Recycle, Refresh, Synthesis, Worry Seed, Insomnia, Vital Spirit. Left open: Splash (Gravity), Sticky Hold (Covet and Bug Bite).
+- Noticed, not changed:
+  - Now-implemented TODOs still in place: `# TODO: 1. Perish Song about to hit 0` (`choose_move`), `TODO: Perish Song` in `wearing_down`'s docstring (its first line also doesn't list Perish Song) and above the Expert binding check, and the Knock Off / Recycle / Refresh / Worry Seed / Perish Song / Recovery entries in the Basic and Expert docstring TODO lists.
+  - A Pokemon fainted by anything keeps its Worry Seed ability and Perish bit (only `reset_switch_out` clears them). Harmless, it never comes back.
+  - Disarming Voice keeps the sound flag in the engine (Showdown has it); whether RP's ROM blocks it with Soundproof is unknown.
 
 ## Phase 8: Move-calling (the most careful phase)
 

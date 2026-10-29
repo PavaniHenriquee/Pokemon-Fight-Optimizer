@@ -9,7 +9,11 @@ from Engine.engine_helper import (
     switch_in, trainer_ai_items, eat_berry, drain, weather_dmg, early_returns, struggle,
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
+    heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
 )
+from Models.ability import ABILITY_TABLE
+from Models.item import ITEM_TABLE
+from DataBase.AbilitiesDB import AbilityNames
 from DataBase.MoveDB import MoveName
 from Models.idx_const import Pok, Move, Item, Sec, Field, SIDE_TOXIC_SPIKES, FIELD_LEN
 from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome, Types, SideCondition
@@ -883,3 +887,193 @@ def test_mist_blocks_intimidate(poke):
     arr[Field.OPP_SIDE_COND] = SideCondition.MIST
     switch_in(me, foe, arr, True)
     assert foe[Pok.ATTACK_STAT_STAGE] == 0
+
+
+# ── Phase 7: healing, items, Worry Seed, Perish Song ─────────────────────────
+
+@pytest.mark.parametrize("move, weather, num, den", [
+    (MoveName.RECOVER, 0, 1, 2), (MoveName.RECOVER, Weather.RAIN, 1, 2),
+    (MoveName.SYNTHESIS, 0, 1, 2), (MoveName.SYNTHESIS, Weather.SUN, 20, 30),
+    (MoveName.SYNTHESIS, Weather.RAIN, 1, 4), (MoveName.SYNTHESIS, Weather.SANDSTORM, 1, 4),
+    (MoveName.SYNTHESIS, Weather.HAIL, 1, 4),
+])
+def test_heal_move_amounts(poke, move, weather, num, den):
+    """Recover 1/2, Synthesis 1/2, 2/3 in sun and 1/4 in rain, sand or hail, rounded down"""
+    p = poke("Machop", 40, "Guts", ["Tackle"])
+    p[Pok.CURRENT_HP] = 1
+    heal_move(p, move, weather)
+    assert p[Pok.CURRENT_HP] == 1 + p[Pok.MAX_HP] * num // den
+
+
+def test_heal_move_caps_and_full_hp(poke):
+    """Capped at max HP, nothing at full HP, at least 1"""
+    p = poke("Machop", 40, "Guts", ["Tackle"])
+    p[Pok.CURRENT_HP] = p[Pok.MAX_HP] - 1
+    heal_move(p, MoveName.RECOVER, 0)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP]
+    heal_move(p, MoveName.RECOVER, 0)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP]
+    p[Pok.MAX_HP], p[Pok.CURRENT_HP] = 3, 1
+    heal_move(p, MoveName.SYNTHESIS, Weather.RAIN)
+    assert p[Pok.CURRENT_HP] == 2
+
+
+@pytest.mark.parametrize("status, cured", [
+    (Status.BURN, True), (Status.POISON, True), (Status.TOXIC, True), (Status.PARALYSIS, True),
+    (Status.SLEEP, False), (Status.FREEZE, False),
+])
+def test_refresh(poke, status, cured):
+    """Refresh cures burn, poison and paralysis, not sleep or freeze"""
+    p = poke("Machop", 20, "Guts", ["Tackle"])
+    p[Pok.STATUS] = status
+    p[Pok.BADLY_POISON] = 3 if status == Status.TOXIC else 0
+    refresh(p)
+    assert (p[Pok.STATUS] == 0) == cured
+    assert p[Pok.BADLY_POISON] == 0
+
+
+def test_eaten_berry_can_be_recycled(poke):
+    """The holder eating its berry makes it recyclable, Recycle restores the whole item block"""
+    p = poke("Machop", 20, "Guts", ["Tackle"], item="Sitrus Berry")
+    block = p[Item.ID:Item.ITEM_USER + 1].copy()
+    p[Pok.CURRENT_HP] = p[Pok.MAX_HP] // 2
+    eat_berry(p)
+    assert p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] == ItemNames.SITRUS_BERRY
+    p[Pok.CURRENT_HP] = p[Pok.MAX_HP]
+    recycle(p)
+    assert (p[Item.ID:Item.ITEM_USER + 1] == block).all() and p[Pok.CONSUMED_ITEM] == 0
+    assert (ITEM_TABLE[ItemNames.SITRUS_BERRY] == block).all()
+
+
+def test_recycle_fails_holding_an_item_or_with_nothing(poke):
+    """Holding an item or nothing used up: no change"""
+    p = poke("Machop", 20, "Guts", ["Tackle"], item="Oran Berry")
+    p[Pok.CONSUMED_ITEM] = ItemNames.SITRUS_BERRY
+    recycle(p)
+    assert p[Item.ID] == ItemNames.ORAN_BERRY and p[Pok.CONSUMED_ITEM] == ItemNames.SITRUS_BERRY
+    q = poke("Machop", 20, "Guts", ["Tackle"])
+    recycle(q)
+    assert q[Item.ID] == 0
+
+
+def test_recycled_berry_is_eaten_at_low_hp(poke):
+    """A berry restored at half HP or less is eaten right away"""
+    p = poke("Machop", 20, "Guts", ["Tackle"])
+    p[Pok.CONSUMED_ITEM] = ItemNames.ORAN_BERRY
+    p[Pok.CURRENT_HP] = 5
+    recycle(p)
+    assert p[Pok.CURRENT_HP] == 15 and p[Item.ID] == 0
+    assert p[Pok.CONSUMED_ITEM] == ItemNames.ORAN_BERRY
+
+
+def test_carry_recycle_moves_the_item_to_the_slot(poke):
+    """Gen IV: the Pokemon coming in gets the recyclable item, the one leaving loses it"""
+    old = poke("Machop", 20, "Guts", ["Tackle"])
+    new = poke("Rattata", 20, "Run Away", ["Tackle"])
+    old[Pok.CONSUMED_ITEM] = ItemNames.ORAN_BERRY
+    carry_recycle(old, new)
+    assert old[Pok.CONSUMED_ITEM] == 0 and new[Pok.CONSUMED_ITEM] == ItemNames.ORAN_BERRY
+
+
+@pytest.mark.parametrize("def_ab, atk_ab, removed", [
+    ("Guts", "Run Away", True), ("Sticky Hold", "Run Away", False),
+    ("Sticky Hold", "Mold Breaker", True),
+])
+def test_knock_off(poke, def_ab, atk_ab, removed):
+    """Knock Off removes the item and marks the target, Sticky Hold stops it unless Mold Breaker.
+    A knocked off item isn't recyclable"""
+    a = poke("Murkrow", 20, atk_ab, ["Knock Off"])
+    d = poke("Machop", 20, def_ab, ["Tackle"], item="Oran Berry")
+    knock_off(a, d)
+    assert (d[Item.ID] == 0) == removed
+    assert d[Pok.ITEM_KNOCKED_OFF] == int(removed)
+    assert d[Pok.CONSUMED_ITEM] == 0
+
+
+def test_knock_off_without_an_item_does_nothing(poke):
+    """No item: nothing to knock off, no mark"""
+    a = poke("Murkrow", 20, "Insomnia", ["Knock Off"])
+    d = poke("Machop", 20, "Guts", ["Tackle"])
+    knock_off(a, d)
+    assert d[Pok.ITEM_KNOCKED_OFF] == 0
+
+
+def test_knocked_off_pokemon_loses_a_regained_item_on_switch_in(poke):
+    """Gen IV: an item the knocked off Pokemon got back (Recycle) is gone when it comes in"""
+    me = poke("Machop", 20, "Guts", ["Tackle"], item="Oran Berry")
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    me[Pok.ITEM_KNOCKED_OFF] = 1
+    switch_in(me, foe, empty_field(), True)
+    assert me[Item.ID] == 0
+
+
+@pytest.mark.parametrize("status", [0, Status.SLEEP])
+def test_worry_seed_gives_insomnia_until_switch_out(poke, status):
+    """Insomnia's whole ability block, a sleeper wakes, the base ability comes back on switch"""
+    d = poke("Machop", 20, "Guts", ["Tackle"])
+    d[Pok.STATUS] = status
+    d[Pok.SLEEP_COUNTER] = 3 if status else 0
+    guts = d[Pok.AB_ID:Pok.AB_BREAKABLE + 1].copy()
+    assert worry_seed(d)
+    assert (d[Pok.AB_ID:Pok.AB_BREAKABLE + 1] == ABILITY_TABLE[AbilityNames.INSOMNIA]).all()
+    assert d[Pok.BASE_AB_ID] == AbilityNames.GUTS
+    assert d[Pok.STATUS] == 0 and d[Pok.SLEEP_COUNTER] == 0
+    assert worry_seed(d) and d[Pok.BASE_AB_ID] == AbilityNames.GUTS
+    reset_switch_out(d)
+    assert (d[Pok.AB_ID:Pok.AB_BREAKABLE + 1] == guts).all() and d[Pok.BASE_AB_ID] == 0
+
+
+@pytest.mark.parametrize("ability", ["Truant", "Multitype"])
+def test_worry_seed_fails(poke, ability):
+    """Truant and Multitype stay"""
+    d = poke("Machop", 20, ability, ["Tackle"])
+    assert not worry_seed(d)
+    assert d[Pok.AB_ID] == getattr(AbilityNames, ability.upper()) and d[Pok.BASE_AB_ID] == 0
+
+
+@pytest.mark.parametrize("foe_ab, user_ab, foe_vol, foe_hp, foe_gets", [
+    ("Guts", "Run Away", 0, 1, True),
+    ("Soundproof", "Run Away", 0, 1, False),
+    ("Soundproof", "Mold Breaker", 0, 1, True),
+    ("Guts", "Run Away", VolStatus.SEMI_INVULNERABLE, 1, False),
+    ("Guts", "Run Away", 0, 0, False),
+])
+def test_perish_song_targets(poke, foe_ab, user_ab, foe_vol, foe_hp, foe_gets):
+    """Both actives get a count of 3, except a Soundproof (unless Mold Breaker), semi-invulnerable
+    or fainted foe. The user always does"""
+    user = poke("Rattata", 20, user_ab, ["Perish Song"])
+    foe = poke("Machop", 20, foe_ab, ["Tackle"])
+    foe[Pok.VOL_STATUS] = foe_vol
+    foe[Pok.CURRENT_HP] = foe_hp
+    perish_song(user, foe)
+    assert user[Pok.VOL_STATUS] & VolStatus.PERISH_SONG and user[Pok.PERISH_TURNS] == 3
+    assert bool(foe[Pok.VOL_STATUS] & VolStatus.PERISH_SONG) == foe_gets
+
+
+def test_perish_song_doesnt_reset_a_count(poke):
+    """A Pokemon that already has it keeps its count"""
+    user = poke("Rattata", 20, "Run Away", ["Perish Song"])
+    foe = poke("Machop", 20, "Guts", ["Tackle"])
+    perish_song(user, foe)
+    perish_count(user)
+    perish_song(user, foe)
+    assert user[Pok.PERISH_TURNS] == 2
+
+
+def test_perish_count_faints_at_the_fourth_end_of_turn(poke):
+    """3, 2, 1, 0 then faint, the bit goes with it"""
+    p = poke("Machop", 20, "Guts", ["Tackle"])
+    perish_song(p, poke("Rattata", 20, "Run Away", ["Tackle"]))
+    for left in (2, 1, 0):
+        perish_count(p)
+        assert p[Pok.PERISH_TURNS] == left and p[Pok.CURRENT_HP] > 0
+    perish_count(p)
+    assert p[Pok.CURRENT_HP] == 0 and not p[Pok.VOL_STATUS] & VolStatus.PERISH_SONG
+
+
+def test_switch_out_clears_perish_song(poke):
+    """The bit and the count go when the Pokemon leaves"""
+    p = poke("Machop", 20, "Guts", ["Tackle"])
+    perish_song(p, poke("Rattata", 20, "Run Away", ["Tackle"]))
+    reset_switch_out(p)
+    assert not p[Pok.VOL_STATUS] & VolStatus.PERISH_SONG and p[Pok.PERISH_TURNS] == 0

@@ -23,7 +23,7 @@ from Models.constants import (
     _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE,
     _MOVENAME_MAGNITUDE, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL,
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_MY_SIDE_COND,
-    _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES
+    _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -230,12 +230,23 @@ def choose_move(battle_array):
     # The target's living party besides the active (pokeplatinum CountAlivePartyBattlers)
     user_bench = count_party(battle_array[0:(6 * POK_LEN)]) - 1
     ai_bench = count_party(battle_array[(6 * POK_LEN):(12 * POK_LEN)]) - 1
-    # TODO: 1. Perish Song about to hit 0
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
     # pokeplatinum TrainerAI_ShouldSwitch skips every withdraw check when Ingrain roots the active
     # or a bind traps it
     can_switch = not ai_pok[_POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED)
+    # Withdraw 1 - The active faints to Perish Song at the end of this turn (count 0), it always
+    # switches to the post-KO pick (Pokemow; pret says AI_PerishSongKO never fires, the countdown
+    # code says it does)
+    if (
+        can_switch
+        and ai_bench > 0
+        and ai_pok[_POK_VOL_STATUS] & _VOLSTATUS_PERISH_SONG
+        and ai_pok[_POK_PERISH_TURNS] == 0
+    ):
+        sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active)
+        _evaluated_moves[0] = [sub-6,0,0,False]
+        return _evaluated_moves
     # Withdraw 5 - The active Pokémon is asleep and has the ability Natural Cure. Like every
     # withdraw it needs a living bench, and the pick skips the active (pokeplatinum)
     if (
@@ -324,7 +335,7 @@ def choose_move(battle_array):
         )
         score = eval_atk + basic_flag(
             move, ability, ai_pok, user_pok, effectiveness, weather, ai_side, user_side,
-            user_tspikes, user_bench, ai_bench
+            user_tspikes, user_bench, ai_bench, ai_know
         )
 
         expert = expert_flag(

@@ -3,6 +3,7 @@ import numpy as np
 from Models.helper import AbilityActivation
 from Models.idx_const import Pok, AB_LEN, BASE_LEN
 from DataBase.AbilitiesDB import AbilityNames
+from DataBase.loader import abDB
 
 
 def ability_to_np(ability):
@@ -33,3 +34,15 @@ def ability_to_np(ability):
     array[Pok.AB_NO_TRANSFORM - off]    = int(ability.get('no_transform', False) is True)
     array[Pok.AB_SUPRESS_WEATHER - off] = int(ability.get('suppress_weather', False) is True)"""
     return array
+
+
+def _ability_table():
+    """Ability block of every ability by id, to change an ability (Worry Seed) and restore it"""
+    ids = [v for k, v in vars(AbilityNames).items() if k.isupper() and isinstance(v, int)]
+    table = np.zeros((max(ids) + 1, AB_LEN), dtype=np.int32)
+    for ability in abDB.values():
+        table[getattr(AbilityNames, ability['name'].upper())] = ability_to_np(ability)
+    return table
+
+
+ABILITY_TABLE = _ability_table()

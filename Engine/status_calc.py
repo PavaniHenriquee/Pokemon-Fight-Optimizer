@@ -21,7 +21,8 @@ from Models.constants import (
     _GENDER_GENDERLESS, _VOLSTATUS_TAUNT, _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE, _POK_TAUNT_TURNS,
     _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _VOLSTATUS_UPROAR, _MOVE_PP,
     _ABILITYNAMES_SOUNDPROOF, _MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE,
-    _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD
+    _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT,
+    _ABILITYNAMES_MOLD_BREAKER
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from Models.move import CURSE_BOOST
@@ -42,6 +43,7 @@ SLOT_STEP = 4
 SLOT_MASK = 3
 # Gen IV Encore fails on these last moves (Transform, Mimic, Sketch aren't in MoveDB)
 ENCORE_FAIL_MOVES = (_MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE)
+SLEEP_AB_IM = (_ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT)
 
 STAT_MAPPING = (
     (_MOVE_BOOST_ATK, _POK_ATTACK_STAT_STAGE),
@@ -109,6 +111,12 @@ def sleep_blocked(pok, foe):
 
 
 @njit
+def sleep_ability(pok, source):
+    """Insomnia and Vital Spirit keep the Pokemon awake, a Mold Breaker source's move ignores them"""
+    return pok[_POK_AB_ID] in SLEEP_AB_IM and source[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER
+
+
+@njit
 def last_move_slot(pok):
     """Slot of the move the Pokemon used last, -1 if none or it isn't one of its moves (Struggle)"""
     last = pok[_POK_LAST_MOVE_ID]
@@ -146,7 +154,7 @@ def apply_status(move, pok, weather, source, sec=False, side=0):
 
     if m_status == _STATUS_FREEZE and weather == _WEATHER_SUN:
         return
-    if m_status == _STATUS_SLEEP and sleep_blocked(pok, source):
+    if m_status == _STATUS_SLEEP and (sleep_blocked(pok, source) or sleep_ability(pok, source)):
         return
 
     pok[_POK_STATUS] = m_status
@@ -254,7 +262,7 @@ def vol_status(move, pok, source, sec=False, side=0):
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_ATTRACT
 
     # Fails on a target that already has a status or is already drowsy
-    if v_status & _VOLSTATUS_YAWN and not safeguard:
+    if v_status & _VOLSTATUS_YAWN and not safeguard and not sleep_ability(pok, source):
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN and pok[_POK_STATUS] == 0:
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_YAWN
             pok[_POK_YAWN_TURNS] = YAWN_DURATION

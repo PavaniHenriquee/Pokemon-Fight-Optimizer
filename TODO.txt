@@ -23,7 +23,7 @@
 []Hyper Cutter *
 []Ice Body *
 [X]Inner Focus
-[]Insomnia *
+[X]Insomnia *
 [X]Intimidate
 [X]Keen Eye
 []Levitate *
@@ -67,7 +67,7 @@
 []Trace *
 []Unaware *
 []Unburden (Need to implement usable held items)
-[]Vital Spirit *
+[X]Vital Spirit *
 [X]Water Absorb
 []Water Veil *
 
@@ -205,7 +205,7 @@
 [X]Iron Head *
 [X]Karate Chop(E)
 [X]Kinesis *
-[]Knock Off(B/E) ! *
+[X]Knock Off(B/E) ! *
 [X]Leech Seed(B/E) ! *
 [X]Leer
 [X]Lick *
@@ -232,7 +232,7 @@
 [X]Night Shade *
 [X]Odor Sleuth(B/E) ! *
 [X]Peck
-[]Perish Song(B) ! *
+[X]Perish Song(B) ! *
 [X]Pin Missile *
 [X]Poison Fang *
 [X]Poison Powder *
@@ -248,10 +248,10 @@
 [X]Rain Dance(B/E) ! *
 [X]Rapid Spin ! *
 [X]Razor Leaf(E)
-[]Recover(B/E) ! *
-[]Recycle(B/E) ! *
+[X]Recover(B/E) ! *
+[X]Recycle(B/E) ! *
 [X]Reflect(B/E) ! *
-[]Refresh(B/E) ! *
+[X]Refresh(B/E) ! *
 [X]Roar(B/E) !
 [X]Rock Blast *
 [X]Rock Polish
@@ -284,7 +284,7 @@
 [X]Sweet Kiss *
 [X]Sweet Scent *
 [X]Swift(E) *
-[]Synthesis(B/E) ! *
+[X]Synthesis(B/E) ! *
 [X]Tackle
 [X]Tail Whip
 [X]Take Down(E) *
@@ -307,7 +307,7 @@
 [X]Will-O-Wisp *
 [X]Wing Attack
 [X]Withdraw
-[]Worry Seed(B/E) ! *
+[X]Worry Seed(B/E) ! *
 [X]Wrap(E) !
 [X]Yawn ! *
 [X]Zen Headbutt

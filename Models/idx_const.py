@@ -54,7 +54,9 @@ class Pok:
     CONSEC_COUNT              = UPROAR_TURNS + 1
     LAST_MOVE_ID              = CONSEC_COUNT + 1
     CONSUMED_ITEM             = LAST_MOVE_ID + 1
-    AB_ID                     = CONSUMED_ITEM + 1
+    BASE_AB_ID                = CONSUMED_ITEM + 1
+    ITEM_KNOCKED_OFF          = BASE_AB_ID + 1
+    AB_ID                     = ITEM_KNOCKED_OFF + 1
     AB_WHEN                   = AB_ID + 1
     AB_BREAKABLE              = AB_WHEN + 1
     """AB_CANT_SUPRESS           = AB_BREAKABLE + 1
