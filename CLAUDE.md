@@ -16,7 +16,10 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - If I push back on a diagnosis, re-check it and say plainly whether you were wrong.
 - Validate architectural decisions with me before implementing them.
 - Verify mechanics against the references (Bulbapedia, pret/pokeplatinum, Pokemow trainer AI
-  page, Pokemon Showdown source) rather than memory.
+  page, Pokemon Showdown source) rather than memory. Bulbapedia returns 403 to automated
+  fetches; use Showdown and pokeplatinum (raw.githubusercontent.com) and say which one a fact
+  came from. Move numbers come from the Renegade Platinum MOVES sheet (CSV export, sometimes
+  needs a login); mechanics stay Gen IV.
 - The Neural Network is just a shell right now, can ignore everything about it until further development
 
 ## Layout
@@ -43,8 +46,11 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Numba cache is off by default; set `NUMBA_CACHE_ON=1` to enable (see `Utils/jit.py`)
 - After changing any enum or index class (`Pok`, `Move`, `Flags`, `Sec`, `Field`, `Item`,
   `MoveName`, `AbilityNames`, etc.): run `python generate_constants.py`
-- Tests: `pytest` (fast, ~10s, JIT off), `pytest -m jit` (compiled engine + MCTS, ~1 min
-  after any source change, seconds otherwise), `pytest -m slow` (long fuzz, ~30s)
+- Tests: `pytest` (fast, ~15s, JIT off), `pytest -m jit` (compiled engine + MCTS, ~2 min
+  after any source change, seconds otherwise), `pytest -m slow` (long fuzz, ~1 min). Pylint
+  isn't installed in the venv.
+- Piping or redirecting `python main.py` on Windows needs `PYTHONIOENCODING=utf-8` (the `→` in
+  `print_best_path` breaks cp1252)
 - Re-bless engine snapshots after an intended engine change:
   `pytest tests/test_engine_golden.py --update-golden`, then review the JSON diff
 
@@ -76,8 +82,12 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Slices of `battle_array` are VIEWS, so writing to them mutates the state. Reassign
   `current_pokemon` explicitly after switches within the same turn.
 - `clone()` once per MCTS iteration at the top, not inside `step()`.
-- Forced/locked states (charge, recharge, Bide) loop inside `step()` and are never exposed as
-  decision nodes.
+- Forced/locked states (charge, recharge, Bide, and the `LOCKED_MOVE` locks like Rollout and
+  Uproar) loop inside `step()` and are never exposed as decision nodes.
+- `VolStatus` is full (2^30 is the last bit under the int32 sign bit). New volatiles go in
+  `VolStatus2` (`Pok.VOL_STATUS2`).
+- Field state reaches the hot path as plain arguments, like `weather`: the defender's side
+  condition mask (`def_side`) and a `gravity` bool.
 
 ## Intentional behavior (not bugs)
 
@@ -104,12 +114,88 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Don't re-roll the full status gate on every hit of a multihit move. Only check for a faint
   mid-sequence.
 
-## Adding moves
+## Implementing moves (TODO.txt)
 
-- Whenever a move is added to MoveDB, check the Metronome pool. `METRONOME_POOL` (`Models/move.py`)
-  is every MoveDB move except `METRONOME_FORBIDDEN` (pokeplatinum `sCannotMetronomeMoves`), so a
-  new move is callable by Metronome (and Copycat) right away, implemented or not. Until MoveDB has
-  every Gen IV move, Metronome only calls moves already in MoveDB.
+- Notation: no `*` = used by trainers up to Roark (do first), `*` = on my own Pokemon. `!` =
+  check the Showdown handler and pokeplatinum before coding; `!!` or more = also write me a
+  mechanics note and wait for my OK. `(B)` / `(E)` = add the `basic_flag` / `expert_flag` branch
+  from pokeplatinum `trainer_ai/script.s` and Pokemow. The second moves section ("isn't used
+  until 1st gym") is deferred.
+- Group work by shared mechanism, not alphabetically. Per batch: mechanics note with sources →
+  evidence for any bug it depends on, wait → engine, then AI → tests in the matching file →
+  `pytest` + `-m jit` (+ `-m slow` if layout or turn flow changed) → tell me which TODO boxes
+  can be ticked.
+### Checklist when adding a move or mechanic (go through all of it)
+
+1. Mechanics: Showdown inherits gen4 → gen5 → gen6 → base `data/moves.ts`, so check every
+   layer; then pokeplatinum (battle code and `trainer_ai/script.s`). Numbers from the RP sheet.
+2. Data: `MoveDB.json` entry and `MoveName` (`DataBase/MoveDB.py`), both alphabetical. Inserting
+   shifts every later id → `python generate_constants.py`. A two-turn move needs `"charge": 1`
+   (the `charge` flag alone does nothing). Check flags (`gravity`, `protect`, `sound`, ...).
+3. New state: a `Pok` slot also goes in `Pokemon.to_np` (listed by hand), `reset_switch_out`,
+   `_pass_baton` if Baton Pass keeps it, and `unlock_move` if it belongs to a charge or lock. A
+   `Field` timer goes in `_count_down_field` at its Gen IV spot. A new enum class goes in
+   `generate_constants.py` and `GENERATED_CLASSES` in `test_layout.py`.
+4. Engine: hit check (`calculate_hit_miss`, the airborne / underground hit lists), power
+   (`variable_power`), type chart (`matchup_types` / `gravity_types`), can't-move checks
+   (`early_returns`), the move itself (`_execute_move_slot` / `_status_move`), called moves
+   (Metronome, Copycat), end of turn, switch-in (`apply_hazards`, `is_grounded`).
+5. A field effect that changes types, accuracy or damage must reach every caller, not just the
+   engine: the AI (`trainer_ai_effectiveness`, `ai_move_damage`, `basic_flag`, the
+   `check_*_pty` withdraw checks, `sub_after_death`, `copycat_beats`) and the rollout
+   (`rollout_pref`, `field_move_fails`).
+6. Selection: a move that can't be picked goes through `move_blocked`, which feeds both
+   `valid_action_mask` and the AI's move loop.
+7. Search: `node_key` must see any new state that changes outcomes (presence, not turns left).
+   `VOL_STATUS2` gets `VOL2_KEY_BITS` bits per side there; grow it with the bitmap.
+8. AI: `basic_flag` / `expert_flag` branches from the script; add the move to a `KIT_*` tuple
+   in `test_trainer_ai.py`.
+9. Metronome: `METRONOME_POOL` (`Models/move.py`) is every MoveDB move except
+   `METRONOME_FORBIDDEN` (pokeplatinum `sCannotMetronomeMoves`), so a new move is callable by
+   Metronome and Copycat right away, implemented or not. Until MoveDB has every Gen IV move,
+   Metronome only calls moves already in MoveDB.
+10. UI: `backend/serializer.py` (volatile names come from the enums, field state from `_field`),
+    `frontend/src/types.ts`, the badge in `BattleView.tsx`.
+11. Tests and checks: unit tests in the matching file; re-bless golden and explain every
+    turns/HP change; `pytest`, `-m jit`, `-m slow`. Then list the TODO.txt boxes that can be
+    ticked and the TODO comments that became outdated (remove them only when I ask).
+
+## Engine decisions (settled, don't re-litigate)
+
+- Pokemow wins over pokeplatinum when they differ on the AI (Feint, Worry Seed's HP check, the
+  Perish Song withdraw, Blizzard).
+- Copied Gen IV quirks: the Rage glitch (`_rage_glitch`), Magnitude is 0 in the AI's damage
+  calc, the Basic Levitate check ignores Gravity, Synchronize paralyzes Electric types.
+- My calls: Fury Cutter has no 160 cap; Take Down recoil is at least 1; Sweet Kiss stays Normal;
+  Attract is checked before paralysis (Showdown order); Worry Seed wakes a sleeper immediately;
+  Helping Hand / Follow Me do nothing in singles; Recycle's item belongs to the battle slot.
+  From Showdown, since pokeplatinum code wasn't found: Gravity's accuracy x6840/4096, a called
+  move Gravity blocks fails.
+- Representation: weight is in hectograms. Encore / Disable pack the slot into their counter
+  (turns * 4 + slot). `SEMI_INV_MOVE` holds the charging move id: Bounce is airborne, Dig
+  underground, Dive goes there too. A called move keeps `LOCKED_MOVE` on the caller's slot and
+  stores itself in `CALLED_MOVE`. My Baton Pass replacement is a mid-turn decision
+  (`BattlePhase.BATON_PASS`, `Field.PENDING_OPP_MOVE`); my slot is in `node_key` so Roar's
+  random drag-out splits nodes. The AI learns my moves through the `AI_KNOWS` bits. Nature
+  Power reads an optional `"terrain"` in `TrainerDB.json`.
+- End of turn (Gen IV): side timers, weather, Gravity count down; weather damage for both
+  actives; then per Pokemon Ingrain, Aqua Ring, Speed Boost, Leech Seed, poison/burn, Curse,
+  bind, Uproar, Disable, Encore, Taunt, Yawn; then Perish Song. Speed order, a tie is a coin flip.
+
+## Known gaps (not done yet)
+
+- OHKO moves skip the semi-invulnerability check; in Showdown gen4 they can't hit Fly / Dig.
+- AI: the type-vs-type score in `sub_after_death` ignores Gravity (pokeplatinum
+  `BattleAI_PostKOSwitchIn` wasn't located); Expert Gravity reads the target's real ability and
+  skips Magnet Rise; `expert_charge_invulnerable` skips the "target's last move isn't
+  always-hit" check; pokeplatinum's Expert swaps the EVA_DOWN_2 / ACC_DOWN_2 logic (copy it when
+  a -2 accuracy/evasion move lands).
+- Waiting on the abilities pass: Limber / Immunity / Water Veil / Magma Armor status immunity,
+  Oblivious vs Attract, Rock Head, Liquid Ooze, Drizzle / Sand Stream. Items pass: Light Clay,
+  Smooth Rock, Damp Rock, Big Root, Shed Shell, Grip Claw. Not in MoveDB yet: Spikes damage,
+  Magnet Rise, Iron Ball, Rest, Snore, U-turn, Fly, Dive, Heal Block. No Pressure in the engine.
+- Metronome can call moves whose mechanics aren't in yet; they run as their data says.
+- Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
 
 ## Trainer AI constraints
 
@@ -127,15 +213,20 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - `test_jit_smoke.py` runs in a subprocess with its own Numba cache under
   `.numba_cache/tests/<hash of sources>`. Numba's cache doesn't notice edits to callees in
   other files, so the hash forces a clean compile on any change. It seeds Numba's RNG itself.
-- Golden snapshots (`test_engine_golden.py`) are ENGINE ONLY: `battle_driver.py` uses Engine
-  - trainer AI, never `SearchEngine/`. They should only change when implementing a move or
-    fixing a bug; any RNG call-order change moves them too. Changing a scenario in
-    `battle_driver.py` also changes its snapshot.
+- Golden snapshots (`test_engine_golden.py`) are ENGINE ONLY: `battle_driver.py` uses the
+  engine and trainer AI, never `SearchEngine/`. They should only change when implementing a move
+  or fixing a bug; any RNG call-order change moves them too. Changing a scenario in
+  `battle_driver.py` also changes its snapshot. A layout change (new slot, `MoveName` shift)
+  moves every hash but not turns/HP, so after a re-bless compare turns and HP against the old
+  file to find the real outcome changes and explain each one.
 - Search tests are structural only (no snapshots, no tuning values asserted) because the search
   is still changing.
 - `test_known_bugs.py` holds strict xfails that assert the correct mechanic. When one gets
   implemented/fixed it fails with XPASS(strict): move it to the matching test file without the
-  marker. `UNSUPPORTED_MOVES` in `test_database.py` works the same way for MoveDB entries.
+  marker. `UNSUPPORTED_MOVES` in `test_database.py` is the MoveDB equivalent: those moves must
+  still fail to convert, and `test_move_converts` fails once one converts, telling you to drop it.
+- Database tests loop over every entry inside one test and list all the bad entries in the
+  failure message, instead of one parametrized test per entry.
 - Backend tests redirect `_BOX_PATH` to a temp file; never let a test write the real
   `UserData/box.json`.
 - Fuzz invariants (`test_battle.py`): during the death phase after a double KO the opponent's

@@ -37,18 +37,50 @@ def test_expert_flag_routing(monkeypatch, poke, move, expected):
     assert called == [expected]
 
 
-@pytest.mark.parametrize("move", [
+# Moves the AI must be able to hold and score without crashing, one group per battle setup
+KIT_STATUS = (
     "Swagger", "Flatter", "Defense Curl", "Thunder Wave", "Poison Powder", "Sleep Powder",
     "Hypnosis", "Will-O-Wisp", "Confuse Ray", "Supersonic",
-])
-@pytest.mark.parametrize("ai_faster", [True, False])
-def test_ai_picks_a_move_with_status_kit(make_pokemon, make_battle, move, ai_faster):
-    """Full-HP AI holding a status move, moving first or second, picks a legal slot"""
-    me = make_pokemon("Geodude", 30 if not ai_faster else 10, "Sturdy", ["Tackle"])
-    opp = make_pokemon("Pikachu", 30 if ai_faster else 10, "Static", ["Thunder Shock", move])
-    arr = make_battle([me], [opp])
-    for _ in range(20):
-        assert return_idx(arr) in (0, 1)
+)
+KIT_DAMAGE = (
+    "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
+    "Natural Gift", "Mirror Coat", "Assurance", "Take Down", "Bounce", "Fury Cutter", "Rollout",
+)
+KIT_VOLATILE = (
+    "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
+    "Ingrain", "Aqua Ring", "Attract", "Leech Seed", "Charge", "Destiny Bond", "Yawn", "Rage",
+    "Helping Hand", "Follow Me", "Dig", "Gravity", "Minimize",
+)
+KIT_CALLING = ("Metronome", "Copycat", "Mirror Move", "Nature Power")
+
+
+def test_ai_picks_a_legal_slot_with_every_kit(make_pokemon, make_battle):
+    """For each move in the kits above, the AI holding it picks a legal slot every time"""
+    battles = []
+    for move in KIT_STATUS:
+        for ai_faster in (True, False):
+            battles.append((move, make_battle(
+                [make_pokemon("Geodude", 10 if ai_faster else 30, "Sturdy", ["Tackle"])],
+                [make_pokemon("Pikachu", 30 if ai_faster else 10, "Static",
+                              ["Thunder Shock", move])])))
+    for move in KIT_DAMAGE:
+        battles.append((move, make_battle(
+            [make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])],
+            [make_pokemon("Machop", 20, "Guts", ["Tackle", move], item="Sitrus Berry")])))
+    for move in KIT_VOLATILE:
+        battles.append((move, make_battle(
+            [make_pokemon("Geodude", 20, "Sturdy", ["Tackle"], gender="Female")],
+            [make_pokemon("Machop", 20, "Guts", ["Tackle", move])])))
+    for move in KIT_CALLING:
+        battles.append((move, make_battle(
+            [make_pokemon("Machop", 20, "Guts", ["Tackle"])],
+            [make_pokemon("Togepi", 20, "Hustle", [move, "Pound"])])))
+    bad = {}
+    for move, arr in battles:
+        picks = {int(return_idx(arr)) for _ in range(20)}
+        if not picks <= {0, 1}:
+            bad[move] = picks
+    assert not bad
 
 
 def _expert(ai_pok, user, effectiveness=1.0):
@@ -322,19 +354,6 @@ def test_ai_move_view_gyro_ball(poke):
     assert move_slice(gyro, 0)[Move.POWER] == 0
 
 
-@pytest.mark.parametrize("move", [
-    "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
-    "Natural Gift", "Mirror Coat", "Assurance", "Take Down", "Bounce", "Fury Cutter", "Rollout",
-])
-def test_ai_picks_a_move_with_phase2_kit(make_pokemon, make_battle, move):
-    """The AI scores every Phase 2 move without crashing and returns a legal slot"""
-    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])
-    opp = make_pokemon("Machop", 20, "Guts", ["Tackle", move], item="Sitrus Berry")
-    arr = make_battle([me], [opp])
-    for _ in range(20):
-        assert return_idx(arr) in (0, 1)
-
-
 # ── Phase 3 volatiles ────────────────────────────────────────────────────────
 
 def _expert_knows(ai_pok, user, ai_know=0):
@@ -498,20 +517,6 @@ def test_expert_phase3_without_check_scores_zero(poke, move):
     ai_pok = poke("Pikachu", 20, "Static", [move])
     user = poke("Rattata", 20, "Run Away", ["Tackle"], gender="Female")
     assert _expert_knows(ai_pok, user)[0] == 0
-
-
-@pytest.mark.parametrize("move", [
-    "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
-    "Ingrain", "Aqua Ring", "Attract", "Leech Seed", "Charge", "Destiny Bond", "Yawn", "Rage",
-    "Helping Hand", "Follow Me",
-])
-def test_ai_picks_a_move_with_phase3_kit(make_pokemon, make_battle, move):
-    """The AI scores every Phase 3 move without crashing and returns a legal slot"""
-    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"], gender="Female")
-    opp = make_pokemon("Machop", 20, "Guts", ["Tackle", move])
-    arr = make_battle([me], [opp])
-    for _ in range(20):
-        assert return_idx(arr) in (0, 1)
 
 
 def test_ingrained_ai_never_switches(make_pokemon, make_battle):
@@ -1220,15 +1225,6 @@ def test_expert_metronome_and_nature_power_score_nothing(poke, move):
     assert _expert(ai_pok, user) == (0, [])
 
 
-@pytest.mark.parametrize("move", ["Metronome", "Copycat", "Mirror Move", "Nature Power"])
-def test_ai_picks_a_move_with_a_calling_move(make_pokemon, make_battle, move):
-    """The AI can hold and pick any move-calling move"""
-    arr = make_battle([make_pokemon("Machop", 20, "Guts", ["Tackle"])],
-                      [make_pokemon("Togepi", 20, "Hustle", [move, "Pound"])])
-    for _ in range(10):
-        assert return_idx(arr) in (0, 1)
-
-
 @pytest.mark.parametrize("check", ["check_immunity_pty", "check_resistance_pty"])
 def test_nobody_is_immune_to_or_resists_struggle(poke, check):
     """Gen IV gives Struggle no effectiveness, a Ghost on the bench isn't immune to it"""
@@ -1317,16 +1313,6 @@ def test_ai_never_picks_a_move_gravity_blocks(make_pokemon, make_battle):
     arr[Field.GRAVITY_TURNS] = 3
     for _ in range(20):
         assert return_idx(arr) == 1
-
-
-@pytest.mark.parametrize("move", ["Dig", "Gravity", "Minimize"])
-def test_ai_picks_a_move_with_dig_gravity_minimize(make_pokemon, make_battle, move):
-    """The AI scores the new moves without crashing and returns a legal slot"""
-    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])
-    opp = make_pokemon("Machop", 20, "Guts", ["Tackle", move])
-    arr = make_battle([me], [opp])
-    for _ in range(20):
-        assert return_idx(arr) in (0, 1)
 
 
 @pytest.mark.parametrize("gravity", [False, True])

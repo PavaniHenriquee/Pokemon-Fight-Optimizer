@@ -5,7 +5,7 @@ import pytest
 from SearchEngine.models import (
     valid_action_mask, valid_actions_array, is_terminal_arr, step_arr, node_key, _hp_bracket,
     cvar_from_hist, best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array,
-    ACTION_ORDER, ACTION_SLOT, N_SLOTS, N_BINS,
+    ACTION_ORDER, ACTION_SLOT, N_SLOTS, N_BINS, VOL2_KEY_BITS,
 )
 from SearchEngine.mcts_eval import (
     evaluate_terminal, rollout_arr, rollout_pref, field_move_fails
@@ -15,7 +15,7 @@ from SearchEngine.my_mcts import (
 )
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
 from Models.idx_const import Pok, Move, Field
-from Models.helper import ActionType, BattlePhase, VolStatus, SideCondition
+from Models.helper import ActionType, BattlePhase, VolStatus, VolStatus2, SideCondition
 from Models.trainer_ai import return_idx
 from battle_driver import (
     SCENARIOS, build_scenario, play_battle, legal_actions, is_over, my_active, opp_active,
@@ -151,7 +151,7 @@ def test_node_key_sees_perish_song(one_v_one, mine):
 
 
 def test_node_key_sees_field_but_not_timers(one_v_one):
-    """Weather, side conditions and Toxic Spikes layers split nodes, the turns left don't"""
+    """Weather, Gravity, side conditions and Toxic Spikes layers split nodes, the turns left don't"""
     arr = one_v_one()
     key = node_key(arr)
     for slot, value in (
@@ -166,6 +166,29 @@ def test_node_key_sees_field_but_not_timers(one_v_one):
     other[Field.MY_REFLECT_TURNS] = 3
     other[Field.WEATHER_DURATION] = 4
     assert node_key(other) == key
+    gravity = arr.copy()
+    gravity[Field.GRAVITY_TURNS] = 5
+    key_gravity = node_key(gravity)
+    assert key_gravity != key
+    gravity[Field.GRAVITY_TURNS] = 2
+    assert node_key(gravity) == key_gravity
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_vol_status2(one_v_one, mine):
+    """Minimize (VolStatus2) splits nodes on either side, and the two sides don't collide"""
+    arr = one_v_one()
+    key = node_key(arr)
+    (my_active(arr) if mine else opp_active(arr))[Pok.VOL_STATUS2] |= VolStatus2.MINIMIZE
+    assert node_key(arr) != key
+    other = one_v_one()
+    (opp_active(other) if mine else my_active(other))[Pok.VOL_STATUS2] |= VolStatus2.MINIMIZE
+    assert node_key(other) != node_key(arr)
+
+
+def test_vol_status2_fits_node_key():
+    """node_key packs each side's VOL_STATUS2 into VOL2_KEY_BITS bits, grow it with the bitmap"""
+    assert sum(_int_attrs(VolStatus2)) < 2 ** VOL2_KEY_BITS
 
 
 @pytest.mark.parametrize("move, field, fails", [
@@ -448,3 +471,7 @@ def test_gravity_hides_its_moves(make_pokemon, make_battle):
     assert mask_actions(arr) == [(MOVE, 0), (MOVE, 1), (MOVE, 2)]
     arr[Field.GRAVITY_TURNS] = 3
     assert mask_actions(arr) == [(MOVE, 2)]
+
+
+def _int_attrs(cls):
+    return [v for k, v in vars(cls).items() if k.isupper() and isinstance(v, int)]

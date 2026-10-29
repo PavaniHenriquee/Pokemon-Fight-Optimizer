@@ -13,7 +13,7 @@ from Models.constants import (
     _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _VOLSTATUS_INGRAIN,
     _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_WEATHER, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND,
     _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
-    _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS
+    _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
@@ -151,6 +151,10 @@ def _hp_bracket(hp, max_hp):
     return 1
 
 
+# Bits node_key gives each active's VOL_STATUS2
+VOL2_KEY_BITS = 3
+
+
 @njit
 def _stages_key(pok):
     """The 7 stat stages (atk..evasion) packed 4 bits each"""
@@ -163,9 +167,9 @@ def _stages_key(pok):
 @njit
 def node_key(battle_array):
     """Integer fingerprint of what decides whether two outcomes of an action share a node:
-    phase, opp slot, status, every vol status bit, HP bracket and stat stages of both actives,
-    the weather, each side's conditions and Toxic Spikes layers (not the turns left), my active
-    slot (Roar picks it at random) and the Baton Pass phase"""
+    phase, opp slot, status, every vol status bit (both bitmaps), HP bracket and stat stages of
+    both actives, the weather, Gravity, each side's conditions and Toxic Spikes layers (not the
+    turns left), my active slot (Roar picks it at random) and the Baton Pass phase"""
     opp_idx = battle_array[_FIELD_OPP_POK]
     opp = battle_array[(opp_idx + 6) * POK_LEN:(opp_idx + 7) * POK_LEN]
     is_death = battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN
@@ -194,6 +198,12 @@ def node_key(battle_array):
             k1 |= np.int64(1) << 62
     else:
         k2 = k2 << 28
+    # Bits 56+ of k2 are free above the two 28-bit stage packs
+    k2 |= np.int64(opp[_POK_VOL_STATUS2]) << 56
+    if not is_death:
+        k2 |= np.int64(me[_POK_VOL_STATUS2]) << VOL2_KEY_BITS + 56
+    if battle_array[_FIELD_GRAVITY_TURNS] > 0:
+        k2 |= np.int64(1) << 2 * VOL2_KEY_BITS + 56
     return k1, k2, k3
 
 

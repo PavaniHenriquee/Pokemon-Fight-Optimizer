@@ -23,15 +23,15 @@ def _int_attrs(cls):
     return {k: v for k, v in vars(cls).items() if k.isupper() and isinstance(v, int)}
 
 
-@pytest.mark.parametrize("cls", GENERATED_CLASSES, ids=lambda c: c.__name__)
-def test_constants_file_is_up_to_date(cls):
+def test_constants_file_is_up_to_date():
     """Fails when an enum/index class changed but generate_constants.py wasn't run"""
     stale = {}
-    for attr, val in _int_attrs(cls).items():
-        name = f"_{cls.__name__.upper()}_{attr}"
-        got = getattr(C, name, None)
-        if got != val:
-            stale[name] = (got, val)
+    for cls in GENERATED_CLASSES:
+        for attr, val in _int_attrs(cls).items():
+            name = f"_{cls.__name__.upper()}_{attr}"
+            got = getattr(C, name, None)
+            if got != val:
+                stale[name] = (got, val)
     assert not stale, f"Run `python generate_constants.py`. (constants.py, source): {stale}"
 
 

@@ -11,18 +11,10 @@ from Models.idx_const import MOVE_STRIDE, AB_LEN, ITEM_LEN, POK_LEN, Move
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Moves in MoveDB.json whose VolStatus/SideCondition/damage type isn't in the engine yet.
-# Strict xfail: once you implement one, its test XPASSes and fails, telling you to drop it
-# from this list.
+# Moves in MoveDB.json whose VolStatus/SideCondition/damage type isn't in the engine yet. They
+# must still fail to convert: once you implement one, test_move_converts fails and tells you to
+# drop it from this set. Trainer and box Pokemon using them are skipped the same way.
 UNSUPPORTED_MOVES = set()
-
-
-def _mark_unsupported(names):
-    return [
-        pytest.param(n, marks=pytest.mark.xfail(strict=True, reason="not implemented yet"))
-        if n in UNSUPPORTED_MOVES else n
-        for n in names
-    ]
 
 
 def _load_json(*parts):
@@ -39,58 +31,82 @@ def _team_entry_to_pokemon(entry):
     )
 
 
-@pytest.mark.parametrize("name", _mark_unsupported(sorted(moveDB)))
-def test_move_converts(name):
-    """MoveDB entry → move block of the right length"""
-    arr = Moves(moveDB[name]).to_array()
-    assert arr.shape == (MOVE_STRIDE,)
-    assert arr[0] != 0, "Move ID must be non-zero, 0 means empty slot"
+def _failures(items, check):
+    """Runs check(item) on every item, returns {label: error} for the ones that raise or fail"""
+    bad = {}
+    for label, item in items:
+        try:
+            check(item)
+        except Exception as e:
+            bad[label] = repr(e)
+    return bad
 
 
-@pytest.mark.parametrize("name", sorted(abDB))
-def test_ability_converts(name):
-    """AbilitiesDB entry → ability block"""
-    arr = ability_to_np(abDB[name])
-    assert arr.shape == (AB_LEN,)
-    assert arr[0] != 0
+def _move_block(entry):
+    return Moves(entry).to_array()
 
 
-@pytest.mark.parametrize("name", sorted(itemDB))
-def test_item_converts(name):
-    """ItemDB entry → item block"""
-    arr = item_to_np(itemDB[name])
-    assert arr.shape == (ITEM_LEN,)
-    assert arr[0] != 0
+def _species_block(name):
+    return Pokemon(name, "Male", 50, "Blaze", "Hardy", ["Tackle"]).to_np()
 
 
-@pytest.mark.parametrize("name", sorted(pkDB))
-def test_species_converts(name):
+def _team_block(entry):
+    return _team_entry_to_pokemon(entry).to_np()
+
+
+def _block_check(convert, length):
+    """Converted block has the right length and a non-zero id (0 means an empty slot)"""
+    def check(entry):
+        arr = convert(entry)
+        assert arr.shape == (length,) and arr[0] != 0, arr[:1]
+    return check
+
+
+def test_move_converts():
+    """Every MoveDB entry → move block, and every UNSUPPORTED_MOVES entry still fails"""
+    check = _block_check(_move_block, MOVE_STRIDE)
+    supported = [(n, moveDB[n]) for n in sorted(moveDB) if n not in UNSUPPORTED_MOVES]
+    assert not _failures(supported, check)
+    unsupported = [(n, moveDB[n]) for n in sorted(UNSUPPORTED_MOVES)]
+    converts = set(UNSUPPORTED_MOVES) - set(_failures(unsupported, check))
+    assert not converts, f"Implemented now, drop from UNSUPPORTED_MOVES: {sorted(converts)}"
+
+
+def test_ability_converts():
+    """Every AbilitiesDB entry → ability block"""
+    items = [(n, abDB[n]) for n in sorted(abDB)]
+    assert not _failures(items, _block_check(ability_to_np, AB_LEN))
+
+
+def test_item_converts():
+    """Every ItemDB entry → item block"""
+    items = [(n, itemDB[n]) for n in sorted(itemDB)]
+    assert not _failures(items, _block_check(item_to_np, ITEM_LEN))
+
+
+def test_species_converts():
     """Every species in PkDB can be built and serialised"""
-    arr = Pokemon(name, "Male", 50, "Blaze", "Hardy", ["Tackle"]).to_np()
-    assert arr.shape == (POK_LEN,)
-    assert arr[0] != 0
+    items = [(n, n) for n in sorted(pkDB)]
+    assert not _failures(items, _block_check(_species_block, POK_LEN))
 
 
-def _team_params(entries, label):
-    params = []
-    for i, entry in enumerate(entries):
-        bad = sorted(set(entry["moves"]) & UNSUPPORTED_MOVES)
-        marks = [pytest.mark.xfail(strict=True, reason=f"uses {bad}")] if bad else []
-        params.append(pytest.param(entry, id=f"{label}-{i}-{entry['name']}", marks=marks))
-    return params
+def _team_items(entries, label):
+    """(label, entry) for the team entries that don't use an unsupported move"""
+    return [
+        (f"{label}-{i}-{e['name']}", e) for i, e in enumerate(entries)
+        if not set(e["moves"]) & UNSUPPORTED_MOVES
+    ]
 
 
 TRAINER_DB = _load_json("DataBase", "TrainerDB.json")
-TRAINER_POKEMON = [
-    p for trainer, data in TRAINER_DB.items()
-    for p in _team_params(data["team"], trainer)
-]
 
 
-@pytest.mark.parametrize("entry", TRAINER_POKEMON)
-def test_trainer_pokemon_builds(entry):
+def test_trainer_pokemon_build():
     """Every TrainerDB Pokemon builds, catches typos in names/moves/items/abilities"""
-    assert _team_entry_to_pokemon(entry).to_np().shape == (POK_LEN,)
+    items = [
+        it for trainer, data in TRAINER_DB.items() for it in _team_items(data["team"], trainer)
+    ]
+    assert not _failures(items, _block_check(_team_block, POK_LEN))
 
 
 def test_trainer_db_shape():
@@ -102,10 +118,10 @@ def test_trainer_db_shape():
             assert len(p["moves"]) <= 4, (trainer, p["name"])
 
 
-@pytest.mark.parametrize("entry", _team_params(_load_json("UserData", "box.json"), "box"))
-def test_box_pokemon_builds(entry):
+def test_box_pokemon_build():
     """Every saved box entry builds"""
-    assert _team_entry_to_pokemon(entry).to_np().shape == (POK_LEN,)
+    items = _team_items(_load_json("UserData", "box.json"), "box")
+    assert not _failures(items, _block_check(_team_block, POK_LEN))
 
 
 
