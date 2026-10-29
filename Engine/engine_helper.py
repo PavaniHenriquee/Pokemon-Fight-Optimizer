@@ -12,6 +12,7 @@ from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_T
 from Models.helper import TARGET_SELF_SIDE, STEEL_POISON, Target
 from Models.item import ITEM_TABLE
 from Models.ability import ABILITY_TABLE
+from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN
 from Models.constants import (
     _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
     _WEATHER_SUN, _MOVENAME_FAKE_OUT,
@@ -51,7 +52,12 @@ from Models.constants import (
     _TYPES_FLYING, _TYPES_POISON, _ABILITYNAMES_LEVITATE, _ABILITYNAMES_IMMUNITY,
     _ABILITYNAMES_LEAF_GUARD, _POK_BASE_AB_ID, _POK_ITEM_KNOCKED_OFF, _POK_PERISH_TURNS,
     _VOLSTATUS_PERISH_SONG, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_STICKY_HOLD, _ABILITYNAMES_MULTITYPE,
-    _ABILITYNAMES_TRUANT, _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_SYNTHESIS
+    _ABILITYNAMES_TRUANT, _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_SYNTHESIS, _POK_CALLED_MOVE,
+    _POK_MIRROR_MOVE, _FIELD_LAST_MOVE, _FIELD_TERRAIN, _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE,
+    _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER, _MOVENAME_SLEEP_TALK, _MOVENAME_ENCORE,
+    _MOVENAME_EARTHQUAKE, _MOVENAME_SEED_BOMB, _MOVENAME_ROCK_SLIDE, _MOVENAME_BLIZZARD,
+    _MOVENAME_HYDRO_PUMP, _MOVENAME_ICE_BEAM, _MOVENAME_TRI_ATTACK, _MOVENAME_MUD_BOMB,
+    _MOVENAME_AIR_SLASH, _TERRAIN_SPECIAL, _FLAGS_MIRROR
 )
 
 
@@ -71,6 +77,22 @@ HEAL_QUARTER_WEATHER = (_WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL)
 REFRESH_CURES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 WORRY_SEED_FAILS = (_ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE)
 PERISH_SONG_TURNS = 3
+# Moves that call another move
+CALLER_MOVES = (_MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER)
+# pokeplatinum Move_IsInvoker (Assist and Me First aren't in MoveDB), Copycat fails on them too
+INVOKER_MOVES = (
+    _MOVENAME_SLEEP_TALK, _MOVENAME_COPYCAT, _MOVENAME_MIRROR_MOVE, _MOVENAME_METRONOME
+)
+# pokeplatinum sCannotEncoreMoves, Mirror Move shares it (Transform, Mimic and Sketch aren't in
+# MoveDB)
+CANT_MIRROR_MOVES = (_MOVENAME_MIRROR_MOVE, _MOVENAME_ENCORE, _MOVENAME_STRUGGLE)
+# pokeplatinum sTerrainMove, indexed by Terrain
+NATURE_POWER_MOVES = (
+    _MOVENAME_EARTHQUAKE, _MOVENAME_EARTHQUAKE, _MOVENAME_SEED_BOMB, _MOVENAME_SEED_BOMB,
+    _MOVENAME_ROCK_SLIDE, _MOVENAME_ROCK_SLIDE, _MOVENAME_BLIZZARD, _MOVENAME_HYDRO_PUMP,
+    _MOVENAME_ICE_BEAM, _MOVENAME_TRI_ATTACK, _MOVENAME_MUD_BOMB, _MOVENAME_AIR_SLASH,
+    _MOVENAME_TRI_ATTACK
+)
 
 
 # ── Volatile bookkeeping ───────────────────────────────────────────────────────
@@ -354,6 +376,9 @@ def calculate_hit_miss(move, attacker, defender, weather):
     ab_d = defender[_POK_AB_WHEN]
     if ab_a & _ABILITYACTIVATION_ON_TRY_MOVE or ab_d & _ABILITYACTIVATION_ON_TRY_MOVE:
         move_acc = ab_on_try_move(move, attacker, defender, move_acc, weather)
+    # Gen IV Blizzard can't miss in hail
+    if move[_MOVE_ID] == _MOVENAME_BLIZZARD and weather == _WEATHER_HAIL:
+        move_acc = -1
 
     if move[_MOVE_TARGET] not in TARGET_SELF_SIDE and not move[_MOVE_IGNORE_IMMUNITY]:
         def_t1, def_t2 = matchup_types(move[_MOVE_TYPE], defender)
@@ -439,6 +464,8 @@ def reset_switch_out(pok):
     pok[_POK_UPROAR_TURNS] = 0
     pok[_POK_LAST_MOVE_ID] = 0
     pok[_POK_PERISH_TURNS] = 0
+    pok[_POK_CALLED_MOVE] = 0
+    pok[_POK_MIRROR_MOVE] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
     if pok[_POK_BASE_AB_ID]:
         pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[pok[_POK_BASE_AB_ID]]
@@ -528,6 +555,8 @@ def switch_in(attacker, defender, battle_array, is_mine):
     defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_ATTRACT
     # and so was the bind
     defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_PARTIALLY_TRAPPED
+    # and Mirror Move can't copy a move from a Pokemon that left
+    defender[_POK_MIRROR_MOVE] = 0
     # Gen IV: a Pokemon whose item was knocked off loses any item it got back (Recycle)
     if attacker[_POK_ITEM_KNOCKED_OFF] and attacker[_ITEM_ID]:
         clear_item(attacker)
@@ -1023,3 +1052,63 @@ def perish_count(pok):
         pok[_POK_CURRENT_HP] = 0
     else:
         pok[_POK_PERISH_TURNS] -= 1
+
+
+# ── Move-calling moves ────────────────────────────────────────────────────────────
+
+@njit
+def metronome_move(pok):
+    """
+    pokeplatinum BtlCmd_Metronome: a uniform pick from the pool, rerolled while it's one of the
+    user's own moves
+    """
+    while True:
+        move_id = METRONOME_POOL[random.randrange(len(METRONOME_POOL))]
+        known = False
+        for i in range(4):
+            if pok[OFFSET_MOVE + i * MOVE_STRIDE + _MOVE_ID] == move_id:
+                known = True
+        if not known:
+            return move_id
+
+
+@njit
+def copycat_move(battle_array):
+    """
+    The last move anyone used (the outer one for a called move), 0 if there's none, it calls
+    other moves or Metronome can't call it (pokeplatinum BtlCmd_TryCopycat)
+    """
+    last = battle_array[_FIELD_LAST_MOVE]
+    if last == 0 or last in INVOKER_MOVES or last in METRONOME_FORBIDDEN:
+        return 0
+    return last
+
+
+@njit
+def nature_power_move(battle_array):
+    """The battle terrain's move (pokeplatinum BtlCmd_GetTerrainMove)"""
+    return NATURE_POWER_MOVES[min(battle_array[_FIELD_TERRAIN], _TERRAIN_SPECIAL)]
+
+
+@njit
+def called_move(pok, move_id, battle_array):
+    """The move Metronome, Mirror Move, Copycat or Nature Power calls, 0 if it fails"""
+    if move_id == _MOVENAME_METRONOME:
+        return metronome_move(pok)
+    if move_id == _MOVENAME_MIRROR_MOVE:
+        return pok[_POK_MIRROR_MOVE]
+    if move_id == _MOVENAME_COPYCAT:
+        return copycat_move(battle_array)
+    return nature_power_move(battle_array)
+
+
+@njit
+def mirror_record(move, defender, called):
+    """
+    A move that hit the foe is what its Mirror Move copies. A move that can't be mirrored, or one
+    another move called, leaves nothing to copy (Showdown: the user doesn't know it)
+    """
+    if called or not move[_FLAGS_MIRROR] or move[_MOVE_ID] in CANT_MIRROR_MOVES:
+        defender[_POK_MIRROR_MOVE] = 0
+    else:
+        defender[_POK_MIRROR_MOVE] = move[_MOVE_ID]

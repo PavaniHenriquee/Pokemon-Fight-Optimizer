@@ -104,6 +104,13 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Don't re-roll the full status gate on every hit of a multihit move. Only check for a faint
   mid-sequence.
 
+## Adding moves
+
+- Whenever a move is added to MoveDB, check the Metronome pool. `METRONOME_POOL` (`Models/move.py`)
+  is every MoveDB move except `METRONOME_FORBIDDEN` (pokeplatinum `sCannotMetronomeMoves`), so a
+  new move is callable by Metronome (and Copycat) right away, implemented or not. Until MoveDB has
+  every Gen IV move, Metronome only calls moves already in MoveDB.
+
 ## Trainer AI constraints
 
 - `expert_flag` routes status moves by what the move is for, not by which field is set: a

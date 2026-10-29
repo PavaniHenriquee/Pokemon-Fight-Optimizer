@@ -13,7 +13,8 @@ class MoveName:
     AERIAL_ACE      = ACID + 1
     AGILITY         = AERIAL_ACE + 1
     AIR_CUTTER      = AGILITY + 1
-    AMNESIA         = AIR_CUTTER + 1
+    AIR_SLASH       = AIR_CUTTER + 1
+    AMNESIA         = AIR_SLASH + 1
     AQUA_JET        = AMNESIA + 1
     AQUA_RING       = AQUA_JET + 1
     ARM_THRUST      = AQUA_RING + 1
@@ -26,7 +27,8 @@ class MoveName:
     BIDE            = BATON_PASS + 1
     BIND            = BIDE + 1
     BITE            = BIND + 1
-    BONE_CLUB       = BITE + 1
+    BLIZZARD        = BITE + 1
+    BONE_CLUB       = BLIZZARD + 1
     BOUNCE          = BONE_CLUB + 1
     BRICK_BREAK     = BOUNCE + 1
     BUBBLE          = BRICK_BREAK + 1
@@ -58,7 +60,8 @@ class MoveName:
     DRAGON_RAGE     = DRAGON_DANCE + 1
     DRAINING_KISS   = DRAGON_RAGE + 1
     DREAM_EATER     = DRAINING_KISS + 1
-    EMBER           = DREAM_EATER + 1
+    EARTHQUAKE      = DREAM_EATER + 1
+    EMBER           = EARTHQUAKE + 1
     ENCORE          = EMBER + 1
     ENDURE          = ENCORE + 1
     EXPLOSION       = ENDURE + 1
@@ -95,11 +98,13 @@ class MoveName:
     HIDDEN_POWER    = HELPING_HAND + 1
     HORN_ATTACK     = HIDDEN_POWER + 1
     HOWL            = HORN_ATTACK + 1
-    HYPER_BEAM      = HOWL + 1
+    HYDRO_PUMP      = HOWL + 1
+    HYPER_BEAM      = HYDRO_PUMP + 1
     HYPER_FANG      = HYPER_BEAM + 1
     HYPNOSIS        = HYPER_FANG + 1
     ICE_BALL        = HYPNOSIS + 1
-    ICY_WIND        = ICE_BALL + 1
+    ICE_BEAM        = ICE_BALL + 1
+    ICY_WIND        = ICE_BEAM + 1
     INGRAIN         = ICY_WIND + 1
     IRON_DEFENSE    = INGRAIN + 1
     IRON_HEAD       = IRON_DEFENSE + 1
@@ -166,7 +171,8 @@ class MoveName:
     SANDSTORM       = SAND_ATTACK + 1
     SCARY_FACE      = SANDSTORM + 1
     SCREECH         = SCARY_FACE + 1
-    SEISMIC_TOSS    = SCREECH + 1
+    SEED_BOMB       = SCREECH + 1
+    SEISMIC_TOSS    = SEED_BOMB + 1
     SELFDESTRUCT    = SEISMIC_TOSS + 1
     SHOCK_WAVE      = SELFDESTRUCT + 1
     SCRATCH         = SHOCK_WAVE + 1
@@ -202,7 +208,8 @@ class MoveName:
     TICKLE          = THUNDER_WAVE + 1
     TOXIC_SPIKES    = TICKLE + 1
     TRICK_ROOM      = TOXIC_SPIKES + 1
-    TWINEEDLE       = TRICK_ROOM + 1
+    TRI_ATTACK      = TRICK_ROOM + 1
+    TWINEEDLE       = TRI_ATTACK + 1
     UPROAR          = TWINEEDLE + 1
     VICE_GRIP       = UPROAR + 1
     VINE_WHIP       = VICE_GRIP + 1

@@ -147,6 +147,7 @@ export interface TrainerEntry {
   sprite: string;
   team: PokemonConfig[];
   trainer_items?: string[];
+  terrain?: string; // Nature Power's battle terrain, plain when missing
 }
 
 export type TrainerDB = Record<string, TrainerEntry>;

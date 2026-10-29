@@ -3,6 +3,7 @@ import random
 import numpy as np
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
 from Engine.engine_helper import move_blocked
+from Engine.status_calc import last_move_slot
 from Utils.jit import njit
 from Utils.helper import (
     get_type_effectiveness, batch_independent_score_from_rand
@@ -10,7 +11,7 @@ from Utils.helper import (
 from DataBase.MoveDB import MoveName, FIRE_WATER_ELECTRIC
 from DataBase.PkDB import POKEMON_ABILITY_POOL
 from Models.idx_const import (
-    POK_LEN
+    POK_LEN, MOVE_STRIDE
 )
 from Models.constants import (
     _POK_MOVE1_ID, _POK_ITEM_ID, _POK_ID, _POK_AB_ID, _POK_CURRENT_HP, _POK_TYPE1,
@@ -23,7 +24,8 @@ from Models.constants import (
     _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE,
     _MOVENAME_MAGNITUDE, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL,
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_MY_SIDE_COND,
-    _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS
+    _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
+    _MOVENAME_COPYCAT
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -167,6 +169,32 @@ def ai_move_damage(move, effectiveness, ai_pok, user_pok, weather, user_side):
     if move[_MOVE_DAMAGE] < 0:
         return 0
     return move[_MOVE_DAMAGE] if effectiveness != 0 else 0
+
+
+@njit
+def copycat_beats(ai_pok, user_pok, weather, user_side):
+    """
+    pokeplatinum IfBattlerDealsMoreDamage for Expert_Copycat: the target's last move, used by the
+    target on itself, does more than every damaging move of the AI
+    """
+    slot = last_move_slot(user_pok)
+    if slot < 0:
+        return False
+    last = user_pok[_POK_MOVE1_ID + slot * MOVE_STRIDE:_POK_MOVE1_ID + (slot + 1) * MOVE_STRIDE]
+    if last[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
+        return False
+    view = ai_move_view(last, user_pok, user_pok, weather)
+    eff, _ = trainer_ai_effectiveness(view, user_pok, user_pok)
+    copied = ai_move_damage(view, eff, user_pok, user_pok, weather, user_side)
+    for i in range(4):
+        mv = ai_pok[_POK_MOVE1_ID + i * MOVE_STRIDE:_POK_MOVE1_ID + (i + 1) * MOVE_STRIDE]
+        if mv[_MOVE_ID] == 0 or mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
+            continue
+        view = ai_move_view(mv, ai_pok, user_pok, weather)
+        eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok)
+        if ai_move_damage(view, eff, ai_pok, user_pok, weather, user_side) >= copied:
+            return False
+    return True
 
 
 @njit
@@ -335,12 +363,13 @@ def choose_move(battle_array):
         )
         score = eval_atk + basic_flag(
             move, ability, ai_pok, user_pok, effectiveness, weather, ai_side, user_side,
-            user_tspikes, user_bench, ai_bench, ai_know
+            user_tspikes, user_bench, ai_bench, ai_know, turn
         )
 
         expert = expert_flag(
             ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg,
-            ai_know, user_side
+            ai_know, user_side,
+            move_id == _MOVENAME_COPYCAT and copycat_beats(ai_pok, user_pok, weather, user_side)
         )
         score += expert
 

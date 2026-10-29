@@ -8,6 +8,7 @@ from Models.idx_const import Pok, Move, POK_LEN, Field
 from Models.helper import VolStatus, Status, Types, Enemy_AI_Knows, SideCondition, Weather
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.ItemDB import ItemNames
+from DataBase.MoveDB import MoveName
 from battle_driver import move_slice, pok_slice, _p, opp_active
 
 # Status moves that carry both a volatile and a stat boost are the tricky ones
@@ -1145,3 +1146,125 @@ def test_ai_perish_withdraw_needs_count_zero_a_bench_and_freedom(
     """A count left, no bench or rooted by Ingrain: it picks a move"""
     arr = _perish_ai(make_pokemon, make_battle, turns, bench, vol)
     assert return_idx(arr) >= 0
+
+
+# ── Phase 8 move-calling ─────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("turn, expected", [(1, -10), (2, 0)])
+def test_basic_copycat(poke, turn, expected):
+    """Basic_CheckCopycat as Pokemow has it: -10 on the battle's first turn"""
+    ai_pok = poke("Togepi", 20, "Hustle", ["Copycat"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert ai.basic_flag(
+        move_slice(ai_pok, 0), AbilityNames.GUTS, ai_pok, user, 1.0, 0, 0, 0, 0, 1, 1, 0, turn
+    ) == expected
+
+
+@pytest.mark.parametrize("ai_lv, last, expected", [
+    (40, "Hypnosis", [(2, 128)]),    # faster, last move on the list
+    (5, "Hypnosis", []),             # slower, on the list
+    (40, "Tackle", [(-1, 176)]),
+    (5, None, [(-1, 176)]),          # no move yet
+])
+def test_expert_mirror_move(poke, ai_lv, last, expected):
+    """Expert_MirrorMove reads the target's last move"""
+    ai_pok = poke("Pidgey", ai_lv, "Keen Eye", ["Mirror Move"])
+    user = poke("Machop", 20, "Guts", ["Tackle", "Hypnosis"])
+    if last:
+        user[Pok.LAST_MOVE_ID] = getattr(MoveName, last.upper())
+    assert _expert(ai_pok, user) == (0, expected)
+
+
+def _expert_copycat(ai_pok, user, beats):
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0, 0, 0, beats
+    )
+    return score, [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+
+
+@pytest.mark.parametrize("ai_lv, beats, last, expected", [
+    (40, True, "Tackle", [(2, 224)]),
+    (5, True, "Tackle", []),
+    (40, False, "Hypnosis", [(2, 128)]),
+    (5, False, "Hypnosis", []),
+    (40, False, "Tackle", [(-1, 176)]),
+    (5, False, "Tackle", [(-1, 176)]),
+])
+def test_expert_copycat(poke, ai_lv, beats, last, expected):
+    """Expert_Copycat: out-damaging the AI or an encouraged last move"""
+    ai_pok = poke("Togepi", ai_lv, "Hustle", ["Copycat"])
+    user = poke("Machop", 20, "Guts", ["Tackle", "Hypnosis"])
+    user[Pok.LAST_MOVE_ID] = getattr(MoveName, last.upper())
+    assert _expert_copycat(ai_pok, user, beats) == (0, expected)
+
+
+def test_copycat_beats(poke):
+    """The target's strong last move beats the AI's only weak attack, a status move never does"""
+    from Models.trainer_ai import copycat_beats
+    ai_pok = poke("Togepi", 10, "Hustle", ["Copycat", "Pound"])
+    user = poke("Machop", 30, "Guts", ["Karate Chop", "Leer"])
+    assert not copycat_beats(ai_pok, user, 0, 0)
+    user[Pok.LAST_MOVE_ID] = MoveName.KARATE_CHOP
+    assert copycat_beats(ai_pok, user, 0, 0)
+    user[Pok.LAST_MOVE_ID] = MoveName.LEER
+    assert not copycat_beats(ai_pok, user, 0, 0)
+
+
+@pytest.mark.parametrize("move", ["Metronome", "Nature Power"])
+def test_expert_metronome_and_nature_power_score_nothing(poke, move):
+    """No Expert check, they don't fall into the always-hit branch"""
+    ai_pok = poke("Munchlax", 20, "Thick Fat", [move])
+    ai_pok[Pok.ACCURACY_STAT_STAGE] = -6
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, [])
+
+
+@pytest.mark.parametrize("move", ["Metronome", "Copycat", "Mirror Move", "Nature Power"])
+def test_ai_picks_a_move_with_a_calling_move(make_pokemon, make_battle, move):
+    """The AI can hold and pick any move-calling move"""
+    arr = make_battle([make_pokemon("Machop", 20, "Guts", ["Tackle"])],
+                      [make_pokemon("Togepi", 20, "Hustle", [move, "Pound"])])
+    for _ in range(10):
+        assert return_idx(arr) in (0, 1)
+
+
+@pytest.mark.parametrize("check", ["check_immunity_pty", "check_resistance_pty"])
+def test_nobody_is_immune_to_or_resists_struggle(poke, check):
+    """Gen IV gives Struggle no effectiveness, a Ghost on the bench isn't immune to it"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Karate Chop"])
+    party[POK_LEN:2 * POK_LEN] = poke("Gastly", 20, "Levitate", ["Lick"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert getattr(ai, check)(party, user, Types.TYPELESS, 0).size == 0
+
+
+def test_ai_survives_my_struggle(make_pokemon, make_battle):
+    """My Struggle hit the AI last turn, its withdraw checks still run"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Tackle"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"]),
+                       make_pokemon("Gastly", 20, "Levitate", ["Lick"])])
+    arr[Field.AI_TOOK_DMG_LAST_TURN] = Types.TYPELESS
+    for _ in range(20):
+        assert return_idx(arr) in (0, -5)
+
+
+@pytest.mark.parametrize("target, weather, expected", [
+    ("Geodude", 0, (0, [])),
+    ("Geodude", Weather.HAIL, (1, [])),
+    ("Squirtle", Weather.HAIL, (0, [(-3, 206)])),    # resisted: the roll ends it
+])
+def test_expert_blizzard(poke, target, weather, expected):
+    """Pokemow Expert Blizzard"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Blizzard"])
+    user = poke(target, 20, "Sturdy", ["Tackle"])
+    eff = 0.5 if target == "Squirtle" else 1.0
+    assert _expert_weather_eff(ai_pok, user, weather, eff) == expected
+
+
+def _expert_weather_eff(ai_pok, user, weather, effectiveness):
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, weather, 0, effectiveness, 0
+    )
+    return score, [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]

@@ -14,6 +14,9 @@ from Models.helper import (
 from Models.idx_const import Item
 from DataBase.ItemDB import ItemNames
 from DataBase.AbilitiesDB import AbilityNames
+from DataBase.MoveDB import MoveName
+from Engine import engine_helper
+from Models.helper import Terrain
 from Models.move import STRUGGLE
 from Models.constants import _ENEMY_AI_KNOWS_MOVE2
 from battle_driver import (
@@ -1381,3 +1384,132 @@ def test_yawn_doesnt_put_an_insomnia_pokemon_to_sleep(poke):
     p[Pok.YAWN_TURNS] = 1
     battle._yawn(p, poke("Rattata", 20, "Run Away", ["Tackle"]))
     assert p[Pok.STATUS] == 0 and not p[Pok.VOL_STATUS] & VolStatus.YAWN
+
+
+# ── Phase 8: move-calling ────────────────────────────────────────────────────
+
+def _force_metronome(monkeypatch, move_id, always_hit=True):
+    """Metronome draws move_id, and every 1-100 roll is 1 so accuracy rolls hit"""
+    monkeypatch.setattr(engine_helper, "metronome_move", lambda pok: move_id)
+    if always_hit:
+        monkeypatch.setattr(engine_helper.random, "randint", lambda a, b: a)
+
+
+def test_metronome_calls_a_move_in_its_turn(monkeypatch, make_pokemon, make_battle):
+    """The called move hits, Metronome spends its PP and is the last move for everything else"""
+    _force_metronome(monkeypatch, MoveName.EMBER)
+    arr = make_battle([make_pokemon("Munchlax", 20, "Thick Fat", ["Metronome"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"])])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = _pp(me, 0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert _pp(me, 0) == pp - 1
+    assert me[Pok.LAST_MOVE_ID] == MoveName.METRONOME
+    assert arr[Field.MY_LAST_MOVE] == MoveName.METRONOME
+    assert arr[Field.LAST_MOVE] == MoveName.METRONOME          # the slower Munchlax moved last
+    assert arr[Field.AI_TOOK_DMG_LAST_TURN] == Types.FIRE      # the AI saw an Ember
+
+
+def test_metronome_into_bounce_lands_next_turn(monkeypatch, make_pokemon, make_battle):
+    """A called charge move keeps Metronome's slot locked and lands as the called move"""
+    _force_metronome(monkeypatch, MoveName.BOUNCE)
+    arr = make_battle([make_pokemon("Munchlax", 20, "Thick Fat", ["Metronome", "Tackle"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"])])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = _pp(me, 0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.LOCKED_MOVE] == 0 and me[Pok.CALLED_MOVE] == MoveName.BOUNCE
+    assert me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert me[Pok.LOCKED_MOVE] == -1 and _pp(me, 0) == pp - 1
+
+
+def test_metronome_into_rollout_keeps_rolling(monkeypatch, make_pokemon, make_battle):
+    """Rollout locks Metronome's slot, the next turn is Rollout again with a higher count"""
+    _force_metronome(monkeypatch, MoveName.ROLLOUT)
+    arr = make_battle([make_pokemon("Munchlax", 30, "Thick Fat", ["Metronome"])],
+                      [make_pokemon("Geodude", 30, "Sturdy", ["Defense Curl"])])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.LOCKED_MOVE] == 0 and me[Pok.CONSEC_COUNT] == 1
+    _force_metronome(monkeypatch, MoveName.EMBER)    # a fresh draw would be Ember
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CALLED_MOVE] == MoveName.ROLLOUT and me[Pok.CONSEC_COUNT] == 2
+
+
+def test_slower_copycat_copies_the_foes_move(make_pokemon, make_battle):
+    """The foe's Growl this turn is the last move, Copycat uses Growl on it"""
+    arr = make_battle([make_pokemon("Togepi", 10, "Hustle", ["Copycat"])],
+                      [make_pokemon("Machop", 30, "Guts", ["Growl"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Pok.ATTACK_STAT_STAGE] == -1
+    assert opp_active(arr)[Pok.ATTACK_STAT_STAGE] == -1
+    assert arr[Field.LAST_MOVE] == MoveName.COPYCAT
+
+
+def test_faster_copycat_fails_on_the_first_turn(make_pokemon, make_battle):
+    """Nobody moved yet: no last move, Copycat fails but still spends PP"""
+    arr = make_battle([make_pokemon("Togepi", 30, "Hustle", ["Copycat"])],
+                      [make_pokemon("Machop", 5, "Guts", ["Growl"])])
+    me = my_active(arr)
+    pp = _pp(me, 0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.ATTACK_STAT_STAGE] == 0 and _pp(me, 0) == pp - 1
+
+
+def test_mirror_move_copies_the_foes_last_hit(make_pokemon, make_battle):
+    """Hit by Leer on turn 1, the faster Mirror Move uses Leer on turn 2"""
+    arr = make_battle([make_pokemon("Pidgey", 30, "Keen Eye", ["Mirror Move"])],
+                      [make_pokemon("Machop", 5, "Guts", ["Leer"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Pok.MIRROR_MOVE] == MoveName.LEER
+    assert opp_active(arr)[Pok.DEFENSE_STAT_STAGE] == 0
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.DEFENSE_STAT_STAGE] == -1
+
+
+def test_mirror_move_cant_copy_a_called_move(monkeypatch, make_pokemon, make_battle):
+    """The foe's Metronome-called Ember leaves nothing to mirror"""
+    _force_metronome(monkeypatch, MoveName.EMBER)
+    arr = make_battle([make_pokemon("Pidgey", 30, "Keen Eye", ["Mirror Move", "Tackle"])],
+                      [make_pokemon("Munchlax", 20, "Thick Fat", ["Metronome"])])
+    my_active(arr)[Pok.MIRROR_MOVE] = MoveName.TACKLE
+    turn_sim(0, (MOVE, 1), arr)
+    assert my_active(arr)[Pok.MIRROR_MOVE] == 0
+
+
+@pytest.mark.parametrize("terrain, move", [
+    (Terrain.PLAIN, MoveName.EARTHQUAKE), (Terrain.CAVE, MoveName.ROCK_SLIDE),
+    (Terrain.GRASS, MoveName.SEED_BOMB),
+])
+def test_nature_power_uses_the_terrain_move(monkeypatch, make_pokemon, make_battle, terrain, move):
+    """Curtis's cave makes it Rock Slide, the default plain Earthquake"""
+    used = []
+    real = battle.ps_moves
+
+    def spy(atk, defn, mv, *args):
+        used.append(int(mv[Move.ID]))
+        return real(atk, defn, mv, *args)
+    monkeypatch.setattr(battle, "ps_moves", spy)
+    arr = make_battle([make_pokemon("Seedot", 20, "Chlorophyll", ["Nature Power"])],
+                      [make_pokemon("Machop", 5, "Guts", ["Leer"])])
+    arr[Field.TERRAIN] = terrain
+    turn_sim(0, (MOVE, 0), arr)
+    assert used in ([move], [])     # [] only if it missed
+    assert my_active(arr)[Pok.LAST_MOVE_ID] == MoveName.NATURE_POWER
+
+
+def test_called_hidden_power_uses_the_users_ivs():
+    """A Metronome-called Hidden Power has the type and power the user's IVs give"""
+    odd = {s: 31 for s in ("HP", "Attack", "Defense", "Speed", "Special Attack", "Special Defense")}
+    from Models.pokemon import Pokemon
+    p = Pokemon("Munchlax", "Male", 20, "Thick Fat", "Hardy", ["Metronome"], ivs=odd)
+    arr = p.to_np()
+    hp_type, hp_power = p.hidden_power()
+    assert arr[Pok.HIDDEN_POWER_TYPE] == hp_type == Types.DARK and arr[Pok.HIDDEN_POWER_POWER] == hp_power
+    mv = battle._called_move_array(arr, MoveName.HIDDEN_POWER)
+    assert mv[Move.TYPE] == hp_type and mv[Move.POWER] == hp_power
+    assert battle._called_move_array(arr, MoveName.TACKLE)[Move.TYPE] == Types.NORMAL

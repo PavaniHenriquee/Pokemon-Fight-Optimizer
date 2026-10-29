@@ -976,6 +976,7 @@
   },
   "Camper Curtis 1": {
     "sprite": "camper",
+    "terrain": "cave",
     "team": [
       {
         "name": "Seedot",

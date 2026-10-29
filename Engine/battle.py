@@ -11,7 +11,7 @@ from Engine.engine_helper import (
     RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
     try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
-    worry_seed, perish_song, perish_count
+    worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP, sleep_ability
@@ -63,9 +63,10 @@ from Models.constants import (
     _BATTLEPHASE_BATON_PASS, _FIELD_PENDING_OPP_MOVE, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
     _MOVENAME_KNOCK_OFF, _POK_ITEM_KNOCKED_OFF, _MOVENAME_RECOVER, _MOVENAME_SYNTHESIS,
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
-    _ENEMY_AI_KNOWS_ABILITY
+    _ENEMY_AI_KNOWS_ABILITY, _POK_CALLED_MOVE, _FIELD_LAST_MOVE, _MOVENAME_HIDDEN_POWER,
+    _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER
 )
-from Models.move import STRUGGLE
+from Models.move import STRUGGLE, MOVE_TABLE
 
 
 MULTIHIT_PROB=(2,2,2,3,3,3,4,5)
@@ -292,6 +293,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
         return False
     mv[_MOVE_PP] -= 1
     atk[_POK_LAST_MOVE_ID] = mv[_MOVE_ID]
+    battle_array[_FIELD_LAST_MOVE] = mv[_MOVE_ID]
     if is_mine:
         battle_array[_FIELD_MY_LAST_MOVE] = mv[_MOVE_ID]
         battle_array[_FIELD_AI_KNOWS] |= AI_KNOWS_MOVES[slot]
@@ -581,6 +583,16 @@ def _after_hit_field(atk, mv, battle_array, atk_side, def_side):
 
 
 @njit
+def _called_move_array(atk, move_id):
+    """The called move's array, a called Hidden Power has the user's own type and power"""
+    mv = MOVE_TABLE[move_id].copy()
+    if move_id == _MOVENAME_HIDDEN_POWER:
+        mv[_MOVE_TYPE] = atk[_POK_HIDDEN_POWER_TYPE]
+        mv[_MOVE_POWER] = atk[_POK_HIDDEN_POWER_POWER]
+    return mv
+
+
+@njit
 def _execute_move_slot(
         atk, defn, mv, is_mine, current_move, opp_move,
         flinch_in, slot_num, is_last, battle_array, weather,
@@ -595,12 +607,19 @@ def _execute_move_slot(
     """
     if atk[_POK_CURRENT_HP] <= 0:
         return False
+    # Metronome and co. keep their slot locked, a locked turn replays the move they called
+    outer_id = mv[_MOVE_ID]
+    is_caller = outer_id in CALLER_MOVES
+    if atk[_POK_LOCKED_MOVE] == -1:
+        atk[_POK_CALLED_MOVE] = 0
+    elif is_caller and atk[_POK_CALLED_MOVE]:
+        mv = _called_move_array(atk, atk[_POK_CALLED_MOVE])
     if early_returns(atk, defn, slot_num, flinch_in, mv):
         # A turn without the move resets Protect's consecutive count and the last move
         atk[_POK_PROTECT_COUNT] = 0
         atk[_POK_LAST_MOVE_ID] = 0
         return False
-    atk[_POK_LAST_MOVE_ID] = mv[_MOVE_ID]
+    atk[_POK_LAST_MOVE_ID] = outer_id
     if mv[_MOVE_ID] not in STALL_MOVES:
         atk[_POK_PROTECT_COUNT] = 0
 
@@ -608,10 +627,22 @@ def _execute_move_slot(
         if atk[_POK_LOCKED_MOVE] == -1:
             mv[_MOVE_PP] -= 1
         if is_mine:
-            battle_array[_FIELD_MY_LAST_MOVE] = mv[_MOVE_ID]
+            battle_array[_FIELD_MY_LAST_MOVE] = outer_id
             battle_array[_FIELD_AI_KNOWS] |= AI_KNOWS_MOVES[current_move]
     elif is_mine:
         battle_array[_FIELD_MY_LAST_MOVE] = -1  #-1 Means Struggle
+
+    # The called move runs in the caller's turn, the caller is the last move for everything else
+    if is_caller and atk[_POK_CALLED_MOVE] == 0:
+        called = called_move(atk, outer_id, battle_array)
+        battle_array[_FIELD_LAST_MOVE] = outer_id
+        if called == 0:
+            return False
+        atk[_POK_CALLED_MOVE] = called
+        mv = _called_move_array(atk, called)
+    else:
+        battle_array[_FIELD_LAST_MOVE] = outer_id
+    is_called = is_caller and atk[_POK_CALLED_MOVE] != 0
 
     # Charge moves are positive so they don't do anything first turn
     if mv[_MOVE_CHARGE_RECHARGE] > 0 and atk[_POK_LOCKED_MOVE] == -1:
@@ -654,6 +685,8 @@ def _execute_move_slot(
         if not (atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and move_hit in UPROAR_KEEPS_ON):
             unlock_move(atk)
         return False
+    if mv[_MOVE_TARGET] not in NO_FOE_TARGETS:
+        mirror_record(mv, defn, is_called)
 
     atk_side = side_base(is_mine)
     def_side = side_base(not is_mine)

@@ -49,6 +49,7 @@ export default function App() {
   const [sessionActive, setSessionActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [trainerItems, setTrainerItems] = useState<string[]>(["", "", "", ""]);
+  const [terrain, setTerrain] = useState("plain");
 
   useEffect(() => {
     fetch(`${API_URL}/trainers`)
@@ -188,6 +189,7 @@ export default function App() {
           opp_team: oppTeam,
           iterations,
           trainer_items: trainerItems.filter(Boolean),
+          terrain,
         }),
       });
       const data = await res.json();
@@ -353,6 +355,7 @@ export default function App() {
           setOppTeam={setOppTeam}
           trainerItems={trainerItems}
           setTrainerItems={setTrainerItems}
+          setTerrain={setTerrain}
         />
       </div>
 

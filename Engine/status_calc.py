@@ -22,7 +22,7 @@ from Models.constants import (
     _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _VOLSTATUS_UPROAR, _MOVE_PP,
     _ABILITYNAMES_SOUNDPROOF, _MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE,
     _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT,
-    _ABILITYNAMES_MOLD_BREAKER
+    _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_TRI_ATTACK
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from Models.move import CURSE_BOOST
@@ -44,6 +44,8 @@ SLOT_MASK = 3
 # Gen IV Encore fails on these last moves (Transform, Mimic, Sketch aren't in MoveDB)
 ENCORE_FAIL_MOVES = (_MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE)
 SLEEP_AB_IM = (_ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT)
+# Tri Attack's secondary picks one of these at random
+TRI_ATTACK_STATUSES = (_STATUS_BURN, _STATUS_PARALYSIS, _STATUS_FREEZE)
 
 STAT_MAPPING = (
     (_MOVE_BOOST_ATK, _POK_ATTACK_STAT_STAGE),
@@ -129,15 +131,16 @@ def last_move_slot(pok):
 
 
 @njit
-def apply_status(move, pok, weather, source, sec=False, side=0):
-    """Apply non-volatile status effects. side is pok's Field.SIDE_COND, Safeguard blocks it"""
+def apply_status(move, pok, weather, source, sec=False, side=0, status=0):
+    """Apply non-volatile status effects. side is pok's Field.SIDE_COND, Safeguard blocks it.
+    status, when set, is used instead of the move's"""
     # Gen 4: Cannot apply a new status if one already exists
     if pok[_POK_STATUS] != 0:
         return
     if side & _SIDECONDITION_SAFEGUARD:
         return
 
-    m_status = move[_SEC_STATUS] if sec else move[_MOVE_STATUS]
+    m_status = status if status else (move[_SEC_STATUS] if sec else move[_MOVE_STATUS])
     if m_status == 0:
         return
 
@@ -333,6 +336,11 @@ def sec_effects(move, attacker, defender, weather, def_side=0):
         stat_changes(move, attacker, defender, True, def_side)
 
         if target_opp:
+            if move[_MOVE_ID] == _MOVENAME_TRI_ATTACK:
+                apply_status(
+                    move, defender, weather, attacker, True, def_side,
+                    TRI_ATTACK_STATUSES[random.randrange(3)]
+                )
             if move[_SEC_STATUS] != 0:
                 apply_status(move, defender, weather, attacker, True, def_side)
             if move[_SEC_VOL_STATUS] != 0:

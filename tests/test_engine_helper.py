@@ -14,6 +14,11 @@ from Engine.engine_helper import (
 from Models.ability import ABILITY_TABLE
 from Models.item import ITEM_TABLE
 from DataBase.AbilitiesDB import AbilityNames
+from Engine.engine_helper import (
+    metronome_move, copycat_move, nature_power_move, mirror_record,
+)
+from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN
+from Models.helper import Terrain
 from DataBase.MoveDB import MoveName
 from Models.idx_const import Pok, Move, Item, Sec, Field, SIDE_TOXIC_SPIKES, FIELD_LEN
 from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome, Types, SideCondition
@@ -1077,3 +1082,85 @@ def test_switch_out_clears_perish_song(poke):
     perish_song(p, poke("Rattata", 20, "Run Away", ["Tackle"]))
     reset_switch_out(p)
     assert not p[Pok.VOL_STATUS] & VolStatus.PERISH_SONG and p[Pok.PERISH_TURNS] == 0
+
+
+# ── Phase 8: move-calling ────────────────────────────────────────────────────
+
+def test_metronome_skips_forbidden_and_known_moves(poke):
+    """Every draw is in the pool, never a forbidden move or one of the user's own"""
+    p = poke("Munchlax", 20, "Thick Fat", ["Metronome", "Tackle", "Amnesia", "Rock Tomb"])
+    known = {int(move_slice(p, i)[Move.ID]) for i in range(4)}
+    for _ in range(300):
+        move_id = metronome_move(p)
+        assert move_id not in known and move_id not in METRONOME_FORBIDDEN
+        assert move_id in METRONOME_POOL
+
+
+def test_metronome_pool_is_movedb_minus_the_forbidden_list():
+    """The pool follows MoveDB, Protect and Counter are out, a plain attack is in"""
+    assert MoveName.PROTECT not in METRONOME_POOL and MoveName.COUNTER not in METRONOME_POOL
+    assert MoveName.EARTHQUAKE in METRONOME_POOL and MoveName.METRONOME not in METRONOME_POOL
+
+
+@pytest.mark.parametrize("last, expected", [
+    (0, 0), (MoveName.METRONOME, 0), (MoveName.MIRROR_MOVE, 0), (MoveName.PROTECT, 0),
+    (MoveName.STRUGGLE, 0), (MoveName.TACKLE, MoveName.TACKLE), (MoveName.GROWL, MoveName.GROWL),
+])
+def test_copycat_move(last, expected):
+    """Fails with nothing, on a move-calling move or on one Metronome can't call"""
+    arr = empty_field()
+    arr[Field.LAST_MOVE] = last
+    assert copycat_move(arr) == expected
+
+
+@pytest.mark.parametrize("terrain, move", [
+    (Terrain.PLAIN, MoveName.EARTHQUAKE), (Terrain.SAND, MoveName.EARTHQUAKE),
+    (Terrain.GRASS, MoveName.SEED_BOMB), (Terrain.PUDDLE, MoveName.SEED_BOMB),
+    (Terrain.MOUNTAIN, MoveName.ROCK_SLIDE), (Terrain.CAVE, MoveName.ROCK_SLIDE),
+    (Terrain.SNOW, MoveName.BLIZZARD), (Terrain.WATER, MoveName.HYDRO_PUMP),
+    (Terrain.ICE, MoveName.ICE_BEAM), (Terrain.BUILDING, MoveName.TRI_ATTACK),
+    (Terrain.GREAT_MARSH, MoveName.MUD_BOMB), (Terrain.BRIDGE, MoveName.AIR_SLASH),
+    (Terrain.SPECIAL, MoveName.TRI_ATTACK), (Terrain.SPECIAL + 5, MoveName.TRI_ATTACK),
+])
+def test_nature_power_move(terrain, move):
+    """pokeplatinum sTerrainMove, anything past SPECIAL counts as SPECIAL"""
+    arr = empty_field()
+    arr[Field.TERRAIN] = terrain
+    assert nature_power_move(arr) == move
+
+
+@pytest.mark.parametrize("move, called, recorded", [
+    ("Tackle", False, True), ("Tackle", True, False), ("Encore", False, False),
+    ("Psych Up", False, False),
+])
+def test_mirror_record(poke, move, called, recorded):
+    """A mirrorable move that hit is recorded, a called or unmirrorable one clears the record"""
+    a = poke("Pidgey", 20, "Keen Eye", [move])
+    d = poke("Machop", 20, "Guts", ["Tackle"])
+    d[Pok.MIRROR_MOVE] = MoveName.GROWL
+    mirror_record(move_slice(a, 0), d, called)
+    assert d[Pok.MIRROR_MOVE] == (move_slice(a, 0)[Move.ID] if recorded else 0)
+
+
+def test_switches_clear_mirror_move_and_called_move(poke):
+    """Leaving clears both, the foe coming in clears the Pokemon's mirror record too"""
+    p = poke("Pidgey", 20, "Keen Eye", ["Mirror Move"])
+    foe = poke("Machop", 20, "Guts", ["Tackle"])
+    p[Pok.MIRROR_MOVE] = MoveName.TACKLE
+    p[Pok.CALLED_MOVE] = MoveName.TACKLE
+    reset_switch_out(p)
+    assert p[Pok.MIRROR_MOVE] == 0 and p[Pok.CALLED_MOVE] == 0
+    p[Pok.MIRROR_MOVE] = MoveName.TACKLE
+    switch_in(foe, p, empty_field(), False)
+    assert p[Pok.MIRROR_MOVE] == 0
+
+
+@pytest.mark.parametrize("weather, outcome", [
+    (Weather.HAIL, MoveOutcome.HIT), (0, MoveOutcome.MISS), (Weather.RAIN, MoveOutcome.MISS),
+])
+def test_blizzard_cant_miss_in_hail(monkeypatch, poke, weather, outcome):
+    """Gen IV Blizzard skips the accuracy roll in hail"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda a, b: 100)
+    a = poke("Rattata", 20, "Run Away", ["Blizzard"])
+    d = poke("Machop", 20, "Guts", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, weather) == outcome

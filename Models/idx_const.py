@@ -56,7 +56,11 @@ class Pok:
     CONSUMED_ITEM             = LAST_MOVE_ID + 1
     BASE_AB_ID                = CONSUMED_ITEM + 1
     ITEM_KNOCKED_OFF          = BASE_AB_ID + 1
-    AB_ID                     = ITEM_KNOCKED_OFF + 1
+    CALLED_MOVE               = ITEM_KNOCKED_OFF + 1
+    MIRROR_MOVE               = CALLED_MOVE + 1
+    HIDDEN_POWER_TYPE         = MIRROR_MOVE + 1
+    HIDDEN_POWER_POWER        = HIDDEN_POWER_TYPE + 1
+    AB_ID                     = HIDDEN_POWER_POWER + 1
     AB_WHEN                   = AB_ID + 1
     AB_BREAKABLE              = AB_WHEN + 1
     """AB_CANT_SUPRESS           = AB_BREAKABLE + 1
@@ -234,7 +238,8 @@ class Field:
     OPP_LUCKY_CHANT_TURNS = OPP_SAFEGUARD_TURNS + 1
     OPP_TOXIC_SPIKES   = OPP_LUCKY_CHANT_TURNS + 1
     LAST_MOVE          = OPP_TOXIC_SPIKES + 1
-    PHASE              = LAST_MOVE + 1
+    TERRAIN            = LAST_MOVE + 1
+    PHASE              = TERRAIN + 1
     AI_ITEM1           = PHASE + 1
     AI_ITEM2           = AI_ITEM1 + 1
     AI_ITEM3           = AI_ITEM2 + 1

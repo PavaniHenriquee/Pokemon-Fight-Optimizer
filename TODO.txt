@@ -123,6 +123,7 @@
 [X]Aerial Ace(E) *
 [X]Agility *
 [X]Air Cutter(E) *
+[X]Air Slash
 [X]Amnesia
 [X]Aqua Jet
 [X]Aqua Ring(B/E) ! *
@@ -151,7 +152,7 @@
 [X]Comet Punch *
 [X]Confuse Ray !
 [X]Confusion
-[]Copycat(B/E) ! *
+[X]Copycat(B/E) ! *
 [X]Counter(E) !
 [X]Covet(E) !
 [X]Curse(B/E) !
@@ -164,6 +165,7 @@
 [X]Dragon Breath *
 [X]Dragon Rage !
 [X]Draining Kiss *
+[]Earthquake !(Dig interaction)
 [X]Ember
 [X]Encore(B/E) ! *
 [X]Endure(E) ! *
@@ -196,9 +198,11 @@
 [X]Hidden Power !!
 [X]Horn Attack *
 [X]Howl
+[X]Hydro Pump
 [X]Hyper Fang *
 [X]Hypnosis
 [X]Ice Ball ! *
+[X]Ice Beam
 [X]Icy Wind(E) *
 [X]Ingrain(B) !
 [X]Iron Defense *
@@ -218,9 +222,9 @@
 [X]Meditate *
 [X]Mega Drain
 [X]Metal Claw
-[]Metronome!!!!!!
+[X]Metronome!!!!!!
 [X]Mirror Coat(E) ! *
-[]Mirror Move(E) ! *
+[X]Mirror Move(E) ! *
 [X]Mist(B) ! *
 [X]Mud Bomb *
 [X]Mud Shot(E)
@@ -228,7 +232,7 @@
 [X]Mud-Slap
 [X]Nasty Plot *
 [X]Natural Gift(B) ! *
-[]Nature Power !(maybe unnecessary)
+[X]Nature Power !(maybe unnecessary)
 [X]Night Shade *
 [X]Odor Sleuth(B/E) ! *
 [X]Peck
@@ -266,6 +270,7 @@
 [X]Schock Wave(E)
 [X]Scratch
 [X]Screech *
+[X]Seed Bomb
 [X]Seismic Toss *
 [X]Silver Wind *
 [X]Sing
@@ -295,6 +300,7 @@
 [X]Thunder Wave
 [X]Tickle(B) *
 [X]Toxic Spikes(B/E) ! *
+[X]Tri Attack
 [X]Twineedle *
 [X]Uproar !
 [X]Vice Grip *
@@ -317,7 +323,7 @@
 []Acupressure(B/E)
 []Aromatherapy(E)
 []Belly Drum(B/E)
-[]Blizzard(E)
+[X]Blizzard(E)
 []Brine(E)
 []Camouflage(B)
 []Calm Mind(B)

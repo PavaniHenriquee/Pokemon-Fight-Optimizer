@@ -12,10 +12,10 @@
 | Phase 4: action-restricting volatiles     | Done (2026-10-27), committed | See "Phase 4: findings and decisions" and "Phase 4: outcome"; Disable added            |
 | Phase 5: side conditions and field        | Done (2026-10-28), committed | See "Phase 5: findings and decisions" and "Phase 5: outcome"; frontend shows the field |
 | Phase 6: switching moves                  | Done (2026-10-28), committed | See "Phase 6: findings and decisions" and "Phase 6: outcome"; new Baton Pass phase |
-| Phase 7: healing, items, misc             | Done (2026-10-28), not committed | See "Phase 7: findings and decisions" and "Phase 7: outcome"; VolStatus is now full |
-| Phase 8: move-calling                     | **Next**                     |                                                                                        |
+| Phase 7: healing, items, misc             | Done (2026-10-28), committed | See "Phase 7: findings and decisions" and "Phase 7: outcome"; VolStatus is now full |
+| Phase 8: move-calling                     | Done (2026-10-28), not committed | See "Phase 8: findings and decisions" and "Phase 8: outcome" |
 
-**Where to start next session:** Phase 8 (see Phase 8 below), after you've reviewed and committed Phase 7.
+**Where to start next session:** every phase of this plan is done. Next is the deferred second TODO section.
 
 **Open issues carried forward:**
 
@@ -583,6 +583,46 @@ Sources: Showdown gen4/gen5/gen7 mods (`moves.ts`), `sim/battle-actions.ts`, `si
 
 - Mirror Move (E, !), Copycat (B/E, !), Nature Power (!): need Renegade Platinum's battle terrain. Check whether it's needed at all.
 - Metronome (!!!!!!): trainer-used. **Decision needed at this phase:** MoveDB has only 209 moves, while Gen IV Metronome can call around 450. Either expand MoveDB (a large data job) or restrict the pool and document the inaccuracy.
+
+### Phase 8: findings and decisions (2026-10-28)
+
+Sources: pokeplatinum effect scripts 0009, 0083, 0173, 0242, `battle_script.c` (BtlCmd_Metronome, SetMirrorMove, TryCopycat, GetTerrainMove, GoToMoveScript), `battle_lib.c` (sCannotMetronomeMoves, sCannotEncoreMoves, Move_IsInvoker, the switch cleanup of moveCopied), `battle_controller_player.c` (UpdateFlagsWhenHit, movePrev), `include/data/terrain/to_move.h`, `trainer_ai/script.s` (Expert_MirrorMove, Expert_Copycat, Basic_CheckCopycat); Showdown gen4-gen7 mods and `sim/battle-actions.ts`; Pokemow; RP MOVES sheet (the 4 moves and the 7 new ones match).
+
+**Your decisions:**
+
+- Metronome only calls moves already in MoveDB. CLAUDE.md now says to check the pool whenever a move is added.
+- Called multi-turn moves keep going: new `Pok.CALLED_MOVE`. `LOCKED_MOVE` stays the caller's slot (instead of a slot 4), so priority, Encore, AI_KNOWS and the forced-turn loops are untouched.
+- Nature Power uses the battle terrain: new `Field.TERRAIN` and `Terrain` enum (pokeplatinum order), set from an optional `"terrain"` in TrainerDB (default plain). Camper Curtis 1 is in a cave (Rock Slide). All 7 missing terrain moves were added with their special cases.
+- Mirror Move: new `Pok.MIRROR_MOVE`.
+
+**Mechanics as built:**
+
+- Common: the called move runs in the caller's turn with the caller's priority, only the caller spends PP, then it's a normal move (hit check, Protect, immunity, effects). `LAST_MOVE_ID`, `MY_LAST_MOVE`, AI_KNOWS and `Field.LAST_MOVE` get the caller; AI_TOOK_DMG_LAST_TURN the called move's type. `MOVE_TABLE` (`Models/move.py`) builds the called move.
+- Metronome: uniform pick from `METRONOME_POOL` (MoveDB minus `METRONOME_FORBIDDEN` = pokeplatinum sCannotMetronomeMoves), rerolled while it's one of the user's moves. 202 of 217 MoveDB moves.
+- Mirror Move: copies `MIRROR_MOVE`, the last mirror-flagged foe move that hit this Pokemon. A called move or one sharing the Encore table (Mirror Move, Encore, Struggle) clears it. Cleared when either Pokemon leaves.
+- Copycat: copies `Field.LAST_MOVE` (anyone's last move, the outer one). Fails on none, an invoker (Sleep Talk, Copycat, Mirror Move, Metronome) or a Metronome-forbidden move. A failed turn doesn't reset it (Showdown).
+- Nature Power: pokeplatinum sTerrainMove; terrain past SPECIAL counts as SPECIAL (Tri Attack).
+- New moves: Earthquake, Seed Bomb, Tri Attack (20% burn / paralysis / freeze picked at random, `apply_status` takes a status override), Hydro Pump, Blizzard (can't miss in hail), Ice Beam, Air Slash. Earthquake's double damage vs Dig waits for Dig.
+- Frontend / backend: the selected trainer's terrain goes to `/start` (`BattleConfig.terrain`).
+
+**AI:**
+
+- Basic Copycat -10 on the battle's first turn (Pokemow, pokeplatinum also needs the AI faster). `basic_flag` takes `turn`.
+- Expert Mirror Move: moving first with the target's last move on the list 128/256 +2, last move not on it 176/256 -1.
+- Expert Copycat: moving first, 224/256 +2 if the target's last move (used on itself) out-damages every AI move (`copycat_beats` in `trainer_ai.py`), else 128/256 +2 for a listed move; otherwise 176/256 -1 unless one of those holds.
+- Metronome and Nature Power score 0.
+
+### Phase 8: outcome (2026-10-28)
+
+- Tests: pool and draws, Copycat sources, the terrain table, the mirror record, switch clears, Blizzard in hail (`test_engine_helper`); Tri Attack (`test_status_calc`); Metronome in a turn, into Bounce and Rollout, Copycat both ways, Mirror Move and the called-move case, Nature Power per terrain (`test_battle`); every AI branch, `copycat_beats`, the AI holding each move (`test_trainer_ai`). New `move_calling` scenario: over 20 seeds, 72 Metronomes (73 different moves), 64 Copycats (23 failed), 12 Mirror Moves (14 failed), 14 Nature Powers.
+- Golden re-blessed: the 7 old scenarios have the same turns and HP on every seed (hash only: new slots and the MoveName shift). `move_calling` is new.
+- Fixed after review (your OK):
+  - Struggle bug: my Struggle set `AI_TOOK_DMG_LAST_TURN` to TYPELESS (19) and the AI's withdraw checks indexed the 19-wide type chart with it (same at HEAD, the new scenario was the first to reach it). Gen IV `BattleSystem_CalcEffectiveness` gives Struggle no effectiveness, so `check_immunity_pty` and `check_resistance_pty` now find nobody for TYPELESS.
+  - A called Hidden Power uses the user's IVs: new `Pok.HIDDEN_POWER_TYPE` / `HIDDEN_POWER_POWER`, filled by `Pokemon.to_np`, read by `_called_move_array`.
+  - Pokemow Expert Blizzard: 1/2x or less 206/256 -3 (ends either way), hail +1.
+  - TODO.txt: Copycat, Metronome, Mirror Move, Nature Power, Blizzard ticked; Air Slash, Hydro Pump, Ice Beam, Seed Bomb, Tri Attack added ticked; Earthquake added open (Dig interaction).
+- Checks: `pytest` 2070 passed, `pytest -m jit` 6 passed, `pytest -m slow` 8 passed. Golden re-blessed, all 8 scenarios keep their turns and HP (hash only). Benchmark 8.88s vs 8.85s at HEAD.
+- Noticed, not changed: Metronome can call moves whose mechanics aren't in yet (Dig, Explosion, Hyper Beam, Future Sight, Sucker Punch, Trick Room, ...), they run as their data says.
 
 ## Things I noticed but won't touch without your OK (AI side; mostly unrelated to moves)
 

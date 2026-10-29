@@ -159,7 +159,10 @@ class Pokemon:
             0,   # Last move id, 0 means none
             0,   # Consumed item, 0 means none
             0,   # Base ability while Worry Seed changed it, 0 means unchanged
-            0    # Item knocked off
+            0,   # Item knocked off
+            0,   # Move called by Metronome, Mirror Move, Copycat or Nature Power, 0 means none
+            0,   # Move Mirror Move would copy, 0 means none
+            *self.hidden_power()  # Hidden Power type and power, for a called Hidden Power
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 

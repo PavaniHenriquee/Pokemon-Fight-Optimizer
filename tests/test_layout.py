@@ -14,7 +14,7 @@ GENERATED_CLASSES = (
     I.Pok, I.Move, I.Flags, I.Sec, I.Field, I.Item, H.MoveCategory, AbilityNames,
     H.Types, H.Weather, H.AbilityActivation, H.Status, MoveName, H.VolStatus,
     H.Gender, H.Enemy_AI_Knows, H.Potions, H.MoveOutcome, H.ActionType,
-    H.BattlePhase, H.ItemActivation, H.ItemType, ItemNames, H.SideCondition,
+    H.BattlePhase, H.ItemActivation, H.ItemType, ItemNames, H.SideCondition, H.Terrain,
     H.DamageSources,
 )
 
@@ -88,7 +88,7 @@ def test_new_pokemon_counters_start_at_zero(make_pokemon):
     """Counters for volatiles and move history start empty when a Pokemon is built"""
     arr = make_pokemon("Pikachu", 10, "Static", ["Thunder Shock"]).to_np()
     assert arr.shape == (I.POK_LEN,)
-    assert not arr[I.Pok.PROTECT_COUNT : I.Pok.ITEM_KNOCKED_OFF + 1].any()
+    assert not arr[I.Pok.PROTECT_COUNT : I.Pok.MIRROR_MOVE + 1].any()
     assert arr[I.Pok.WEIGHT] > 0
 
 

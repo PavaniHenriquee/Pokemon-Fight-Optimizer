@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 import numpy as np
 from Models.idx_const import (
-    BASE_MOVE_LEN, SEC_LEN, FLAGS_LEN, OFFSET_SEC,
+    BASE_MOVE_LEN, SEC_LEN, FLAGS_LEN, OFFSET_SEC, MOVE_STRIDE,
     Move,
     Flags as MoveFlags,
     Sec as SecondaryArray
@@ -228,3 +228,31 @@ CURSE_BOOST[Move.BOOST_SPEED]=-1
 CURSE_BOOST[Move.BOOST_ATK]=1
 CURSE_BOOST[Move.BOOST_DEF]=1
 CURSE_BOOST[Move.TARGET]=Target.SELF
+
+
+def _move_table():
+    """Move array of every MoveDB move by id, for the moves another move calls"""
+    ids = [v for k, v in vars(MoveName).items() if k.isupper() and isinstance(v, int)]
+    table = np.zeros((max(ids) + 1, MOVE_STRIDE), dtype=np.int32)
+    for move in moveDB.values():
+        table[getattr(MoveName, move['name'].upper())] = Moves(move).to_array()
+    return table
+
+
+MOVE_TABLE = _move_table()
+# pokeplatinum sCannotMetronomeMoves. Names not in MoveDB yet are skipped, so a move added later
+# is left out of the pool automatically
+METRONOME_FORBIDDEN = tuple(
+    getattr(MoveName, name) for name in (
+        'METRONOME', 'STRUGGLE', 'SKETCH', 'MIMIC', 'CHATTER', 'SLEEP_TALK', 'ASSIST', 'MIRROR_MOVE',
+        'COUNTER', 'MIRROR_COAT', 'PROTECT', 'DETECT', 'ENDURE', 'DESTINY_BOND', 'THIEF',
+        'FOLLOW_ME', 'SNATCH', 'HELPING_HAND', 'COVET', 'TRICK', 'FOCUS_PUNCH', 'FEINT', 'COPYCAT',
+        'ME_FIRST', 'SWITCHEROO',
+    ) if hasattr(MoveName, name)
+)
+# Every MoveDB move Metronome can call
+METRONOME_POOL = np.array(
+    sorted(getattr(MoveName, m['name'].upper()) for m in moveDB.values()
+           if getattr(MoveName, m['name'].upper()) not in METRONOME_FORBIDDEN),
+    dtype=np.int32
+)

@@ -24,8 +24,9 @@ from Models.constants import (
     _FIELD_AI_ITEM1, _FIELD_AI_ITEM2, _FIELD_AI_ITEM3, _FIELD_AI_ITEM4,
     _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
     _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL,
-    _POTIONS_X_SPECIAL, _POTIONS_X_DEFEND, _POTIONS_X_SPEED,
+    _POTIONS_X_SPECIAL, _POTIONS_X_DEFEND, _POTIONS_X_SPEED, _FIELD_TERRAIN,
 )
+from Models.helper import Terrain
 from Models.pokemon import Pokemon
 from Engine.engine_helper import start_of_battle
 from SearchEngine.models import GameState, Node, reconstruct_battle_array
@@ -131,6 +132,7 @@ class BattleConfig(BaseModel):
     opp_team: list[PokemonConfig]
     iterations: int = 350_000
     trainer_items: list[str] = Field(default_factory=list)
+    terrain: str = "plain"
 
 
 def _find_node(root: Node, target_id: str) -> Node | None:
@@ -267,6 +269,7 @@ async def start_mcts(config: BattleConfig) -> dict:
             val = _TRAINER_ITEM_MAP.get(item_name, 0)
             if val:
                 battle[_TRAINER_ITEM_FIELDS[i]] = val
+        battle[_FIELD_TERRAIN] = getattr(Terrain, config.terrain.upper())
     except Exception as exc:
         traceback.print_exc()
         return {"status": "error", "error": f"{type(exc).__name__}: {exc}"}

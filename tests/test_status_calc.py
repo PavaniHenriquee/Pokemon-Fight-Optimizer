@@ -479,3 +479,18 @@ def test_sleep_abilities_block_sleep_and_yawn(poke, ability, atk_ability, sleeps
     assert bool(d[Pok.VOL_STATUS] & VolStatus.YAWN) == sleeps
     calculate_effects(a, d, move_slice(a, 0), 0)
     assert (d[Pok.STATUS] == Status.SLEEP) == sleeps
+
+
+# ── Phase 8: Tri Attack ──────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("pick, status", [
+    (0, Status.BURN), (1, Status.PARALYSIS), (2, Status.FREEZE),
+])
+def test_tri_attack_picks_one_of_three(monkeypatch, poke, pick, status):
+    """The 20% secondary burns, paralyzes or freezes, one of the three at random"""
+    monkeypatch.setattr(status_calc.random, "randint", lambda a, b: 1)
+    monkeypatch.setattr(status_calc.random, "randrange", lambda n: pick)
+    a = poke("Rattata", 20, "Run Away", ["Tri Attack"])
+    d = poke("Machop", 20, "Guts", ["Tackle"])
+    sec_effects(move_slice(a, 0), a, d, 0)
+    assert d[Pok.STATUS] == status

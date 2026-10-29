@@ -214,6 +214,24 @@ def count_Id(pty):
 
 
 @dataclass(slots=True)
+class Terrain:
+    """Battle terrain, it picks Nature Power's move (pokeplatinum TERRAIN_*, SPECIAL covers the rest)"""
+    PLAIN       = 0
+    SAND        = 1
+    GRASS       = 2
+    PUDDLE      = 3
+    MOUNTAIN    = 4
+    CAVE        = 5
+    SNOW        = 6
+    WATER       = 7
+    ICE         = 8
+    BUILDING    = 9
+    GREAT_MARSH = 10
+    BRIDGE      = 11
+    SPECIAL     = 12
+
+
+@dataclass(slots=True)
 class Weather:
     """Types of Weather"""
     SUN       = 1

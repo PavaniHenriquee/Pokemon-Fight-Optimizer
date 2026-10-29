@@ -279,6 +279,7 @@ interface Props {
   setOppTeam: (team: PokemonConfig[]) => void;
   trainerItems: string[];
   setTrainerItems: (items: string[]) => void;
+  setTerrain: (terrain: string) => void;
 }
 
 export default function ConfigureView({
@@ -290,6 +291,7 @@ export default function ConfigureView({
   setOppTeam,
   trainerItems,
   setTrainerItems,
+  setTerrain,
 }: Props) {
   const [box, setBox] = useState<BoxEntry[] | null>(null);
   const [oppLocked, setOppLocked] = useState(false);
@@ -306,6 +308,7 @@ export default function ConfigureView({
       setSelectedTrainer(firstTrainer);
       setOppTeam(trainerDB[firstTrainer]?.team ?? []);
       setTrainerItems(padItems(trainerDB[firstTrainer]?.trainer_items));
+      setTerrain(trainerDB[firstTrainer]?.terrain ?? "plain");
       setOppLocked(true);
     }
   }, [trainerDB, selectedTrainer]);
@@ -331,11 +334,13 @@ export default function ConfigureView({
       setOppLocked(false);
       setSelectedTrainer("");
       setTrainerItems(["", "", "", ""]);
+      setTerrain("plain");
       return;
     }
     setSelectedTrainer(trainer);
     setOppTeam(trainerDB[trainer]?.team ?? []);
     setTrainerItems(padItems(trainerDB[trainer]?.trainer_items));
+    setTerrain(trainerDB[trainer]?.terrain ?? "plain");
     setOppLocked(true);
   }
 

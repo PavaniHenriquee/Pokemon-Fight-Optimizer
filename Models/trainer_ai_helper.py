@@ -71,7 +71,8 @@ from Models.constants import (
     _MOVENAME_SYNTHESIS, _MOVENAME_REFRESH, _MOVENAME_KNOCK_OFF, _MOVENAME_RECYCLE,
     _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG, _MOVENAME_SPLASH, _MOVENAME_SLEEP_TALK,
     _VOLSTATUS_PERISH_SONG, _POK_CONSUMED_ITEM, _ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE,
-    _ABILITYNAMES_STICKY_HOLD
+    _ABILITYNAMES_STICKY_HOLD, _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT,
+    _MOVENAME_NATURE_POWER, _TYPES_TYPELESS, _MOVENAME_BLIZZARD
 )
 from Engine.damage_calc import weight_power, matchup_types, gyro_ball_power
 
@@ -254,6 +255,22 @@ SLEEP_USABLE_M = (_MOVENAME_SLEEP_TALK,)
 SYNTHESIS_BAD_WEATHER = (_WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL)
 # Expert_Recycle_DesirableItems, Starf Berry isn't in ItemDB
 RECYCLE_GOOD_ITEMS = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY)
+# Moves that call another move, scored by expert_call. Metronome and Nature Power have no check
+CALL_M = (_MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER)
+# Expert_MirrorMove_MoveTable, the same list as Expert_Copycat_EncouragedMoves. Names not in MoveDB
+# are skipped
+MIRROR_COPYCAT_GOOD_M = tuple(
+    getattr(MoveName, name) for name in (
+        'SLEEP_POWDER', 'LOVELY_KISS', 'SPORE', 'HYPNOSIS', 'SING', 'GRASS_WHISTLE', 'SHADOW_PUNCH',
+        'SAND_ATTACK', 'SMOKESCREEN', 'TOXIC', 'GUILLOTINE', 'HORN_DRILL', 'FISSURE', 'SHEER_COLD',
+        'CROSS_CHOP', 'AEROBLAST', 'CONFUSE_RAY', 'SWEET_KISS', 'SCREECH', 'COTTON_SPORE',
+        'SCARY_FACE', 'FAKE_TEARS', 'METAL_SOUND', 'THUNDER_WAVE', 'GLARE', 'POISON_POWDER',
+        'SHADOW_BALL', 'DYNAMIC_PUNCH', 'HYPER_BEAM', 'EXTREME_SPEED', 'THIEF', 'COVET', 'ATTRACT',
+        'SWAGGER', 'TORMENT', 'FLATTER', 'TRICK', 'SUPERPOWER', 'SKILL_SWAP', 'PSYCHO_SHIFT',
+        'POWER_SWAP', 'GUARD_SWAP', 'SUCKER_PUNCH', 'HEART_SWAP', 'SWITCHEROO', 'CAPTIVATE',
+        'DARK_VOID',
+    ) if hasattr(MoveName, name)
+)
 
 
 @njit
@@ -739,14 +756,15 @@ def basic_switch(move, ability, ai_pok, user_bench, ai_bench):
 @njit
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
-            weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1, ai_know=0
+            weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1, ai_know=0,
+            turn=0
     ):
     """
     Basic Flag, every trainer has this,
     it discourages moves that would have no effect or that would make no sense.
     ai_side and user_side are both Field.SIDE_COND, user_tspikes the Toxic Spikes layers on the
     target's side and user_bench how many Pokemon it has alive besides the active, ai_bench the
-    same for the AI. ai_know is Field.AI_KNOWS
+    same for the AI. ai_know is Field.AI_KNOWS, turn is Field.TURN
     """
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
@@ -758,6 +776,9 @@ def basic_flag(
         return basic_moves(move, ai_pok, user_pok, ability, effectiveness)
     if move[_MOVE_ID] in MISC_BASIC_M:
         return basic_misc(move, ability, ai_pok, user_pok, ai_know)
+    # Basic_CheckCopycat, Pokemow drops pokeplatinum's "and the AI is faster"
+    if move[_MOVE_ID] == _MOVENAME_COPYCAT:
+        return -10 if turn <= 1 else 0
     move_category = move[_MOVE_CATEGORY]
     # Check for immunity types
     if move_category != _MOVECATEGORY_STATUS and effectiveness == 0:
@@ -1521,6 +1542,33 @@ def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first):
 
 
 @njit
+def expert_call(move, u_pok, rand, idx, move_first, copycat_beats):
+    """
+    pokeplatinum Expert_MirrorMove and Expert_Copycat, both read the target's last move.
+    Metronome and Nature Power have no Expert check
+    """
+    move_id = move[_MOVE_ID]
+    good = u_pok[_POK_LAST_MOVE_ID] in MIRROR_COPYCAT_GOOD_M
+    if move_id == _MOVENAME_MIRROR_MOVE:
+        if move_first and good:
+            add_adjustment(rand, idx, 2, 128)
+        elif not good:
+            add_adjustment(rand, idx, -1, 176)
+        return 0
+    if move_id == _MOVENAME_COPYCAT:
+        if move_first:
+            if copycat_beats:
+                add_adjustment(rand, idx, 2, 224)
+                return 0
+            if good:
+                add_adjustment(rand, idx, 2, 128)
+                return 0
+        if not copycat_beats and not good:
+            add_adjustment(rand, idx, -1, 176)
+    return 0
+
+
+@njit
 def expert_charge_invulnerable(
     ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know=0
 ):
@@ -1683,13 +1731,14 @@ def expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first):
 @njit
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
-    user_side=0
+    user_side=0, copycat_beats=False
 ):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it.
     ai_know is Field.AI_KNOWS, its move bits are the target's moves the AI saw.
-    user_side is the target's Field.SIDE_COND
+    user_side is the target's Field.SIDE_COND. copycat_beats: the target's last move, used on
+    itself, does more damage than any of the AI's moves
     """
     # Check if move first (TODO add Trick room logic here)
     ai_s, u_s = check_speed(ai_pok, u_pok, weather)
@@ -1708,6 +1757,14 @@ def expert_flag(
         )
     if move[_MOVE_ID] in MISC_EXPERT_M:
         return expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first)
+    if move[_MOVE_ID] in CALL_M:
+        return expert_call(move, u_pok, rand, idx, move_first, copycat_beats)
+    # Pokemow Expert Blizzard, the roll ends the check either way
+    if move[_MOVE_ID] == _MOVENAME_BLIZZARD:
+        if effectiveness <= 0.5:
+            add_adjustment(rand, idx, -3, 206)
+            return 0
+        return 1 if weather == _WEATHER_HAIL else 0
     if move[_MOVE_ID] == _MOVENAME_FEINT:
         return expert_feint(ai_pok, u_pok, rand, idx, ai_know)
     if move[_MOVE_FORCE_SWITCH] or move[_MOVE_ID] in SWITCH_EXPERT_M:
@@ -2040,6 +2097,9 @@ def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active):
     """
     buf = np.zeros(6,dtype=np.int16)
     n = 0
+    # Gen IV BattleSystem_CalcEffectiveness gives Struggle no effectiveness at all
+    if last_move_type == _TYPES_TYPELESS:
+        return buf[:0]
 
     alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
     if len(alive) <= 1:
@@ -2074,6 +2134,9 @@ def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active):
     """
     buf = np.zeros(6,dtype=np.int16)
     n = 0
+    # Gen IV BattleSystem_CalcEffectiveness gives Struggle no effectiveness at all
+    if last_move_type == _TYPES_TYPELESS:
+        return buf[:0]
 
     alive = np.where(ai_party[_POK_CURRENT_HP::POK_LEN] > 0)[0]
     if len(alive) <= 1:

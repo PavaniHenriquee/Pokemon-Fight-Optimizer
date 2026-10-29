@@ -80,6 +80,26 @@
     "target": "all_adjacent_foes",
     "type": "Flying"
   },
+  "Air Slash": {
+    "accuracy": 95,
+    "category": "Special",
+    "flags": {
+      "distance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "slicing": true
+    },
+    "name": "air_slash",
+    "power": 75,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "vol_status": "flinch"
+    },
+    "target": "any",
+    "type": "Flying"
+  },
   "Amnesia": {
     "accuracy": true,
     "boost_spdef": 2,
@@ -284,6 +304,25 @@
     },
     "target": "normal",
     "type": "Dark"
+  },
+  "Blizzard": {
+    "accuracy": 70,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "wind": true
+    },
+    "name": "blizzard",
+    "power": 110,
+    "pp": 5,
+    "secondary": {
+      "chance": 10,
+      "status": "freeze"
+    },
+    "target": "all_adjacent_foes",
+    "type": "Ice"
   },
   "Bone Club": {
     "accuracy": 85,
@@ -792,6 +831,21 @@
     "pp": 15,
     "target": "normal",
     "type": "Psychic"
+  },
+  "Earthquake": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "nonsky": true,
+      "protect": true
+    },
+    "name": "earthquake",
+    "power": 100,
+    "pp": 10,
+    "target": "all_adjacent",
+    "type": "Ground"
   },
   "Ember": {
     "accuracy": 100,
@@ -1389,6 +1443,20 @@
     "target": "self",
     "type": "Normal"
   },
+  "Hydro Pump": {
+    "accuracy": 80,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "hydro_pump",
+    "power": 110,
+    "pp": 5,
+    "target": "normal",
+    "type": "Water"
+  },
   "Hyper Beam": {
     "accuracy": 90,
     "category": "Special",
@@ -1455,6 +1523,24 @@
     "name": "ice_ball",
     "power": 30,
     "pp": 20,
+    "target": "normal",
+    "type": "Ice"
+  },
+  "Ice Beam": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "ice_beam",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "chance": 10,
+      "status": "freeze"
+    },
     "target": "normal",
     "type": "Ice"
   },
@@ -2494,6 +2580,21 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Seed Bomb": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "seed_bomb",
+    "power": 80,
+    "pp": 15,
+    "target": "normal",
+    "type": "Grass"
+  },
   "Seismic Toss": {
     "accuracy": 100,
     "category": "Physical",
@@ -3037,6 +3138,23 @@
     "side_condition": "toxic_spikes",
     "target": "foe_side",
     "type": "Poison"
+  },
+  "Tri Attack": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "tri_attack",
+    "power": 80,
+    "pp": 10,
+    "secondary": {
+      "chance": 20
+    },
+    "target": "normal",
+    "type": "Normal"
   },
   "Trick Room": {
     "accuracy": true,

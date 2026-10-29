@@ -250,6 +250,22 @@ def scenario_healing_misc():
     return my, opp, (_POTIONS_POTION,)
 
 
+def scenario_move_calling():
+    """Metronome both ways (Barry 2's Munchlax), Mirror Move, Copycat, Nature Power on the plain
+    terrain (Earthquake)"""
+    my = [
+        _p("Togepi", 14, "Hustle", ["Metronome", "Copycat", "Charm", "Yawn"]),
+        _p("Pidgey", 14, "Keen Eye", ["Mirror Move", "Gust", "Sand Attack", "Quick Attack"]),
+        _p("Chatot", 14, "Keen Eye", ["Copycat", "Peck", "Growl"]),
+    ]
+    opp = [
+        _p("Munchlax", 14, "Thick Fat", ["Metronome", "Tackle", "Amnesia", "Rock Tomb"]),
+        _p("Seedot", 14, "Chlorophyll", ["Nature Power", "Bullet Seed", "Growth", "Harden"]),
+        _p("Spearow", 14, "Keen Eye", ["Mirror Move", "Peck", "Leer"]),
+    ]
+    return my, opp, (_POTIONS_POTION,)
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -258,6 +274,7 @@ SCENARIOS = {
     "weather_charge": scenario_weather_charge,
     "switching": scenario_switching,
     "healing_misc": scenario_healing_misc,
+    "move_calling": scenario_move_calling,
 }
 
 
