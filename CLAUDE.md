@@ -125,6 +125,7 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   evidence for any bug it depends on, wait → engine, then AI → tests in the matching file →
   `pytest` + `-m jit` (+ `-m slow` if layout or turn flow changed) → tell me which TODO boxes
   can be ticked.
+
 ### Checklist when adding a move or mechanic (go through all of it)
 
 1. Mechanics: Showdown inherits gen4 → gen5 → gen6 → base `data/moves.ts`, so check every
@@ -172,7 +173,7 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   From Showdown, since pokeplatinum code wasn't found: Gravity's accuracy x6840/4096, a called
   move Gravity blocks fails.
 - Representation: weight is in hectograms. Encore / Disable pack the slot into their counter
-  (turns * 4 + slot). `SEMI_INV_MOVE` holds the charging move id: Bounce is airborne, Dig
+  (turns \* 4 + slot). `SEMI_INV_MOVE` holds the charging move id: Bounce is airborne, Dig
   underground, Dive goes there too. A called move keeps `LOCKED_MOVE` on the caller's slot and
   stores itself in `CALLED_MOVE`. My Baton Pass replacement is a mid-turn decision
   (`BattlePhase.BATON_PASS`, `Field.PENDING_OPP_MOVE`); my slot is in `node_key` so Roar's
