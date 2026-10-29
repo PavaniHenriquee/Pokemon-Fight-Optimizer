@@ -58,7 +58,9 @@ class Pok:
     ITEM_KNOCKED_OFF          = BASE_AB_ID + 1
     CALLED_MOVE               = ITEM_KNOCKED_OFF + 1
     MIRROR_MOVE               = CALLED_MOVE + 1
-    HIDDEN_POWER_TYPE         = MIRROR_MOVE + 1
+    SEMI_INV_MOVE             = MIRROR_MOVE + 1
+    VOL_STATUS2               = SEMI_INV_MOVE + 1
+    HIDDEN_POWER_TYPE         = VOL_STATUS2 + 1
     HIDDEN_POWER_POWER        = HIDDEN_POWER_TYPE + 1
     AB_ID                     = HIDDEN_POWER_POWER + 1
     AB_WHEN                   = AB_ID + 1
@@ -223,7 +225,8 @@ class Field:
     WEATHER            = TURN + 1
     WEATHER_DURATION   = WEATHER + 1
     TRICKROOM          = WEATHER_DURATION + 1
-    MY_SIDE_COND       = TRICKROOM+ 1
+    GRAVITY_TURNS      = TRICKROOM + 1
+    MY_SIDE_COND       = GRAVITY_TURNS + 1
     MY_REFLECT_TURNS   = MY_SIDE_COND + 1
     MY_LIGHT_SCREEN_TURNS = MY_REFLECT_TURNS + 1
     MY_MIST_TURNS      = MY_LIGHT_SCREEN_TURNS + 1

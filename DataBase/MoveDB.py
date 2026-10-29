@@ -88,7 +88,8 @@ class MoveName:
     FURY_SWIPES     = FURY_CUTTER + 1
     FUTURE_SIGHT    = FURY_SWIPES + 1
     GRASS_WHISTLE   = FUTURE_SIGHT + 1
-    GROWL           = GRASS_WHISTLE + 1
+    GRAVITY         = GRASS_WHISTLE + 1
+    GROWL           = GRAVITY + 1
     GROWTH          = GROWL + 1
     GUST            = GROWTH + 1
     GYRO_BALL       = GUST + 1
@@ -124,7 +125,8 @@ class MoveName:
     MEGA_DRAIN      = MEDITATE + 1
     METAL_CLAW      = MEGA_DRAIN + 1
     METRONOME       = METAL_CLAW + 1
-    MIRROR_COAT     = METRONOME + 1
+    MINIMIZE        = METRONOME + 1
+    MIRROR_COAT     = MINIMIZE + 1
     MIRROR_MOVE     = MIRROR_COAT + 1
     MIST            = MIRROR_MOVE + 1
     MUD_BOMB        = MIST + 1

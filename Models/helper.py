@@ -81,6 +81,12 @@ class VolStatus:
 
 
 @dataclass(slots=True)
+class VolStatus2:
+    """Second volatile bitmap, VolStatus is full"""
+    MINIMIZE          = 1
+
+
+@dataclass(slots=True)
 class SideCondition:
     """Side condition to numbers"""
     STEALTH_ROCK = 1

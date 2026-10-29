@@ -178,6 +178,8 @@ def test_node_key_sees_field_but_not_timers(one_v_one):
     ("Toxic Spikes", {Field.OPP_TOXIC_SPIKES: 2}, True),
     ("Rain Dance", {Field.WEATHER: 2}, True),
     ("Rain Dance", {Field.WEATHER: 4}, False),
+    ("Gravity", {}, False),
+    ("Gravity", {Field.GRAVITY_TURNS: 3}, True),
     ("Growl", {}, False),
 ])
 def test_rollout_skips_field_moves_that_would_fail(
@@ -437,3 +439,12 @@ def test_node_key_sees_my_slot_and_the_baton_pass_phase(make_pokemon, make_battl
     other = arr.copy()
     other[Field.PHASE] = BattlePhase.BATON_PASS
     assert node_key(other) != key
+
+
+def test_gravity_hides_its_moves(make_pokemon, make_battle):
+    """Under Gravity Splash and Bounce aren't valid actions"""
+    arr = make_battle([make_pokemon("Pidgey", 10, "Keen Eye", ["Splash", "Bounce", "Tackle"])],
+                      [make_pokemon("Rattata", 10, "Run Away", ["Tackle"])])
+    assert mask_actions(arr) == [(MOVE, 0), (MOVE, 1), (MOVE, 2)]
+    arr[Field.GRAVITY_TURNS] = 3
+    assert mask_actions(arr) == [(MOVE, 2)]

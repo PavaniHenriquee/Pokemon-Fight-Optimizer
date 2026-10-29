@@ -7,7 +7,7 @@ from Models.idx_const import (
     SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS,
     SIDE_TOXIC_SPIKES,
 )
-from Models.helper import BattlePhase, VolStatus, SideCondition, Weather
+from Models.helper import BattlePhase, VolStatus, VolStatus2, SideCondition, Weather
 from DataBase.PkDB import PokIdToName, sprite_id
 from DataBase.MoveDB import MoveIdToName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
@@ -28,6 +28,11 @@ _VOL_DISPLAY_OVERRIDES = {
 VOL_BITS = {
     v: _VOL_DISPLAY_OVERRIDES.get(k, k.replace("_", " ").title())
     for k, v in vars(VolStatus).items()
+    if k.isupper() and isinstance(v, int)
+}
+VOL2_BITS = {
+    v: k.replace("_", " ").title()
+    for k, v in vars(VolStatus2).items()
     if k.isupper() and isinstance(v, int)
 }
 STAGE_NAMES = ["Atk", "Def", "SpA", "SpD", "Spe", "Acc", "Eva"]
@@ -138,7 +143,9 @@ def _pok(arr) -> dict | None:
         "max_hp":     int(arr[Pok.MAX_HP]),
         "status":     STATUS.get(int(arr[Pok.STATUS]), ""),
         "vol_status": [name for bit, name in VOL_BITS.items()
-                       if int(arr[Pok.VOL_STATUS]) & bit],
+                       if int(arr[Pok.VOL_STATUS]) & bit]
+                      + [name for bit, name in VOL2_BITS.items()
+                         if int(arr[Pok.VOL_STATUS2]) & bit],
         "stages":     {STAGE_NAMES[i]: int(arr[Pok.ATTACK_STAT_STAGE + i])
                        for i in range(7)
                        if int(arr[Pok.ATTACK_STAT_STAGE + i]) != 0},
@@ -165,10 +172,11 @@ def _side(field_block, side_cond) -> list[dict]:
 
 
 def _field(field_block) -> dict:
-    """Weather (0 turns left means permanent) and both sides' conditions"""
+    """Weather (0 turns left means permanent), Gravity's turns left and both sides' conditions"""
     return {
         "weather":       _WEATHER_NAMES.get(int(field_block[FieldIdx.WEATHER - _FLD_BASE]), ""),
         "weather_turns": int(field_block[FieldIdx.WEATHER_DURATION - _FLD_BASE]),
+        "gravity_turns": int(field_block[FieldIdx.GRAVITY_TURNS - _FLD_BASE]),
         "my_side":       _side(field_block, FieldIdx.MY_SIDE_COND),
         "opp_side":      _side(field_block, FieldIdx.OPP_SIDE_COND),
     }

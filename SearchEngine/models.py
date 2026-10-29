@@ -13,7 +13,7 @@ from Models.constants import (
     _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _VOLSTATUS_INGRAIN,
     _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_WEATHER, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND,
     _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
-    _BATTLEPHASE_BATON_PASS
+    _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
@@ -57,7 +57,9 @@ def valid_action_mask(battle_array):
                 break
             if (
                 battle_array[base + _MOVE_PP_IDXS[i]] > 0
-                and not move_blocked(battle_array[base:base + POK_LEN], i)
+                and not move_blocked(
+                    battle_array[base:base + POK_LEN], i, battle_array[_FIELD_GRAVITY_TURNS] > 0
+                )
             ):
                 mask |= 1 << i
                 usable = True

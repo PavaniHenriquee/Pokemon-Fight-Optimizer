@@ -43,6 +43,7 @@ export interface SideEffect {
 export interface FieldState {
   weather: string; // "" | "Rain" | "Sandstorm" | "Sun" | "Hail"
   weather_turns: number; // 0 = permanent
+  gravity_turns: number; // 0 = no Gravity
   my_side: SideEffect[];
   opp_side: SideEffect[];
 }

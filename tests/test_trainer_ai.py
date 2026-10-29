@@ -1268,3 +1268,77 @@ def _expert_weather_eff(ai_pok, user, weather, effectiveness):
         ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, weather, 0, effectiveness, 0
     )
     return score, [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+
+
+# ── Dig, Gravity, Minimize ───────────────────────────────────────────────────
+
+@pytest.mark.parametrize("setup, ai_level, expected", [
+    ("power_herb", 20, (2, [])),
+    (None, 50, (0, [(1, 176)])),            # AI faster
+    (None, 5, (0, [])),                     # AI slower
+])
+def test_expert_dig_is_charge_turn_with_invuln(make_pokemon, poke, setup, ai_level, expected):
+    """Dig goes to pokeplatinum Expert_ChargeTurnWithInvuln like Bounce"""
+    item = "Power Herb" if setup == "power_herb" else None
+    ai_pok = make_pokemon("Diglett", ai_level, "Sand Veil", ["Dig"], item=item).to_np()
+    user = poke("Rattata", 30, "Run Away", ["Tackle"])
+    assert _expert(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("gravity, expected", [(False, 0), (True, -10)])
+def test_basic_gravity_already_active(poke, gravity, expected):
+    """pokeplatinum Basic_CheckGravityActive"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Gravity"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    score = ai.basic_flag(
+        move_slice(ai_pok, 0), AbilityNames.RUN_AWAY, ai_pok, user, 1.0, 0, gravity=gravity
+    )
+    assert score == expected
+
+
+@pytest.mark.parametrize("target, ai_hp, expected", [
+    ("Pidgey", 100, (0, [(1, 192)])),       # Flying: 75%
+    ("Rattata", 60, (0, [(1, 96)])),        # HP >= 60%: 37.5%
+    ("Rattata", 59, (0, [])),
+])
+def test_expert_gravity(poke, target, ai_hp, expected):
+    """pokeplatinum Expert_Gravity"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Gravity"])
+    ai_pok[Pok.MAX_HP], ai_pok[Pok.CURRENT_HP] = 100, ai_hp
+    user = poke(target, 20, "Keen Eye" if target == "Pidgey" else "Run Away", ["Tackle"])
+    assert _expert(ai_pok, user) == expected
+
+
+def test_ai_never_picks_a_move_gravity_blocks(make_pokemon, make_battle):
+    """Under Gravity the AI scores Splash like a move with no PP"""
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])
+    opp = make_pokemon("Magikarp", 20, "Swift Swim", ["Splash", "Tackle"])
+    arr = make_battle([me], [opp])
+    arr[Field.GRAVITY_TURNS] = 3
+    for _ in range(20):
+        assert return_idx(arr) == 1
+
+
+@pytest.mark.parametrize("move", ["Dig", "Gravity", "Minimize"])
+def test_ai_picks_a_move_with_dig_gravity_minimize(make_pokemon, make_battle, move):
+    """The AI scores the new moves without crashing and returns a legal slot"""
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])
+    opp = make_pokemon("Machop", 20, "Guts", ["Tackle", move])
+    arr = make_battle([me], [opp])
+    for _ in range(20):
+        assert return_idx(arr) in (0, 1)
+
+
+@pytest.mark.parametrize("gravity", [False, True])
+def test_party_checks_see_gravity(poke, gravity):
+    """pokeplatinum ApplyTypeChart and CalcEffectiveness drop Ground's Flying immunity under
+    Gravity: a Flying bench member stops being immune, Ground hits a Rock/Flying target"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Karate Chop"])
+    party[POK_LEN:2 * POK_LEN] = poke("Pidgey", 20, "Keen Eye", ["Ember"])
+    party[2 * POK_LEN:3 * POK_LEN] = poke("Geodude", 20, "Sturdy", ["Earthquake"])
+    steel = poke("Skarmory", 20, "Keen Eye", ["Peck"])
+    immune = list(ai.check_immunity_pty(party, steel, Types.GROUND, 0, gravity))
+    assert immune == ([] if gravity else [1])
+    aerodactyl = poke("Aerodactyl", 40, "Rock Head", ["Bite"])
+    assert (2 in ai.check_super_ef_move_pty(party, aerodactyl, 0, gravity)) == gravity

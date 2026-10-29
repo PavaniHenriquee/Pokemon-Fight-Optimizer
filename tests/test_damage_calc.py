@@ -8,7 +8,8 @@ from Engine.damage_calc import (
 )
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
 from Models.idx_const import Pok
-from Models.helper import Types, Status, Weather, VolStatus, SideCondition
+from Models.helper import Types, Status, Weather, VolStatus, VolStatus2, SideCondition
+from DataBase.MoveDB import MoveName
 from battle_driver import move_slice
 
 
@@ -295,6 +296,7 @@ def test_gust_doubles_on_airborne_target(poke):
     d = poke("Rattata", 20, "Run Away", ["Tackle"])
     assert variable_power(a, d, move_slice(a, 0)) == 40
     d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = MoveName.BOUNCE
     assert variable_power(a, d, move_slice(a, 0)) == 80
 
 
@@ -429,3 +431,50 @@ def test_ai_damage_sees_screens(poke):
     mv = move_slice(a, 0)
     base = calculate_ai_logic_damage(1.0, a, d, mv, 0)
     assert 0.4 < ratio(calculate_ai_logic_damage(1.0, a, d, mv, 0, SideCondition.REFLECT), base) < 0.6
+
+
+# ── Dig, Gravity, Minimize ───────────────────────────────────────────────────
+
+def test_gust_does_not_double_on_underground_target(poke):
+    """Gust only doubles against a Pokemon in the air, not one using Dig"""
+    a = poke("Pidgey", 20, "Keen Eye", ["Gust"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = MoveName.DIG
+    assert variable_power(a, d, move_slice(a, 0)) == 40
+
+
+@pytest.mark.parametrize("semi_move, doubled", [
+    (0, False), (MoveName.DIG, True), (MoveName.BOUNCE, False),
+])
+def test_earthquake_and_magnitude_double_on_dig(poke, semi_move, doubled):
+    """Earthquake and Magnitude double their power against a Pokemon underground"""
+    a = poke("Geodude", 20, "Sturdy", ["Earthquake", "Magnitude"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    d[Pok.SEMI_INV_MOVE] = semi_move
+    mult = 2 if doubled else 1
+    assert variable_power(a, d, move_slice(a, 0)) == 100 * mult
+    random.seed(3)
+    base = magnitude_power()
+    random.seed(3)
+    assert variable_power(a, d, move_slice(a, 1)) == base * mult
+
+
+def test_stomp_doubles_on_minimized_target(poke):
+    """Gen IV Stomp doubles its power against a minimized target"""
+    a = poke("Rattata", 20, "Run Away", ["Stomp"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert variable_power(a, d, move_slice(a, 0)) == 65
+    d[Pok.VOL_STATUS2] = VolStatus2.MINIMIZE
+    assert variable_power(a, d, move_slice(a, 0)) == 130
+
+
+def test_gravity_drops_flying_type_against_ground(poke):
+    """Under Gravity Ground moves treat the Flying type as neutral, other types aren't touched"""
+    d = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    assert matchup_types(Types.GROUND, d) == (Types.NORMAL, Types.FLYING)
+    assert matchup_types(Types.GROUND, d, True) == (Types.NORMAL, 0)
+    assert matchup_types(Types.ROCK, d, True) == (Types.NORMAL, Types.FLYING)
+    a = poke("Geodude", 20, "Sturdy", ["Earthquake"])
+    assert calculate_damage(a, d, move_slice(a, 0), 0, False, 100) == 0
+    assert calculate_damage(a, d, move_slice(a, 0), 0, False, 100, 0, True) > 0

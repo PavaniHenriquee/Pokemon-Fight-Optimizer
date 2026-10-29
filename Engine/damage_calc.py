@@ -20,11 +20,12 @@ from Models.constants import (
     _MOVENAME_LOW_KICK, _MOVENAME_MAGNITUDE, _MOVENAME_FURY_CUTTER, _MOVENAME_ROLLOUT,
     _MOVENAME_ICE_BALL, _MOVENAME_ASSURANCE, _MOVENAME_GUST, _POK_WEIGHT, _POK_CONSEC_COUNT,
     _POK_VOL_STATUS, _VOLSTATUS_DEFENSE_CURL, _VOLSTATUS_HURT_THIS_TURN,
-    _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_CHARGE,
+    _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_CHARGE,
     _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_GHOST,
     _TYPES_GROUND, _TYPES_FLYING, _TYPES_ELECTRIC, _MOVECATEGORY_SPECIAL, _MOVENAME_BRICK_BREAK,
     _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN, _ABILITYNAMES_ADAPTABILITY,
-    _MOVENAME_GYRO_BALL,
+    _MOVENAME_GYRO_BALL, _MOVENAME_BOUNCE, _MOVENAME_DIG, _MOVENAME_EARTHQUAKE, _MOVENAME_STOMP,
+    _POK_SEMI_INV_MOVE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE,
 )
 
 # ==========================================
@@ -44,6 +45,13 @@ WEIGHT_TO_POWER = ((100, 20), (250, 40), (500, 60), (1000, 80), (2000, 100))
 MAGNITUDE_TABLE = ((5, 10), (15, 30), (35, 50), (65, 70), (85, 90), (95, 110))
 ROLLOUT_MOVES = (_MOVENAME_ROLLOUT, _MOVENAME_ICE_BALL)
 FORESIGHT_TYPES = (_TYPES_NORMAL, _TYPES_FIGHTING)
+# Semi-invulnerable moves by where the user is, and the moves that still reach it there
+AIRBORNE_MOVES = (_MOVENAME_BOUNCE,)
+UNDERGROUND_MOVES = (_MOVENAME_DIG,)
+HITS_AIRBORNE = (_MOVENAME_GUST,)
+HITS_UNDERGROUND = (_MOVENAME_EARTHQUAKE, _MOVENAME_MAGNITUDE)
+# Gen IV: only Stomp doubles against a minimized target
+MINIMIZE_DOUBLES = (_MOVENAME_STOMP,)
 
 
 # ==========================================
@@ -63,10 +71,10 @@ def apply_stat_stage(raw_stat: int, stage: int, is_simple: bool) -> int:
 
 
 @njit
-def matchup_types(move_type, defender):
+def matchup_types(move_type, defender, gravity=False):
     """
     Defender types the type chart reads. Foresight drops the Ghost type against Normal and
-    Fighting, Ingrain drops the Flying type against Ground, a dropped type is 0 (neutral)
+    Fighting, Ingrain and Gravity drop the Flying type against Ground, a dropped type is 0 (neutral)
     """
     t1 = defender[_POK_TYPE1]
     t2 = defender[_POK_TYPE2]
@@ -76,7 +84,18 @@ def matchup_types(move_type, defender):
             t1 = 0
         if t2 == _TYPES_GHOST:
             t2 = 0
-    if vol & _VOLSTATUS_INGRAIN and move_type == _TYPES_GROUND:
+    if (vol & _VOLSTATUS_INGRAIN or gravity) and move_type == _TYPES_GROUND:
+        if t1 == _TYPES_FLYING:
+            t1 = 0
+        if t2 == _TYPES_FLYING:
+            t2 = 0
+    return t1, t2
+
+
+@njit
+def gravity_types(move_type, t1, t2, gravity):
+    """Gravity drops the Flying type against Ground, matchup_types for a bare type pair"""
+    if gravity and move_type == _TYPES_GROUND:
         if t1 == _TYPES_FLYING:
             t1 = 0
         if t2 == _TYPES_FLYING:
@@ -211,13 +230,13 @@ def screen_damage(category, move_id, def_side, crit, damage):
 @njit
 def multipliers(
         move: np.ndarray, attacker: np.ndarray, defender: np.ndarray,
-        weather:int, crit: bool, roll_mult: int, damage: int, def_side: int=0
+        weather:int, crit: bool, roll_mult: int, damage: int, def_side: int=0, gravity: bool=False
 ) -> int:
     """Calc multipliers for base formula damage, def_side is the defender's Field.SIDE_COND"""
     m_type = move[_MOVE_TYPE]
     atk_type1 = attacker[_POK_TYPE1]
     atk_type2 = attacker[_POK_TYPE2]
-    def_type1, def_type2 = matchup_types(m_type, defender)
+    def_type1, def_type2 = matchup_types(m_type, defender, gravity)
 
     # Burn
     if attacker[_POK_STATUS] == _STATUS_BURN:
@@ -358,7 +377,12 @@ def variable_power(attacker, defender, move, weather=0):
     if move_id == _MOVENAME_LOW_KICK:
         return weight_power(defender)
     if move_id == _MOVENAME_MAGNITUDE:
-        return magnitude_power()
+        power = magnitude_power()
+        return power * 2 if defender[_POK_SEMI_INV_MOVE] in UNDERGROUND_MOVES else power
+    if move_id == _MOVENAME_EARTHQUAKE and defender[_POK_SEMI_INV_MOVE] in UNDERGROUND_MOVES:
+        return power * 2
+    if move_id in MINIMIZE_DOUBLES and defender[_POK_VOL_STATUS2] & _VOLSTATUS2_MINIMIZE:
+        return power * 2
     if move_id == _MOVENAME_FURY_CUTTER:
         return power << (max(attacker[_POK_CONSEC_COUNT], 1) - 1)
     if move_id in ROLLOUT_MOVES:
@@ -368,9 +392,7 @@ def variable_power(attacker, defender, move, weather=0):
         return power
     if move_id == _MOVENAME_ASSURANCE and defender[_POK_VOL_STATUS] & _VOLSTATUS_HURT_THIS_TURN:
         return power * 2
-    # TODO: since bounce is the only Semi_invulnerable right now this is fine, but needs fix for
-    # Moves like dig and phantom force
-    if move_id == _MOVENAME_GUST and defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE:
+    if move_id == _MOVENAME_GUST and defender[_POK_SEMI_INV_MOVE] in AIRBORNE_MOVES:
         return power * 2
     return power
 
@@ -403,6 +425,7 @@ def sport_power(attacker, defender, move, power):
 def calculate_damage(
         attacker: np.ndarray, defender: np.ndarray, move: np.ndarray,
         weather: int=0, crit: bool=False, roll_multiplier: int=None, def_side: int=0,
+        gravity: bool=False,
 ) -> int:
     """Standard damage calculation"""
 
@@ -422,7 +445,9 @@ def calculate_damage(
     # Base damage formula
     damage = (((2 * level / 5) + 2) * power * (attack / defense)) // 50
 
-    return multipliers(move, attacker, defender, weather, crit, roll_multiplier, damage, def_side)
+    return multipliers(
+        move, attacker, defender, weather, crit, roll_multiplier, damage, def_side, gravity
+    )
 
 
 @njit
@@ -462,7 +487,9 @@ def calculate_damage_confusion(pok):
 
 
 @njit
-def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather, def_side=0):
+def calculate_ai_logic_damage(
+        effectivenes, attacker, defender, move, weather, def_side=0, gravity=False
+):
     """
     AI calculates damages from its damage a little different, so here i do it
     like it is in the games
@@ -521,7 +548,7 @@ def calculate_ai_logic_damage(effectivenes, attacker, defender, move, weather, d
             damage *= 2
         else:
             damage = (damage*3) // 2
-    def_type1, def_type2 = matchup_types(m_type, defender)
+    def_type1, def_type2 = matchup_types(m_type, defender, gravity)
     effectiveness1, _ = get_type_effectiveness(m_type, def_type1, 0)
     damage = (effectiveness1 * damage) // 2
     effectiveness2 = 2

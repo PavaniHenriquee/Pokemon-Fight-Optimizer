@@ -16,7 +16,7 @@ from Engine.engine_helper import (
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP, sleep_ability
 )
-from Engine.damage_calc import calculate_damage, ROLLOUT_MOVES
+from Engine.damage_calc import calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
     POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS,
@@ -40,7 +40,7 @@ from Models.constants import (
     _MOVENAME_BUG_BITE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _DAMAGESOURCES_BIDE, _DAMAGESOURCES_MAGIC_COAT,
     _STATUS_POISON, _STATUS_TOXIC, _STATUS_BURN, _VOLSTATUS_CURSE, _ABILITYNAMES_MAGIC_GUARD,
     _POK_BADLY_POISON, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL, _MOVE_RECOIL,
-    _MOVENAME_FURY_CUTTER, _MOVENAME_NATURAL_GIFT, _MOVENAME_BOUNCE, _POK_CONSEC_COUNT,
+    _MOVENAME_FURY_CUTTER, _MOVENAME_NATURAL_GIFT, _POK_CONSEC_COUNT,
     _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN, _VOLSTATUS_PROTECT, _VOLSTATUS_ENDURE,
     _VOLSTATUS_RAGE, _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_CHARGE, _VOLSTATUS_INGRAIN,
     _VOLSTATUS_AQUA_RING, _VOLSTATUS_LEECH_SEED, _VOLSTATUS_YAWN, _VOLSTATUS_ATTRACT,
@@ -64,13 +64,14 @@ from Models.constants import (
     _MOVENAME_KNOCK_OFF, _POK_ITEM_KNOCKED_OFF, _MOVENAME_RECOVER, _MOVENAME_SYNTHESIS,
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
     _ENEMY_AI_KNOWS_ABILITY, _POK_CALLED_MOVE, _FIELD_LAST_MOVE, _MOVENAME_HIDDEN_POWER,
-    _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER
+    _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _POK_SEMI_INV_MOVE, _FIELD_GRAVITY_TURNS,
+    _MOVENAME_GRAVITY, _MOVENAME_MINIMIZE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _FLAGS_GRAVITY
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 
 
 MULTIHIT_PROB=(2,2,2,3,3,3,4,5)
-SEMI_INVULNERABLE_MOVES = (_MOVENAME_BOUNCE,)
+SEMI_INVULNERABLE_MOVES = AIRBORNE_MOVES + UNDERGROUND_MOVES
 ROLLOUT_MAX_USES = 5
 FURY_CUTTER_MAX_COUNT = 5
 STALL_MOVES = (_MOVENAME_PROTECT, _MOVENAME_ENDURE)
@@ -300,8 +301,11 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
     doubled = mv.copy()
     doubled[_MOVE_POWER] *= 2
     weather = battle_array[_FIELD_WEATHER]
-    if calculate_hit_miss(doubled, atk, defn, weather) == _MOVEOUTCOME_HIT:
-        ps_moves(atk, defn, doubled, weather, False, False, battle_array[side_base(not is_mine)])
+    gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
+    if calculate_hit_miss(doubled, atk, defn, weather, gravity) == _MOVEOUTCOME_HIT:
+        ps_moves(
+            atk, defn, doubled, weather, False, False, battle_array[side_base(not is_mine)], gravity
+        )
         if is_mine:
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = mv[_MOVE_TYPE]
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
@@ -311,7 +315,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
 
 
 @njit
-def _resolve_move_damage(attacker, defender, move, weather, def_side=0):
+def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=False):
     """Figure out how much damage this hit does, independent of applying it.
     def_side is the defender's Field.SIDE_COND"""
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
@@ -319,7 +323,7 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0):
     move_damage = move[_MOVE_DAMAGE]
     if not move_damage:
         crit = calculate_crit(attacker, defender, move, def_side)
-        return calculate_damage(attacker, defender, move, weather, crit, None, def_side)
+        return calculate_damage(attacker, defender, move, weather, crit, None, def_side, gravity)
     if move_damage == _DAMAGESOURCES_LEVEL:
         return attacker[_POK_LEVEL]
     if move_damage == _DAMAGESOURCES_PSYWAVE:
@@ -388,12 +392,12 @@ def _apply_move_damage(attacker, defender, move, damage):
 
 
 @njit
-def _ps_moves_core(attacker, defender, move, weather, def_side=0):
+def _ps_moves_core(attacker, defender, move, weather, def_side=0, gravity=False):
     """
     Checks for damage and for flinch. Also returns the HP the defender actually lost
     """
     damage = endure_damage(
-        defender, _resolve_move_damage(attacker, defender, move, weather, def_side)
+        defender, _resolve_move_damage(attacker, defender, move, weather, def_side, gravity)
     )
     dealt = min(damage, defender[_POK_CURRENT_HP])
     flinch= _apply_move_damage(attacker, defender, move, damage)
@@ -410,7 +414,7 @@ def _recoil(attacker, move, dealt):
 
 
 @njit
-def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=0):
+def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravity=False):
     """Physical or Special multihit moves, where I need to calculate damage and secondary effects"""
     mult_hit_min = move[_MOVE_MULTI_HIT_MIN]
     mult_hit_max = move[_MOVE_MULTI_HIT_MAX]
@@ -426,7 +430,9 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
     for i in range(multhit):
         if i and defender[_POK_CURRENT_HP]<=0:
             break
-        flinch_c, damage, dealt = _ps_moves_core(attacker, defender, move, weather, def_side)
+        flinch_c, damage, dealt = _ps_moves_core(
+            attacker, defender, move, weather, def_side, gravity
+        )
         if flinch_c:
             flinch = True
         dmg += damage
@@ -453,10 +459,10 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
 
 
 @njit
-def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0):
+def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravity=False):
     """Physical or Special moves, where I need to calculate damage and secondary effects.
     def_side is the defender's Field.SIDE_COND"""
-    flinch, damage, dealt = _ps_moves_core(attacker, defender, move, weather, def_side)
+    flinch, damage, dealt = _ps_moves_core(attacker, defender, move, weather, def_side, gravity)
 
     _recoil(attacker, move, dealt)
     if move[_MOVE_DRAIN]:
@@ -557,6 +563,20 @@ def _set_weather(battle_array, weather):
 
 
 @njit
+def _set_gravity(battle_array, atk, defn):
+    """
+    Gravity fails while up, else it lasts 5 turns and brings down a Pokemon in the air (Bounce),
+    whose attack doesn't happen
+    """
+    if battle_array[_FIELD_GRAVITY_TURNS] > 0:
+        return
+    battle_array[_FIELD_GRAVITY_TURNS] = FIELD_EFFECT_TURNS
+    for pok in (atk, defn):
+        if pok[_POK_SEMI_INV_MOVE] in AIRBORNE_MOVES:
+            unlock_move(pok)
+
+
+@njit
 def _clear_side(battle_array, side, conds):
     """Removes these side conditions with their turn counters and Toxic Spikes layers"""
     battle_array[side] &= ~conds
@@ -614,7 +634,8 @@ def _execute_move_slot(
         atk[_POK_CALLED_MOVE] = 0
     elif is_caller and atk[_POK_CALLED_MOVE]:
         mv = _called_move_array(atk, atk[_POK_CALLED_MOVE])
-    if early_returns(atk, defn, slot_num, flinch_in, mv):
+    gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
+    if early_returns(atk, defn, slot_num, flinch_in, mv, gravity):
         # A turn without the move resets Protect's consecutive count and the last move
         atk[_POK_PROTECT_COUNT] = 0
         atk[_POK_LAST_MOVE_ID] = 0
@@ -640,6 +661,10 @@ def _execute_move_slot(
             return False
         atk[_POK_CALLED_MOVE] = called
         mv = _called_move_array(atk, called)
+        # A called move Gravity stops fails like a selected one (Showdown onModifyMove)
+        if gravity and mv[_FLAGS_GRAVITY]:
+            unlock_move(atk)
+            return False
     else:
         battle_array[_FIELD_LAST_MOVE] = outer_id
     is_called = is_caller and atk[_POK_CALLED_MOVE] != 0
@@ -652,12 +677,14 @@ def _execute_move_slot(
             atk[_POK_VOL_STATUS] += _VOLSTATUS_BIDE
         if mv[_MOVE_ID] in SEMI_INVULNERABLE_MOVES:
             atk[_POK_VOL_STATUS] |= _VOLSTATUS_SEMI_INVULNERABLE
+            atk[_POK_SEMI_INV_MOVE] = mv[_MOVE_ID]
         return False
 
     # Reset locked Move
     if mv[_MOVE_CHARGE_RECHARGE] > 0:
         atk[_POK_LOCKED_MOVE] = -1
         atk[_POK_VOL_STATUS] &= ~_VOLSTATUS_SEMI_INVULNERABLE
+        atk[_POK_SEMI_INV_MOVE] = 0
     # The foe fainted (recoil, Explosion...): PP is spent, a move aimed at it fails.
     # TODO: Some moves still go through, like future sight
     if defn[_POK_CURRENT_HP] <= 0 and mv[_MOVE_TARGET] not in NO_FOE_TARGETS:
@@ -680,7 +707,7 @@ def _execute_move_slot(
         perish_song(atk, defn)
         return False
 
-    move_hit = calculate_hit_miss(mv, atk, defn, weather)
+    move_hit = calculate_hit_miss(mv, atk, defn, weather, gravity)
     if move_hit != _MOVEOUTCOME_HIT:
         if not (atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and move_hit in UPROAR_KEEPS_ON):
             unlock_move(atk)
@@ -693,9 +720,11 @@ def _execute_move_slot(
     if mv[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
         _consec_on_hit(atk, mv)
         if mv[_MOVE_MULTI_HIT_MIN]:
-            flinch = ps_moves_multihit(atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side])
+            flinch = ps_moves_multihit(
+                atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity
+            )
         else:
-            flinch = ps_moves(atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side])
+            flinch = ps_moves(atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity)
         _after_hit_field(atk, mv, battle_array, atk_side, def_side)
         if mv[_MOVE_ID] in ROLLOUT_MOVES and atk[_POK_CONSEC_COUNT] >= ROLLOUT_MAX_USES:
             unlock_move(atk)
@@ -742,6 +771,9 @@ def _execute_move_slot(
     if move_weather:
         _set_weather(battle_array, move_weather)
         return False
+    if mv[_MOVE_ID] == _MOVENAME_GRAVITY:
+        _set_gravity(battle_array, atk, defn)
+        return False
     _status_move(atk, defn, mv, is_mine, battle_array, weather)
     calculate_effects(atk, defn, mv, weather, battle_array[def_side])
     return False
@@ -749,9 +781,11 @@ def _execute_move_slot(
 
 @njit
 def _status_move(atk, defn, mv, is_mine, battle_array, weather):
-    """Recover, Synthesis, Refresh, Recycle and Worry Seed"""
+    """Recover, Synthesis, Refresh, Recycle, Worry Seed and Minimize's flag (its boost is data)"""
     move_id = mv[_MOVE_ID]
-    if move_id in HEAL_MOVES:
+    if move_id == _MOVENAME_MINIMIZE:
+        atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_MINIMIZE
+    elif move_id in HEAL_MOVES:
         heal_move(atk, move_id, weather)
     elif move_id == _MOVENAME_REFRESH:
         refresh(atk)
@@ -777,7 +811,7 @@ def _baton_pass(atk, defn, battle_array, is_mine):
     opp_idx = battle_array[_FIELD_OPP_POK]
     i = sub_after_death(
         battle_array[(6 * POK_LEN):(12 * POK_LEN)], defn, atk, battle_array[_FIELD_MY_SIDE_COND],
-        battle_array[_FIELD_WEATHER], opp_idx
+        battle_array[_FIELD_WEATHER], opp_idx, battle_array[_FIELD_GRAVITY_TURNS] > 0
     )
     _switch_opp_side(battle_array, atk, defn, i, True)
 
@@ -955,7 +989,12 @@ def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
     if pok[_POK_CURRENT_HP] <= 0:
         return
     heal_weather(pok, weather)
-    if pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD and weather not in WEATHER_NOT_END_OF_TURN:
+    # Underground (Dig) the Pokemon takes no sandstorm or hail damage
+    if (
+        pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD
+        and weather not in WEATHER_NOT_END_OF_TURN
+        and pok[_POK_SEMI_INV_MOVE] not in UNDERGROUND_MOVES
+    ):
         w_dmg = weather_dmg(pok, weather, pok[_POK_MAX_HP])
         _apply_residual_damage(
             pok, w_dmg, enter_field_flag_idx, battle_array, battle_array[enter_field_flag_idx]
@@ -1081,9 +1120,9 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
 def _count_down_field(battle_array):
     """
     pokeplatinum CheckFieldConditions, before any Pokemon's residual: Reflect, Light Screen, Mist,
-    Safeguard and Lucky Chant of both sides, then the weather. Each one counts the turn it was set
-    in, and a weather that ends does nothing this turn. A weather with no turns left set is
-    permanent. Returns the weather for the rest of the turn
+    Safeguard and Lucky Chant of both sides, then the weather, then Gravity. Each one counts the
+    turn it was set in, and a weather that ends does nothing this turn. A weather with no turns
+    left set is permanent. Returns the weather for the rest of the turn
     """
     if (battle_array[_FIELD_MY_SIDE_COND] | battle_array[_FIELD_OPP_SIDE_COND]) & TIMED_SIDE_MASK:
         for bit, turns in TIMED_SIDE_CONDITIONS:
@@ -1097,6 +1136,8 @@ def _count_down_field(battle_array):
         battle_array[_FIELD_WEATHER_DURATION] -= 1
         if battle_array[_FIELD_WEATHER_DURATION] == 0:
             battle_array[_FIELD_WEATHER] = 0
+    if battle_array[_FIELD_GRAVITY_TURNS] > 0:
+        battle_array[_FIELD_GRAVITY_TURNS] -= 1
     return battle_array[_FIELD_WEATHER]
 
 
@@ -1113,7 +1154,7 @@ def _replace_fainted_opp(battle_array, current_pokemon, current_opp):
             break
         i = sub_after_death(
             opp_pty, current_pokemon, current_opp, battle_array[_FIELD_MY_SIDE_COND],
-            battle_array[_FIELD_WEATHER]
+            battle_array[_FIELD_WEATHER], gravity=battle_array[_FIELD_GRAVITY_TURNS] > 0
         )
         battle_array[_FIELD_OPP_POK] = i
         battle_array[_FIELD_MY_LAST_MOVE] = 0
@@ -1257,7 +1298,7 @@ def switch_in_action(battle_array, switch_idx: int):
     if current_opp[_POK_CURRENT_HP] <= 0:
         i = sub_after_death(
             opp_pty, current_pokemon, current_opp, battle_array[_FIELD_MY_SIDE_COND],
-            battle_array[_FIELD_WEATHER]
+            battle_array[_FIELD_WEATHER], gravity=battle_array[_FIELD_GRAVITY_TURNS] > 0
         )
         opp_switch = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
         my_switch = my_pty[

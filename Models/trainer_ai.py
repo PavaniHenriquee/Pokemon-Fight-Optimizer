@@ -1,7 +1,7 @@
 """Gives the class for the trainer Ai to be what the game would do"""
 import random
 import numpy as np
-from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
+from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage, gravity_types
 from Engine.engine_helper import move_blocked
 from Engine.status_calc import last_move_slot
 from Utils.jit import njit
@@ -19,6 +19,7 @@ from Models.constants import (
     _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD, _POK_STATUS,
     _STATUS_SLEEP, _ABILITYNAMES_NATURAL_CURE, _POK_MAX_HP, _POK_ATTACK_STAT_STAGE,
     _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
+    _FIELD_GRAVITY_TURNS,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1,
     _FIELD_AI_ITEM4, _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
     _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE,
@@ -54,11 +55,14 @@ MOVE_EXCEP = (
 
 
 @njit
-def sub_after_death(ai_party, user_pok, deadmon, user_side=0, weather=0, exclude=-1):
+def sub_after_death(
+        ai_party, user_pok, deadmon, user_side=0, weather=0, exclude=-1, gravity=False
+):
     """
     Implements the switch-in logic. user_side is user_pok's Field.SIDE_COND, its screens and the
     weather count in the damage (pokeplatinum BattleAI_PostKOSwitchIn). exclude is a slot that
-    can't be picked, the active that's still in after Baton Pass
+    can't be picked, the active that's still in after Baton Pass. gravity counts in the move
+    checks and the damage, not in the type-vs-type score
 
     Phase 1:
     --------
@@ -98,7 +102,8 @@ def sub_after_death(ai_party, user_pok, deadmon, user_side=0, weather=0, exclude
             mv_type = mv[_MOVE_TYPE]
             if mv_type == 0:
                 break
-            eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
+            t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
+            eff, den = get_type_effectiveness(mv_type, t1, t2)
             if eff // den >= 2:
                 phase1_indices.append(idx)
                 break
@@ -142,7 +147,7 @@ def sub_after_death(ai_party, user_pok, deadmon, user_side=0, weather=0, exclude
                 break
             if mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
                 continue
-            raw_dmg = calculate_damage(deadmon, user_pok, mv, weather, False, 1, user_side)
+            raw_dmg = calculate_damage(deadmon, user_pok, mv, weather, False, 1, user_side, gravity)
             #overflow bug:
             dmg = raw_dmg - 255 if raw_dmg > 255 else raw_dmg
             dmg = min(dmg, user_hp)
@@ -155,12 +160,14 @@ def sub_after_death(ai_party, user_pok, deadmon, user_side=0, weather=0, exclude
 
 
 @njit
-def ai_move_damage(move, effectiveness, ai_pok, user_pok, weather, user_side):
+def ai_move_damage(move, effectiveness, ai_pok, user_pok, weather, user_side, gravity=False):
     """Damage the AI sees for a damaging move (pokeplatinum TrainerAI_CalcDamage)"""
     if move[_MOVE_ID] == _MOVENAME_MAGNITUDE:
         return 0
     if not move[_MOVE_DAMAGE]:
-        return calculate_ai_logic_damage(effectiveness, ai_pok, user_pok, move, weather, user_side)
+        return calculate_ai_logic_damage(
+            effectiveness, ai_pok, user_pok, move, weather, user_side, gravity
+        )
     if move[_MOVE_DAMAGE] == _DAMAGESOURCES_LEVEL:
         return ai_pok[_POK_LEVEL] if effectiveness != 0 else 0
     if move[_MOVE_DAMAGE] == _DAMAGESOURCES_PSYWAVE:
@@ -172,7 +179,7 @@ def ai_move_damage(move, effectiveness, ai_pok, user_pok, weather, user_side):
 
 
 @njit
-def copycat_beats(ai_pok, user_pok, weather, user_side):
+def copycat_beats(ai_pok, user_pok, weather, user_side, gravity=False):
     """
     pokeplatinum IfBattlerDealsMoreDamage for Expert_Copycat: the target's last move, used by the
     target on itself, does more than every damaging move of the AI
@@ -184,15 +191,15 @@ def copycat_beats(ai_pok, user_pok, weather, user_side):
     if last[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
         return False
     view = ai_move_view(last, user_pok, user_pok, weather)
-    eff, _ = trainer_ai_effectiveness(view, user_pok, user_pok)
-    copied = ai_move_damage(view, eff, user_pok, user_pok, weather, user_side)
+    eff, _ = trainer_ai_effectiveness(view, user_pok, user_pok, gravity)
+    copied = ai_move_damage(view, eff, user_pok, user_pok, weather, user_side, gravity)
     for i in range(4):
         mv = ai_pok[_POK_MOVE1_ID + i * MOVE_STRIDE:_POK_MOVE1_ID + (i + 1) * MOVE_STRIDE]
         if mv[_MOVE_ID] == 0 or mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
             continue
         view = ai_move_view(mv, ai_pok, user_pok, weather)
-        eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok)
-        if ai_move_damage(view, eff, ai_pok, user_pok, weather, user_side) >= copied:
+        eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok, gravity)
+        if ai_move_damage(view, eff, ai_pok, user_pok, weather, user_side, gravity) >= copied:
             return False
     return True
 
@@ -247,6 +254,7 @@ def choose_move(battle_array):
     ]
     turn = battle_array[_FIELD_TURN]
     weather = battle_array[_FIELD_WEATHER]
+    gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
     ai_know = battle_array[_FIELD_AI_KNOWS]
     my_last_move = battle_array[_FIELD_MY_LAST_MOVE]
     took_dmg = battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN]
@@ -272,7 +280,7 @@ def choose_move(battle_array):
         and ai_pok[_POK_VOL_STATUS] & _VOLSTATUS_PERISH_SONG
         and ai_pok[_POK_PERISH_TURNS] == 0
     ):
-        sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active)
+        sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active, gravity)
         _evaluated_moves[0] = [sub-6,0,0,False]
         return _evaluated_moves
     # Withdraw 5 - The active Pokémon is asleep and has the ability Natural Cure. Like every
@@ -285,23 +293,23 @@ def choose_move(battle_array):
         and ai_pok[_POK_CURRENT_HP]/ai_pok[_POK_MAX_HP] >= 0.50
     ):
         if not took_dmg and random.getrandbits(1):
-            sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active)
+            sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active, gravity)
             if sub == opp_active:
                 pass
             else:
                 _evaluated_moves[0] = [sub-6,0,0,False]
                 return _evaluated_moves
         if took_dmg:
-            im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active)
+            im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active, gravity)
             if im.size > 0:
                 _evaluated_moves[0] = [im[0]-6,0,0,False]
                 return _evaluated_moves
-            res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active)
+            res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active, gravity)
             if res.size > 0:
                 _evaluated_moves[0] = [res[0]-6,0,0,False]
                 return _evaluated_moves
             if random.getrandbits(1):
-                sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active)
+                sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active, gravity)
                 _evaluated_moves[0] = [sub-6,0,0,False]
                 return _evaluated_moves
 
@@ -335,20 +343,22 @@ def choose_move(battle_array):
 
         # Disable, Encore and Taunt make the move invalid, scored like a move without PP. Its
         # damage still counts as the one to beat (pokeplatinum TrainerAI_CalcAllDamage)
-        if move[_MOVE_PP] < 1 or move_blocked(ai_pok, i):
+        if move[_MOVE_PP] < 1 or move_blocked(ai_pok, i, gravity):
             if is_damaging:
                 view = ai_move_view(move, ai_pok, user_pok, weather)
-                eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok)
-                dmg = ai_move_damage(view, eff, ai_pok, user_pok, weather, user_side)
+                eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok, gravity)
+                dmg = ai_move_damage(view, eff, ai_pok, user_pok, weather, user_side, gravity)
                 if dmg > max_damage:
                     max_damage = dmg
             continue
         move = ai_move_view(move, ai_pok, user_pok, weather)
 
-        effectiveness, s_e_check = trainer_ai_effectiveness(move, ai_pok, user_pok)
+        effectiveness, s_e_check = trainer_ai_effectiveness(move, ai_pok, user_pok, gravity)
 
         if not move_is_status:
-            final_damage = ai_move_damage(move, effectiveness, ai_pok, user_pok, weather, user_side)
+            final_damage = ai_move_damage(
+                move, effectiveness, ai_pok, user_pok, weather, user_side, gravity
+            )
             not_status_counter +=1
             if s_e_check:
                 s_e = True
@@ -363,13 +373,13 @@ def choose_move(battle_array):
         )
         score = eval_atk + basic_flag(
             move, ability, ai_pok, user_pok, effectiveness, weather, ai_side, user_side,
-            user_tspikes, user_bench, ai_bench, ai_know, turn
+            user_tspikes, user_bench, ai_bench, ai_know, turn, gravity
         )
 
         expert = expert_flag(
             ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg,
             ai_know, user_side,
-            move_id == _MOVENAME_COPYCAT and copycat_beats(ai_pok, user_pok, weather, user_side)
+            move_id == _MOVENAME_COPYCAT and copycat_beats(ai_pok, user_pok, weather, user_side, gravity)
         )
         score += expert
 
@@ -384,7 +394,7 @@ def choose_move(battle_array):
     # Withdraw 2 - The active Pokémon is facing a foe with Wonder Guard and cannot hit it supereffectively
     cand = None
     if can_switch and ab == _ABILITYNAMES_WONDER_GUARD and not s_e:
-        cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active)
+        cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active, gravity)
         if cand.size > 0:
             for i in cand:
                 if random.random() < 0.66666:
@@ -395,14 +405,14 @@ def choose_move(battle_array):
     # Withdraw 3 - More than 2 damaging moves and All of them do not affect the target
     if can_switch and not_status_counter>1 and not can_hit:
         if cand is None:
-            cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active)
+            cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active, gravity)
         if cand.size> 0:
             for i in cand:
                 if random.random() < 0.888:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [i-6,0,0,False]
                     return _evaluated_moves
-        cand_normal = check_any_damaging_move_pty(ai_pty, user_pok, opp_active)
+        cand_normal = check_any_damaging_move_pty(ai_pty, user_pok, opp_active, gravity)
         if cand_normal.size > 0:
             for i in cand_normal:
                 if random.random() < 0.75:
@@ -436,14 +446,14 @@ def choose_move(battle_array):
         if can_switch and took_dmg:
             # 6. A party member is immune to the previous attack and can hit the foe supereffectively
             if random.getrandbits(1):
-                im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active)
+                im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active, gravity)
                 if im.size > 0:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [im[0]-6,0,0,False]
                     return _evaluated_moves
             # 7. A party member resists the previous attack and can hit the foe supereffectively
             if random.random() < 0.3333:
-                res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active)
+                res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active, gravity)
                 if res.size > 0:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [res[0]-6,0,0,False]

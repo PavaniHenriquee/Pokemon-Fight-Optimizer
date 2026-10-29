@@ -6,7 +6,8 @@ from Utils.helper import get_type_effectiveness
 from Engine.speed import check_speed
 from Engine.status_calc import  freeze, paralysis, synchronize_reflect, sleep_blocked, SLOT_MASK
 from Engine.damage_calc import (
-    calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage
+    calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
+    AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND
 )
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, STEEL_POISON, Target
@@ -28,7 +29,8 @@ from Models.constants import (
     _POK_TYPE1, _POK_TYPE2, _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _POK_ATTACK_STAT_STAGE,
     _POK_VOL_STATUS, _POK_BADLY_POISON, _POK_TURNS, _POK_MAX_HP, _POK_SLEEP_COUNTER, _POK_CURRENT_HP,
     _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_CHANCE, _POK_TURNS_ACTIVE,
-    _SEC_CHANCE2, _MOVE_IGNORE_IMMUNITY,
+    _SEC_CHANCE2, _MOVE_IGNORE_IMMUNITY, _POK_SEMI_INV_MOVE, _POK_VOL_STATUS2, _FLAGS_GRAVITY,
+    _FIELD_GRAVITY_TURNS,
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _FIELD_TURN, _STATUS_TOXIC, _STATUS_POISON,
     _STATUS_SLEEP, _STATUS_FREEZE, _VOLSTATUS_CONFUSION, _POTIONS_FULL_HEAL,
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
@@ -40,7 +42,7 @@ from Models.constants import (
     _ITEM_ITEM_TYPE, _POK_CONFUSION_COUNTER, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE,
     _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN,
     _MOVEOUTCOME_SEMI_INVULNERABLE, _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN,
-    _POK_CONSEC_COUNT, _MOVENAME_GUST, _ABILITYNAMES_GUTS, _ABILITYNAMES_HUGE_POWER, _MOVE_RECOIL,
+    _POK_CONSEC_COUNT, _ABILITYNAMES_GUTS, _ABILITYNAMES_HUGE_POWER, _MOVE_RECOIL,
     _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _POK_CONSUMED_ITEM, _MOVE_POWER,
     _MOVEOUTCOME_PROTECTED, _VOLSTATUS_PROTECT, _VOLSTATUS_ENDURE, _VOLSTATUS_FORESIGHT,
     _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_ATTRACT, _FLAGS_PROTECT, _POK_PROTECT_COUNT,
@@ -66,7 +68,9 @@ DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 ITEM_50HP = (_ITEMNAMES_ORAN_BERRY, _ITEMNAMES_SITRUS_BERRY)
 RECORD_DAMAGE = (_DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT)
-HITS_SEMI_INVULNERABLE = (_MOVENAME_GUST,)
+# Gravity's accuracy boost, x5/3 as 6840/4096
+GRAVITY_ACC_NUM = 6840
+GRAVITY_ACC_DEN = 4096
 SIDE_OR_FIELD_TARGETS = (Target.ALL, Target.FOE_SIDE, Target.ALLY_TEAM)
 PROTECT_COUNT_MAX = 3  # Success chance 1, 1/2, 1/4, then 1/8 from here on
 # Stealth Rock takes max HP * Rock effectiveness / STEALTH_ROCK_DIV, 1/8 when neutral
@@ -118,11 +122,17 @@ def unlock_move(pok):
     pok[_POK_LOCKED_MOVE] = -1
     pok[_POK_CONSEC_COUNT] = 0
     pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_SEMI_INVULNERABLE
+    pok[_POK_SEMI_INV_MOVE] = 0
 
 
 @njit
-def move_blocked(pok, slot):
-    """Disable, Encore or Taunt keep this move slot from being selected (PP is checked apart)"""
+def move_blocked(pok, slot, gravity=False):
+    """
+    Disable, Encore or Taunt keep this move slot from being selected, and so does Gravity for
+    its moves (PP is checked apart)
+    """
+    if gravity and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _FLAGS_GRAVITY]:
+        return True
     vol = pok[_POK_VOL_STATUS]
     if vol & _VOLSTATUS_DISABLE and slot == pok[_POK_DISABLE_TURNS] & SLOT_MASK:
         return True
@@ -353,14 +363,21 @@ def ab_on_try_move(move, attacker, defender, accuracy:int, weather):
 
 
 @njit
-def calculate_hit_miss(move, attacker, defender, weather):
+def semi_inv_reaches(move_id, defender):
+    """Gust reaches a Pokemon in the air (Bounce), Earthquake and Magnitude one underground (Dig)"""
+    if defender[_POK_SEMI_INV_MOVE] in AIRBORNE_MOVES:
+        return move_id in HITS_AIRBORNE
+    return move_id in HITS_UNDERGROUND
+
+
+@njit
+def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
     '''Returns a boolean if the move passed the accuracy check'''
-    # TODO: Semi invulnerable states, like Fly, dig etc.
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT and move[_FLAGS_PROTECT]:
         return _MOVEOUTCOME_PROTECTED
     if (
         defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE
-        and move[_MOVE_ID] not in HITS_SEMI_INVULNERABLE
+        and not semi_inv_reaches(move[_MOVE_ID], defender)
         and move[_MOVE_ID] != _MOVENAME_BIDE
         and not move[_MOVE_OH_KO]
         and move[_MOVE_TARGET] not in TARGET_SELF_SIDE
@@ -381,7 +398,7 @@ def calculate_hit_miss(move, attacker, defender, weather):
         move_acc = -1
 
     if move[_MOVE_TARGET] not in TARGET_SELF_SIDE and not move[_MOVE_IGNORE_IMMUNITY]:
-        def_t1, def_t2 = matchup_types(move[_MOVE_TYPE], defender)
+        def_t1, def_t2 = matchup_types(move[_MOVE_TYPE], defender, gravity)
         eff, _ = get_type_effectiveness(move[_MOVE_TYPE], def_t1, def_t2)
         if eff == 0:
             return _MOVEOUTCOME_INVULNERABLE
@@ -403,6 +420,8 @@ def calculate_hit_miss(move, attacker, defender, weather):
         accuracy = move_acc*(3)/(3-acc_stage)
     else:
         accuracy = move_acc*(acc_stage+3)/3
+    if gravity and not move[_MOVE_OH_KO]:
+        accuracy = accuracy * GRAVITY_ACC_NUM / GRAVITY_ACC_DEN
 
     if accuracy == 100 or random.randint(1,100) <= accuracy:
         return _MOVEOUTCOME_HIT
@@ -466,6 +485,8 @@ def reset_switch_out(pok):
     pok[_POK_PERISH_TURNS] = 0
     pok[_POK_CALLED_MOVE] = 0
     pok[_POK_MIRROR_MOVE] = 0
+    pok[_POK_SEMI_INV_MOVE] = 0
+    pok[_POK_VOL_STATUS2] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
     if pok[_POK_BASE_AB_ID]:
         pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[pok[_POK_BASE_AB_ID]]
@@ -479,8 +500,10 @@ def side_base(is_mine):
 
 
 @njit
-def is_grounded(pok):
-    """Spikes and Toxic Spikes only reach a grounded Pokemon. TODO: Magnet Rise, Gravity, Iron Ball"""
+def is_grounded(pok, gravity=False):
+    """Spikes and Toxic Spikes only reach a grounded Pokemon. TODO: Magnet Rise, Iron Ball"""
+    if gravity:
+        return True
     return not (
         pok[_POK_TYPE1] == _TYPES_FLYING
         or pok[_POK_TYPE2] == _TYPES_FLYING
@@ -532,7 +555,7 @@ def apply_hazards(pok, battle_array, side):
     cond = battle_array[side]
     if cond == 0 or pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
         return
-    if cond & _SIDECONDITION_TOXIC_SPIKES and is_grounded(pok):
+    if cond & _SIDECONDITION_TOXIC_SPIKES and is_grounded(pok, battle_array[_FIELD_GRAVITY_TURNS] > 0):
         _toxic_spikes(pok, battle_array, side, battle_array[_FIELD_WEATHER])
     if cond & _SIDECONDITION_STEALTH_ROCK:
         dmg = stealth_rock_damage(pok)
@@ -642,7 +665,7 @@ def _tick_charge_if_blocked(attacker):
 
 
 @njit
-def early_returns(attacker, defender, idx: int, flinch: bool, move):
+def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=False):
     """Early returns to see if an attack goes through or not"""
     """
     Priorities, highest go first:
@@ -651,6 +674,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
     Freeze:    10
     Flinch:    8
     Disable:   7
+    Gravity:   6
     Taunt:     5
     Confusion: 3
     Attract:   2
@@ -697,6 +721,10 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move):
             OFFSET_MOVE + (attacker[_POK_DISABLE_TURNS] & SLOT_MASK) * MOVE_STRIDE + _MOVE_ID
         ]
     ):
+        unlock_move(attacker)
+        return True
+    # Gravity, a move it stops picked before it was set fails (Showdown onBeforeMovePriority 6)
+    if gravity and move[_FLAGS_GRAVITY]:
         unlock_move(attacker)
         return True
     if attacker[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT and move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:

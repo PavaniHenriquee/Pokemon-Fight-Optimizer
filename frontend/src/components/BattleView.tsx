@@ -832,6 +832,14 @@ export default function BattleView({
               {snapshot.field.weather_turns > 0 ? ` ${snapshot.field.weather_turns}` : ""}
             </span>
           )}
+          {!!snapshot.field?.gravity_turns && (
+            <span
+              className="badge field-badge"
+              title={`${snapshot.field.gravity_turns} turn(s) left`}
+            >
+              Gravity {snapshot.field.gravity_turns}
+            </span>
+          )}
           <span
             style={{
               color: "rgba(120,128,160,0.3)",

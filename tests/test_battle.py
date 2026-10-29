@@ -8,7 +8,8 @@ from Models.idx_const import (
     SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, FIELD_LEN,
 )
 from Models.helper import (
-    ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, Types, SideCondition, Weather,
+    ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, VolStatus2, Types, SideCondition,
+    Weather,
     Enemy_AI_Knows,
 )
 from Models.idx_const import Item
@@ -1513,3 +1514,102 @@ def test_called_hidden_power_uses_the_users_ivs():
     mv = battle._called_move_array(arr, MoveName.HIDDEN_POWER)
     assert mv[Move.TYPE] == hp_type and mv[Move.POWER] == hp_power
     assert battle._called_move_array(arr, MoveName.TACKLE)[Move.TYPE] == Types.NORMAL
+
+
+# ── Dig, Gravity, Minimize ───────────────────────────────────────────────────
+
+def test_dig_goes_underground_then_lands(make_pokemon, make_battle):
+    """Turn 1: underground, the foe's Tackle misses. Turn 2: attacks and comes back up"""
+    arr = make_battle([make_pokemon("Diglett", 50, "Sand Veil", ["Dig"])],
+                      [make_pokemon("Rattata", 5, "Run Away", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert me[Pok.SEMI_INV_MOVE] == MoveName.DIG
+    assert me[Pok.CURRENT_HP] == hp and foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.SEMI_INV_MOVE] == 0 and not me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+
+
+def test_earthquake_hits_digging_pokemon(make_pokemon, make_battle):
+    """The slower foe's Earthquake reaches my Diglett underground"""
+    arr = make_battle([make_pokemon("Diglett", 50, "Sand Veil", ["Dig"])],
+                      [make_pokemon("Geodude", 5, "Sturdy", ["Earthquake"])])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.SEMI_INV_MOVE] == MoveName.DIG
+    assert me[Pok.CURRENT_HP] < me[Pok.MAX_HP]
+
+
+def test_no_sandstorm_damage_underground(make_pokemon, make_battle):
+    """A Pokemon underground skips the sandstorm damage at the end of the turn"""
+    arr = make_battle([make_pokemon("Rattata", 50, "Run Away", ["Dig"])],
+                      [make_pokemon("Geodude", 5, "Sturdy", ["Harden"])])
+    arr[Field.WEATHER] = Weather.SANDSTORM
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.SEMI_INV_MOVE] == MoveName.DIG
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] < me[Pok.MAX_HP]
+
+
+def test_metronome_into_dig_is_underground(monkeypatch, make_pokemon, make_battle):
+    """A called Dig records Dig as the semi-invulnerable move, not Metronome"""
+    _force_metronome(monkeypatch, MoveName.DIG)
+    arr = make_battle([make_pokemon("Munchlax", 20, "Thick Fat", ["Metronome"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"])])
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.SEMI_INV_MOVE] == MoveName.DIG
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.SEMI_INV_MOVE] == 0 and foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+
+
+def test_gravity_lasts_five_turns_and_fails_while_up(make_pokemon, make_battle):
+    """Gravity counts the turn it was set in, a second Gravity doesn't reset the count"""
+    arr = make_battle([make_pokemon("Abra", 20, "Synchronize", ["Gravity"])],
+                      [make_pokemon("Geodude", 20, "Sturdy", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.GRAVITY_TURNS] == 4
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.GRAVITY_TURNS] == 3
+    for _ in range(3):
+        end_of_turn(arr)
+    assert arr[Field.GRAVITY_TURNS] == 0
+
+
+def test_gravity_brings_down_a_bouncing_pokemon(make_pokemon, make_battle):
+    """Gravity cancels Bounce in the air, and Bounce can't start again under it"""
+    arr = make_battle([make_pokemon("Pidgey", 50, "Keen Eye", ["Bounce"])],
+                      [make_pokemon("Abra", 5, "Synchronize", ["Gravity"])])
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.GRAVITY_TURNS] > 0
+    assert not me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert me[Pok.SEMI_INV_MOVE] == 0 and me[Pok.LOCKED_MOVE] == -1
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    assert me[Pok.SEMI_INV_MOVE] == 0
+
+
+def test_minimize_sets_flag_and_one_evasion_stage(make_pokemon, make_battle):
+    """Gen IV Minimize raises evasion by 1 and marks the user as minimized"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Minimize"])],
+                      [make_pokemon("Geodude", 5, "Sturdy", ["Harden"])])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.EVASION_STAT_STAGE] == 1
+    assert me[Pok.VOL_STATUS2] & VolStatus2.MINIMIZE
+
+
+def test_baton_pass_keeps_evasion_not_minimize(make_pokemon):
+    """Baton Pass hands over the evasion boost, the minimized flag stays behind"""
+    old = make_pokemon("Rattata", 20, "Run Away", ["Tackle"]).to_np()
+    new = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"]).to_np()
+    old[Pok.EVASION_STAT_STAGE] = 1
+    old[Pok.VOL_STATUS2] = VolStatus2.MINIMIZE
+    battle._pass_baton(old, new)
+    assert new[Pok.EVASION_STAT_STAGE] == 1 and new[Pok.VOL_STATUS2] == 0

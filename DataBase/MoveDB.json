@@ -662,6 +662,7 @@
   "Dig": {
     "accuracy": 100,
     "category": "Physical",
+    "charge": 1,
     "flags": {
       "charge": true,
       "contact": true,
@@ -1293,6 +1294,18 @@
     "target": "normal",
     "type": "Grass"
   },
+  "Gravity": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "non_sky": true
+    },
+    "name": "gravity",
+    "pp": 5,
+    "target": "all",
+    "type": "Psychic"
+  },
   "Growl": {
     "accuracy": 100,
     "boost_atk": -1,
@@ -1851,6 +1864,19 @@
     },
     "name": "metronome",
     "pp": 10,
+    "target": "self",
+    "type": "Normal"
+  },
+  "Minimize": {
+    "accuracy": true,
+    "boost_ev": 1,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "minimize",
+    "pp": 20,
     "target": "self",
     "type": "Normal"
   },

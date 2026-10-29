@@ -11,13 +11,14 @@ from Models.constants import (
     _POK_SPEED, _MOVE_TYPE, _ACTIONTYPE_MOVE, _MOVECATEGORY_STATUS, _MOVE_CATEGORY,
     _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE, _FIELD_TURN, _FIELD_PHASE,
     _BATTLEPHASE_TURN_START, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _MOVE_ID,
-    _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_TOXIC_SPIKES
+    _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_TOXIC_SPIKES, _FIELD_GRAVITY_TURNS,
+    _MOVENAME_GRAVITY
 )
 from Models.helper import count_party, count_Id
 from Models.trainer_ai_helper import check_immunity_pty, check_resistance_pty
 from Models.trainer_ai import return_idx
 from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
-from Engine.damage_calc import calculate_damage
+from Engine.damage_calc import calculate_damage, gravity_types
 from Engine.engine_helper import calculate_crit, struggle
 from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
 
@@ -110,7 +111,9 @@ def _weighted_choice(act_types, act_idxs, weights, n):
 @njit
 def field_move_fails(move, battle_array):
     """My side or weather move that would do nothing: already up, Toxic Spikes at max layers,
-    or the same weather"""
+    the same weather, or Gravity already up"""
+    if move[_MOVE_ID] == _MOVENAME_GRAVITY:
+        return battle_array[_FIELD_GRAVITY_TURNS] > 0
     cond = move[_MOVE_SIDE_CONDITION]
     if cond:
         side = _FIELD_OPP_SIDE_COND if move[_MOVE_TARGET] == FOE_SIDE_TARGET else _FIELD_MY_SIDE_COND
@@ -144,6 +147,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
     weather = battle_array[_FIELD_WEATHER]
     my_side = battle_array[_FIELD_MY_SIDE_COND]
     opp_side = battle_array[_FIELD_OPP_SIDE_COND]
+    gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
     imnty = IMNTY.copy()
     res = RES.copy()
     # Arbitrary number to accommodate when i died and need to switch, so AI don't have an action
@@ -154,11 +158,11 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
         o_move = o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE]
         o_dmg = calculate_damage(
             o_pok, c_pok, o_move, weather, calculate_crit(o_pok, c_pok, o_move, my_side), None,
-            my_side
+            my_side, gravity
         )
         o_mv_type = o_move[_MOVE_TYPE]
-        imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx)
-        res   = check_resistance_pty(my_pty, o_pok, o_mv_type, my_idx)
+        imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx, gravity)
+        res   = check_resistance_pty(my_pty, o_pok, o_mv_type, my_idx, gravity)
     elif opp_choice < 0:  # Switch or potion
         o_dmg = 0
     else:
@@ -191,7 +195,8 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
             else:
                 # Cheap type effectiveness first — no damage calc
                 move_type = move[_MOVE_TYPE]
-                eff, den = get_type_effectiveness(move_type, o_pok[_POK_TYPE1], o_pok[_POK_TYPE2])
+                o_t1, o_t2 = gravity_types(move_type, o_pok[_POK_TYPE1], o_pok[_POK_TYPE2], gravity)
+                eff, den = get_type_effectiveness(move_type, o_t1, o_t2)
                 eff_ratio = eff // den
 
                 if eff_ratio == 0:
@@ -209,7 +214,9 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                     )
 
                     if likely_strong:
-                        dmg = calculate_damage(c_pok, o_pok, move, weather, False, None, opp_side)
+                        dmg = calculate_damage(
+                            c_pok, o_pok, move, weather, False, None, opp_side, gravity
+                        )
                         if dmg >= o_pok[_POK_CURRENT_HP] and (faster or can_survive):
                             weight = 100  # KO when safe to do so
                         elif eff_ratio == 4:

@@ -3,7 +3,7 @@ Automatically build constants for use with Numba
 """
 from Models.idx_const import Pok, Move, Flags, Sec, Field, Item
 from Models.helper import (
-    MoveCategory, Types, Weather, AbilityActivation, Status, VolStatus, Gender,
+    MoveCategory, Types, Weather, AbilityActivation, Status, VolStatus, VolStatus2, Gender,
     Enemy_AI_Knows, Potions, MoveOutcome, ActionType, BattlePhase, ItemActivation,
     ItemType, DamageSources, SideCondition, Terrain
 )
@@ -22,7 +22,7 @@ def build_constants_file():
 
         for _cls in (
             Pok, Move, Flags, Sec, Field, Item, MoveCategory, AbilityNames,
-            Types, Weather, AbilityActivation, Status, MoveName, VolStatus,
+            Types, Weather, AbilityActivation, Status, MoveName, VolStatus, VolStatus2,
             Gender, Enemy_AI_Knows, Potions, MoveOutcome, ActionType,
             BattlePhase, ItemActivation, ItemType, ItemNames,
 

@@ -165,7 +165,7 @@
 [X]Dragon Breath *
 [X]Dragon Rage !
 [X]Draining Kiss *
-[]Earthquake !(Dig interaction)
+[X]Earthquake !(Dig interaction)
 [X]Ember
 [X]Encore(B/E) ! *
 [X]Endure(E) ! *
@@ -279,9 +279,9 @@
 [X]Smog *
 [X]Smokescreen *
 [X]Spark
-[]Splash !(Gravity interaction)
+[X]Splash !(Gravity interaction)
 [X]Stealth Rock(B/E) !! (Hazards/What happens if either mine or opponent switches and instantly dies)
-[]Stomp !(Minimize interaction)
+[X]Stomp !(Minimize interaction)
 [X]String Shot
 [X]Struggle !(Already done, but should check it 100%)
 [X]Stun Spore *
@@ -334,7 +334,7 @@
 []Crush Grip(E)
 []Defog(B/E)
 []Detect(E)
-[]Dig ! *
+[X]Dig ! *
 [X]Disable(B/E)
 []Doom Desire(B)
 []Dragon Dance(B/E) *
@@ -348,7 +348,7 @@
 []Focus Punch(E) ! *
 []Future Sight(B) ! *
 []Gastro Acid(B/E)
-[]Gravity(B/E)
+[X]Gravity(B/E)
 [X]Gyro Ball ! *
 []Guard Swap(B/E)
 []Hail(E)
@@ -370,6 +370,7 @@
 []Metal Burst(B/E)
 []Me First(E)
 []Mind Reader(E)
+[X]Minimize
 []Miracle Eye(B/E)
 []Nightmare(B/E) ! *
 []Pain Split(E)

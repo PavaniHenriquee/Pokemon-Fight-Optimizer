@@ -10,6 +10,7 @@ from Engine.engine_helper import (
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
+    is_grounded,
 )
 from Models.ability import ABILITY_TABLE
 from Models.item import ITEM_TABLE
@@ -21,7 +22,9 @@ from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN
 from Models.helper import Terrain
 from DataBase.MoveDB import MoveName
 from Models.idx_const import Pok, Move, Item, Sec, Field, SIDE_TOXIC_SPIKES, FIELD_LEN
-from Models.helper import Status, Weather, VolStatus, Potions, MoveOutcome, Types, SideCondition
+from Models.helper import (
+    Status, Weather, VolStatus, VolStatus2, Potions, MoveOutcome, Types, SideCondition,
+)
 from DataBase.ItemDB import ItemNames
 from battle_driver import move_slice
 
@@ -490,6 +493,7 @@ def test_airborne_target_dodges_all_but_gust(poke):
     a = poke("Pidgey", 50, "Keen Eye", ["Tackle", "Gust", "Growl", "Harden"])
     d = poke("Rattata", 50, "Run Away", ["Tackle"])
     d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = MoveName.BOUNCE
     assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.SEMI_INVULNERABLE
     assert calculate_hit_miss(move_slice(a, 1), a, d, 0) == MoveOutcome.HIT
     assert calculate_hit_miss(move_slice(a, 2), a, d, 0) == MoveOutcome.SEMI_INVULNERABLE
@@ -1164,3 +1168,77 @@ def test_blizzard_cant_miss_in_hail(monkeypatch, poke, weather, outcome):
     a = poke("Rattata", 20, "Run Away", ["Blizzard"])
     d = poke("Machop", 20, "Guts", ["Tackle"])
     assert calculate_hit_miss(move_slice(a, 0), a, d, weather) == outcome
+
+
+# ── Dig, Gravity, Minimize ───────────────────────────────────────────────────
+
+def test_underground_target_only_hit_by_earthquake_and_magnitude(poke):
+    """Dig's underground turn: Earthquake and Magnitude hit, Gust and aimed moves miss"""
+    a = poke("Geodude", 50, "Sturdy", ["Tackle", "Gust", "Earthquake", "Magnitude"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = MoveName.DIG
+    outcomes = [calculate_hit_miss(move_slice(a, i), a, d, 0) for i in range(4)]
+    assert outcomes == [MoveOutcome.SEMI_INVULNERABLE, MoveOutcome.SEMI_INVULNERABLE,
+                        MoveOutcome.HIT, MoveOutcome.HIT]
+
+
+def test_airborne_target_dodges_earthquake(poke):
+    """Bounce's airborne turn isn't reached by Earthquake"""
+    a = poke("Geodude", 50, "Sturdy", ["Earthquake"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = MoveName.BOUNCE
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.SEMI_INVULNERABLE
+
+
+def test_gravity_boosts_accuracy(monkeypatch, poke):
+    """Gravity multiplies accuracy by 5/3, so a 60% move rolled at 99 hits only under Gravity"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda a, b: 99)
+    a = poke("Abra", 20, "Synchronize", ["Hypnosis"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.MISS
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0, True) == MoveOutcome.HIT
+
+
+def test_gravity_lets_ground_moves_hit_flying(poke):
+    """Under Gravity a Flying type isn't immune to Ground moves"""
+    a = poke("Geodude", 20, "Sturdy", ["Earthquake"])
+    d = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.INVULNERABLE
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0, True) == MoveOutcome.HIT
+
+
+def test_gravity_blocks_its_moves(poke):
+    """Splash and Bounce can't be selected under Gravity and fail if picked before it"""
+    p = poke("Pidgey", 20, "Keen Eye", ["Splash", "Bounce", "Tackle"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert [move_blocked(p, i) for i in range(3)] == [False] * 3
+    assert [move_blocked(p, i, True) for i in range(3)] == [True, True, False]
+    assert early_returns(p, d, 1, False, move_slice(p, 1), True)
+    assert not early_returns(p, d, 1, False, move_slice(p, 2), True)
+
+
+def test_gravity_grounds_everyone(poke):
+    """Flying types and Levitate are grounded under Gravity (Toxic Spikes reach them)"""
+    pidgey = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    assert not is_grounded(pidgey)
+    assert is_grounded(pidgey, True)
+
+
+def test_reset_switch_out_clears_semi_inv_and_minimize(poke):
+    """Switching out ends Dig's state and the minimized flag"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle"])
+    p[Pok.SEMI_INV_MOVE] = MoveName.DIG
+    p[Pok.VOL_STATUS2] = VolStatus2.MINIMIZE
+    reset_switch_out(p)
+    assert p[Pok.SEMI_INV_MOVE] == 0 and p[Pok.VOL_STATUS2] == 0
+
+
+def test_unlock_move_clears_semi_inv_move(poke):
+    """A blocked turn ends the charge and the semi-invulnerable move with it"""
+    p = poke("Diglett", 20, "Sand Veil", ["Dig"])
+    p[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    p[Pok.SEMI_INV_MOVE] = MoveName.DIG
+    unlock_move(p)
+    assert p[Pok.SEMI_INV_MOVE] == 0 and not p[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE

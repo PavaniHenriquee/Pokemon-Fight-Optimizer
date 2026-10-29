@@ -51,7 +51,8 @@ from Models.constants import (
     _MOVENAME_MUD_SHOT, _MOVENAME_TICKLE, _MOVENAME_BULK_UP, _VOLSTATUS_FOCUS_ENERGY,
     _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE, _ABILITYNAMES_ROUGH_SKIN, _ABILITYNAMES_ROCK_HEAD,
     _MOVENAME_NATURAL_GIFT, _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _MOVENAME_LOW_KICK,
-    _MOVE_POWER, _MOVENAME_BOUNCE, _ITEMNAMES_POWER_HERB, _WEATHER_SANDSTORM, _WEATHER_HAIL,
+    _MOVE_POWER, _MOVENAME_BOUNCE, _MOVENAME_DIG, _MOVENAME_GRAVITY, _ITEMNAMES_POWER_HERB,
+    _WEATHER_SANDSTORM, _WEATHER_HAIL,
     _TYPES_ICE, _MOVE_RECOIL, _TYPES_GRASS,
     _TYPES_PSYCHIC, _TYPES_DRAGON, _TYPES_DARK,
     _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_AQUA_RING, _VOLSTATUS_MUD_SPORT,
@@ -74,7 +75,7 @@ from Models.constants import (
     _ABILITYNAMES_STICKY_HOLD, _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT,
     _MOVENAME_NATURE_POWER, _TYPES_TYPELESS, _MOVENAME_BLIZZARD
 )
-from Engine.damage_calc import weight_power, matchup_types, gyro_ball_power
+from Engine.damage_calc import weight_power, matchup_types, gyro_ball_power, gravity_types
 
 COUNTER_EX_TYPES = (
     _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
@@ -180,7 +181,7 @@ ITEMS_STEAL = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_J
 #--------------Move tuples-----------------------------
 EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET, _MOVENAME_CURSE,
     _MOVENAME_FAKE_OUT, _MOVENAME_FLAIL, _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE)
-CHARGE_INVULNERABLE_M = (_MOVENAME_BOUNCE,)
+CHARGE_INVULNERABLE_M = (_MOVENAME_BOUNCE, _MOVENAME_DIG)
 RECOIL_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE)
 # Moves Pokemow gives no Basic and no Expert check at all
@@ -334,7 +335,7 @@ def add_adjustment(arr, move_id, delta, chance):
 
 
 @njit
-def trainer_ai_effectiveness(move, ai_pok, user_pok):
+def trainer_ai_effectiveness(move, ai_pok, user_pok, gravity=False):
     """
     How the AI consider type effectivness, which has some differences from
     how it usually goes
@@ -350,8 +351,9 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
     ai_type1 = ai_pok[_POK_TYPE1]
     ai_type2 = ai_pok[_POK_TYPE2]
     ai_ability = ai_pok[_POK_AB_ID]
-    # Foresight and Ingrain go through the same type chart as the battle (BattleSystem_ApplyTypeChart)
-    user_type1, user_type2 = matchup_types(move_type, user_pok)
+    # Foresight, Ingrain and Gravity go through the same type chart as the battle
+    # (BattleSystem_ApplyTypeChart)
+    user_type1, user_type2 = matchup_types(move_type, user_pok, gravity)
 
     # STAB
     if move_type == ai_type1 or move_type == ai_type2:  # pylint: disable=consider-using-in
@@ -360,7 +362,7 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok):
     # Common type effectiveness
     # TODO: Scrappy, Mold Breaker,
     # Gastro Acid, Miracle Eye, Iron Ball
-    # Gravity, Magnet Rise, Levitate, Wonder Guard, more...
+    # Magnet Rise, Levitate, Wonder Guard, more...
     s_e = False
     ef_t1 = TYPE_CHART[(move_type*19)+user_type1] / 2
     effectiveness *= ef_t1
@@ -757,14 +759,14 @@ def basic_switch(move, ability, ai_pok, user_bench, ai_bench):
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
             weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1, ai_know=0,
-            turn=0
+            turn=0, gravity=False
     ):
     """
     Basic Flag, every trainer has this,
     it discourages moves that would have no effect or that would make no sense.
     ai_side and user_side are both Field.SIDE_COND, user_tspikes the Toxic Spikes layers on the
     target's side and user_bench how many Pokemon it has alive besides the active, ai_bench the
-    same for the AI. ai_know is Field.AI_KNOWS, turn is Field.TURN
+    same for the AI. ai_know is Field.AI_KNOWS, turn is Field.TURN, gravity if Gravity is up
     """
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
@@ -779,6 +781,9 @@ def basic_flag(
     # Basic_CheckCopycat, Pokemow drops pokeplatinum's "and the AI is faster"
     if move[_MOVE_ID] == _MOVENAME_COPYCAT:
         return -10 if turn <= 1 else 0
+    # Basic_CheckGravityActive
+    if move[_MOVE_ID] == _MOVENAME_GRAVITY:
+        return -10 if gravity else 0
     move_category = move[_MOVE_CATEGORY]
     # Check for immunity types
     if move_category != _MOVECATEGORY_STATUS and effectiveness == 0:
@@ -1605,6 +1610,23 @@ def expert_charge_invulnerable(
 
 
 @njit
+def expert_gravity(ai_pok, u_pok, rand, idx):
+    """
+    pokeplatinum Expert_Gravity: 75% chance of +1 against a Levitate or Flying target (Magnet
+    Rise isn't in the engine), else 37.5% chance of +1 when the AI has at least 60% HP
+    """
+    if (
+        u_pok[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
+        or u_pok[_POK_TYPE1] == _TYPES_FLYING
+        or u_pok[_POK_TYPE2] == _TYPES_FLYING
+    ):
+        add_adjustment(rand, idx, 1, 192)
+    elif (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP] >= 60:
+        add_adjustment(rand, idx, 1, 96)
+    return 0
+
+
+@njit
 def last_move_category(u_pok, my_last_move):
     """
     Category of the target's last move. No move yet (0) reads as Physical like pokeplatinum's
@@ -1759,6 +1781,8 @@ def expert_flag(
         return expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first)
     if move[_MOVE_ID] in CALL_M:
         return expert_call(move, u_pok, rand, idx, move_first, copycat_beats)
+    if move[_MOVE_ID] == _MOVENAME_GRAVITY:
+        return expert_gravity(ai_pok, u_pok, rand, idx)
     # Pokemow Expert Blizzard, the roll ends the check either way
     if move[_MOVE_ID] == _MOVENAME_BLIZZARD:
         if effectiveness <= 0.5:
@@ -1850,7 +1874,7 @@ def expert_flag(
             return 1
         return 0
 
-    # Charge Turn Moves With Invulnerability (Bounce)
+    # Charge Turn Moves With Invulnerability (Bounce, Dig)
     if move[_MOVE_ID] in CHARGE_INVULNERABLE_M:
         return expert_charge_invulnerable(
             ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know
@@ -2002,7 +2026,7 @@ def expert_flag(
 
 
 @njit
-def check_super_ef_move_pty(ai_party, user_pok, opp_active):
+def check_super_ef_move_pty(ai_party, user_pok, opp_active, gravity=False):
     """
     Check if there's any pokemon with super effective move
     """
@@ -2022,7 +2046,8 @@ def check_super_ef_move_pty(ai_party, user_pok, opp_active):
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
             mv_type = mv[_MOVE_TYPE]
-            eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
+            t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
+            eff, den = get_type_effectiveness(mv_type, t1, t2)
             if eff // den >= 2:
                 buf[n] = idx
                 n += 1
@@ -2031,7 +2056,7 @@ def check_super_ef_move_pty(ai_party, user_pok, opp_active):
 
 
 @njit
-def check_any_damaging_move_pty(ai_party, user_pok, opp_active):
+def check_any_damaging_move_pty(ai_party, user_pok, opp_active, gravity=False):
     """
     Check party for any damaging move
     """
@@ -2051,7 +2076,8 @@ def check_any_damaging_move_pty(ai_party, user_pok, opp_active):
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
             mv_type = mv[_MOVE_TYPE]
-            eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
+            t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
+            eff, den = get_type_effectiveness(mv_type, t1, t2)
             if eff / den != 0:
                 buf[n] = idx
                 n += 1
@@ -2091,7 +2117,7 @@ def check_absorb_abi_pty(ai_party, my_last_move, opp_active):
 
 
 @njit
-def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active):
+def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active, gravity=False):
     """
     Check if there's any pokemon with super effective move
     """
@@ -2111,12 +2137,14 @@ def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active):
         if idx == opp_active:
             continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
-        ef, de = get_type_effectiveness(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2])
+        p_t1, p_t2 = gravity_types(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2], gravity)
+        ef, de = get_type_effectiveness(last_move_type, p_t1, p_t2)
         if ef/de == 0:
             moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
             for mv in moves:
                 mv_type = mv[_MOVE_TYPE]
-                eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
+                t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
+                eff, den = get_type_effectiveness(mv_type, t1, t2)
                 if eff // den >= 2:
                     buf[n] = idx
                     n += 1
@@ -2128,7 +2156,7 @@ def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active):
 
 
 @njit
-def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active):
+def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active, gravity=False):
     """
     Check if there's any pokemon with super effective move
     """
@@ -2148,12 +2176,14 @@ def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active):
         if idx == opp_active:
             continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
-        ef, de = get_type_effectiveness(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2])
+        p_t1, p_t2 = gravity_types(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2], gravity)
+        ef, de = get_type_effectiveness(last_move_type, p_t1, p_t2)
         if 0 < ef/de < 1:
             moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
             for mv in moves:
                 mv_type = mv[_MOVE_TYPE]
-                eff, den = get_type_effectiveness(mv_type, user_t1, user_t2)
+                t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
+                eff, den = get_type_effectiveness(mv_type, t1, t2)
                 if eff // den >= 2:
                     buf[n] = idx
                     n += 1
