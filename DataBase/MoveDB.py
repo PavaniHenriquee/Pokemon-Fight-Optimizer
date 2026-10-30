@@ -74,7 +74,8 @@ class MoveName:
     FIRE_FANG       = FEINT_ATTACK + 1
     FIRE_PUNCH      = FIRE_FANG + 1
     FIRE_SPIN       = FIRE_PUNCH + 1
-    FLAIL           = FIRE_SPIN + 1
+    FISSURE         = FIRE_SPIN + 1
+    FLAIL           = FISSURE + 1
     FLAME_WHEEL     = FLAIL + 1
     FLASH           = FLAME_WHEEL + 1
     FLATTER         = FLASH + 1
@@ -91,7 +92,8 @@ class MoveName:
     GRAVITY         = GRASS_WHISTLE + 1
     GROWL           = GRAVITY + 1
     GROWTH          = GROWL + 1
-    GUST            = GROWTH + 1
+    GUILLOTINE      = GROWTH + 1
+    GUST            = GUILLOTINE + 1
     GYRO_BALL       = GUST + 1
     HARDEN          = GYRO_BALL + 1
     HEADBUTT        = HARDEN + 1
@@ -176,7 +178,8 @@ class MoveName:
     SEED_BOMB       = SCREECH + 1
     SEISMIC_TOSS    = SEED_BOMB + 1
     SELFDESTRUCT    = SEISMIC_TOSS + 1
-    SHOCK_WAVE      = SELFDESTRUCT + 1
+    SHEER_COLD      = SELFDESTRUCT + 1
+    SHOCK_WAVE      = SHEER_COLD + 1
     SCRATCH         = SHOCK_WAVE + 1
     SILVER_WIND     = SCRATCH + 1
     SING            = SILVER_WIND + 1

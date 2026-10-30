@@ -5,8 +5,9 @@ from dataclasses import dataclass
 from typing import List, Tuple
 import numpy as np
 from Models.idx_const import (
-    Pok, Field, POK_LEN, MOVE_STRIDE, Move, FIELD_LEN
+    Pok, Field, POK_LEN, MOVE_STRIDE, Move, FIELD_LEN, ITEM_LEN
 )
+from Models.item import ITEM_TABLE
 from Models.constants import (
     _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
@@ -31,6 +32,11 @@ _PP_IDXS = (
     Pok.MOVE3_ID + Move.PP,
     Pok.MOVE4_ID + Move.PP,
 )
+# NodeSnapshot.bench_delta columns after hp, status, sleep_ctr, turns, pp0..pp3
+BENCH_ITEM = 8
+BENCH_CONSUMED_ITEM = 9
+BENCH_KNOCKED_OFF = 10
+BENCH_COLS = BENCH_KNOCKED_OFF + 1
 ACTION_ORDER = (
     tuple((ActionType.MOVE, i) for i in (0, 1, 2, 3, 10))
     + tuple((ActionType.SWITCH, i) for i in range(6))
@@ -314,7 +320,9 @@ class NodeSnapshot:
     opp_slice:    np.ndarray
     terminal:     bool
     opp_move_idx: int
-    bench_delta:  np.ndarray  # (12, 8) int32 — [hp, status, sleep_ctr, turns, pp0..pp3] per slot
+    # (12, BENCH_COLS) int32 — [hp, status, sleep_ctr, turns, pp0..pp3, item, consumed item,
+    # knocked off] per slot
+    bench_delta:  np.ndarray
     field_block:  np.ndarray  # (FIELD_LEN,) int32
 
     @staticmethod
@@ -322,7 +330,7 @@ class NodeSnapshot:
         """
         Returns the values
         """
-        bench = np.zeros((12, 8), dtype=np.int32)
+        bench = np.zeros((12, BENCH_COLS), dtype=np.int32)
         for i in range(6):
             pok = state.battle_array[i * POK_LEN : (i + 1) * POK_LEN]
             bench[i, 0] = pok[Pok.CURRENT_HP]
@@ -331,6 +339,9 @@ class NodeSnapshot:
             bench[i, 3] = pok[Pok.TURNS]
             for m, pp_idx in enumerate(_PP_IDXS):
                 bench[i, 4 + m] = pok[pp_idx]
+            bench[i, BENCH_ITEM] = pok[Pok.ITEM_ID]
+            bench[i, BENCH_CONSUMED_ITEM] = pok[Pok.CONSUMED_ITEM]
+            bench[i, BENCH_KNOCKED_OFF] = pok[Pok.ITEM_KNOCKED_OFF]
         for i in range(6):
             pok = state.battle_array[(i + 6) * POK_LEN : (i + 7) * POK_LEN]
             bench[i + 6, 0] = pok[Pok.CURRENT_HP]
@@ -339,6 +350,9 @@ class NodeSnapshot:
             bench[i + 6, 3] = pok[Pok.TURNS]
             for m, pp_idx in enumerate(_PP_IDXS):
                 bench[i + 6, 4 + m] = pok[pp_idx]
+            bench[i + 6, BENCH_ITEM] = pok[Pok.ITEM_ID]
+            bench[i + 6, BENCH_CONSUMED_ITEM] = pok[Pok.CONSUMED_ITEM]
+            bench[i + 6, BENCH_KNOCKED_OFF] = pok[Pok.ITEM_KNOCKED_OFF]
 
         field_start = POK_LEN * 12
         return NodeSnapshot(
@@ -362,7 +376,14 @@ def reconstruct_battle_array(snap: NodeSnapshot, initial: np.ndarray) -> np.ndar
     """
     out = initial.copy()
 
-    # 1. Patch the 8 mutable bench fields for all 12 party slots
+    # 1. Patch the mutable bench fields for all 12 party slots
+    for i in range(12):
+        base = i * POK_LEN
+        out[base + Pok.ITEM_ID : base + Pok.ITEM_ID + ITEM_LEN] = ITEM_TABLE[
+            snap.bench_delta[i, BENCH_ITEM]
+        ]
+        out[base + Pok.CONSUMED_ITEM] = snap.bench_delta[i, BENCH_CONSUMED_ITEM]
+        out[base + Pok.ITEM_KNOCKED_OFF] = snap.bench_delta[i, BENCH_KNOCKED_OFF]
     for i in range(6):
         base = i * POK_LEN
         out[base + Pok.CURRENT_HP]    = snap.bench_delta[i, 0]

@@ -709,3 +709,17 @@ def test_damage_matches_calculator(poke, case, rolls):
         for roll in MULTIPLIERS
     ]
     assert got == rolls
+
+
+
+@pytest.mark.parametrize("move, stage, defense", [
+    ("Explosion", 0, 25), ("Selfdestruct", 1, 38), ("Tackle", 1, 76), ("Explosion", -1, 17),
+])
+def test_explosion_halves_defense_after_stages(poke, move, stage, defense):
+    """Gen IV Explosion and Selfdestruct halve the Defense after the stages (Showdown gen4):
+    51 at +1 is 76, halved 38 (pokeplatinum's raw-first order would give 37)"""
+    a = poke("Geodude", 30, "Sturdy", [move])
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    d[Pok.DEFENSE] = 51
+    d[Pok.DEFENSE_STAT_STAGE] = stage
+    assert raw_atk_def(move_slice(a, 0), a, d)[1] == defense

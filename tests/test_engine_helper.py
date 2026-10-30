@@ -11,7 +11,7 @@ from Engine.engine_helper import (
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
-    is_grounded, ignorable_ability,
+    is_grounded, ignorable_ability, ohko_fails,
 )
 from Models.ability import ABILITY_TABLE
 from Models.item import ITEM_TABLE
@@ -299,6 +299,14 @@ def test_sitrus_berry_quarter_heal(poke):
     p[Pok.CURRENT_HP] = 5
     eat_berry(p)
     assert p[Pok.CURRENT_HP] == 5 + p[Pok.MAX_HP] // 4
+
+
+def test_fainted_pokemon_doesnt_eat_its_berry(poke):
+    """pokeplatinum BattleSystem_TriggerHeldItem needs HP left: no revive from 0"""
+    p = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Sitrus Berry")
+    p[Pok.CURRENT_HP] = 0
+    item_on_rdmg(p)
+    assert p[Pok.CURRENT_HP] == 0 and p[Item.ID] == ItemNames.SITRUS_BERRY
 
 
 def test_sitrus_berry_heals_at_least_one(poke):
@@ -1283,3 +1291,87 @@ def test_unlock_move_clears_semi_inv_move(poke):
     p[Pok.SEMI_INV_MOVE] = MoveName.DIG
     unlock_move(p)
     assert p[Pok.SEMI_INV_MOVE] == 0 and not p[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+
+
+
+# ── Batch 3: Sturdy ──────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("attacker_ab, outcome", [
+    ("Run Away", MoveOutcome.INVULNERABLE), ("Mold Breaker", MoveOutcome.HIT),
+])
+def test_sturdy_blocks_ohko_moves(poke, attacker_ab, outcome):
+    """An OHKO move fails into Sturdy unless the user has Mold Breaker (70 levels up, so the
+    roll always hits)"""
+    a = poke("Rattata", 100, attacker_ab, ["Guillotine"])
+    d = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    mv = move_slice(a, 0)
+    assert calculate_hit_miss(mv, a, d, 0) == outcome
+    d2 = poke("Geodude", 30, "Rock Head", ["Tackle"])
+    assert calculate_hit_miss(mv, a, d2, 0) == MoveOutcome.HIT
+
+
+
+# ── OHKO moves ───────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("atk_lv, def_lv, roll, outcome", [
+    (50, 50, 29, MoveOutcome.HIT),
+    (50, 50, 30, MoveOutcome.MISS),
+    (60, 50, 39, MoveOutcome.HIT),
+    (60, 50, 40, MoveOutcome.MISS),
+    (49, 50, 0, MoveOutcome.INVULNERABLE),
+])
+def test_ohko_accuracy_adds_the_level_difference(monkeypatch, poke, atk_lv, def_lv, roll, outcome):
+    """Hits when the 0-99 roll is under accuracy + the level difference, always fails from a lower
+    level (pokeplatinum BtlCmd_TryOHKOMove)"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda a, b: roll)
+    a = poke("Rattata", atk_lv, "Run Away", ["Guillotine"])
+    d = poke("Rattata", def_lv, "Run Away", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == outcome
+
+
+def test_ohko_ignores_stages_gravity_and_accuracy_abilities(monkeypatch, poke):
+    """Accuracy and evasion stages, Gravity, Hustle and Sand Veil don't change the 30%"""
+    a = poke("Rattata", 50, "Hustle", ["Guillotine"])
+    d = poke("Rattata", 50, "Sand Veil", ["Tackle"])
+    a[Pok.ACCURACY_STAT_STAGE] = 6
+    d[Pok.EVASION_STAT_STAGE] = 6
+    mv = move_slice(a, 0)
+    for roll, outcome in ((29, MoveOutcome.HIT), (30, MoveOutcome.MISS)):
+        monkeypatch.setattr(engine_helper.random, "randint", lambda x, y, r=roll: r)
+        assert calculate_hit_miss(mv, a, d, Weather.SANDSTORM, True) == outcome
+
+
+@pytest.mark.parametrize("move, defender, outcome", [
+    ("Fissure", "Pidgey", MoveOutcome.INVULNERABLE),
+    ("Guillotine", "Gastly", MoveOutcome.INVULNERABLE),
+    ("Sheer Cold", "Swinub", MoveOutcome.HIT),   # Gen IV: Ice types aren't immune
+])
+def test_ohko_type_immunity(poke, move, defender, outcome):
+    """The type chart still applies (70 levels up, so the roll always hits)"""
+    a = poke("Rattata", 100, "Run Away", [move])
+    d = poke(defender, 30, "Run Away", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == outcome
+
+
+@pytest.mark.parametrize("semi_inv", [MoveName.BOUNCE, MoveName.DIG])
+@pytest.mark.parametrize("move", ["Fissure", "Guillotine", "Sheer Cold"])
+def test_ohko_misses_semi_invulnerable_targets(poke, move, semi_inv):
+    """Showdown gen4: OHKO moves don't reach Bounce or Dig, not even Fissure"""
+    a = poke("Rattata", 100, "Run Away", [move])
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = semi_inv
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.SEMI_INVULNERABLE
+
+
+@pytest.mark.parametrize("atk_lv, atk_ab, def_ab, fails", [
+    (50, "Run Away", "Run Away", False),
+    (49, "Run Away", "Run Away", True),
+    (50, "Run Away", "Sturdy", True),
+    (50, "Mold Breaker", "Sturdy", False),
+])
+def test_ohko_fails(poke, atk_lv, atk_ab, def_ab, fails):
+    """A lower level or Sturdy (unless Mold Breaker) makes it never work"""
+    a = poke("Rattata", atk_lv, atk_ab, ["Guillotine"])
+    d = poke("Geodude", 50, def_ab, ["Tackle"])
+    assert ohko_fails(a, d) == fails

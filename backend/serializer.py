@@ -12,6 +12,7 @@ from DataBase.PkDB import PokIdToName, sprite_id
 from DataBase.MoveDB import MoveIdToName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
 from DataBase.loader import moveDB as _moveDB
+from SearchEngine.models import BENCH_ITEM
 
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -126,7 +127,7 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
         "max_hp": int(battle_array[base + Pok.MAX_HP]),
         "status": STATUS.get(int(snap.bench_delta[delta_i, 1]), ""),
         "level":  int(battle_array[base + Pok.LEVEL]),
-        "item":   _ITEM_ID_TO_NAME.get(int(battle_array[base + Pok.ITEM_ID]), ""),
+        "item":   _ITEM_ID_TO_NAME.get(int(snap.bench_delta[delta_i, BENCH_ITEM]), ""),
         "moves":  moves,
     }
 

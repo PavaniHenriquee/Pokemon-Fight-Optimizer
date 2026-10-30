@@ -3,7 +3,7 @@ pick a move with any implemented status move in its kit"""
 import numpy as np
 import pytest
 from Models import trainer_ai_helper as ai
-from Models.trainer_ai import return_idx, sub_after_death
+from Models.trainer_ai import return_idx, sub_after_death, MOVE_EXCEP
 from Models.idx_const import Pok, Move, POK_LEN, Field
 from Models.helper import VolStatus, Status, Types, Enemy_AI_Knows, SideCondition, Weather
 from DataBase.AbilitiesDB import AbilityNames
@@ -45,6 +45,7 @@ KIT_STATUS = (
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
     "Natural Gift", "Mirror Coat", "Assurance", "Take Down", "Bounce", "Fury Cutter", "Rollout",
+    "Explosion", "Selfdestruct", "Fissure", "Guillotine", "Sheer Cold",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -1340,3 +1341,85 @@ def test_party_checks_see_gravity(poke, gravity):
     assert immune == ([] if gravity else [1])
     aerodactyl = poke("Aerodactyl", 40, "Rock Head", ["Bite"])
     assert (2 in ai.check_super_ef_move_pty(party, aerodactyl, 0, gravity)) == gravity
+
+
+
+# ── Explosion / Selfdestruct ─────────────────────────────────────────────────
+
+@pytest.mark.parametrize("kwargs, expected", [
+    ({}, 0),
+    ({"user_ability": "Damp"}, -10),
+    ({"user_ability": "Damp", "ai_ability": "Mold Breaker"}, 0),
+    ({"ai_bench": 0}, -10),
+    ({"ai_bench": 0, "user_bench": 0}, -1),
+])
+def test_basic_explosion(kwargs, expected):
+    """pokeplatinum Basic_CheckCannotExplode: Damp, then the AI's last Pokemon"""
+    assert _basic_switch("Explosion", **kwargs) == expected
+
+
+@pytest.mark.parametrize("hp_pct, evasion, faster, expected", [
+    (100, 0, True, (0, [(-3, 206)])),
+    (100, 0, False, (0, [(-1, 206)])),
+    (60, 0, True, (0, [(-1, 206)])),
+    (40, 0, True, (0, [(1, 128)])),
+    (30, 0, True, (0, [(1, 128), (1, 206)])),
+    (100, 1, True, (-1, [(-3, 206)])),
+    (100, 4, True, (-1, [(-1, 128), (-3, 206)])),
+])
+def test_expert_explosion(poke, hp_pct, evasion, faster, expected):
+    """pokeplatinum Expert_Explosion: evasion, then the user's HP and speed"""
+    ai_pok = poke("Geodude", 20, "Sturdy", ["Selfdestruct"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * hp_pct // 100
+    if ai_pok[Pok.CURRENT_HP] * 100 // ai_pok[Pok.MAX_HP] != hp_pct:
+        ai_pok[Pok.MAX_HP] = 100
+        ai_pok[Pok.CURRENT_HP] = hp_pct
+    user[Pok.EVASION_STAT_STAGE] = evasion
+    ai_pok[Pok.SPEED], user[Pok.SPEED] = (200, 10) if faster else (10, 200)
+    assert _expert(ai_pok, user) == expected
+
+
+
+# ── OHKO moves ───────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("ai_lv, ai_ability, user_ability, expected", [
+    (20, "Run Away", "Run Away", 0),
+    (19, "Run Away", "Run Away", -10),
+    (20, "Run Away", "Sturdy", -10),
+    (20, "Mold Breaker", "Sturdy", 0),
+    (19, "Mold Breaker", "Sturdy", -10),
+])
+def test_basic_ohko(ai_lv, ai_ability, user_ability, expected):
+    """pokeplatinum Basic_CheckOHKOWouldFail: Sturdy unless Mold Breaker, then a lower level"""
+    ai_pok = poke_np("Rattata", ai_lv, ai_ability, ["Guillotine"])
+    user = poke_np("Geodude", 20, user_ability, ["Tackle"])
+    ability = getattr(AbilityNames, user_ability.upper().replace(" ", "_"))
+    assert ai.basic_flag(move_slice(ai_pok, 0), ability, ai_pok, user, 1.0, 0) == expected
+
+
+def test_basic_ohko_immune():
+    """Fissure into a Flying type is the generic immunity -10"""
+    ai_pok = poke_np("Geodude", 50, "Sturdy", ["Fissure"])
+    user = poke_np("Pidgey", 20, "Keen Eye", ["Tackle"])
+    assert ai.basic_flag(move_slice(ai_pok, 0), AbilityNames.KEEN_EYE, ai_pok, user, 0.0, 0) == -10
+
+
+@pytest.mark.parametrize("move", ["Fissure", "Guillotine", "Sheer Cold"])
+def test_expert_ohko(move):
+    """pokeplatinum Expert_OHKOMove: a 25% chance of +1"""
+    ai_pok = poke_np("Rattata", 20, "Run Away", [move])
+    user = poke_np("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, [(1, 64)])
+
+
+def test_ohko_never_counts_as_the_best_damage(make_pokemon, make_battle):
+    """Guillotine is in MOVE_EXCEP, so its power 0 chip never counts as a kill: into a 1 HP
+    target only Tackle gets the kill bonus"""
+    ai_pok = make_pokemon("Rattata", 50, "Run Away", ["Guillotine", "Tackle"])
+    user = make_pokemon("Rattata", 5, "Run Away", ["Tackle"])
+    assert MoveName.GUILLOTINE in MOVE_EXCEP
+    arr = make_battle([user], [ai_pok])
+    arr[Pok.CURRENT_HP] = 1
+    picks = {int(return_idx(arr)) for _ in range(40)}
+    assert picks == {1}

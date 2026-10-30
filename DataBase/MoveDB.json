@@ -1067,6 +1067,21 @@
     "type": "Fire",
     "vol_status": "partially_trapped"
   },
+  "Fissure": {
+    "accuracy": 30,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "non_sky": true,
+      "protect": true
+    },
+    "name": "fissure",
+    "oh_ko": true,
+    "pp": 5,
+    "target": "normal",
+    "type": "Ground"
+  },
   "Flail": {
     "accuracy": 100,
     "category": "Physical",
@@ -1334,6 +1349,21 @@
     "name": "growth",
     "pp": 20,
     "target": "self",
+    "type": "Normal"
+  },
+  "Guillotine": {
+    "accuracy": 30,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "guillotine",
+    "oh_ko": true,
+    "pp": 5,
+    "target": "normal",
     "type": "Normal"
   },
   "Gust": {
@@ -2651,6 +2681,20 @@
     "pp": 5,
     "target": "all_adjacent",
     "type": "Normal"
+  },
+  "Sheer Cold": {
+    "accuracy": 30,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "sheer_cold",
+    "oh_ko": true,
+    "pp": 5,
+    "target": "normal",
+    "type": "Ice"
   },
   "Shock Wave": {
     "accuracy": true,

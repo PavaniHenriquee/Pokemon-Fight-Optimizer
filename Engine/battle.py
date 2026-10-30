@@ -11,12 +11,15 @@ from Engine.engine_helper import (
     RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
     try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
-    worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES
+    worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
+    damp_blocks,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP, sleep_ability
 )
-from Engine.damage_calc import calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES
+from Engine.damage_calc import (
+    calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES, EXPLODE_MOVES
+)
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
     POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS,
@@ -65,7 +68,11 @@ from Models.constants import (
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
     _ENEMY_AI_KNOWS_ABILITY, _POK_CALLED_MOVE, _FIELD_LAST_MOVE, _MOVENAME_HIDDEN_POWER,
     _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _POK_SEMI_INV_MOVE, _FIELD_GRAVITY_TURNS,
-    _MOVENAME_GRAVITY, _MOVENAME_MINIMIZE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _FLAGS_GRAVITY
+    _MOVENAME_GRAVITY, _MOVENAME_MINIMIZE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _FLAGS_GRAVITY,
+    _ITEM_HOLD_EFFECT, _ITEM_EFFECT_PARAM, _HOLDEFFECT_EXTEND_SCREENS, _HOLDEFFECT_EXTEND_SANDSTORM,
+    _HOLDEFFECT_BRN_USER, _POK_TYPE1, _POK_TYPE2, _TYPES_FIRE, _ABILITYNAMES_WATER_VEIL,
+    _ABILITYNAMES_LEAF_GUARD, _WEATHER_SUN, _FIELD_MY_ENTER_FIELD, _ABILITYNAMES_ROCK_HEAD,
+    _MOVE_OH_KO
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 
@@ -123,6 +130,7 @@ BATON_PASS_VOLS = (
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
 HEAL_MOVES = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
+RECOIL_IMMUNE_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 
 @njit
 def _pass_baton(old, new):
@@ -320,10 +328,14 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
     def_side is the defender's Field.SIDE_COND"""
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
         return struggle(attacker, defender, False, def_side)
+    # OHKO moves take the target's current HP (pokeplatinum BtlCmd_TryOHKOMove)
+    if move[_MOVE_OH_KO]:
+        return defender[_POK_CURRENT_HP]
     move_damage = move[_MOVE_DAMAGE]
     if not move_damage:
         crit = calculate_crit(attacker, defender, move, def_side)
-        return calculate_damage(attacker, defender, move, weather, crit, None, def_side, gravity)
+        damage = calculate_damage(attacker, defender, move, weather, crit, None, def_side, gravity)
+        return resist_berry(defender, move, damage, gravity)
     if move_damage == _DAMAGESOURCES_LEVEL:
         return attacker[_POK_LEVEL]
     if move_damage == _DAMAGESOURCES_PSYWAVE:
@@ -406,10 +418,12 @@ def _ps_moves_core(attacker, defender, move, weather, def_side=0, gravity=False)
 
 @njit
 def _recoil(attacker, move, dealt):
-    """Recoil after the hit, Struggle's comes from max HP and the rest from the damage dealt"""
+    """Recoil after the hit, Struggle's comes from max HP and the rest from the damage dealt.
+    Rock Head and Magic Guard skip the rest, not Struggle's (pokeplatinum subscript_recoil_1_4,
+    subscript_struggle)"""
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
         apply_recoil(attacker, struggle_recoil(attacker))
-    elif move[_MOVE_RECOIL]:
+    elif move[_MOVE_RECOIL] and attacker[_POK_AB_ID] not in RECOIL_IMMUNE_AB:
         apply_recoil(attacker, move_recoil(move, dealt))
 
 
@@ -524,10 +538,17 @@ def _clear_charge(atk, mv):
 
 
 @njit
-def _set_side_condition(cond, battle_array, side):
+def _held_extension(pok, effect):
+    """Extra turns a held Light Clay or Smooth Rock adds, its effect_param"""
+    return pok[_ITEM_EFFECT_PARAM] if pok[_ITEM_HOLD_EFFECT] == effect else 0
+
+
+@njit
+def _set_side_condition(cond, battle_array, side, screen_bonus=0):
     """
     Screens, Mist, Safeguard and Lucky Chant last 5 turns and fail while up, Stealth Rock fails if
-    already set and Toxic Spikes stacks up to 2 layers. side is that side's Field.SIDE_COND
+    already set and Toxic Spikes stacks up to 2 layers. side is that side's Field.SIDE_COND.
+    screen_bonus is the user's Light Clay turns, only screens get them
     """
     if cond == _SIDECONDITION_TOXIC_SPIKES:
         layers = battle_array[side + SIDE_TOXIC_SPIKES]
@@ -541,6 +562,8 @@ def _set_side_condition(cond, battle_array, side):
     for bit, turns in TIMED_SIDE_CONDITIONS:
         if bit == cond:
             battle_array[side + turns] = FIELD_EFFECT_TURNS
+            if cond & SCREENS:
+                battle_array[side + turns] += screen_bonus
 
 
 @njit
@@ -553,13 +576,16 @@ def _move_weather(move_id):
 
 
 @njit
-def _set_weather(battle_array, weather):
-    """Rain Dance and Sandstorm fail under the same weather, else it lasts 5 turns.
+def _set_weather(battle_array, weather, user):
+    """Rain Dance and Sandstorm fail under the same weather, else it lasts 5 turns, plus the
+    user's Smooth Rock turns for Sandstorm.
     TODO: Damp Rock, Smooth Rock"""
     if battle_array[_FIELD_WEATHER] == weather:
         return
     battle_array[_FIELD_WEATHER] = weather
     battle_array[_FIELD_WEATHER_DURATION] = FIELD_EFFECT_TURNS
+    if weather == _WEATHER_SANDSTORM:
+        battle_array[_FIELD_WEATHER_DURATION] += _held_extension(user, _HOLDEFFECT_EXTEND_SANDSTORM)
 
 
 @njit
@@ -707,6 +733,10 @@ def _execute_move_slot(
         perish_song(atk, defn)
         return False
 
+    # Explosion and Selfdestruct faint the user before the hit check, so a miss, Protect or an
+    # immune target still costs it. Damp stops the whole move (Showdown gen4 useMoveInner)
+    if mv[_MOVE_ID] in EXPLODE_MOVES and not damp_blocks(atk, defn):
+        atk[_POK_CURRENT_HP] = 0
     move_hit = calculate_hit_miss(mv, atk, defn, weather, gravity)
     if move_hit != _MOVEOUTCOME_HIT:
         if not (atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and move_hit in UPROAR_KEEPS_ON):
@@ -764,12 +794,13 @@ def _execute_move_slot(
     if mv[_MOVE_SIDE_CONDITION]:
         _set_side_condition(
             mv[_MOVE_SIDE_CONDITION], battle_array,
-            def_side if mv[_MOVE_TARGET] == FOE_SIDE_TARGET else atk_side
+            def_side if mv[_MOVE_TARGET] == FOE_SIDE_TARGET else atk_side,
+            _held_extension(atk, _HOLDEFFECT_EXTEND_SCREENS)
         )
         return False
     move_weather = _move_weather(mv[_MOVE_ID])
     if move_weather:
-        _set_weather(battle_array, move_weather)
+        _set_weather(battle_array, move_weather, atk)
         return False
     if mv[_MOVE_ID] == _MOVENAME_GRAVITY:
         _set_gravity(battle_array, atk, defn)
@@ -1002,6 +1033,24 @@ def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
 
 
 @njit
+def _flame_orb(pok, side_cond, weather):
+    """
+    Flame Orb burns its holder unless it's Fire type, already has a status, is under Safeguard,
+    has Water Veil, or Leaf Guard in sun (pokeplatinum subscript_burn, held item branch)
+    """
+    if pok[_POK_STATUS] or pok[_POK_TYPE1] == _TYPES_FIRE or pok[_POK_TYPE2] == _TYPES_FIRE:
+        return
+    if side_cond & _SIDECONDITION_SAFEGUARD:
+        return
+    ability = pok[_POK_AB_ID]
+    if ability == _ABILITYNAMES_WATER_VEIL or (
+        ability == _ABILITYNAMES_LEAF_GUARD and weather == _WEATHER_SUN
+    ):
+        return
+    pok[_POK_STATUS] = _STATUS_BURN
+
+
+@njit
 def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     """
     Per-Pokemon residuals after the weather, on-residual ability, enter-field clear — one side.
@@ -1010,7 +1059,7 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     """
     Gen IV order (pokeplatinum CheckMonConditions, Showdown gen4 residual suborders):
     Ingrain, Aqua Ring, Speed Boost, Leech Seed, Psn/Tox, Burn, Curse, Bind, Uproar, Disable,
-    Encore, Taunt, Yawn
+    Encore, Taunt, Yawn, Flame Orb
     """
     if pok[_POK_CURRENT_HP] <= 0:
         return
@@ -1111,6 +1160,11 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     # 12. Yawn
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN:
         _yawn(pok, foe)
+
+    # 13. Flame Orb
+    if pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_BRN_USER:
+        side = side_base(enter_field_flag_idx == _FIELD_MY_ENTER_FIELD)
+        _flame_orb(pok, battle_array[side], battle_array[_FIELD_WEATHER])
 
     if enter_field:
         battle_array[enter_field_flag_idx] = 0

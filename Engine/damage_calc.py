@@ -29,6 +29,7 @@ from Models.constants import (
     _POK_SEMI_INV_MOVE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _POK_ID, _ITEM_HOLD_EFFECT,
     _ITEM_EFFECT_PARAM, _ITEM_EFFECT_TYPE, _HOLDEFFECT_TYPE_BOOST, _HOLDEFFECT_PIKA_SPATK_UP,
     _HOLDEFFECT_POWER_UP_PHYS, _HOLDEFFECT_POWER_UP_SE, _HOLDEFFECT_CUBONE_ATK_UP,
+    _MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT,
 )
 
 # ==========================================
@@ -55,6 +56,8 @@ HITS_AIRBORNE = (_MOVENAME_GUST,)
 HITS_UNDERGROUND = (_MOVENAME_EARTHQUAKE, _MOVENAME_MAGNITUDE)
 # Gen IV: only Stomp doubles against a minimized target
 MINIMIZE_DOUBLES = (_MOVENAME_STOMP,)
+# They faint the user and, in Gen IV, halve the target's Defense
+EXPLODE_MOVES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 PIKACHU = PokemonName.PIKACHU
 # Thick Club works for both, Item.ITEM_USER only holds one
 THICK_CLUB_USERS = (PokemonName.CUBONE, PokemonName.MAROWAK)
@@ -173,6 +176,9 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
 
     attack = apply_stat_stage(raw_attack, atk_stage, atk_is_simple)
     defense = apply_stat_stage(raw_defense, def_stage, def_is_simple)
+    # Gen IV Explosion and Selfdestruct halve the Defense after the stages (Showdown gen4 getDamage)
+    if physical and move[_MOVE_ID] in EXPLODE_MOVES:
+        defense = max(1, defense // 2)
 
     return attack, defense
 

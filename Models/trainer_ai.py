@@ -50,7 +50,9 @@ MOVE_EXCEP = (
     0, MoveName.EXPLOSION, MoveName.SELFDESTRUCT, MoveName.DREAM_EATER,
     MoveName.FOCUS_PUNCH, MoveName.SUCKER_PUNCH, MoveName.HYPER_BEAM,
     # Power 1 in pokeplatinum and not an alt power move: never compared
-    MoveName.COUNTER, MoveName.BIDE, MoveName.MIRROR_COAT, MoveName.FLAIL, MoveName.MAGNITUDE
+    MoveName.COUNTER, MoveName.BIDE, MoveName.MIRROR_COAT, MoveName.FLAIL, MoveName.MAGNITUDE,
+    # OHKO moves: Basic_Main skips Fissure's damage scoring, Guillotine and Sheer Cold are power 1
+    MoveName.FISSURE, MoveName.GUILLOTINE, MoveName.SHEER_COLD
 )
 
 

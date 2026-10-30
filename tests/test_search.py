@@ -1,5 +1,6 @@
 """SearchEngine: structural checks only (no golden data, no tuning values asserted),
 so the search can keep changing without rewriting these"""
+import random
 import numpy as np
 import pytest
 from SearchEngine.models import (
@@ -14,7 +15,8 @@ from SearchEngine.my_mcts import (
     _select_expand, _backprop, mcts_loop, recursive_backup, print_best_path, wilson_lower_bound,
 )
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
-from Models.idx_const import Pok, Move, Field, Item
+from Models.idx_const import Pok, Move, Field, Item, ITEM_LEN
+from Models.item import ITEM_TABLE
 from Models.helper import ActionType, BattlePhase, VolStatus, VolStatus2, SideCondition
 from Models.trainer_ai import return_idx
 from DataBase.ItemDB import ItemNames
@@ -358,6 +360,20 @@ def test_snapshot_reconstruct_round_trip():
                     move_slice(pok_slice(arr, i, side), m)[Move.PP]
 
 
+def test_snapshot_restores_bench_items():
+    """A bench Pokemon's item block, recyclable item and knocked off mark come back from the
+    snapshot, not from the initial array (an eaten berry stays eaten)"""
+    initial = build_scenario("starters")
+    arr = initial.copy()
+    bench, other = pok_slice(arr, 1, False), pok_slice(arr, 2, False)
+    bench[Item.ID:Item.ID + ITEM_LEN] = ITEM_TABLE[ItemNames.SITRUS_BERRY]
+    other[Pok.CONSUMED_ITEM] = ItemNames.ORAN_BERRY
+    other[Pok.ITEM_KNOCKED_OFF] = 1
+    out = reconstruct_battle_array(NodeSnapshot.from_state(GameState(arr)), initial)
+    for i in (1, 2):
+        assert (pok_slice(out, i, False) == pok_slice(arr, i, False)).all()
+
+
 # ── Small end-to-end search ──────────────────────────────────────────────────
 
 def test_select_expand_adds_one_child(one_v_one):
@@ -491,3 +507,34 @@ def test_gravity_hides_its_moves(make_pokemon, make_battle):
 
 def _int_attrs(cls):
     return [v for k, v in vars(cls).items() if k.isupper() and isinstance(v, int)]
+
+
+
+def test_rollout_keeps_explosion_out_of_the_damage_bonus(make_pokemon, make_battle):
+    """A STAB Explosion that KOs would get the KO weight (100), but it only gets the minimum
+    weight, like the trainer AI keeps it out of its damage calc. Tackle (STAB, weak) gets 2"""
+    me = make_pokemon("Rattata", 50, "Run Away", ["Explosion", "Tackle"])
+    foe = make_pokemon("Machop", 5, "Guts", ["Growl"])
+    arr = make_battle([me], [foe])
+    counts = {0: 0, 1: 0}
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
+    for _ in range(300):
+        _, idx = rollout_pref(arr, 0, actions)
+        counts[int(idx)] += 1
+    assert counts[0] < counts[1]
+
+
+
+@pytest.mark.parametrize("foe_lv, foe_ab, picked", [
+    (20, "Run Away", True), (21, "Run Away", False), (20, "Sturdy", False),
+])
+def test_rollout_ohko_weight(make_pokemon, make_battle, foe_lv, foe_ab, picked):
+    """An OHKO move skips the damage calc with weight 1, and 0 when it can't work"""
+    me = make_pokemon("Rattata", 20, "Run Away", ["Guillotine", "Tackle"])
+    foe = make_pokemon("Rattata", foe_lv, foe_ab, ["Growl"])
+    arr = make_battle([me], [foe])
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
+    picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)}
+    assert (0 in picks) == picked

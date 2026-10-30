@@ -13,8 +13,8 @@
 | ----- | ------------------------------------------------------------------- | ------ |
 | 0     | Foundations: item slots, Mold Breaker helper, search key            | [x]    |
 | 1     | Damage items (Roark: Muscle Band, Expert Belt)                      | [x]    |
-| 2     | Consumables and timers (Roark: Rindo Berry, Smooth Rock, Flame Orb) | [ ]    |
-| 3     | Trainer abilities: Rock Head, Sturdy                                | [ ]    |
+| 2     | Consumables and timers (Roark: Rindo Berry, Smooth Rock, Flame Orb) | [x]    |
+| 3     | Trainer abilities: Rock Head, Sturdy                                | [x]    |
 | 4     | Damage abilities                                                    | [ ]    |
 | 5     | Accuracy, crit, secondary effects                                   | [ ]    |
 | 6     | Contact abilities                                                   | [ ]    |
@@ -50,11 +50,27 @@
   burn, attack abilities, Silk Scarf, Thick Club, Light Ball. Not Muscle Band (not in the table, though [pp]
   CALC_SELF_HIT runs it through CalcMoveDamage as a physical Struggle). Helping Hand, Choice Band, Power
   Trick/Split, Rivalry, Pure Power stay TODOs in `calculate_damage_confusion`.
+- 2026-10-29 (Batch 2): Safeguard blocks Flame Orb ([pp] subscript_burn held-item branch; [SD] lets it through
+  because the source is the holder). Resist berries and Chilan follow [SD] `onSourceModifyDamage`
+  (`max(1, dmg // 2)`, SE only, eaten and recyclable): pokeplatinum's battle code has no WEAKEN_SE reference
+  at all. Issues 6 and 12 fixed.
+- 2026-10-29 (after Batch 3, Explosion / Selfdestruct): the user faints before the hit check when there's a
+  target, so a miss, Protect or a Ghost still costs it; Damp on either side stops the whole move and Mold
+  Breaker ignores the target's Damp (fixed in `ab_on_try_move` through `damp_blocks`). Gen IV Defense halving
+  follows [SD] (after the stages, at least 1), not [pp] (raw stat first). The rollout keeps both moves out of
+  its damage calc (weight 1), like the trainer AI's `MOVE_EXCEP`. A double KO counts as a loss: [pp] gives a
+  draw and handles it like a loss, matching `evaluate_terminal`.
+- 2026-10-29 (OHKO moves): Fissure, Guillotine, Sheer Cold added; Horn Drill left out (RP replaces it with Drill
+  Run). Hit check and damage follow [pp BtlCmd_TryOHKOMove]: accuracy + level difference out of 100, always fails
+  from a lower level, ignores stages / Gravity / Hustle / Sand Veil, damage = the target's current HP. They can't
+  hit Bounce or Dig ([SD gen4]); the known gap is closed. AI: [pp] Basic_CheckOHKOWouldFail and Expert_OHKOMove,
+  the three moves in `MOVE_EXCEP`. Rollout: weight 1, or 0 when `ohko_fails`. Sturdy's status audit said
+  "AI only"; that was wrong, nothing scored OHKO moves into Sturdy before this.
 
 **Still open (your call, at the batch that needs it)**
 
 - Issues 1-14 below.
-- [pp] vs [SD] conflicts: Safeguard vs Flame Orb (Batch 2), Shed Skin 30% vs 33% (Batch 7).
+- [pp] vs [SD] conflicts: Shed Skin 30% vs 33% (Batch 7).
 
 ## Context
 
@@ -116,7 +132,7 @@
 | Sticky Hold                    | Knock Off only; Covet (`switch_items`) ignores it                                                                                                                                                                                           | Batch 13                                           |
 | Leaf Guard                     | Toxic Spikes only                                                                                                                                                                                                                           | Batch 7                                            |
 | Magic Guard                    | Weather, residuals, hazards, full paralysis done. Missing: recoil, Aftermath, Rough Skin, Liquid Ooze, Black Sludge, Toxic Spikes poison. Blocks the confusion self-hit, which it shouldn't (Issue 7)                                       | Spread over Batches 3, 6, 7, 11, 13; tick after 13 |
-| Sturdy                         | AI only. Gen IV effect is OHKO immunity only ([SD gen4] `onDamage` undefined; [pp BtlCmd_TryOHKOMove]); MoveDB has no OHKO move                                                                                                             | Batch 3 guard                                      |
+| Sturdy                         | Done (Batch 3 + OHKO moves). Gen IV effect is OHKO immunity only ([SD gen4] `onDamage` undefined; [pp BtlCmd_TryOHKOMove])                                                                                                             | Batch 3 guard                                      |
 | Rock Head                      | None; Take Down is the only recoil move                                                                                                                                                                                                     | Batch 3                                            |
 | Unburden                       | None                                                                                                                                                                                                                                        | Batch 10 (`CAN_UNBURDEN`, no F3)                   |
 | No Gen IV singles effect       | Lightning Rod, Storm Drain ([SD gen4] `onTryHit` undefined), Plus, Minus ([pp] needs an ally), Stench ([SD gen4]), Honey Gather, Illuminate, Run Away, Anticipation, Forewarn, Frisk (messages only), Gluttony (no pinch berries in ItemDB) | Batch 14: tick after a one-line note, no code      |
@@ -139,6 +155,7 @@
    fixed-damage moves, so Tackle-style contact moves never trigger it. Same gate as Batch 6.
 6. **A berry can revive a Pokemon KO'd by its own confusion hit**: `confusion()` calls `item_on_rdmg` at
    0 HP (`engine_helper.py:631-635`) and `eat_berry` only checks ≤50%. Batch 2 reuses that hook.
+   **FIXED in Batch 2** (`eat_berry` needs HP > 0).
 7. **Magic Guard skips the confusion self-hit** (`engine_helper.py:628`). [pp subscript_hurt_self_in_confusion]
    has no Magic Guard check, and in [SD gen4] confusion damage is a Move effect. Batch 13.
 8. **The AI estimate halves burn without the Guts exemption** (`damage_calc.py:513-515`; the engine path
@@ -153,6 +170,8 @@
     (`trainer_ai_helper.py:114-170`). Every AI ability batch.
 12. **Bench items are stale** in the UI and in `continue_from_node` (`serializer.py:129`,
     `SearchEngine/models.py:352-390`), so an eaten berry reappears. Shows up once Batch 2 adds consumables.
+    **FIXED in Batch 2** (`bench_delta` keeps item id, consumed item and knocked off; the block is rebuilt
+    from `ITEM_TABLE`).
 13. `test_jit_smoke.py:74` `CASES` never asserts the switching, healing_misc and move_calling scenarios.
 14. Hustle and Sand Veil scale accuracy before the stage ratio (`engine_helper.py:336-346`); [pp] scales
     after. Minor rounding.
@@ -227,7 +246,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
   that the AI estimate includes them.
 - TODO ticks: Expert Belt, Muscle Band, the 14 type items, Thick Club; deferred Light Ball.
 
-## Batch 2 — Consumables and timers (Roark: Rindo Berry, Smooth Rock, Flame Orb)
+## Batch 2 — Consumables and timers (Roark: Rindo Berry, Smooth Rock, Flame Orb) — DONE
 
 | Item                                                                                                                      | Gen IV effect [source]                                                                                                                                                                                                                                 | Hook                                                                                                                                                                                 |
 | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -244,12 +263,12 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
   8 turns); `test_engine_helper.py` for the berry HP > 0 rule.
 - TODO ticks: Rindo Berry, Smooth Rock, Flame Orb, Light Clay; deferred: the 15 other resist berries, Chilan.
 
-## Batch 3 — Trainer abilities: Rock Head, Sturdy
+## Batch 3 — Trainer abilities: Rock Head, Sturdy — DONE
 
 | Ability   | Gen IV effect [source]                                                                                | Hook                                                                                                      |
 | --------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Rock Head | No recoil from Take Down; Struggle still recoils [pp subscript_recoil_1_4; SD gen4 applyRecoilDamage] | `_recoil` (`battle.py:412`); add the Magic Guard check at the same spot                                   |
-| Sturdy    | OHKO moves fail [pp BtlCmd_TryOHKOMove]                                                               | Guard on `_MOVE_OH_KO` in `calculate_hit_miss`. Inert today (no OHKO move in MoveDB); the AI side is done |
+| Sturdy    | OHKO moves fail [pp BtlCmd_TryOHKOMove]                                                               | Guard on `_MOVE_OH_KO` in `calculate_hit_miss`; real moves and the AI came with the OHKO moves (below) |
 
 - Golden: weather_charge has Rock Head but no recoil move, so no change expected.
 - TODO ticks: Rock Head, Sturdy.
@@ -471,6 +490,41 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   Expert belt half of `# TODO: Solid Rock and Filter, Expert belt` in the AI estimate, `#TODO: Silk Scarf` and
   the Thick Club half of `#TODO: Choice Band, Thick Club` in `calculate_damage_confusion`.
 - Batch 1: `ABILITIES_ITEMS_PLAN.md` got reformatted (aligned tables) by the editor on save, not by me.
+- Batch 2: the rollout (`rollout_pref`, `mcts_eval` damage estimates) calls `calculate_damage`, so it doesn't
+  see resist berries halving a hit. The engine and the search key do.
+- Batch 2: Flame Orb's Water Veil / Leaf Guard checks are inline in `_flame_orb`; Batch 7's
+  `ability_blocks_status` should take them over. Its Leaf Guard sun check will need Cloud Nine
+  ([pp] `CheckIgnoreWeather`) once Batch 11 adds `effective_weather`.
+- Batch 2: [pp] subscript_burn toggles `SYSCTL_TRY_SYNCHRONIZE_STATUS` for the Flame Orb burn too; the engine
+  doesn't run Synchronize there ([SD] skips it when the source is the holder). Only matters for a Synchronize
+  holder with Flame Orb.
+- Batch 2: resist berries ignore Substitute because the engine has no Substitute yet; [SD] skips the berry
+  when the hit lands on a substitute.
+- Batch 2: outdated TODO comment (left in place): `_set_weather`'s `TODO: Damp Rock, Smooth Rock` (Smooth Rock
+  is done; Damp Rock isn't in ItemDB).
+- Explosion: the AI branches come from [pp script.s] only; Pokemow's per-move Basic/Expert pages couldn't be
+  fetched. In `Expert_Explosion` the code is followed where its comments differ: the second evasion -1 starts
+  at +4 (stage index 10, comment says +3), and at 30% HP or less both +1 rolls apply (comment table implies
+  one). Worth a check against Pokemow when it's reachable.
+- OHKO: `rollout_pref` computes `eff_ratio = eff // den`, so a resisted move rounds to 0 and takes the
+  "immune, never pick" branch (weight 0); the `# 0.5x` branch can't be reached. Example: Tackle into Geodude is
+  1 x 2 / 4 = 0. Every resisted move is dropped from the rollout heuristic (the random rollout half still uses it).
+- OHKO: estimates that call `calculate_damage` see an OHKO move as power 0 chip (3 damage, L50 vs L50): the
+  rollout's `o_dmg` for the opponent's chosen move, and `sub_after_death` phase 2 ([pp] stage 2 skips data
+  power 1 moves, see Batch 1). Tie-breaks and the "can I survive" guess only.
+- OHKO: [pp] Basic_Main sends moves with no damage comparison (Guillotine, Sheer Cold, Counter, ...) past
+  Basic_CheckForImmunity straight to Basic_CheckSoundproof; only Fissure / Horn Drill are routed through it.
+  The engine runs the immunity and absorb-ability checks for every damaging move. Differs only for Sheer Cold
+  into Wonder Guard (engine -12, [pp] 0) and similar MOVE_EXCEP edge cases.
+- OHKO: RP puts Drill Run in Horn Drill's move slot, so [pp] Basic_Main's `IfMoveEqualTo MOVE_HORN_DRILL` would
+  skip Drill Run's damage scoring in RP if the ROM kept that script. Matters once Drill Run is added.
+- OHKO: Levitate (Batch 8) has to go in `calculate_hit_miss`'s type check, which runs before the OHKO branch,
+  so Fissure respects it. Lock-On / No Guard (Batch 5) bypass the roll but not the level check
+  (`#TODO: No Guard, Lock-On` left in the branch).
+- OHKO: now redundant but left in place: `gravity and not move[_MOVE_OH_KO]` in `calculate_hit_miss` and
+  Hustle's `not move[_MOVE_OH_KO]` in `ab_on_try_move` (the OHKO branch returns before both matter).
+- OHKO: outdated TODO comments (left in place): "OHKO Moves" in the Basic (`trainer_ai_helper.py:916`) and Expert
+  (`:2014`) TODO docstrings. CLAUDE.md's known gap "OHKO moves skip the semi-invulnerability check" is fixed.
 
 ## UI (cross-batch)
 

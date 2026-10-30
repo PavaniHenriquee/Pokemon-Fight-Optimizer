@@ -38,6 +38,7 @@ from Models.constants import (
     _MOVE_PRIORITY, _MOVENAME_FAKE_OUT, _POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID,
     _POK_MOVE4_ID, _MOVENAME_PSYCH_UP, _MOVENAME_DRAGON_DANCE, _VOLSTATUS_LEECH_SEED,
     _VOLSTATUS_CURSE, _POK_MAX_HP, _MOVE_ACCURACY, _POK_ITEM_ID, _MOVE_DRAIN, _MOVENAME_BIDE,
+    _ABILITYNAMES_DAMP,
     _MOVENAME_BUG_BITE, _POK_TURNS, _MOVENAME_COUNTER, _TYPES_NORMAL, _TYPES_FIGHTING,
     _TYPES_POISON, _TYPES_ROCK, _TYPES_BUG, _TYPES_GHOST, _TYPES_STEEL, _TYPES_FLYING,
     _ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_JUICE, _ITEMNAMES_ORAN_BERRY,
@@ -73,9 +74,11 @@ from Models.constants import (
     _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG, _MOVENAME_SPLASH, _MOVENAME_SLEEP_TALK,
     _VOLSTATUS_PERISH_SONG, _POK_CONSUMED_ITEM, _ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE,
     _ABILITYNAMES_STICKY_HOLD, _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT,
-    _MOVENAME_NATURE_POWER, _TYPES_TYPELESS, _MOVENAME_BLIZZARD
+    _MOVENAME_NATURE_POWER, _TYPES_TYPELESS, _MOVENAME_BLIZZARD, _MOVE_OH_KO, _POK_LEVEL
 )
-from Engine.damage_calc import weight_power, matchup_types, gyro_ball_power, gravity_types
+from Engine.damage_calc import (
+    weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES
+)
 
 COUNTER_EX_TYPES = (
     _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
@@ -795,6 +798,20 @@ def basic_flag(
             return ability_score
     if move[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and ai_pok[_ITEM_NATURAL_GIFT_POWER] == 0:
         return -10
+    # Basic_CheckCannotExplode, the immunity is checked above: Damp unless the AI has Mold
+    # Breaker, then the AI's last Pokemon only explodes into the target's last one (-1)
+    if move[_MOVE_ID] in EXPLODE_MOVES:
+        if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and ability == _ABILITYNAMES_DAMP:
+            return -10
+        if ai_bench <= 0:
+            return -10 if user_bench > 0 else -1
+        return 0
+    # Basic_CheckOHKOWouldFail, the immunity is checked above: Sturdy unless the AI has Mold
+    # Breaker, then a target with a higher level
+    if move[_MOVE_OH_KO]:
+        if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and ability == _ABILITYNAMES_STURDY:
+            return -10
+        return -10 if ai_pok[_POK_LEVEL] < user_pok[_POK_LEVEL] else 0
     # Basic_CheckCanRemoveItem
     if move[_MOVE_ID] == _MOVENAME_KNOCK_OFF:
         return -10 if ability == _ABILITYNAMES_STICKY_HOLD or user_pok[_POK_ITEM_ID] == 0 else 0
@@ -1751,6 +1768,30 @@ def expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first):
 
 
 @njit
+def expert_explosion(ai_pok, u_pok, rand, idx, slower):
+    """
+    pokeplatinum Expert_Explosion. The code is followed where its comment differs: the second
+    evasion -1 starts at +4 (stage index 10), and at 30% HP or less both +1 rolls apply
+    """
+    score = 0
+    if u_pok[_POK_EVASION_STAT_STAGE] >= 1:
+        score -= 1
+        if u_pok[_POK_EVASION_STAT_STAGE] >= 4:
+            add_adjustment(rand, idx, -1, 128)
+    ai_hp_pct = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+    if ai_hp_pct >= 80 and not slower:
+        add_adjustment(rand, idx, -3, 206)
+        return score
+    if ai_hp_pct > 50:
+        add_adjustment(rand, idx, -1, 206)
+        return score
+    add_adjustment(rand, idx, 1, 128)
+    if ai_hp_pct <= 30:
+        add_adjustment(rand, idx, 1, 206)
+    return score
+
+
+@njit
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
     user_side=0, copycat_beats=False
@@ -1772,6 +1813,12 @@ def expert_flag(
         move_first = False
 
     if move[_MOVE_ID] in NO_AI_CHECK_M:
+        return 0
+    if move[_MOVE_ID] in EXPLODE_MOVES:
+        return expert_explosion(ai_pok, u_pok, rand, idx, ai_s < u_s)
+    # Expert_OHKOMove: 25% chance of +1
+    if move[_MOVE_OH_KO]:
+        add_adjustment(rand, idx, 1, 64)
         return 0
     if move[_MOVE_ID] in EXPERT_SPECIFIC_M:
         return expert_moves(

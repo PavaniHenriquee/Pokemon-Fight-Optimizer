@@ -1613,3 +1613,238 @@ def test_baton_pass_keeps_evasion_not_minimize(make_pokemon):
     old[Pok.VOL_STATUS2] = VolStatus2.MINIMIZE
     battle._pass_baton(old, new)
     assert new[Pok.EVASION_STAT_STAGE] == 1 and new[Pok.VOL_STATUS2] == 0
+
+
+
+# ── Batch 2: resist berries, Flame Orb, Light Clay, Smooth Rock ──────────────
+
+@pytest.mark.parametrize("item, move, defender, halved", [
+    ("Rindo Berry", "Vine Whip", "Geodude", True),
+    ("Rindo Berry", "Vine Whip", "Rattata", False),
+    ("Rindo Berry", "Tackle", "Geodude", False),
+    ("Chilan Berry", "Tackle", "Rattata", True),
+    ("Chilan Berry", "Vine Whip", "Rattata", False),
+])
+def test_resist_berry(make_pokemon, item, move, defender, halved):
+    """A resist berry halves a super effective hit of its type, Chilan any Normal hit, and it's
+    eaten (recyclable); otherwise it stays"""
+    atk = make_pokemon("Bulbasaur", 20, "Overgrow", [move]).to_np()
+    dfn = make_pokemon(defender, 20, "Sturdy", ["Tackle"], item=item).to_np()
+    item_id = dfn[Item.ID]
+    got = engine_helper.resist_berry(dfn, move_slice(atk, 0), 41)
+    if halved:
+        assert got == 20 and dfn[Item.ID] == 0 and dfn[Pok.CONSUMED_ITEM] == item_id
+    else:
+        assert got == 41 and dfn[Item.ID] == item_id
+
+
+def test_resist_berry_leaves_at_least_one_and_skips_immune(make_pokemon):
+    """Halving 1 still does 1; a hit that does nothing (Normal into Ghost) keeps the berry"""
+    atk = make_pokemon("Rattata", 20, "Run Away", ["Tackle"]).to_np()
+    dfn = make_pokemon("Rattata", 20, "Run Away", ["Tackle"], item="Chilan Berry").to_np()
+    assert engine_helper.resist_berry(dfn, move_slice(atk, 0), 1) == 1
+    ghost = make_pokemon("Gastly", 20, "Levitate", ["Tackle"], item="Chilan Berry").to_np()
+    assert engine_helper.resist_berry(ghost, move_slice(atk, 0), 0) == 0
+    assert ghost[Item.ID] == ItemNames.CHILAN_BERRY
+
+
+def test_resist_berry_only_halves_the_first_hit(monkeypatch, make_pokemon):
+    """Double Kick into a Chople Berry: the first hit eats it, the second does full damage"""
+    monkeypatch.setattr(battle, "calculate_damage", lambda *a: 40)
+    atk = make_pokemon("Machop", 20, "Guts", ["Double Kick"]).to_np()
+    dfn = make_pokemon("Snorlax", 50, "Thick Fat", ["Tackle"], item="Chople Berry").to_np()
+    hp = dfn[Pok.CURRENT_HP]
+    battle.ps_moves_multihit(atk, dfn, move_slice(atk, 0), 0, False, False)
+    assert dfn[Pok.CURRENT_HP] == hp - 20 - 40
+    assert dfn[Item.ID] == 0 and dfn[Pok.CONSUMED_ITEM] == ItemNames.CHOPLE_BERRY
+
+
+def _flame_orb_battle(make_pokemon, make_battle, species="Machop", ability="Guts"):
+    me = make_pokemon(species, 20, ability, ["Tackle"], item="Flame Orb")
+    foe = make_pokemon("Rattata", 20, "Run Away", ["Growl"])
+    return make_battle([me], [foe])
+
+
+def test_flame_orb_burns_at_the_end_of_the_turn(make_pokemon, make_battle):
+    """The burn comes after the burn damage step, so it only hurts from the next turn on"""
+    arr = _flame_orb_battle(make_pokemon, make_battle)
+    me = my_active(arr)
+    end_of_turn(arr)
+    assert me[Pok.STATUS] == Status.BURN and me[Pok.CURRENT_HP] == me[Pok.MAX_HP]
+    end_of_turn(arr)
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP] - me[Pok.MAX_HP] // 8
+    assert me[Item.ID] == ItemNames.FLAME_ORB
+
+
+@pytest.mark.parametrize("species, ability, status, side, weather", [
+    ("Ponyta", "Flash Fire", 0, 0, 0),
+    ("Machop", "Guts", Status.PARALYSIS, 0, 0),
+    ("Machop", "Guts", 0, SideCondition.SAFEGUARD, 0),
+    ("Goldeen", "Water Veil", 0, 0, 0),
+    ("Chikorita", "Leaf Guard", 0, 0, Weather.SUN),
+])
+def test_flame_orb_blocked(make_pokemon, make_battle, species, ability, status, side, weather):
+    """Fire type, another status, Safeguard, Water Veil and Leaf Guard in sun stop Flame Orb
+    (pokeplatinum subscript_burn, held item branch)"""
+    arr = _flame_orb_battle(make_pokemon, make_battle, species, ability)
+    me = my_active(arr)
+    me[Pok.STATUS] = status
+    arr[MY_SIDE] = side
+    arr[Field.WEATHER] = weather
+    battle._apply_residual(me, opp_active(arr), Field.MY_ENTER_FIELD, arr)
+    assert me[Pok.STATUS] == status
+
+
+def test_leaf_guard_without_sun_gets_burned(make_pokemon, make_battle):
+    """Leaf Guard only blocks it in sun"""
+    arr = _flame_orb_battle(make_pokemon, make_battle, "Chikorita", "Leaf Guard")
+    me = my_active(arr)
+    battle._apply_residual(me, opp_active(arr), Field.MY_ENTER_FIELD, arr)
+    assert me[Pok.STATUS] == Status.BURN
+
+
+@pytest.mark.parametrize("move, item, slot, left", [
+    ("Reflect", "Light Clay", SIDE_REFLECT_TURNS, 7),
+    ("Light Screen", "Light Clay", SIDE_LIGHT_SCREEN_TURNS, 7),
+    ("Reflect", None, SIDE_REFLECT_TURNS, 4),
+    ("Mist", "Light Clay", SIDE_MIST_TURNS, 4),
+    ("Safeguard", "Light Clay", SIDE_SAFEGUARD_TURNS, 4),
+])
+def test_light_clay_extends_screens_only(make_pokemon, make_battle, move, item, slot, left):
+    """Light Clay makes Reflect and Light Screen last 8 turns, the other side conditions keep 5"""
+    me = make_pokemon("Machop", 20, "Guts", [move], item=item)
+    arr = make_battle([me], [make_pokemon("Rattata", 20, "Run Away", ["Growl"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[MY_SIDE + slot] == left
+
+
+@pytest.mark.parametrize("move, item, left", [
+    ("Sandstorm", "Smooth Rock", 7),
+    ("Sandstorm", None, 4),
+    ("Rain Dance", "Smooth Rock", 4),
+])
+def test_smooth_rock_extends_sandstorm_only(make_pokemon, make_battle, move, item, left):
+    """Smooth Rock makes the user's Sandstorm last 8 turns, Rain Dance keeps 5"""
+    me = make_pokemon("Geodude", 30, "Sturdy", [move], item=item)
+    arr = make_battle([me], [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.WEATHER_DURATION] == left
+
+
+
+# ── Batch 3: Rock Head ───────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("ability, recoil", [
+    ("Run Away", True), ("Rock Head", False), ("Magic Guard", False),
+])
+def test_take_down_recoil_and_rock_head(make_pokemon, ability, recoil):
+    """Take Down's quarter recoil is skipped by Rock Head and Magic Guard"""
+    atk = make_pokemon("Rattata", 30, ability, ["Take Down"]).to_np()
+    hp = atk[Pok.CURRENT_HP]
+    battle._recoil(atk, move_slice(atk, 0), 40)
+    assert atk[Pok.CURRENT_HP] == (hp - 10 if recoil else hp)
+
+
+@pytest.mark.parametrize("ability", ["Rock Head", "Magic Guard"])
+def test_struggle_recoil_ignores_rock_head(make_pokemon, ability):
+    """Struggle's recoil (a quarter of max HP) still hits both (pokeplatinum subscript_struggle)"""
+    atk = make_pokemon("Rattata", 30, ability, ["Tackle"]).to_np()
+    hp = atk[Pok.CURRENT_HP]
+    battle._recoil(atk, STRUGGLE, 40)
+    assert atk[Pok.CURRENT_HP] == hp - atk[Pok.MAX_HP] // 4
+
+
+
+# ── Explosion / Selfdestruct ─────────────────────────────────────────────────
+
+def _explode_battle(make_pokemon, make_battle, user_ab="Sturdy", foe=("Rattata", 20, "Run Away"),
+                    foe_move="Growl", move="Explosion"):
+    me = make_pokemon("Geodude", 30, user_ab, [move])
+    them = make_pokemon(foe[0], foe[1], foe[2], [foe_move])
+    return make_battle([me], [them])
+
+
+@pytest.mark.parametrize("move", ["Explosion", "Selfdestruct"])
+def test_explosion_faints_the_user_and_hits(make_pokemon, make_battle, move):
+    """The user faints, the foe takes the hit"""
+    arr = _explode_battle(make_pokemon, make_battle, foe=("Machop", 40, "Guts"), move=move)
+    turn_sim(0, (MOVE, 0), arr)
+    foe = opp_active(arr)
+    assert my_active(arr)[Pok.CURRENT_HP] == 0
+    assert 0 < foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("foe, foe_move", [
+    (("Gastly", 20, "Levitate"), "Lick"),       # immune
+    (("Rattata", 20, "Run Away"), "Protect"),   # protected
+])
+def test_explosion_faints_the_user_without_hitting(make_pokemon, make_battle, foe, foe_move):
+    """A Ghost or Protect takes no damage, the user still faints (Showdown gen4 useMoveInner)"""
+    arr = _explode_battle(make_pokemon, make_battle, foe=foe, foe_move=foe_move)
+    turn_sim(0, (MOVE, 0), arr)
+    them = opp_active(arr)
+    assert my_active(arr)[Pok.CURRENT_HP] == 0
+    assert them[Pok.CURRENT_HP] == them[Pok.MAX_HP]
+
+
+def test_explosion_faints_the_user_on_a_miss(monkeypatch, make_pokemon, make_battle):
+    """The faint comes before the hit check"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.MISS)
+    arr = _explode_battle(make_pokemon, make_battle)
+    turn_sim(0, (MOVE, 0), arr)
+    them = opp_active(arr)
+    assert my_active(arr)[Pok.CURRENT_HP] == 0
+    assert them[Pok.CURRENT_HP] == them[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("user_ab, foe_ab, blocked", [
+    ("Damp", "Run Away", True),
+    ("Sturdy", "Damp", True),
+    ("Mold Breaker", "Damp", False),
+])
+def test_damp_stops_explosion(make_pokemon, make_battle, user_ab, foe_ab, blocked):
+    """Damp on either side stops the move and the faint, Mold Breaker ignores the target's"""
+    arr = _explode_battle(make_pokemon, make_battle, user_ab, ("Rattata", 30, foe_ab))
+    turn_sim(0, (MOVE, 0), arr)
+    me, them = my_active(arr), opp_active(arr)
+    if blocked:
+        assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP] and them[Pok.CURRENT_HP] == them[Pok.MAX_HP]
+    else:
+        assert me[Pok.CURRENT_HP] == 0 and them[Pok.CURRENT_HP] < them[Pok.MAX_HP]
+
+
+def test_gen4_sturdy_doesnt_survive_explosion(make_pokemon, make_battle):
+    """Gen IV Sturdy only stops OHKO moves: a full HP Sturdy Pokemon is KO'd like any other"""
+    arr = _explode_battle(make_pokemon, make_battle, foe=("Geodude", 5, "Sturdy"))
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.CURRENT_HP] == 0
+
+
+
+# ── OHKO moves ───────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("move", ["Fissure", "Guillotine", "Sheer Cold"])
+def test_ohko_takes_the_current_hp(make_pokemon, move):
+    """The damage is the target's current HP: no crit, no damage calc"""
+    atk = make_pokemon("Rattata", 50, "Run Away", [move]).to_np()
+    dfn = make_pokemon("Geodude", 50, "Rock Head", ["Tackle"]).to_np()
+    dfn[Pok.CURRENT_HP] = 10
+    assert battle._resolve_move_damage(atk, dfn, move_slice(atk, 0), 0) == 10
+
+
+def test_ohko_knocks_out(monkeypatch, make_pokemon, make_battle):
+    """A hit leaves the target at 0 from full HP"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    me = make_pokemon("Rattata", 50, "Run Away", ["Guillotine"])
+    arr = make_battle([me], [make_pokemon("Geodude", 50, "Rock Head", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.CURRENT_HP] == 0
+
+
+def test_endure_survives_ohko(make_pokemon):
+    """Endure leaves the target at 1 HP"""
+    atk = make_pokemon("Rattata", 50, "Run Away", ["Guillotine"]).to_np()
+    dfn = make_pokemon("Geodude", 50, "Rock Head", ["Tackle"]).to_np()
+    dfn[Pok.VOL_STATUS] |= VolStatus.ENDURE
+    battle._ps_moves_core(atk, dfn, move_slice(atk, 0), 0)
+    assert dfn[Pok.CURRENT_HP] == 1

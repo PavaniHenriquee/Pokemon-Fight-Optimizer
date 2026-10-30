@@ -41,6 +41,7 @@ from Models.constants import (
     _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEM_HOLD_EFFECT,
     _ITEM_ID, _ITEM_EFFECT_PARAM, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _VOLSTATUS_FOCUS_ENERGY, _MOVE_CRIT_RATIO,
     _HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE, _POK_CONFUSION_COUNTER, _ITEM_WHEN,
+    _HOLDEFFECT_WEAKEN_SE, _HOLDEFFECT_WEAKEN_NORMAL, _ITEM_EFFECT_TYPE,
     _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_WILL_CRIT,
     _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN,
     _MOVEOUTCOME_SEMI_INVULNERABLE, _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN,
@@ -61,7 +62,8 @@ from Models.constants import (
     _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER, _MOVENAME_SLEEP_TALK, _MOVENAME_ENCORE,
     _MOVENAME_EARTHQUAKE, _MOVENAME_SEED_BOMB, _MOVENAME_ROCK_SLIDE, _MOVENAME_BLIZZARD,
     _MOVENAME_HYDRO_PUMP, _MOVENAME_ICE_BEAM, _MOVENAME_TRI_ATTACK, _MOVENAME_MUD_BOMB,
-    _MOVENAME_AIR_SLASH, _TERRAIN_SPECIAL, _FLAGS_MIRROR, _POK_AB_BREAKABLE, _TYPES_TYPELESS
+    _MOVENAME_AIR_SLASH, _TERRAIN_SPECIAL, _FLAGS_MIRROR, _POK_AB_BREAKABLE, _TYPES_TYPELESS,
+    _ABILITYNAMES_STURDY,
 )
 
 
@@ -195,14 +197,41 @@ def _apply_berry_effect(source, target):
 
 @njit
 def eat_berry(pok):
-    """Self-triggered berry eat at low HP (end of turn / on receiving damage)"""
+    """Self-triggered berry eat at low HP (end of turn / on receiving damage). A fainted
+    Pokemon doesn't eat it (pokeplatinum BattleSystem_TriggerHeldItem)"""
     if (
         pok[_ITEM_HOLD_EFFECT] in HP_RESTORE_EFFECTS
+        and 0 < pok[_POK_CURRENT_HP]
         and pok[_POK_CURRENT_HP] * 2 <= pok[_POK_MAX_HP]
     ):
         _apply_berry_effect(pok, pok)
         pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
         clear_item(pok)
+
+
+@njit
+def resist_berry(defender, move, damage, gravity=False):
+    """
+    A resist berry halves a super effective hit of its type and Chilan any Normal hit, then it's
+    eaten. Showdown onSourceModifyDamage, a final modifier that leaves at least 1
+    """
+    effect = defender[_ITEM_HOLD_EFFECT]
+    if damage <= 0 or (effect != _HOLDEFFECT_WEAKEN_SE and effect != _HOLDEFFECT_WEAKEN_NORMAL):
+        return damage
+    m_type = move[_MOVE_TYPE]
+    if m_type != defender[_ITEM_EFFECT_TYPE]:
+        return damage
+    if effect == _HOLDEFFECT_WEAKEN_SE:
+        def_type1, def_type2 = matchup_types(m_type, defender, gravity)
+        effectiveness, _ = get_type_effectiveness(m_type, def_type1, 0)
+        effectiveness2 = 2
+        if def_type2:
+            effectiveness2, _ = get_type_effectiveness(m_type, def_type2, 0)
+        if effectiveness * effectiveness2 <= 4:
+            return damage
+    defender[_POK_CONSUMED_ITEM] = defender[_ITEM_ID]
+    clear_item(defender)
+    return max(1, damage // 2)
 
 
 @njit
@@ -323,6 +352,25 @@ def ignorable_ability(defender, attacker):
 
 
 @njit
+def ohko_fails(attacker, defender):
+    """An OHKO move can't work from a lower level or into Sturdy (Mold Breaker ignores it)"""
+    if attacker[_POK_LEVEL] < defender[_POK_LEVEL]:
+        return True
+    return defender[_POK_AB_ID] == _ABILITYNAMES_STURDY and ignorable_ability(defender, attacker)
+
+
+@njit
+def damp_blocks(attacker, defender):
+    """
+    Damp on either side stops Explosion and Selfdestruct, Mold Breaker ignores the target's
+    (pokeplatinum CheckIgnorableAbility on all battlers)
+    """
+    if attacker[_POK_AB_ID] == _ABILITYNAMES_DAMP:
+        return True
+    return defender[_POK_AB_ID] == _ABILITYNAMES_DAMP and ignorable_ability(defender, attacker)
+
+
+@njit
 def absorb_abi(defender):
     """
     Absorb abilities restore 1/4 of max hp on try hitting instead of the move
@@ -340,10 +388,7 @@ def ab_on_try_move(move, attacker, defender, accuracy:int, weather):
     atk_ab = attacker[_POK_AB_ID]
     def_ab = defender[_POK_AB_ID]
     target = move[_MOVE_TARGET]
-    if move[_MOVE_ID] in DAMP_IGNORES and (
-        atk_ab == _ABILITYNAMES_DAMP  #pylint: disable=consider-using-in
-        or def_ab == _ABILITYNAMES_DAMP
-    ):
+    if move[_MOVE_ID] in DAMP_IGNORES and damp_blocks(attacker, defender):
         return 0
     if (
         atk_ab == _ABILITYNAMES_HUSTLE
@@ -391,13 +436,19 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
         defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE
         and not semi_inv_reaches(move[_MOVE_ID], defender)
         and move[_MOVE_ID] != _MOVENAME_BIDE
-        and not move[_MOVE_OH_KO]
         and move[_MOVE_TARGET] not in TARGET_SELF_SIDE
         and move[_MOVE_TARGET] not in SIDE_OR_FIELD_TARGETS
     ):
         return _MOVEOUTCOME_SEMI_INVULNERABLE
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE or move[_MOVE_ID] == _MOVENAME_BIDE:
         return _MOVEOUTCOME_HIT
+    # Sturdy makes OHKO moves fail, Mold Breaker ignores it (pokeplatinum BtlCmd_TryOHKOMove)
+    if (
+        move[_MOVE_OH_KO]
+        and defender[_POK_AB_ID] == _ABILITYNAMES_STURDY
+        and ignorable_ability(defender, attacker)
+    ):
+        return _MOVEOUTCOME_INVULNERABLE
     if move[_MOVE_ID] == _MOVENAME_FAKE_OUT and attacker[_POK_TURNS_ACTIVE] > 1:
         return _MOVEOUTCOME_MISS
     move_acc = move[_MOVE_ACCURACY]
@@ -414,6 +465,18 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
         eff, _ = get_type_effectiveness(move[_MOVE_TYPE], def_t1, def_t2)
         if eff == 0:
             return _MOVEOUTCOME_INVULNERABLE
+
+    # OHKO moves hit on accuracy + the level difference out of 100 and always fail from a lower
+    # level. Stat stages, Gravity and the accuracy abilities don't apply (pokeplatinum
+    # BtlCmd_TryOHKOMove)
+    #TODO: No Guard, Lock-On
+    if move[_MOVE_OH_KO]:
+        if attacker[_POK_LEVEL] < defender[_POK_LEVEL]:
+            return _MOVEOUTCOME_INVULNERABLE
+        hit = move[_MOVE_ACCURACY] + attacker[_POK_LEVEL] - defender[_POK_LEVEL]
+        if random.randint(0, 99) < hit:
+            return _MOVEOUTCOME_HIT
+        return _MOVEOUTCOME_MISS
 
     if move_acc == -1:
         return _MOVEOUTCOME_HIT

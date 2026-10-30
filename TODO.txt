@@ -38,7 +38,7 @@
 [X]Rain Dish
 [X]Reckless
 []Rivalry *
-[]Rock Head (Need to implement recoil)
+[X]Rock Head
 [X]Sand Veil
 []Scrappy *
 []Serene Grace *
@@ -54,7 +54,7 @@
 []Static *
 [X]Steadfast
 []Storm Drain *
-[]Sturdy (Need to implement OHKO moves)
+[X]Sturdy
 [X]Suction Cups (Need to implement force switches moves)
 []Super Luck *
 []Swarm *
@@ -341,7 +341,7 @@
 []Dream Eater ! *
 []Embargo(B/E)
 []Endeavor(E)
-[]Explosion(B/E) ! *
+[X]Explosion(B/E) ! *
 []Facade(E)
 []Flatter *
 []Fling(B/E)
@@ -383,7 +383,7 @@
 []Punishment(E)
 []Rest(E)
 []Reversal(E)
-[]Selfdestruct(B/E) ! *
+[X]Selfdestruct(B/E) ! *
 []Sleep Talk(B/E) ! *
 []Smelling Salt(E)
 []Snatch(E)
@@ -416,11 +416,11 @@
 []Bright Powder *
 [X]Charcoal *
 [X]Expert Belt *
-[]Flame Orb *
+[X]Flame Orb *
 []Focus Band *
 [X]Hard Stone *
 []Leftovers *
-[]Light Clay *
+[X]Light Clay *
 []Mental Herb *
 [X]Metal Coat *
 []Metronome *
@@ -433,7 +433,7 @@
 [X]Poison Barb *
 []Power Herb *
 []Quick Claw *
-[]Rindo Berry *
+[X]Rindo Berry *
 []Scope Lens *
 [X]Sea Incense *
 [X]Sharp Beak *
@@ -441,34 +441,34 @@
 [X]Silk Scarf *
 [X]Silver Powder *
 [X]Sitrus Berry
-[]Smooth Rock *
+[X]Smooth Rock *
 [X]Soft Sand *
 [X]Thick Club *
 [X]Twisted Spoon *
 
 ## Items that isn't used until 1st gym, but Trainer AI or engine has current special conditions
-[]Babiri Berry *
+[X]Babiri Berry *
 []Berry Juice *
 []Black Sludge *
-[]Charti Berry *
+[X]Charti Berry *
 []Chesto Berry *
-[]Chilan Berry *
-[]Chople Berry *
-[]Coba Berry *
-[]Colbur Berry *
-[]Haban Berry *
-[]Kasib Berry *
-[]Kebia Berry *
+[X]Chilan Berry *
+[X]Chople Berry *
+[X]Coba Berry *
+[X]Colbur Berry *
+[X]Haban Berry *
+[X]Kasib Berry *
+[X]Kebia Berry *
 []Lax Incense *
 [X]Light Ball *
 []Lum Berry *
-[]Occa Berry *
-[]Passho Berry *
-[]Payapa Berry *
-[]Shuca Berry *
-[]Tanga Berry *
-[]Wacan Berry *
-[]Yache Berry *
+[X]Occa Berry *
+[X]Passho Berry *
+[X]Payapa Berry *
+[X]Shuca Berry *
+[X]Tanga Berry *
+[X]Wacan Berry *
+[X]Yache Berry *
 
 # Misc.
 [X]Trainer AI potion
