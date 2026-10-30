@@ -1,5 +1,9 @@
 {
   "Babiri Berry": {
+    "effect_param": 0,
+    "effect_type": "Steel",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "babiri_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Steel",
@@ -7,36 +11,52 @@
     "when": "on_receive_damage"
   },
   "Berry Juice": {
+    "effect_param": 20,
     "fling_power": 30,
+    "hold_effect": "hp_restore",
     "name": "berry_juice",
     "type": "consumable",
     "when": "on_receive_damage"
   },
   "Black Belt": {
+    "effect_param": 20,
+    "effect_type": "Fighting",
     "fling_power": 30,
+    "hold_effect": "type_boost",
     "name": "black_belt",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Black Sludge": {
+    "effect_param": 16,
     "fling_power": 30,
+    "hold_effect": "hp_restore_psn_type",
     "name": "black_sludge",
     "type": "held",
     "when": "on_end"
   },
   "Bright Powder": {
+    "effect_param": 10,
     "fling_power": 10,
+    "hold_effect": "acc_reduce",
     "name": "bright_powder",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Charcoal": {
+    "effect_param": 20,
+    "effect_type": "Fire",
     "fling_power": 30,
+    "hold_effect": "type_boost",
     "name": "charcoal",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Charti Berry": {
+    "effect_param": 0,
+    "effect_type": "Rock",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "charti_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Rock",
@@ -44,6 +64,9 @@
     "when": "on_receive_damage"
   },
   "Chesto Berry": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "slp_restore",
     "name": "chesto_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Water",
@@ -51,6 +74,10 @@
     "when": "on_end"
   },
   "Chilan Berry": {
+    "effect_param": 0,
+    "effect_type": "Normal",
+    "fling_power": 10,
+    "hold_effect": "weaken_normal",
     "name": "chilan_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Normal",
@@ -58,6 +85,10 @@
     "when": "on_receive_damage"
   },
   "Chople Berry": {
+    "effect_param": 0,
+    "effect_type": "Fighting",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "chople_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Fighting",
@@ -65,6 +96,10 @@
     "when": "on_receive_damage"
   },
   "Coba Berry": {
+    "effect_param": 0,
+    "effect_type": "Flying",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "coba_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Flying",
@@ -72,6 +107,10 @@
     "when": "on_receive_damage"
   },
   "Colbur Berry": {
+    "effect_param": 0,
+    "effect_type": "Dark",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "colbur_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Dark",
@@ -79,24 +118,34 @@
     "when": "on_receive_damage"
   },
   "Expert Belt": {
+    "effect_param": 20,
     "fling_power": 10,
+    "hold_effect": "power_up_se",
     "name": "expert_belt",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Flame Orb": {
+    "effect_param": 0,
     "fling_power": 30,
+    "hold_effect": "brn_user",
     "name": "flame_orb",
     "type": "held",
     "when": "on_end"
   },
   "Focus Band": {
+    "effect_param": 10,
     "fling_power": 10,
+    "hold_effect": "maybe_endure",
     "name": "focus_band",
     "type": "held",
     "when": "on_damage"
   },
   "Haban Berry": {
+    "effect_param": 0,
+    "effect_type": "Dragon",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "haban_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Dragon",
@@ -104,12 +153,19 @@
     "when": "on_receive_damage"
   },
   "Hard Stone": {
+    "effect_param": 20,
+    "effect_type": "Rock",
     "fling_power": 100,
+    "hold_effect": "type_boost",
     "name": "hard_stone",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Kasib Berry": {
+    "effect_param": 0,
+    "effect_type": "Ghost",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "kasib_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Ghost",
@@ -117,6 +173,10 @@
     "when": "on_receive_damage"
   },
   "Kebia Berry": {
+    "effect_param": 0,
+    "effect_type": "Poison",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "kebia_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Poison",
@@ -124,31 +184,42 @@
     "when": "on_receive_damage"
   },
   "Lax Incense": {
+    "effect_param": 10,
     "fling_power": 10,
+    "hold_effect": "acc_reduce",
     "name": "lax_incense",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Leftovers": {
+    "effect_param": 10,
     "fling_power": 10,
+    "hold_effect": "hp_restore_gradual",
     "name": "leftovers",
     "type": "held",
     "when": "on_end"
   },
   "Light Ball": {
+    "effect_param": 0,
     "fling_power": 30,
+    "hold_effect": "pika_spatk_up",
     "item_user": "Pikachu",
     "name": "light_ball",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Light Clay": {
+    "effect_param": 3,
     "fling_power": 30,
+    "hold_effect": "extend_screens",
     "name": "light_clay",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Lum Berry": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "status_restore",
     "name": "lum_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Flying",
@@ -156,48 +227,70 @@
     "when": "on_end"
   },
   "Mental Herb": {
+    "effect_param": 0,
     "fling_power": 10,
+    "hold_effect": "heal_infatuation",
     "name": "mental_herb",
     "type": "consumable",
     "when": "on_end"
   },
   "Metal Coat": {
+    "effect_param": 20,
+    "effect_type": "Steel",
     "fling_power": 30,
+    "hold_effect": "type_boost",
     "name": "metal_coat",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Metronome": {
+    "effect_param": 10,
     "fling_power": 30,
+    "hold_effect": "boost_repeated",
     "name": "metronome",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Miracle Seed": {
+    "effect_param": 20,
+    "effect_type": "Grass",
     "fling_power": 30,
+    "hold_effect": "type_boost",
     "name": "miracle_seed",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Muscle Band": {
+    "effect_param": 10,
     "fling_power": 10,
+    "hold_effect": "power_up_phys",
     "name": "muscle_band",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Mystic Water": {
+    "effect_param": 20,
+    "effect_type": "Water",
     "fling_power": 30,
+    "hold_effect": "type_boost",
     "name": "mystic_water",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Never-Melt Ice": {
+    "effect_param": 20,
+    "effect_type": "Ice",
     "fling_power": 30,
+    "hold_effect": "type_boost",
     "name": "never_melt_ice",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Occa Berry": {
+    "effect_param": 0,
+    "effect_type": "Fire",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "occa_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Fire",
@@ -209,9 +302,16 @@
     "when": "on_receive_damage",
     "type": "berry",
     "natural_gift_power": 60,
-    "natural_gift_type": "Poison"
+    "natural_gift_type": "Poison",
+    "hold_effect": "hp_restore",
+    "effect_param": 10,
+    "fling_power": 10
   },
   "Passho Berry": {
+    "effect_param": 0,
+    "effect_type": "Water",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "passho_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Water",
@@ -219,6 +319,10 @@
     "when": "on_receive_damage"
   },
   "Payapa Berry": {
+    "effect_param": 0,
+    "effect_type": "Psychic",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "payapa_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Psychic",
@@ -226,6 +330,9 @@
     "when": "on_receive_damage"
   },
   "Pecha Berry": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "psn_restore",
     "name": "pecha_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Electric",
@@ -233,24 +340,35 @@
     "when": "on_end"
   },
   "Poison Barb": {
+    "effect_param": 20,
+    "effect_type": "Poison",
     "fling_power": 70,
+    "hold_effect": "type_boost",
     "name": "poison_barb",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Power Herb": {
+    "effect_param": 0,
     "fling_power": 10,
+    "hold_effect": "charge_skip",
     "name": "power_herb",
     "type": "consumable",
     "when": "on_prepare_hit"
   },
   "Quick Claw": {
+    "effect_param": 20,
     "fling_power": 80,
+    "hold_effect": "sometimes_priority",
     "name": "quick_claw",
     "type": "held",
     "when": "on_selection"
   },
   "Rindo Berry": {
+    "effect_param": 0,
+    "effect_type": "Grass",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "rindo_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Grass",
@@ -258,30 +376,44 @@
     "when": "on_receive_damage"
   },
   "Scope Lens": {
+    "effect_param": 0,
     "fling_power": 30,
+    "hold_effect": "critrate_up",
     "name": "scope_lens",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Sea Incense": {
+    "effect_param": 20,
+    "effect_type": "Water",
     "fling_power": 10,
+    "hold_effect": "type_boost",
     "name": "sea_incense",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Sharp Beak": {
+    "effect_param": 20,
+    "effect_type": "Flying",
     "fling_power": 50,
+    "hold_effect": "type_boost",
     "name": "sharp_beak",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Shed Shell": {
+    "effect_param": 0,
     "fling_power": 10,
+    "hold_effect": "switch",
     "name": "shed_shell",
     "type": "held",
     "when": "on_selection"
   },
   "Shuca Berry": {
+    "effect_param": 0,
+    "effect_type": "Ground",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "shuca_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Ground",
@@ -289,13 +421,19 @@
     "when": "on_receive_damage"
   },
   "Silk Scarf": {
+    "effect_param": 20,
+    "effect_type": "Normal",
     "fling_power": 10,
+    "hold_effect": "type_boost",
     "name": "silk_scarf",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Silver Powder": {
+    "effect_param": 20,
+    "effect_type": "Bug",
     "fling_power": 10,
+    "hold_effect": "type_boost",
     "name": "silver_powder",
     "type": "held",
     "when": "on_prepare_hit"
@@ -305,21 +443,33 @@
     "when": "on_receive_damage",
     "type": "berry",
     "natural_gift_power": 60,
-    "natural_gift_type": "Psychic"
+    "natural_gift_type": "Psychic",
+    "hold_effect": "hp_pct_restore",
+    "effect_param": 25,
+    "fling_power": 10
   },
   "Smooth Rock": {
+    "effect_param": 3,
     "fling_power": 10,
+    "hold_effect": "extend_sandstorm",
     "name": "smooth_rock",
     "type": "held",
     "when": "on_weather_change"
   },
   "Soft Sand": {
+    "effect_param": 20,
+    "effect_type": "Ground",
     "fling_power": 10,
+    "hold_effect": "type_boost",
     "name": "soft_sand",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Tanga Berry": {
+    "effect_param": 0,
+    "effect_type": "Bug",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "tanga_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Bug",
@@ -327,19 +477,28 @@
     "when": "on_receive_damage"
   },
   "Thick Club": {
+    "effect_param": 0,
     "fling_power": 90,
+    "hold_effect": "cubone_atk_up",
     "item_user": "Marowak",
     "name": "thick_club",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Twisted Spoon": {
+    "effect_param": 20,
+    "effect_type": "Psychic",
     "fling_power": 30,
+    "hold_effect": "type_boost",
     "name": "twisted_spoon",
     "type": "held",
     "when": "on_prepare_hit"
   },
   "Wacan Berry": {
+    "effect_param": 0,
+    "effect_type": "Electric",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "wacan_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Electric",
@@ -347,6 +506,10 @@
     "when": "on_receive_damage"
   },
   "Yache Berry": {
+    "effect_param": 0,
+    "effect_type": "Ice",
+    "fling_power": 10,
+    "hold_effect": "weaken_se",
     "name": "yache_berry",
     "natural_gift_power": 60,
     "natural_gift_type": "Ice",

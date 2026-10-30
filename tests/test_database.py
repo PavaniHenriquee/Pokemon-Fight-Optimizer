@@ -7,7 +7,8 @@ from Models.move import Moves
 from Models.ability import ability_to_np
 from Models.item import item_to_np
 from Models.pokemon import Pokemon
-from Models.idx_const import MOVE_STRIDE, AB_LEN, ITEM_LEN, POK_LEN, Move
+from Models.idx_const import MOVE_STRIDE, AB_LEN, ITEM_LEN, POK_LEN, Move, Item
+from Models.helper import HoldEffect
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -82,6 +83,19 @@ def test_item_converts():
     """Every ItemDB entry → item block"""
     items = [(n, itemDB[n]) for n in sorted(itemDB)]
     assert not _failures(items, _block_check(item_to_np, ITEM_LEN))
+
+
+def test_item_hold_effects():
+    """Every ItemDB entry has a hold effect, and the per-type ones (type items, resist berries)
+    carry their type"""
+    typed = (HoldEffect.TYPE_BOOST, HoldEffect.WEAKEN_SE, HoldEffect.WEAKEN_NORMAL)
+    def check(entry):
+        arr = item_to_np(entry)
+        effect, effect_type = arr[Item.HOLD_EFFECT - Item.ID], arr[Item.EFFECT_TYPE - Item.ID]
+        assert effect != 0
+        assert (effect_type != 0) == (effect in typed), (effect, effect_type)
+    items = [(n, itemDB[n]) for n in sorted(itemDB)]
+    assert not _failures(items, check)
 
 
 def test_species_converts():

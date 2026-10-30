@@ -6,11 +6,12 @@ from Engine import engine_helper
 from Engine.speed import check_speed
 from Engine.engine_helper import (
     move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
-    switch_in, trainer_ai_items, eat_berry, drain, weather_dmg, early_returns, struggle,
+    switch_in, trainer_ai_items, eat_berry, eat_berry_bug_bite, item_on_rdmg, drain, weather_dmg,
+    early_returns, struggle,
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
-    is_grounded,
+    is_grounded, ignorable_ability,
 )
 from Models.ability import ABILITY_TABLE
 from Models.item import ITEM_TABLE
@@ -298,6 +299,46 @@ def test_sitrus_berry_quarter_heal(poke):
     p[Pok.CURRENT_HP] = 5
     eat_berry(p)
     assert p[Pok.CURRENT_HP] == 5 + p[Pok.MAX_HP] // 4
+
+
+def test_sitrus_berry_heals_at_least_one(poke):
+    """Sitrus heals maxHP * 25 / 100 through BattleSystem_Divide, which never rounds to 0"""
+    p = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Sitrus Berry")
+    p[Pok.MAX_HP], p[Pok.CURRENT_HP] = 3, 1
+    eat_berry(p)
+    assert p[Pok.CURRENT_HP] == 2
+
+
+def test_berry_juice_heals_20(poke):
+    """Berry Juice isn't a berry but shares HP_RESTORE with Oran: +20 at <= 50%, used up"""
+    p = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Berry Juice")
+    p[Pok.CURRENT_HP] = p[Pok.MAX_HP] // 2
+    item_on_rdmg(p)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] // 2 + 20
+    assert p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] == ItemNames.BERRY_JUICE
+
+
+def test_bug_bite_gives_berry_to_attacker(poke):
+    """Bug Bite: the biter heals by the target's berry (its own max HP for Sitrus), the target
+    loses it and can't recycle it"""
+    atk = poke("Kricketune", 50, "Swarm", ["Bug Bite"])
+    dfn = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Sitrus Berry")
+    atk[Pok.CURRENT_HP] = 10
+    eat_berry_bug_bite(atk, dfn)
+    assert atk[Pok.CURRENT_HP] == 10 + atk[Pok.MAX_HP] // 4
+    assert dfn[Item.ID] == 0 and dfn[Pok.CONSUMED_ITEM] == 0
+
+
+@pytest.mark.parametrize("defender_ab, attacker_ab, applies", [
+    ("Levitate", "Mold Breaker", False),
+    ("Levitate", "Blaze", True),
+    ("Intimidate", "Mold Breaker", True),
+])
+def test_ignorable_ability(poke, defender_ab, attacker_ab, applies):
+    """Mold Breaker ignores breakable abilities only"""
+    dfn = poke("Geodude", 50, defender_ab, ["Tackle"])
+    atk = poke("Geodude", 50, attacker_ab, ["Tackle"])
+    assert bool(ignorable_ability(dfn, atk)) == applies
 
 
 def test_drain_half_with_minimum_one(poke):
@@ -944,13 +985,13 @@ def test_refresh(poke, status, cured):
 def test_eaten_berry_can_be_recycled(poke):
     """The holder eating its berry makes it recyclable, Recycle restores the whole item block"""
     p = poke("Machop", 20, "Guts", ["Tackle"], item="Sitrus Berry")
-    block = p[Item.ID:Item.ITEM_USER + 1].copy()
+    block = p[Item.ID:Item.EFFECT_TYPE + 1].copy()
     p[Pok.CURRENT_HP] = p[Pok.MAX_HP] // 2
     eat_berry(p)
     assert p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] == ItemNames.SITRUS_BERRY
     p[Pok.CURRENT_HP] = p[Pok.MAX_HP]
     recycle(p)
-    assert (p[Item.ID:Item.ITEM_USER + 1] == block).all() and p[Pok.CONSUMED_ITEM] == 0
+    assert (p[Item.ID:Item.EFFECT_TYPE + 1] == block).all() and p[Pok.CONSUMED_ITEM] == 0
     assert (ITEM_TABLE[ItemNames.SITRUS_BERRY] == block).all()
 
 

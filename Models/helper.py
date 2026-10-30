@@ -199,6 +199,37 @@ class ItemActivation:
     ON_SELECTION      = 64
 
 
+@dataclass(slots=True)
+class HoldEffect:
+    """Held item effects, named after pokeplatinum's holdEffect. The per-type ones are merged and
+    keep their type in Item.EFFECT_TYPE"""
+    TYPE_BOOST          = 1
+    POWER_UP_PHYS       = 2
+    POWER_UP_SE         = 3
+    WEAKEN_SE           = 4
+    WEAKEN_NORMAL       = 5
+    HP_RESTORE          = 6
+    HP_PCT_RESTORE      = 7
+    PSN_RESTORE         = 8
+    SLP_RESTORE         = 9
+    STATUS_RESTORE      = 10
+    HEAL_INFATUATION    = 11
+    ACC_REDUCE          = 12
+    CRITRATE_UP         = 13
+    SOMETIMES_PRIORITY  = 14
+    MAYBE_ENDURE        = 15
+    HP_RESTORE_GRADUAL  = 16
+    HP_RESTORE_PSN_TYPE = 17
+    BRN_USER            = 18
+    EXTEND_SCREENS      = 19
+    EXTEND_SANDSTORM    = 20
+    CHARGE_SKIP         = 21
+    SWITCH              = 22
+    BOOST_REPEATED      = 23
+    CUBONE_ATK_UP       = 24
+    PIKA_SPATK_UP       = 25
+
+
 _HP_RAW = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
 
 

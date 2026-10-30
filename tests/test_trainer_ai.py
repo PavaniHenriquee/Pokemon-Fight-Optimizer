@@ -906,6 +906,18 @@ def test_sub_after_death_skips_the_excluded_slot(poke):
     assert sub_after_death(party, user, party[:POK_LEN], 0, 0, 0) == 1
 
 
+def test_sub_after_death_scores_full_damage(poke):
+    """Phase 2 scores each move at full damage (pokeplatinum BattleAI_PostKOSwitchIn passes
+    criticalMul 1, no roll), so the harder hitter wins over party order"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Rattata", 20, "Run Away", ["Tackle"])
+    party[POK_LEN:2 * POK_LEN] = poke("Geodude", 20, "Sturdy", ["Rock Slide"])
+    dead = poke("Machop", 20, "Guts", ["Karate Chop"])
+    dead[Pok.CURRENT_HP] = 0
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert sub_after_death(party, user, dead) == 1
+
+
 @pytest.mark.parametrize("took_dmg", [0, Types.NORMAL])
 def test_natural_cure_withdraw_never_picks_the_active(monkeypatch, make_pokemon, make_battle, took_dmg):
     """Asleep with Natural Cure: the AI's best pick is its own active, it sends the bench one"""

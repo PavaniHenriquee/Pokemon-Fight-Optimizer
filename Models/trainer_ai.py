@@ -147,7 +147,7 @@ def sub_after_death(
                 break
             if mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
                 continue
-            raw_dmg = calculate_damage(deadmon, user_pok, mv, weather, False, 1, user_side, gravity)
+            raw_dmg = calculate_damage(deadmon, user_pok, mv, weather, False, 100, user_side, gravity)
             #overflow bug:
             dmg = raw_dmg - 255 if raw_dmg > 255 else raw_dmg
             dmg = min(dmg, user_hp)

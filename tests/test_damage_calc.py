@@ -4,11 +4,13 @@ import pytest
 from Engine.damage_calc import (
     apply_stat_stage, calculate_damage, calculate_damage_confusion, flail,
     weight_power, magnitude_power, variable_power, base_power_ability, charge_power,
-    sport_power, matchup_types, calculate_ai_logic_damage,
+    sport_power, matchup_types, calculate_ai_logic_damage, item_power, item_attack, raw_atk_def,
+    MULTIPLIERS,
 )
+from Engine.engine_helper import struggle
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
 from Models.idx_const import Pok
-from Models.helper import Types, Status, Weather, VolStatus, VolStatus2, SideCondition
+from Models.helper import Types, Status, Weather, VolStatus, VolStatus2, SideCondition, MoveCategory
 from DataBase.MoveDB import MoveName
 from battle_driver import move_slice
 
@@ -478,3 +480,232 @@ def test_gravity_drops_flying_type_against_ground(poke):
     a = poke("Geodude", 20, "Sturdy", ["Earthquake"])
     assert calculate_damage(a, d, move_slice(a, 0), 0, False, 100) == 0
     assert calculate_damage(a, d, move_slice(a, 0), 0, False, 100, 0, True) > 0
+
+
+
+# ── Base formula rounding ────────────────────────────────────────────────────
+
+def test_level_factor_is_floored(poke):
+    """pokeplatinum CalcMoveDamage is integer math: level 12 gives 2*12/5 + 2 = 6, not 6.8"""
+    a = poke("Machop", 12, "Guts", ["Tackle"])
+    d = poke("Machop", 12, "Guts", ["Tackle"])
+    a[Pok.ATTACK], d[Pok.DEFENSE] = 100, 50
+    # 100 * 40 * 6 // 50 // 50 = 9, +2; the unfloored 6.8 would give 10
+    assert dmg(a, d) == 11
+
+
+def test_ai_damage_burn_spares_guts(poke):
+    """The AI estimate uses the same burn rule as the battle: Guts isn't halved"""
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    guts = poke("Machop", 50, "Guts", ["Karate Chop"])
+    mv = move_slice(guts, 0)
+    plain = calculate_ai_logic_damage(2.0, guts, d, mv, 0)
+    guts[Pok.STATUS] = Status.BURN
+    assert ratio(calculate_ai_logic_damage(2.0, guts, d, mv, 0), plain) == pytest.approx(1.5, abs=0.05)
+
+
+# ── Damage items ─────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("item, move_type, category, power", [
+    ("Muscle Band", Types.NORMAL, MoveCategory.PHYSICAL, 110),
+    ("Muscle Band", Types.NORMAL, MoveCategory.SPECIAL, 100),
+    ("Charcoal", Types.FIRE, MoveCategory.SPECIAL, 120),
+    ("Charcoal", Types.WATER, MoveCategory.SPECIAL, 100),
+    ("Silk Scarf", Types.NORMAL, MoveCategory.PHYSICAL, 120),
+    ("Expert Belt", Types.NORMAL, MoveCategory.PHYSICAL, 100),
+])
+def test_item_power(poke, item, move_type, category, power):
+    """Type items x(100+20)/100 on their type, Muscle Band x(100+10)/100 on physical moves"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"], item=item)
+    assert item_power(a, move_type, category, 100) == power
+
+
+@pytest.mark.parametrize("species, power", [("Pikachu", 80), ("Rattata", 40)])
+def test_light_ball_doubles_pikachu_power(poke, species, power):
+    """Light Ball doubles the power of Pikachu's moves, physical and special"""
+    a = poke(species, 50, "Static", ["Tackle"], item="Light Ball")
+    assert item_power(a, Types.ELECTRIC, MoveCategory.SPECIAL, 40) == power
+    assert item_power(a, Types.NORMAL, MoveCategory.PHYSICAL, 40) == power
+
+
+@pytest.mark.parametrize("species, doubled", [("Cubone", True), ("Marowak", True), ("Rattata", False)])
+def test_thick_club(poke, species, doubled):
+    """Thick Club doubles Cubone's and Marowak's physical Attack only"""
+    a = poke(species, 50, "Rock Head", ["Tackle", "Ember"], item="Thick Club")
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    assert item_attack(a, 101) == (202 if doubled else 101)
+    assert raw_atk_def(move_slice(a, 1), a, d)[0] == a[Pok.SPECIAL_ATTACK]
+
+
+def test_thick_club_before_guts(poke):
+    """pokeplatinum doubles the Attack before Guts' x1.5, which keeps the odd point"""
+    a = poke("Marowak", 50, "Guts", ["Tackle"], item="Thick Club")
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.ATTACK] = 101
+    a[Pok.STATUS] = Status.POISON
+    assert raw_atk_def(move_slice(a, 0), a, d)[0] == 303
+
+
+@pytest.mark.parametrize("defender, boosted", [("Bulbasaur", True), ("Rattata", False)])
+def test_expert_belt_super_effective_only(poke, defender, boosted):
+    """Expert Belt x(100+20)/100 on the final super effective damage"""
+    plain = poke("Charmander", 50, "Blaze", ["Ember"])
+    belt = poke("Charmander", 50, "Blaze", ["Ember"], item="Expert Belt")
+    d = poke(defender, 50, "Overgrow", ["Tackle"])
+    base = dmg(plain, d)
+    assert dmg(belt, d) == (base * 120 // 100 if boosted else base)
+
+
+def test_items_reach_damage_and_ai_estimate(poke):
+    """The battle damage and the AI's estimate both see power items and Expert Belt"""
+    d = poke("Bulbasaur", 50, "Overgrow", ["Tackle"])
+    for item in ("Charcoal", "Expert Belt"):
+        plain = poke("Charmander", 50, "Blaze", ["Ember"])
+        held = poke("Charmander", 50, "Blaze", ["Ember"], item=item)
+        assert dmg(held, d) > dmg(plain, d)
+        assert (
+            calculate_ai_logic_damage(4.0, held, d, move_slice(held, 0), 0)
+            > calculate_ai_logic_damage(4.0, plain, d, move_slice(plain, 0), 0)
+        )
+
+
+@pytest.mark.parametrize("item, boosted", [
+    ("Silk Scarf", True), ("Muscle Band", False), ("Charcoal", False),
+])
+def test_confusion_self_hit_items(poke, item, boosted):
+    """The confusion hit counts as a Normal move: Silk Scarf boosts it, Muscle Band doesn't"""
+    plain = poke("Rattata", 100, "Run Away", ["Tackle"])
+    held = poke("Rattata", 100, "Run Away", ["Tackle"], item=item)
+    random.seed(3)
+    base = calculate_damage_confusion(plain)
+    random.seed(3)
+    assert (calculate_damage_confusion(held) > base) == boosted
+
+
+def test_confusion_self_hit_thick_club(poke):
+    """Thick Club doubles the Attack of the confusion hit too"""
+    plain = poke("Marowak", 100, "Rock Head", ["Tackle"])
+    held = poke("Marowak", 100, "Rock Head", ["Tackle"], item="Thick Club")
+    random.seed(3)
+    base = calculate_damage_confusion(plain)
+    random.seed(3)
+    assert ratio(calculate_damage_confusion(held), base) == pytest.approx(2.0, abs=0.1)
+
+
+@pytest.mark.parametrize("item, boosted", [("Muscle Band", True), ("Silk Scarf", False)])
+def test_struggle_items(poke, item, boosted):
+    """Struggle is typeless: Muscle Band boosts it, a type item doesn't"""
+    d = poke("Rattata", 100, "Run Away", ["Tackle"])
+    plain = poke("Rattata", 100, "Run Away", ["Tackle"])
+    held = poke("Rattata", 100, "Run Away", ["Tackle"], item=item)
+    random.seed(5)
+    base = struggle(plain, d, False)
+    random.seed(5)
+    assert (struggle(held, d, False) > base) == boosted
+
+
+# ── Damage ranges vs a real calculator ───────────────────────────────────────
+# Fill `rolls` with the calculator's 16 values (85% to 100% roll, low to high); an empty list skips
+# the case. Every Pokemon: Hardy nature, 31 IVs, 0 EVs, Male. The comment under each case has the
+# engine's stats (RP base stats), so check the calculator uses the same ones.
+CALC_CASES = [
+    pytest.param(
+        dict(atk=("Onix", 14, "Rock Head", "Muscle Band"), move="Rock Throw",
+             dfn=("Chimchar", 14, "Blaze")),
+        # Onix Atk 30 | Chimchar HP 40, Def 21
+        [32, 32, 32, 32, 32, 32, 32, 32, 36, 36, 36, 36, 36, 36, 36, 38],
+        id="muscle_band_onix_rock_throw_vs_chimchar"),
+    pytest.param(
+        dict(atk=("Geodude", 13, "Sturdy", "Expert Belt"), move="Rock Throw",
+             dfn=("Starly", 13, "Keen Eye")),
+        # Geodude Atk 29 | Starly HP 37, Def 16
+        [38, 43, 43, 43, 43, 43, 43, 43, 45, 45, 45, 45, 45, 45, 45, 50],
+        id="expert_belt_geodude_rock_throw_vs_starly"),
+    pytest.param(
+        dict(atk=("Charmander", 12, "Blaze", "Charcoal"), move="Ember",
+             dfn=("Bulbasaur", 12, "Overgrow")),
+        # Charmander SpA 23 | Bulbasaur HP 36, SpD 24
+        [14, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 20],
+        id="charcoal_charmander_ember_vs_bulbasaur"),
+    pytest.param(
+        dict(atk=("Machop", 12, "Guts", None), move="Karate Chop",
+             dfn=("Bidoof", 12, "Simple"), status=Status.BURN),
+        # Machop Atk 27, burned | Bidoof HP 39, Def 18
+        [36, 36, 38, 38, 38, 38, 38, 38, 38, 42, 42, 42, 42, 42, 42, 44],
+        id="guts_burned_machop_karate_chop_vs_bidoof"),
+    pytest.param(
+        dict(atk=("Rattata", 11, "Run Away", None), move="Tackle",
+             dfn=("Geodude", 11, "Sturdy"), status=Status.BURN),
+        # Rattata Atk 20, burned | Geodude HP 33, Def 30
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+        id="burned_rattata_tackle_vs_geodude"),
+    pytest.param(
+        dict(atk=("Pikachu", 10, "Static", "Light Ball"), move="Thunder Shock",
+             dfn=("Starly", 10, "Keen Eye")),
+        # Pikachu SpA 18 | Starly HP 31, SpD 14
+        [32, 36, 36, 36, 36, 36, 36, 36, 38, 38, 38, 38, 38, 38, 38, 42],
+        id="light_ball_pikachu_thunder_shock_vs_starly"),
+    pytest.param(
+        dict(atk=("Marowak", 28, "Rock Head", "Thick Club"), move="Bone Club",
+             dfn=("Rattata", 28, "Run Away")),
+        # Marowak Atk 58 | Rattata HP 63, Def 33
+        [76, 78, 79, 79, 81, 81, 82, 84, 84, 85, 85, 87, 88, 88, 90, 91],
+        id="thick_club_marowak_bone_club_vs_rattata"),
+    pytest.param(
+        dict(atk=("Squirtle", 7, "Torrent", None), move="Water Gun",
+             dfn=("Geodude", 7, "Sturdy"), weather=Weather.RAIN),
+        # Squirtle SpA 14 | Geodude HP 24, SpD 11. Rain
+        [36, 36, 36, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 48],
+        id="rain_squirtle_water_gun_vs_geodude"),
+    pytest.param(
+        dict(atk=("Charmander", 12, "Blaze", None), move="Ember",
+             dfn=("Bulbasaur", 12, "Overgrow"), weather=Weather.RAIN),
+        # Charmander SpA 23 | Bulbasaur HP 36, SpD 24. Rain
+        [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 12],
+        id="rain_charmander_ember_vs_bulbasaur"),
+    pytest.param(
+        dict(atk=("Bidoof", 15, "Simple", None), move="Tackle",
+             dfn=("Machop", 15, "Guts"), def_side=SideCondition.REFLECT),
+        # Bidoof Atk 23 | Machop HP 50, Def 24. Reflect on Machop's side
+        [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7],
+        id="reflect_bidoof_tackle_vs_machop"),
+    pytest.param(
+        dict(atk=("Starly", 14, "Keen Eye", None), move="Quick Attack",
+             dfn=("Turtwig", 14, "Overgrow"), crit=True),
+        # Starly Atk 24 | Turtwig HP 43, Def 27. Critical hit
+        [15, 15, 15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 18],
+        id="crit_starly_quick_attack_vs_turtwig"),
+    pytest.param(
+        dict(atk=("Cranidos", 14, "Mold Breaker", None), move="Headbutt",
+             dfn=("Piplup", 14, "Torrent"), atk_stage=2, def_stage=1),
+        # Cranidos Atk 44 at +2 | Piplup HP 43, Def 24 at +1
+        [21, 21, 21, 22, 22, 22, 22, 23, 23, 23, 23, 24, 24, 24, 24, 25],
+        id="stages_cranidos_headbutt_vs_piplup"),
+    pytest.param(
+        dict(atk=("Starly", 14, "Keen Eye", "Silk Scarf"), move="Quick Attack",
+             dfn=("Shinx", 14, "Intimidate")),
+        # Starly Atk 24 | Shinx HP 40, Def 18
+        [12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 15],
+        id="silk_scarf_starly_quick_attack_vs_shinx"),
+]
+
+
+@pytest.mark.parametrize("case, rolls", CALC_CASES)
+def test_damage_matches_calculator(poke, case, rolls):
+    """All 16 rolls against a real Gen IV calculator, no crit unless the case says so"""
+    if not rolls:
+        pytest.skip("rolls not filled in yet")
+    species, level, ability, item = case["atk"]
+    a = poke(species, level, ability, [case["move"]], item=item)
+    d = poke(*case["dfn"], ["Tackle"])
+    a[Pok.STATUS] = case.get("status", 0)
+    a[Pok.ATTACK_STAT_STAGE] = case.get("atk_stage", 0)
+    d[Pok.DEFENSE_STAT_STAGE] = case.get("def_stage", 0)
+    got = [
+        calculate_damage(
+            a, d, move_slice(a, 0), case.get("weather", 0), case.get("crit", False), roll,
+            case.get("def_side", 0),
+        )
+        for roll in MULTIPLIERS
+    ]
+    assert got == rolls

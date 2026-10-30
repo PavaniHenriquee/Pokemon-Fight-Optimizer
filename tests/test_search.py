@@ -14,9 +14,10 @@ from SearchEngine.my_mcts import (
     _select_expand, _backprop, mcts_loop, recursive_backup, print_best_path, wilson_lower_bound,
 )
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
-from Models.idx_const import Pok, Move, Field
+from Models.idx_const import Pok, Move, Field, Item
 from Models.helper import ActionType, BattlePhase, VolStatus, VolStatus2, SideCondition
 from Models.trainer_ai import return_idx
+from DataBase.ItemDB import ItemNames
 from battle_driver import (
     SCENARIOS, build_scenario, play_battle, legal_actions, is_over, my_active, opp_active,
     pok_slice, move_slice,
@@ -184,6 +185,21 @@ def test_node_key_sees_vol_status2(one_v_one, mine):
     other = one_v_one()
     (opp_active(other) if mine else my_active(other))[Pok.VOL_STATUS2] |= VolStatus2.MINIMIZE
     assert node_key(other) != node_key(arr)
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_held_item(one_v_one, mine):
+    """Holding an item or not (an eaten berry, Knock Off) splits nodes, and the sides don't
+    collide"""
+    def build(item_mine):
+        arr = one_v_one()
+        my_active(arr)[Item.ID] = 0
+        (my_active(arr) if item_mine else opp_active(arr))[Item.ID] = ItemNames.ORAN_BERRY
+        return arr
+    empty = one_v_one()
+    my_active(empty)[Item.ID] = 0
+    assert node_key(build(mine)) != node_key(empty)
+    assert node_key(build(mine)) != node_key(build(not mine))
 
 
 def test_vol_status2_fits_node_key():

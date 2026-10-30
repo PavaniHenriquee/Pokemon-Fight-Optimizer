@@ -15,7 +15,7 @@ GENERATED_CLASSES = (
     H.Types, H.Weather, H.AbilityActivation, H.Status, MoveName, H.VolStatus, H.VolStatus2,
     H.Gender, H.Enemy_AI_Knows, H.Potions, H.MoveOutcome, H.ActionType,
     H.BattlePhase, H.ItemActivation, H.ItemType, ItemNames, H.SideCondition, H.Terrain,
-    H.DamageSources,
+    H.DamageSources, H.HoldEffect,
 )
 
 
@@ -55,7 +55,7 @@ def test_pokemon_block_offsets():
         assert mv == I.OFFSET_MOVE + i * I.MOVE_STRIDE
     assert I.Pok.ITEM_ID == I.OFFSET_ITEM == I.Item.ID
     assert _contiguous(I.Item, I.Item.ID)
-    assert I.POK_LEN == I.Item.ITEM_USER + 1
+    assert I.POK_LEN == I.Item.EFFECT_TYPE + 1
 
 
 def test_field_block_follows_12_pokemon():

@@ -7,6 +7,7 @@ from Engine.speed import check_speed
 from Engine.status_calc import  freeze, paralysis, synchronize_reflect, sleep_blocked, SLOT_MASK
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
+    item_power, item_attack,
     AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND
 )
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
@@ -37,9 +38,10 @@ from Models.constants import (
     _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED,
     _ABILITYNAMES_WATER_ABSORB, _MOVE_DAMAGE, _DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT,
     _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN, _POK_DMG_TAKEN,
-    _POK_CHARGE_RECHARGE, _MOVE_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEMNAMES_ORAN_BERRY,
-    _ITEM_ID, _ITEMNAMES_SITRUS_BERRY, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _VOLSTATUS_FOCUS_ENERGY, _MOVE_CRIT_RATIO, _MOVE_WILL_CRIT, _ITEMTYPE_BERRY,
-    _ITEM_ITEM_TYPE, _POK_CONFUSION_COUNTER, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE,
+    _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEM_HOLD_EFFECT,
+    _ITEM_ID, _ITEM_EFFECT_PARAM, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _VOLSTATUS_FOCUS_ENERGY, _MOVE_CRIT_RATIO,
+    _HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE, _POK_CONFUSION_COUNTER, _ITEM_WHEN,
+    _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_WILL_CRIT,
     _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN,
     _MOVEOUTCOME_SEMI_INVULNERABLE, _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN,
     _POK_CONSEC_COUNT, _ABILITYNAMES_GUTS, _ABILITYNAMES_HUGE_POWER, _MOVE_RECOIL,
@@ -59,14 +61,14 @@ from Models.constants import (
     _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER, _MOVENAME_SLEEP_TALK, _MOVENAME_ENCORE,
     _MOVENAME_EARTHQUAKE, _MOVENAME_SEED_BOMB, _MOVENAME_ROCK_SLIDE, _MOVENAME_BLIZZARD,
     _MOVENAME_HYDRO_PUMP, _MOVENAME_ICE_BEAM, _MOVENAME_TRI_ATTACK, _MOVENAME_MUD_BOMB,
-    _MOVENAME_AIR_SLASH, _TERRAIN_SPECIAL, _FLAGS_MIRROR
+    _MOVENAME_AIR_SLASH, _TERRAIN_SPECIAL, _FLAGS_MIRROR, _POK_AB_BREAKABLE, _TYPES_TYPELESS
 )
 
 
 SANDSTORM_IM = (_TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL)
 DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
-ITEM_50HP = (_ITEMNAMES_ORAN_BERRY, _ITEMNAMES_SITRUS_BERRY)
+HP_RESTORE_EFFECTS = (_HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE)
 RECORD_DAMAGE = (_DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT)
 # Gravity's accuracy boost, x5/3 as 6840/4096
 GRAVITY_ACC_NUM = 6840
@@ -177,34 +179,36 @@ def clear_item(pok):
 
 
 @njit
-def _apply_berry_effect(item_id, target):
-    """Apply the berry's effect to target. target = the beneficiary, which is
+def _apply_berry_effect(source, target):
+    """Apply the effect of source's held item to target. target = the beneficiary, which is
     'pok' for a self-trigger, or 'attacker' for Bug Bite."""
     cur_hp = target[_POK_CURRENT_HP]
     max_hp = target[_POK_MAX_HP]
-    if item_id == _ITEMNAMES_ORAN_BERRY:
-        cur_hp = min(cur_hp + 10, max_hp)
-    elif item_id == _ITEMNAMES_SITRUS_BERRY:
+    effect = source[_ITEM_HOLD_EFFECT]
+    if effect == _HOLDEFFECT_HP_RESTORE:
+        cur_hp = min(cur_hp + source[_ITEM_EFFECT_PARAM], max_hp)
+    elif effect == _HOLDEFFECT_HP_PCT_RESTORE:
         # Needs to be with min because of bug bite
-        cur_hp = min(cur_hp + max_hp // 4, max_hp)
+        cur_hp = min(cur_hp + max(1, max_hp * source[_ITEM_EFFECT_PARAM] // 100), max_hp)
     target[_POK_CURRENT_HP] = cur_hp
 
 
 @njit
 def eat_berry(pok):
     """Self-triggered berry eat at low HP (end of turn / on receiving damage)"""
-    item_id = pok[_ITEM_ID]
-    if item_id in ITEM_50HP and pok[_POK_CURRENT_HP] * 2 <= pok[_POK_MAX_HP]:
-        _apply_berry_effect(item_id, pok)
-        pok[_POK_CONSUMED_ITEM] = item_id
+    if (
+        pok[_ITEM_HOLD_EFFECT] in HP_RESTORE_EFFECTS
+        and pok[_POK_CURRENT_HP] * 2 <= pok[_POK_MAX_HP]
+    ):
+        _apply_berry_effect(pok, pok)
+        pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
         clear_item(pok)
 
 
 @njit
 def eat_berry_bug_bite(attacker, defender):
     """Bug Bite forces the target to eat its berry immediately; attacker gets the benefit"""
-    item_id = defender[_ITEM_ID]
-    _apply_berry_effect(item_id, attacker)
+    _apply_berry_effect(defender, attacker)
     clear_item(defender)
 
 
@@ -262,8 +266,7 @@ def item_on_rdmg(pok):
     """
     Check what item it is and apply it
     """
-    if pok[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY:
-        eat_berry(pok)
+    eat_berry(pok)
 
 
 # ── Speed & turn order ──────────────────────────────────────────────────────────
@@ -309,6 +312,15 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
 
 
 # ── Accuracy & crit ─────────────────────────────────────────────────────────────
+
+@njit
+def ignorable_ability(defender, attacker):
+    """
+    Whether the defender's ability takes effect against this attacker. Mold Breaker ignores
+    every breakable one (pokeplatinum Battler_IgnorableAbility)
+    """
+    return not (defender[_POK_AB_BREAKABLE] and attacker[_POK_AB_ID] == _ABILITYNAMES_MOLD_BREAKER)
+
 
 @njit
 def absorb_abi(defender):
@@ -918,7 +930,7 @@ def struggle(attacker, defender, rec=True, def_side=0):
         def_stage = min(def_stage, 0)
         atk_stage = max(atk_stage, 0)
 
-    raw_attack = attacker[_POK_ATTACK]
+    raw_attack = item_attack(attacker, attacker[_POK_ATTACK])
     atk_ab = attacker[_POK_AB_ID]
     is_guts = atk_ab == _ABILITYNAMES_GUTS
     if is_guts and attacker[_POK_STATUS] != 0:
@@ -931,8 +943,9 @@ def struggle(attacker, defender, rec=True, def_side=0):
     attack = apply_stat_stage(raw_attack, atk_stage, atk_is_simple)
     defense = apply_stat_stage(defender[_POK_DEFENSE], def_stage, def_is_simple)
 
-    # Base damage formula for Struggle with power 50
-    damage = (((2 * level / 5) + 2) * 50 * (attack / defense)) // 50
+    # Base damage formula for Struggle with power 50. It's typeless, so no type item
+    power = item_power(attacker, _TYPES_TYPELESS, _MOVECATEGORY_PHYSICAL, 50)
+    damage = attack * power * (level * 2 // 5 + 2) // defense // 50
 
     # Burn
     if attacker[_POK_STATUS] == _STATUS_BURN and not is_guts:

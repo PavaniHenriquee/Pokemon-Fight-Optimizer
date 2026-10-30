@@ -13,7 +13,7 @@ from Models.constants import (
     _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _VOLSTATUS_INGRAIN,
     _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_WEATHER, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND,
     _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
-    _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2
+    _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
@@ -168,8 +168,9 @@ def _stages_key(pok):
 def node_key(battle_array):
     """Integer fingerprint of what decides whether two outcomes of an action share a node:
     phase, opp slot, status, every vol status bit (both bitmaps), HP bracket and stat stages of
-    both actives, the weather, Gravity, each side's conditions and Toxic Spikes layers (not the
-    turns left), my active slot (Roar picks it at random) and the Baton Pass phase"""
+    both actives, whether each active holds an item, the weather, Gravity, each side's conditions
+    and Toxic Spikes layers (not the turns left), my active slot (Roar picks it at random) and the
+    Baton Pass phase"""
     opp_idx = battle_array[_FIELD_OPP_POK]
     opp = battle_array[(opp_idx + 6) * POK_LEN:(opp_idx + 7) * POK_LEN]
     is_death = battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN
@@ -178,6 +179,8 @@ def node_key(battle_array):
     k1 |= np.int64(opp_idx) << 1
     k1 |= np.int64(opp[_POK_STATUS]) << 4
     k1 |= np.int64(_hp_bracket(opp[_POK_CURRENT_HP], opp[_POK_MAX_HP])) << 7
+    if opp[_ITEM_ID]:
+        k1 |= np.int64(1) << 10
     k2 = _stages_key(opp)
     k3 = np.int64(opp[_POK_VOL_STATUS])
     k1 |= np.int64(battle_array[_FIELD_WEATHER]) << 32
@@ -189,6 +192,8 @@ def node_key(battle_array):
         me = battle_array[my_idx * POK_LEN:(my_idx + 1) * POK_LEN]
         k1 |= np.int64(me[_POK_STATUS]) << 26
         k1 |= np.int64(_hp_bracket(me[_POK_CURRENT_HP], me[_POK_MAX_HP])) << 29
+        if me[_ITEM_ID]:
+            k1 |= np.int64(1) << 11
         k2 = (k2 << 28) | _stages_key(me)
         k3 |= np.int64(me[_POK_VOL_STATUS]) << 32
         k1 |= np.int64(battle_array[_FIELD_MY_SIDE_COND]) << 47

@@ -7,32 +7,52 @@
   tests → `pytest` / `-m jit` / `-m slow` → list the TODO boxes that can be ticked.
 - Batch 0 comes first. After that, batches are independent except where a batch says "Depends on".
 - The tracker and decision log are updated only when you ask, like TODO.txt.
+- Anything noticed but not fixed during a batch goes in **Discoveries** below, unless you say to fix it now.
 
-| Batch | Topic | Status |
-|---|---|---|
-| 0 | Foundations: item slots, Mold Breaker helper, item loss, search key | [ ] |
-| 1 | Damage items (Roark: Muscle Band, Expert Belt) | [ ] |
-| 2 | Consumables and timers (Roark: Rindo Berry, Smooth Rock, Flame Orb) | [ ] |
-| 3 | Trainer abilities: Rock Head, Sturdy | [ ] |
-| 4 | Damage abilities | [ ] |
-| 5 | Accuracy, crit, secondary effects | [ ] |
-| 6 | Contact abilities | [ ] |
-| 7 | Status immunity, cures, status berries | [ ] |
-| 8 | Type immunity and absorb abilities | [ ] |
-| 9 | Switch-in abilities and stat-drop guards | [ ] |
-| 10 | Speed and turn order | [ ] |
-| 11 | Weather and end of turn | [ ] |
-| 12 | Trapping | [ ] |
-| 13 | Survival, charge, consecutive use, drain | [ ] |
-| 14 | No-op confirmations and out of scope | [ ] |
+| Batch | Topic                                                               | Status |
+| ----- | ------------------------------------------------------------------- | ------ |
+| 0     | Foundations: item slots, Mold Breaker helper, search key            | [x]    |
+| 1     | Damage items (Roark: Muscle Band, Expert Belt)                      | [x]    |
+| 2     | Consumables and timers (Roark: Rindo Berry, Smooth Rock, Flame Orb) | [ ]    |
+| 3     | Trainer abilities: Rock Head, Sturdy                                | [ ]    |
+| 4     | Damage abilities                                                    | [ ]    |
+| 5     | Accuracy, crit, secondary effects                                   | [ ]    |
+| 6     | Contact abilities                                                   | [ ]    |
+| 7     | Status immunity, cures, status berries                              | [ ]    |
+| 8     | Type immunity and absorb abilities                                  | [ ]    |
+| 9     | Switch-in abilities and stat-drop guards                            | [ ]    |
+| 10    | Speed and turn order                                                | [ ]    |
+| 11    | Weather and end of turn                                             | [ ]    |
+| 12    | Trapping                                                            | [ ]    |
+| 13    | Survival, charge, consecutive use, drain                            | [ ]    |
+| 14    | No-op confirmations and out of scope                                | [ ]    |
 
 **Decisions**
+
 - 2026-10-29: item effects are data. New Item slots `HOLD_EFFECT`, `EFFECT_PARAM`, `EFFECT_TYPE`, filled from
   ItemDB.json with pokeplatinum's holdEffect / effectParam.
+- 2026-10-29 (Batch 0): per-type pp effects (`STRENGTHEN_<TYPE>`, `WEAKEN_SE_<TYPE>`) merged into `TYPE_BOOST` /
+  `WEAKEN_SE` + `EFFECT_TYPE`; Chilan (`WEAKEN_NORMAL`) also gets `EFFECT_TYPE` Normal. Light Ball keeps the pp
+  name `PIKA_SPATK_UP` (effect is still base power x2, pp battle_lib.c CalcMoveDamage).
+- 2026-10-29 (Batch 0): F1 dispatch done. `item_on_rdmg` has no berry gate any more, so Berry Juice works;
+  `ITEM_50HP` removed (now `HP_RESTORE_EFFECTS`). Sitrus heals at least 1 (pp `BattleSystem_Divide`).
+- 2026-10-29 (Batch 0): F2 keeps the `AB_BREAKABLE` flag: `ignorable_ability(defender, attacker)`, not pp's
+  per-ability signature.
+- 2026-10-29 (Batch 0): F3 dropped. pp has no item-loss tracking: `canUnburden` is set on switch-in when holding
+  an item (FALSE if knocked off, `BattleSystem_InitBattleMon`), and when Unburden is gained while holding one
+  (battle_lib.c ABILITY_UNBURDEN case); speed x2 needs Unburden + `canUnburden` + no item
+  (`BattleSystem_CompareBattlerSpeed`). Batch 10 adds VOL2 `CAN_UNBURDEN`, set only for Unburden holders.
+- 2026-10-29 (Batch 0): Issue 6 (held item needs HP > 0, pp `BattleSystem_TriggerHeldItem`) stays in Batch 2.
+- 2026-10-29: ItemDB `fling_power` filled for the 22 berries (pp says 10); everything else already matched pp.
+- 2026-10-29 (Batch 1): Issues 2, 8, 9 fixed. Item boosts use pp's integer `x(100+effect_param)/100`, not
+  Showdown's 4096 chain. Struggle stays typeless ([SD gen4] `'???'`; [pp] data says Normal), so no type item.
+- 2026-10-29 (Batch 1): the confusion self-hit follows Bulbapedia's Gen IV damage-factor table: random roll,
+  burn, attack abilities, Silk Scarf, Thick Club, Light Ball. Not Muscle Band (not in the table, though [pp]
+  CALC_SELF_HIT runs it through CalcMoveDamage as a physical Struggle). Helping Hand, Choice Band, Power
+  Trick/Split, Rivalry, Pure Power stay TODOs in `calculate_damage_confusion`.
 
 **Still open (your call, at the batch that needs it)**
-- F1: moving `item_on_rdmg` / `eat_berry` to `HOLD_EFFECT` dispatch. F3: routing every item-loss path
-  through one helper.
+
 - Issues 1-14 below.
 - [pp] vs [SD] conflicts: Safeguard vs Flame Orb (Batch 2), Shed Skin 30% vs 33% (Batch 7).
 
@@ -87,20 +107,20 @@
 
 ## Status audit (code vs TODO.txt)
 
-| Entry | Code today | Plan |
-|---|---|---|
-| Shell Armor | Already works: DB `on_critical`, and the `ON_CRITICAL` gate in `calculate_crit` is the immunity | Test + Mold Breaker bypass (Batch 5), then tick |
-| Adaptability | AI estimate only (`damage_calc.py:546`); engine STAB is always ×1.5 (`:286`) | Batch 4 |
-| Levitate | Toxic Spikes only (`is_grounded`); Ground moves still hit | Batch 8 |
-| Limber / Immunity / Water Veil | Only inside `synchronize_reflect` | Batch 7 |
-| Sticky Hold | Knock Off only; Covet (`switch_items`) ignores it | Batch 13 |
-| Leaf Guard | Toxic Spikes only | Batch 7 |
-| Magic Guard | Weather, residuals, hazards, full paralysis done. Missing: recoil, Aftermath, Rough Skin, Liquid Ooze, Black Sludge, Toxic Spikes poison. Blocks the confusion self-hit, which it shouldn't (Issue 7) | Spread over Batches 3, 6, 7, 11, 13; tick after 13 |
-| Sturdy | AI only. Gen IV effect is OHKO immunity only ([SD gen4] `onDamage` undefined; [pp BtlCmd_TryOHKOMove]); MoveDB has no OHKO move | Batch 3 guard |
-| Rock Head | None; Take Down is the only recoil move | Batch 3 |
-| Unburden | None | F3 + Batch 10 |
-| No Gen IV singles effect | Lightning Rod, Storm Drain ([SD gen4] `onTryHit` undefined), Plus, Minus ([pp] needs an ally), Stench ([SD gen4]), Honey Gather, Illuminate, Run Away, Anticipation, Forewarn, Frisk (messages only), Gluttony (no pinch berries in ItemDB) | Batch 14: tick after a one-line note, no code |
-| Out of scope | Forecast (Castform), Multitype (Arceus), Color Change (needs base-type restore on switch-out) | Batch 14: leave open |
+| Entry                          | Code today                                                                                                                                                                                                                                  | Plan                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Shell Armor                    | Already works: DB `on_critical`, and the `ON_CRITICAL` gate in `calculate_crit` is the immunity                                                                                                                                             | Test + Mold Breaker bypass (Batch 5), then tick    |
+| Adaptability                   | AI estimate only (`damage_calc.py:546`); engine STAB is always ×1.5 (`:286`)                                                                                                                                                                | Batch 4                                            |
+| Levitate                       | Toxic Spikes only (`is_grounded`); Ground moves still hit                                                                                                                                                                                   | Batch 8                                            |
+| Limber / Immunity / Water Veil | Only inside `synchronize_reflect`                                                                                                                                                                                                           | Batch 7                                            |
+| Sticky Hold                    | Knock Off only; Covet (`switch_items`) ignores it                                                                                                                                                                                           | Batch 13                                           |
+| Leaf Guard                     | Toxic Spikes only                                                                                                                                                                                                                           | Batch 7                                            |
+| Magic Guard                    | Weather, residuals, hazards, full paralysis done. Missing: recoil, Aftermath, Rough Skin, Liquid Ooze, Black Sludge, Toxic Spikes poison. Blocks the confusion self-hit, which it shouldn't (Issue 7)                                       | Spread over Batches 3, 6, 7, 11, 13; tick after 13 |
+| Sturdy                         | AI only. Gen IV effect is OHKO immunity only ([SD gen4] `onDamage` undefined; [pp BtlCmd_TryOHKOMove]); MoveDB has no OHKO move                                                                                                             | Batch 3 guard                                      |
+| Rock Head                      | None; Take Down is the only recoil move                                                                                                                                                                                                     | Batch 3                                            |
+| Unburden                       | None                                                                                                                                                                                                                                        | Batch 10 (`CAN_UNBURDEN`, no F3)                   |
+| No Gen IV singles effect       | Lightning Rod, Storm Drain ([SD gen4] `onTryHit` undefined), Plus, Minus ([pp] needs an ally), Stench ([SD gen4]), Honey Gather, Illuminate, Run Away, Anticipation, Forewarn, Frisk (messages only), Gluttony (no pinch berries in ItemDB) | Batch 14: tick after a one-line note, no code      |
+| Out of scope                   | Forecast (Castform), Multitype (Arceus), Color Change (needs base-type restore on switch-out)                                                                                                                                               | Batch 14: leave open                               |
 
 ## Issues found while mapping (evidence only, nothing changed; your call before the batch that needs it)
 
@@ -109,7 +129,7 @@
    ability, halves base power. Needed by Batch 4.
 2. **The base damage formula uses float division.** `damage_calc.py:446` (also 471, 510): `2*level/5` isn't
    floored; [pp] and [SD] floor it (level 12 gives ×6.8 instead of ×6). Affects every hit. Batch 1 and 4
-   tests will run into it.
+   tests will run into it. **FIXED in Batch 1** (all 4 copies, incl. `struggle`).
 3. **`ab_on_try_move` returns at the first match** (`engine_helper.py:324-362`): an attacker's Hustle skips
    the defender's Sand Veil, Soundproof and Water Absorb. Needed by Batches 5 and 8.
 4. **Water Absorb has no target/power filter** (`engine_helper.py:358`): Rain Dance, Water Sport, Aqua Ring
@@ -122,10 +142,10 @@
 7. **Magic Guard skips the confusion self-hit** (`engine_helper.py:628`). [pp subscript_hurt_self_in_confusion]
    has no Magic Guard check, and in [SD gen4] confusion damage is a Move effect. Batch 13.
 8. **The AI estimate halves burn without the Guts exemption** (`damage_calc.py:513-515`; the engine path
-   exempts it at 242-247). [pp] uses one function for both. Batch 1.
+   exempts it at 242-247). [pp] uses one function for both. Batch 1. **FIXED in Batch 1.**
 9. **`sub_after_death` damage is divided by 100**: `trainer_ai.py:150` passes `roll_multiplier=1`.
    [pp BattleAI_PostKOSwitchIn] passes that 1 as `criticalMul`, with no variance. Until fixed, item modifiers
-   there are invisible. Batch 1.
+   there are invisible. Batch 1. **FIXED in Batch 1** (`roll_multiplier=100`).
 10. **`basic_stat_change`** reads Keen Eye from the AI (`trainer_ai_helper.py:623`) while Hyper Cutter /
     Clear Body read the target, and those checks ignore the boost's sign (Swagger and Flatter score −10).
     Batch 9.
@@ -145,9 +165,10 @@
     exists in pokeplatinum `src/battle/battle_lib.c`; its stage 1 uses `BattleSystem_CalcEffectiveness`,
     which checks Gravity for Levitate.
 
-## Batch 0 — Foundations (no TODO box on its own)
+## Batch 0 — Foundations (no TODO box on its own) — DONE
 
 **F1. Item effect slots (decided).**
+
 - The Item block gets `HOLD_EFFECT`, `EFFECT_PARAM`, `EFFECT_TYPE` after `ITEM_USER`. `ITEM_LEN` is derived,
   so only its last-slot reference changes (`idx_const.py:213`).
 - New enum `HoldEffect` in `Models/helper.py`, named after [pp] hold effects: `TYPE_BOOST`,
@@ -173,30 +194,32 @@
 `defender[AB_BREAKABLE]` is set and the attacker has Mold Breaker ([pp Battler_IgnorableAbility]). New code
 uses it; the existing explicit Mold Breaker checks stay as they are unless you ask.
 
-**F3. Item loss in one place.** `lose_item(pok)` clears the block and sets the Unburden mark;
+**F3. Item loss in one place. (DROPPED, see Decisions: pp tracks `canUnburden` instead.)** `lose_item(pok)` clears the block and sets the Unburden mark;
 `use_up_item(pok)` also records `CONSUMED_ITEM` for Recycle. Unburden needs every loss path routed through
 them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet victim in `switch_items`, and
 `switch_in`'s knocked-off drop. Touches existing code, needs your OK.
 
 **F4. Search key.**
+
 - `node_key` gets one "active holds an item" bit per side, in k1's free bits 10-25. An eaten berry, a used
   Power Herb or an eaten resist berry changes outcomes (CLAUDE.md: presence, not turns left).
-- Planned `VolStatus2` bits: `FLASH_FIRE = 2`, `UNBURDEN = 4`. That fills the 3 bits per side that
-  `VOL2_KEY_BITS` already reserves (`test_search.py` asserts the sum stays below 2**3). A 4th bit would first
+- Done: k1 bit 10 = opp active holds an item, bit 11 = mine (not in the death phase).
+- Planned `VolStatus2` bits: `FLASH_FIRE = 2` (Batch 8), `CAN_UNBURDEN = 4` (Batch 10). That fills the 3 bits per side that
+  `VOL2_KEY_BITS` already reserves (`test_search.py` asserts the sum stays below 2\*\*3). A 4th bit would first
   need Gravity moved off k2 bit 62. Slow Start and Truant use `TURNS_ACTIVE`, so they need no new bit.
 
 **F5. AI ability guess.** Every new target-ability check in `basic_flag` also goes into
 `_EXPLICIT_RELEVANT` (`trainer_ai_helper.py:115-142`). That changes RNG order, so golden moves.
 
-## Batch 1 — Damage items (Roark: Muscle Band, Expert Belt)
+## Batch 1 — Damage items (Roark: Muscle Band, Expert Belt) — DONE
 
-| Item | Gen IV effect [source] | Hook |
-|---|---|---|
-| Muscle Band | Physical power ×110/100 [pp CalcMoveDamage] | Base-power step of `calculate_damage`, and `struggle()`'s own copy |
-| Expert Belt | SE damage ×120/100, after Filter [pp ApplyTypeChart] | `multipliers` (TODO at `:303`) |
-| Black Belt, Charcoal, Hard Stone, Metal Coat, Miracle Seed, Mystic Water, Never-Melt Ice, Poison Barb, Sea Incense, Sharp Beak, Silk Scarf, Silver Powder, Soft Sand, Twisted Spoon | Matching-type power ×(100+20)/100 [pp sTypeBoostingItems] | One `TYPE_BOOST` check at the base-power step |
-| Thick Club | Cubone/Marowak Attack ×2 [pp] | Attack-stat step (`ab_modify_stat` area) |
-| Light Ball (deferred) | Pikachu base power ×2, both categories [pp; SD gen4] | Base-power step |
+| Item                                                                                                                                                                                | Gen IV effect [source]                                    | Hook                                                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------ |
+| Muscle Band                                                                                                                                                                         | Physical power ×110/100 [pp CalcMoveDamage]               | Base-power step of `calculate_damage`, and `struggle()`'s own copy |
+| Expert Belt                                                                                                                                                                         | SE damage ×120/100, after Filter [pp ApplyTypeChart]      | `multipliers` (TODO at `:303`)                                     |
+| Black Belt, Charcoal, Hard Stone, Metal Coat, Miracle Seed, Mystic Water, Never-Melt Ice, Poison Barb, Sea Incense, Sharp Beak, Silk Scarf, Silver Powder, Soft Sand, Twisted Spoon | Matching-type power ×(100+20)/100 [pp sTypeBoostingItems] | One `TYPE_BOOST` check at the base-power step                      |
+| Thick Club                                                                                                                                                                          | Cubone/Marowak Attack ×2 [pp]                             | Attack-stat step (`ab_modify_stat` area)                           |
+| Light Ball (deferred)                                                                                                                                                               | Pikachu base power ×2, both categories [pp; SD gen4]      | Base-power step                                                    |
 
 - AI: every row also goes into `calculate_ai_logic_damage` (Expert Belt at the TODO `:559`).
 - Depends on Issues 8 and 9 (AI estimate and post-KO pick), and Issue 2 shows up in the tests.
@@ -206,13 +229,13 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 2 — Consumables and timers (Roark: Rindo Berry, Smooth Rock, Flame Orb)
 
-| Item | Gen IV effect [source] | Hook |
-|---|---|---|
-| Rindo Berry + Babiri, Charti, Chople, Coba, Colbur, Haban, Kasib, Kebia, Occa, Passho, Payapa, Shuca, Tanga, Wacan, Yache | SE hit of its type does ½, berry eaten [SD onSourceModifyDamage] | New `resist_berry()` in `_resolve_move_damage`, after `calculate_damage` (keeps that function pure). First hit of a multi-hit only. Not in the AI estimate [pp TrainerAI_CalcDamage] |
-| Chilan Berry | Any Normal hit does ½ | Same |
-| Smooth Rock | Sandstorm lasts 5+3 turns [pp effectParam 3] | `_set_weather` gets the user (`battle.py:556`, caller `:772`) |
-| Light Clay | Reflect / Light Screen last 5+3 [pp BtlCmd_TryLightScreen] | `_set_side_condition` gets the user (`battle.py:527`, caller `:765`; there `def_side` is a field index, not the condition value) |
-| Flame Orb | End of turn, last step (after Yawn): burns the holder unless it's Fire type, already statused, Water Veil, Leaf Guard in sun, or under Safeguard [pp TriggerDetrimentalHeldItem + subscript_burn]. [SD] lets it through Safeguard, so flag in the note | New last step in `_apply_residual`; Guts already handles the rest |
+| Item                                                                                                                      | Gen IV effect [source]                                                                                                                                                                                                                                 | Hook                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Rindo Berry + Babiri, Charti, Chople, Coba, Colbur, Haban, Kasib, Kebia, Occa, Passho, Payapa, Shuca, Tanga, Wacan, Yache | SE hit of its type does ½, berry eaten [SD onSourceModifyDamage]                                                                                                                                                                                       | New `resist_berry()` in `_resolve_move_damage`, after `calculate_damage` (keeps that function pure). First hit of a multi-hit only. Not in the AI estimate [pp TrainerAI_CalcDamage] |
+| Chilan Berry                                                                                                              | Any Normal hit does ½                                                                                                                                                                                                                                  | Same                                                                                                                                                                                 |
+| Smooth Rock                                                                                                               | Sandstorm lasts 5+3 turns [pp effectParam 3]                                                                                                                                                                                                           | `_set_weather` gets the user (`battle.py:556`, caller `:772`)                                                                                                                        |
+| Light Clay                                                                                                                | Reflect / Light Screen last 5+3 [pp BtlCmd_TryLightScreen]                                                                                                                                                                                             | `_set_side_condition` gets the user (`battle.py:527`, caller `:765`; there `def_side` is a field index, not the condition value)                                                     |
+| Flame Orb                                                                                                                 | End of turn, last step (after Yawn): burns the holder unless it's Fire type, already statused, Water Veil, Leaf Guard in sun, or under Safeguard [pp TriggerDetrimentalHeldItem + subscript_burn]. [SD] lets it through Safeguard, so flag in the note | New last step in `_apply_residual`; Guts already handles the rest                                                                                                                    |
 
 - Also fixes the berry hook for Issue 6 (berries need HP > 0), since every consumable shares it.
 - Bug Bite on a resist berry: the berry is gone, no effect for the biter.
@@ -223,32 +246,32 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 3 — Trainer abilities: Rock Head, Sturdy
 
-| Ability | Gen IV effect [source] | Hook |
-|---|---|---|
-| Rock Head | No recoil from Take Down; Struggle still recoils [pp subscript_recoil_1_4; SD gen4 applyRecoilDamage] | `_recoil` (`battle.py:412`); add the Magic Guard check at the same spot |
-| Sturdy | OHKO moves fail [pp BtlCmd_TryOHKOMove] | Guard on `_MOVE_OH_KO` in `calculate_hit_miss`. Inert today (no OHKO move in MoveDB); the AI side is done |
+| Ability   | Gen IV effect [source]                                                                                | Hook                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Rock Head | No recoil from Take Down; Struggle still recoils [pp subscript_recoil_1_4; SD gen4 applyRecoilDamage] | `_recoil` (`battle.py:412`); add the Magic Guard check at the same spot                                   |
+| Sturdy    | OHKO moves fail [pp BtlCmd_TryOHKOMove]                                                               | Guard on `_MOVE_OH_KO` in `calculate_hit_miss`. Inert today (no OHKO move in MoveDB); the AI side is done |
 
 - Golden: weather_charge has Rock Head but no recoil move, so no change expected.
 - TODO ticks: Rock Head, Sturdy.
 
 ## Batch 4 — Damage abilities
 
-| Ability | Gen IV effect | Hook |
-|---|---|---|
-| Adaptability | STAB ×2 | `multipliers` STAB (`:286`); the AI already has it |
-| Technician | Power ≤60 → ×15/10, after Charge, before items, not Struggle | Base-power step (`base_power_ability` needs the power) |
-| Swarm | Bug ×15/10 at ≤⅓ HP | Add to `STARTER_AB` |
-| Rivalry | Same gender ×125/100, opposite ×75/100, genderless none | Base-power step (needs the defender) |
-| Filter, Solid Rock (deferred) | SE ×3/4, before Expert Belt | `multipliers` (TODO at `:301`) |
-| Sniper | Crit ×3 | `multipliers` crit step |
-| Heatproof (deferred) | Fire power /2 (burn part in Batch 11) | Defender base-power check (new: the gate is attacker-only today) |
-| Dry Skin, Fire part (deferred) | Fire power ×125/100 | Same |
-| Marvel Scale (deferred) | Defense ×15/10 while statused | New defender-stat hook in `raw_atk_def` |
-| Pure Power (deferred) | Same as Huge Power | `ab_modify_stat` |
-| Unaware | Ignores the foe's stages: as attacker Def/SpD, as defender Atk/SpA (accuracy part in Batch 5) | `raw_atk_def` |
-| Normalize (deferred) | Every move becomes Normal [pp]; [SD] keeps Struggle | Move type read by damage, hit check and type chart |
-| Flower Gift (deferred) | Cherrim in sun: own Atk and SpD ×15/10 (singles) | `raw_atk_def` |
-| Slow Start, stat part (deferred) | Attack /2 for its first 5 turns [pp] | `ab_modify_stat` with `TURNS_ACTIVE`; speed part in Batch 10 |
+| Ability                          | Gen IV effect                                                                                 | Hook                                                             |
+| -------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Adaptability                     | STAB ×2                                                                                       | `multipliers` STAB (`:286`); the AI already has it               |
+| Technician                       | Power ≤60 → ×15/10, after Charge, before items, not Struggle                                  | Base-power step (`base_power_ability` needs the power)           |
+| Swarm                            | Bug ×15/10 at ≤⅓ HP                                                                           | Add to `STARTER_AB`                                              |
+| Rivalry                          | Same gender ×125/100, opposite ×75/100, genderless none                                       | Base-power step (needs the defender)                             |
+| Filter, Solid Rock (deferred)    | SE ×3/4, before Expert Belt                                                                   | `multipliers` (TODO at `:301`)                                   |
+| Sniper                           | Crit ×3                                                                                       | `multipliers` crit step                                          |
+| Heatproof (deferred)             | Fire power /2 (burn part in Batch 11)                                                         | Defender base-power check (new: the gate is attacker-only today) |
+| Dry Skin, Fire part (deferred)   | Fire power ×125/100                                                                           | Same                                                             |
+| Marvel Scale (deferred)          | Defense ×15/10 while statused                                                                 | New defender-stat hook in `raw_atk_def`                          |
+| Pure Power (deferred)            | Same as Huge Power                                                                            | `ab_modify_stat`                                                 |
+| Unaware                          | Ignores the foe's stages: as attacker Def/SpD, as defender Atk/SpA (accuracy part in Batch 5) | `raw_atk_def`                                                    |
+| Normalize (deferred)             | Every move becomes Normal [pp]; [SD] keeps Struggle                                           | Move type read by damage, hit check and type chart               |
+| Flower Gift (deferred)           | Cherrim in sun: own Atk and SpD ×15/10 (singles)                                              | `raw_atk_def`                                                    |
+| Slow Start, stat part (deferred) | Attack /2 for its first 5 turns [pp]                                                          | `ab_modify_stat` with `TURNS_ACTIVE`; speed part in Batch 10     |
 
 - Every row also goes into `calculate_ai_logic_damage` and `struggle()`'s copy.
 - Depends on Issue 1 (Thick Fat sits in the same step) and Issue 2.
@@ -259,20 +282,20 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 5 — Accuracy, crit, secondary effects
 
-| Name | Gen IV effect | Hook |
-|---|---|---|
-| Compound Eyes | Accuracy ×130/100 | `calculate_hit_miss`, after stages |
-| No Guard | Every move hits both ways, semi-invulnerable targets included; OHKO hits if user level ≥ target [pp] | Before the semi-invulnerable check |
-| Tangled Feet | ×50/100 against a confused holder (ignorable) | After stages |
-| Snow Cloak (deferred) | ×80/100 in hail | After stages |
-| Bright Powder, Lax Incense (deferred) | Defender's item, ×90/100 | After stages, before Gravity |
-| Unaware, accuracy part | Ignores the foe's accuracy/evasion stages [pp] | Stage step |
-| Scope Lens, Super Luck | Crit stage +1 | `calculate_crit` after the move ratio |
-| Shell Armor, Battle Armor | Already block crits; add the Mold Breaker bypass | `calculate_crit` gate |
-| Anger Point (deferred) | Taking a crit → Attack +6 | After the hit is applied |
-| Serene Grace | Secondary chance ×2, flinch included [pp BtlCmd_CheckEffectActivation] | `sec_effects` + `flinch_checker` |
-| Shield Dust | No secondary effects or flinch on the holder | `sec_effects` + `flinch_checker` |
-| Skill Link (deferred) | 2-5 hit moves always hit 5 [pp BtlCmd_SetMultiHit] | `ps_moves_multihit` |
+| Name                                  | Gen IV effect                                                                                        | Hook                                  |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Compound Eyes                         | Accuracy ×130/100                                                                                    | `calculate_hit_miss`, after stages    |
+| No Guard                              | Every move hits both ways, semi-invulnerable targets included; OHKO hits if user level ≥ target [pp] | Before the semi-invulnerable check    |
+| Tangled Feet                          | ×50/100 against a confused holder (ignorable)                                                        | After stages                          |
+| Snow Cloak (deferred)                 | ×80/100 in hail                                                                                      | After stages                          |
+| Bright Powder, Lax Incense (deferred) | Defender's item, ×90/100                                                                             | After stages, before Gravity          |
+| Unaware, accuracy part                | Ignores the foe's accuracy/evasion stages [pp]                                                       | Stage step                            |
+| Scope Lens, Super Luck                | Crit stage +1                                                                                        | `calculate_crit` after the move ratio |
+| Shell Armor, Battle Armor             | Already block crits; add the Mold Breaker bypass                                                     | `calculate_crit` gate                 |
+| Anger Point (deferred)                | Taking a crit → Attack +6                                                                            | After the hit is applied              |
+| Serene Grace                          | Secondary chance ×2, flinch included [pp BtlCmd_CheckEffectActivation]                               | `sec_effects` + `flinch_checker`      |
+| Shield Dust                           | No secondary effects or flinch on the holder                                                         | `sec_effects` + `flinch_checker`      |
+| Skill Link (deferred)                 | 2-5 hit moves always hit 5 [pp BtlCmd_SetMultiHit]                                                   | `ps_moves_multihit`                   |
 
 - Depends on Issue 3 (new accuracy modifiers must stack).
 - AI: review the expert accuracy checks; Issue 10 lives next door.
@@ -281,13 +304,13 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 6 — Contact abilities
 
-| Ability | Gen IV effect [pp BattleSystem_TriggerAbilityOnHit, `RandNext % 10 < 3`] |
-|---|---|
-| Static | 30% paralysis |
-| Flame Body | 30% burn |
-| Cute Charm | 30% Attract, opposite genders only, attacker not Oblivious |
-| Effect Spore (deferred) | 30%, then ⅓ each sleep / paralysis / poison |
-| Rough Skin (deferred) | Attacker loses ⅛ max HP, unless Magic Guard |
+| Ability                 | Gen IV effect [pp BattleSystem_TriggerAbilityOnHit, `RandNext % 10 < 3`] |
+| ----------------------- | ------------------------------------------------------------------------ |
+| Static                  | 30% paralysis                                                            |
+| Flame Body              | 30% burn                                                                 |
+| Cute Charm              | 30% Attract, opposite genders only, attacker not Oblivious               |
+| Effect Spore (deferred) | 30%, then ⅓ each sleep / paralysis / poison                              |
+| Rough Skin (deferred)   | Attacker loses ⅛ max HP, unless Magic Guard                              |
 
 - Hook: `contact_ability` (`engine_helper.py:639`); statuses go through the shared immunity helper from
   Batch 7 and through `synchronize_reflect`. The note checks which of them fire on the KO hit (today only
@@ -298,19 +321,19 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 7 — Status immunity, cures, status berries
 
-| Name | Gen IV effect | Hook |
-|---|---|---|
-| Limber, Immunity, Water Veil, Magma Armor | No paralysis / poison+toxic / burn / freeze (ignorable) | One `ability_blocks_status(pok, source, status, weather)` used by `apply_status`, `synchronize_reflect`, `contact_ability`, `_toxic_spikes`, Flame Orb |
-| Leaf Guard (deferred) | In sun, no new status (Rest exception) | Same helper |
-| Own Tempo (deferred) | No confusion | `vol_status` confusion branch |
-| Oblivious | No Attract (Captivate isn't in MoveDB) | `vol_status` Attract branch + Cute Charm |
-| Magic Guard | Toxic Spikes don't poison it [SD gen4] | `_toxic_spikes` |
-| Early Bird | Sleep counter drops by 2 [pp CheckStatusDisruption] | `early_returns` sleep step |
-| Natural Cure | Status cured on switch-out, including Baton Pass and Roar [pp BtlCmd_TryRestoreStatusOnSwitch] | `reset_switch_out`, before the Worry Seed restore |
-| Shed Skin | 30% cure in the ABILITY step [pp TriggerTurnEndAbility; SD says 33%, flag] | `on_residual` |
-| Hydration | Rain: cured at the weather step [pp EndOfTurnWeatherEffect] | `_residual_weather` |
-| Pecha, Chesto (deferred), Lum (deferred) | Cure on getting the status (Lum also confusion), and again at the ITEM_CONDITION step; Bug Bite gives the cure to the biter | After the status is set + new end-of-turn step + `_apply_berry_effect` |
-| Mental Herb | Cures Attract only in Gen IV [SD gen4 onUpdate] | After Attract is set |
+| Name                                      | Gen IV effect                                                                                                               | Hook                                                                                                                                                   |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Limber, Immunity, Water Veil, Magma Armor | No paralysis / poison+toxic / burn / freeze (ignorable)                                                                     | One `ability_blocks_status(pok, source, status, weather)` used by `apply_status`, `synchronize_reflect`, `contact_ability`, `_toxic_spikes`, Flame Orb |
+| Leaf Guard (deferred)                     | In sun, no new status (Rest exception)                                                                                      | Same helper                                                                                                                                            |
+| Own Tempo (deferred)                      | No confusion                                                                                                                | `vol_status` confusion branch                                                                                                                          |
+| Oblivious                                 | No Attract (Captivate isn't in MoveDB)                                                                                      | `vol_status` Attract branch + Cute Charm                                                                                                               |
+| Magic Guard                               | Toxic Spikes don't poison it [SD gen4]                                                                                      | `_toxic_spikes`                                                                                                                                        |
+| Early Bird                                | Sleep counter drops by 2 [pp CheckStatusDisruption]                                                                         | `early_returns` sleep step                                                                                                                             |
+| Natural Cure                              | Status cured on switch-out, including Baton Pass and Roar [pp BtlCmd_TryRestoreStatusOnSwitch]                              | `reset_switch_out`, before the Worry Seed restore                                                                                                      |
+| Shed Skin                                 | 30% cure in the ABILITY step [pp TriggerTurnEndAbility; SD says 33%, flag]                                                  | `on_residual`                                                                                                                                          |
+| Hydration                                 | Rain: cured at the weather step [pp EndOfTurnWeatherEffect]                                                                 | `_residual_weather`                                                                                                                                    |
+| Pecha, Chesto (deferred), Lum (deferred)  | Cure on getting the status (Lum also confusion), and again at the ITEM_CONDITION step; Bug Bite gives the cure to the biter | After the status is set + new end-of-turn step + `_apply_berry_effect`                                                                                 |
+| Mental Herb                               | Cures Attract only in Gen IV [SD gen4 onUpdate]                                                                             | After Attract is set                                                                                                                                   |
 
 - AI: the immunity tuples already exist (`POISON_AB_IM`, `PARA_AB_IM`, `BURN_AB_IM`); review where
   `basic_move_status` checks Leaf Guard and Hydration (only in the poison branch today).
@@ -320,15 +343,15 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 8 — Type immunity and absorb abilities
 
-| Ability | Gen IV effect [pp BattleSystem_TriggerImmunityAbility] | Hook |
-|---|---|---|
-| Levitate | Ground immunity (ignorable; Gravity grounds it) | `calculate_hit_miss` type check; `is_grounded` already covers hazards |
-| Volt Absorb (deferred) | Any Electric move from the foe heals ¼, status moves too ([pp] has no power check) | `ab_on_try_move` |
-| Motor Drive (deferred) | Electric immunity + Speed +1 | Same |
-| Flash Fire | Damaging Fire moves and Will-O-Wisp: immune, sets `VOL2 FLASH_FIRE` (not while frozen); its Fire damage ×15/10 at Mod1 | `ab_on_try_move` + `multipliers` (TODO `:267`) + AI estimate (TODO `:536`) |
-| Wonder Guard (deferred) | Only super-effective damaging hits land; Fire Fang always does ([pp] bug) | Type check |
-| Dry Skin, Water part (deferred) | Damaging Water moves heal ¼ | `ab_on_try_move` |
-| Scrappy | Normal and Fighting hit Ghost | `matchup_types` (4 callers) |
+| Ability                         | Gen IV effect [pp BattleSystem_TriggerImmunityAbility]                                                                 | Hook                                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Levitate                        | Ground immunity (ignorable; Gravity grounds it)                                                                        | `calculate_hit_miss` type check; `is_grounded` already covers hazards      |
+| Volt Absorb (deferred)          | Any Electric move from the foe heals ¼, status moves too ([pp] has no power check)                                     | `ab_on_try_move`                                                           |
+| Motor Drive (deferred)          | Electric immunity + Speed +1                                                                                           | Same                                                                       |
+| Flash Fire                      | Damaging Fire moves and Will-O-Wisp: immune, sets `VOL2 FLASH_FIRE` (not while frozen); its Fire damage ×15/10 at Mod1 | `ab_on_try_move` + `multipliers` (TODO `:267`) + AI estimate (TODO `:536`) |
+| Wonder Guard (deferred)         | Only super-effective damaging hits land; Fire Fang always does ([pp] bug)                                              | Type check                                                                 |
+| Dry Skin, Water part (deferred) | Damaging Water moves heal ¼                                                                                            | `ab_on_try_move`                                                           |
+| Scrappy                         | Normal and Fighting hit Ghost                                                                                          | `matchup_types` (4 callers)                                                |
 
 - Depends on Issues 3 and 4 (the absorbs reuse Water Absorb's path).
 - AI: the `trainer_ai_effectiveness` TODOs (`trainer_ai_helper.py:363-365, 379`); `basic_flag` already scores
@@ -340,27 +363,27 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 9 — Switch-in abilities and stat-drop guards
 
-| Ability | Gen IV effect | Hook |
-|---|---|---|
-| Clear Body, White Smoke (deferred) | Block every foe-caused drop, Intimidate and secondaries included (ignorable) | `stat_changes` (same pattern as the Mist flag) + Intimidate in `switch_in` |
-| Hyper Cutter | Blocks Attack drops only | Same |
-| Download (deferred) | +1 SpA if the foe's Def ≥ SpD, else +1 Atk [SD gen4] | `switch_in` |
-| Trace | Copies the foe's ability on entry; can't copy Trace, Multitype, Forecast [SD gen4; confirm in pp TriggerEffectOnSwitch]. Reuses the Worry Seed mechanism (`BASE_AB_ID` + `ABILITY_TABLE`), so it reverts on switch-out | `switch_in` |
-| Pressure (deferred) | The foe's moves aimed at it cost 2 PP [pp DecrementPP] | PP decrement in `_execute_move_slot` |
+| Ability                            | Gen IV effect                                                                                                                                                                                                          | Hook                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Clear Body, White Smoke (deferred) | Block every foe-caused drop, Intimidate and secondaries included (ignorable)                                                                                                                                           | `stat_changes` (same pattern as the Mist flag) + Intimidate in `switch_in` |
+| Hyper Cutter                       | Blocks Attack drops only                                                                                                                                                                                               | Same                                                                       |
+| Download (deferred)                | +1 SpA if the foe's Def ≥ SpD, else +1 Atk [SD gen4]                                                                                                                                                                   | `switch_in`                                                                |
+| Trace                              | Copies the foe's ability on entry; can't copy Trace, Multitype, Forecast [SD gen4; confirm in pp TriggerEffectOnSwitch]. Reuses the Worry Seed mechanism (`BASE_AB_ID` + `ABILITY_TABLE`), so it reverts on switch-out | `switch_in`                                                                |
+| Pressure (deferred)                | The foe's moves aimed at it cost 2 PP [pp DecrementPP]                                                                                                                                                                 | PP decrement in `_execute_move_slot`                                       |
 
 - AI: Issue 10; Intimidate already respects Mist.
 - TODO ticks: Clear Body, Hyper Cutter, Trace; deferred White Smoke, Download, Pressure.
 
 ## Batch 10 — Speed and turn order
 
-| Name | Gen IV effect | Hook |
-|---|---|---|
-| Quick Feet | ×15/10 while statused, replaces the paralysis ¼ | `check_speed` |
-| Unburden | ×2 while it has lost its item (`VOL2 UNBURDEN`, set by F3) | `check_speed` |
-| Slow Start, speed part (deferred) | /2 for its first 5 turns | `check_speed` |
-| Quick Claw | 20%: goes first within its priority bracket, one roll per holder per turn; both holders → speed [pp BattleSystem_CompareBattlerSpeed] | `move_order`, between priority and the speed compare |
-| Stall (deferred) | Last within its bracket | Same |
-| Truant (deferred) | Loafs every other turn ([pp Battler_CheckTruant] uses turn parity) → `TURNS_ACTIVE` parity, no new state | `early_returns`, after freeze |
+| Name                              | Gen IV effect                                                                                                                                                          | Hook                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Quick Feet                        | ×15/10 while statused, replaces the paralysis ¼                                                                                                                        | `check_speed`                                        |
+| Unburden                          | ×2 when `VOL2 CAN_UNBURDEN` is set and it holds no item; set in `switch_in` for an Unburden holder with an item, and when Trace copies Unburden while holding one [pp] | `check_speed` + `switch_in`                          |
+| Slow Start, speed part (deferred) | /2 for its first 5 turns                                                                                                                                               | `check_speed`                                        |
+| Quick Claw                        | 20%: goes first within its priority bracket, one roll per holder per turn; both holders → speed [pp BattleSystem_CompareBattlerSpeed]                                  | `move_order`, between priority and the speed compare |
+| Stall (deferred)                  | Last within its bracket                                                                                                                                                | Same                                                 |
+| Truant (deferred)                 | Loafs every other turn ([pp Battler_CheckTruant] uses turn parity) → `TURNS_ACTIVE` parity, no new state                                                               | `early_returns`, after freeze                        |
 
 - [pp] speed order: stages → Swift Swim / Chlorophyll → Quick Feet or paralysis → Slow Start → Unburden.
 - AI: expert's move-first check uses `check_speed`, so it picks up Quick Feet and Unburden.
@@ -371,18 +394,18 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 11 — Weather and end of turn
 
-| Name | Gen IV effect | Hook |
-|---|---|---|
-| Cloud Nine, Air Lock (deferred) | Weather has no effect while either is out; it still counts down | One `effective_weather(battle_array)` used at every weather read (`action`, `end_of_turn`, AI `choose_move`, rollout) |
-| Drizzle, Drought, Sand Stream, Snow Warning (deferred) | Permanent weather on entry (`WEATHER_DURATION` 0) | `switch_in`; `start_of_battle` already orders leads by speed |
-| Ice Body | Hail: +1/16 and no hail damage | `heal_weather` / `weather_dmg` |
-| Snow Cloak (deferred) | No hail damage | `weather_dmg` |
-| Dry Skin, weather part (deferred) | Rain +⅛, sun −⅛ | `heal_weather` / `weather_dmg` |
-| Leftovers | +1/16 in the LEFTOVERS step (after Speed Boost / Shed Skin, before Leech Seed) | `_apply_residual` (TODO at `battle.py:1186`) |
-| Black Sludge (deferred) | Poison type +1/16, anyone else −⅛ unless Magic Guard | Same step |
-| Poison Heal (deferred) | Heals ⅛ instead of taking poison/toxic damage | Poison step |
-| Heatproof, burn part (deferred) | Burn damage 1/16 [pp subscript_burn_damage] | Burn step |
-| Bad Dreams (deferred) | Sleeping foe loses ⅛, after bind | New step |
+| Name                                                   | Gen IV effect                                                                  | Hook                                                                                                                  |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| Cloud Nine, Air Lock (deferred)                        | Weather has no effect while either is out; it still counts down                | One `effective_weather(battle_array)` used at every weather read (`action`, `end_of_turn`, AI `choose_move`, rollout) |
+| Drizzle, Drought, Sand Stream, Snow Warning (deferred) | Permanent weather on entry (`WEATHER_DURATION` 0)                              | `switch_in`; `start_of_battle` already orders leads by speed                                                          |
+| Ice Body                                               | Hail: +1/16 and no hail damage                                                 | `heal_weather` / `weather_dmg`                                                                                        |
+| Snow Cloak (deferred)                                  | No hail damage                                                                 | `weather_dmg`                                                                                                         |
+| Dry Skin, weather part (deferred)                      | Rain +⅛, sun −⅛                                                                | `heal_weather` / `weather_dmg`                                                                                        |
+| Leftovers                                              | +1/16 in the LEFTOVERS step (after Speed Boost / Shed Skin, before Leech Seed) | `_apply_residual` (TODO at `battle.py:1186`)                                                                          |
+| Black Sludge (deferred)                                | Poison type +1/16, anyone else −⅛ unless Magic Guard                           | Same step                                                                                                             |
+| Poison Heal (deferred)                                 | Heals ⅛ instead of taking poison/toxic damage                                  | Poison step                                                                                                           |
+| Heatproof, burn part (deferred)                        | Burn damage 1/16 [pp subscript_burn_damage]                                    | Burn step                                                                                                             |
+| Bad Dreams (deferred)                                  | Sleeping foe loses ⅛, after bind                                               | New step                                                                                                              |
 
 - AI: expert weather logic; `GRADUAL_RECOVERY_ITEMS` already lists Leftovers / Black Sludge.
 - TODO ticks: Cloud Nine, Ice Body, Leftovers; deferred Air Lock, Drizzle, Drought, Sand Stream, Snow
@@ -390,12 +413,12 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 12 — Trapping
 
-| Name | Gen IV effect [pp Battler_IsTrapped] |
-|---|---|
-| Arena Trap | Traps grounded foes (not Flying, not Levitate; Gravity grounds them) |
-| Shadow Tag | Traps foes that don't have Shadow Tag |
-| Magnet Pull (deferred) | Traps Steel-type foes |
-| Shed Shell | Holder can always switch ([pp] returns "not trapped" before any other check; confirm it also covers bind) |
+| Name                   | Gen IV effect [pp Battler_IsTrapped]                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| Arena Trap             | Traps grounded foes (not Flying, not Levitate; Gravity grounds them)                                      |
+| Shadow Tag             | Traps foes that don't have Shadow Tag                                                                     |
+| Magnet Pull (deferred) | Traps Steel-type foes                                                                                     |
+| Shed Shell             | Holder can always switch ([pp] returns "not trapped" before any other check; confirm it also covers bind) |
 
 - Hooks: `valid_action_mask` (`SearchEngine/models.py:68-70`) for my switches, and the AI's `can_switch`
   (`trainer_ai.py:273`) for its withdraws. Baton Pass and Roar ignore trapping.
@@ -403,15 +426,15 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 ## Batch 13 — Survival, charge, consecutive use, drain
 
-| Name | Gen IV effect | Hook |
-|---|---|---|
-| Focus Band | 10%: survives a KO at 1 HP, confusion self-hits included [pp BtlCmd_CheckHoldOnWith1HP, subscript_hurt_self_in_confusion] | `endure_damage` + `confusion()` |
-| Power Herb | Skips one charge turn (Dig, Bounce; not Bide), so no semi-invulnerable turn; used up | Charge branch of `_execute_move_slot` (`battle.py:672-681`) |
-| Metronome (item) | Same move again: ×(10+n)/10, n up to 10; another move resets it; not counted while locked (Uproar, Rollout); −1 when the move fails [pp UpdateMetronomeCount / VerifyMetronomeCount] | New Pok slot (move id and count packed, like Encore's counter); `multipliers` (TODO at `:276`) |
-| Liquid Ooze (deferred) | Drain moves and Leech Seed hurt the drainer instead (Magic Guard drainer unaffected) [pp subscript_drain_half_damage_dealt] | `drain()` gets the defender (callers `battle.py:445, 468`) + Leech Seed (`:1039`) |
-| Berry Juice (deferred) | +20 HP at ≤½ | `HP_RESTORE` family from F1 |
-| Sticky Hold (deferred) | Also blocks Covet [SD gen4 onTakeItem] and Bug Bite [SD takeItem]; confirm in [pp] | `switch_items`, Bug Bite branch |
-| Magic Guard (rest) | Remaining sources: recoil (Batch 3), Aftermath and Rough Skin (Batch 6), Toxic Spikes (Batch 7), Black Sludge (Batch 11), Liquid Ooze (here), plus Issue 7 | — |
+| Name                   | Gen IV effect                                                                                                                                                                        | Hook                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Focus Band             | 10%: survives a KO at 1 HP, confusion self-hits included [pp BtlCmd_CheckHoldOnWith1HP, subscript_hurt_self_in_confusion]                                                            | `endure_damage` + `confusion()`                                                                |
+| Power Herb             | Skips one charge turn (Dig, Bounce; not Bide), so no semi-invulnerable turn; used up                                                                                                 | Charge branch of `_execute_move_slot` (`battle.py:672-681`)                                    |
+| Metronome (item)       | Same move again: ×(10+n)/10, n up to 10; another move resets it; not counted while locked (Uproar, Rollout); −1 when the move fails [pp UpdateMetronomeCount / VerifyMetronomeCount] | New Pok slot (move id and count packed, like Encore's counter); `multipliers` (TODO at `:276`) |
+| Liquid Ooze (deferred) | Drain moves and Leech Seed hurt the drainer instead (Magic Guard drainer unaffected) [pp subscript_drain_half_damage_dealt]                                                          | `drain()` gets the defender (callers `battle.py:445, 468`) + Leech Seed (`:1039`)              |
+| Berry Juice (deferred) | +20 HP at ≤½                                                                                                                                                                         | `HP_RESTORE` family from F1                                                                    |
+| Sticky Hold (deferred) | Also blocks Covet [SD gen4 onTakeItem] and Bug Bite [SD takeItem]; confirm in [pp]                                                                                                   | `switch_items`, Bug Bite branch                                                                |
+| Magic Guard (rest)     | Remaining sources: recoil (Batch 3), Aftermath and Rough Skin (Batch 6), Toxic Spikes (Batch 7), Black Sludge (Batch 11), Liquid Ooze (here), plus Issue 7                           | —                                                                                              |
 
 - Search: the Metronome count changes damage; key it like Fury Cutter's `CONSEC_COUNT` (which isn't keyed
   today) or not, decide in the note.
@@ -424,6 +447,30 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 - Leave open: Forecast, Multitype, Color Change.
 - Optional extras from CLAUDE.md's known gaps, not in ItemDB (adding them shifts `ItemNames` ids): Damp Rock,
   Big Root, Grip Claw.
+
+## Discoveries (noticed, not fixed yet)
+
+Added at the end of each batch. Remove an entry only once it's fixed or you drop it.
+
+- Batch 0: Berry Juice now works through the HP_RESTORE dispatch; its deferred TODO.txt box can be ticked.
+- Batch 0: pp item data also has `pluckEffect` / `flingEffect`, which ItemDB doesn't carry. Fling isn't
+  implemented; Bug Bite gates on `ITEM_TYPE == BERRY`, so Berry Juice can't be bitten. Check against pp's
+  pluck effects when Bug Bite or Fling is touched.
+- Batch 0: `ITEM_TYPE` / `WHEN` are still the gates for Bug Bite, Covet and the `item_on_rdmg` callers;
+  candidates to move to `HOLD_EFFECT` when those paths are touched.
+- Batch 1: [pp BattleAI_PostKOSwitchIn] stage 2 skips moves with data power 1 (variable power), not status moves;
+  a status move (power 0) still scores about 2 × type effectiveness there. `sub_after_death` skips status
+  moves instead. Only affects tie-breaks.
+- Batch 1: `calculate_damage_confusion` applies Guts / Huge Power / Hustle after the stat stage; [pp] applies
+  them to the raw stat before the stage (Thick Club already follows [pp]). Can be off by a point.
+- Batch 1: [pp] Expert Belt also needs the move's data power to be non-zero (`ApplyTypeMultiplier` only flags
+  super effective when `movePower`); the engine checks the effectiveness only. Same result for every MoveDB
+  move: the variable-power ones (Flail, Gyro Ball, Low Kick, Magnitude, Natural Gift) have data power 1 in [pp],
+  and fixed-damage moves don't reach the type chart.
+- Batch 1: outdated TODO comments (left in place): `damage_calc.py` `# TODO: Expert belt` in `multipliers`, the
+  Expert belt half of `# TODO: Solid Rock and Filter, Expert belt` in the AI estimate, `#TODO: Silk Scarf` and
+  the Thick Club half of `#TODO: Choice Band, Thick Club` in `calculate_damage_confusion`.
+- Batch 1: `ABILITIES_ITEMS_PLAN.md` got reformatted (aligned tables) by the editor on save, not by me.
 
 ## UI (cross-batch)
 

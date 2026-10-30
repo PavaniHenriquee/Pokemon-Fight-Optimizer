@@ -208,9 +208,12 @@ class Item:
     NATURAL_GIFT_POWER = FLING_VOLATILE + 1
     NATURAL_GIFT_TYPE  = NATURAL_GIFT_POWER + 1
     ITEM_USER          = NATURAL_GIFT_TYPE + 1
+    HOLD_EFFECT        = ITEM_USER + 1
+    EFFECT_PARAM       = HOLD_EFFECT + 1
+    EFFECT_TYPE        = EFFECT_PARAM + 1
 
 
-ITEM_LEN      = Item.ITEM_USER + 1 - Item.ID
+ITEM_LEN      = Item.EFFECT_TYPE + 1 - Item.ID
 POK_LEN       = Pok.ITEM_ID + ITEM_LEN
 
 

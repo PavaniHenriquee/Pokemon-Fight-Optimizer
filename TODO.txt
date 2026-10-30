@@ -412,39 +412,39 @@
 []Wring Out(E)
 
 # Items
-[]Black Belt *
+[X]Black Belt *
 []Bright Powder *
-[]Charcoal *
-[]Expert Belt *
+[X]Charcoal *
+[X]Expert Belt *
 []Flame Orb *
 []Focus Band *
-[]Hard Stone *
+[X]Hard Stone *
 []Leftovers *
 []Light Clay *
 []Mental Herb *
-[]Metal Coat *
+[X]Metal Coat *
 []Metronome *
-[]Miracle Seed *
-[]Muscle Band *
-[]Mystic Water *
-[]Never-Melt Ice *
+[X]Miracle Seed *
+[X]Muscle Band *
+[X]Mystic Water *
+[X]Never-Melt Ice *
 [X]Oran Berry
 []Pecha Berry *
-[]Poison Barb *
+[X]Poison Barb *
 []Power Herb *
 []Quick Claw *
 []Rindo Berry *
 []Scope Lens *
-[]Sea Incense *
-[]Sharp Beak *
+[X]Sea Incense *
+[X]Sharp Beak *
 []Shed Shell *
-[]Silk Scarf *
-[]Silver Powder *
+[X]Silk Scarf *
+[X]Silver Powder *
 [X]Sitrus Berry
 []Smooth Rock *
-[]Soft Sand *
-[]Thick Club *
-[]Twisted Spoon *
+[X]Soft Sand *
+[X]Thick Club *
+[X]Twisted Spoon *
 
 ## Items that isn't used until 1st gym, but Trainer AI or engine has current special conditions
 []Babiri Berry *
@@ -460,7 +460,7 @@
 []Kasib Berry *
 []Kebia Berry *
 []Lax Incense *
-[]Light Ball *
+[X]Light Ball *
 []Lum Berry *
 []Occa Berry *
 []Passho Berry *

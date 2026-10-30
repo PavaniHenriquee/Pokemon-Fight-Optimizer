@@ -1,6 +1,6 @@
 """Transform item in Numpy array"""
 import numpy as np
-from Models.helper import ItemActivation, ItemType, Types
+from Models.helper import ItemActivation, ItemType, Types, HoldEffect
 from Models.idx_const import Item as ItemIdx, ITEM_LEN
 from DataBase.ItemDB import ItemNames
 from DataBase.PkDB import PokemonName
@@ -27,6 +27,10 @@ def item_to_np(item):
     else:
         natgif_type = 0
     array[ItemIdx.NATURAL_GIFT_TYPE-off] = natgif_type
+    array[ItemIdx.HOLD_EFFECT-off] = getattr(HoldEffect, item['hold_effect'].upper())
+    array[ItemIdx.EFFECT_PARAM-off] = item.get('effect_param', 0)
+    effect_type = getattr(Types, item['effect_type'].upper()) if 'effect_type' in item else 0
+    array[ItemIdx.EFFECT_TYPE-off] = effect_type
     return array
 
 

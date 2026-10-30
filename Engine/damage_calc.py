@@ -4,6 +4,7 @@ import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
 from Engine.speed import check_speed
+from DataBase.PkDB import PokemonName
 from Models.constants import (
     _ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW,
     _POK_AB_ID, _ABILITYNAMES_GUTS, _POK_STATUS, _ABILITYNAMES_HUGE_POWER,
@@ -25,7 +26,9 @@ from Models.constants import (
     _TYPES_GROUND, _TYPES_FLYING, _TYPES_ELECTRIC, _MOVECATEGORY_SPECIAL, _MOVENAME_BRICK_BREAK,
     _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN, _ABILITYNAMES_ADAPTABILITY,
     _MOVENAME_GYRO_BALL, _MOVENAME_BOUNCE, _MOVENAME_DIG, _MOVENAME_EARTHQUAKE, _MOVENAME_STOMP,
-    _POK_SEMI_INV_MOVE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE,
+    _POK_SEMI_INV_MOVE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _POK_ID, _ITEM_HOLD_EFFECT,
+    _ITEM_EFFECT_PARAM, _ITEM_EFFECT_TYPE, _HOLDEFFECT_TYPE_BOOST, _HOLDEFFECT_PIKA_SPATK_UP,
+    _HOLDEFFECT_POWER_UP_PHYS, _HOLDEFFECT_POWER_UP_SE, _HOLDEFFECT_CUBONE_ATK_UP,
 )
 
 # ==========================================
@@ -52,6 +55,9 @@ HITS_AIRBORNE = (_MOVENAME_GUST,)
 HITS_UNDERGROUND = (_MOVENAME_EARTHQUAKE, _MOVENAME_MAGNITUDE)
 # Gen IV: only Stomp doubles against a minimized target
 MINIMIZE_DOUBLES = (_MOVENAME_STOMP,)
+PIKACHU = PokemonName.PIKACHU
+# Thick Club works for both, Item.ITEM_USER only holds one
+THICK_CLUB_USERS = (PokemonName.CUBONE, PokemonName.MAROWAK)
 
 
 # ==========================================
@@ -137,7 +143,7 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
     atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
     def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
     if physical:
-        raw_attack = attacker[_POK_ATTACK]
+        raw_attack = item_attack(attacker, attacker[_POK_ATTACK])
         raw_defense = defender[_POK_DEFENSE]
         atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
         def_stage = defender[_POK_DEFENSE_STAT_STAGE]
@@ -209,6 +215,41 @@ def base_power_ability(attacker, move) -> float:
         return 4916  # Same floor as Gen IV power*12//10 for any power < 1024
 
     return 0
+
+
+@njit
+def item_power(attacker, move_type, category, power):
+    """
+    Held item power boosts in pokeplatinum BattleSystem_CalcMoveDamage order: type item, Light Ball,
+    Muscle Band. The boost is effect_param percent
+    """
+    effect = attacker[_ITEM_HOLD_EFFECT]
+    if effect == _HOLDEFFECT_TYPE_BOOST and move_type == attacker[_ITEM_EFFECT_TYPE]:
+        return power * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
+    if effect == _HOLDEFFECT_PIKA_SPATK_UP and attacker[_POK_ID] == PIKACHU:
+        return power * 2
+    if effect == _HOLDEFFECT_POWER_UP_PHYS and category == _MOVECATEGORY_PHYSICAL:
+        return power * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
+    return power
+
+
+@njit
+def item_attack(attacker, attack):
+    """Thick Club doubles Cubone's and Marowak's Attack, before Hustle and Guts"""
+    if (
+        attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_CUBONE_ATK_UP
+        and attacker[_POK_ID] in THICK_CLUB_USERS
+    ):
+        return attack * 2
+    return attack
+
+
+@njit
+def expert_belt(attacker, effectiveness, effectiveness2, damage):
+    """Expert Belt boosts a super effective hit by effect_param percent"""
+    if attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_POWER_UP_SE and effectiveness * effectiveness2 > 4:
+        return damage * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
+    return damage
 
 
 @njit
@@ -301,6 +342,7 @@ def multipliers(
     # TODO: Solid Rock and Filter
 
     # TODO: Expert belt
+    damage = expert_belt(attacker, effectiveness, effectiveness2, damage)
 
     # Tinted Lens
     if (
@@ -432,6 +474,7 @@ def calculate_damage(
     attack, defense = raw_atk_def(move, attacker, defender, weather, crit)
 
     power = charge_power(attacker, move, variable_power(attacker, defender, move, weather))
+    power = item_power(attacker, move[_MOVE_TYPE], move[_MOVE_CATEGORY], power)
 
     # Ability
     if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
@@ -443,7 +486,7 @@ def calculate_damage(
     level = attacker[_POK_LEVEL]
 
     # Base damage formula
-    damage = (((2 * level / 5) + 2) * power * (attack / defense)) // 50
+    damage = attack * power * (level * 2 // 5 + 2) // defense // 50
 
     return multipliers(
         move, attacker, defender, weather, crit, roll_multiplier, damage, def_side, gravity
@@ -455,7 +498,7 @@ def calculate_damage_confusion(pok):
     """Calculate the damage for Confusion self hit"""
     is_simple = pok[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
 
-    attack = apply_stat_stage(pok[_POK_ATTACK], pok[_POK_ATTACK_STAT_STAGE], is_simple)
+    attack = apply_stat_stage(item_attack(pok, pok[_POK_ATTACK]), pok[_POK_ATTACK_STAT_STAGE], is_simple)
     defense = apply_stat_stage(pok[_POK_DEFENSE], pok[_POK_DEFENSE_STAT_STAGE], is_simple)
 
     # Abilities affecting stat(equal logic to ab_mod_stat but without move)
@@ -467,8 +510,16 @@ def calculate_damage_confusion(pok):
     elif pok_ab == _ABILITYNAMES_HUSTLE:
         attack = (attack*3)//2
 
-    # Base damage formula, confusion counts as a 40 power move
-    damage = ((2 * pok[_POK_LEVEL] / 5) + 2) * 40 * (attack / defense) // 50
+    # Confusion counts as a 40 power Normal move: Silk Scarf and Light Ball boost it, Muscle Band doesn't
+    power = 40
+    effect = pok[_ITEM_HOLD_EFFECT]
+    if effect == _HOLDEFFECT_TYPE_BOOST and pok[_ITEM_EFFECT_TYPE] == _TYPES_NORMAL:
+        power = power * (100 + pok[_ITEM_EFFECT_PARAM]) // 100
+    elif effect == _HOLDEFFECT_PIKA_SPATK_UP and pok[_POK_ID] == PIKACHU:
+        power *= 2
+
+    # Base damage formula
+    damage = attack * power * (pok[_POK_LEVEL] * 2 // 5 + 2) // defense // 50
     if pok[_POK_STATUS] == _STATUS_BURN:
         damage //= 2
     # Adding 2 after the above
@@ -480,6 +531,7 @@ def calculate_damage_confusion(pok):
     #TODO: Choice Band, Thick Club
     #TODO: Power Trick, Power Split, Guard Split
     #TODO: Rivalry
+    #TODO: Pure Power
 
     return damage
 
@@ -498,6 +550,7 @@ def calculate_ai_logic_damage(
 
     # Ability
     power = charge_power(attacker, move, move[_MOVE_POWER])
+    power = item_power(attacker, move[_MOVE_TYPE], move[_MOVE_CATEGORY], power)
     if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
         base_power_mult = base_power_ability(attacker, move)
         if base_power_mult:
@@ -507,11 +560,14 @@ def calculate_ai_logic_damage(
     level = attacker[_POK_LEVEL]
 
     # Base damage formula
-    damage = (((2 * level / 5) + 2) * power * (attack / defense)) // 50
+    damage = attack * power * (level * 2 // 5 + 2) // defense // 50
 
     # Burn
     if attacker[_POK_STATUS] == _STATUS_BURN:
-        if move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL:
+        if (
+            move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL
+            and attacker[_POK_AB_ID] != _ABILITYNAMES_GUTS
+        ):
             damage //= 2
 
     damage = screen_damage(move[_MOVE_CATEGORY], move[_MOVE_ID], def_side, False, damage)
@@ -557,6 +613,7 @@ def calculate_ai_logic_damage(
         damage = (effectiveness2 * damage) // 2
 
     # TODO: Solid Rock and Filter, Expert belt
+    damage = expert_belt(attacker, effectiveness1, effectiveness2, damage)
 
     if (
         attacker[_POK_AB_ID] == _ABILITYNAMES_TINTED_LENS
