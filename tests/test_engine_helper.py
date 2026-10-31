@@ -728,17 +728,17 @@ def test_fire_move_thaws(poke):
 # ── early_returns (the "can I act this turn" gate) ───────────────────────────
 
 def test_sleep_blocks_until_counter_runs_out(poke):
-    """Asleep with counter > 0: blocked and counts down; at 0 wakes and acts"""
+    """The counter drops first: still above 0 it's blocked, at 0 it wakes and acts (pokeplatinum
+    CHECK_STATUS_STATE_SLEEP), so a counter of 2 sleeps one turn"""
     a = poke("Rattata", 50, "Run Away", ["Tackle"])
     d = poke("Rattata", 50, "Run Away", ["Tackle"])
     mv = move_slice(a, 0)
     a[Pok.STATUS] = Status.SLEEP
     a[Pok.SLEEP_COUNTER] = 2
     assert early_returns(a, d, 1, False, mv)
-    assert early_returns(a, d, 1, False, mv)
-    assert a[Pok.SLEEP_COUNTER] == 0
+    assert a[Pok.SLEEP_COUNTER] == 1
     assert not early_returns(a, d, 1, False, mv)
-    assert a[Pok.STATUS] == 0
+    assert a[Pok.STATUS] == 0 and a[Pok.SLEEP_COUNTER] == 0
 
 
 def test_flinch_only_for_second_mover(poke):
@@ -1677,3 +1677,162 @@ def test_ohko_fails(poke, atk_lv, atk_ab, def_ab, fails):
     a = poke("Rattata", atk_lv, atk_ab, ["Guillotine"])
     d = poke("Geodude", 50, def_ab, ["Tackle"])
     assert ohko_fails(a, d) == fails
+
+
+# ── Batch 7: status immunity, cures, status items ────────────────────────────
+
+def _turns_asleep(a, d, counter):
+    """How many move attempts sleep blocks, starting from this counter"""
+    a[Pok.STATUS] = Status.SLEEP
+    a[Pok.SLEEP_COUNTER] = counter
+    n = 0
+    while early_returns(a, d, 1, False, move_slice(a, 0)):
+        n += 1
+    return n
+
+
+@pytest.mark.parametrize("ability, turns", [
+    ("Run Away", (1, 2, 3, 4)), ("Early Bird", (0, 1, 1, 2)),
+])
+def test_sleep_turns_and_early_bird(poke, ability, turns):
+    """A counter of 2-5 sleeps 1-4 turns, Early Bird drops it by 2 (pokeplatinum
+    CHECK_STATUS_STATE_SLEEP, Showdown gen4 slp)"""
+    a = poke("Doduo", 50, ability, ["Tackle"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    assert tuple(_turns_asleep(a, d, c) for c in (2, 3, 4, 5)) == turns
+    assert a[Pok.STATUS] == 0 and a[Pok.SLEEP_COUNTER] == 0
+
+
+@pytest.mark.parametrize("ability, base, hp, cured", [
+    ("Natural Cure", 0, 50, True),
+    ("Natural Cure", 0, 0, False),
+    ("Run Away", 0, 50, False),
+    # Worry Seed: its own Limber forbids paralysis, a Worry Seeded Natural Cure doesn't cure
+    ("Insomnia", AbilityNames.LIMBER, 50, True),
+    ("Insomnia", AbilityNames.NATURAL_CURE, 50, False),
+])
+def test_natural_cure_on_switch_out(poke, ability, base, hp, cured):
+    """pokeplatinum BtlCmd_TryRestoreStatusOnSwitch: Natural Cure, or the party ability forbids
+    the status, and the Pokemon is alive"""
+    p = poke("Staryu", 50, ability, ["Tackle"])
+    p[Pok.BASE_AB_ID] = base
+    p[Pok.CURRENT_HP] = hp
+    p[Pok.STATUS] = Status.PARALYSIS
+    reset_switch_out(p)
+    assert (p[Pok.STATUS] == 0) == cured
+
+
+def test_natural_cure_clears_toxic_counter(poke):
+    """A cured Toxic doesn't keep its counter"""
+    p = poke("Staryu", 50, "Natural Cure", ["Tackle"])
+    p[Pok.STATUS] = Status.TOXIC
+    p[Pok.BADLY_POISON] = 4
+    reset_switch_out(p)
+    assert p[Pok.STATUS] == 0 and p[Pok.BADLY_POISON] == 0
+
+
+@pytest.mark.parametrize("roll, cured", [(2, True), (3, False)])
+def test_shed_skin(monkeypatch, poke, roll, cured):
+    """Gen IV 30% at the end of the turn, pokeplatinum RandNext % 10 < 3"""
+    _fix_rolls(monkeypatch, roll)
+    p = poke("Metapod", 50, "Shed Skin", ["Tackle"])
+    p[Pok.STATUS] = Status.SLEEP
+    p[Pok.SLEEP_COUNTER] = 3
+    on_residual(p, 0)
+    assert (p[Pok.STATUS] == 0) == cured
+
+
+def test_shed_skin_no_roll_without_status(monkeypatch, poke):
+    """No status, no roll (keeps the RNG order)"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: pytest.fail("rolled"))
+    on_residual(poke("Metapod", 50, "Shed Skin", ["Tackle"]), 0)
+
+
+@pytest.mark.parametrize("attacker_ab, attracted", [("Oblivious", False), ("Run Away", True)])
+def test_cute_charm_into_oblivious(monkeypatch, poke, attacker_ab, attracted):
+    """Oblivious keeps Cute Charm's infatuation off the attacker"""
+    _fix_rolls(monkeypatch, 0)
+    a = poke("Slowpoke", 50, attacker_ab, ["Tackle"], gender="Male")
+    d = poke("Clefairy", 50, "Cute Charm", ["Tackle"], gender="Female")
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert bool(a[Pok.VOL_STATUS] & VolStatus.ATTRACT) == attracted
+
+
+@pytest.mark.parametrize("ability, weather, poisoned", [
+    ("Immunity", 0, False), ("Leaf Guard", Weather.SUN, False), ("Leaf Guard", 0, True),
+])
+def test_toxic_spikes_abilities(poke, ability, weather, poisoned):
+    """Immunity and Leaf Guard in sun keep Toxic Spikes' poison off"""
+    p = poke("Rattata", 50, ability, ["Tackle"])
+    arr = empty_field()
+    arr[Field.MY_SIDE_COND] = SideCondition.TOXIC_SPIKES
+    arr[Field.MY_SIDE_COND + SIDE_TOXIC_SPIKES] = 1
+    engine_helper._toxic_spikes(p, arr, Field.MY_SIDE_COND, weather)
+    assert (p[Pok.STATUS] == Status.POISON) == poisoned
+
+
+@pytest.mark.parametrize("item, status, vol, cured", [
+    ("Pecha Berry", Status.POISON, 0, True),
+    ("Pecha Berry", Status.TOXIC, 0, True),
+    ("Pecha Berry", Status.BURN, 0, False),
+    ("Chesto Berry", Status.SLEEP, 0, True),
+    ("Chesto Berry", Status.PARALYSIS, 0, False),
+    ("Lum Berry", Status.FREEZE, 0, True),
+    ("Lum Berry", 0, VolStatus.CONFUSION, True),
+    ("Lum Berry", 0, VolStatus.ATTRACT, False),
+    ("Mental Herb", 0, VolStatus.ATTRACT, True),
+    ("Mental Herb", 0, VolStatus.CONFUSION, False),
+])
+def test_status_item(poke, item, status, vol, cured):
+    """Each cures its own condition and is used up, recyclable; anything else leaves it held
+    (pokeplatinum BattleSystem_TriggerHeldItemOnStatus, Mental Herb is Attract only in Gen IV)"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item=item)
+    held = p[Item.ID]
+    p[Pok.STATUS] = status
+    p[Pok.VOL_STATUS] = vol
+    engine_helper.status_item(p)
+    if cured:
+        assert p[Pok.STATUS] == 0 and p[Pok.VOL_STATUS] == 0
+        assert p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] == held
+    else:
+        assert p[Pok.STATUS] == status and p[Pok.VOL_STATUS] == vol and p[Item.ID] == held
+
+
+def test_lum_cures_status_and_confusion_at_once(poke):
+    """Lum clears both and the toxic counter"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item="Lum Berry")
+    p[Pok.STATUS] = Status.TOXIC
+    p[Pok.BADLY_POISON] = 3
+    p[Pok.VOL_STATUS] = VolStatus.CONFUSION
+    engine_helper.status_item(p)
+    assert p[Pok.STATUS] == 0 and p[Pok.BADLY_POISON] == 0 and p[Pok.VOL_STATUS] == 0
+
+
+def test_status_item_not_used_when_fainted(poke):
+    """A fainted holder keeps its berry"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item="Pecha Berry")
+    p[Pok.STATUS] = Status.POISON
+    p[Pok.CURRENT_HP] = 0
+    engine_helper.status_item(p)
+    assert p[Item.ID] == ItemNames.PECHA_BERRY
+
+
+def test_bug_bite_status_berry_cures_the_biter(poke):
+    """The biter gets the cure, the target loses its berry (pokeplatinum BattleSystem_PluckBerry)"""
+    atk = poke("Kricketune", 50, "Swarm", ["Bug Bite"])
+    dfn = poke("Rattata", 50, "Run Away", ["Tackle"], item="Pecha Berry")
+    atk[Pok.STATUS] = Status.POISON
+    dfn[Pok.STATUS] = Status.POISON
+    eat_berry_bug_bite(atk, dfn)
+    assert atk[Pok.STATUS] == 0
+    assert dfn[Pok.STATUS] == Status.POISON and dfn[Item.ID] == 0
+
+
+def test_switch_in_pecha_cures_toxic_spikes(poke):
+    """The berry is checked right after the hazards (SWITCH_IN_CHECK_STATE_HELD_ITEM_STATUS)"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item="Pecha Berry")
+    arr = empty_field()
+    arr[Field.MY_SIDE_COND] = SideCondition.TOXIC_SPIKES
+    arr[Field.MY_SIDE_COND + SIDE_TOXIC_SPIKES] = 2
+    switch_in(p, poke("Rattata", 50, "Run Away", ["Tackle"]), arr, True)
+    assert p[Pok.STATUS] == 0 and p[Item.ID] == 0

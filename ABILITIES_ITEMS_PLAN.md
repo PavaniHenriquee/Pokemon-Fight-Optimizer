@@ -18,7 +18,7 @@
 | 4     | Damage abilities                                                    | [x]    |
 | 5     | Accuracy, crit, secondary effects                                   | [x]    |
 | 6     | Contact abilities                                                   | [x]    |
-| 7     | Status immunity, cures, status berries                              | [ ]    |
+| 7     | Status immunity, cures, status berries                              | [x]    |
 | 8     | Type immunity and absorb abilities                                  | [ ]    |
 | 9     | Switch-in abilities and stat-drop guards                            | [ ]    |
 | 10    | Speed and turn order                                                | [ ]    |
@@ -95,11 +95,21 @@
   `random.random() < .30`). Attract moved into `infatuate(pok, source)`, shared by `vol_status` and Cute Charm. A
   multi-hit move stops when its user faints. The reorder also ended a revive: Draining Kiss KOing an Aftermath
   holder used to be healed back from 0 HP by `drain()`.
+- 2026-10-31 (Batch 7): sleep lasted one turn too long (the counter was checked before it dropped, 2-5 slept 2-5
+  turns). It now drops first and wakes at 0, so 2-5 sleeps 1-4 turns ([pp] CHECK_STATUS_STATE_SLEEP, [SD gen4]
+  slp); Early Bird drops it by 2. Every golden change in this batch comes from that fix (with the old counting
+  all scenarios matched). Shed Skin is 30% (`randint(0, 9) < 3`): Gen IV is 30%, Showdown's 33% is the other gens'
+  value that gen4 inherits. One `ability_blocks_status(pok, source, status, weather)` holds Limber, Immunity,
+  Water Veil, Magma Armor, Insomnia / Vital Spirit and Leaf Guard in sun (every status and Yawn), ignorable;
+  hazards, items and Yawn's end-of-turn sleep pass `pok` as the source. Deferred Leaf Guard, Magma Armor, Own
+  Tempo, Chesto and Lum done with the batch. Status items follow [pp]'s spots: after every move for both actives
+  (`_after_move_items`, also after Pursuit and the pending move after my Baton Pass), on switch-in after the
+  hazards, and a new end-of-turn step after Yawn. Natural Cure includes [pp]'s second clause: the party ability
+  (`BASE_AB_ID` after Worry Seed) forbidding the status also cures on switch-out.
 
 **Still open (your call, at the batch that needs it)**
 
 - Issues 1-14 below.
-- [pp] vs [SD] conflicts: Shed Skin 30% vs 33% (Batch 7).
 
 ## Context
 
@@ -579,6 +589,19 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   the engine checks. Color Change has `on_contact` in AbilitiesDB but isn't handled (out of scope, Batch 14).
 - Batch 5: Snow Cloak's hail-damage immunity is still Batch 11; `#TODO: Lock-On` stays in the OHKO branch (Lock-On
   and Mind Reader aren't in MoveDB).
+- Batch 7: Yawn should fail during an uproar ([pp] subscript_yawn checks it, Soundproof excepted); `vol_status`'s
+  Yawn branch doesn't.
+- Batch 7: [pp] `BattleSystem_RecoverStatusByAbility` (after every move and on switch-in) cures a status the
+  current ability forbids, plus Own Tempo confusion and Oblivious Attract. No engine path reaches it yet (Worry
+  Seed wakes the target itself); Trace (Batch 9) needs it.
+- Batch 7: `sleep_ability` in `status_calc.py` is now unused (its callers go through `ability_blocks_status`); left
+  in place.
+- Batch 7: Lum's confusion cure clears the bit and leaves `CONFUSION_COUNTER` as it was; nothing reads it without
+  the bit.
+- Batch 7: the Leaf Guard sun check in `ability_blocks_status` and Hydration's rain check need Cloud Nine
+  (`effective_weather`) in Batch 11, like Flame Orb's.
+- Batch 7: the rollout still gives a status move into an immune ability weight 1.
+- Batch 7: pylint's too-many-branches on `vol_status` (21/20) was already at 21 before this batch (no `if` added).
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

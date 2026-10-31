@@ -23,7 +23,8 @@ from Models.constants import (
     _ABILITYNAMES_SOUNDPROOF, _MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE,
     _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT,
     _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_TRI_ATTACK, _ABILITYNAMES_SERENE_GRACE,
-    _ABILITYNAMES_SHIELD_DUST,
+    _ABILITYNAMES_SHIELD_DUST, _ABILITYNAMES_MAGMA_ARMOR, _ABILITYNAMES_LEAF_GUARD,
+    _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS,
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from Models.move import CURSE_BOOST
@@ -69,7 +70,46 @@ SECONDARY_STAT_MAPPING = (
 
 
 @njit
-def synchronize_reflect(recipient, applied_status, source):
+def cure_status(pok):
+    """Clears the non-volatile status and its counters"""
+    pok[_POK_STATUS] = 0
+    pok[_POK_BADLY_POISON] = 0
+    pok[_POK_SLEEP_COUNTER] = 0
+
+
+@njit
+def ability_forbids_status(ability, status):
+    """The ability can't have this status (pokeplatinum Ability_ForbidsStatus)"""
+    if status == _STATUS_PARALYSIS:
+        return ability == _ABILITYNAMES_LIMBER
+    if status == _STATUS_POISON or status == _STATUS_TOXIC:
+        return ability == _ABILITYNAMES_IMMUNITY
+    if status == _STATUS_BURN:
+        return ability == _ABILITYNAMES_WATER_VEIL
+    if status == _STATUS_FREEZE:
+        return ability == _ABILITYNAMES_MAGMA_ARMOR
+    if status == _STATUS_SLEEP:
+        return ability in SLEEP_AB_IM
+    return False
+
+
+@njit
+def ability_blocks_status(pok, source, status, weather):
+    """
+    pok's ability keeps the status off: Limber, Immunity, Water Veil, Magma Armor, Insomnia, Vital
+    Spirit, and Leaf Guard against every status in sun. A Mold Breaker source ignores them. With no
+    user (hazards, items, Yawn's sleep) pass pok as the source (pokeplatinum status subscripts)
+    """
+    if not ignorable_ability(pok, source):
+        return False
+    ability = pok[_POK_AB_ID]
+    if ability == _ABILITYNAMES_LEAF_GUARD and weather == _WEATHER_SUN:
+        return True
+    return ability_forbids_status(ability, status)
+
+
+@njit
+def synchronize_reflect(recipient, applied_status, source, weather=0):
     """Reflects Burn, Poison, Toxic, or Paralysis back to the attacker."""
     if recipient[_POK_AB_ID] != _ABILITYNAMES_SYNCHRONIZE:
         return
@@ -83,20 +123,16 @@ def synchronize_reflect(recipient, applied_status, source):
 
     # Branchless type matching for immunities
     if applied_status == _STATUS_BURN:
-        if t1 == _TYPES_FIRE or t2 == _TYPES_FIRE or source[_POK_AB_ID] == _ABILITYNAMES_WATER_VEIL:
+        if t1 == _TYPES_FIRE or t2 == _TYPES_FIRE:
             return
-        source[_POK_STATUS] = applied_status
-        return
-    if applied_status == _STATUS_PARALYSIS:
-        if source[_POK_AB_ID] == _ABILITYNAMES_LIMBER:
+    elif applied_status != _STATUS_PARALYSIS:
+        if t1 in STEEL_POISON or t2 in STEEL_POISON:
             return
-        source[_POK_STATUS] = applied_status
+        # Synchronize always inflicts standard Poison, even if triggered by Toxic
+        applied_status = _STATUS_POISON
+    if ability_blocks_status(source, recipient, applied_status, weather):
         return
-    # Poison or Toxic
-    if t1 in STEEL_POISON or t2 in STEEL_POISON or source[_POK_AB_ID] == _ABILITYNAMES_IMMUNITY:
-        return
-    # Synchronize always inflicts standard Poison, even if triggered by Toxic
-    source[_POK_STATUS] = _STATUS_POISON
+    source[_POK_STATUS] = applied_status
 
 
 @njit
@@ -159,7 +195,9 @@ def apply_status(move, pok, weather, source, sec=False, side=0, status=0):
 
     if m_status == _STATUS_FREEZE and weather == _WEATHER_SUN:
         return
-    if m_status == _STATUS_SLEEP and (sleep_blocked(pok, source) or sleep_ability(pok, source)):
+    if m_status == _STATUS_SLEEP and sleep_blocked(pok, source):
+        return
+    if ability_blocks_status(pok, source, m_status, weather):
         return
 
     pok[_POK_STATUS] = m_status
@@ -170,7 +208,7 @@ def apply_status(move, pok, weather, source, sec=False, side=0, status=0):
         pok[_POK_SLEEP_COUNTER] = TURNS_2_5[random.getrandbits(2)]
 
     if m_status in B_P_P:
-        synchronize_reflect(pok, m_status, source)
+        synchronize_reflect(pok, m_status, source, weather)
 
 
 @njit
@@ -218,7 +256,10 @@ def stat_changes(move, attacker, defender, sec=False, def_side=0):
 
 @njit
 def infatuate(pok, source):
-    """Attract and Cute Charm: only between a male and a female"""
+    """Attract and Cute Charm: only between a male and a female. Oblivious stops it unless the
+    source has Mold Breaker (pokeplatinum subscript_infatuate)"""
+    if pok[_POK_AB_ID] == _ABILITYNAMES_OBLIVIOUS and ignorable_ability(pok, source):
+        return
     pok_gender = pok[_POK_GENDER]
     src_gender = source[_POK_GENDER]
     if (
@@ -231,13 +272,17 @@ def infatuate(pok, source):
 
 
 @njit
-def vol_status(move, pok, source, sec=False, side=0):
+def vol_status(move, pok, source, sec=False, side=0, weather=0):
     """Check and apply volatile status. side is pok's Field.SIDE_COND, Safeguard there blocks
-    confusion and Yawn"""
+    confusion and Yawn. Own Tempo blocks confusion unless the source has Mold Breaker"""
     v_status = move[_SEC_VOL_STATUS] if sec else move[_MOVE_VOL_STATUS]
     safeguard = side & _SIDECONDITION_SAFEGUARD
 
-    if v_status & _VOLSTATUS_CONFUSION and not safeguard:
+    if (
+        v_status & _VOLSTATUS_CONFUSION
+        and not safeguard
+        and not (pok[_POK_AB_ID] == _ABILITYNAMES_OWN_TEMPO and ignorable_ability(pok, source))
+    ):
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
             pok[_POK_VOL_STATUS] += _VOLSTATUS_CONFUSION
             pok[_POK_CONFUSION_COUNTER] = TURNS_2_5[random.getrandbits(2)]
@@ -272,7 +317,11 @@ def vol_status(move, pok, source, sec=False, side=0):
         infatuate(pok, source)
 
     # Fails on a target that already has a status or is already drowsy
-    if v_status & _VOLSTATUS_YAWN and not safeguard and not sleep_ability(pok, source):
+    if (
+        v_status & _VOLSTATUS_YAWN
+        and not safeguard
+        and not ability_blocks_status(pok, source, _STATUS_SLEEP, weather)
+    ):
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN and pok[_POK_STATUS] == 0:
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_YAWN
             pok[_POK_YAWN_TURNS] = YAWN_DURATION
@@ -325,7 +374,7 @@ def calculate_effects(attacker, defender, move, weather, def_side=0):
         if move[_MOVE_TARGET] in SELF_VOL_TARGETS:
             vol_status(move, attacker, attacker)
         else:
-            vol_status(move, defender, attacker, False, def_side)
+            vol_status(move, defender, attacker, False, def_side, weather)
 
 
 @njit
@@ -361,7 +410,7 @@ def sec_effects(move, attacker, defender, weather, def_side=0):
             if move[_SEC_STATUS] != 0:
                 apply_status(move, defender, weather, attacker, True, def_side)
             if move[_SEC_VOL_STATUS] != 0:
-                vol_status(move, defender, attacker, True, def_side)
+                vol_status(move, defender, attacker, True, def_side, weather)
 
 
 @njit

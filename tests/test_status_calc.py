@@ -528,3 +528,84 @@ def test_tri_attack_picks_one_of_three(monkeypatch, poke, pick, status):
     d = poke("Machop", 20, "Guts", ["Tackle"])
     sec_effects(move_slice(a, 0), a, d, 0)
     assert d[Pok.STATUS] == status
+
+
+# ── Batch 7: status immunity abilities ───────────────────────────────────────
+
+@pytest.mark.parametrize("ability, status", [
+    ("Limber", Status.PARALYSIS), ("Immunity", Status.POISON), ("Immunity", Status.TOXIC),
+    ("Water Veil", Status.BURN), ("Magma Armor", Status.FREEZE),
+])
+@pytest.mark.parametrize("atk_ability, lands", [("Run Away", False), ("Mold Breaker", True)])
+def test_status_immunity_abilities(poke, ability, status, atk_ability, lands):
+    """Each keeps its status off, Mold Breaker ignores them (pokeplatinum status subscripts)"""
+    a = poke("Rattata", 20, atk_ability, ["Tackle"])
+    d = poke("Rattata", 20, ability, ["Tackle"])
+    apply_status(move_slice(a, 0), d, 0, a, False, 0, status)
+    assert (d[Pok.STATUS] == status) == lands
+
+
+@pytest.mark.parametrize("status", [
+    Status.PARALYSIS, Status.POISON, Status.TOXIC, Status.BURN, Status.SLEEP,
+])
+@pytest.mark.parametrize("weather, atk_ability, lands", [
+    (Weather.SUN, "Run Away", False), (0, "Run Away", True), (Weather.SUN, "Mold Breaker", True),
+])
+def test_leaf_guard(poke, status, weather, atk_ability, lands):
+    """Leaf Guard stops every status in sun only, Mold Breaker ignores it"""
+    a = poke("Rattata", 20, atk_ability, ["Tackle"])
+    d = poke("Rattata", 20, "Leaf Guard", ["Tackle"])
+    apply_status(move_slice(a, 0), d, weather, a, False, 0, status)
+    assert (d[Pok.STATUS] == status) == lands
+
+
+@pytest.mark.parametrize("weather, drowsy", [(Weather.SUN, False), (0, True)])
+def test_leaf_guard_blocks_yawn_in_sun(poke, weather, drowsy):
+    """pokeplatinum subscript_yawn checks Leaf Guard in sun"""
+    a = poke("Rattata", 20, "Run Away", ["Yawn"])
+    d = poke("Rattata", 20, "Leaf Guard", ["Tackle"])
+    calculate_effects(a, d, move_slice(a, 0), weather)
+    assert bool(d[Pok.VOL_STATUS] & VolStatus.YAWN) == drowsy
+
+
+@pytest.mark.parametrize("atk_ability, confused", [("Static", False), ("Mold Breaker", True)])
+def test_own_tempo_blocks_confusion(poke, atk_ability, confused):
+    """Own Tempo stops Confuse Ray unless the user has Mold Breaker"""
+    a = poke("Pikachu", 50, atk_ability, ["Confuse Ray"])
+    d = poke("Slowpoke", 50, "Own Tempo", ["Tackle"])
+    vol_status(move_slice(a, 0), d, a)
+    assert bool(d[Pok.VOL_STATUS] & VolStatus.CONFUSION) == confused
+
+
+def test_own_tempo_swagger_still_boosts(poke):
+    """Swagger's Attack +2 still lands on an Own Tempo target"""
+    a = poke("Rattata", 50, "Run Away", ["Swagger"])
+    d = poke("Slowpoke", 50, "Own Tempo", ["Tackle"])
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert d[Pok.ATTACK_STAT_STAGE] == 2 and not d[Pok.VOL_STATUS] & VolStatus.CONFUSION
+
+
+@pytest.mark.parametrize("atk_ability, attracted", [("Run Away", False), ("Mold Breaker", True)])
+def test_oblivious_blocks_attract(poke, atk_ability, attracted):
+    """Oblivious stops Attract unless the user has Mold Breaker (pokeplatinum subscript_infatuate)"""
+    a = poke("Rattata", 50, atk_ability, ["Attract"], gender="Male")
+    d = poke("Slowpoke", 50, "Oblivious", ["Tackle"], gender="Female")
+    vol_status(move_slice(a, 0), d, a)
+    assert bool(d[Pok.VOL_STATUS] & VolStatus.ATTRACT) == attracted
+
+
+@pytest.mark.parametrize("ability, status, weather", [
+    ("Limber", Status.PARALYSIS, 0),
+    ("Water Veil", Status.BURN, 0),
+    ("Leaf Guard", Status.PARALYSIS, Weather.SUN),
+])
+def test_synchronize_respects_status_abilities(poke, ability, status, weather):
+    """Synchronize runs through the same status checks as any status (pokeplatinum
+    BattleSystem_SynchronizeStatus)"""
+    src = poke("Rattata", 50, ability, ["Tackle"])
+    sync = poke("Ralts", 50, "Synchronize", ["Confusion"])
+    sync[Pok.STATUS] = status
+    synchronize_reflect(sync, status, src, weather)
+    assert src[Pok.STATUS] == 0
+    synchronize_reflect(sync, status, src)
+    assert src[Pok.STATUS] == (status if ability == "Leaf Guard" else 0)

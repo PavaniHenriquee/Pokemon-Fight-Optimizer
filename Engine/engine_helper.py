@@ -5,7 +5,9 @@ from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
 from Engine.speed import check_speed
 from Engine.status_calc import  freeze, paralysis, sleep_blocked, SLOT_MASK
-from Engine.status_calc import apply_status, infatuate
+from Engine.status_calc import (
+    apply_status, infatuate, cure_status, ability_blocks_status, ability_forbids_status
+)
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
     item_power, item_attack, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
@@ -56,8 +58,7 @@ from Models.constants import (
     _POK_TAUNT_TURNS, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _MOVECATEGORY_STATUS,
     _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _SIDECONDITION_LUCKY_CHANT, _SIDECONDITION_MIST,
     _SIDECONDITION_SAFEGUARD, _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK,
-    _TYPES_FLYING, _TYPES_POISON, _ABILITYNAMES_LEVITATE, _ABILITYNAMES_IMMUNITY,
-    _ABILITYNAMES_LEAF_GUARD, _POK_BASE_AB_ID, _POK_ITEM_KNOCKED_OFF, _POK_PERISH_TURNS,
+    _TYPES_FLYING, _TYPES_POISON, _ABILITYNAMES_LEVITATE, _POK_BASE_AB_ID, _POK_ITEM_KNOCKED_OFF, _POK_PERISH_TURNS,
     _VOLSTATUS_PERISH_SONG, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_STICKY_HOLD, _ABILITYNAMES_MULTITYPE,
     _ABILITYNAMES_TRUANT, _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_SYNTHESIS, _POK_CALLED_MOVE,
     _POK_MIRROR_MOVE, _FIELD_LAST_MOVE, _FIELD_TERRAIN, _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE,
@@ -71,6 +72,9 @@ from Models.constants import (
     _HOLDEFFECT_ACC_REDUCE, _HOLDEFFECT_CRITRATE_UP, _ABILITYNAMES_STATIC, _ABILITYNAMES_FLAME_BODY,
     _ABILITYNAMES_CUTE_CHARM, _ABILITYNAMES_EFFECT_SPORE, _ABILITYNAMES_ROUGH_SKIN,
     _ABILITYNAMES_AFTERMATH, _FLAGS_CONTACT, _ABILITYACTIVATION_ON_CONTACT,
+    _HOLDEFFECT_PSN_RESTORE, _HOLDEFFECT_SLP_RESTORE, _HOLDEFFECT_STATUS_RESTORE,
+    _HOLDEFFECT_HEAL_INFATUATION, _ABILITYNAMES_EARLY_BIRD, _ABILITYNAMES_NATURAL_CURE,
+    _ABILITYNAMES_SHED_SKIN,
 )
 
 
@@ -78,6 +82,11 @@ SANDSTORM_IM = (_TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL)
 DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 HP_RESTORE_EFFECTS = (_HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE)
+# Pecha, Chesto, Lum and Mental Herb
+STATUS_CURE_EFFECTS = (
+    _HOLDEFFECT_PSN_RESTORE, _HOLDEFFECT_SLP_RESTORE, _HOLDEFFECT_STATUS_RESTORE,
+    _HOLDEFFECT_HEAL_INFATUATION
+)
 RECORD_DAMAGE = (_DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT)
 # pokeplatinum BattleSystem_TriggerAbilityOnHit: RandNext % 3 picks poison, paralysis, sleep
 EFFECT_SPORE_STATUSES = (_STATUS_POISON, _STATUS_PARALYSIS, _STATUS_SLEEP)
@@ -201,7 +210,50 @@ def _apply_berry_effect(source, target):
     elif effect == _HOLDEFFECT_HP_PCT_RESTORE:
         # Needs to be with min because of bug bite
         cur_hp = min(cur_hp + max(1, max_hp * source[_ITEM_EFFECT_PARAM] // 100), max_hp)
+    elif effect in STATUS_CURE_EFFECTS:
+        item_cure(effect, target)
     target[_POK_CURRENT_HP] = cur_hp
+
+
+@njit
+def item_cure(effect, pok):
+    """
+    Pecha cures poison, Chesto sleep, Lum any status and confusion, Mental Herb only Attract in
+    Gen IV (pokeplatinum BattleSystem_TriggerHeldItemOnStatus, Showdown gen4 Mental Herb).
+    Returns True if it cured something
+    """
+    status = pok[_POK_STATUS]
+    if effect == _HOLDEFFECT_PSN_RESTORE:
+        if status != _STATUS_POISON and status != _STATUS_TOXIC:
+            return False
+    elif effect == _HOLDEFFECT_SLP_RESTORE:
+        if status != _STATUS_SLEEP:
+            return False
+    elif effect == _HOLDEFFECT_STATUS_RESTORE:
+        if status == 0 and not pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
+            return False
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_CONFUSION
+    elif effect == _HOLDEFFECT_HEAL_INFATUATION:
+        if not pok[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT:
+            return False
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_ATTRACT
+        return True
+    else:
+        return False
+    cure_status(pok)
+    return True
+
+
+@njit
+def status_item(pok):
+    """
+    A status berry or Mental Herb is used up once its holder has the condition it cures. A fainted
+    Pokemon doesn't use it. pokeplatinum checks after every move, on switch-in and after Yawn
+    """
+    effect = pok[_ITEM_HOLD_EFFECT]
+    if effect in STATUS_CURE_EFFECTS and pok[_POK_CURRENT_HP] > 0 and item_cure(effect, pok):
+        pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
+        clear_item(pok)
 
 
 @njit
@@ -594,6 +646,13 @@ def calculate_crit(attacker, defender, move=None, def_side=0):
 @njit
 def reset_switch_out(pok):
     """If a pokemon swithces out it needs to reset these conditions"""
+    # Natural Cure, or its own ability forbids the status Worry Seed let in
+    # (pokeplatinum BtlCmd_TryRestoreStatusOnSwitch)
+    if pok[_POK_CURRENT_HP] > 0 and pok[_POK_STATUS] and (
+        pok[_POK_AB_ID] == _ABILITYNAMES_NATURAL_CURE
+        or (pok[_POK_BASE_AB_ID] and ability_forbids_status(pok[_POK_BASE_AB_ID], pok[_POK_STATUS]))
+    ):
+        cure_status(pok)
     pok[_POK_ATTACK_STAT_STAGE : _POK_EVASION_STAT_STAGE + 1] = 0
     pok[_POK_VOL_STATUS] = 0
     pok[_POK_BADLY_POISON] = 1 if pok[_POK_STATUS] == _STATUS_TOXIC else 0
@@ -649,13 +708,11 @@ def _toxic_spikes(pok, battle_array, side, weather):
         battle_array[side] &= ~_SIDECONDITION_TOXIC_SPIKES
         battle_array[side + SIDE_TOXIC_SPIKES] = 0
         return
-    ability = pok[_POK_AB_ID]
     if (
         pok[_POK_STATUS] != 0
         or pok[_POK_TYPE1] == _TYPES_STEEL
         or pok[_POK_TYPE2] == _TYPES_STEEL
-        or ability == _ABILITYNAMES_IMMUNITY
-        or (ability == _ABILITYNAMES_LEAF_GUARD and weather == _WEATHER_SUN)
+        or ability_blocks_status(pok, pok, _STATUS_POISON, weather)
         or battle_array[side] & _SIDECONDITION_SAFEGUARD
     ):
         return
@@ -722,6 +779,8 @@ def switch_in(attacker, defender, battle_array, is_mine):
             and not battle_array[side_base(not is_mine)] & _SIDECONDITION_MIST
         ):
             defender[_POK_ATTACK_STAT_STAGE] = max(-6, defender[_POK_ATTACK_STAT_STAGE] - 1)
+    # A status from the hazards (pokeplatinum SWITCH_IN_CHECK_STATE_HELD_ITEM_STATUS)
+    status_item(attacker)
 
 
 # ── In-battle status / contact effects ────────────────────────────────────────────
@@ -883,11 +942,14 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
         attacker[_POK_SLEEP_COUNTER] = 0
     atker_status = attacker[_POK_STATUS]
     # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
+    # The counter drops first and it wakes at 0, so 2-5 sleeps 1-4 turns. Early Bird drops it by 2
+    # (pokeplatinum CHECK_STATUS_STATE_SLEEP)
     if atker_status == _STATUS_SLEEP:
         unlock_move(attacker)
+        attacker[_POK_SLEEP_COUNTER] -= 2 if attacker[_POK_AB_ID] == _ABILITYNAMES_EARLY_BIRD else 1
         if attacker[_POK_SLEEP_COUNTER] > 0:
-            attacker[_POK_SLEEP_COUNTER] -= 1
             return True
+        attacker[_POK_SLEEP_COUNTER] = 0
         attacker[_POK_STATUS] = 0
     # Freeze
     if atker_status == _STATUS_FREEZE:
@@ -1020,6 +1082,9 @@ def on_residual(pokemon, _switch_in):
     abi = pokemon[_POK_AB_ID]
     if abi == _ABILITYNAMES_SPEED_BOOST and not _switch_in:
         pokemon[_POK_SPEED_STAT_STAGE] = min(6, pokemon[_POK_SPEED_STAT_STAGE] + 1)
+    # Gen IV is 30% (pokeplatinum BattleSystem_TriggerTurnEndAbility)
+    elif abi == _ABILITYNAMES_SHED_SKIN and pokemon[_POK_STATUS] and random.randint(0, 9) < 3:
+        cure_status(pokemon)
 
 
 @njit

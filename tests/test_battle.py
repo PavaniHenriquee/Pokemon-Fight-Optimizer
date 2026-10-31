@@ -1932,3 +1932,63 @@ def test_endure_survives_ohko(make_pokemon):
     dfn[Pok.VOL_STATUS] |= VolStatus.ENDURE
     battle._ps_moves_core(atk, dfn, move_slice(atk, 0), 0)
     assert dfn[Pok.CURRENT_HP] == 1
+
+
+# ── Batch 7: cures and status items ──────────────────────────────────────────
+
+def test_chesto_wakes_before_the_slower_holder_moves(monkeypatch, make_pokemon, make_battle):
+    """The berry is checked after every move, so the slower holder put to sleep still acts
+    (pokeplatinum AFTER_MOVE_EFFECT_HELD_ITEM_STATUS)"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"], item="Chesto Berry")
+    foe = make_pokemon("Rattata", 20, "Run Away", ["Hypnosis"])
+    arr = make_battle([me], [foe])
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Pok.STATUS] == 0 and my_active(arr)[Item.ID] == 0
+    assert my_active(arr)[Pok.CONSUMED_ITEM] == ItemNames.CHESTO_BERRY
+    assert opp_active(arr)[Pok.CURRENT_HP] < opp_active(arr)[Pok.MAX_HP]
+
+
+def test_chesto_after_yawn_sleep(make_pokemon, make_battle):
+    """Yawn's sleep at the end of the turn is cured in the ITEM_CONDITION step right after it"""
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"], item="Chesto Berry")
+    arr = make_battle([me], [make_pokemon("Rattata", 20, "Run Away", ["Growl"])])
+    p = my_active(arr)
+    p[Pok.VOL_STATUS] |= VolStatus.YAWN
+    p[Pok.YAWN_TURNS] = 1
+    battle._apply_residual(p, opp_active(arr), Field.MY_ENTER_FIELD, arr)
+    assert p[Pok.STATUS] == 0 and p[Item.ID] == 0
+
+
+@pytest.mark.parametrize("weather, cured", [(Weather.RAIN, True), (Weather.SUN, False)])
+def test_hydration_cures_in_rain(make_pokemon, make_battle, weather, cured):
+    """Rain cures it at the weather step, before the poison damage"""
+    me = make_pokemon("Wingull", 20, "Hydration", ["Tackle"])
+    arr = make_battle([me], [make_pokemon("Rattata", 20, "Run Away", ["Growl"])])
+    p = my_active(arr)
+    p[Pok.STATUS] = Status.POISON
+    battle._residual_weather(p, weather, Field.MY_ENTER_FIELD, arr)
+    assert (p[Pok.STATUS] == 0) == cured
+
+
+def test_shed_skin_cures_before_poison_damage(monkeypatch, make_pokemon, make_battle):
+    """The ABILITY step comes before the poison step"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: lo)
+    me = make_pokemon("Metapod", 20, "Shed Skin", ["Tackle"])
+    arr = make_battle([me], [make_pokemon("Rattata", 20, "Run Away", ["Growl"])])
+    p = my_active(arr)
+    p[Pok.STATUS] = Status.POISON
+    battle._apply_residual(p, opp_active(arr), Field.MY_ENTER_FIELD, arr)
+    assert p[Pok.STATUS] == 0 and p[Pok.CURRENT_HP] == p[Pok.MAX_HP]
+
+
+def test_natural_cure_on_switch(make_pokemon, make_battle):
+    """Switching out cures the Natural Cure holder"""
+    my = [
+        make_pokemon("Staryu", 20, "Natural Cure", ["Tackle"]),
+        make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+    ]
+    arr = make_battle(my, [make_pokemon("Rattata", 20, "Run Away", ["Growl"])])
+    pok_slice(arr, 0)[Pok.STATUS] = Status.BURN
+    turn_sim(0, (SWITCH, 1), arr)
+    assert pok_slice(arr, 0)[Pok.STATUS] == 0

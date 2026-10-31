@@ -12,10 +12,11 @@ from Engine.engine_helper import (
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
     try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
-    damp_blocks,
+    damp_blocks, status_item,
 )
 from Engine.status_calc import (
-    sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP, sleep_ability
+    sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
+    ability_blocks_status, cure_status,
 )
 from Engine.damage_calc import (
     calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES, EXPLODE_MOVES
@@ -70,9 +71,9 @@ from Models.constants import (
     _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _POK_SEMI_INV_MOVE, _FIELD_GRAVITY_TURNS,
     _MOVENAME_GRAVITY, _MOVENAME_MINIMIZE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _FLAGS_GRAVITY,
     _ITEM_HOLD_EFFECT, _ITEM_EFFECT_PARAM, _HOLDEFFECT_EXTEND_SCREENS, _HOLDEFFECT_EXTEND_SANDSTORM,
-    _HOLDEFFECT_BRN_USER, _POK_TYPE1, _POK_TYPE2, _TYPES_FIRE, _ABILITYNAMES_WATER_VEIL,
-    _ABILITYNAMES_LEAF_GUARD, _WEATHER_SUN, _FIELD_MY_ENTER_FIELD, _ABILITYNAMES_ROCK_HEAD,
-    _MOVE_OH_KO, _ABILITYNAMES_ANGER_POINT, _ABILITYNAMES_SKILL_LINK,
+    _HOLDEFFECT_BRN_USER, _POK_TYPE1, _POK_TYPE2, _TYPES_FIRE,
+    _FIELD_MY_ENTER_FIELD, _ABILITYNAMES_ROCK_HEAD,
+    _MOVE_OH_KO, _ABILITYNAMES_ANGER_POINT, _ABILITYNAMES_SKILL_LINK, _ABILITYNAMES_HYDRATION,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 
@@ -319,6 +320,8 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
             atk[_POK_CURRENT_HP] = 0
+    status_item(atk)
+    status_item(defn)
     return True
 
 
@@ -904,6 +907,7 @@ def action(current_move, opp_move, battle_array):
             flinch, 1, count == 1, battle_array, weather, record_phy, record_sp
         )
         _clear_charge(atk1, mv1)
+        _after_move_items(battle_array)
 
     # My Baton Pass: the turn waits for my pick, the slower opponent's move runs after it
     if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
@@ -937,6 +941,21 @@ def action(current_move, opp_move, battle_array):
             flinch, 2, True, battle_array, battle_array[_FIELD_WEATHER]
         )
         _clear_charge(atk2, mv2)
+        _after_move_items(battle_array)
+
+
+@njit
+def _after_move_items(battle_array):
+    """
+    Status items of both actives after a move, whoever was hit or switched in by it
+    (pokeplatinum AFTER_MOVE_EFFECT_ATTACKER_ITEM / DEFENDER_ITEM / HELD_ITEM_STATUS)
+    """
+    status_item(battle_array[
+        (battle_array[_FIELD_MY_POK] * POK_LEN):((battle_array[_FIELD_MY_POK]+1) * POK_LEN)
+    ])
+    status_item(battle_array[
+        ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
+    ])
 
 
 @njit
@@ -964,7 +983,7 @@ def _residual_heal(pok):
 
 
 @njit
-def _yawn(pok, foe):
+def _yawn(pok, foe, weather=0):
     """
     Yawn counts down at the end of the turn, at 0 the target falls asleep if it has no status
     and there's no uproar
@@ -973,8 +992,12 @@ def _yawn(pok, foe):
     if pok[_POK_YAWN_TURNS] > 0:
         return
     pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_YAWN
-    # No move is being used, so nothing breaks Insomnia or Vital Spirit here
-    if pok[_POK_STATUS] == 0 and not sleep_blocked(pok, foe) and not sleep_ability(pok, pok):
+    # No move is being used, so nothing breaks Insomnia, Vital Spirit or Leaf Guard here
+    if (
+        pok[_POK_STATUS] == 0
+        and not sleep_blocked(pok, foe)
+        and not ability_blocks_status(pok, pok, _STATUS_SLEEP, weather)
+    ):
         pok[_POK_STATUS] = _STATUS_SLEEP
         pok[_POK_SLEEP_COUNTER] = TURNS_2_5[random.getrandbits(2)]
 
@@ -1007,6 +1030,9 @@ def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
     if pok[_POK_CURRENT_HP] <= 0:
         return
     heal_weather(pok, weather)
+    # Hydration cures any status in rain (pokeplatinum BtlCmd_EndOfTurnWeatherEffect)
+    if weather == _WEATHER_RAIN and pok[_POK_STATUS] and pok[_POK_AB_ID] == _ABILITYNAMES_HYDRATION:
+        cure_status(pok)
     # Underground (Dig) the Pokemon takes no sandstorm or hail damage
     if (
         pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD
@@ -1029,10 +1055,7 @@ def _flame_orb(pok, side_cond, weather):
         return
     if side_cond & _SIDECONDITION_SAFEGUARD:
         return
-    ability = pok[_POK_AB_ID]
-    if ability == _ABILITYNAMES_WATER_VEIL or (
-        ability == _ABILITYNAMES_LEAF_GUARD and weather == _WEATHER_SUN
-    ):
+    if ability_blocks_status(pok, pok, _STATUS_BURN, weather):
         return
     pok[_POK_STATUS] = _STATUS_BURN
 
@@ -1046,7 +1069,7 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     """
     Gen IV order (pokeplatinum CheckMonConditions, Showdown gen4 residual suborders):
     Ingrain, Aqua Ring, Speed Boost, Leech Seed, Psn/Tox, Burn, Curse, Bind, Uproar, Disable,
-    Encore, Taunt, Yawn, Flame Orb
+    Encore, Taunt, Yawn, status items, Flame Orb
     """
     if pok[_POK_CURRENT_HP] <= 0:
         return
@@ -1146,9 +1169,12 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
 
     # 12. Yawn
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN:
-        _yawn(pok, foe)
+        _yawn(pok, foe, battle_array[_FIELD_WEATHER])
 
-    # 13. Flame Orb
+    # 13. Status items, for Yawn's sleep (pokeplatinum MON_COND_CHECK_STATE_ITEM_CONDITION)
+    status_item(pok)
+
+    # 14. Flame Orb
     if pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_BRN_USER:
         side = side_base(enter_field_flag_idx == _FIELD_MY_ENTER_FIELD)
         _flame_orb(pok, battle_array[side], battle_array[_FIELD_WEATHER])
@@ -1458,6 +1484,7 @@ def baton_pass_action(battle_array, switch_idx: int):
             battle_array[_FIELD_WEATHER]
         )
         _clear_charge(current_opp, mv)
+        _after_move_items(battle_array)
     phase, _opp_idx = _finish_turn(battle_array)
     battle_array[_FIELD_PHASE] = phase
     return phase

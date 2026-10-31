@@ -10,7 +10,7 @@
 [X]Compound Eyes *
 [X]Cute Charm *
 [X]Damp
-[]Early Bird *
+[X]Early Bird *
 [X]Filter *
 [X]Flame Body *
 []Flash Fire *
@@ -19,7 +19,7 @@
 [X]Guts
 [X]Huge Power
 [X]Hustle
-[]Hydration *
+[X]Hydration *
 []Hyper Cutter *
 []Ice Body *
 [X]Inner Focus
@@ -29,9 +29,9 @@
 []Levitate *
 []Lightning Rod *
 []Magic Guard (Needs a lot of other implementations first, but half done)
-[]Natural Cure *
+[X]Natural Cure *
 [X]No Guard *
-[]Oblivious *
+[X]Oblivious *
 [X]Pickup
 [X]Poison Point
 []Quick Feet *
@@ -43,7 +43,7 @@
 []Scrappy *
 [X]Serene Grace *
 []Shadow Tag *
-[]Shed Skin *
+[X]Shed Skin *
 [X]Shell Armor *
 [X]Shield Dust *
 [X]Simple
@@ -69,7 +69,7 @@
 []Unburden (Need to implement usable held items)
 [X]Vital Spirit *
 [X]Water Absorb
-[]Water Veil *
+[X]Water Veil *
 
 ## Abilities that isn't used until 1st gym, but Trainer AI or engine has current special conditions
 []Air Lock *
@@ -86,18 +86,18 @@
 []Frisk *
 []Heatproof *
 []Honey Gather *
-[]Immunity - Partial(on synchronize) *
-[]Leaf Guard *
-[]Limber *
+[X]Immunity *
+[X]Leaf Guard *
+[X]Limber *
 []Liquid Ooze *
-[]Magma Armor *
+[X]Magma Armor *
 []Magnet Pull *
 [X]Marvel Scale *
 []Minus *
 []Motor Drive *
 []Multitype *
 []Normalize *
-[]Own Tempo *
+[X]Own Tempo *
 []Plus *
 []Poison Heal *
 []Pressure *
@@ -421,7 +421,7 @@
 [X]Hard Stone *
 []Leftovers *
 [X]Light Clay *
-[]Mental Herb *
+[X]Mental Herb *
 [X]Metal Coat *
 []Metronome *
 [X]Miracle Seed *
@@ -429,7 +429,7 @@
 [X]Mystic Water *
 [X]Never-Melt Ice *
 [X]Oran Berry
-[]Pecha Berry *
+[X]Pecha Berry *
 [X]Poison Barb *
 []Power Herb *
 []Quick Claw *
@@ -451,7 +451,7 @@
 []Berry Juice *
 []Black Sludge *
 [X]Charti Berry *
-[]Chesto Berry *
+[X]Chesto Berry *
 [X]Chilan Berry *
 [X]Chople Berry *
 [X]Coba Berry *
@@ -461,7 +461,7 @@
 [X]Kebia Berry *
 [X]Lax Incense *
 [X]Light Ball *
-[]Lum Berry *
+[X]Lum Berry *
 [X]Occa Berry *
 [X]Passho Berry *
 [X]Payapa Berry *
