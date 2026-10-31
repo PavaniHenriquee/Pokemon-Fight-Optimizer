@@ -64,7 +64,10 @@ from Models.constants import (
     _MOVENAME_EARTHQUAKE, _MOVENAME_SEED_BOMB, _MOVENAME_ROCK_SLIDE, _MOVENAME_BLIZZARD,
     _MOVENAME_HYDRO_PUMP, _MOVENAME_ICE_BEAM, _MOVENAME_TRI_ATTACK, _MOVENAME_MUD_BOMB,
     _MOVENAME_AIR_SLASH, _TERRAIN_SPECIAL, _FLAGS_MIRROR, _TYPES_TYPELESS,
-    _ABILITYNAMES_STURDY,
+    _ABILITYNAMES_STURDY, _ABILITYNAMES_NO_GUARD, _ABILITYNAMES_COMPOUND_EYES,
+    _ABILITYNAMES_SNOW_CLOAK, _ABILITYNAMES_TANGLED_FEET, _ABILITYNAMES_SUPER_LUCK,
+    _ABILITYNAMES_SERENE_GRACE, _ABILITYNAMES_SHIELD_DUST, _ABILITYNAMES_UNAWARE,
+    _HOLDEFFECT_ACC_REDUCE, _HOLDEFFECT_CRITRATE_UP,
 )
 
 
@@ -373,26 +376,16 @@ def absorb_abi(defender):
 
 
 @njit
-def ab_on_try_move(move, attacker, defender, accuracy:int, weather):
+def ab_on_try_move(move, attacker, defender, accuracy:int):
     """
-    Check to see if the ability changes the probabilty of a move hitting
+    Abilities that make the move fail before the accuracy roll: Damp, Soundproof, Water Absorb.
+    Accuracy modifiers live in move_accuracy
     """
     atk_ab = attacker[_POK_AB_ID]
     def_ab = defender[_POK_AB_ID]
     target = move[_MOVE_TARGET]
     if move[_MOVE_ID] in DAMP_IGNORES and damp_blocks(attacker, defender):
         return 0
-    if (
-        atk_ab == _ABILITYNAMES_HUSTLE
-        and move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL
-        and not move[_MOVE_OH_KO]
-    ):
-        return (accuracy*3277)//4096
-    if (
-        def_ab == _ABILITYNAMES_SAND_VEIL
-        and weather == _WEATHER_SANDSTORM
-    ):
-        return (accuracy*3277)//4096
     if (
         move[_FLAGS_SOUND]
         and (
@@ -420,12 +413,75 @@ def semi_inv_reaches(move_id, defender):
 
 
 @njit
+def no_guard(attacker, defender):
+    """
+    No Guard on either side: the move skips the accuracy roll and reaches a semi-invulnerable
+    target (pokeplatinum BattleControllerPlayer_CheckMoveHitOverrides)
+    """
+    return (
+        attacker[_POK_AB_ID] == _ABILITYNAMES_NO_GUARD
+        or defender[_POK_AB_ID] == _ABILITYNAMES_NO_GUARD
+    )
+
+
+@njit
+def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False):
+    """
+    Hit rate out of 100 in pokeplatinum BattleControllerPlayer_CheckMoveHitAccuracy order: stages
+    (Simple doubles them, Unaware ignores the foe's), Compound Eyes, Sand Veil, Snow Cloak, Hustle,
+    Tangled Feet, Bright Powder / Lax Incense, Gravity. Mold Breaker ignores the defender's abilities
+    """
+    atk_ab = attacker[_POK_AB_ID]
+    def_ab = defender[_POK_AB_ID] if ignorable_ability(defender, attacker) else 0
+    acc_stage = attacker[_POK_ACCURACY_STAT_STAGE]
+    ev_stage = defender[_POK_EVASION_STAT_STAGE]
+    if atk_ab == _ABILITYNAMES_SIMPLE:
+        acc_stage *= 2
+    if def_ab == _ABILITYNAMES_SIMPLE:
+        ev_stage *= 2
+    if def_ab == _ABILITYNAMES_UNAWARE:
+        acc_stage = 0
+    if atk_ab == _ABILITYNAMES_UNAWARE:
+        ev_stage = 0
+    # Foresight ignores the target's evasion boosts
+    if defender[_POK_VOL_STATUS] & _VOLSTATUS_FORESIGHT and ev_stage > 0:
+        ev_stage = 0
+    acc_stage = acc_stage - ev_stage
+    acc_stage = max(-6, min(6, acc_stage))
+    if acc_stage == 0:
+        accuracy = move_acc
+    elif acc_stage < 0:
+        accuracy = move_acc*(3)//(3-acc_stage)
+    else:
+        accuracy = move_acc*(acc_stage+3)//3
+
+    if atk_ab == _ABILITYNAMES_COMPOUND_EYES:
+        accuracy = accuracy * 130 // 100
+    if def_ab == _ABILITYNAMES_SAND_VEIL and weather == _WEATHER_SANDSTORM:
+        accuracy = accuracy * 80 // 100
+    if def_ab == _ABILITYNAMES_SNOW_CLOAK and weather == _WEATHER_HAIL:
+        accuracy = accuracy * 80 // 100
+    if atk_ab == _ABILITYNAMES_HUSTLE and move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL:
+        accuracy = accuracy * 80 // 100
+    if def_ab == _ABILITYNAMES_TANGLED_FEET and defender[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
+        accuracy = accuracy * 50 // 100
+    if defender[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_ACC_REDUCE:
+        accuracy = accuracy * (100 - defender[_ITEM_EFFECT_PARAM]) // 100
+
+    if gravity and not move[_MOVE_OH_KO]:
+        return accuracy * GRAVITY_ACC_NUM / GRAVITY_ACC_DEN
+    return accuracy * 1.0
+
+
+@njit
 def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
     '''Returns a boolean if the move passed the accuracy check'''
+    guard = no_guard(attacker, defender)
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT and move[_FLAGS_PROTECT]:
         return _MOVEOUTCOME_PROTECTED
     if (
-        defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE
+        not guard
+        and defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE
         and not semi_inv_reaches(move[_MOVE_ID], defender)
         and move[_MOVE_ID] != _MOVENAME_BIDE
         and move[_MOVE_TARGET] not in TARGET_SELF_SIDE
@@ -447,7 +503,7 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
     ab_a = attacker[_POK_AB_WHEN]
     ab_d = defender[_POK_AB_WHEN]
     if ab_a & _ABILITYACTIVATION_ON_TRY_MOVE or ab_d & _ABILITYACTIVATION_ON_TRY_MOVE:
-        move_acc = ab_on_try_move(move, attacker, defender, move_acc, weather)
+        move_acc = ab_on_try_move(move, attacker, defender, move_acc)
     # Gen IV Blizzard can't miss in hail
     if move[_MOVE_ID] == _MOVENAME_BLIZZARD and weather == _WEATHER_HAIL:
         move_acc = -1
@@ -460,11 +516,13 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
 
     # OHKO moves hit on accuracy + the level difference out of 100 and always fail from a lower
     # level. Stat stages, Gravity and the accuracy abilities don't apply (pokeplatinum
-    # BtlCmd_TryOHKOMove)
-    #TODO: No Guard, Lock-On
+    # BtlCmd_TryOHKOMove). No Guard skips the roll, not the level check
+    #TODO: Lock-On
     if move[_MOVE_OH_KO]:
         if attacker[_POK_LEVEL] < defender[_POK_LEVEL]:
             return _MOVEOUTCOME_INVULNERABLE
+        if guard:
+            return _MOVEOUTCOME_HIT
         hit = move[_MOVE_ACCURACY] + attacker[_POK_LEVEL] - defender[_POK_LEVEL]
         if random.randint(0, 99) < hit:
             return _MOVEOUTCOME_HIT
@@ -474,21 +532,10 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
         return _MOVEOUTCOME_HIT
     if move_acc == 0:
         return _MOVEOUTCOME_MISS
+    if guard:
+        return _MOVEOUTCOME_HIT
 
-    ev_stage = defender[_POK_EVASION_STAT_STAGE]
-    # Foresight ignores the target's evasion boosts
-    if defender[_POK_VOL_STATUS] & _VOLSTATUS_FORESIGHT and ev_stage > 0:
-        ev_stage = 0
-    acc_stage = attacker[_POK_ACCURACY_STAT_STAGE] - ev_stage
-    acc_stage = max(-6, min(6, acc_stage))
-    if acc_stage == 0:
-        accuracy = move_acc
-    elif acc_stage < 0:
-        accuracy = move_acc*(3)/(3-acc_stage)
-    else:
-        accuracy = move_acc*(acc_stage+3)/3
-    if gravity and not move[_MOVE_OH_KO]:
-        accuracy = accuracy * GRAVITY_ACC_NUM / GRAVITY_ACC_DEN
+    accuracy = move_accuracy(move, attacker, defender, move_acc, weather, gravity)
 
     if accuracy == 100 or random.randint(1,100) <= accuracy:
         return _MOVEOUTCOME_HIT
@@ -498,8 +545,13 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
 @njit
 def calculate_crit(attacker, defender, move=None, def_side=0):
     """Returns a boolean if the move passed the crit check based on Gen IV mechanics.
-    def_side is the defender's Field.SIDE_COND, Lucky Chant there blocks crits"""
-    if defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CRITICAL:
+    def_side is the defender's Field.SIDE_COND, Lucky Chant there blocks crits. Battle Armor and
+    Shell Armor block them unless the attacker has Mold Breaker. Focus Energy +2, the move's ratio,
+    Scope Lens +1, Super Luck +1 (pokeplatinum BattleSystem_CalcCriticalMulti)"""
+    if (
+        defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CRITICAL
+        and ignorable_ability(defender, attacker)
+    ):
         return False
     if def_side & _SIDECONDITION_LUCKY_CHANT:
         return False
@@ -515,6 +567,10 @@ def calculate_crit(attacker, defender, move=None, def_side=0):
         crit_ratio = move[_MOVE_CRIT_RATIO]
         if crit_ratio > 1:
             stage += (crit_ratio - 1)
+    if attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_CRITRATE_UP:
+        stage += 1
+    if attacker[_POK_AB_ID] == _ABILITYNAMES_SUPER_LUCK:
+        stage += 1
 
     if stage <= 0:
         return random.getrandbits(4) == 0      # 1/16 (6.25%)
@@ -666,11 +722,20 @@ def switch_in(attacker, defender, battle_array, is_mine):
 # ── In-battle status / contact effects ────────────────────────────────────────────
 
 @njit
-def flinch_checker(move, defender, second=False):
-    """Returns true or false if move has a flinch percent and it should flinch"""
-    if defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS:
+def flinch_checker(move, attacker, defender, second=False):
+    """
+    Returns true or false if move has a flinch percent and it should flinch. Inner Focus and Shield
+    Dust stop it unless the attacker has Mold Breaker, Serene Grace doubles the chance
+    (pokeplatinum subscript_flinch_mon, BtlCmd_CheckEffectActivation)
+    """
+    if ignorable_ability(defender, attacker) and (
+        defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS
+        or defender[_POK_AB_ID] == _ABILITYNAMES_SHIELD_DUST
+    ):
         return False
     chance = move[_SEC_CHANCE2] if second else move[_SEC_CHANCE]
+    if attacker[_POK_AB_ID] == _ABILITYNAMES_SERENE_GRACE:
+        chance *= 2
     if random.randint(1,100) <= chance:
         return True
     return False

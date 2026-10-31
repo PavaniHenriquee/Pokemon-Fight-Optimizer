@@ -235,6 +235,49 @@ def test_multihit_secondary_rolls_every_hit(monkeypatch, poke, ko_first_hit, rol
     assert len(calls) == rolls
 
 
+@pytest.mark.parametrize("ability, hits", [("Skill Link", {5}), ("Run Away", {2, 3, 4, 5})])
+def test_skill_link_always_hits_five_times(monkeypatch, poke, ability, hits):
+    """Skill Link makes a 2-5 hit move hit 5 times (pokeplatinum BtlCmd_SetMultiHit)"""
+    core = battle._ps_moves_core
+    calls = []
+
+    def counting_core(*args):
+        calls.append(1)
+        return core(*args)
+
+    monkeypatch.setattr(battle, "_ps_moves_core", counting_core)
+    seen = set()
+    for _ in range(60):
+        a = poke("Shellder", 50, ability, ["Fury Attack"])
+        d = poke("Snorlax", 100, "Run Away", ["Tackle"])
+        calls.clear()
+        battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+        seen.add(len(calls))
+    assert seen == hits
+
+
+@pytest.mark.parametrize("crit, damage, stage", [(True, 10, 6), (False, 10, 0), (True, 60, 0)])
+def test_anger_point_maxes_attack_after_a_crit(poke, crit, damage, stage):
+    """Surviving a critical hit sets Anger Point's Attack to +6 (Showdown gen4 angerpoint); a
+    normal hit or a KO does nothing"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Mankey", 50, "Anger Point", ["Scratch"])
+    d[Pok.CURRENT_HP] = 60
+    battle._apply_move_damage(a, d, move_slice(a, 0), damage, crit)
+    assert d[Pok.ATTACK_STAT_STAGE] == stage
+
+
+def test_anger_point_through_a_real_crit(poke):
+    """The crit from the damage roll reaches Anger Point"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Mankey", 50, "Anger Point", ["Scratch"])
+    mv = move_slice(a, 0).copy()
+    mv[Move.WILL_CRIT] = 1
+    battle._ps_moves_core(a, d, mv, 0)
+    assert d[Pok.CURRENT_HP] > 0
+    assert d[Pok.ATTACK_STAT_STAGE] == 6
+
+
 # ── Phase 2: damage mechanics ────────────────────────────────────────────────
 
 @pytest.mark.parametrize("move", ["Seismic Toss", "Night Shade"])
@@ -254,7 +297,7 @@ def test_psywave_gen4_formula(monkeypatch, poke, level, roll, expected):
     monkeypatch.setattr(battle.random, "randint", lambda lo, hi: roll)
     a = poke("Abra", level, "Synchronize", ["Psywave"])
     d = poke("Rattata", 30, "Run Away", ["Tackle"])
-    assert battle._resolve_move_damage(a, d, move_slice(a, 0), 0) == expected
+    assert battle._resolve_move_damage(a, d, move_slice(a, 0), 0)[0] == expected
 
 
 @pytest.mark.parametrize("target_hp", [None, 5])
@@ -1829,7 +1872,7 @@ def test_ohko_takes_the_current_hp(make_pokemon, move):
     atk = make_pokemon("Rattata", 50, "Run Away", [move]).to_np()
     dfn = make_pokemon("Geodude", 50, "Rock Head", ["Tackle"]).to_np()
     dfn[Pok.CURRENT_HP] = 10
-    assert battle._resolve_move_damage(atk, dfn, move_slice(atk, 0), 0) == 10
+    assert battle._resolve_move_damage(atk, dfn, move_slice(atk, 0), 0)[0] == 10
 
 
 def test_ohko_knocks_out(monkeypatch, make_pokemon, make_battle):

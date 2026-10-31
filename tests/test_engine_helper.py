@@ -11,7 +11,7 @@ from Engine.engine_helper import (
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
-    is_grounded, ohko_fails,
+    is_grounded, ohko_fails, move_accuracy,
 )
 from Engine.ability_helper import ignorable_ability
 from Models.ability import ABILITY_TABLE
@@ -202,6 +202,179 @@ def test_crit_rates(poke, focus, crit_ratio, expected):
     n = 20_000
     rate = sum(bool(calculate_crit(a, d, mv)) for _ in range(n)) / n
     assert rate == pytest.approx(expected, abs=0.015)
+
+
+# ── Accuracy, crit and flinch abilities ──────────────────────────────────────
+
+def _acc(a, d, weather=0, slot=0):
+    """Hit rate move_accuracy gives for a's move `slot`"""
+    mv = move_slice(a, slot)
+    return move_accuracy(mv, a, d, mv[Move.ACCURACY], weather)
+
+
+@pytest.mark.parametrize("atk_ab, def_ab, weather, expected", [
+    ("Compound Eyes", "Run Away", 0, 130),
+    ("Run Away", "Sand Veil", Weather.SANDSTORM, 80),
+    ("Run Away", "Sand Veil", 0, 100),
+    ("Run Away", "Snow Cloak", Weather.HAIL, 80),
+    ("Run Away", "Snow Cloak", Weather.SANDSTORM, 100),
+    ("Hustle", "Run Away", 0, 80),
+    ("Hustle", "Sand Veil", Weather.SANDSTORM, 64),
+    ("Compound Eyes", "Snow Cloak", Weather.HAIL, 104),
+    ("Mold Breaker", "Sand Veil", Weather.SANDSTORM, 100),
+    ("Mold Breaker", "Snow Cloak", Weather.HAIL, 100),
+])
+def test_accuracy_abilities(poke, atk_ab, def_ab, weather, expected):
+    """pokeplatinum order and integer steps: Compound Eyes x130/100, Sand Veil / Snow Cloak x80/100
+    (Mold Breaker ignores them), Hustle x80/100. Issue 3: Hustle no longer skips Sand Veil"""
+    a = poke("Rattata", 50, atk_ab, ["Tackle"])
+    d = poke("Rattata", 50, def_ab, ["Tackle"])
+    assert _acc(a, d, weather) == expected
+
+
+def test_hustle_only_cuts_physical_accuracy(poke):
+    """Hustle doesn't touch special moves"""
+    a = poke("Togepi", 50, "Hustle", ["Ember"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    assert _acc(a, d) == 100
+
+
+def test_accuracy_modifiers_come_after_the_stages(poke):
+    """Issue 14: Rock Throw 90 at -1 is 67, Hustle 53 (Hustle first gave 72, then 54)"""
+    a = poke("Geodude", 50, "Hustle", ["Rock Throw"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.ACCURACY_STAT_STAGE] = -1
+    assert _acc(a, d) == 53
+
+
+@pytest.mark.parametrize("atk_ab, confused, expected", [
+    ("Run Away", True, 50), ("Run Away", False, 100), ("Mold Breaker", True, 100),
+])
+def test_tangled_feet_halves_accuracy_while_confused(poke, atk_ab, confused, expected):
+    """Tangled Feet x50/100 against a confused holder, Mold Breaker ignores it"""
+    a = poke("Rattata", 50, atk_ab, ["Tackle"])
+    d = poke("Pidgey", 50, "Tangled Feet", ["Tackle"])
+    if confused:
+        d[Pok.VOL_STATUS] |= VolStatus.CONFUSION
+    assert _acc(a, d) == expected
+
+
+@pytest.mark.parametrize("item", ["Bright Powder", "Lax Incense"])
+def test_accuracy_reducing_items(poke, item):
+    """The defender's Bright Powder / Lax Incense: x(100 - 10)/100"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"], item=item)
+    assert _acc(a, d) == 90
+
+
+@pytest.mark.parametrize("atk_ab, def_ab, acc, eva, expected", [
+    ("Run Away", "Unaware", 2, 0, 100),        # defending Unaware ignores the accuracy boost
+    ("Unaware", "Run Away", 0, 2, 100),        # attacking Unaware ignores the evasion boost
+    ("Unaware", "Run Away", -1, 0, 75),        # its own stage still counts
+    ("Mold Breaker", "Unaware", 2, 0, 166),
+    ("Simple", "Run Away", -1, 0, 60),         # -1 doubled to -2
+    ("Run Away", "Simple", 0, 1, 60),          # +1 evasion doubled to +2
+    ("Mold Breaker", "Simple", 0, 1, 75),
+])
+def test_unaware_and_simple_on_accuracy_stages(poke, atk_ab, def_ab, acc, eva, expected):
+    """pokeplatinum CheckMoveHitAccuracy: Simple doubles the stages, Unaware zeroes the foe's;
+    Mold Breaker ignores the defender's"""
+    a = poke("Bidoof", 50, atk_ab, ["Tackle"])
+    d = poke("Bidoof", 50, def_ab, ["Tackle"])
+    a[Pok.ACCURACY_STAT_STAGE] = acc
+    d[Pok.EVASION_STAT_STAGE] = eva
+    assert _acc(a, d) == expected
+
+
+@pytest.mark.parametrize("side", ["attacker", "defender"])
+def test_no_guard_always_hits_and_reaches_dig(poke, side):
+    """No Guard on either side skips the roll and the semi-invulnerable check
+    (pokeplatinum BattleControllerPlayer_CheckMoveHitOverrides)"""
+    a = poke("Machop", 50, "No Guard" if side == "attacker" else "Guts", ["Rock Throw"])
+    d = poke("Rattata", 50, "No Guard" if side == "defender" else "Run Away", ["Tackle"])
+    a[Pok.ACCURACY_STAT_STAGE] = -6
+    assert all(calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.HIT
+               for _ in range(100))
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = MoveName.DIG
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.HIT
+
+
+def test_no_guard_keeps_protect_and_type_immunity(poke):
+    """No Guard doesn't get through Protect or a type immunity"""
+    a = poke("Machop", 50, "No Guard", ["Karate Chop"])
+    ghost = poke("Gastly", 50, "Levitate", ["Lick"])
+    assert calculate_hit_miss(move_slice(a, 0), a, ghost, 0) == MoveOutcome.INVULNERABLE
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d[Pok.VOL_STATUS] |= VolStatus.PROTECT
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.PROTECTED
+
+
+@pytest.mark.parametrize("atk_lv, semi_inv, outcome", [
+    (50, 0, MoveOutcome.HIT),
+    (50, MoveName.DIG, MoveOutcome.HIT),
+    (49, 0, MoveOutcome.INVULNERABLE),
+])
+def test_no_guard_ohko(monkeypatch, poke, atk_lv, semi_inv, outcome):
+    """No Guard: an OHKO move always hits, Dig included, but still fails from a lower level
+    (pokeplatinum BtlCmd_TryOHKOMove)"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda x, y: 99)
+    a = poke("Machop", atk_lv, "No Guard", ["Guillotine"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    if semi_inv:
+        d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+        d[Pok.SEMI_INV_MOVE] = semi_inv
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == outcome
+
+
+@pytest.mark.parametrize("ability, item, expected", [
+    ("Super Luck", None, 1 / 8), ("Run Away", "Scope Lens", 1 / 8), ("Super Luck", "Scope Lens", 1 / 4),
+])
+def test_super_luck_and_scope_lens_raise_the_crit_stage(poke, ability, item, expected):
+    """Each is +1 crit stage (pokeplatinum BattleSystem_CalcCriticalMulti)"""
+    a = poke("Murkrow", 50, ability, ["Peck"], item=item)
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0)
+    n = 20_000
+    rate = sum(bool(calculate_crit(a, d, mv)) for _ in range(n)) / n
+    assert rate == pytest.approx(expected, abs=0.015)
+
+
+@pytest.mark.parametrize("ability", ["Battle Armor", "Shell Armor"])
+def test_mold_breaker_crits_through_armor(poke, ability):
+    """Battle Armor and Shell Armor are ignored by Mold Breaker"""
+    a = poke("Cranidos", 50, "Mold Breaker", ["Headbutt"])
+    d = poke("Shellder", 50, ability, ["Tackle"])
+    mv = move_slice(a, 0).copy()
+    mv[Move.WILL_CRIT] = 1
+    assert calculate_crit(a, d, mv)
+
+
+@pytest.mark.parametrize("atk_ab, def_ab, flinches", [
+    ("Run Away", "Inner Focus", False),
+    ("Mold Breaker", "Inner Focus", True),
+    ("Run Away", "Shield Dust", False),
+    ("Mold Breaker", "Shield Dust", True),
+    ("Run Away", "Run Away", True),
+])
+def test_inner_focus_and_shield_dust_stop_flinch(poke, atk_ab, def_ab, flinches):
+    """pokeplatinum subscript_flinch_mon: both are ignorable, so Mold Breaker makes them flinch"""
+    a = poke("Zubat", 50, atk_ab, ["Bite"])
+    d = poke("Rattata", 50, def_ab, ["Tackle"])
+    mv = move_slice(a, 0).copy()
+    mv[Sec.CHANCE] = 100
+    assert flinch_checker(mv, a, d) == flinches
+
+
+@pytest.mark.parametrize("ability, flinches", [("Serene Grace", True), ("Run Away", False)])
+def test_serene_grace_doubles_flinch_chance(monkeypatch, poke, ability, flinches):
+    """A 50% flinch becomes 100%: a roll of 100 flinches only with Serene Grace"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda x, y: 100)
+    a = poke("Togepi", 50, ability, ["Bite"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0).copy()
+    mv[Sec.CHANCE] = 50
+    assert flinch_checker(mv, a, d) == flinches
 
 
 # ── Switching ────────────────────────────────────────────────────────────────
@@ -530,10 +703,10 @@ def test_flinch_checker_second_slot(poke):
     mv = move_slice(a, 0).copy()
     mv[Sec.CHANCE] = 0
     mv[Sec.CHANCE2] = 100
-    assert flinch_checker(mv, d, True)
-    assert not flinch_checker(mv, d)
+    assert flinch_checker(mv, a, d, True)
+    assert not flinch_checker(mv, a, d)
     d2 = poke("Rattata", 50, "Inner Focus", ["Tackle"])
-    assert not flinch_checker(mv, d2, True)
+    assert not flinch_checker(mv, a, d2, True)
 
 
 # ── Phase 2: semi-invulnerability, locks, recoil, Struggle ──────────────────

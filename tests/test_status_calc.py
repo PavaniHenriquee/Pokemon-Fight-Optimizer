@@ -206,6 +206,40 @@ def test_self_secondary_boosts_user(poke, move, target_fainted):
     assert not d[Pok.ATTACK_STAT_STAGE : Pok.EVASION_STAT_STAGE + 1].any()
 
 
+@pytest.mark.parametrize("ability, paralyzed", [("Serene Grace", True), ("Static", False)])
+def test_serene_grace_doubles_secondary_chance(monkeypatch, poke, ability, paralyzed):
+    """Thunder Shock's 10% becomes 20%: a roll of 15 paralyzes only with Serene Grace
+    (pokeplatinum BtlCmd_CheckEffectActivation)"""
+    monkeypatch.setattr(status_calc.random, "randint", lambda x, y: 15)
+    a = poke("Togekiss", 50, ability, ["Thunder Shock"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    sec_effects(move_slice(a, 0), a, d, 0)
+    assert (d[Pok.STATUS] == Status.PARALYSIS) == paralyzed
+
+
+@pytest.mark.parametrize("atk_ab, blocked", [("Static", True), ("Mold Breaker", False)])
+def test_shield_dust_blocks_secondaries_on_its_holder(poke, atk_ab, blocked):
+    """Shield Dust stops a secondary status and stat drop aimed at it; Mold Breaker ignores it"""
+    a = poke("Pikachu", 50, atk_ab, ["Thunder Shock", "Mud-Slap"])
+    d = poke("Wurmple", 50, "Shield Dust", ["Tackle"])
+    shock = move_slice(a, 0).copy()
+    shock[Sec.CHANCE] = 100
+    sec_effects(shock, a, d, 0)
+    sec_effects(move_slice(a, 1), a, d, 0)
+    assert (d[Pok.STATUS] == 0) == blocked
+    assert (d[Pok.ACCURACY_STAT_STAGE] == 0) == blocked
+
+
+def test_shield_dust_keeps_the_users_own_secondary(poke):
+    """Metal Claw's Attack boost goes to the user, Shield Dust on the target doesn't stop it"""
+    a = poke("Beldum", 50, "Clear Body", ["Metal Claw"])
+    d = poke("Wurmple", 50, "Shield Dust", ["Tackle"])
+    mv = move_slice(a, 0).copy()
+    mv[Sec.CHANCE] = 100
+    sec_effects(mv, a, d, 0)
+    assert a[Pok.ATTACK_STAT_STAGE] == 1
+
+
 def test_target_secondary_lowers_target(poke):
     """Mud-Slap's 100% accuracy drop lands on the target, not the user"""
     a = poke("Mudkip", 50, "Torrent", ["Mud-Slap"])

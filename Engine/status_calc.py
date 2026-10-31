@@ -22,10 +22,12 @@ from Models.constants import (
     _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _VOLSTATUS_UPROAR, _MOVE_PP,
     _ABILITYNAMES_SOUNDPROOF, _MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE,
     _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT,
-    _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_TRI_ATTACK
+    _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_TRI_ATTACK, _ABILITYNAMES_SERENE_GRACE,
+    _ABILITYNAMES_SHIELD_DUST,
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from Models.move import CURSE_BOOST
+from Engine.ability_helper import ignorable_ability
 
 # --- Global Tuples ---
 B_P_P = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
@@ -323,14 +325,24 @@ def calculate_effects(attacker, defender, move, weather, def_side=0):
 
 @njit
 def sec_effects(move, attacker, defender, weather, def_side=0):
-    """Calculate secondary move effects (e.g., 10% Burn). def_side is the defender's Field.SIDE_COND"""
+    """Calculate secondary move effects (e.g., 10% Burn). def_side is the defender's Field.SIDE_COND.
+    Shield Dust blocks the ones aimed at its holder unless the attacker has Mold Breaker, Serene
+    Grace doubles the chance (pokeplatinum BtlCmd_CheckEffectActivation)"""
     m_target = move[_SEC_TARGET]
     target_opp = m_target in TARGET_OPP_SIDE
 
     if target_opp and defender[_POK_CURRENT_HP] <= 0:
         return
+    if (
+        target_opp
+        and defender[_POK_AB_ID] == _ABILITYNAMES_SHIELD_DUST
+        and ignorable_ability(defender, attacker)
+    ):
+        return
 
     chance = move[_SEC_CHANCE]
+    if attacker[_POK_AB_ID] == _ABILITYNAMES_SERENE_GRACE:
+        chance *= 2
 
     if chance == 100 or random.randint(1, 100) <= chance:
         stat_changes(move, attacker, defender, True, def_side)

@@ -7,7 +7,7 @@
 [X]Chlorophyll
 []Clear Body *
 []Cloud Nine *
-[]Compound Eyes *
+[X]Compound Eyes *
 []Cute Charm *
 [X]Damp
 []Early Bird *
@@ -30,7 +30,7 @@
 []Lightning Rod *
 []Magic Guard (Needs a lot of other implementations first, but half done)
 []Natural Cure *
-[]No Guard *
+[X]No Guard *
 []Oblivious *
 [X]Pickup
 [X]Poison Point
@@ -41,11 +41,11 @@
 [X]Rock Head
 [X]Sand Veil
 []Scrappy *
-[]Serene Grace *
+[X]Serene Grace *
 []Shadow Tag *
 []Shed Skin *
-[]Shell Armor *
-[]Shield Dust *
+[X]Shell Armor *
+[X]Shield Dust *
 [X]Simple
 [X]Sniper *
 [X]Solar Power
@@ -56,11 +56,11 @@
 []Storm Drain *
 [X]Sturdy
 [X]Suction Cups (Need to implement force switches moves)
-[]Super Luck *
+[X]Super Luck *
 [X]Swarm *
 [X]Swift Swim
 [X]Synchronize
-[]Tangled Feet *
+[X]Tangled Feet *
 [X]Technician *
 [X]Thick Fat
 [X]Tinted Lens
@@ -73,7 +73,7 @@
 
 ## Abilities that isn't used until 1st gym, but Trainer AI or engine has current special conditions
 []Air Lock *
-[]Anger Point *
+[X]Anger Point *
 []Bad Dreams *
 []Color Change *
 []Download *
@@ -104,7 +104,7 @@
 [X]Pure Power *
 []Rough Skin *
 []Sand Stream *
-[]Skill Link *
+[X]Skill Link *
 []Slow Start *
 []Snow Cloak *
 []Snow Warning *
@@ -413,7 +413,7 @@
 
 # Items
 [X]Black Belt *
-[]Bright Powder *
+[X]Bright Powder *
 [X]Charcoal *
 [X]Expert Belt *
 [X]Flame Orb *
@@ -434,7 +434,7 @@
 []Power Herb *
 []Quick Claw *
 [X]Rindo Berry *
-[]Scope Lens *
+[X]Scope Lens *
 [X]Sea Incense *
 [X]Sharp Beak *
 []Shed Shell *
@@ -459,7 +459,7 @@
 [X]Haban Berry *
 [X]Kasib Berry *
 [X]Kebia Berry *
-[]Lax Incense *
+[X]Lax Incense *
 [X]Light Ball *
 []Lum Berry *
 [X]Occa Berry *

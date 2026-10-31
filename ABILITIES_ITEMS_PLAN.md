@@ -16,7 +16,7 @@
 | 2     | Consumables and timers (Roark: Rindo Berry, Smooth Rock, Flame Orb) | [x]    |
 | 3     | Trainer abilities: Rock Head, Sturdy                                | [x]    |
 | 4     | Damage abilities                                                    | [x]    |
-| 5     | Accuracy, crit, secondary effects                                   | [ ]    |
+| 5     | Accuracy, crit, secondary effects                                   | [x]    |
 | 6     | Contact abilities                                                   | [ ]    |
 | 7     | Status immunity, cures, status berries                              | [ ]    |
 | 8     | Type immunity and absorb abilities                                  | [ ]    |
@@ -77,6 +77,16 @@
 - 2026-10-30 (Batch 4): Normalize moved out of Batch 4 to its own small batch (it changes the move type, so it
   has to reach the hit check, the AI effectiveness and the rollout). Slow Start's stat part moved to Batch 10
   with its speed part (one turn-count rule, [pp] `TOTAL_TURNS - SLOW_START_TURN_NUMBER < 5`).
+- 2026-10-30 (Batch 5): Issues 3 and 14 fixed. Accuracy modifiers moved out of `ab_on_try_move` (it keeps only
+  Damp, Soundproof, Water Absorb) into `move_accuracy`, in [pp CheckMoveHitAccuracy] order with integer steps:
+  stages → Compound Eyes → Sand Veil → Snow Cloak → Hustle → Tangled Feet → Bright Powder / Lax Incense →
+  Gravity (still [SD] 6840/4096). Sand Veil now respects Mold Breaker. Simple doubles accuracy / evasion stages
+  and Unaware zeroes the foe's ([pp]; your call to include Simple). No Guard (either side) skips the roll and the
+  semi-invulnerable check ([pp CheckMoveHitOverrides]); OHKO moves always hit with it but keep the level check.
+  Mold Breaker now makes an Inner Focus holder flinch ([pp subscript_flinch_mon]; Inner Focus was a bug).
+  Shield Dust blocks every secondary aimed at its holder, Fake Out's flinch included (it's an indirect side effect
+  in [pp effect_script_0158], as in [SD]). Anger Point follows [SD gen4] (no [pp] C code found):
+  `_resolve_move_damage` returns `(damage, crit)` and `_apply_move_damage` takes the crit.
 
 **Still open (your call, at the batch that needs it)**
 
@@ -158,7 +168,7 @@
    floored; [pp] and [SD] floor it (level 12 gives ×6.8 instead of ×6). Affects every hit. Batch 1 and 4
    tests will run into it. **FIXED in Batch 1** (all 4 copies, incl. `struggle`).
 3. **`ab_on_try_move` returns at the first match** (`engine_helper.py:324-362`): an attacker's Hustle skips
-   the defender's Sand Veil, Soundproof and Water Absorb. Needed by Batches 5 and 8.
+   the defender's Sand Veil, Soundproof and Water Absorb. Needed by Batches 5 and 8. **FIXED in Batch 5.**
 4. **Water Absorb has no target/power filter** (`engine_helper.py:358`): Rain Dance, Water Sport, Aqua Ring
    or Withdraw used against a Water Absorb foe heal it and fail. [pp BattleSystem_TriggerImmunityAbility]
    only absorbs damaging Water moves. Needed by Batch 8.
@@ -185,7 +195,7 @@
     from `ITEM_TABLE`).
 13. `test_jit_smoke.py:74` `CASES` never asserts the switching, healing_misc and move_calling scenarios.
 14. Hustle and Sand Veil scale accuracy before the stage ratio (`engine_helper.py:336-346`); [pp] scales
-    after. Minor rounding.
+    after. Minor rounding. **FIXED in Batch 5.**
 15. Existing base-power order differs slightly from [pp]: Sport runs after Blaze/Iron Fist (`calculate_damage`);
     [pp] runs Sport before the pinch abilities and Iron Fist last. New modifiers follow [pp] order.
     **FIXED in Batch 4.**
@@ -311,7 +321,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 - TODO ticks: Adaptability, Technician, Swarm, Rivalry, Filter, Sniper, Unaware; deferred Solid Rock,
   Marvel Scale, Pure Power, Normalize, Flower Gift (Heatproof, Dry Skin, Slow Start finish later).
 
-## Batch 5 — Accuracy, crit, secondary effects
+## Batch 5 — Accuracy, crit, secondary effects — DONE
 
 | Name                                  | Gen IV effect                                                                                        | Hook                                  |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------- |
@@ -533,8 +543,8 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
 - OHKO: Levitate (Batch 8) has to go in `calculate_hit_miss`'s type check, which runs before the OHKO branch,
   so Fissure respects it. Lock-On / No Guard (Batch 5) bypass the roll but not the level check
   (`#TODO: No Guard, Lock-On` left in the branch).
-- OHKO: now redundant but left in place: `gravity and not move[_MOVE_OH_KO]` in `calculate_hit_miss` and
-  Hustle's `not move[_MOVE_OH_KO]` in `ab_on_try_move` (the OHKO branch returns before both matter).
+- OHKO: now redundant but left in place: `gravity and not move[_MOVE_OH_KO]`, moved with the Gravity step into
+  `move_accuracy` (the OHKO branch returns before it). Hustle's copy went away with Batch 5.
 - OHKO: outdated TODO comments (left in place): "OHKO Moves" in the Basic (`trainer_ai_helper.py:916`) and Expert
   (`:2014`) TODO docstrings. CLAUDE.md's known gap "OHKO moves skip the semi-invulnerability check" is fixed.
 - Batch 4: a defending Simple doesn't check Mold Breaker (`def_is_simple` in `raw_atk_def` and `struggle`); [pp]
@@ -548,6 +558,15 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   Unaware would zero its own stages; `calculate_damage_confusion` leaves Unaware out (your call, Batch 4).
 - Batch 4: like Expert Belt, [pp] Filter / Solid Rock also need the move's data power to be non-zero; the engine
   checks the effectiveness only (same result for every MoveDB move, see the Batch 1 note).
+- Batch 5: the accuracy stage table differs three ways. [pp] nets accuracy against evasion and uses the rounded
+  `HitRateByStage` (-5 is 36/100, -4 43/100, +2 166/100, +4 233/100, +5 133/50); [SD gen4] applies accuracy and
+  evasion separately with exact thirds; the engine nets them with exact thirds. Not changed.
+- Batch 5: a Struggle crit doesn't reach Anger Point (the crit is rolled inside `struggle()`, which
+  `_resolve_move_damage` returns with `False`).
+- Batch 5: [pp] rolls the secondary chance and then lets Shield Dust discard it; the engine skips the roll for a
+  Shield Dust holder. RNG order only.
+- Batch 5: Snow Cloak's hail-damage immunity is still Batch 11; `#TODO: Lock-On` stays in the OHKO branch (Lock-On
+  and Mind Reader aren't in MoveDB).
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

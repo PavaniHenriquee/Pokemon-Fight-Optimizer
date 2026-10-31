@@ -72,7 +72,7 @@ from Models.constants import (
     _ITEM_HOLD_EFFECT, _ITEM_EFFECT_PARAM, _HOLDEFFECT_EXTEND_SCREENS, _HOLDEFFECT_EXTEND_SANDSTORM,
     _HOLDEFFECT_BRN_USER, _POK_TYPE1, _POK_TYPE2, _TYPES_FIRE, _ABILITYNAMES_WATER_VEIL,
     _ABILITYNAMES_LEAF_GUARD, _WEATHER_SUN, _FIELD_MY_ENTER_FIELD, _ABILITYNAMES_ROCK_HEAD,
-    _MOVE_OH_KO
+    _MOVE_OH_KO, _ABILITYNAMES_ANGER_POINT, _ABILITYNAMES_SKILL_LINK,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 
@@ -324,22 +324,22 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
 
 @njit
 def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=False):
-    """Figure out how much damage this hit does, independent of applying it.
-    def_side is the defender's Field.SIDE_COND"""
+    """Figure out how much damage this hit does, independent of applying it, and whether it
+    was a critical hit. def_side is the defender's Field.SIDE_COND"""
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
-        return struggle(attacker, defender, False, def_side)
+        return struggle(attacker, defender, False, def_side), False
     # OHKO moves take the target's current HP (pokeplatinum BtlCmd_TryOHKOMove)
     if move[_MOVE_OH_KO]:
-        return defender[_POK_CURRENT_HP]
+        return defender[_POK_CURRENT_HP], False
     move_damage = move[_MOVE_DAMAGE]
     if not move_damage:
         crit = calculate_crit(attacker, defender, move, def_side)
         damage = calculate_damage(attacker, defender, move, weather, crit, None, def_side, gravity)
-        return resist_berry(defender, move, damage, gravity)
+        return resist_berry(defender, move, damage, gravity), crit
     if move_damage == _DAMAGESOURCES_LEVEL:
-        return attacker[_POK_LEVEL]
+        return attacker[_POK_LEVEL], False
     if move_damage == _DAMAGESOURCES_PSYWAVE:
-        return max(1, attacker[_POK_LEVEL] * (random.randint(0, 10) + 5) // 10)
+        return max(1, attacker[_POK_LEVEL] * (random.randint(0, 10) + 5) // 10), False
     if move_damage == _DAMAGESOURCES_BIDE:
         # Bide damage
         dmg = attacker[_POK_DMG_TAKEN]*2
@@ -347,17 +347,17 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
         # I think this if is not needed, but just to be safe its here
         if attacker[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
             attacker[_POK_VOL_STATUS] -= _VOLSTATUS_BIDE
-        return dmg
+        return dmg, False
     if move_damage in RECORD_DAMAGE:
         dmg = attacker[_POK_DMG_TAKEN]*2
         attacker[_POK_DMG_TAKEN] = 0
-        return dmg
+        return dmg, False
     # if move damage is a positive int, it means that is a fixed damage so just return it
-    return move_damage
+    return move_damage, False
 
 
 @njit
-def _apply_move_damage(attacker, defender, move, damage):
+def _apply_move_damage(attacker, defender, move, damage, crit=False):
     """Subtracts HP, checks contact abilities, flinch, item-on-damage, and Aftermath on kill.
     Returns (flinch, both_dead)"""
     if damage > 0:
@@ -367,6 +367,9 @@ def _apply_move_damage(attacker, defender, move, damage):
         # Rage builds on every damaging hit the user survives
         if defender[_POK_VOL_STATUS] & _VOLSTATUS_RAGE and damage > 0:
             defender[_POK_ATTACK_STAT_STAGE] = min(6, defender[_POK_ATTACK_STAT_STAGE] + 1)
+        # Anger Point maxes Attack after surviving a critical hit (Showdown gen4 angerpoint)
+        if crit and defender[_POK_AB_ID] == _ABILITYNAMES_ANGER_POINT:
+            defender[_POK_ATTACK_STAT_STAGE] = 6
         flinch = False
         if (
             move[_FLAGS_CONTACT]
@@ -377,9 +380,9 @@ def _apply_move_damage(attacker, defender, move, damage):
         ):
             contact_ability(attacker, defender)
         if move[_SEC_VOL_STATUS] & _VOLSTATUS_FLINCH:
-            flinch = flinch_checker(move, defender)
+            flinch = flinch_checker(move, attacker, defender)
         elif move[_SEC_VOL_STATUS2] & _VOLSTATUS_FLINCH:
-            flinch = flinch_checker(move, defender, True)
+            flinch = flinch_checker(move, attacker, defender, True)
         if defender[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
             item_on_rdmg(defender)
         return flinch
@@ -408,11 +411,10 @@ def _ps_moves_core(attacker, defender, move, weather, def_side=0, gravity=False)
     """
     Checks for damage and for flinch. Also returns the HP the defender actually lost
     """
-    damage = endure_damage(
-        defender, _resolve_move_damage(attacker, defender, move, weather, def_side, gravity)
-    )
+    raw_damage, crit = _resolve_move_damage(attacker, defender, move, weather, def_side, gravity)
+    damage = endure_damage(defender, raw_damage)
     dealt = min(damage, defender[_POK_CURRENT_HP])
-    flinch= _apply_move_damage(attacker, defender, move, damage)
+    flinch= _apply_move_damage(attacker, defender, move, damage, crit)
     return flinch, damage, dealt
 
 
@@ -436,7 +438,11 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
     dealt_total = 0
     flinch = False
     if mult_hit_min == 2 and mult_hit_max == 5:
-        multhit = MULTIHIT_PROB[random.getrandbits(3)]
+        # Skill Link always hits 5 times (pokeplatinum BtlCmd_SetMultiHit)
+        if attacker[_POK_AB_ID] == _ABILITYNAMES_SKILL_LINK:
+            multhit = 5
+        else:
+            multhit = MULTIHIT_PROB[random.getrandbits(3)]
     elif mult_hit_min == mult_hit_max:
         multhit = mult_hit_min
     else:
