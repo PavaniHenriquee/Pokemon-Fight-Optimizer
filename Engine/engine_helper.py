@@ -7,9 +7,10 @@ from Engine.speed import check_speed
 from Engine.status_calc import  freeze, paralysis, synchronize_reflect, sleep_blocked, SLOT_MASK
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
-    item_power, item_attack,
-    AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND
+    item_power, item_attack, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
+    AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB
 )
+from Engine.ability_helper import ignorable_ability
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, STEEL_POISON, Target
 from Models.item import ITEM_TABLE
@@ -45,7 +46,7 @@ from Models.constants import (
     _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_WILL_CRIT,
     _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN,
     _MOVEOUTCOME_SEMI_INVULNERABLE, _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN,
-    _POK_CONSEC_COUNT, _ABILITYNAMES_GUTS, _ABILITYNAMES_HUGE_POWER, _MOVE_RECOIL,
+    _POK_CONSEC_COUNT, _ABILITYNAMES_GUTS, _MOVE_RECOIL,
     _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _POK_CONSUMED_ITEM, _MOVE_POWER,
     _MOVEOUTCOME_PROTECTED, _VOLSTATUS_PROTECT, _VOLSTATUS_ENDURE, _VOLSTATUS_FORESIGHT,
     _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_ATTRACT, _FLAGS_PROTECT, _POK_PROTECT_COUNT,
@@ -62,7 +63,7 @@ from Models.constants import (
     _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER, _MOVENAME_SLEEP_TALK, _MOVENAME_ENCORE,
     _MOVENAME_EARTHQUAKE, _MOVENAME_SEED_BOMB, _MOVENAME_ROCK_SLIDE, _MOVENAME_BLIZZARD,
     _MOVENAME_HYDRO_PUMP, _MOVENAME_ICE_BEAM, _MOVENAME_TRI_ATTACK, _MOVENAME_MUD_BOMB,
-    _MOVENAME_AIR_SLASH, _TERRAIN_SPECIAL, _FLAGS_MIRROR, _POK_AB_BREAKABLE, _TYPES_TYPELESS,
+    _MOVENAME_AIR_SLASH, _TERRAIN_SPECIAL, _FLAGS_MIRROR, _TYPES_TYPELESS,
     _ABILITYNAMES_STURDY,
 )
 
@@ -341,15 +342,6 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
 
 
 # ── Accuracy & crit ─────────────────────────────────────────────────────────────
-
-@njit
-def ignorable_ability(defender, attacker):
-    """
-    Whether the defender's ability takes effect against this attacker. Mold Breaker ignores
-    every breakable one (pokeplatinum Battler_IgnorableAbility)
-    """
-    return not (defender[_POK_AB_BREAKABLE] and attacker[_POK_AB_ID] == _ABILITYNAMES_MOLD_BREAKER)
-
 
 @njit
 def ohko_fails(attacker, defender):
@@ -989,6 +981,7 @@ def struggle(attacker, defender, rec=True, def_side=0):
     level = attacker[_POK_LEVEL]
     crit = calculate_crit(attacker, defender, None, def_side)
 
+    atk_stage, def_stage = unaware_stages(attacker, defender, atk_stage, def_stage)
     if crit:
         def_stage = min(def_stage, 0)
         atk_stage = max(atk_stage, 0)
@@ -998,16 +991,18 @@ def struggle(attacker, defender, rec=True, def_side=0):
     is_guts = atk_ab == _ABILITYNAMES_GUTS
     if is_guts and attacker[_POK_STATUS] != 0:
         raw_attack = (raw_attack * 3) // 2
-    elif atk_ab == _ABILITYNAMES_HUGE_POWER:
+    elif atk_ab in DOUBLE_ATK_AB:
         raw_attack *= 2
     elif atk_ab == _ABILITYNAMES_HUSTLE:
         raw_attack = (raw_attack * 3) // 2
 
     attack = apply_stat_stage(raw_attack, atk_stage, atk_is_simple)
-    defense = apply_stat_stage(defender[_POK_DEFENSE], def_stage, def_is_simple)
+    raw_defense = ab_modify_def(attacker, defender, defender[_POK_DEFENSE], True, 0)
+    defense = apply_stat_stage(raw_defense, def_stage, def_is_simple)
 
     # Base damage formula for Struggle with power 50. It's typeless, so no type item
     power = item_power(attacker, _TYPES_TYPELESS, _MOVECATEGORY_PHYSICAL, 50)
+    power = rivalry_power(attacker, defender, power)
     damage = attack * power * (level * 2 // 5 + 2) // defense // 50
 
     # Burn
@@ -1020,7 +1015,7 @@ def struggle(attacker, defender, rec=True, def_side=0):
     damage += 2
 
     if crit:
-        damage *= 2
+        damage *= crit_multiplier(attacker)
 
     damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
 

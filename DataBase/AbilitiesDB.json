@@ -108,7 +108,7 @@
   "Flower Gift": {
     "breakable": true,
     "name": "flower_gift",
-    "when": "on_switch_in"
+    "when": ["on_switch_in", "on_modify_stat"]
   },
   "Forecast": {
     "name": "forecast",

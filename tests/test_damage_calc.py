@@ -5,12 +5,15 @@ from Engine.damage_calc import (
     apply_stat_stage, calculate_damage, calculate_damage_confusion, flail,
     weight_power, magnitude_power, variable_power, base_power_ability, charge_power,
     sport_power, matchup_types, calculate_ai_logic_damage, item_power, item_attack, raw_atk_def,
-    MULTIPLIERS,
+    technician_power, rivalry_power, filter_damage, crit_multiplier, MULTIPLIERS,
 )
 from Engine.engine_helper import struggle
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
-from Models.idx_const import Pok
-from Models.helper import Types, Status, Weather, VolStatus, VolStatus2, SideCondition, MoveCategory
+from Models.idx_const import Pok, Move
+from Models.move import STRUGGLE
+from Models.helper import (
+    Types, Status, Weather, VolStatus, VolStatus2, SideCondition, MoveCategory, Gender,
+)
 from DataBase.MoveDB import MoveName
 from battle_driver import move_slice
 
@@ -334,9 +337,10 @@ def test_gyro_ball_uses_weather_speed(poke):
 def test_reckless_matches_gen4_rounding(poke):
     """Gen IV Reckless is power * 12 // 10 (effect script 0048), Take Down 90 -> 108"""
     a = poke("Starly", 20, "Reckless", ["Take Down"])
-    mult = base_power_ability(a, move_slice(a, 0))
-    assert 90 * mult // 4096 == 108
-    assert all(p * mult // 4096 == p * 12 // 10 for p in range(1, 1024))
+    d = poke("Bidoof", 20, "Simple", ["Tackle"])
+    mv = move_slice(a, 0)
+    assert base_power_ability(a, d, mv, 90) == 108
+    assert all(base_power_ability(a, d, mv, p) == p * 12 // 10 for p in range(1, 1024))
 
 
 # ── Phase 3: Charge, Mud Sport, Water Sport, Foresight, Ingrain ──────────────
@@ -602,6 +606,272 @@ def test_struggle_items(poke, item, boosted):
     base = struggle(plain, d, False)
     random.seed(5)
     assert (struggle(held, d, False) > base) == boosted
+
+
+# ── Damage abilities ─────────────────────────────────────────────────────────
+
+def with_power(pok, slot, power):
+    """Copy of pok whose move `slot` has this base power"""
+    c = pok.copy()
+    move_slice(c, slot)[Move.POWER] = power
+    return c
+
+
+def test_adaptability_doubles_stab(poke):
+    """Adaptability makes STAB x2 instead of x1.5 (pokeplatinum BattleSystem_ApplyTypeChart)"""
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    no_stab = poke("Rattata", 50, "Run Away", ["Tackle"])
+    no_stab[Pok.TYPE1] = no_stab[Pok.TYPE2] = Types.FIRE
+    base = dmg(no_stab, d)
+    assert dmg(poke("Rattata", 50, "Run Away", ["Tackle"]), d) == base * 3 // 2
+    assert dmg(poke("Rattata", 50, "Adaptability", ["Tackle"]), d) == base * 2
+
+
+@pytest.mark.parametrize("power, boosted", [(60, 90), (61, 61), (15, 22), (1, 1)])
+def test_technician_boosts_power_60_or_less(poke, power, boosted):
+    """Technician: power <= 60 gets x15/10"""
+    a = poke("Scyther", 20, "Technician", ["Fury Attack"])
+    assert technician_power(a, move_slice(a, 0), power) == boosted
+    plain = poke("Scyther", 20, "Swarm", ["Fury Attack"])
+    assert technician_power(plain, move_slice(plain, 0), power) == power
+
+
+def test_technician_skips_struggle(poke):
+    """pokeplatinum leaves Struggle out of Technician"""
+    a = poke("Scyther", 20, "Technician", ["Fury Attack"])
+    assert technician_power(a, STRUGGLE, 50) == 50
+
+
+def test_technician_runs_before_type_items(poke):
+    """Fury Attack 15: Technician 22, then Silk Scarf 26 (items first would be 18, then 27)"""
+    d = poke("Rattata", 100, "Run Away", ["Tackle"])
+    a = poke("Scyther", 100, "Technician", ["Fury Attack"], item="Silk Scarf")
+    plain = poke("Scyther", 100, "Swarm", ["Fury Attack"])
+    assert dmg(a, d) == dmg(with_power(plain, 0, 26), d)
+    assert dmg(a, d) != dmg(with_power(plain, 0, 27), d)
+
+
+def test_swarm_boosts_bug_moves_in_a_pinch(poke):
+    """Swarm: Bug moves x15/10 at 1/3 HP or less, like Blaze"""
+    a = poke("Beedrill", 30, "Swarm", ["Twineedle", "Fury Attack"])
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    bug, normal = move_slice(a, 0), move_slice(a, 1)
+    assert base_power_ability(a, d, bug, 25) == 25
+    a[Pok.CURRENT_HP] = a[Pok.MAX_HP] // 3
+    assert base_power_ability(a, d, bug, 25) == 37
+    assert base_power_ability(a, d, normal, 15) == 15
+
+
+@pytest.mark.parametrize("atk_gender, def_gender, power", [
+    (Gender.MALE, Gender.MALE, 100), (Gender.FEMALE, Gender.FEMALE, 100),
+    (Gender.MALE, Gender.FEMALE, 60), (Gender.MALE, Gender.GENDERLESS, 80),
+    (Gender.GENDERLESS, Gender.MALE, 80),
+])
+def test_rivalry_by_gender(poke, atk_gender, def_gender, power):
+    """Rivalry: same gender x125/100, opposite x75/100, nothing if either is genderless"""
+    a = poke("Shinx", 20, "Rivalry", ["Tackle"])
+    d = poke("Shinx", 20, "Rivalry", ["Tackle"])
+    a[Pok.GENDER] = atk_gender
+    d[Pok.GENDER] = def_gender
+    assert rivalry_power(a, d, 80) == power
+    assert base_power_ability(a, d, move_slice(a, 0), 80) == power
+
+
+def test_thick_fat_is_the_defenders(poke):
+    """Issue 1: the defender's Thick Fat halves Fire and Ice power, Mold Breaker ignores it, and
+    the holder's own Fire moves aren't halved any more"""
+    a = poke("Charmander", 30, "Blaze", ["Ember", "Scratch"])
+    fat = poke("Snorlax", 30, "Thick Fat", ["Powder Snow"])
+    assert base_power_ability(a, fat, move_slice(a, 0), 40) == 20
+    assert base_power_ability(a, fat, move_slice(a, 1), 40) == 40
+    assert base_power_ability(fat, a, move_slice(fat, 0), 40) == 40
+    breaker = poke("Charmander", 30, "Mold Breaker", ["Ember"])
+    assert base_power_ability(breaker, fat, move_slice(breaker, 0), 40) == 40
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    fat_attacker = poke("Charmander", 30, "Thick Fat", ["Ember"])
+    assert dmg(fat_attacker, d) == dmg(poke("Charmander", 30, "Run Away", ["Ember"]), d)
+
+
+@pytest.mark.parametrize("ability, power", [("Heatproof", 20), ("Dry Skin", 50)])
+def test_heatproof_and_dry_skin_change_fire_power(poke, ability, power):
+    """Defender's Heatproof halves Fire power, Dry Skin x125/100; Mold Breaker ignores both"""
+    a = poke("Charmander", 30, "Blaze", ["Ember", "Scratch"])
+    d = poke("Bronzor", 30, ability, ["Tackle"])
+    assert base_power_ability(a, d, move_slice(a, 0), 40) == power
+    assert base_power_ability(a, d, move_slice(a, 1), 40) == 40
+    breaker = poke("Charmander", 30, "Mold Breaker", ["Ember"])
+    assert base_power_ability(breaker, d, move_slice(breaker, 0), 40) == 40
+
+
+@pytest.mark.parametrize("ability, power", [
+    ("Thick Fat", 55), ("Heatproof", 56), ("Dry Skin", 140), ("Run Away", 112),
+])
+def test_blaze_order_against_defender_abilities(poke, ability, power):
+    """Fire Punch 75 under Blaze, pokeplatinum order: Thick Fat halves before Blaze (37, then 55),
+    Heatproof and Dry Skin come after it (112, then 56 or 140)"""
+    a = poke("Chimchar", 30, "Blaze", ["Fire Punch"])
+    a[Pok.CURRENT_HP] = a[Pok.MAX_HP] // 3
+    d = poke("Bronzor", 30, ability, ["Tackle"])
+    assert base_power_ability(a, d, move_slice(a, 0), 75) == power
+
+
+def test_sport_runs_before_pinch_abilities(poke):
+    """Issue 15: Water Sport halves before Blaze, Fire Punch 75 is 37, then 55 (not 112, then 56)"""
+    a = poke("Chimchar", 30, "Blaze", ["Fire Punch"])
+    a[Pok.CURRENT_HP] = a[Pok.MAX_HP] // 3
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    d[Pok.VOL_STATUS] = VolStatus.WATER_SPORT
+    assert base_power_ability(a, d, move_slice(a, 0), 75) == 55
+
+
+@pytest.mark.parametrize("ability", ["Filter", "Solid Rock"])
+def test_filter_and_solid_rock_cut_super_effective_hits(poke, ability):
+    """x3/4 on a super effective hit, at least 1; Mold Breaker ignores them"""
+    a = poke("Geodude", 30, "Sturdy", ["Rock Throw"])
+    d = poke("Starly", 30, ability, ["Tackle"])
+    assert filter_damage(a, d, 4, 2, 100) == 75
+    assert filter_damage(a, d, 4, 4, 100) == 75
+    assert filter_damage(a, d, 4, 2, 1) == 1
+    assert filter_damage(a, d, 2, 2, 100) == 100
+    assert filter_damage(a, d, 4, 1, 100) == 100
+    breaker = poke("Cranidos", 30, "Mold Breaker", ["Rock Throw"])
+    assert filter_damage(breaker, d, 4, 2, 100) == 100
+
+
+def test_filter_runs_before_expert_belt(poke):
+    """pokeplatinum BattleSystem_ApplyTypeChart: Filter's 3/4, then Expert Belt's x120/100"""
+    plain = poke("Geodude", 50, "Sturdy", ["Rock Throw"])
+    belt = poke("Geodude", 50, "Sturdy", ["Rock Throw"], item="Expert Belt")
+    d = poke("Starly", 50, "Keen Eye", ["Tackle"])
+    filt = poke("Starly", 50, "Filter", ["Tackle"])
+    assert dmg(belt, filt) == dmg(plain, d) * 3 // 4 * 120 // 100
+
+
+def test_sniper_triples_crits(poke):
+    """Sniper makes the crit multiplier 3 (pokeplatinum BattleSystem_CalcCriticalMulti)"""
+    plain = poke("Rattata", 100, "Run Away", ["Tackle"])
+    sniper = poke("Rattata", 100, "Sniper", ["Tackle"])
+    d = poke("Rattata", 100, "Run Away", ["Tackle"])
+    assert (crit_multiplier(plain), crit_multiplier(sniper)) == (2, 3)
+    assert dmg(sniper, d) == dmg(plain, d)
+    assert ratio(dmg(sniper, d, crit=True), dmg(plain, d, crit=True)) == pytest.approx(1.5, abs=0.02)
+
+
+def test_unaware_ignores_the_foes_stages(poke):
+    """Defending, Unaware ignores the attacker's Attack stage; attacking, the defender's Defense
+    stage. Its own stages still count, and Mold Breaker ignores the defending side"""
+    a = poke("Bidoof", 30, "Run Away", ["Tackle"])
+    d = poke("Bidoof", 30, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0)
+    base = raw_atk_def(mv, a, d)
+    a[Pok.ATTACK_STAT_STAGE] = 2
+    d[Pok.DEFENSE_STAT_STAGE] = 2
+    boosted = raw_atk_def(mv, a, d)
+    unaware_def = poke("Bidoof", 30, "Unaware", ["Tackle"])
+    unaware_def[Pok.DEFENSE_STAT_STAGE] = 2
+    assert raw_atk_def(mv, a, unaware_def) == (base[0], boosted[1])
+    unaware_atk = poke("Bidoof", 30, "Unaware", ["Tackle"])
+    unaware_atk[Pok.ATTACK_STAT_STAGE] = 2
+    assert raw_atk_def(move_slice(unaware_atk, 0), unaware_atk, d) == (boosted[0], base[1])
+    breaker = poke("Bidoof", 30, "Mold Breaker", ["Tackle"])
+    breaker[Pok.ATTACK_STAT_STAGE] = 2
+    assert raw_atk_def(move_slice(breaker, 0), breaker, unaware_def) == boosted
+
+
+def test_marvel_scale_raises_defense_while_statused(poke):
+    """Marvel Scale: Defense x15/10 with a status, Sp. Def untouched, Mold Breaker ignores it"""
+    a = poke("Rattata", 30, "Run Away", ["Tackle", "Ember"])
+    d = poke("Rattata", 30, "Marvel Scale", ["Tackle"])
+    tackle, ember = move_slice(a, 0), move_slice(a, 1)
+    assert raw_atk_def(tackle, a, d)[1] == d[Pok.DEFENSE]
+    d[Pok.STATUS] = Status.BURN
+    assert raw_atk_def(tackle, a, d)[1] == d[Pok.DEFENSE] * 15 // 10
+    assert raw_atk_def(ember, a, d)[1] == d[Pok.SPECIAL_DEFENSE]
+    breaker = poke("Rattata", 30, "Mold Breaker", ["Tackle"])
+    assert raw_atk_def(move_slice(breaker, 0), breaker, d)[1] == d[Pok.DEFENSE]
+
+
+def test_flower_gift_in_sun(poke):
+    """In sun, Flower Gift raises the holder's Attack and its Sp. Def against special moves;
+    Mold Breaker ignores the Sp. Def part"""
+    fg = poke("Cherrim", 30, "Flower Gift", ["Tackle", "Ember"])
+    d = poke("Rattata", 30, "Run Away", ["Tackle", "Ember"])
+    assert raw_atk_def(move_slice(fg, 0), fg, d)[0] == fg[Pok.ATTACK]
+    assert raw_atk_def(move_slice(fg, 0), fg, d, Weather.SUN)[0] == fg[Pok.ATTACK] * 15 // 10
+    assert raw_atk_def(move_slice(fg, 1), fg, d, Weather.SUN)[0] == fg[Pok.SPECIAL_ATTACK]
+    assert raw_atk_def(move_slice(d, 1), d, fg, Weather.SUN)[1] == fg[Pok.SPECIAL_DEFENSE] * 15 // 10
+    assert raw_atk_def(move_slice(d, 0), d, fg, Weather.SUN)[1] == fg[Pok.DEFENSE]
+    breaker = poke("Rattata", 30, "Mold Breaker", ["Ember"])
+    assert raw_atk_def(move_slice(breaker, 0), breaker, fg, Weather.SUN)[1] == fg[Pok.SPECIAL_DEFENSE]
+
+
+def test_pure_power_doubles_physical(poke):
+    """Pure Power is Huge Power"""
+    d = poke("Rattata", 100, "Run Away", ["Tackle"])
+    assert dmg(poke("Meditite", 100, "Pure Power", ["Tackle"]), d) == \
+        dmg(poke("Meditite", 100, "Huge Power", ["Tackle"]), d)
+
+
+@pytest.mark.parametrize("ability, gender, mult", [
+    ("Pure Power", Gender.MALE, 2.0), ("Rivalry", Gender.MALE, 1.25),
+    ("Rivalry", Gender.GENDERLESS, 1.0),
+])
+def test_confusion_self_hit_pure_power_and_rivalry(poke, ability, gender, mult):
+    """The confusion hit gets Pure Power, and Rivalry's same-gender boost when gendered"""
+    plain = poke("Rattata", 100, "Run Away", ["Tackle"])
+    held = poke("Rattata", 100, ability, ["Tackle"])
+    plain[Pok.GENDER] = held[Pok.GENDER] = gender
+    random.seed(3)
+    base = calculate_damage_confusion(plain)
+    random.seed(3)
+    assert ratio(calculate_damage_confusion(held), base) == pytest.approx(mult, abs=0.05)
+
+
+@pytest.mark.parametrize("atk_ab, def_ab, def_status, lower", [
+    ("Rivalry", "Run Away", 0, False),
+    ("Run Away", "Marvel Scale", Status.BURN, True),
+    ("Run Away", "Unaware", 0, True),
+])
+def test_struggle_damage_abilities(poke, atk_ab, def_ab, def_status, lower):
+    """Struggle goes through the same stat and power abilities (the attacker is at +2 Attack)"""
+    d = poke("Rattata", 100, def_ab, ["Tackle"])
+    d[Pok.STATUS] = def_status
+    plain_d = poke("Rattata", 100, "Run Away", ["Tackle"])
+    a = poke("Rattata", 100, atk_ab, ["Tackle"])
+    plain_a = poke("Rattata", 100, "Run Away", ["Tackle"])
+    a[Pok.ATTACK_STAT_STAGE] = plain_a[Pok.ATTACK_STAT_STAGE] = 2
+    random.seed(5)
+    base = struggle(plain_a, plain_d, False)
+    random.seed(5)
+    got = struggle(a, d, False)
+    assert (got < base) if lower else (got > base)
+
+
+def test_damage_abilities_reach_ai_estimate(poke):
+    """pokeplatinum TrainerAI_CalcDamage runs BattleSystem_CalcMoveDamage and the type chart, so
+    the AI's estimate sees the same abilities on both sides"""
+    def est(atk, dfn):
+        return calculate_ai_logic_damage(4.0, atk, dfn, move_slice(atk, 0), 0)
+
+    tech, scyther = (poke("Scyther", 30, ab, ["Fury Attack"]) for ab in ("Technician", "Swarm"))
+    rattata = poke("Rattata", 30, "Run Away", ["Tackle"])
+    assert est(tech, rattata) > est(scyther, rattata)
+
+    ember = poke("Charmander", 30, "Blaze", ["Ember"])
+    assert est(ember, poke("Snorlax", 30, "Thick Fat", ["Tackle"])) < \
+        est(ember, poke("Snorlax", 30, "Run Away", ["Tackle"]))
+
+    rock = poke("Geodude", 30, "Sturdy", ["Rock Throw"])
+    assert est(rock, poke("Starly", 30, "Filter", ["Tackle"])) < \
+        est(rock, poke("Starly", 30, "Keen Eye", ["Tackle"]))
+
+    boosted = poke("Rattata", 30, "Run Away", ["Tackle"])
+    boosted[Pok.ATTACK_STAT_STAGE] = 2
+    assert est(boosted, poke("Bidoof", 30, "Unaware", ["Tackle"])) < \
+        est(boosted, poke("Bidoof", 30, "Run Away", ["Tackle"]))
+
+    rival = poke("Shinx", 30, "Rivalry", ["Tackle"])
+    assert est(rival, rattata) > est(poke("Shinx", 30, "Run Away", ["Tackle"]), rattata)
 
 
 # ── Damage ranges vs a real calculator ───────────────────────────────────────

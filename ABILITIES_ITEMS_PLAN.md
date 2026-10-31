@@ -15,7 +15,7 @@
 | 1     | Damage items (Roark: Muscle Band, Expert Belt)                      | [x]    |
 | 2     | Consumables and timers (Roark: Rindo Berry, Smooth Rock, Flame Orb) | [x]    |
 | 3     | Trainer abilities: Rock Head, Sturdy                                | [x]    |
-| 4     | Damage abilities                                                    | [ ]    |
+| 4     | Damage abilities                                                    | [x]    |
 | 5     | Accuracy, crit, secondary effects                                   | [ ]    |
 | 6     | Contact abilities                                                   | [ ]    |
 | 7     | Status immunity, cures, status berries                              | [ ]    |
@@ -66,6 +66,17 @@
   hit Bounce or Dig ([SD gen4]); the known gap is closed. AI: [pp] Basic_CheckOHKOWouldFail and Expert_OHKOMove,
   the three moves in `MOVE_EXCEP`. Rollout: weight 1, or 0 when `ohko_fails`. Sturdy's status audit said
   "AI only"; that was wrong, nothing scored OHKO moves into Sturdy before this.
+- 2026-10-30 (Batch 4): Issues 1 and 15 fixed. Base power runs in [pp CalcMoveDamage] order: variable → Charge →
+  Technician → items → `base_power_ability(attacker, defender, move, power)` (Thick Fat → Sport → pinch → Heatproof
+  → Dry Skin → Rivalry → Iron Fist; Reckless stays last). It returns the power now, no 4096 multipliers.
+  Heatproof halves base power per [pp]; [SD] gen4 inherits the gen5+ Atk/SpA halving. Filter / Solid Rock follow
+  [pp ApplyTypeChart] (after the types, before Expert Belt, at least 1), not [SD]'s final modifier.
+  `ignorable_ability` moved to the new `Engine/ability_helper.py` (damage_calc needs it, engine_helper imports
+  damage_calc). Flower Gift's AbilitiesDB `when` gained `on_modify_stat` so the stat gate sees it. The confusion
+  self-hit gets Pure Power and Rivalry (always same gender on itself); Unaware stays out of it.
+- 2026-10-30 (Batch 4): Normalize moved out of Batch 4 to its own small batch (it changes the move type, so it
+  has to reach the hit check, the AI effectiveness and the rollout). Slow Start's stat part moved to Batch 10
+  with its speed part (one turn-count rule, [pp] `TOTAL_TURNS - SLOW_START_TURN_NUMBER < 5`).
 
 **Still open (your call, at the batch that needs it)**
 
@@ -142,7 +153,7 @@
 
 1. **Thick Fat is read from the attacker.** `ab_modify_stat(attacker, …)` (`damage_calc.py:114,126`): a
    defender's Thick Fat never applies, and an attacker's halves its own Fire/Ice moves. [pp]: defender's
-   ability, halves base power. Needed by Batch 4.
+   ability, halves base power. Needed by Batch 4. **FIXED in Batch 4.**
 2. **The base damage formula uses float division.** `damage_calc.py:446` (also 471, 510): `2*level/5` isn't
    floored; [pp] and [SD] floor it (level 12 gives ×6.8 instead of ×6). Affects every hit. Batch 1 and 4
    tests will run into it. **FIXED in Batch 1** (all 4 copies, incl. `struggle`).
@@ -177,6 +188,7 @@
     after. Minor rounding.
 15. Existing base-power order differs slightly from [pp]: Sport runs after Blaze/Iron Fist (`calculate_damage`);
     [pp] runs Sport before the pinch abilities and Iron Fist last. New modifiers follow [pp] order.
+    **FIXED in Batch 4.**
 16. Out of scope, FYI: `pokemon.py:112` (`getattr(Status, self, …)`) raises when a Pokemon is built with a
     status; recharge (`CHARGE_RECHARGE = -1`) is never handled (Hyper Beam is deferred anyway).
 17. FYI for settled decisions and known gaps: [pp] Gravity accuracy is `hitRate * 10 / 6`
@@ -273,7 +285,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 - Golden: weather_charge has Rock Head but no recoil move, so no change expected.
 - TODO ticks: Rock Head, Sturdy.
 
-## Batch 4 — Damage abilities
+## Batch 4 — Damage abilities — DONE (Normalize and Slow Start moved out, see Decisions)
 
 | Ability                          | Gen IV effect                                                                                 | Hook                                                             |
 | -------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -399,7 +411,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | Quick Feet                        | ×15/10 while statused, replaces the paralysis ¼                                                                                                                        | `check_speed`                                        |
 | Unburden                          | ×2 when `VOL2 CAN_UNBURDEN` is set and it holds no item; set in `switch_in` for an Unburden holder with an item, and when Trace copies Unburden while holding one [pp] | `check_speed` + `switch_in`                          |
-| Slow Start, speed part (deferred) | /2 for its first 5 turns                                                                                                                                               | `check_speed`                                        |
+| Slow Start (deferred)             | Speed /2 and Attack /2 for its first 5 turns (stat part moved here from Batch 4)                                                                                       | `check_speed` + `ab_modify_stat`, `TURNS_ACTIVE`     |
 | Quick Claw                        | 20%: goes first within its priority bracket, one roll per holder per turn; both holders → speed [pp BattleSystem_CompareBattlerSpeed]                                  | `move_order`, between priority and the speed compare |
 | Stall (deferred)                  | Last within its bracket                                                                                                                                                | Same                                                 |
 | Truant (deferred)                 | Loafs every other turn ([pp Battler_CheckTruant] uses turn parity) → `TURNS_ACTIVE` parity, no new state                                                               | `early_returns`, after freeze                        |
@@ -525,7 +537,17 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   Hustle's `not move[_MOVE_OH_KO]` in `ab_on_try_move` (the OHKO branch returns before both matter).
 - OHKO: outdated TODO comments (left in place): "OHKO Moves" in the Basic (`trainer_ai_helper.py:916`) and Expert
   (`:2014`) TODO docstrings. CLAUDE.md's known gap "OHKO moves skip the semi-invulnerability check" is fixed.
-
+- Batch 4: a defending Simple doesn't check Mold Breaker (`def_is_simple` in `raw_atk_def` and `struggle`); [pp]
+  doubles the defender's stages only through `Battler_IgnorableAbility(SIMPLE)`.
+- Batch 4: Reckless still runs last in `base_power_ability`. It isn't in [pp] `CalcMoveDamage` and wasn't found in
+  `battle_lib.c` / `battle_script.c`; if it's applied through the move's `powerMul` (the first step of
+  `CalcMoveDamage`), it belongs before Charge and the items. Rounding only.
+- Batch 4: `struggle()` has no weather argument, so the holder's Flower Gift Attack boost in sun doesn't reach
+  Struggle ([pp] runs Struggle through `CalcMoveDamage`).
+- Batch 4: [pp] CALC_SELF_HIT runs the confusion hit through `CalcMoveDamage` with attacker == defender, where
+  Unaware would zero its own stages; `calculate_damage_confusion` leaves Unaware out (your call, Batch 4).
+- Batch 4: like Expert Belt, [pp] Filter / Solid Rock also need the move's data power to be non-zero; the engine
+  checks the effectiveness only (same result for every MoveDB move, see the Batch 1 note).
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

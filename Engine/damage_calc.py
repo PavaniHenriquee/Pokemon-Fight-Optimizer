@@ -15,7 +15,7 @@ from Models.constants import (
     _POK_TYPE2, _POK_AB_WHEN, _ABILITYACTIVATION_ON_MODIFY_STAT, _POK_CURRENT_HP,
     _POK_MAX_HP, _MOVE_TYPE, _TYPES_FIRE, _TYPES_WATER, _TYPES_GRASS, _ABILITYNAMES_IRON_FIST,
     _FLAGS_PUNCH, _STATUS_BURN, _WEATHER_SUN, _WEATHER_RAIN, _MOVE_POWER,
-    _ABILITYACTIVATION_ON_BASE_POWER, _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
+    _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
     _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE, _ABILITYNAMES_SOLAR_POWER,
     _ABILITYNAMES_THICK_FAT, _TYPES_ICE, _ABILITYNAMES_TINTED_LENS, _MOVE_ID, _MOVENAME_FLAIL,
     _MOVENAME_LOW_KICK, _MOVENAME_MAGNITUDE, _MOVENAME_FURY_CUTTER, _MOVENAME_ROLLOUT,
@@ -29,15 +29,22 @@ from Models.constants import (
     _POK_SEMI_INV_MOVE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _POK_ID, _ITEM_HOLD_EFFECT,
     _ITEM_EFFECT_PARAM, _ITEM_EFFECT_TYPE, _HOLDEFFECT_TYPE_BOOST, _HOLDEFFECT_PIKA_SPATK_UP,
     _HOLDEFFECT_POWER_UP_PHYS, _HOLDEFFECT_POWER_UP_SE, _HOLDEFFECT_CUBONE_ATK_UP,
-    _MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT,
+    _MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT, _ABILITYNAMES_SWARM, _TYPES_BUG,
+    _ABILITYNAMES_TECHNICIAN, _MOVENAME_STRUGGLE, _ABILITYNAMES_RIVALRY, _POK_GENDER,
+    _GENDER_GENDERLESS, _ABILITYNAMES_HEATPROOF, _ABILITYNAMES_DRY_SKIN, _ABILITYNAMES_FILTER,
+    _ABILITYNAMES_SOLID_ROCK, _ABILITYNAMES_SNIPER, _ABILITYNAMES_UNAWARE, _ABILITYNAMES_PURE_POWER,
+    _ABILITYNAMES_MARVEL_SCALE, _ABILITYNAMES_FLOWER_GIFT,
 )
+from Engine.ability_helper import ignorable_ability
 
 # ==========================================
 # 1. CONSTANTS & LOOKUPS
 # ==========================================
 MULTIPLIERS = (85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100)
-STARTER_AB = (_ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW)
+STARTER_AB = (_ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW, _ABILITYNAMES_SWARM)
 THICK_F_TYPES = (_TYPES_FIRE, _TYPES_ICE)
+DOUBLE_ATK_AB = (_ABILITYNAMES_HUGE_POWER, _ABILITYNAMES_PURE_POWER)
+FILTER_AB = (_ABILITYNAMES_FILTER, _ABILITYNAMES_SOLID_ROCK)
 STAGES_TABLE = (
     (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), # -6 to -1
     (2, 2),                                         # 0
@@ -124,17 +131,47 @@ def ab_modify_stat(attacker, atk, physical, move, weather):
     if physical:
         if atk_ab == _ABILITYNAMES_GUTS and attacker[_POK_STATUS] != 0:
             atk = (atk * 3) // 2
-        elif atk_ab == _ABILITYNAMES_HUGE_POWER:
+        elif atk_ab in DOUBLE_ATK_AB:
             atk *= 2
         elif atk_ab == _ABILITYNAMES_HUSTLE and not move[_MOVE_OH_KO]:
+            atk = (atk * 3) // 2
+        elif atk_ab == _ABILITYNAMES_FLOWER_GIFT and weather == _WEATHER_SUN:
             atk = (atk * 3) // 2
     else:
         if atk_ab == _ABILITYNAMES_SOLAR_POWER and weather == _WEATHER_SUN:
             atk = (atk * 3) // 2
 
-    if atk_ab == _ABILITYNAMES_THICK_FAT and move[_MOVE_TYPE] in THICK_F_TYPES:
-        atk //= 2
     return atk
+
+
+@njit
+def ab_modify_def(attacker, defender, defense, physical, weather):
+    """
+    Defender abilities on its raw Defense / Sp. Def: Marvel Scale while statused, Flower Gift in sun
+    (pokeplatinum BattleSystem_CalcMoveDamage). Mold Breaker ignores both
+    """
+    def_ab = defender[_POK_AB_ID]
+    if not ignorable_ability(defender, attacker):
+        return defense
+    if physical:
+        if def_ab == _ABILITYNAMES_MARVEL_SCALE and defender[_POK_STATUS] != 0:
+            return defense * 15 // 10
+    elif def_ab == _ABILITYNAMES_FLOWER_GIFT and weather == _WEATHER_SUN:
+        return defense * 15 // 10
+    return defense
+
+
+@njit
+def unaware_stages(attacker, defender, atk_stage, def_stage):
+    """
+    Unaware ignores the foe's stages: the defender's Def / Sp. Def when attacking, the attacker's
+    Atk / Sp. Atk when defending (Mold Breaker ignores that side)
+    """
+    if attacker[_POK_AB_ID] == _ABILITYNAMES_UNAWARE:
+        def_stage = 0
+    if defender[_POK_AB_ID] == _ABILITYNAMES_UNAWARE and ignorable_ability(defender, attacker):
+        atk_stage = 0
+    return atk_stage, def_stage
 
 
 @njit
@@ -164,15 +201,15 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
             )
         ):
             raw_defense = (raw_defense * 3) // 2
+    atk_stage, def_stage = unaware_stages(attacker, defender, atk_stage, def_stage)
     if crit:
         def_stage = min(def_stage, 0)
         atk_stage = max(atk_stage, 0)
 
-    if (
-        attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_MODIFY_STAT
-        or defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_MODIFY_STAT
-    ):
+    if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_MODIFY_STAT:
         raw_attack = ab_modify_stat(attacker, raw_attack, physical, move, weather)
+    if defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_MODIFY_STAT:
+        raw_defense = ab_modify_def(attacker, defender, raw_defense, physical, weather)
 
     attack = apply_stat_stage(raw_attack, atk_stage, atk_is_simple)
     defense = apply_stat_stage(raw_defense, def_stage, def_is_simple)
@@ -184,31 +221,71 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
 
 
 @njit
-def base_power_ability(attacker, move) -> float:
+def technician_power(attacker, move, power):
+    """Technician: power 60 or less x15/10, after Charge and before items, never Struggle"""
+    if (
+        attacker[_POK_AB_ID] == _ABILITYNAMES_TECHNICIAN
+        and move[_MOVE_ID] != _MOVENAME_STRUGGLE
+        and power <= 60
+    ):
+        return power * 15 // 10
+    return power
+
+
+@njit
+def rivalry_power(attacker, defender, power):
+    """Rivalry: same gender x125/100, opposite x75/100, nothing if either is genderless"""
+    if attacker[_POK_AB_ID] != _ABILITYNAMES_RIVALRY:
+        return power
+    atk_gender = attacker[_POK_GENDER]
+    def_gender = defender[_POK_GENDER]
+    if atk_gender == _GENDER_GENDERLESS or def_gender == _GENDER_GENDERLESS:
+        return power
+    if atk_gender == def_gender:
+        return power * 125 // 100
+    return power * 75 // 100
+
+
+@njit
+def base_power_ability(attacker, defender, move, power):
     """
-    Calculate what the ability does in relation to power
-    Returns:
-        0 if nothing happens\n
-        multiplier based on 4096 if it does something, like Blaze
+    Ability and Sport power modifiers after the held item, in pokeplatinum BattleSystem_CalcMoveDamage
+    order: Thick Fat, Sport, pinch abilities, Heatproof, Dry Skin, Rivalry, Iron Fist. Reckless
+    stays last. Defender abilities are ignored by Mold Breaker
     """
     att_ab = attacker[_POK_AB_ID]
+    m_type = move[_MOVE_TYPE]
+    def_ab = defender[_POK_AB_ID] if ignorable_ability(defender, attacker) else 0
 
-    # Starter Abilities
+    if def_ab == _ABILITYNAMES_THICK_FAT and m_type in THICK_F_TYPES:
+        power //= 2
+
+    power = sport_power(attacker, defender, move, power)
+
+    # Pinch abilities
     if (
         att_ab in STARTER_AB
         and attacker[_POK_CURRENT_HP] / attacker[_POK_MAX_HP] <= 1 / 3
+        and (
+            (att_ab == _ABILITYNAMES_BLAZE and m_type == _TYPES_FIRE)
+            or (att_ab == _ABILITYNAMES_TORRENT and m_type == _TYPES_WATER)
+            or (att_ab == _ABILITYNAMES_OVERGROW and m_type == _TYPES_GRASS)
+            or (att_ab == _ABILITYNAMES_SWARM and m_type == _TYPES_BUG)
+        )
     ):
-        if att_ab == _ABILITYNAMES_BLAZE and move[_MOVE_TYPE] == _TYPES_FIRE:
-            return 6144  # 1.5
-        if att_ab == _ABILITYNAMES_TORRENT and move[_MOVE_TYPE] == _TYPES_WATER:
-            return 6144  # 1.5
-        if att_ab == _ABILITYNAMES_OVERGROW and move[_MOVE_TYPE] == _TYPES_GRASS:
-            return 6144  # 1.5
-        return 0
+        power = power * 15 // 10
+
+    if m_type == _TYPES_FIRE:
+        if def_ab == _ABILITYNAMES_HEATPROOF:
+            power //= 2
+        elif def_ab == _ABILITYNAMES_DRY_SKIN:
+            power = power * 125 // 100
+
+    power = rivalry_power(attacker, defender, power)
 
     # Iron Fist
     if att_ab == _ABILITYNAMES_IRON_FIST and move[_FLAGS_PUNCH]:
-        return 4916  # Same floor as Gen IV power*12//10 for any power < 1024
+        power = power * 12 // 10
 
     # Reckless
     if (
@@ -218,9 +295,9 @@ def base_power_ability(attacker, move) -> float:
             or move[_MOVE_HAS_CRASH_DAMAGE]
         )
     ):
-        return 4916  # Same floor as Gen IV power*12//10 for any power < 1024
+        power = power * 12 // 10
 
-    return 0
+    return power
 
 
 @njit
@@ -248,6 +325,27 @@ def item_attack(attacker, attack):
     ):
         return attack * 2
     return attack
+
+
+@njit
+def crit_multiplier(attacker):
+    """A crit doubles the damage, Sniper triples it (pokeplatinum BattleSystem_CalcCriticalMulti)"""
+    return 3 if attacker[_POK_AB_ID] == _ABILITYNAMES_SNIPER else 2
+
+
+@njit
+def filter_damage(attacker, defender, effectiveness, effectiveness2, damage):
+    """
+    Filter and Solid Rock cut a super effective hit to 3/4, at least 1, before Expert Belt
+    (pokeplatinum BattleSystem_ApplyTypeChart). Mold Breaker ignores them
+    """
+    if (
+        effectiveness * effectiveness2 > 4
+        and defender[_POK_AB_ID] in FILTER_AB
+        and ignorable_ability(defender, attacker)
+    ):
+        return max(1, damage * 3 // 4)
+    return damage
 
 
 @njit
@@ -318,7 +416,7 @@ def multipliers(
 
     # Crit
     if crit:
-        damage *= 2
+        damage *= crit_multiplier(attacker)
 
     # TODO: Item
 
@@ -331,7 +429,10 @@ def multipliers(
 
     # STAB
     if m_type == atk_type1 or m_type == atk_type2:  # pylint: disable=R1714
-        damage = (damage*3) // 2
+        if attacker[_POK_AB_ID] == _ABILITYNAMES_ADAPTABILITY:
+            damage *= 2
+        else:
+            damage = (damage*3) // 2
 
     # Effectiveness type 1
     effectiveness, _ = get_type_effectiveness(m_type, def_type1, 0)
@@ -345,7 +446,7 @@ def multipliers(
         if effectiveness2 != 2:
             damage = (effectiveness2 * damage)//2
 
-    # TODO: Solid Rock and Filter
+    damage = filter_damage(attacker, defender, effectiveness, effectiveness2, damage)
 
     # TODO: Expert belt
     damage = expert_belt(attacker, effectiveness, effectiveness2, damage)
@@ -480,14 +581,9 @@ def calculate_damage(
     attack, defense = raw_atk_def(move, attacker, defender, weather, crit)
 
     power = charge_power(attacker, move, variable_power(attacker, defender, move, weather))
+    power = technician_power(attacker, move, power)
     power = item_power(attacker, move[_MOVE_TYPE], move[_MOVE_CATEGORY], power)
-
-    # Ability
-    if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
-        base_power_mult = base_power_ability(attacker, move)
-        if base_power_mult:
-            power = base_power_mult*power // 4096
-    power = sport_power(attacker, defender, move, power)
+    power = base_power_ability(attacker, defender, move, power)
 
     level = attacker[_POK_LEVEL]
 
@@ -511,7 +607,7 @@ def calculate_damage_confusion(pok):
     pok_ab = pok[_POK_AB_ID]
     if pok_ab == _ABILITYNAMES_GUTS and pok[_POK_STATUS] != 0:
         attack = (attack*3)//2
-    elif pok_ab == _ABILITYNAMES_HUGE_POWER:
+    elif pok_ab in DOUBLE_ATK_AB:
         attack *= 2
     elif pok_ab == _ABILITYNAMES_HUSTLE:
         attack = (attack*3)//2
@@ -523,6 +619,8 @@ def calculate_damage_confusion(pok):
         power = power * (100 + pok[_ITEM_EFFECT_PARAM]) // 100
     elif effect == _HOLDEFFECT_PIKA_SPATK_UP and pok[_POK_ID] == PIKACHU:
         power *= 2
+    # It hits itself, so a gendered Rivalry user always gets the same-gender boost
+    power = rivalry_power(pok, pok, power)
 
     # Base damage formula
     damage = attack * power * (pok[_POK_LEVEL] * 2 // 5 + 2) // defense // 50
@@ -536,8 +634,6 @@ def calculate_damage_confusion(pok):
     #TODO: Silk Scarf
     #TODO: Choice Band, Thick Club
     #TODO: Power Trick, Power Split, Guard Split
-    #TODO: Rivalry
-    #TODO: Pure Power
 
     return damage
 
@@ -556,12 +652,9 @@ def calculate_ai_logic_damage(
 
     # Ability
     power = charge_power(attacker, move, move[_MOVE_POWER])
+    power = technician_power(attacker, move, power)
     power = item_power(attacker, move[_MOVE_TYPE], move[_MOVE_CATEGORY], power)
-    if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_BASE_POWER:
-        base_power_mult = base_power_ability(attacker, move)
-        if base_power_mult:
-            power = base_power_mult*power//4096
-    power = sport_power(attacker, defender, move, power)
+    power = base_power_ability(attacker, defender, move, power)
 
     level = attacker[_POK_LEVEL]
 
@@ -618,7 +711,7 @@ def calculate_ai_logic_damage(
         effectiveness2, _ = get_type_effectiveness(m_type, def_type2, 0)
         damage = (effectiveness2 * damage) // 2
 
-    # TODO: Solid Rock and Filter, Expert belt
+    damage = filter_damage(attacker, defender, effectiveness1, effectiveness2, damage)
     damage = expert_belt(attacker, effectiveness1, effectiveness2, damage)
 
     if (

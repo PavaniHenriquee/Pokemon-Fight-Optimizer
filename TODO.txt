@@ -1,5 +1,5 @@
 # Abilities
-[]Adaptability *
+[X]Adaptability *
 [X]Aftermath
 []Anticipation *
 []Arena Trap *
@@ -11,7 +11,7 @@
 []Cute Charm *
 [X]Damp
 []Early Bird *
-[]Filter *
+[X]Filter *
 []Flame Body *
 []Flash Fire *
 []Forewarn *
@@ -37,7 +37,7 @@
 []Quick Feet *
 [X]Rain Dish
 [X]Reckless
-[]Rivalry *
+[X]Rivalry *
 [X]Rock Head
 [X]Sand Veil
 []Scrappy *
@@ -47,7 +47,7 @@
 []Shell Armor *
 []Shield Dust *
 [X]Simple
-[]Sniper *
+[X]Sniper *
 [X]Solar Power
 [X]Soundproof
 [X]Speed Boost
@@ -57,15 +57,15 @@
 [X]Sturdy
 [X]Suction Cups (Need to implement force switches moves)
 []Super Luck *
-[]Swarm *
+[X]Swarm *
 [X]Swift Swim
 [X]Synchronize
 []Tangled Feet *
-[]Technician *
+[X]Technician *
 [X]Thick Fat
 [X]Tinted Lens
 []Trace *
-[]Unaware *
+[X]Unaware *
 []Unburden (Need to implement usable held items)
 [X]Vital Spirit *
 [X]Water Absorb
@@ -81,7 +81,7 @@
 []Drought *
 []Dry Skin *
 []Effect Spore *
-[]Flower Gift *
+[X]Flower Gift *
 []Forecast *
 []Frisk *
 []Heatproof *
@@ -92,7 +92,7 @@
 []Liquid Ooze *
 []Magma Armor *
 []Magnet Pull *
-[]Marvel Scale *
+[X]Marvel Scale *
 []Minus *
 []Motor Drive *
 []Multitype *
@@ -101,14 +101,14 @@
 []Plus *
 []Poison Heal *
 []Pressure *
-[]Pure Power *
+[X]Pure Power *
 []Rough Skin *
 []Sand Stream *
 []Skill Link *
 []Slow Start *
 []Snow Cloak *
 []Snow Warning *
-[]Solid Rock *
+[X]Solid Rock *
 []Stall *
 []Stench *
 []Sticky Hold *

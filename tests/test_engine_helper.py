@@ -11,8 +11,9 @@ from Engine.engine_helper import (
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
-    is_grounded, ignorable_ability, ohko_fails,
+    is_grounded, ohko_fails,
 )
+from Engine.ability_helper import ignorable_ability
 from Models.ability import ABILITY_TABLE
 from Models.item import ITEM_TABLE
 from DataBase.AbilitiesDB import AbilityNames
