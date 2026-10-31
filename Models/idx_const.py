@@ -56,7 +56,8 @@ class Pok:
     CONSUMED_ITEM             = LAST_MOVE_ID + 1
     BASE_AB_ID                = CONSUMED_ITEM + 1
     ITEM_KNOCKED_OFF          = BASE_AB_ID + 1
-    CALLED_MOVE               = ITEM_KNOCKED_OFF + 1
+    AB_KNOWN                  = ITEM_KNOCKED_OFF + 1
+    CALLED_MOVE               = AB_KNOWN + 1
     MIRROR_MOVE               = CALLED_MOVE + 1
     SEMI_INV_MOVE             = MIRROR_MOVE + 1
     VOL_STATUS2               = SEMI_INV_MOVE + 1

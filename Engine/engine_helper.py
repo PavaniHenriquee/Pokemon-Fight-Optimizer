@@ -6,14 +6,15 @@ from Utils.helper import get_type_effectiveness
 from Engine.speed import check_speed
 from Engine.status_calc import  freeze, paralysis, sleep_blocked, SLOT_MASK
 from Engine.status_calc import (
-    apply_status, infatuate, cure_status, ability_blocks_status, ability_forbids_status
+    apply_status, infatuate, cure_status, ability_blocks_status, ability_forbids_status,
+    stat_drop_blocked
 )
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
     item_power, item_attack, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
     AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB, is_scrappy
 )
-from Engine.ability_helper import ignorable_ability, levitates
+from Engine.ability_helper import ignorable_ability, levitates, reveal_ability
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, Target
 from Models.item import ITEM_TABLE
@@ -78,7 +79,9 @@ from Models.constants import (
     _ABILITYNAMES_SHED_SKIN, _POK_VOL_STATUS2, _VOLSTATUS2_FLASH_FIRE,
     _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE, _ABILITYNAMES_DRY_SKIN,
     _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_WONDER_GUARD, _TYPES_ELECTRIC, _MOVENAME_FIRE_FANG,
-    _MOVENAME_WILL_O_WISP,
+    _MOVENAME_WILL_O_WISP, _MOVE_PP, _POK_SPECIAL_DEFENSE, _POK_SPECIAL_DEFENSE_STAT_STAGE,
+    _ABILITYNAMES_TRACE, _ABILITYNAMES_DOWNLOAD, _ABILITYNAMES_PRESSURE, _ABILITYNAMES_FORECAST,
+    _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _POK_AB_KNOWN,
 )
 
 
@@ -106,6 +109,8 @@ HEAL_QUARTER_WEATHER = (_WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL)
 # Refresh cures these, not sleep or freeze
 REFRESH_CURES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 WORRY_SEED_FAILS = (_ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE)
+# pokeplatinum ChooseTraceTarget
+TRACE_FAILS = (_ABILITYNAMES_TRACE, _ABILITYNAMES_MULTITYPE, _ABILITYNAMES_FORECAST)
 PERISH_SONG_TURNS = 3
 # Moves that call another move
 CALLER_MOVES = (_MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER)
@@ -448,17 +453,13 @@ def ab_on_try_move(move, attacker, defender, accuracy:int):
     def_ab = defender[_POK_AB_ID]
     target = move[_MOVE_TARGET]
     if move[_MOVE_ID] in DAMP_IGNORES and damp_blocks(attacker, defender):
+        # The message names whoever holds Damp (pokeplatinum effect_script_0007, ABILITY_MON)
+        reveal_ability(attacker if atk_ab == _ABILITYNAMES_DAMP else defender)
         return 0
-    if (
-        move[_FLAGS_SOUND]
-        and (
-            (def_ab == _ABILITYNAMES_SOUNDPROOF and ignorable_ability(defender, attacker))
-            or (
-                atk_ab == _ABILITYNAMES_SOUNDPROOF
-                and target in TARGET_SELF_SIDE
-            )
-        )
-    ):
+    if move[_FLAGS_SOUND] and def_ab == _ABILITYNAMES_SOUNDPROOF and ignorable_ability(defender, attacker):
+        reveal_ability(defender)
+        return 0
+    if move[_FLAGS_SOUND] and atk_ab == _ABILITYNAMES_SOUNDPROOF and target in TARGET_SELF_SIDE:
         return 0
 
     return accuracy
@@ -613,6 +614,7 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
     '''
     outcome = _hit_outcome(move, attacker, defender, weather, gravity)
     if outcome == _MOVEOUTCOME_HIT and absorb_move(move, attacker, defender, gravity):
+        reveal_ability(defender)
         return _MOVEOUTCOME_INVULNERABLE
     return outcome
 
@@ -640,6 +642,7 @@ def _hit_outcome(move, attacker, defender, weather, gravity=False):
         and defender[_POK_AB_ID] == _ABILITYNAMES_STURDY
         and ignorable_ability(defender, attacker)
     ):
+        reveal_ability(defender)
         return _MOVEOUTCOME_INVULNERABLE
     if move[_MOVE_ID] == _MOVENAME_FAKE_OUT and attacker[_POK_TURNS_ACTIVE] > 1:
         return _MOVEOUTCOME_MISS
@@ -658,6 +661,7 @@ def _hit_outcome(move, attacker, defender, weather, gravity=False):
         if eff == 0:
             return _MOVEOUTCOME_INVULNERABLE
         if move[_MOVE_TYPE] == _TYPES_GROUND and levitates(defender, attacker, gravity):
+            reveal_ability(defender)
             return _MOVEOUTCOME_INVULNERABLE
 
     # OHKO moves hit on accuracy + the level difference out of 100 and always fail from a lower
@@ -763,6 +767,7 @@ def reset_switch_out(pok):
     pok[_POK_MIRROR_MOVE] = 0
     pok[_POK_SEMI_INV_MOVE] = 0
     pok[_POK_VOL_STATUS2] = 0
+    pok[_POK_AB_KNOWN] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
     if pok[_POK_BASE_AB_ID]:
         pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[pok[_POK_BASE_AB_ID]]
@@ -773,6 +778,22 @@ def reset_switch_out(pok):
 def side_base(is_mine):
     """Field.SIDE_COND of my side or the opponent's, the per-side slots follow it"""
     return _FIELD_MY_SIDE_COND if is_mine else _FIELD_OPP_SIDE_COND
+
+
+@njit
+def pressure_pp(mv, defender):
+    """
+    After the move's PP is taken: one more while the defender is an alive Pressure holder, unless
+    the move aims at the user's side (pokeplatinum BattleControllerPlayer_DecrementPP). Metronome,
+    Mirror Move and Copycat target the user, so they don't pay it
+    """
+    if (
+        mv[_MOVE_PP] > 0
+        and defender[_POK_CURRENT_HP] > 0
+        and defender[_POK_AB_ID] == _ABILITYNAMES_PRESSURE
+        and mv[_MOVE_TARGET] not in TARGET_SELF_SIDE
+    ):
+        mv[_MOVE_PP] -= 1
 
 
 @njit
@@ -802,9 +823,12 @@ def _toxic_spikes(pok, battle_array, side, weather):
         pok[_POK_STATUS] != 0
         or pok[_POK_TYPE1] == _TYPES_STEEL
         or pok[_POK_TYPE2] == _TYPES_STEEL
-        or ability_blocks_status(pok, pok, _STATUS_POISON, weather)
-        or battle_array[side] & _SIDECONDITION_SAFEGUARD
     ):
+        return
+    if ability_blocks_status(pok, pok, _STATUS_POISON, weather):
+        reveal_ability(pok)
+        return
+    if battle_array[side] & _SIDECONDITION_SAFEGUARD:
         return
     if battle_array[side + SIDE_TOXIC_SPIKES] >= 2:
         pok[_POK_STATUS] = _STATUS_TOXIC
@@ -844,10 +868,97 @@ def apply_hazards(pok, battle_array, side):
 
 
 @njit
-def switch_in(attacker, defender, battle_array, is_mine):
+def trace(pok, foe):
+    """
+    Trace copies the foe's ability until pok switches out (Worry Seed's mechanism). It fails on a
+    fainted foe and on Trace, Multitype and Forecast, then tries again when the next foe comes in
+    (pokeplatinum ChooseTraceTarget, traceAnnounced stays FALSE). Returns True if it copied
+    """
+    if (
+        pok[_POK_AB_ID] != _ABILITYNAMES_TRACE
+        or pok[_POK_CURRENT_HP] <= 0
+        or foe[_POK_CURRENT_HP] <= 0
+        or foe[_POK_AB_ID] in TRACE_FAILS
+    ):
+        return False
+    if pok[_POK_BASE_AB_ID] == 0:
+        pok[_POK_BASE_AB_ID] = pok[_POK_AB_ID]
+    pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[foe[_POK_AB_ID]]
+    return True
+
+
+@njit
+def intimidate(foe, source, foe_side):
+    """Intimidate lowers the foe's Attack by one unless it fainted, Mist covers its side (foe_side
+    is its Field.SIDE_COND) or its ability blocks the drop (pokeplatinum subscript_intimidate)"""
+    if (
+        foe[_POK_CURRENT_HP] > 0
+        and not foe_side & _SIDECONDITION_MIST
+        and not stat_drop_blocked(foe, source, _POK_ATTACK_STAT_STAGE)
+    ):
+        foe[_POK_ATTACK_STAT_STAGE] = max(-6, foe[_POK_ATTACK_STAT_STAGE] - 1)
+
+
+@njit
+def download(pok, foe):
+    """Download: +1 Sp. Atk if the foe's Defense is at least its Sp. Def (both with their stages),
+    otherwise +1 Attack, nothing against a fainted foe (pokeplatinum
+    SWITCH_IN_CHECK_STATE_DOWNLOAD)"""
+    if foe[_POK_CURRENT_HP] <= 0:
+        return
+    defense = apply_stat_stage(foe[_POK_DEFENSE], foe[_POK_DEFENSE_STAT_STAGE], False)
+    sp_def = apply_stat_stage(
+        foe[_POK_SPECIAL_DEFENSE], foe[_POK_SPECIAL_DEFENSE_STAT_STAGE], False
+    )
+    if defense >= sp_def:
+        pok[_POK_SPECIAL_ATTACK_STAT_STAGE] = min(6, pok[_POK_SPECIAL_ATTACK_STAT_STAGE] + 1)
+    else:
+        pok[_POK_ATTACK_STAT_STAGE] = min(6, pok[_POK_ATTACK_STAT_STAGE] + 1)
+
+
+@njit
+def switch_in_ability(pok, foe, battle_array, is_mine):
+    """
+    pok's own switch-in abilities, in pokeplatinum's order after Trace: Intimidate, Download, then
+    Mold Breaker and Pressure, whose messages tell the AI my ability (BattleMessage_AbilityTag).
+    is_mine: pok is on my side
+    """
+    if not pok[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
+        return
+    ability = pok[_POK_AB_ID]
+    if ability == _ABILITYNAMES_INTIMIDATE:
+        intimidate(foe, pok, battle_array[side_base(not is_mine)])
+    elif ability == _ABILITYNAMES_DOWNLOAD:
+        download(pok, foe)
+    elif ability == _ABILITYNAMES_MOLD_BREAKER or ability == _ABILITYNAMES_PRESSURE:
+        reveal_ability(pok)
+
+
+@njit
+def recover_status_by_ability(pok):
+    """
+    Cures a status, confusion or Attract that pok's current ability forbids, reachable through
+    Trace or a Mold Breaker foe (pokeplatinum BattleSystem_RecoverStatusByAbility, run for every
+    active on switch-in)
+    """
+    if pok[_POK_CURRENT_HP] <= 0:
+        return
+    ability = pok[_POK_AB_ID]
+    if pok[_POK_STATUS] and ability_forbids_status(ability, pok[_POK_STATUS]):
+        cure_status(pok)
+    elif ability == _ABILITYNAMES_OWN_TEMPO:
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_CONFUSION
+    elif ability == _ABILITYNAMES_OBLIVIOUS:
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_ATTRACT
+
+
+@njit
+def switch_in(attacker, defender, battle_array, is_mine, foe_entering=False):
     """
     What happens when a pokemon switches in so, abilities, hazards.
     is_mine: attacker is coming into my side
+    foe_entering: the defender comes in at the same time and runs its own switch_in right after
+    (start of battle, both replacing a fainted Pokemon), so its Trace doesn't try again here
     """
     # The foe's infatuation was with the Pokemon that just left
     defender[_POK_VOL_STATUS] &= ~_VOLSTATUS_ATTRACT
@@ -861,14 +972,20 @@ def switch_in(attacker, defender, battle_array, is_mine):
     apply_hazards(attacker, battle_array, side_base(is_mine))
     if attacker[_POK_CURRENT_HP] <= 0:
         return
-    if attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
-        ability = attacker[_POK_AB_ID]
-        # Mist on the foe's side blocks it like any stat drop from the other side
-        if (
-            ability == _ABILITYNAMES_INTIMIDATE
-            and not battle_array[side_base(not is_mine)] & _SIDECONDITION_MIST
-        ):
-            defender[_POK_ATTACK_STAT_STAGE] = max(-6, defender[_POK_ATTACK_STAT_STAGE] - 1)
+    # pokeplatinum runs Trace for every active before the other switch-in abilities, so a copied
+    # Intimidate or Download fires. A Trace already out that found nothing copies the newcomer
+    traced = trace(attacker, defender)
+    foe_traced = not foe_entering and trace(defender, attacker)
+    if traced or foe_traced:
+        # The Trace message names both abilities (pokeplatinum BattleMessage_AbilityTag)
+        reveal_ability(attacker)
+        reveal_ability(defender)
+    switch_in_ability(attacker, defender, battle_array, is_mine)
+    if foe_traced:
+        switch_in_ability(defender, attacker, battle_array, not is_mine)
+    # pokeplatinum SWITCH_IN_CHECK_STATE_FORBIDDEN_STATUS
+    recover_status_by_ability(attacker)
+    recover_status_by_ability(defender)
     # A status from the hazards (pokeplatinum SWITCH_IN_CHECK_STATE_HELD_ITEM_STATUS)
     status_item(attacker)
 
@@ -886,6 +1003,9 @@ def flinch_checker(move, attacker, defender, second=False):
         defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS
         or defender[_POK_AB_ID] == _ABILITYNAMES_SHIELD_DUST
     ):
+        # Only Fake Out prints Inner Focus's message (pokeplatinum subscript_flinch_mon)
+        if defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS and move[_MOVE_ID] == _MOVENAME_FAKE_OUT:
+            reveal_ability(defender)
         return False
     chance = move[_SEC_CHANCE2] if second else move[_SEC_CHANCE]
     if attacker[_POK_AB_ID] == _ABILITYNAMES_SERENE_GRACE:
@@ -958,12 +1078,14 @@ def on_hit_abilities(attacker, defender, move, dealt, weather):
             and atk_ab != _ABILITYNAMES_DAMP
         ):
             _contact_damage(attacker, max(1, attacker[_POK_MAX_HP] // 4))
+            reveal_ability(defender)
         return
     if dealt <= 0:
         return
     if def_ab == _ABILITYNAMES_ROUGH_SKIN:
         if atk_ab != _ABILITYNAMES_MAGIC_GUARD:
             _contact_damage(attacker, max(1, attacker[_POK_MAX_HP] // 8))
+            reveal_ability(defender)
         return
     if def_ab == _ABILITYNAMES_CUTE_CHARM:
         if (
@@ -972,6 +1094,8 @@ def on_hit_abilities(attacker, defender, move, dealt, weather):
             and random.randint(0, 9) < 3
         ):
             infatuate(attacker, defender)
+            if attacker[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT:
+                reveal_ability(defender)
         return
 
     if def_ab == _ABILITYNAMES_STATIC:
@@ -989,6 +1113,9 @@ def on_hit_abilities(attacker, defender, move, dealt, weather):
     if status == -1:
         status = EFFECT_SPORE_STATUSES[random.randint(0, 2)]
     apply_status(move, attacker, weather, defender, False, 0, status)
+    # "X's Static paralyzed Y!" only when the status lands (pokeplatinum, SIDE_EFFECT_TYPE_ABILITY)
+    if attacker[_POK_STATUS]:
+        reveal_ability(defender)
 
 
 # ── The turn-blocking gate ───────────────────────────────────────────────────────
@@ -1136,10 +1263,10 @@ def start_of_battle(array):
     if p1_speed == p2_speed:
         speed_tie = random.getrandbits(1)
     if p1_speed > p2_speed or speed_tie:
-        switch_in(current_pokemon, current_opp, array, True)
+        switch_in(current_pokemon, current_opp, array, True, True)
         switch_in(current_opp, current_pokemon, array, False)
     else:
-        switch_in(current_opp, current_pokemon, array, False)
+        switch_in(current_opp, current_pokemon, array, False, True)
         switch_in(current_pokemon, current_opp, array, True)
     current_pokemon[_POK_TURNS] = 1
     current_opp[_POK_TURNS] = 1
@@ -1162,6 +1289,8 @@ def heal_weather(self_, weather):
         hp_missing = max_hp - self_[_POK_CURRENT_HP]
         heal = min(heal,hp_missing)
         self_[_POK_CURRENT_HP] += heal
+        if heal:
+            reveal_ability(self_)
 
 
 @njit
@@ -1175,6 +1304,7 @@ def on_residual(pokemon, _switch_in):
     # Gen IV is 30% (pokeplatinum BattleSystem_TriggerTurnEndAbility)
     elif abi == _ABILITYNAMES_SHED_SKIN and pokemon[_POK_STATUS] and random.randint(0, 9) < 3:
         cure_status(pokemon)
+        reveal_ability(pokemon)
 
 
 @njit

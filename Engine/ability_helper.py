@@ -2,7 +2,7 @@
 from Utils.jit import njit
 from Models.constants import (
     _POK_AB_BREAKABLE, _POK_AB_ID, _ABILITYNAMES_MOLD_BREAKER, _ABILITYNAMES_LEVITATE,
-    _POK_VOL_STATUS, _VOLSTATUS_INGRAIN,
+    _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _POK_AB_KNOWN,
 )
 
 
@@ -27,3 +27,12 @@ def levitates(pok, attacker, gravity=False):
         and not pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN
         and ignorable_ability(pok, attacker)
     )
+
+
+@njit
+def reveal_ability(pok):
+    """
+    A battle message named pok's ability, so the foe's AI knows it until pok switches out
+    (pokeplatinum BattleMessage_AbilityTag on script messages; messages built in C teach nothing)
+    """
+    pok[_POK_AB_KNOWN] = 1

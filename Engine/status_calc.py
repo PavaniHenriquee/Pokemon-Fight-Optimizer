@@ -24,11 +24,12 @@ from Models.constants import (
     _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT,
     _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_TRI_ATTACK, _ABILITYNAMES_SERENE_GRACE,
     _ABILITYNAMES_SHIELD_DUST, _ABILITYNAMES_MAGMA_ARMOR, _ABILITYNAMES_LEAF_GUARD,
-    _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS,
+    _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _ABILITYNAMES_CLEAR_BODY,
+    _ABILITYNAMES_WHITE_SMOKE, _ABILITYNAMES_HYPER_CUTTER,
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from Models.move import CURSE_BOOST
-from Engine.ability_helper import ignorable_ability
+from Engine.ability_helper import ignorable_ability, reveal_ability
 
 # --- Global Tuples ---
 B_P_P = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
@@ -47,6 +48,8 @@ SLOT_MASK = 3
 # Gen IV Encore fails on these last moves (Transform, Mimic, Sketch aren't in MoveDB)
 ENCORE_FAIL_MOVES = (_MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE)
 SLEEP_AB_IM = (_ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT)
+# Block every stat drop the foe causes
+STAT_DROP_AB_IM = (_ABILITYNAMES_CLEAR_BODY, _ABILITYNAMES_WHITE_SMOKE)
 # Tri Attack's secondary picks one of these at random
 TRI_ATTACK_STATUSES = (_STATUS_BURN, _STATUS_PARALYSIS, _STATUS_FREEZE)
 
@@ -133,6 +136,7 @@ def synchronize_reflect(recipient, applied_status, source, weather=0):
     if ability_blocks_status(source, recipient, applied_status, weather):
         return
     source[_POK_STATUS] = applied_status
+    reveal_ability(recipient)
 
 
 @njit
@@ -171,15 +175,22 @@ def last_move_slot(pok):
 @njit
 def apply_status(move, pok, weather, source, sec=False, side=0, status=0):
     """Apply non-volatile status effects. side is pok's Field.SIDE_COND, Safeguard blocks it.
-    status, when set, is used instead of the move's"""
+    status, when set, is used instead of the move's: only an ability's status (Static and co.)
+    passes it without sec"""
+    m_status = status if status else (move[_SEC_STATUS] if sec else move[_MOVE_STATUS])
+    if m_status == 0:
+        return
+    # pokeplatinum's status subscripts check the ability first; a status move's message names it,
+    # a secondary effect or an ability's status stays silent
+    if ability_blocks_status(pok, source, m_status, weather):
+        if not sec and not status:
+            reveal_ability(pok)
+        return
+
     # Gen 4: Cannot apply a new status if one already exists
     if pok[_POK_STATUS] != 0:
         return
     if side & _SIDECONDITION_SAFEGUARD:
-        return
-
-    m_status = status if status else (move[_SEC_STATUS] if sec else move[_MOVE_STATUS])
-    if m_status == 0:
         return
 
     t1 = pok[_POK_TYPE1]
@@ -197,8 +208,6 @@ def apply_status(move, pok, weather, source, sec=False, side=0, status=0):
         return
     if m_status == _STATUS_SLEEP and sleep_blocked(pok, source):
         return
-    if ability_blocks_status(pok, source, m_status, weather):
-        return
 
     pok[_POK_STATUS] = m_status
 
@@ -212,9 +221,28 @@ def apply_status(move, pok, weather, source, sec=False, side=0, status=0):
 
 
 @njit
+def stat_drop_blocked(pok, source, stat_idx):
+    """
+    pok's ability keeps off a drop of stat_idx caused by the foe source: Clear Body and White Smoke
+    every stat, Hyper Cutter Attack, Keen Eye accuracy. A Mold Breaker source ignores them
+    (pokeplatinum BtlCmd_ChangeStatStage)
+    """
+    if not ignorable_ability(pok, source):
+        return False
+    ability = pok[_POK_AB_ID]
+    if ability in STAT_DROP_AB_IM:
+        return True
+    if ability == _ABILITYNAMES_HYPER_CUTTER:
+        return stat_idx == _POK_ATTACK_STAT_STAGE
+    if ability == _ABILITYNAMES_KEEN_EYE:
+        return stat_idx == _POK_ACCURACY_STAT_STAGE
+    return False
+
+
+@njit
 def stat_changes(move, attacker, defender, sec=False, def_side=0):
     """Check and apply stat changes. def_side is the defender's Field.SIDE_COND, Mist there
-    blocks the drops this move causes it"""
+    blocks the drops this move causes it, and so do the defender's stat_drop_blocked abilities"""
     stat_map = SECONDARY_STAT_MAPPING if sec else STAT_MAPPING
     has_stat_boost = False
 
@@ -234,19 +262,25 @@ def stat_changes(move, attacker, defender, sec=False, def_side=0):
     # 2. Assign target exactly once
     m_target = move[_SEC_TARGET] if sec else move[_MOVE_TARGET]
     target_pok = attacker if m_target in TARGET_SELF_SIDE else defender
-    misted = m_target not in TARGET_SELF_SIDE and (def_side & _SIDECONDITION_MIST) != 0
+    targets_foe = m_target not in TARGET_SELF_SIDE
+    misted = targets_foe and (def_side & _SIDECONDITION_MIST) != 0
 
     # 3. Apply stats safely to the evaluated target
     for move_idx, stat_idx in stat_map:
         boost = move[move_idx]
-        if boost != 0 and not (misted and boost < 0):
+        if boost != 0 and not (
+            boost < 0 and (misted or (targets_foe and stat_drop_blocked(defender, attacker, stat_idx)))
+        ):
             target_pok[stat_idx] = max(-6, min(6, target_pok[stat_idx] + boost))
 
     # Apply Accuracy (Requires Keen Eye exception for Opponent target)
     if acc_boost != 0:
         if misted and acc_boost < 0:
             pass  # Blocked
-        elif m_target in TARGET_OPP_SIDE and acc_boost < 0 and defender[_POK_AB_ID] == _ABILITYNAMES_KEEN_EYE:
+        elif (
+            targets_foe and acc_boost < 0
+            and stat_drop_blocked(defender, attacker, _POK_ACCURACY_STAT_STAGE)
+        ):
             pass  # Blocked
         else:
             target_pok[_POK_ACCURACY_STAT_STAGE] = (
@@ -278,10 +312,15 @@ def vol_status(move, pok, source, sec=False, side=0, weather=0):
     v_status = move[_SEC_VOL_STATUS] if sec else move[_MOVE_VOL_STATUS]
     safeguard = side & _SIDECONDITION_SAFEGUARD
 
+    own_tempo = pok[_POK_AB_ID] == _ABILITYNAMES_OWN_TEMPO and ignorable_ability(pok, source)
+    # A confusion or Attract move names the ability that stops it (pokeplatinum subscript_confuse,
+    # subscript_infatuate), a secondary effect doesn't
+    if v_status & _VOLSTATUS_CONFUSION and own_tempo and not sec:
+        reveal_ability(pok)
     if (
         v_status & _VOLSTATUS_CONFUSION
         and not safeguard
-        and not (pok[_POK_AB_ID] == _ABILITYNAMES_OWN_TEMPO and ignorable_ability(pok, source))
+        and not own_tempo
     ):
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
             pok[_POK_VOL_STATUS] += _VOLSTATUS_CONFUSION
@@ -314,14 +353,15 @@ def vol_status(move, pok, source, sec=False, side=0, weather=0):
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_LEECH_SEED
 
     if v_status & _VOLSTATUS_ATTRACT:
+        if pok[_POK_AB_ID] == _ABILITYNAMES_OBLIVIOUS and ignorable_ability(pok, source):
+            reveal_ability(pok)
         infatuate(pok, source)
 
-    # Fails on a target that already has a status or is already drowsy
-    if (
-        v_status & _VOLSTATUS_YAWN
-        and not safeguard
-        and not ability_blocks_status(pok, source, _STATUS_SLEEP, weather)
-    ):
+    # Fails on a target that already has a status or is already drowsy. pokeplatinum subscript_yawn
+    # checks the ability first and its message names it
+    if v_status & _VOLSTATUS_YAWN and ability_blocks_status(pok, source, _STATUS_SLEEP, weather):
+        reveal_ability(pok)
+    elif v_status & _VOLSTATUS_YAWN and not safeguard:
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN and pok[_POK_STATUS] == 0:
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_YAWN
             pok[_POK_YAWN_TURNS] = YAWN_DURATION

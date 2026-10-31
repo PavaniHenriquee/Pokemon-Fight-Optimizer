@@ -194,7 +194,7 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Waiting on the abilities pass: Limber / Immunity / Water Veil / Magma Armor status immunity,
   Oblivious vs Attract, Rock Head, Liquid Ooze, Drizzle / Sand Stream. Items pass: Light Clay,
   Smooth Rock, Damp Rock, Big Root, Shed Shell, Grip Claw. Not in MoveDB yet: Spikes damage,
-  Magnet Rise, Iron Ball, Rest, Snore, U-turn, Fly, Dive, Heal Block. No Pressure in the engine.
+  Magnet Rise, Iron Ball, Rest, Snore, U-turn, Fly, Dive, Heal Block.
 - Metronome can call moves whose mechanics aren't in yet; they run as their data says.
 - Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
 

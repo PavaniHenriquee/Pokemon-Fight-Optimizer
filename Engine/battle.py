@@ -12,12 +12,13 @@ from Engine.engine_helper import (
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
     try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
-    damp_blocks, status_item,
+    damp_blocks, status_item, pressure_pp,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
     ability_blocks_status, cure_status,
 )
+from Engine.ability_helper import reveal_ability
 from Engine.damage_calc import (
     calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES, EXPLODE_MOVES, is_scrappy
 )
@@ -61,7 +62,7 @@ from Models.constants import (
     _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _SIDECONDITION_LUCKY_CHANT,
     _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK, _SIDECONDITION_SPIKES,
     _MOVENAME_BRICK_BREAK, _MOVENAME_RAPID_SPIN, _MOVENAME_RAIN_DANCE, _MOVENAME_SANDSTORM,
-    _WEATHER_RAIN, _WEATHER_SANDSTORM, _MOVE_FORCE_SWITCH, _MOVE_SELF_SWITCH, _MOVE_POWER,
+    _WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_SUN, _MOVE_FORCE_SWITCH, _MOVE_SELF_SWITCH, _MOVE_POWER,
     _ABILITYNAMES_SUCTION_CUPS, _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_PURSUIT, _POK_CONFUSION_COUNTER,
     _POK_EVASION_STAT_STAGE, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _VOLSTATUS_HEAL_BLOCK,
     _BATTLEPHASE_BATON_PASS, _FIELD_PENDING_OPP_MOVE, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
@@ -179,6 +180,7 @@ def _force_switch(atk, defn, battle_array, target_is_mine):
     Pokemon from its bench. Returns True if it was dragged out
     """
     if defn[_POK_AB_ID] == _ABILITYNAMES_SUCTION_CUPS and atk[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER:
+        reveal_ability(defn)
         return False
     if defn[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN:
         return False
@@ -302,6 +304,8 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
     if mv[_MOVE_ID] != _MOVENAME_PURSUIT or mv[_MOVE_PP] <= 0:
         return False
     mv[_MOVE_PP] -= 1
+    # The switching Pressure holder costs one more (pokeplatinum, Pursuit before a switch)
+    pressure_pp(mv, defn)
     atk[_POK_LAST_MOVE_ID] = mv[_MOVE_ID]
     battle_array[_FIELD_LAST_MOVE] = mv[_MOVE_ID]
     if is_mine:
@@ -372,6 +376,9 @@ def _apply_move_damage(attacker, defender, move, damage, crit=False):
             defender[_POK_ATTACK_STAT_STAGE] = min(6, defender[_POK_ATTACK_STAT_STAGE] + 1)
         # Anger Point maxes Attack after surviving a critical hit (Showdown gen4 angerpoint)
         if crit and defender[_POK_AB_ID] == _ABILITYNAMES_ANGER_POINT:
+            # pokeplatinum subscript_critical_hit: the message only shows when Attack goes up
+            if defender[_POK_ATTACK_STAT_STAGE] < 6:
+                reveal_ability(defender)
             defender[_POK_ATTACK_STAT_STAGE] = 6
         flinch = False
         if move[_SEC_VOL_STATUS] & _VOLSTATUS_FLINCH:
@@ -663,6 +670,7 @@ def _execute_move_slot(
     if mv[_MOVE_ID] != _MOVENAME_STRUGGLE:
         if atk[_POK_LOCKED_MOVE] == -1:
             mv[_MOVE_PP] -= 1
+            pressure_pp(mv, defn)
         if is_mine:
             battle_array[_FIELD_MY_LAST_MOVE] = outer_id
             battle_array[_FIELD_AI_KNOWS] |= AI_KNOWS_MOVES[current_move]
@@ -992,12 +1000,11 @@ def _yawn(pok, foe, weather=0):
     if pok[_POK_YAWN_TURNS] > 0:
         return
     pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_YAWN
-    # No move is being used, so nothing breaks Insomnia, Vital Spirit or Leaf Guard here
-    if (
-        pok[_POK_STATUS] == 0
-        and not sleep_blocked(pok, foe)
-        and not ability_blocks_status(pok, pok, _STATUS_SLEEP, weather)
-    ):
+    # No move is being used, so nothing breaks Insomnia, Vital Spirit or Leaf Guard here. The
+    # ability is checked first and its message names it (pokeplatinum subscript_fall_asleep)
+    if ability_blocks_status(pok, pok, _STATUS_SLEEP, weather):
+        reveal_ability(pok)
+    elif pok[_POK_STATUS] == 0 and not sleep_blocked(pok, foe):
         pok[_POK_STATUS] = _STATUS_SLEEP
         pok[_POK_SLEEP_COUNTER] = TURNS_2_5[random.getrandbits(2)]
 
@@ -1033,6 +1040,7 @@ def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
     # Hydration cures any status in rain (pokeplatinum BtlCmd_EndOfTurnWeatherEffect)
     if weather == _WEATHER_RAIN and pok[_POK_STATUS] and pok[_POK_AB_ID] == _ABILITYNAMES_HYDRATION:
         cure_status(pok)
+        reveal_ability(pok)
     # Underground (Dig) the Pokemon takes no sandstorm or hail damage
     if (
         pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD
@@ -1040,6 +1048,9 @@ def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
         and pok[_POK_SEMI_INV_MOVE] not in UNDERGROUND_MOVES
     ):
         w_dmg = weather_dmg(pok, weather, pok[_POK_MAX_HP])
+        # Solar Power's sun damage names it (pokeplatinum subscript_weather_continues)
+        if w_dmg and weather == _WEATHER_SUN:
+            reveal_ability(pok)
         _apply_residual_damage(
             pok, w_dmg, enter_field_flag_idx, battle_array, battle_array[enter_field_flag_idx]
         )
@@ -1056,6 +1067,7 @@ def _flame_orb(pok, side_cond, weather):
     if side_cond & _SIDECONDITION_SAFEGUARD:
         return
     if ability_blocks_status(pok, pok, _STATUS_BURN, weather):
+        reveal_ability(pok)
         return
     pok[_POK_STATUS] = _STATUS_BURN
 
@@ -1399,7 +1411,7 @@ def switch_in_action(battle_array, switch_idx: int):
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = 0
 
             # Switch in effects after they are already switched
-            switch_in(current_pokemon, current_opp, battle_array, True)
+            switch_in(current_pokemon, current_opp, battle_array, True, True)
             switch_in(current_opp, current_pokemon, battle_array, False)
         else:
             # Opponent Pokemon
@@ -1416,7 +1428,7 @@ def switch_in_action(battle_array, switch_idx: int):
             ]
 
             # Switch in effects after they are already switched
-            switch_in(current_opp, current_pokemon, battle_array, False)
+            switch_in(current_opp, current_pokemon, battle_array, False, True)
             switch_in(current_pokemon, current_opp, battle_array, True)
 
         # Mine fainted to the hazards: I pick again, having seen who the AI sent

@@ -6,7 +6,7 @@ import pytest
 from SearchEngine.models import (
     valid_action_mask, valid_actions_array, is_terminal_arr, step_arr, node_key, _hp_bracket,
     cvar_from_hist, best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array,
-    ACTION_ORDER, ACTION_SLOT, N_SLOTS, N_BINS, VOL2_KEY_BITS,
+    ACTION_ORDER, ACTION_SLOT, N_SLOTS, N_BINS, VOL2_KEY_BITS, AB_KEY_BITS, AB_KEY_SHIFT,
 )
 from SearchEngine.mcts_eval import (
     evaluate_terminal, rollout_arr, rollout_pref, field_move_fails
@@ -20,6 +20,7 @@ from Models.item import ITEM_TABLE
 from Models.helper import ActionType, BattlePhase, VolStatus, VolStatus2, SideCondition
 from Models.trainer_ai import return_idx
 from DataBase.ItemDB import ItemNames
+from DataBase.AbilitiesDB import AbilityNames
 from battle_driver import (
     SCENARIOS, build_scenario, play_battle, legal_actions, is_over, my_active, opp_active,
     pok_slice, move_slice,
@@ -187,6 +188,30 @@ def test_node_key_sees_vol_status2(one_v_one, mine):
     other = one_v_one()
     (opp_active(other) if mine else my_active(other))[Pok.VOL_STATUS2] |= VolStatus2.MINIMIZE
     assert node_key(other) != node_key(arr)
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_changed_ability(one_v_one, mine):
+    """An ability Trace or Worry Seed changed splits nodes by which ability it is, the sides
+    don't collide, and an unchanged ability adds nothing"""
+    def build(ab_mine, ability):
+        arr = one_v_one()
+        pok = my_active(arr) if ab_mine else opp_active(arr)
+        pok[Pok.BASE_AB_ID] = AbilityNames.TRACE
+        pok[Pok.AB_ID] = ability
+        return arr
+    base = one_v_one()
+    sturdy = build(mine, AbilityNames.STURDY)
+    assert node_key(sturdy) != node_key(base)
+    assert node_key(build(mine, AbilityNames.ROCK_HEAD)) != node_key(sturdy)
+    assert node_key(build(not mine, AbilityNames.STURDY)) != node_key(sturdy)
+
+
+def test_ability_ids_fit_the_key_bits():
+    """node_key packs a changed ability id in AB_KEY_BITS bits per side, up to k1 bit 25"""
+    ids = [v for k, v in vars(AbilityNames).items() if k.isupper() and isinstance(v, int)]
+    assert max(ids) < 2 ** AB_KEY_BITS
+    assert AB_KEY_SHIFT + 2 * AB_KEY_BITS <= 26
 
 
 @pytest.mark.parametrize("mine", [True, False])

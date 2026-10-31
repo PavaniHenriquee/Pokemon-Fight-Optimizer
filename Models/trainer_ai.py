@@ -15,7 +15,7 @@ from Models.idx_const import (
 )
 from Models.constants import (
     _POK_MOVE1_ID, _POK_ITEM_ID, _POK_ID, _POK_AB_ID, _POK_CURRENT_HP, _POK_TYPE1,
-    _POK_TYPE2, _ENEMY_AI_KNOWS_ABILITY, _MOVE_ID, _MOVE_PP, _MOVE_CATEGORY,
+    _POK_TYPE2, _ENEMY_AI_KNOWS_ABILITY, _POK_AB_KNOWN, _MOVE_ID, _MOVE_PP, _MOVE_CATEGORY,
     _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD, _POK_STATUS,
     _STATUS_SLEEP, _ABILITYNAMES_NATURAL_CURE, _POK_MAX_HP, _POK_ATTACK_STAT_STAGE,
     _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
@@ -319,7 +319,12 @@ def choose_move(battle_array):
     moves = ai_pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
 
     ab=user_pok[_POK_AB_ID]
-    if not POKEMON_HAS_RELEVANT_ABILITY[user_pok[_POK_ID]] or (ai_know & _ENEMY_AI_KNOWS_ABILITY):
+    # A battle message named it (Pok.AB_KNOWN) or Worry Seed gave it (Field.AI_KNOWS)
+    if (
+        not POKEMON_HAS_RELEVANT_ABILITY[user_pok[_POK_ID]]
+        or (ai_know & _ENEMY_AI_KNOWS_ABILITY)
+        or user_pok[_POK_AB_KNOWN]
+    ):
         ability = ab
     else:
         pool_row = POKEMON_ABILITY_POOL[user_pok[_POK_ID]]

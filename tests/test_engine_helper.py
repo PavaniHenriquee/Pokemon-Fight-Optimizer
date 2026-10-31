@@ -11,7 +11,8 @@ from Engine.engine_helper import (
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
-    is_grounded, ohko_fails, move_accuracy, on_hit_abilities,
+    is_grounded, ohko_fails, move_accuracy, on_hit_abilities, trace, download,
+    recover_status_by_ability, pressure_pp,
 )
 from Engine.ability_helper import ignorable_ability
 from Models.ability import ABILITY_TABLE
@@ -539,6 +540,182 @@ def test_intimidate_on_switch_in(poke):
     assert foe[Pok.ATTACK_STAT_STAGE] == -6
     switch_in(foe, me, empty_field(), False)
     assert me[Pok.ATTACK_STAT_STAGE] == 0
+
+
+@pytest.mark.parametrize("ability, blocked", [
+    ("Clear Body", True), ("White Smoke", True), ("Hyper Cutter", True), ("Keen Eye", False),
+])
+def test_intimidate_respects_stat_drop_guards(poke, ability, blocked):
+    """Intimidate goes through the stat stage change, so the guard abilities stop it"""
+    me = poke("Shinx", 50, "Intimidate", ["Tackle"])
+    foe = poke("Geodude", 50, ability, ["Tackle"])
+    switch_in(me, foe, empty_field(), True)
+    assert foe[Pok.ATTACK_STAT_STAGE] == (0 if blocked else -1)
+
+
+def test_intimidate_skips_a_fainted_foe(poke):
+    """pokeplatinum subscript_intimidate skips a foe at 0 HP"""
+    me = poke("Shinx", 50, "Intimidate", ["Tackle"])
+    foe = poke("Rattata", 50, "Run Away", ["Tackle"])
+    foe[Pok.CURRENT_HP] = 0
+    switch_in(me, foe, empty_field(), True)
+    assert foe[Pok.ATTACK_STAT_STAGE] == 0
+
+
+def test_trace_copies_and_reverts(poke):
+    """Trace copies the foe's whole ability block on entry and gets Trace back on switch-out"""
+    me = poke("Ralts", 20, "Trace", ["Growl"])
+    foe = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    arr = empty_field()
+    switch_in(me, foe, arr, True)
+    assert me[Pok.AB_ID] == AbilityNames.STURDY and me[Pok.BASE_AB_ID] == AbilityNames.TRACE
+    assert (me[Pok.AB_ID:Pok.AB_ID + 3] == ABILITY_TABLE[AbilityNames.STURDY][:3]).all()
+    assert me[Pok.AB_KNOWN] and foe[Pok.AB_KNOWN]
+    reset_switch_out(me)
+    assert me[Pok.AB_ID] == AbilityNames.TRACE and me[Pok.BASE_AB_ID] == 0
+    assert me[Pok.AB_KNOWN] == 0
+
+
+@pytest.mark.parametrize("foe_ability", ["Trace", "Multitype", "Forecast"])
+def test_trace_fails_on_untraceable(poke, foe_ability):
+    """pokeplatinum ChooseTraceTarget skips Trace, Multitype and Forecast"""
+    me = poke("Ralts", 20, "Trace", ["Growl"])
+    foe = poke("Geodude", 20, foe_ability, ["Tackle"])
+    assert not trace(me, foe)
+    assert me[Pok.AB_ID] == AbilityNames.TRACE and me[Pok.BASE_AB_ID] == 0
+
+
+def test_trace_fails_on_fainted_foe_and_retries_on_the_next(poke):
+    """traceAnnounced stays FALSE after a failed Trace, so the next foe's entry gets copied"""
+    me = poke("Ralts", 20, "Trace", ["Growl"])
+    fainted = poke("Rattata", 20, "Run Away", ["Tackle"])
+    fainted[Pok.CURRENT_HP] = 0
+    arr = empty_field()
+    switch_in(me, fainted, arr, True)
+    assert me[Pok.AB_ID] == AbilityNames.TRACE
+    newcomer = poke("Geodude", 20, "Rock Head", ["Tackle"])
+    switch_in(newcomer, me, arr, False)
+    assert me[Pok.AB_ID] == AbilityNames.ROCK_HEAD
+
+
+def test_traced_intimidate_fires_once(poke):
+    """A copied Intimidate fires right after Trace, the retry on the next foe fires it there"""
+    me = poke("Ralts", 20, "Trace", ["Growl"])
+    foe = poke("Shinx", 20, "Intimidate", ["Tackle"])
+    switch_in(me, foe, empty_field(), True)
+    assert foe[Pok.ATTACK_STAT_STAGE] == -1
+    assert me[Pok.ATTACK_STAT_STAGE] == 0
+    # Trace held off by a Trace foe, then a Shinx comes in: each Intimidates the other once
+    me = poke("Ralts", 20, "Trace", ["Growl"])
+    switch_in(me, poke("Ralts", 20, "Trace", ["Growl"]), empty_field(), True)
+    shinx = poke("Shinx", 20, "Intimidate", ["Tackle"])
+    switch_in(shinx, me, empty_field(), False)
+    assert me[Pok.AB_ID] == AbilityNames.INTIMIDATE
+    assert me[Pok.ATTACK_STAT_STAGE] == -1 and shinx[Pok.ATTACK_STAT_STAGE] == -1
+
+
+def test_foe_entering_skips_the_trace_retry(poke):
+    """Both entering together: the second switch_in does the copy, so nothing fires twice"""
+    ralts = poke("Ralts", 20, "Trace", ["Growl"])
+    shinx = poke("Shinx", 20, "Intimidate", ["Tackle"])
+    arr = empty_field()
+    switch_in(shinx, ralts, arr, False, True)
+    assert ralts[Pok.AB_ID] == AbilityNames.TRACE
+    switch_in(ralts, shinx, arr, True)
+    assert ralts[Pok.ATTACK_STAT_STAGE] == -1 and shinx[Pok.ATTACK_STAT_STAGE] == -1
+
+
+def test_trace_cures_a_status_the_copy_forbids(poke):
+    """pokeplatinum SWITCH_IN_CHECK_STATE_FORBIDDEN_STATUS after Trace copies Limber"""
+    me = poke("Ralts", 20, "Trace", ["Growl"])
+    me[Pok.STATUS] = Status.PARALYSIS
+    foe = poke("Buneary", 20, "Limber", ["Tackle"])
+    switch_in(me, foe, empty_field(), True)
+    assert me[Pok.STATUS] == 0
+
+
+@pytest.mark.parametrize("ability, status, vol, cured", [
+    ("Insomnia", Status.SLEEP, 0, True),
+    ("Immunity", Status.TOXIC, 0, True),
+    ("Water Veil", Status.BURN, 0, True),
+    ("Magma Armor", Status.FREEZE, 0, True),
+    ("Limber", Status.BURN, 0, False),
+    ("Own Tempo", 0, VolStatus.CONFUSION, True),
+    ("Oblivious", 0, VolStatus.ATTRACT, True),
+])
+def test_recover_status_by_ability(poke, ability, status, vol, cured):
+    """pokeplatinum BattleSystem_RecoverStatusByAbility"""
+    p = poke("Rattata", 20, ability, ["Tackle"])
+    p[Pok.STATUS] = status
+    p[Pok.VOL_STATUS] = vol
+    recover_status_by_ability(p)
+    assert (p[Pok.STATUS] == 0 and p[Pok.VOL_STATUS] == 0) == cured
+
+
+@pytest.mark.parametrize("def_stage, spd_stage, boosted", [
+    (0, 0, Pok.SPECIAL_ATTACK_STAT_STAGE),
+    (-6, 0, Pok.ATTACK_STAT_STAGE),
+    (0, -6, Pok.SPECIAL_ATTACK_STAT_STAGE),
+])
+def test_download(poke, def_stage, spd_stage, boosted):
+    """pokeplatinum: Defense >= Sp. Def (with stages) raises Sp. Atk, otherwise Attack"""
+    me = poke("Porygon", 20, "Download", ["Tackle"])
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    foe[Pok.DEFENSE] = foe[Pok.SPECIAL_DEFENSE] = 40
+    foe[Pok.DEFENSE_STAT_STAGE], foe[Pok.SPECIAL_DEFENSE_STAT_STAGE] = def_stage, spd_stage
+    switch_in(me, foe, empty_field(), True)
+    other = (Pok.ATTACK_STAT_STAGE if boosted == Pok.SPECIAL_ATTACK_STAT_STAGE
+             else Pok.SPECIAL_ATTACK_STAT_STAGE)
+    assert me[boosted] == 1 and me[other] == 0
+
+
+def test_download_does_nothing_against_a_fainted_foe(poke):
+    """No alive foe, no boost"""
+    me = poke("Porygon", 20, "Download", ["Tackle"])
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    foe[Pok.CURRENT_HP] = 0
+    download(me, foe)
+    assert me[Pok.ATTACK_STAT_STAGE] == me[Pok.SPECIAL_ATTACK_STAT_STAGE] == 0
+
+
+@pytest.mark.parametrize("ability, knows", [
+    ("Pressure", True), ("Mold Breaker", True), ("Intimidate", False), ("Download", False),
+])
+def test_switch_in_announcements_tell_the_ai(poke, ability, knows):
+    """Pressure's and Mold Breaker's switch-in messages name the ability, Intimidate's and
+    Download's are built in C and don't (pokeplatinum BattleMessage_AbilityTag)"""
+    p = poke("Pinsir", 20, ability, ["Tackle"])
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    switch_in(p, foe, empty_field(), True)
+    assert bool(p[Pok.AB_KNOWN]) == knows
+
+
+@pytest.mark.parametrize("move, ability, extra", [
+    ("Tackle", "Pressure", 1), ("Stealth Rock", "Pressure", 1), ("Rain Dance", "Pressure", 1),
+    ("Harden", "Pressure", 0), ("Metronome", "Pressure", 0), ("Tackle", "Run Away", 0),
+])
+def test_pressure_pp(poke, move, ability, extra):
+    """pokeplatinum BattleControllerPlayer_DecrementPP: +1 unless the move aims at the user's side"""
+    a = poke("Togepi", 20, "Hustle", [move])
+    d = poke("Murkrow", 20, ability, ["Tackle"])
+    mv = move_slice(a, 0)
+    pp = int(mv[Move.PP])
+    pressure_pp(mv, d)
+    assert mv[Move.PP] == pp - extra
+
+
+def test_pressure_pp_stops_at_zero_and_needs_alive_holder(poke):
+    """No PP below 0, a fainted Pressure holder costs nothing"""
+    a = poke("Rattata", 20, "Run Away", ["Tackle"])
+    d = poke("Murkrow", 20, "Pressure", ["Tackle"])
+    mv = move_slice(a, 0)
+    mv[Move.PP] = 0
+    pressure_pp(mv, d)
+    assert mv[Move.PP] == 0
+    mv[Move.PP] = 5
+    d[Pok.CURRENT_HP] = 0
+    pressure_pp(mv, d)
+    assert mv[Move.PP] == 5
 
 
 # ── Items ────────────────────────────────────────────────────────────────────
@@ -1996,3 +2173,104 @@ def test_soundproof_and_mold_breaker(monkeypatch, poke, atk_ab, outcome):
     a = poke("Rattata", 50, atk_ab, ["Growl"])
     d = poke("Whismur", 50, "Soundproof", ["Pound"])
     assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == outcome
+
+
+# ── The AI learns an ability from its message (pokeplatinum BattleMessage_AbilityTag) ──
+
+@pytest.mark.parametrize("move, ability, known", [
+    ("Thunder Shock", "Volt Absorb", True),
+    ("Water Gun", "Water Absorb", True),
+    ("Ember", "Flash Fire", True),
+    ("Thunder Shock", "Motor Drive", True),
+    ("Mud-Slap", "Levitate", True),
+    ("Fissure", "Sturdy", True),
+    ("Growl", "Soundproof", True),
+    ("Selfdestruct", "Damp", True),
+    ("Water Gun", "Wonder Guard", True),
+    ("Tackle", "Run Away", False),
+])
+def test_hit_check_abilities_reveal_themselves(poke, move, ability, known):
+    """The absorbs, Wonder Guard, Levitate, Sturdy, Soundproof and Damp name themselves"""
+    a = poke("Geodude", 50, "Rock Head", [move])
+    d = poke("Shedinja" if ability == "Wonder Guard" else "Rattata", 30, ability, ["Tackle"])
+    calculate_hit_miss(move_slice(a, 0), a, d, 0)
+    assert bool(d[Pok.AB_KNOWN]) == known
+
+
+def test_attackers_damp_reveals_itself(poke):
+    """Damp on the user's side stops its own Selfdestruct, the message names it"""
+    a = poke("Psyduck", 50, "Damp", ["Selfdestruct"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    calculate_hit_miss(move_slice(a, 0), a, d, 0)
+    assert a[Pok.AB_KNOWN] and d[Pok.AB_KNOWN] == 0
+
+
+def test_mold_breaker_hit_doesnt_reveal(poke):
+    """Mold Breaker's Mud-Slap goes through Levitate, nothing is shown"""
+    a = poke("Pinsir", 50, "Mold Breaker", ["Mud-Slap"])
+    d = poke("Gastly", 50, "Levitate", ["Tackle"])
+    calculate_hit_miss(move_slice(a, 0), a, d, 0)
+    assert d[Pok.AB_KNOWN] == 0
+
+
+@pytest.mark.parametrize("ability, roll, known", [
+    ("Static", 2, True), ("Static", 3, False), ("Cute Charm", 2, True), ("Rough Skin", 9, True),
+])
+def test_contact_abilities_reveal_when_they_trigger(monkeypatch, poke, ability, roll, known):
+    """"X's Static paralyzed Y!" only when the status lands, Rough Skin whenever it hurts"""
+    _fix_rolls(monkeypatch, roll)
+    a = poke("Rattata", 50, "Run Away", ["Tackle"], gender="Male")
+    d = poke("Clefairy", 50, ability, ["Tackle"], gender="Female")
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert bool(d[Pok.AB_KNOWN]) == known
+
+
+def test_aftermath_reveals_when_it_hurts(poke):
+    """Aftermath names itself when the KO hit damages the attacker"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Stunky", 50, "Aftermath", ["Tackle"])
+    d[Pok.CURRENT_HP] = 0
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert d[Pok.AB_KNOWN]
+
+
+@pytest.mark.parametrize("move, known", [("Fake Out", True), ("Bite", False)])
+def test_inner_focus_reveals_on_fake_out_only(poke, move, known):
+    """pokeplatinum subscript_flinch_mon prints only for Fake Out"""
+    a = poke("Rattata", 50, "Run Away", [move])
+    d = poke("Zubat", 50, "Inner Focus", ["Tackle"])
+    assert not flinch_checker(move_slice(a, 0), a, d)
+    assert bool(d[Pok.AB_KNOWN]) == known
+
+
+@pytest.mark.parametrize("hp_missing, known", [(10, True), (0, False)])
+def test_rain_dish_reveals_when_it_heals(poke, hp_missing, known):
+    """No heal at full HP, no message"""
+    p = poke("Lotad", 20, "Rain Dish", ["Tackle"])
+    p[Pok.CURRENT_HP] -= hp_missing
+    heal_weather(p, Weather.RAIN)
+    assert bool(p[Pok.AB_KNOWN]) == known
+
+
+def test_shed_skin_reveals_when_it_cures(monkeypatch, poke):
+    """"X's Shed Skin cured its poison!" """
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: lo)
+    p = poke("Metapod", 20, "Shed Skin", ["Tackle"])
+    p[Pok.STATUS] = Status.POISON
+    on_residual(p, False)
+    assert p[Pok.STATUS] == 0 and p[Pok.AB_KNOWN]
+
+
+def test_toxic_spikes_blocked_by_immunity_reveals_it(poke):
+    """pokeplatinum subscript_poison prints the ability for Toxic Spikes"""
+    p = poke("Munchlax", 20, "Immunity", ["Tackle"])
+    apply_hazards(p, _field(TSPIKES, 1), MY_SIDE)
+    assert p[Pok.STATUS] == 0 and p[Pok.AB_KNOWN]
+
+
+def test_switch_out_forgets_the_ability(poke):
+    """pokeplatinum clears the AI's known ability when the battler is replaced"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle"])
+    p[Pok.AB_KNOWN] = 1
+    reset_switch_out(p)
+    assert p[Pok.AB_KNOWN] == 0

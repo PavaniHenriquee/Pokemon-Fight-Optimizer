@@ -127,6 +127,56 @@ def test_keen_eye_blocks_accuracy_drop(poke):
     assert plain[Pok.ACCURACY_STAT_STAGE] == -1
 
 
+@pytest.mark.parametrize("ability, move, stat, blocked", [
+    ("Clear Body", "Growl", Pok.ATTACK_STAT_STAGE, True),
+    ("Clear Body", "Screech", Pok.DEFENSE_STAT_STAGE, True),
+    ("Clear Body", "Sand Attack", Pok.ACCURACY_STAT_STAGE, True),
+    ("White Smoke", "String Shot", Pok.SPEED_STAT_STAGE, True),
+    ("Hyper Cutter", "Growl", Pok.ATTACK_STAT_STAGE, True),
+    ("Hyper Cutter", "Screech", Pok.DEFENSE_STAT_STAGE, False),
+    ("Keen Eye", "Growl", Pok.ATTACK_STAT_STAGE, False),
+])
+def test_stat_drop_guards(poke, ability, move, stat, blocked):
+    """pokeplatinum BtlCmd_ChangeStatStage: Clear Body / White Smoke block every drop the foe
+    causes, Hyper Cutter only Attack, Keen Eye only accuracy"""
+    a = poke("Rattata", 50, "Run Away", [move])
+    d = poke("Geodude", 50, ability, ["Tackle"])
+    stat_changes(move_slice(a, 0), a, d)
+    assert (d[stat] == 0) == blocked
+
+
+@pytest.mark.parametrize("ability, move, stat", [
+    ("Clear Body", "Growl", Pok.ATTACK_STAT_STAGE),
+    ("Hyper Cutter", "Growl", Pok.ATTACK_STAT_STAGE),
+    ("Keen Eye", "Sand Attack", Pok.ACCURACY_STAT_STAGE),
+])
+def test_mold_breaker_ignores_stat_drop_guards(poke, ability, move, stat):
+    """The guards are ignorable abilities, Keen Eye included"""
+    a = poke("Pinsir", 50, "Mold Breaker", [move])
+    d = poke("Geodude", 50, ability, ["Tackle"])
+    stat_changes(move_slice(a, 0), a, d)
+    assert d[stat] == -1
+
+
+def test_stat_drop_guards_let_raises_and_self_drops_through(poke):
+    """Swagger still raises a Clear Body target, and Curse lowers its Clear Body user's Speed"""
+    a = poke("Rattata", 50, "Run Away", ["Swagger"])
+    d = poke("Geodude", 50, "Clear Body", ["Curse"])
+    stat_changes(move_slice(a, 0), a, d)
+    assert d[Pok.ATTACK_STAT_STAGE] == 2
+    calculate_effects(d, a, move_slice(d, 0), 0)
+    assert d[Pok.SPEED_STAT_STAGE] == -1 and d[Pok.ATTACK_STAT_STAGE] == 3
+
+
+def test_stat_drop_guard_blocks_secondary_drops(monkeypatch, poke):
+    """Bubble's Speed drop doesn't land on a Clear Body holder, the damage part isn't involved"""
+    a = poke("Squirtle", 20, "Torrent", ["Bubble"])
+    d = poke("Tentacool", 20, "Clear Body", ["Tackle"])
+    monkeypatch.setattr(status_calc.random, "randint", lambda lo, hi: lo)
+    sec_effects(move_slice(a, 0), a, d, 0)
+    assert d[Pok.SPEED_STAT_STAGE] == 0
+
+
 def test_confusion_volatile(pair):
     """Confuse Ray sets the bit once and a 2-5 counter"""
     a, d = pair
@@ -609,3 +659,70 @@ def test_synchronize_respects_status_abilities(poke, ability, status, weather):
     assert src[Pok.STATUS] == 0
     synchronize_reflect(sync, status, src)
     assert src[Pok.STATUS] == (status if ability == "Leaf Guard" else 0)
+
+
+# ── The AI learns an ability from its message (pokeplatinum BattleMessage_AbilityTag) ──
+
+@pytest.mark.parametrize("ability, move, prior, known", [
+    ("Limber", "Thunder Wave", 0, True),
+    ("Limber", "Thunder Wave", Status.POISON, True),
+    ("Immunity", "Poison Powder", 0, True),
+    ("Run Away", "Thunder Wave", 0, False),
+])
+def test_status_move_blocked_by_ability_reveals_it(poke, ability, move, prior, known):
+    """pokeplatinum's status subscripts check the ability first and print "X prevents ...", even
+    when the target already has a status"""
+    a = poke("Pikachu", 20, "Static", [move])
+    d = poke("Rattata", 20, ability, ["Tackle"])
+    d[Pok.STATUS] = prior
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert bool(d[Pok.AB_KNOWN]) == known
+
+
+def test_secondary_and_ability_statuses_stay_silent(monkeypatch, poke):
+    """A secondary effect or an ability's status blocked by Limber prints nothing"""
+    a = poke("Pikachu", 20, "Static", ["Spark"])
+    d = poke("Rattata", 20, "Limber", ["Tackle"])
+    monkeypatch.setattr(status_calc.random, "randint", lambda lo, hi: lo)
+    sec_effects(move_slice(a, 0), a, d, 0)
+    apply_status(move_slice(a, 0), d, 0, a, False, 0, Status.PARALYSIS)
+    assert d[Pok.STATUS] == 0 and d[Pok.AB_KNOWN] == 0
+
+
+def test_mold_breaker_status_doesnt_reveal(poke):
+    """Mold Breaker gets through, so no message"""
+    a = poke("Pinsir", 20, "Mold Breaker", ["Thunder Wave"])
+    d = poke("Rattata", 20, "Limber", ["Tackle"])
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert d[Pok.STATUS] == Status.PARALYSIS and d[Pok.AB_KNOWN] == 0
+
+
+@pytest.mark.parametrize("ability, move, known", [
+    ("Own Tempo", "Confuse Ray", True),
+    ("Oblivious", "Attract", True),
+    ("Insomnia", "Yawn", True),
+    ("Vital Spirit", "Yawn", True),
+    ("Run Away", "Confuse Ray", False),
+])
+def test_volatile_move_blocked_by_ability_reveals_it(poke, ability, move, known):
+    """pokeplatinum subscript_confuse, subscript_infatuate, subscript_yawn"""
+    a = poke("Rattata", 20, "Run Away", [move], gender="Female")
+    d = poke("Rattata", 20, ability, ["Tackle"])
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert bool(d[Pok.AB_KNOWN]) == known
+
+
+def test_secondary_confusion_into_own_tempo_is_silent(monkeypatch, poke):
+    """Psybeam-style confusion is an indirect effect, no message"""
+    a = poke("Zubat", 20, "Inner Focus", ["Supersonic"])
+    d = poke("Rattata", 20, "Own Tempo", ["Tackle"])
+    vol_status(move_slice(a, 0), d, a, True)
+    assert d[Pok.AB_KNOWN] == 0
+
+
+def test_synchronize_reveals_when_it_passes_the_status(poke):
+    """"X's Synchronize poisoned Y!" names the holder"""
+    a = poke("Rattata", 20, "Run Away", ["Poison Powder"])
+    d = poke("Abra", 20, "Synchronize", ["Tackle"])
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert a[Pok.STATUS] == Status.POISON and d[Pok.AB_KNOWN]

@@ -182,6 +182,29 @@ def test_basic_tickle(poke, ai_ability, target_ability, stages, expected):
     assert _basic(ai_pok, user, ability) == expected
 
 
+@pytest.mark.parametrize("move, ai_ability, target_ability, expected", [
+    ("Sand Attack", "Keen Eye", "Sturdy", 0),
+    ("Sand Attack", "Run Away", "Keen Eye", -10),
+    ("Sand Attack", "No Guard", "Sturdy", -10),
+    ("Sweet Scent", "Run Away", "No Guard", -10),
+    ("Growl", "Run Away", "Hyper Cutter", -10),
+    ("Screech", "Run Away", "Hyper Cutter", 0),
+    ("Screech", "Run Away", "Clear Body", -10),
+    ("Growl", "Mold Breaker", "White Smoke", -10),
+    ("String Shot", "Run Away", "Speed Boost", -10),
+    ("Swagger", "Run Away", "Clear Body", 0),
+    ("Swagger", "Run Away", "Hyper Cutter", 0),
+    ("Flatter", "Run Away", "White Smoke", 0),
+])
+def test_basic_low_stat_stage(poke, move, ai_ability, target_ability, expected):
+    """pokeplatinum Basic_CheckLowStatStage_*: only the stats the move lowers, Keen Eye read from
+    the target, no Mold Breaker check; Swagger and Flatter only go through the confusion check"""
+    ai_pok = poke("Rattata", 20, ai_ability, [move])
+    user = poke("Geodude", 20, target_ability, ["Tackle"])
+    ability = getattr(AbilityNames, target_ability.upper().replace(" ", "_"))
+    assert _basic(ai_pok, user, ability) == expected
+
+
 def test_basic_focus_energy(poke):
     """pokeplatinum Basic_CheckAlreadyPumpedUp: -10 only if the AI already has Focus Energy"""
     ai_pok = poke("Rattata", 10, "Run Away", ["Focus Energy"])
@@ -1456,3 +1479,17 @@ def test_ai_effectiveness_scrappy(poke):
     scrappy = poke("Kangaskhan", 30, "Scrappy", ["Tackle"])
     assert ai.trainer_ai_effectiveness(move_slice(plain, 0), plain, user)[0] == 0
     assert ai.trainer_ai_effectiveness(move_slice(scrappy, 0), scrappy, user)[0] == 1.5
+
+
+@pytest.mark.parametrize("known, expected", [(1, AbilityNames.STURDY), (0, AbilityNames.ROCK_HEAD)])
+def test_ai_uses_a_revealed_ability(monkeypatch, make_pokemon, make_battle, known, expected):
+    """Pok.AB_KNOWN: the AI reads my real ability instead of guessing from the species pool"""
+    from Models import trainer_ai
+    arr = make_battle([make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Tackle"])])
+    pok_slice(arr, 0)[Pok.AB_KNOWN] = known
+    seen = []
+    monkeypatch.setattr(trainer_ai.random, "getrandbits", lambda k: 0)
+    monkeypatch.setattr(trainer_ai, "basic_flag", lambda move, ability, *a, **k: seen.append(ability) or 0)
+    return_idx(arr)
+    assert seen and set(seen) == {expected}

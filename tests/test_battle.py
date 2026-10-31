@@ -1354,12 +1354,64 @@ def test_sleeping_pursuer_doesnt_pursue(monkeypatch, make_pokemon, make_battle):
     """Asleep: no Pursuit before the switch, and no move after it either"""
     mine = [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
             make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
-    arr = make_battle(mine, [make_pokemon("Murkrow", 20, "Insomnia", ["Pursuit"])])
+    arr = make_battle(mine, [make_pokemon("Murkrow", 20, "Super Luck", ["Pursuit"])])
     opp_active(arr)[Pok.STATUS] = Status.SLEEP
     opp_active(arr)[Pok.SLEEP_COUNTER] = 3
     hits = _spy_power(monkeypatch)
     turn_sim(0, (SWITCH, 1), arr)
     assert hits == []
+
+
+def test_pursuit_on_a_switching_pressure_holder_costs_two(monkeypatch, make_pokemon, make_battle):
+    """pokeplatinum: Pursuit before the switch takes one more PP from a Pressure holder"""
+    mine = [make_pokemon("Absol", 20, "Pressure", ["Tackle"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Murkrow", 20, "Super Luck", ["Pursuit"])])
+    _spy_power(monkeypatch)
+    pp = _pp(opp_active(arr), 0)
+    turn_sim(0, (SWITCH, 1), arr)
+    assert _pp(opp_active(arr), 0) == pp - 2
+
+
+# ── Batch 9: Pressure and Trace through the turn flow ────────────────────────
+
+@pytest.mark.parametrize("slot, extra", [(0, 1), (1, 0), (2, 1), (3, 1)])
+def test_pressure_through_a_move(make_pokemon, make_battle, slot, extra):
+    """Tackle, Stealth Rock and Rain Dance into Pressure cost 2 PP, Harden 1"""
+    arr = make_battle(
+        [make_pokemon("Geodude", 20, "Sturdy", ["Tackle", "Harden", "Stealth Rock", "Rain Dance"])],
+        [make_pokemon("Absol", 20, "Pressure", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    mv = move_slice(me, slot)
+    pp = int(mv[Move.PP])
+    battle._execute_move_slot(me, foe, mv, True, slot, 0, False, 1, True, arr, 0)
+    assert mv[Move.PP] == pp - 1 - extra
+
+
+def test_trace_at_start_of_battle_copies_intimidate_once(make_pokemon, make_battle):
+    """Both leads come in together: Trace copies Intimidate and each side loses one stage"""
+    arr = make_battle([make_pokemon("Ralts", 20, "Trace", ["Growl"])],
+                      [make_pokemon("Shinx", 20, "Intimidate", ["Tackle"])])
+    assert my_active(arr)[Pok.AB_ID] == AbilityNames.INTIMIDATE
+    assert my_active(arr)[Pok.ATTACK_STAT_STAGE] == -1
+    assert opp_active(arr)[Pok.ATTACK_STAT_STAGE] == -1
+    assert my_active(arr)[Pok.AB_KNOWN]
+
+
+def test_trace_on_a_double_switch_copies_intimidate_once(make_pokemon, make_battle):
+    """Both replacing a fainted Pokemon: one copy, one Intimidate each way"""
+    arr = make_battle(
+        [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+         make_pokemon("Ralts", 20, "Trace", ["Growl"])],
+        [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+         make_pokemon("Shinx", 20, "Intimidate", ["Tackle"])])
+    pok_slice(arr, 0)[Pok.CURRENT_HP] = 0
+    pok_slice(arr, 0, opp=True)[Pok.CURRENT_HP] = 0
+    arr[Field.PHASE] = BattlePhase.DEATH_END_OF_TURN
+    switch_in_action(arr, 1)
+    assert my_active(arr)[Pok.AB_ID] == AbilityNames.INTIMIDATE
+    assert my_active(arr)[Pok.ATTACK_STAT_STAGE] == -1
+    assert opp_active(arr)[Pok.ATTACK_STAT_STAGE] == -1
 
 
 # ── Phase 7: healing, items, misc ────────────────────────────────────────────
@@ -1992,3 +2044,57 @@ def test_natural_cure_on_switch(make_pokemon, make_battle):
     pok_slice(arr, 0)[Pok.STATUS] = Status.BURN
     turn_sim(0, (SWITCH, 1), arr)
     assert pok_slice(arr, 0)[Pok.STATUS] == 0
+
+
+# ── The AI learns an ability from its message (pokeplatinum BattleMessage_AbilityTag) ──
+
+def test_suction_cups_reveals_itself(make_pokemon, make_battle):
+    """"X anchors itself with Suction Cups!" """
+    arr = make_battle(
+        [make_pokemon("Rattata", 20, "Run Away", ["Roar"])],
+        [make_pokemon("Octillery", 20, "Suction Cups", ["Tackle"]),
+         make_pokemon("Rattata", 20, "Run Away", ["Tackle"])])
+    assert not battle._force_switch(my_active(arr), opp_active(arr), arr, False)
+    assert opp_active(arr)[Pok.AB_KNOWN]
+
+
+@pytest.mark.parametrize("stage, known", [(0, True), (6, False)])
+def test_anger_point_reveals_when_attack_goes_up(poke, stage, known):
+    """pokeplatinum subscript_critical_hit skips the message at +6"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Mankey", 50, "Anger Point", ["Scratch"])
+    d[Pok.CURRENT_HP] = 60
+    d[Pok.ATTACK_STAT_STAGE] = stage
+    battle._apply_move_damage(a, d, move_slice(a, 0), 10, True)
+    assert bool(d[Pok.AB_KNOWN]) == known
+
+
+def test_yawn_sleep_blocked_by_ability_reveals_it(poke):
+    """"X stayed awake because of its Insomnia!" at the end of the turn"""
+    p = poke("Machop", 20, "Insomnia", ["Tackle"])
+    p[Pok.VOL_STATUS] = VolStatus.YAWN
+    p[Pok.YAWN_TURNS] = 1
+    battle._yawn(p, poke("Rattata", 20, "Run Away", ["Tackle"]))
+    assert p[Pok.AB_KNOWN]
+
+
+@pytest.mark.parametrize("species, ability, weather, status", [
+    ("Wingull", "Hydration", Weather.RAIN, Status.POISON),
+    ("Sunkern", "Solar Power", Weather.SUN, 0),
+])
+def test_weather_step_abilities_reveal_themselves(make_pokemon, make_battle, species, ability,
+                                                  weather, status):
+    """Hydration's cure and Solar Power's damage name the ability"""
+    arr = make_battle([make_pokemon(species, 20, ability, ["Tackle"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Growl"])])
+    p = my_active(arr)
+    p[Pok.STATUS] = status
+    battle._residual_weather(p, weather, Field.MY_ENTER_FIELD, arr)
+    assert p[Pok.AB_KNOWN]
+
+
+def test_flame_orb_blocked_by_water_veil_reveals_it(poke):
+    """pokeplatinum subscript_burn prints the ability for a held item"""
+    p = poke("Goldeen", 20, "Water Veil", ["Tackle"])
+    battle._flame_orb(p, 0, 0)
+    assert p[Pok.STATUS] == 0 and p[Pok.AB_KNOWN]

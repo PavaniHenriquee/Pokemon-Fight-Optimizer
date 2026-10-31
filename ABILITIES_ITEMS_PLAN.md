@@ -20,7 +20,7 @@
 | 6     | Contact abilities                                                   | [x]    |
 | 7     | Status immunity, cures, status berries                              | [x]    |
 | 8     | Type immunity and absorb abilities                                  | [x]    |
-| 9     | Switch-in abilities and stat-drop guards                            | [ ]    |
+| 9     | Switch-in abilities and stat-drop guards                            | [x]    |
 | 10    | Speed and turn order                                                | [ ]    |
 | 11    | Weather and end of turn                                             | [ ]    |
 | 12    | Trapping                                                            | [ ]    |
@@ -432,7 +432,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 - TODO ticks: Flash Fire, Levitate, Scrappy; deferred Motor Drive, Volt Absorb, Wonder Guard (Dry Skin after
   Batch 11).
 
-## Batch 9 — Switch-in abilities and stat-drop guards
+## Batch 9 — Switch-in abilities and stat-drop guards — DONE
 
 | Ability                            | Gen IV effect                                                                                                                                                                                                          | Hook                                                                       |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -444,6 +444,22 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 
 - AI: Issue 10; Intimidate already respects Mist.
 - TODO ticks: Clear Body, Hyper Cutter, Trace; deferred White Smoke, Download, Pressure.
+- **Follow-up (done): the AI learns my ability from ability messages.** [pp] teaches the AI only through script
+  messages (`PrintMessage` / `BufferMessage` → `BattleMessage_AbilityTag`, not an ability argument of
+  `BTLSCR_MSG_TEMP`); C-built buffers (`BtlCmd_ChangeStatStage`: Intimidate, the stat-drop guards, Download;
+  `BtlCmd_TryKnockOff`: Sticky Hold) teach nothing. New Pok slot `AB_KNOWN`, set by `reveal_ability(pok)`
+  (`Engine/ability_helper.py`), cleared in `reset_switch_out`, read by `choose_move` next to
+  `ENEMY_AI_KNOWS_ABILITY` (Worry Seed keeps that field bit). Sites: switch-in (Trace both sides, Pressure, Mold
+  Breaker), absorbs and Wonder Guard, Levitate, Sturdy (OHKO), Soundproof, Damp (whoever holds it), a status /
+  confusion / Attract / Yawn move blocked by the ability (`apply_status` now checks the ability first, as [pp]'s
+  subscripts do; no outcome change), Toxic Spikes, Flame Orb and Yawn's sleep blocked, Synchronize passing a
+  status, Static / Flame Body / Poison Point / Effect Spore / Cute Charm landing, Rough Skin and Aftermath
+  hurting, Inner Focus vs Fake Out, Suction Cups, Anger Point (below +6), Shed Skin, Hydration, Rain Dish (when it
+  heals), Solar Power. Golden: hashes moved with the slot; damage_sources (1 seed), healing_misc (2) and
+  multihit_items (5) changed outcomes, each after my Synchronize Abra or Effect Spore Paras revealed itself (the
+  AI stops its 50/50 pool guess, one RNG call less per AI turn); with `reveal_ability` off all 160 seeds replay
+  the old turns and HP. Later batches add their own sites (weather abilities, Poison Heal, Slow Start,
+  Anticipation, Forewarn).
 
 ## Batch 10 — Speed and turn order
 
@@ -625,6 +641,24 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
 - Batch 8: an absorbed move ends an Uproar like any immune target (`UPROAR_KEEPS_ON` doesn't hold INVULNERABLE).
 - Batch 8: the engine's "Soundproof user can't use a sound move on its own side" rule isn't in [pp]
   `TriggerImmunityAbility` (left as is).
+- Batch 9: a failed Counter / Mirror Coat costs no PP (`early_returns` runs before the decrement); [pp] takes 1 in
+  `BEFORE_MOVE_STATE_DECREMENT_PP` before the move's script runs.
+- Batch 9: the rollout still gives a stat-drop move into Clear Body / White Smoke / Hyper Cutter weight 1.
+- Batch 9: the UI doesn't show a copied ability (no ability is serialized).
+- Batch 9: `AB_NO_TRACER` is in the parked block of `idx_const.py` / `ability.py`, so Trace's fail list is the
+  `TRACE_FAILS` tuple. [SD] also makes Flower Gift untraceable; [pp] doesn't, the engine follows [pp].
+- Batch 9: [pp] `ChooseTraceTarget` rolls `RandNext & 1` even in singles (both slots are the same foe); the engine
+  doesn't roll. RNG order only.
+- Batch 9: `recover_status_by_ability` covers [pp]'s switch-in spot only; the after-every-move spot from the Batch 7
+  entry is still open. A status a Mold Breaker foe put through Limber / Insomnia / ... is now cured at the next
+  switch-in of either side, as in [pp].
+- Batch 9: `engine_helper.py` imports `_POK_VOL_STATUS2` twice (pylint W0404, was already there).
+- Batch 9 follow-up: two "the AI knows my ability" mechanisms now: Worry Seed still sets `FIELD_AI_KNOWS`, every
+  message sets `Pok.AB_KNOWN`. Neither is in `node_key` (the AI's knowledge changes its picks).
+- Batch 9 follow-up: `_toxic_spikes` and `_flame_orb` reveal where they block today, after the status / Steel /
+  Fire checks; [pp] may check the ability earlier there (only matters for a statused Immunity / Water Veil holder).
+- Batch 9 follow-up: `to_np`'s comment on `BASE_AB_ID` still says "while Worry Seed changed it"; Trace uses it too.
+- Batch 9 follow-up: the UI doesn't show which of my abilities the AI knows.
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

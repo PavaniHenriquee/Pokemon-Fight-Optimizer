@@ -629,16 +629,21 @@ def basic_stat_change(move, ability, user_pok, ai_pok) -> bool:
             return True
 
         # Ability immunity checks (HYPER_CUTTER, KEEN_EYE etc.) use local b_* from above
-        # TODO: Clear Body, White smoke
-        if b_atk  and ability == _ABILITYNAMES_HYPER_CUTTER:  return True
-        if b_spe  and ability == _ABILITYNAMES_SPEED_BOOST:   return True
-        if ability in STAT_AB_IM:                            return True
-        if (b_acc or b_ev) and (
+        # pokeplatinum Basic_CheckLowStatStage_*: only the stats the move lowers, read from the
+        # target's ability (No Guard from either side)
+        lowers = (
+            b_atk < 0 or b_def < 0 or b_spatk < 0 or b_spdef < 0 or b_spe < 0 or b_acc < 0
+            or b_ev < 0
+        )
+        if b_atk < 0 and ability == _ABILITYNAMES_HYPER_CUTTER:  return True
+        if b_spe < 0 and ability == _ABILITYNAMES_SPEED_BOOST:   return True
+        if lowers and ability in STAT_AB_IM:                    return True
+        if (b_acc < 0 or b_ev < 0) and (
             ability == _ABILITYNAMES_NO_GUARD
             or ai_pok[_POK_AB_ID] == _ABILITYNAMES_NO_GUARD
         ):
             return True
-        if b_acc and ai_pok[_POK_AB_ID] == _ABILITYNAMES_KEEN_EYE: return True
+        if b_acc < 0 and ability == _ABILITYNAMES_KEEN_EYE:     return True
     return False
 
 
