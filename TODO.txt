@@ -13,7 +13,7 @@
 [X]Early Bird *
 [X]Filter *
 [X]Flame Body *
-[]Flash Fire *
+[X]Flash Fire *
 []Forewarn *
 []Gluttony *
 [X]Guts
@@ -26,7 +26,7 @@
 [X]Insomnia *
 [X]Intimidate
 [X]Keen Eye
-[]Levitate *
+[X]Levitate *
 []Lightning Rod *
 []Magic Guard (Needs a lot of other implementations first, but half done)
 [X]Natural Cure *
@@ -40,7 +40,7 @@
 [X]Rivalry *
 [X]Rock Head
 [X]Sand Veil
-[]Scrappy *
+[X]Scrappy *
 [X]Serene Grace *
 []Shadow Tag *
 [X]Shed Skin *
@@ -94,7 +94,7 @@
 []Magnet Pull *
 [X]Marvel Scale *
 []Minus *
-[]Motor Drive *
+[X]Motor Drive *
 []Multitype *
 []Normalize *
 [X]Own Tempo *
@@ -113,9 +113,9 @@
 []Stench *
 []Sticky Hold *
 []Truant *
-[]Volt Absorb *
+[X]Volt Absorb *
 []White Smoke *
-[]Wonder Guard *
+[X]Wonder Guard *
 
 # Moves
 [X]Absorb !

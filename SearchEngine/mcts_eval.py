@@ -12,14 +12,15 @@ from Models.constants import (
     _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE, _FIELD_TURN, _FIELD_PHASE,
     _BATTLEPHASE_TURN_START, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _MOVE_ID,
     _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_TOXIC_SPIKES, _FIELD_GRAVITY_TURNS,
-    _MOVENAME_GRAVITY, _MOVE_OH_KO
+    _MOVENAME_GRAVITY, _MOVE_OH_KO, _TYPES_GROUND
 )
 from Models.helper import count_party, count_Id
 from Models.trainer_ai_helper import check_immunity_pty, check_resistance_pty
 from Models.trainer_ai import return_idx
 from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
-from Engine.engine_helper import calculate_crit, struggle, ohko_fails
+from Engine.engine_helper import calculate_crit, struggle, ohko_fails, ability_immune
+from Engine.ability_helper import levitates
 from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
 
 
@@ -199,8 +200,12 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                 eff, den = get_type_effectiveness(move_type, o_t1, o_t2)
                 eff_ratio = eff // den
 
-                if eff_ratio == 0:
-                    weight = 0  # immune — never pick this
+                if (
+                    eff_ratio == 0
+                    or (move_type == _TYPES_GROUND and levitates(o_pok, c_pok, gravity))
+                    or ability_immune(move, c_pok, o_pok, gravity)
+                ):
+                    weight = 0  # immune (type, Levitate, an absorbing ability) — never pick this
                 elif move[_MOVE_ID] in EXPLODE_MOVES:
                     # Kills the user: kept out of the damage calc like the trainer AI's
                     # MOVE_EXCEP, so it never gets a KO or effectiveness bonus

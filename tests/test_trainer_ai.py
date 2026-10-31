@@ -1423,3 +1423,36 @@ def test_ohko_never_counts_as_the_best_damage(make_pokemon, make_battle):
     arr[Pok.CURRENT_HP] = 1
     picks = {int(return_idx(arr)) for _ in range(40)}
     assert picks == {1}
+
+
+# ── Batch 8: Levitate, Wonder Guard, Scrappy in the AI's type chart ──────────
+
+@pytest.mark.parametrize("ai_ab, gravity, immune", [
+    ("Run Away", False, True), ("Mold Breaker", False, False), ("Run Away", True, False),
+])
+def test_ai_effectiveness_levitate(poke, ai_ab, gravity, immune):
+    """pokeplatinum's AI runs ApplyTypeChart, which has Levitate"""
+    ai_pok = poke("Diglett", 30, ai_ab, ["Mud-Slap"])
+    user = poke("Misdreavus", 30, "Levitate", ["Astonish"])
+    eff, _ = ai.trainer_ai_effectiveness(move_slice(ai_pok, 0), ai_pok, user, gravity)
+    assert (eff == 0) == immune
+
+
+@pytest.mark.parametrize("move, immune", [
+    ("Tackle", True), ("Karate Chop", False), ("Fire Fang", False), ("Thunder Wave", False),
+])
+def test_ai_effectiveness_wonder_guard(poke, move, immune):
+    """Wonder Guard: immune to damaging moves that aren't super effective, Fire Fang excepted"""
+    ai_pok = poke("Rattata", 30, "Run Away", [move])
+    user = poke("Rattata", 30, "Wonder Guard", ["Tackle"])
+    eff, _ = ai.trainer_ai_effectiveness(move_slice(ai_pok, 0), ai_pok, user)
+    assert (eff == 0) == immune
+
+
+def test_ai_effectiveness_scrappy(poke):
+    """A Scrappy AI's Normal move is neutral into a Ghost"""
+    user = poke("Gastly", 30, "Levitate", ["Lick"])
+    plain = poke("Kangaskhan", 30, "Run Away", ["Tackle"])
+    scrappy = poke("Kangaskhan", 30, "Scrappy", ["Tackle"])
+    assert ai.trainer_ai_effectiveness(move_slice(plain, 0), plain, user)[0] == 0
+    assert ai.trainer_ai_effectiveness(move_slice(scrappy, 0), scrappy, user)[0] == 1.5

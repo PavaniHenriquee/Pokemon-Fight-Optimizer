@@ -84,6 +84,7 @@ class VolStatus:
 class VolStatus2:
     """Second volatile bitmap, VolStatus is full"""
     MINIMIZE          = 1
+    FLASH_FIRE        = 2
 
 
 @dataclass(slots=True)

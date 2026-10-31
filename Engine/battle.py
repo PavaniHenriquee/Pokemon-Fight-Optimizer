@@ -19,7 +19,7 @@ from Engine.status_calc import (
     ability_blocks_status, cure_status,
 )
 from Engine.damage_calc import (
-    calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES, EXPLODE_MOVES
+    calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES, EXPLODE_MOVES, is_scrappy
 )
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
@@ -338,7 +338,7 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
     if not move_damage:
         crit = calculate_crit(attacker, defender, move, def_side)
         damage = calculate_damage(attacker, defender, move, weather, crit, None, def_side, gravity)
-        return resist_berry(defender, move, damage, gravity), crit
+        return resist_berry(defender, move, damage, gravity, is_scrappy(attacker)), crit
     if move_damage == _DAMAGESOURCES_LEVEL:
         return attacker[_POK_LEVEL], False
     if move_damage == _DAMAGESOURCES_PSYWAVE:

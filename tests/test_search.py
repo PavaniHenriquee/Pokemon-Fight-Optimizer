@@ -538,3 +538,17 @@ def test_rollout_ohko_weight(make_pokemon, make_battle, foe_lv, foe_ab, picked):
     actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
     picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)}
     assert (0 in picks) == picked
+
+
+@pytest.mark.parametrize("foe_ab, picked", [
+    ("Run Away", True), ("Volt Absorb", False), ("Wonder Guard", False),
+])
+def test_rollout_skips_moves_an_ability_takes(make_pokemon, make_battle, foe_ab, picked):
+    """A damaging move the foe's ability takes gets weight 0, like a type immunity"""
+    me = make_pokemon("Pikachu", 20, "Static", ["Thunder Shock", "Growl"])
+    foe = make_pokemon("Rattata", 20, foe_ab, ["Growl"])
+    arr = make_battle([me], [foe])
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
+    picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)}
+    assert (0 in picks) == picked

@@ -993,3 +993,25 @@ def test_explosion_halves_defense_after_stages(poke, move, stage, defense):
     d[Pok.DEFENSE] = 51
     d[Pok.DEFENSE_STAT_STAGE] = stage
     assert raw_atk_def(move_slice(a, 0), a, d)[1] == defense
+
+
+# ── Batch 8: Flash Fire, Scrappy ─────────────────────────────────────────────
+
+def test_flash_fire_boosts_own_fire_moves(poke):
+    """x15/10 after the weather, Fire moves only, in the engine and the AI estimate
+    (pokeplatinum CalcMoveDamage)"""
+    a = poke("Ponyta", 30, "Flash Fire", ["Ember", "Tackle"])
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    plain_fire, plain_normal = dmg(a, d, 0), dmg(a, d, 1)
+    ai_plain = calculate_ai_logic_damage(1.0, a, d, move_slice(a, 0), 0)
+    a[Pok.VOL_STATUS2] |= VolStatus2.FLASH_FIRE
+    assert 1.4 < ratio(dmg(a, d, 0), plain_fire) < 1.6
+    assert dmg(a, d, 1) == plain_normal
+    assert 1.4 < ratio(calculate_ai_logic_damage(1.0, a, d, move_slice(a, 0), 0), ai_plain) < 1.6
+
+
+def test_scrappy_damages_ghosts(poke):
+    """Normal into Ghost is neutral for Scrappy, 0 otherwise"""
+    d = poke("Gastly", 30, "Levitate", ["Lick"])
+    assert dmg(poke("Kangaskhan", 30, "Run Away", ["Tackle"]), d) == 0
+    assert dmg(poke("Kangaskhan", 30, "Scrappy", ["Tackle"]), d) > 0

@@ -169,11 +169,11 @@ def test_fake_out_only_first_turn(poke):
 
 
 def test_water_absorb_heals_and_blocks(poke):
-    """Water move into Water Absorb heals 1/4 and doesn't land"""
+    """Water move into Water Absorb heals 1/4 and doesn't land (it hit, the ability took it)"""
     a = poke("Squirtle", 50, "Torrent", ["Water Gun"])
     d = poke("Mudkip", 50, "Water Absorb", ["Tackle"])
     d[Pok.CURRENT_HP] = 10
-    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.MISS
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.INVULNERABLE
     assert d[Pok.CURRENT_HP] == 10 + d[Pok.MAX_HP] // 4
 
 
@@ -1836,3 +1836,163 @@ def test_switch_in_pecha_cures_toxic_spikes(poke):
     arr[Field.MY_SIDE_COND + SIDE_TOXIC_SPIKES] = 2
     switch_in(p, poke("Rattata", 50, "Run Away", ["Tackle"]), arr, True)
     assert p[Pok.STATUS] == 0 and p[Item.ID] == 0
+
+
+# ── Batch 8: type immunity and absorbing abilities ───────────────────────────
+
+def _always_hit(monkeypatch):
+    """The accuracy roll always hits"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: lo)
+
+
+@pytest.mark.parametrize("ability, move", [
+    ("Volt Absorb", "Thunder Shock"), ("Volt Absorb", "Thunder Wave"),
+    ("Water Absorb", "Water Gun"), ("Dry Skin", "Water Gun"),
+])
+def test_absorbs_heal_a_quarter(monkeypatch, poke, ability, move):
+    """The move hit and the ability takes it: 1/4 of max HP, the move does nothing else.
+    Volt Absorb takes status moves too (pokeplatinum TriggerImmunityAbility has no power check)"""
+    _always_hit(monkeypatch)
+    a = poke("Rattata", 50, "Run Away", [move])
+    d = poke("Rattata", 50, ability, ["Tackle"])
+    d[Pok.CURRENT_HP] = 10
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.INVULNERABLE
+    assert d[Pok.CURRENT_HP] == 10 + d[Pok.MAX_HP] // 4 and d[Pok.STATUS] == 0
+
+
+@pytest.mark.parametrize("stage, after", [(0, 1), (6, 6)])
+def test_motor_drive(monkeypatch, poke, stage, after):
+    """Speed +1, still immune at +6"""
+    _always_hit(monkeypatch)
+    a = poke("Pikachu", 50, "Static", ["Thunder Shock"])
+    d = poke("Rattata", 50, "Motor Drive", ["Tackle"])
+    d[Pok.SPEED_STAT_STAGE] = stage
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.INVULNERABLE
+    assert d[Pok.SPEED_STAT_STAGE] == after
+
+
+@pytest.mark.parametrize("move", ["Ember", "Will-O-Wisp"])
+def test_flash_fire_absorbs_and_sets_the_boost(monkeypatch, poke, move):
+    """Damaging Fire moves and Will-O-Wisp, the holder gets the Flash Fire volatile"""
+    _always_hit(monkeypatch)
+    a = poke("Charmander", 50, "Blaze", [move])
+    d = poke("Ponyta", 50, "Flash Fire", ["Ember"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.INVULNERABLE
+    assert d[Pok.VOL_STATUS2] & VolStatus2.FLASH_FIRE and d[Pok.STATUS] == 0
+
+
+def test_frozen_flash_fire_gets_hit(monkeypatch, poke):
+    """Frozen, Flash Fire doesn't work (pokeplatinum and Showdown gen4)"""
+    _always_hit(monkeypatch)
+    a = poke("Charmander", 50, "Blaze", ["Ember"])
+    d = poke("Ponyta", 50, "Flash Fire", ["Ember"])
+    d[Pok.STATUS] = Status.FREEZE
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.HIT
+    assert not d[Pok.VOL_STATUS2] & VolStatus2.FLASH_FIRE
+
+
+@pytest.mark.parametrize("ability, move", [
+    ("Volt Absorb", "Thunder Shock"), ("Water Absorb", "Water Gun"), ("Flash Fire", "Ember"),
+    ("Motor Drive", "Thunder Shock"), ("Wonder Guard", "Tackle"),
+])
+def test_mold_breaker_ignores_absorbs(monkeypatch, poke, ability, move):
+    """All of them are breakable"""
+    _always_hit(monkeypatch)
+    a = poke("Rattata", 50, "Mold Breaker", [move])
+    d = poke("Rattata", 50, ability, ["Tackle"])
+    d[Pok.CURRENT_HP] = 10
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.HIT
+    assert d[Pok.CURRENT_HP] == 10
+
+
+def test_absorb_needs_the_move_to_hit(monkeypatch, poke):
+    """A Water move that misses doesn't heal Water Absorb (the absorbs come after the accuracy
+    roll in pokeplatinum and Showdown gen4)"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: hi)
+    a = poke("Squirtle", 50, "Torrent", ["Hydro Pump"])
+    d = poke("Mudkip", 50, "Water Absorb", ["Tackle"])
+    d[Pok.CURRENT_HP] = 10
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.MISS
+    assert d[Pok.CURRENT_HP] == 10
+
+
+@pytest.mark.parametrize("move", ["Rain Dance", "Water Sport"])
+def test_water_absorb_ignores_water_status_moves(poke, move):
+    """Issue 4: only damaging Water moves aimed at it are absorbed"""
+    a = poke("Squirtle", 50, "Torrent", [move])
+    d = poke("Mudkip", 50, "Water Absorb", ["Tackle"])
+    d[Pok.CURRENT_HP] = 10
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.HIT
+    assert d[Pok.CURRENT_HP] == 10
+
+
+@pytest.mark.parametrize("move, outcome", [
+    ("Tackle", MoveOutcome.INVULNERABLE),       # neutral
+    ("Dragon Rage", MoveOutcome.INVULNERABLE),  # fixed damage counts as damaging
+    ("Karate Chop", MoveOutcome.HIT),           # super effective
+    ("Fire Fang", MoveOutcome.HIT),             # Gen IV bug, always gets through
+    ("Thunder Wave", MoveOutcome.HIT),          # status moves aren't blocked
+])
+def test_wonder_guard(monkeypatch, poke, move, outcome):
+    """Only super effective damaging moves land (pokeplatinum ApplyTypeChart, Showdown gen4)"""
+    _always_hit(monkeypatch)
+    a = poke("Rattata", 50, "Run Away", [move])
+    d = poke("Rattata", 50, "Wonder Guard", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == outcome
+
+
+@pytest.mark.parametrize("atk_ab, gravity, ingrain, outcome", [
+    ("Run Away", False, False, MoveOutcome.INVULNERABLE),
+    ("Mold Breaker", False, False, MoveOutcome.HIT),
+    ("Run Away", True, False, MoveOutcome.HIT),
+    ("Run Away", False, True, MoveOutcome.HIT),
+])
+def test_levitate(monkeypatch, poke, atk_ab, gravity, ingrain, outcome):
+    """Ground moves miss a Levitate Pokemon, Mold Breaker, Gravity and Ingrain ground it
+    (pokeplatinum Battler_Ability)"""
+    _always_hit(monkeypatch)
+    a = poke("Rattata", 50, atk_ab, ["Mud-Slap"])
+    d = poke("Misdreavus", 50, "Levitate", ["Astonish"])
+    if ingrain:
+        d[Pok.VOL_STATUS] |= VolStatus.INGRAIN
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0, gravity) == outcome
+
+
+def test_levitate_doesnt_stop_ground_status_moves(monkeypatch, poke):
+    """Sand Attack skips the type chart, so it reaches a Levitate Pokemon"""
+    _always_hit(monkeypatch)
+    a = poke("Rattata", 50, "Run Away", ["Sand Attack"])
+    d = poke("Misdreavus", 50, "Levitate", ["Astonish"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.HIT
+
+
+@pytest.mark.parametrize("species, ability, grounded", [
+    ("Misdreavus", "Levitate", True), ("Pidgey", "Keen Eye", False),
+])
+def test_ingrain_grounds_levitate_not_flying(poke, species, ability, grounded):
+    """pokeplatinum BattlerIsGrounded: Ingrain switches Levitate off, a Flying type stays up"""
+    p = poke(species, 50, ability, ["Tackle"])
+    p[Pok.VOL_STATUS] |= VolStatus.INGRAIN
+    assert is_grounded(p) == grounded
+
+
+@pytest.mark.parametrize("atk_ab, outcome", [
+    ("Run Away", MoveOutcome.INVULNERABLE), ("Scrappy", MoveOutcome.HIT),
+])
+def test_scrappy_hits_ghosts(monkeypatch, poke, atk_ab, outcome):
+    """Normal and Fighting moves reach a Ghost type"""
+    _always_hit(monkeypatch)
+    a = poke("Kangaskhan", 50, atk_ab, ["Tackle"])
+    d = poke("Gastly", 50, "Levitate", ["Lick"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == outcome
+
+
+@pytest.mark.parametrize("atk_ab, outcome", [
+    ("Run Away", MoveOutcome.MISS), ("Mold Breaker", MoveOutcome.HIT),
+])
+def test_soundproof_and_mold_breaker(monkeypatch, poke, atk_ab, outcome):
+    """Soundproof is breakable (pokeplatinum TriggerImmunityAbility)"""
+    _always_hit(monkeypatch)
+    a = poke("Rattata", 50, atk_ab, ["Growl"])
+    d = poke("Whismur", 50, "Soundproof", ["Pound"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == outcome

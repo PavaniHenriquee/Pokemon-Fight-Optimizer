@@ -11,9 +11,9 @@ from Engine.status_calc import (
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
     item_power, item_attack, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
-    AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB
+    AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB, is_scrappy
 )
-from Engine.ability_helper import ignorable_ability
+from Engine.ability_helper import ignorable_ability, levitates
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, Target
 from Models.item import ITEM_TABLE
@@ -58,7 +58,8 @@ from Models.constants import (
     _POK_TAUNT_TURNS, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _MOVECATEGORY_STATUS,
     _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _SIDECONDITION_LUCKY_CHANT, _SIDECONDITION_MIST,
     _SIDECONDITION_SAFEGUARD, _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK,
-    _TYPES_FLYING, _TYPES_POISON, _ABILITYNAMES_LEVITATE, _POK_BASE_AB_ID, _POK_ITEM_KNOCKED_OFF, _POK_PERISH_TURNS,
+    _TYPES_FLYING, _TYPES_POISON, _POK_BASE_AB_ID, _POK_ITEM_KNOCKED_OFF,
+    _POK_PERISH_TURNS,
     _VOLSTATUS_PERISH_SONG, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_STICKY_HOLD, _ABILITYNAMES_MULTITYPE,
     _ABILITYNAMES_TRUANT, _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_SYNTHESIS, _POK_CALLED_MOVE,
     _POK_MIRROR_MOVE, _FIELD_LAST_MOVE, _FIELD_TERRAIN, _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE,
@@ -74,7 +75,10 @@ from Models.constants import (
     _ABILITYNAMES_AFTERMATH, _FLAGS_CONTACT, _ABILITYACTIVATION_ON_CONTACT,
     _HOLDEFFECT_PSN_RESTORE, _HOLDEFFECT_SLP_RESTORE, _HOLDEFFECT_STATUS_RESTORE,
     _HOLDEFFECT_HEAL_INFATUATION, _ABILITYNAMES_EARLY_BIRD, _ABILITYNAMES_NATURAL_CURE,
-    _ABILITYNAMES_SHED_SKIN,
+    _ABILITYNAMES_SHED_SKIN, _POK_VOL_STATUS2, _VOLSTATUS2_FLASH_FIRE,
+    _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE, _ABILITYNAMES_DRY_SKIN,
+    _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_WONDER_GUARD, _TYPES_ELECTRIC, _MOVENAME_FIRE_FANG,
+    _MOVENAME_WILL_O_WISP,
 )
 
 
@@ -271,10 +275,11 @@ def eat_berry(pok):
 
 
 @njit
-def resist_berry(defender, move, damage, gravity=False):
+def resist_berry(defender, move, damage, gravity=False, scrappy=False):
     """
     A resist berry halves a super effective hit of its type and Chilan any Normal hit, then it's
-    eaten. Showdown onSourceModifyDamage, a final modifier that leaves at least 1
+    eaten. Showdown onSourceModifyDamage, a final modifier that leaves at least 1. scrappy: the
+    attacker has Scrappy
     """
     effect = defender[_ITEM_HOLD_EFFECT]
     if damage <= 0 or (effect != _HOLDEFFECT_WEAKEN_SE and effect != _HOLDEFFECT_WEAKEN_NORMAL):
@@ -283,7 +288,7 @@ def resist_berry(defender, move, damage, gravity=False):
     if m_type != defender[_ITEM_EFFECT_TYPE]:
         return damage
     if effect == _HOLDEFFECT_WEAKEN_SE:
-        def_type1, def_type2 = matchup_types(m_type, defender, gravity)
+        def_type1, def_type2 = matchup_types(m_type, defender, gravity, scrappy)
         effectiveness, _ = get_type_effectiveness(m_type, def_type1, 0)
         effectiveness2 = 2
         if def_type2:
@@ -435,8 +440,9 @@ def absorb_abi(defender):
 @njit
 def ab_on_try_move(move, attacker, defender, accuracy:int):
     """
-    Abilities that make the move fail before the accuracy roll: Damp, Soundproof, Water Absorb.
-    Accuracy modifiers live in move_accuracy
+    Abilities that make the move fail before the accuracy roll: Damp, Soundproof (Mold Breaker
+    ignores the target's, pokeplatinum TriggerImmunityAbility). The absorbing abilities come after
+    the hit in calculate_hit_miss, accuracy modifiers live in move_accuracy
     """
     atk_ab = attacker[_POK_AB_ID]
     def_ab = defender[_POK_AB_ID]
@@ -446,7 +452,7 @@ def ab_on_try_move(move, attacker, defender, accuracy:int):
     if (
         move[_FLAGS_SOUND]
         and (
-            def_ab == _ABILITYNAMES_SOUNDPROOF
+            (def_ab == _ABILITYNAMES_SOUNDPROOF and ignorable_ability(defender, attacker))
             or (
                 atk_ab == _ABILITYNAMES_SOUNDPROOF
                 and target in TARGET_SELF_SIDE
@@ -454,11 +460,79 @@ def ab_on_try_move(move, attacker, defender, accuracy:int):
         )
     ):
         return 0
-    if def_ab == _ABILITYNAMES_WATER_ABSORB and move[_MOVE_TYPE] == _TYPES_WATER:
-        absorb_abi(defender)
-        return 0
 
     return accuracy
+
+
+@njit
+def ability_immune(move, attacker, defender, gravity=False):
+    """
+    Which of the defender's abilities stops a move that hit, 0 if none (pokeplatinum
+    TriggerImmunityAbility and the Wonder Guard check of ApplyTypeChart, Showdown gen4 runs them
+    after the accuracy). Volt Absorb and Motor Drive take any Electric move, Water Absorb and Dry
+    Skin damaging Water moves, Flash Fire damaging Fire moves and Will-O-Wisp unless frozen.
+    Wonder Guard lets only super effective damaging moves through, and Fire Fang (Gen IV bug).
+    No side effects, Mold Breaker ignores all of them
+    """
+    if (
+        move[_MOVE_TARGET] in TARGET_SELF_SIDE
+        or move[_MOVE_TARGET] in SIDE_OR_FIELD_TARGETS
+        or not ignorable_ability(defender, attacker)
+    ):
+        return 0
+    ability = defender[_POK_AB_ID]
+    m_type = move[_MOVE_TYPE]
+    damaging = move[_MOVE_CATEGORY] != _MOVECATEGORY_STATUS
+    if m_type == _TYPES_ELECTRIC and (
+        ability == _ABILITYNAMES_VOLT_ABSORB or ability == _ABILITYNAMES_MOTOR_DRIVE
+    ):
+        return ability
+    if m_type == _TYPES_WATER and damaging and (
+        ability == _ABILITYNAMES_WATER_ABSORB or ability == _ABILITYNAMES_DRY_SKIN
+    ):
+        return ability
+    if (
+        ability == _ABILITYNAMES_FLASH_FIRE
+        and m_type == _TYPES_FIRE
+        and (damaging or move[_MOVE_ID] == _MOVENAME_WILL_O_WISP)
+        and defender[_POK_STATUS] != _STATUS_FREEZE
+    ):
+        return ability
+    if (
+        ability == _ABILITYNAMES_WONDER_GUARD
+        and damaging
+        and m_type != _TYPES_TYPELESS
+        and move[_MOVE_ID] != _MOVENAME_STRUGGLE
+        and move[_MOVE_ID] != _MOVENAME_FIRE_FANG
+    ):
+        def_t1, def_t2 = matchup_types(m_type, defender, gravity, is_scrappy(attacker))
+        eff, den = get_type_effectiveness(m_type, def_t1, def_t2)
+        if eff <= den:
+            return ability
+    return 0
+
+
+@njit
+def absorb_move(move, attacker, defender, gravity=False):
+    """
+    The defender's ability takes a move that hit: the absorbs heal 1/4 of max HP, Motor Drive
+    raises Speed, Flash Fire powers up its Fire moves, Wonder Guard just blocks. Returns True if
+    the move does nothing else
+    """
+    ability = ability_immune(move, attacker, defender, gravity)
+    if ability == 0:
+        return False
+    if (
+        ability == _ABILITYNAMES_VOLT_ABSORB
+        or ability == _ABILITYNAMES_WATER_ABSORB
+        or ability == _ABILITYNAMES_DRY_SKIN
+    ):
+        absorb_abi(defender)
+    elif ability == _ABILITYNAMES_MOTOR_DRIVE:
+        defender[_POK_SPEED_STAT_STAGE] = min(6, defender[_POK_SPEED_STAT_STAGE] + 1)
+    elif ability == _ABILITYNAMES_FLASH_FIRE:
+        defender[_POK_VOL_STATUS2] |= _VOLSTATUS2_FLASH_FIRE
+    return True
 
 
 @njit
@@ -532,7 +606,20 @@ def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False):
 
 @njit
 def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
-    '''Returns a boolean if the move passed the accuracy check'''
+    '''
+    The move's outcome. A move that hit can still be taken by the target's ability (Volt Absorb,
+    Flash Fire, Wonder Guard...), which makes it INVULNERABLE (pokeplatinum and Showdown gen4 check
+    them after the type chart and the accuracy roll)
+    '''
+    outcome = _hit_outcome(move, attacker, defender, weather, gravity)
+    if outcome == _MOVEOUTCOME_HIT and absorb_move(move, attacker, defender, gravity):
+        return _MOVEOUTCOME_INVULNERABLE
+    return outcome
+
+
+@njit
+def _hit_outcome(move, attacker, defender, weather, gravity=False):
+    '''Protect, semi-invulnerability, type immunities and the accuracy roll'''
     guard = no_guard(attacker, defender)
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT and move[_FLAGS_PROTECT]:
         return _MOVEOUTCOME_PROTECTED
@@ -566,9 +653,11 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
         move_acc = -1
 
     if move[_MOVE_TARGET] not in TARGET_SELF_SIDE and not move[_MOVE_IGNORE_IMMUNITY]:
-        def_t1, def_t2 = matchup_types(move[_MOVE_TYPE], defender, gravity)
+        def_t1, def_t2 = matchup_types(move[_MOVE_TYPE], defender, gravity, is_scrappy(attacker))
         eff, _ = get_type_effectiveness(move[_MOVE_TYPE], def_t1, def_t2)
         if eff == 0:
+            return _MOVEOUTCOME_INVULNERABLE
+        if move[_MOVE_TYPE] == _TYPES_GROUND and levitates(defender, attacker, gravity):
             return _MOVEOUTCOME_INVULNERABLE
 
     # OHKO moves hit on accuracy + the level difference out of 100 and always fail from a lower
@@ -688,13 +777,14 @@ def side_base(is_mine):
 
 @njit
 def is_grounded(pok, gravity=False):
-    """Spikes and Toxic Spikes only reach a grounded Pokemon. TODO: Magnet Rise, Iron Ball"""
+    """Spikes and Toxic Spikes only reach a grounded Pokemon, Ingrain switches Levitate off (not the
+    Flying type, pokeplatinum BattlerIsGrounded). TODO: Magnet Rise, Iron Ball"""
     if gravity:
         return True
     return not (
         pok[_POK_TYPE1] == _TYPES_FLYING
         or pok[_POK_TYPE2] == _TYPES_FLYING
-        or pok[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
+        or levitates(pok, pok)
     )
 
 

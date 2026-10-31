@@ -33,7 +33,8 @@ from Models.constants import (
     _ABILITYNAMES_TECHNICIAN, _MOVENAME_STRUGGLE, _ABILITYNAMES_RIVALRY, _POK_GENDER,
     _GENDER_GENDERLESS, _ABILITYNAMES_HEATPROOF, _ABILITYNAMES_DRY_SKIN, _ABILITYNAMES_FILTER,
     _ABILITYNAMES_SOLID_ROCK, _ABILITYNAMES_SNIPER, _ABILITYNAMES_UNAWARE, _ABILITYNAMES_PURE_POWER,
-    _ABILITYNAMES_MARVEL_SCALE, _ABILITYNAMES_FLOWER_GIFT,
+    _ABILITYNAMES_MARVEL_SCALE, _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SCRAPPY,
+    _VOLSTATUS2_FLASH_FIRE,
 )
 from Engine.ability_helper import ignorable_ability
 
@@ -87,15 +88,16 @@ def apply_stat_stage(raw_stat: int, stage: int, is_simple: bool) -> int:
 
 
 @njit
-def matchup_types(move_type, defender, gravity=False):
+def matchup_types(move_type, defender, gravity=False, scrappy=False):
     """
-    Defender types the type chart reads. Foresight drops the Ghost type against Normal and
-    Fighting, Ingrain and Gravity drop the Flying type against Ground, a dropped type is 0 (neutral)
+    Defender types the type chart reads. Foresight or the attacker's Scrappy drop the Ghost type
+    against Normal and Fighting, Ingrain and Gravity drop the Flying type against Ground, a dropped
+    type is 0 (neutral)
     """
     t1 = defender[_POK_TYPE1]
     t2 = defender[_POK_TYPE2]
     vol = defender[_POK_VOL_STATUS]
-    if vol & _VOLSTATUS_FORESIGHT and move_type in FORESIGHT_TYPES:
+    if (vol & _VOLSTATUS_FORESIGHT or scrappy) and move_type in FORESIGHT_TYPES:
         if t1 == _TYPES_GHOST:
             t1 = 0
         if t2 == _TYPES_GHOST:
@@ -106,6 +108,23 @@ def matchup_types(move_type, defender, gravity=False):
         if t2 == _TYPES_FLYING:
             t2 = 0
     return t1, t2
+
+
+@njit
+def is_scrappy(attacker):
+    """Scrappy's Normal and Fighting moves hit Ghost types (pokeplatinum ApplyTypeChart)"""
+    return attacker[_POK_AB_ID] == _ABILITYNAMES_SCRAPPY
+
+
+@njit
+def flash_fire_damage(attacker, m_type, damage):
+    """
+    A Flash Fire holder that took a Fire move powers up its own Fire moves x15/10, after the
+    weather (pokeplatinum CalcMoveDamage)
+    """
+    if m_type == _TYPES_FIRE and attacker[_POK_VOL_STATUS2] & _VOLSTATUS2_FLASH_FIRE:
+        return damage * 15 // 10
+    return damage
 
 
 @njit
@@ -381,7 +400,7 @@ def multipliers(
     m_type = move[_MOVE_TYPE]
     atk_type1 = attacker[_POK_TYPE1]
     atk_type2 = attacker[_POK_TYPE2]
-    def_type1, def_type2 = matchup_types(m_type, defender, gravity)
+    def_type1, def_type2 = matchup_types(m_type, defender, gravity, is_scrappy(attacker))
 
     # Burn
     if attacker[_POK_STATUS] == _STATUS_BURN:
@@ -409,7 +428,7 @@ def multipliers(
             elif m_type == _TYPES_FIRE:
                 damage //= 2
 
-    # TODO: Flash Fire
+    damage = flash_fire_damage(attacker, move[_MOVE_TYPE], damage)
 
     # Adding 2 after the above
     damage += 2
@@ -688,7 +707,7 @@ def calculate_ai_logic_damage(
             elif m_type == _TYPES_FIRE:
                 damage //= 2
 
-    # TODO: Flash Fire
+    damage = flash_fire_damage(attacker, move[_MOVE_TYPE], damage)
 
     # Adding 2 after the above
     damage += 2
@@ -703,7 +722,7 @@ def calculate_ai_logic_damage(
             damage *= 2
         else:
             damage = (damage*3) // 2
-    def_type1, def_type2 = matchup_types(m_type, defender, gravity)
+    def_type1, def_type2 = matchup_types(m_type, defender, gravity, is_scrappy(attacker))
     effectiveness1, _ = get_type_effectiveness(m_type, def_type1, 0)
     damage = (effectiveness1 * damage) // 2
     effectiveness2 = 2

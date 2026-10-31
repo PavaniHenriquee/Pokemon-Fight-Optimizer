@@ -74,11 +74,13 @@ from Models.constants import (
     _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG, _MOVENAME_SPLASH, _MOVENAME_SLEEP_TALK,
     _VOLSTATUS_PERISH_SONG, _POK_CONSUMED_ITEM, _ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE,
     _ABILITYNAMES_STICKY_HOLD, _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT,
-    _MOVENAME_NATURE_POWER, _TYPES_TYPELESS, _MOVENAME_BLIZZARD, _MOVE_OH_KO, _POK_LEVEL
+    _MOVENAME_NATURE_POWER, _TYPES_TYPELESS, _MOVENAME_BLIZZARD, _MOVE_OH_KO, _POK_LEVEL,
+    _MOVENAME_FIRE_FANG,
 )
 from Engine.damage_calc import (
-    weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES
+    weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy
 )
+from Engine.ability_helper import ignorable_ability, levitates
 
 COUNTER_EX_TYPES = (
     _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
@@ -354,18 +356,17 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok, gravity=False):
     ai_type1 = ai_pok[_POK_TYPE1]
     ai_type2 = ai_pok[_POK_TYPE2]
     ai_ability = ai_pok[_POK_AB_ID]
-    # Foresight, Ingrain and Gravity go through the same type chart as the battle
+    # Foresight, Scrappy, Ingrain and Gravity go through the same type chart as the battle
     # (BattleSystem_ApplyTypeChart)
-    user_type1, user_type2 = matchup_types(move_type, user_pok, gravity)
+    user_type1, user_type2 = matchup_types(move_type, user_pok, gravity, is_scrappy(ai_pok))
 
     # STAB
     if move_type == ai_type1 or move_type == ai_type2:  # pylint: disable=consider-using-in
         effectiveness *= 1.5 if ai_ability != _ABILITYNAMES_ADAPTABILITY else 2
 
     # Common type effectiveness
-    # TODO: Scrappy, Mold Breaker,
-    # Gastro Acid, Miracle Eye, Iron Ball
-    # Magnet Rise, Levitate, Wonder Guard, more...
+    # TODO: Gastro Acid, Miracle Eye, Iron Ball
+    # Magnet Rise, more...
     s_e = False
     ef_t1 = TYPE_CHART[(move_type*19)+user_type1] / 2
     effectiveness *= ef_t1
@@ -377,6 +378,20 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok, gravity=False):
     elif ef_t1 == 2:
         s_e = True
 
+    # ApplyTypeChart's Levitate (any Ground move) and Wonder Guard (a damaging move that isn't
+    # super effective) make it immune. MoveIsOnDamagingTurn is false outside the move's last
+    # turn, so charge moves and Fire Fang get past Wonder Guard here
+    if move_type == _TYPES_GROUND and levitates(user_pok, ai_pok, gravity):
+        return 0.0, False
+    if (
+        user_pok[_POK_AB_ID] == _ABILITYNAMES_WONDER_GUARD
+        and ignorable_ability(user_pok, ai_pok)
+        and move_cat != _MOVECATEGORY_STATUS
+        and not s_e
+        and move[_MOVE_CHARGE_RECHARGE] <= 0
+        and move[_MOVE_ID] != _MOVENAME_FIRE_FANG
+    ):
+        return 0.0, False
 
     if move_cat != _MOVECATEGORY_STATUS:
         # TODO: Tinted Lens, Filter/Solid Rock, Expert Belt

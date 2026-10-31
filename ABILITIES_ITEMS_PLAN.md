@@ -19,7 +19,7 @@
 | 5     | Accuracy, crit, secondary effects                                   | [x]    |
 | 6     | Contact abilities                                                   | [x]    |
 | 7     | Status immunity, cures, status berries                              | [x]    |
-| 8     | Type immunity and absorb abilities                                  | [ ]    |
+| 8     | Type immunity and absorb abilities                                  | [x]    |
 | 9     | Switch-in abilities and stat-drop guards                            | [ ]    |
 | 10    | Speed and turn order                                                | [ ]    |
 | 11    | Weather and end of turn                                             | [ ]    |
@@ -106,6 +106,18 @@
   (`_after_move_items`, also after Pursuit and the pending move after my Baton Pass), on switch-in after the
   hazards, and a new end-of-turn step after Yawn. Natural Cure includes [pp]'s second clause: the party ability
   (`BASE_AB_ID` after Worry Seed) forbidding the status also cures on switch-out.
+- 2026-10-31 (Batch 8): Issue 4 fixed. The absorbing abilities run after the type check and the accuracy roll
+  ([pp] TRY_MOVE_STATE order and Showdown gen4's reordered hit steps agree): `calculate_hit_miss` is now a wrapper
+  over `_hit_outcome` that turns a HIT the defender's ability takes into INVULNERABLE (`absorb_move`, pure check in
+  `ability_immune`). Volt Absorb / Motor Drive take any Electric move, Water Absorb / Dry Skin damaging Water moves,
+  Flash Fire damaging Fire moves and Will-O-Wisp unless frozen (new VOL2 `FLASH_FIRE`, x15/10 after the weather
+  in the engine and the AI estimate). Wonder Guard blocks damaging moves that aren't super effective (fixed damage
+  included), Fire Fang always passes (Gen IV bug, [pp] and [SD gen4]). Levitate sits in the type check (no RNG),
+  switched off by Mold Breaker, Gravity and Ingrain ([pp] `Battler_Ability`; Ingrain also grounds it for the
+  hazards, a Flying type stays up). `levitates` lives in `ability_helper.py` so the AI and the rollout can import
+  it. Scrappy goes through `matchup_types(..., scrappy)`. Soundproof is now breakable. Deferred Volt Absorb,
+  Motor Drive, Wonder Guard and Dry Skin's Water part done with the batch. No golden change: no scenario aims a
+  Fire move at Ponyta, a damaging Ground move at Misdreavus or a Water move at Mudkip, and the checks use no RNG.
 
 **Still open (your call, at the batch that needs it)**
 
@@ -189,7 +201,7 @@
    the defender's Sand Veil, Soundproof and Water Absorb. Needed by Batches 5 and 8. **FIXED in Batch 5.**
 4. **Water Absorb has no target/power filter** (`engine_helper.py:358`): Rain Dance, Water Sport, Aqua Ring
    or Withdraw used against a Water Absorb foe heal it and fail. [pp BattleSystem_TriggerImmunityAbility]
-   only absorbs damaging Water moves. Needed by Batch 8.
+   only absorbs damaging Water moves. Needed by Batch 8. **FIXED in Batch 8.**
 5. **Aftermath's condition looks inverted** (`battle.py:380`): `move[_MOVE_DAMAGE] != 0` is only true for
    fixed-damage moves, so Tackle-style contact moves never trigger it. Same gate as Batch 6. **FIXED in Batch 6.**
 6. **A berry can revive a Pokemon KO'd by its own confusion hit**: `confusion()` calls `item_on_rdmg` at
@@ -602,6 +614,17 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   (`effective_weather`) in Batch 11, like Flame Orb's.
 - Batch 7: the rollout still gives a status move into an immune ability weight 1.
 - Batch 7: pylint's too-many-branches on `vol_status` (21/20) was already at 21 before this batch (no `if` added).
+- Batch 8: `gravity_types` callers don't see Scrappy (or Levitate / Wonder Guard): `sub_after_death`'s type score,
+  the Expert party checks (`trainer_ai_helper.py` ~2096-2232) and the rollout's effectiveness ratio. [pp]
+  `BattleSystem_CalcEffectiveness` takes the attacker's Scrappy and the defender's Levitate.
+- Batch 8: `check_immunity_pty` / `check_resistance_pty` (the foe's move into my party, rollout) read types only,
+  no Levitate or absorbing abilities.
+- Batch 8: the AI's Wonder Guard check assumes [pp] `MoveIsOnDamagingTurn` is false while the AI scores (no
+  LAST_OF_MULTI_TURN flag), so charge moves (Dig, Bounce, Bide) and Fire Fang get through there; not verified
+  in-game. It doesn't skip Struggle the way `ApplyTypeChart` does (the AI never scores Struggle).
+- Batch 8: an absorbed move ends an Uproar like any immune target (`UPROAR_KEEPS_ON` doesn't hold INVULNERABLE).
+- Batch 8: the engine's "Soundproof user can't use a sound move on its own side" rule isn't in [pp]
+  `TriggerImmunityAbility` (left as is).
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).
