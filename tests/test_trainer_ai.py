@@ -1493,3 +1493,38 @@ def test_ai_uses_a_revealed_ability(monkeypatch, make_pokemon, make_battle, know
     monkeypatch.setattr(trainer_ai, "basic_flag", lambda move, ability, *a, **k: seen.append(ability) or 0)
     return_idx(arr)
     assert seen and set(seen) == {expected}
+
+
+@pytest.mark.parametrize("ai_ab, u_ab, claw_guess, expected", [
+    ("Run Away", "Sturdy", 0, -1),   # Geodude is slower than Rattata: the AI (Geodude) is second
+    ("Run Away", "Sturdy", 1, 1),    # its guessed Quick Claw puts it first
+    ("Run Away", "Sturdy", 3, -1),   # both guessed: speed
+    ("Run Away", "Stall", 0, 1),     # the faster target has Stall
+    ("Stall", "Stall", 0, 1),        # both Stall: the slower first (pokeplatinum)
+    ("Stall", "Sturdy", 2, -1),      # a guessed Quick Claw beats Stall
+])
+def test_ai_speed_order(poke, ai_ab, u_ab, claw_guess, expected):
+    """pokeplatinum CompareBattlerSpeed as the AI sees it: Quick Claw guess, Stall, then speed"""
+    ai_pok = poke("Geodude", 20, ai_ab, ["Tackle"])
+    user = poke("Rattata", 20, u_ab, ["Tackle"])
+    assert ai.ai_speed_order(ai_pok, user, 0, claw_guess) == expected
+
+
+def test_ai_speed_order_sees_quick_feet(poke):
+    """The speed abilities reach the AI through check_speed"""
+    ai_pok = poke("Geodude", 20, "Quick Feet", ["Tackle"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    ai_pok[Pok.STATUS] = user[Pok.STATUS] = Status.PARALYSIS
+    assert ai.ai_speed_order(ai_pok, user, 0, 0) == 1
+
+
+def test_quick_claw_guess(monkeypatch, poke):
+    """One bit per holder, and no RNG call when nobody holds a Quick Claw"""
+    plain = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    claw = poke("Rattata", 20, "Run Away", ["Tackle"], item="Quick Claw")
+    state = ai.random.getstate()
+    assert ai.quick_claw_guess(plain, plain) == 0
+    assert ai.random.getstate() == state
+    monkeypatch.setattr(ai.random, "randint", lambda lo, hi: 0)
+    assert ai.quick_claw_guess(plain, claw) == 2
+    assert ai.quick_claw_guess(claw, claw) == 3

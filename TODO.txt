@@ -34,7 +34,7 @@
 [X]Oblivious *
 [X]Pickup
 [X]Poison Point
-[]Quick Feet *
+[X]Quick Feet *
 [X]Rain Dish
 [X]Reckless
 [X]Rivalry *
@@ -66,7 +66,7 @@
 [X]Tinted Lens
 [X]Trace *
 [X]Unaware *
-[]Unburden (Need to implement usable held items)
+[X]Unburden (Need to implement usable held items)
 [X]Vital Spirit *
 [X]Water Absorb
 [X]Water Veil *
@@ -105,14 +105,14 @@
 [X]Rough Skin *
 []Sand Stream *
 [X]Skill Link *
-[]Slow Start *
+[X]Slow Start *
 []Snow Cloak *
 []Snow Warning *
 [X]Solid Rock *
-[]Stall *
+[X]Stall *
 []Stench *
 []Sticky Hold *
-[]Truant *
+[X]Truant *
 [X]Volt Absorb *
 [X]White Smoke *
 [X]Wonder Guard *
@@ -432,7 +432,7 @@
 [X]Pecha Berry *
 [X]Poison Barb *
 []Power Herb *
-[]Quick Claw *
+[X]Quick Claw *
 [X]Rindo Berry *
 [X]Scope Lens *
 [X]Sea Incense *

@@ -3,7 +3,7 @@ import random
 import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
-from Engine.speed import check_speed
+from Engine.speed import check_speed, slow_start_active
 from DataBase.PkDB import PokemonName
 from Models.constants import (
     _ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW,
@@ -152,6 +152,8 @@ def ab_modify_stat(attacker, atk, physical, move, weather):
             atk = (atk * 3) // 2
         elif atk_ab in DOUBLE_ATK_AB:
             atk *= 2
+        elif slow_start_active(attacker):
+            atk //= 2
         elif atk_ab == _ABILITYNAMES_HUSTLE and not move[_MOVE_OH_KO]:
             atk = (atk * 3) // 2
         elif atk_ab == _ABILITYNAMES_FLOWER_GIFT and weather == _WEATHER_SUN:
@@ -628,6 +630,8 @@ def calculate_damage_confusion(pok):
         attack = (attack*3)//2
     elif pok_ab in DOUBLE_ATK_AB:
         attack *= 2
+    elif slow_start_active(pok):
+        attack //= 2
     elif pok_ab == _ABILITYNAMES_HUSTLE:
         attack = (attack*3)//2
 

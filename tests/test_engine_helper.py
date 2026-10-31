@@ -103,6 +103,151 @@ def test_speed_tie_is_a_coin_flip(poke):
     assert firsts == {True, False}
 
 
+@pytest.mark.parametrize("stage, expected_stage", [(1, 2), (2, 4), (4, 6), (-2, -4), (-4, -6)])
+def test_simple_doubles_speed_stages(poke, stage, expected_stage):
+    """pokeplatinum CompareSpeed_ApplySimple: the stage doubles, capped at +-6"""
+    a = poke("Bidoof", 50, "Simple", ["Tackle"])
+    ref = poke("Bidoof", 50, "Run Away", ["Tackle"])
+    a[Pok.SPEED_STAT_STAGE] = stage
+    ref[Pok.SPEED_STAT_STAGE] = expected_stage
+    assert check_speed(a, ref, 0)[0] == check_speed(ref, a, 0)[0]
+
+
+@pytest.mark.parametrize("status", [Status.PARALYSIS, Status.BURN, Status.POISON, Status.SLEEP])
+def test_quick_feet_boosts_any_status_and_skips_paralysis(poke, status):
+    """x15/10 with any status, replacing paralysis's quarter"""
+    a = poke("Rattata", 50, "Quick Feet", ["Tackle"])
+    base = check_speed(a, a, 0)[0]
+    a[Pok.STATUS] = status
+    assert check_speed(a, a, 0)[0] == base * 15 // 10
+
+
+@pytest.mark.parametrize("turns_active, halved", [(0, True), (1, True), (5, True), (6, False)])
+def test_slow_start_halves_speed_for_five_turns(poke, turns_active, halved):
+    """The rest of the turn it enters plus 5 full turns (TURNS_ACTIVE 0..5)"""
+    a = poke("Rattata", 50, "Slow Start", ["Tackle"])
+    plain = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.TURNS_ACTIVE] = turns_active
+    base = check_speed(plain, plain, 0)[0]
+    assert check_speed(a, a, 0)[0] == (base // 2 if halved else base)
+
+
+@pytest.mark.parametrize("marked, has_item, doubled", [
+    (True, False, True), (True, True, False), (False, False, False),
+])
+def test_unburden_doubles_speed_once_the_item_is_gone(poke, marked, has_item, doubled):
+    """x2 only with the CAN_UNBURDEN mark and no item"""
+    a = poke("Treecko", 50, "Unburden", ["Pound"], item="Oran Berry" if has_item else None)
+    plain = poke("Treecko", 50, "Run Away", ["Pound"])
+    if marked:
+        a[Pok.VOL_STATUS2] |= VolStatus2.CAN_UNBURDEN
+    base = check_speed(plain, plain, 0)[0]
+    assert check_speed(a, a, 0)[0] == (base * 2 if doubled else base)
+
+
+def test_unburden_comes_after_paralysis(poke):
+    """pokeplatinum order: paralysis floors first, then Unburden doubles"""
+    a = poke("Treecko", 37, "Unburden", ["Pound"])
+    a[Pok.VOL_STATUS2] |= VolStatus2.CAN_UNBURDEN
+    a[Pok.STATUS] = Status.PARALYSIS
+    assert check_speed(a, a, 0)[0] == a[Pok.SPEED] // 4 * 2
+
+
+def test_unburden_marked_on_switch_in_while_holding(poke):
+    """recover_status_by_ability marks a holder; an empty hand or a knocked off item doesn't"""
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    holder = poke("Treecko", 20, "Unburden", ["Pound"], item="Oran Berry")
+    switch_in(holder, foe, empty_field(), True)
+    assert holder[Pok.VOL_STATUS2] & VolStatus2.CAN_UNBURDEN
+    reset_switch_out(holder)
+    assert not holder[Pok.VOL_STATUS2] & VolStatus2.CAN_UNBURDEN
+    empty = poke("Treecko", 20, "Unburden", ["Pound"])
+    switch_in(empty, foe, empty_field(), True)
+    assert not empty[Pok.VOL_STATUS2] & VolStatus2.CAN_UNBURDEN
+    knocked = poke("Treecko", 20, "Unburden", ["Pound"], item="Oran Berry")
+    knocked[Pok.ITEM_KNOCKED_OFF] = 1
+    switch_in(knocked, foe, empty_field(), True)
+    assert not knocked[Pok.VOL_STATUS2] & VolStatus2.CAN_UNBURDEN
+
+
+def test_traced_unburden_marks_the_holder(poke):
+    """A Trace holder that copies Unburden while holding an item is marked too"""
+    tracer = poke("Ralts", 20, "Trace", ["Pound"], item="Oran Berry")
+    foe = poke("Treecko", 20, "Unburden", ["Pound"])
+    switch_in(tracer, foe, empty_field(), True)
+    assert tracer[Pok.AB_ID] == AbilityNames.UNBURDEN
+    assert tracer[Pok.VOL_STATUS2] & VolStatus2.CAN_UNBURDEN
+
+
+def _claw(monkeypatch, activates):
+    monkeypatch.setattr(random, "randint", lambda lo, hi: 0 if activates else 99)
+
+
+def test_quick_claw_moves_first_in_its_bracket(monkeypatch, poke):
+    """An activated Quick Claw beats speed, not a higher priority"""
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Quick Claw")
+    fast = poke("Rattata", 50, "Run Away", ["Tackle", "Quick Attack"])
+    _claw(monkeypatch, True)
+    assert move_order(slow, 0, fast, 0, False, False, 0)[3] is True
+    assert move_order(fast, 0, slow, 0, False, False, 0)[3] is False
+    assert move_order(slow, 0, fast, 1, False, False, 0)[3] is False
+    _claw(monkeypatch, False)
+    assert move_order(slow, 0, fast, 0, False, False, 0)[3] is False
+
+
+def test_two_quick_claws_fall_back_to_speed(monkeypatch, poke):
+    """Both activate: the faster one goes first"""
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Quick Claw")
+    fast = poke("Rattata", 50, "Run Away", ["Tackle"], item="Quick Claw")
+    _claw(monkeypatch, True)
+    assert move_order(slow, 0, fast, 0, False, False, 0)[3] is False
+
+
+def test_quick_claw_chance_and_no_roll_without_one(poke):
+    """About 1 in 5, and no RNG call when nobody holds it"""
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Quick Claw")
+    fast = poke("Rattata", 50, "Run Away", ["Tackle"])
+    firsts = sum(move_order(slow, 0, fast, 0, False, False, 0)[3] for _ in range(5000))
+    assert 900 < firsts < 1100
+    plain = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    state = random.getstate()
+    move_order(plain, 0, fast, 0, False, False, 0)
+    assert random.getstate() == state
+
+
+@pytest.mark.parametrize("moves, stall_first", [
+    (["Tackle"], False),   # priority 0: the Stall holder goes last
+    (["Counter"], True),   # Showdown gen4 only applies Stall at priority >= 0
+])
+def test_stall_moves_last_in_its_bracket(poke, moves, stall_first):
+    """A faster Stall holder moves after a slower foe of the same priority"""
+    stall = poke("Rattata", 50, "Stall", moves)
+    slow = poke("Geodude", 50, "Sturdy", moves)
+    assert move_order(stall, 0, slow, 0, False, False, 0)[3] is stall_first
+
+
+def test_two_stalls_and_quick_claw_over_stall(monkeypatch, poke):
+    """Both Stall: speed (Showdown). An activated Quick Claw on a Stall holder still goes first"""
+    fast = poke("Rattata", 50, "Stall", ["Tackle"])
+    slow = poke("Geodude", 50, "Stall", ["Tackle"])
+    assert move_order(fast, 0, slow, 0, False, False, 0)[3] is True
+    claw = poke("Geodude", 50, "Stall", ["Tackle"], item="Quick Claw")
+    plain = poke("Rattata", 50, "Run Away", ["Tackle"])
+    _claw(monkeypatch, True)
+    assert move_order(claw, 0, plain, 0, False, False, 0)[3] is True
+
+
+@pytest.mark.parametrize("turns_active, loafs", [(1, False), (2, True), (3, False), (4, True)])
+def test_truant_loafs_every_other_turn(poke, turns_active, loafs):
+    """Acts on its first full turn, then loafs by turn parity; loafing unlocks the move"""
+    a = poke("Slakoth", 20, "Truant", ["Scratch"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    a[Pok.TURNS_ACTIVE] = turns_active
+    a[Pok.LOCKED_MOVE] = 0
+    assert early_returns(a, d, 1, False, move_slice(a, 0)) is loafs
+    assert a[Pok.LOCKED_MOVE] == (-1 if loafs else 0)
+
+
 # ── Accuracy & crits ─────────────────────────────────────────────────────────
 
 def test_type_immunity_is_invulnerable(poke):

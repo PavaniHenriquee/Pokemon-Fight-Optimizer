@@ -10,11 +10,11 @@ from DataBase.PkDB import POKEMON_ABILITY_POOL, POKEMON_LENGTH
 from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC_MOVES, MoveName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
-from Engine.speed import check_speed
+from Engine.speed import check_speed, quick_claw
 from Models.idx_const import POK_LEN
 from Models.helper import TARGET_SELF_SIDE, TARGET_OPP_SIDE, STEEL_POISON
 from Models.constants import (
-    _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE, _ABILITYNAMES_IMMUNITY,
+    _ABILITYNAMES_STALL, _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE, _ABILITYNAMES_IMMUNITY,
     _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_POINT, _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_LIMBER,
     _ABILITYNAMES_WATER_VEIL, _ABILITYNAMES_CLEAR_BODY, _ABILITYNAMES_WHITE_SMOKE,
     _ABILITYNAMES_WATER_ABSORB, _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_LEVITATE,
@@ -1812,22 +1812,57 @@ def expert_explosion(ai_pok, u_pok, rand, idx, slower):
 
 
 @njit
+def quick_claw_guess(ai_pok, u_pok):
+    """
+    The AI's guess of which Quick Claws activate this turn, independent of the real roll (Pokemow):
+    bit 1 its own, bit 2 the target's
+    """
+    return (1 if quick_claw(ai_pok) else 0) | (2 if quick_claw(u_pok) else 0)
+
+
+@njit
+def ai_speed_order(ai_pok, u_pok, weather, claw_guess):
+    """
+    1 if the AI moves first, -1 if the target does, 0 on a speed tie. pokeplatinum
+    BattleSystem_CompareBattlerSpeed as the AI calls it (move priority ignored): a lone guessed
+    Quick Claw goes first, then a lone Stall holder last, both Stalls the slower first, then speed
+    """
+    ai_s, u_s = check_speed(ai_pok, u_pok, weather)
+    ai_claw = (claw_guess & 1) != 0
+    u_claw = (claw_guess & 2) != 0
+    if ai_claw != u_claw:
+        return 1 if ai_claw else -1
+    if not ai_claw:
+        ai_stall = ai_pok[_POK_AB_ID] == _ABILITYNAMES_STALL
+        u_stall = u_pok[_POK_AB_ID] == _ABILITYNAMES_STALL
+        if ai_stall != u_stall:
+            return -1 if ai_stall else 1
+        if ai_stall:
+            ai_s, u_s = u_s, ai_s
+    if ai_s > u_s:
+        return 1
+    if ai_s < u_s:
+        return -1
+    return 0
+
+
+@njit
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
-    user_side=0, copycat_beats=False
+    user_side=0, copycat_beats=False, claw_guess=0
 ):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it.
     ai_know is Field.AI_KNOWS, its move bits are the target's moves the AI saw.
     user_side is the target's Field.SIDE_COND. copycat_beats: the target's last move, used on
-    itself, does more damage than any of the AI's moves
+    itself, does more damage than any of the AI's moves. claw_guess: quick_claw_guess
     """
     # Check if move first (TODO add Trick room logic here)
-    ai_s, u_s = check_speed(ai_pok, u_pok, weather)
-    if ai_s > u_s:
+    order = ai_speed_order(ai_pok, u_pok, weather, claw_guess)
+    if order > 0:
         move_first = True
-    elif ai_s == u_s:
+    elif order == 0:
         move_first = random.getrandbits(1)
     else:
         move_first = False
@@ -1835,7 +1870,7 @@ def expert_flag(
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
     if move[_MOVE_ID] in EXPLODE_MOVES:
-        return expert_explosion(ai_pok, u_pok, rand, idx, ai_s < u_s)
+        return expert_explosion(ai_pok, u_pok, rand, idx, order < 0)
     # Expert_OHKOMove: 25% chance of +1
     if move[_MOVE_OH_KO]:
         add_adjustment(rand, idx, 1, 64)

@@ -20,7 +20,8 @@ from Models.constants import (
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action, baton_pass_action
-from Engine.engine_helper import move_blocked
+from Engine.engine_helper import move_blocked, truant_loafs
+from Engine.speed import slow_start_active
 from Utils.jit import njit
 
 
@@ -163,6 +164,14 @@ VOL2_KEY_BITS = 3
 # Bits node_key gives each active's changed ability id, from k1 bit 12 (opp) then mine
 AB_KEY_BITS = 7
 AB_KEY_SHIFT = 12
+# k3 bit right above each side's VolStatus (opp, then +32 mine): Truant loafs or Slow Start is on
+TURN_AB_KEY_BIT = 31
+
+
+@njit
+def _turn_ability_on(pok):
+    """Truant loafs this turn or Slow Start still holds (one Pokemon can't have both)"""
+    return truant_loafs(pok) or slow_start_active(pok)
 
 
 @njit
@@ -179,7 +188,7 @@ def node_key(battle_array):
     """Integer fingerprint of what decides whether two outcomes of an action share a node:
     phase, opp slot, status, every vol status bit (both bitmaps), HP bracket and stat stages of
     both actives, whether each active holds an item, an ability Trace or Worry Seed changed (it
-    depends on the history), the weather, Gravity, each side's conditions and Toxic Spikes layers
+    depends on the history), Truant's loaf turn or an active Slow Start, the weather, Gravity, each side's conditions and Toxic Spikes layers
     (not the turns left), my active slot (Roar picks it at random) and the Baton Pass phase"""
     opp_idx = battle_array[_FIELD_OPP_POK]
     opp = battle_array[(opp_idx + 6) * POK_LEN:(opp_idx + 7) * POK_LEN]
@@ -195,6 +204,8 @@ def node_key(battle_array):
         k1 |= np.int64(opp[_POK_AB_ID]) << AB_KEY_SHIFT
     k2 = _stages_key(opp)
     k3 = np.int64(opp[_POK_VOL_STATUS])
+    if _turn_ability_on(opp):
+        k3 |= np.int64(1) << TURN_AB_KEY_BIT
     k1 |= np.int64(battle_array[_FIELD_WEATHER]) << 32
     k1 |= np.int64(battle_array[_FIELD_OPP_SIDE_COND]) << 35
     k1 |= np.int64(battle_array[_FIELD_OPP_TOXIC_SPIKES]) << 45
@@ -210,6 +221,8 @@ def node_key(battle_array):
             k1 |= np.int64(me[_POK_AB_ID]) << AB_KEY_SHIFT + AB_KEY_BITS
         k2 = (k2 << 28) | _stages_key(me)
         k3 |= np.int64(me[_POK_VOL_STATUS]) << 32
+        if _turn_ability_on(me):
+            k3 |= np.int64(1) << TURN_AB_KEY_BIT + 32
         k1 |= np.int64(battle_array[_FIELD_MY_SIDE_COND]) << 47
         k1 |= np.int64(battle_array[_FIELD_MY_TOXIC_SPIKES]) << 57
         k1 |= np.int64(my_idx) << 59

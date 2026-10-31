@@ -7,6 +7,7 @@ from SearchEngine.models import (
     valid_action_mask, valid_actions_array, is_terminal_arr, step_arr, node_key, _hp_bracket,
     cvar_from_hist, best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array,
     ACTION_ORDER, ACTION_SLOT, N_SLOTS, N_BINS, VOL2_KEY_BITS, AB_KEY_BITS, AB_KEY_SHIFT,
+    TURN_AB_KEY_BIT,
 )
 from SearchEngine.mcts_eval import (
     evaluate_terminal, rollout_arr, rollout_pref, field_move_fails
@@ -227,6 +228,30 @@ def test_node_key_sees_held_item(one_v_one, mine):
     my_active(empty)[Item.ID] = 0
     assert node_key(build(mine)) != node_key(empty)
     assert node_key(build(mine)) != node_key(build(not mine))
+
+
+@pytest.mark.parametrize("mine", [True, False])
+@pytest.mark.parametrize("ability, on_turns, off_turns", [
+    (AbilityNames.TRUANT, 2, 3),       # loafs this turn or acts
+    (AbilityNames.SLOW_START, 5, 6),   # still slowed or done
+])
+def test_node_key_sees_turn_count_abilities(one_v_one, mine, ability, on_turns, off_turns):
+    """Truant's loaf turn and an active Slow Start split nodes, and the sides don't collide"""
+    def build(ab_mine, turns):
+        arr = one_v_one()
+        pok = my_active(arr) if ab_mine else opp_active(arr)
+        pok[Pok.AB_ID] = ability
+        pok[Pok.TURNS_ACTIVE] = turns
+        return arr
+    assert node_key(build(mine, on_turns)) != node_key(build(mine, off_turns))
+    assert node_key(build(mine, off_turns)) == node_key(build(mine, off_turns + 2))
+    assert node_key(build(mine, on_turns)) != node_key(build(not mine, on_turns))
+
+
+def test_vol_status_leaves_the_turn_ability_bit_free():
+    """The turn-count ability bit sits right above each side's VolStatus in k3"""
+    assert sum(_int_attrs(VolStatus)) < 2 ** TURN_AB_KEY_BIT
+    assert TURN_AB_KEY_BIT < 32
 
 
 def test_vol_status2_fits_node_key():

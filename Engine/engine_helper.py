@@ -3,7 +3,7 @@ import random
 import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
-from Engine.speed import check_speed
+from Engine.speed import check_speed, slow_start_active, quick_claw
 from Engine.status_calc import  freeze, paralysis, sleep_blocked, SLOT_MASK
 from Engine.status_calc import (
     apply_status, infatuate, cure_status, ability_blocks_status, ability_forbids_status,
@@ -82,6 +82,7 @@ from Models.constants import (
     _MOVENAME_WILL_O_WISP, _MOVE_PP, _POK_SPECIAL_DEFENSE, _POK_SPECIAL_DEFENSE_STAT_STAGE,
     _ABILITYNAMES_TRACE, _ABILITYNAMES_DOWNLOAD, _ABILITYNAMES_PRESSURE, _ABILITYNAMES_FORECAST,
     _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _POK_AB_KNOWN,
+    _ABILITYNAMES_STALL, _ABILITYNAMES_UNBURDEN, _VOLSTATUS2_CAN_UNBURDEN, _ABILITYNAMES_SLOW_START,
 )
 
 
@@ -111,6 +112,7 @@ REFRESH_CURES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 WORRY_SEED_FAILS = (_ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE)
 # pokeplatinum ChooseTraceTarget
 TRACE_FAILS = (_ABILITYNAMES_TRACE, _ABILITYNAMES_MULTITYPE, _ABILITYNAMES_FORECAST)
+SWITCH_IN_MESSAGE_ABS = (_ABILITYNAMES_SLOW_START, _ABILITYNAMES_MOLD_BREAKER, _ABILITYNAMES_PRESSURE)
 PERISH_SONG_TURNS = 3
 # Moves that call another move
 CALLER_MOVES = (_MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER)
@@ -372,6 +374,15 @@ def item_on_rdmg(pok):
 # ── Speed & turn order ──────────────────────────────────────────────────────────
 
 @njit
+def truant_loafs(pok):
+    """
+    Truant acts on its first full turn and loafs every other turn after, by turn parity rather
+    than by what it did (pokeplatinum Battler_CheckTruant, truant = (totalTurns + 1) & 1 on entry)
+    """
+    return pok[_POK_AB_ID] == _ABILITYNAMES_TRUANT and pok[_POK_TURNS_ACTIVE] % 2 == 0
+
+
+@njit
 def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
     """
     Calculates who acts first this turn.
@@ -401,6 +412,20 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
         and move1_prio != move2_prio
     ):
         if move1_prio > move2_prio:
+            return my_move, opp_move, 2, True
+        return opp_move, my_move, 2, False
+    # Same bracket (Showdown gen4): an activated Quick Claw goes first, a lone Stall holder last at
+    # priority >= 0, both Quick Claws or both Stalls fall back to speed
+    claw1 = quick_claw(p1)
+    claw2 = quick_claw(p2)
+    if claw1 != claw2:
+        if claw1:
+            return my_move, opp_move, 2, True
+        return opp_move, my_move, 2, False
+    stall1 = p1[_POK_AB_ID] == _ABILITYNAMES_STALL
+    stall2 = p2[_POK_AB_ID] == _ABILITYNAMES_STALL
+    if not claw1 and move1_prio >= 0 and stall1 != stall2:
+        if stall2:
             return my_move, opp_move, 2, True
         return opp_move, my_move, 2, False
     speed_t = False
@@ -920,7 +945,8 @@ def download(pok, foe):
 def switch_in_ability(pok, foe, battle_array, is_mine):
     """
     pok's own switch-in abilities, in pokeplatinum's order after Trace: Intimidate, Download, then
-    Mold Breaker and Pressure, whose messages tell the AI my ability (BattleMessage_AbilityTag).
+    Slow Start, Mold Breaker and Pressure, whose messages tell the AI my ability
+    (BattleMessage_AbilityTag).
     is_mine: pok is on my side
     """
     if not pok[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
@@ -930,7 +956,7 @@ def switch_in_ability(pok, foe, battle_array, is_mine):
         intimidate(foe, pok, battle_array[side_base(not is_mine)])
     elif ability == _ABILITYNAMES_DOWNLOAD:
         download(pok, foe)
-    elif ability == _ABILITYNAMES_MOLD_BREAKER or ability == _ABILITYNAMES_PRESSURE:
+    elif ability in SWITCH_IN_MESSAGE_ABS:
         reveal_ability(pok)
 
 
@@ -939,7 +965,8 @@ def recover_status_by_ability(pok):
     """
     Cures a status, confusion or Attract that pok's current ability forbids, reachable through
     Trace or a Mold Breaker foe (pokeplatinum BattleSystem_RecoverStatusByAbility, run for every
-    active on switch-in)
+    active on switch-in). Unburden there marks a holder that still has its item: losing it later
+    doubles its speed
     """
     if pok[_POK_CURRENT_HP] <= 0:
         return
@@ -950,6 +977,8 @@ def recover_status_by_ability(pok):
         pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_CONFUSION
     elif ability == _ABILITYNAMES_OBLIVIOUS:
         pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_ATTRACT
+    elif ability == _ABILITYNAMES_UNBURDEN and pok[_ITEM_ID]:
+        pok[_POK_VOL_STATUS2] |= _VOLSTATUS2_CAN_UNBURDEN
 
 
 @njit
@@ -1139,6 +1168,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
     Recharge:  11
     Sleep:     10
     Freeze:    10
+    Truant:    9
     Flinch:    8
     Disable:   7
     Gravity:   6
@@ -1148,7 +1178,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
     Paralysis: 1
     Default:   0
 
-    A blocked turn (sleep, flinch, confusion self-hit, infatuation, full paralysis) ends charge
+    A blocked turn (sleep, Truant, flinch, confusion self-hit, infatuation, full paralysis) ends charge
     moves and locks via unlock_move, Bide pauses instead, freeze keeps the lock.
     Destiny Bond ends as soon as the user tries to move again, even if the turn is blocked.
     """
@@ -1178,6 +1208,10 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
             _tick_charge_if_blocked(attacker)
             return True
         attacker[_POK_STATUS] = 0
+    # Truant, its script unlocks the move choice (pokeplatinum subscript_loafing_around)
+    if truant_loafs(attacker):
+        unlock_move(attacker)
+        return True
     # Flinch
     if flinch and idx >= 2:
         unlock_move(attacker)
@@ -1402,6 +1436,8 @@ def struggle(attacker, defender, rec=True, def_side=0):
         raw_attack = (raw_attack * 3) // 2
     elif atk_ab in DOUBLE_ATK_AB:
         raw_attack *= 2
+    elif slow_start_active(attacker):
+        raw_attack //= 2
     elif atk_ab == _ABILITYNAMES_HUSTLE:
         raw_attack = (raw_attack * 3) // 2
 

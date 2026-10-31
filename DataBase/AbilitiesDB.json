@@ -497,7 +497,7 @@
   },
   "Unburden": {
     "name": "unburden",
-    "when": "on_residual"
+    "when": ["on_residual", "on_modify_speed"]
   },
   "Vital Spirit": {
     "breakable": true,

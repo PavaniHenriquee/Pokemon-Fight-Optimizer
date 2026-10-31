@@ -1362,6 +1362,17 @@ def test_sleeping_pursuer_doesnt_pursue(monkeypatch, make_pokemon, make_battle):
     assert hits == []
 
 
+def test_loafing_truant_doesnt_pursue(monkeypatch, make_pokemon, make_battle):
+    """pokeplatinum BtlCmd_TryPursuit skips a Truant holder on its loafing turn"""
+    mine = [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Slakoth", 20, "Truant", ["Pursuit"])])
+    opp_active(arr)[Pok.TURNS_ACTIVE] = 2
+    hits = _spy_power(monkeypatch)
+    turn_sim(0, (SWITCH, 1), arr)
+    assert hits == []
+
+
 def test_pursuit_on_a_switching_pressure_holder_costs_two(monkeypatch, make_pokemon, make_battle):
     """pokeplatinum: Pursuit before the switch takes one more PP from a Pressure holder"""
     mine = [make_pokemon("Absol", 20, "Pressure", ["Tackle"]),

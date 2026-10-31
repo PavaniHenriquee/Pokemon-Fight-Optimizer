@@ -21,7 +21,7 @@
 | 7     | Status immunity, cures, status berries                              | [x]    |
 | 8     | Type immunity and absorb abilities                                  | [x]    |
 | 9     | Switch-in abilities and stat-drop guards                            | [x]    |
-| 10    | Speed and turn order                                                | [ ]    |
+| 10    | Speed and turn order                                                | [x]    |
 | 11    | Weather and end of turn                                             | [ ]    |
 | 12    | Trapping                                                            | [ ]    |
 | 13    | Survival, charge, consecutive use, drain                            | [ ]    |
@@ -118,6 +118,20 @@
   it. Scrappy goes through `matchup_types(..., scrappy)`. Soundproof is now breakable. Deferred Volt Absorb,
   Motor Drive, Wonder Guard and Dry Skin's Water part done with the batch. No golden change: no scenario aims a
   Fire move at Ponyta, a damaging Ground move at Misdreavus or a Water move at Mudkip, and the checks use no RNG.
+
+- 2026-10-31 (Batch 10): `check_speed` is now `_speed(pok, weather)` twice, in [pp CompareBattlerSpeed] order:
+  stages (Simple doubles them, capped; it was missing) → Swift Swim / Chlorophyll → Quick Feet ×15/10 with any status
+  or paralysis ÷4 → Slow Start ÷2 → Unburden ×2. Slow Start is `TURNS_ACTIVE <= 5` (the entry turn plus 5, [pp] signed
+  turn numbers; [SD] agrees) and also halves raw Attack in `ab_modify_stat`, `struggle()` and the confusion hit.
+  `CAN_UNBURDEN` is set in `recover_status_by_ability` for a holder with an item ([pp] RecoverStatusByAbility).
+  Quick Claw and Stall follow [SD gen4] (your call): one 20% roll per holder per turn in `move_order`, only within
+  the same priority; Stall last at priority >= 0, both Stall → speed; switch and end-of-turn order stay speed only.
+  Truant loafs when `TURNS_ACTIVE` is even ([pp] turn parity, [SD gen4] agrees), right after freeze, through
+  `unlock_move`, and a loafing Truant doesn't Pursue. The AI's move-first check is `ai_speed_order` ([pp] compare
+  with priority ignored: lone Quick Claw first, lone Stall last, both Stall the slower first, then speed), with a
+  20% Quick Claw guess per holder rolled once per AI turn (Pokemow). `node_key` k3 bit 31 (opp) / 63 (mine): Truant
+  loafs this turn or Slow Start holds. Golden: healing_misc moved on 8 seeds; with `truant_loafs` off all 20 replay
+  the old snapshot, hashes included.
 
 **Still open (your call, at the batch that needs it)**
 
@@ -461,7 +475,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
   the old turns and HP. Later batches add their own sites (weather abilities, Poison Heal, Slow Start,
   Anticipation, Forewarn).
 
-## Batch 10 — Speed and turn order
+## Batch 10 — Speed and turn order — DONE
 
 | Name                              | Gen IV effect                                                                                                                                                          | Hook                                                 |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -659,6 +673,22 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   Fire checks; [pp] may check the ability earlier there (only matters for a statused Immunity / Water Veil holder).
 - Batch 9 follow-up: `to_np`'s comment on `BASE_AB_ID` still says "while Worry Seed changed it"; Trace uses it too.
 - Batch 9 follow-up: the UI doesn't show which of my abilities the AI knows.
+- Batch 10: an AI trainer's Covet / Thief never steals in [pp BtlCmd_TryStealItem] (attacker on side 1, not
+  Frontier → fail); the engine lets the opponent's Covet steal, and one TrainerDB trainer has Covet or Thief. Batch 13
+  touches Covet.
+- Batch 10: [pp] Covet / Thief also fail on a defender whose Quick Claw activated this turn (`moveEffectsData.quickClaw`);
+  not done.
+- Batch 10: [pp] pre-draws the Quick Claw roll (`speedRand`, rolled in PRE_MOVE_ACTION_STATE_SPEED_RNG after the order is
+  set, so a turn uses the previous turn's roll), and Quick Claw / Stall also order the switches and the end of turn; [pp]
+  Stall applies at any priority and both Stall puts the slower first. The engine follows [SD gen4]; the AI's
+  `ai_speed_order` keeps [pp]'s Stall rule.
+- Batch 10: Pokemow doesn't say whether the AI's Quick Claw guess is per check or per turn; it's rolled once per AI turn
+  in `choose_move`.
+- Batch 10: the rollout's `faster` (`mcts_eval.py:172`) compares raw speed (no stages, paralysis or abilities).
+- Batch 10: Fake Out's `TURNS_ACTIVE > 1` isn't in `node_key`.
+- Batch 10: Slow Start's end message ("finally got its act together", ability tag) has no `reveal_ability`; the switch-in
+  one already revealed it and `AB_KNOWN` lasts until switch-out.
+- Batch 10: TODO.txt's "Unburden (Need to implement usable held items)" note is outdated.
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

@@ -812,6 +812,40 @@ def test_pure_power_doubles_physical(poke):
         dmg(poke("Meditite", 100, "Huge Power", ["Tackle"]), d)
 
 
+@pytest.mark.parametrize("turns_active, halved", [(1, True), (5, True), (6, False)])
+def test_slow_start_halves_attack_for_five_turns(poke, turns_active, halved):
+    """Raw Attack /2 while Slow Start holds, in the engine and the AI estimate; Special Attack stays"""
+    d = poke("Rattata", 100, "Run Away", ["Tackle"])
+    plain = poke("Rattata", 100, "Run Away", ["Tackle", "Ember"])
+    slow = poke("Rattata", 100, "Slow Start", ["Tackle", "Ember"])
+    slow[Pok.TURNS_ACTIVE] = turns_active
+    attack = raw_atk_def(move_slice(slow, 0), slow, d)[0]
+    assert attack == (plain[Pok.ATTACK] // 2 if halved else plain[Pok.ATTACK])
+    assert raw_atk_def(move_slice(slow, 1), slow, d)[0] == plain[Pok.SPECIAL_ATTACK]
+    mv = move_slice(slow, 0)
+    expected = 0.5 if halved else 1.0
+    assert ratio(dmg(slow, d), dmg(plain, d)) == pytest.approx(expected, abs=0.05)
+    assert ratio(
+        calculate_ai_logic_damage(1.0, slow, d, mv, 0), calculate_ai_logic_damage(1.0, plain, d, mv, 0)
+    ) == pytest.approx(expected, abs=0.05)
+
+
+def test_slow_start_halves_struggle_and_the_confusion_hit(poke):
+    """Struggle and the confusion self-hit go through the same Attack halving"""
+    d = poke("Rattata", 100, "Run Away", ["Tackle"])
+    plain = poke("Rattata", 100, "Run Away", ["Tackle"])
+    slow = poke("Rattata", 100, "Slow Start", ["Tackle"])
+    slow[Pok.TURNS_ACTIVE] = 1
+    random.seed(5)
+    base = struggle(plain, d, rec=False)
+    random.seed(5)
+    assert ratio(struggle(slow, d, rec=False), base) == pytest.approx(0.5, abs=0.06)
+    random.seed(5)
+    base = calculate_damage_confusion(plain)
+    random.seed(5)
+    assert ratio(calculate_damage_confusion(slow), base) == pytest.approx(0.5, abs=0.06)
+
+
 @pytest.mark.parametrize("ability, gender, mult", [
     ("Pure Power", Gender.MALE, 2.0), ("Rivalry", Gender.MALE, 1.25),
     ("Rivalry", Gender.GENDERLESS, 1.0),

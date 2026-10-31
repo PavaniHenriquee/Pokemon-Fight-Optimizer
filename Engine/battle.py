@@ -12,7 +12,7 @@ from Engine.engine_helper import (
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
     try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
-    damp_blocks, status_item, pressure_pp,
+    damp_blocks, status_item, pressure_pp, truant_loafs,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -290,8 +290,8 @@ def start_of_turn(opp_move, switch_idx, battle_array, current_move=-1):
 @njit
 def _pursuit(atk, defn, slot, is_mine, battle_array):
     """
-    pokeplatinum BtlCmd_TryPursuit: the pursuer hasn't moved, is alive and not asleep or frozen,
-    its move (the encored one if Encore holds) is Pursuit with PP left. It hits at double power
+    pokeplatinum BtlCmd_TryPursuit: the pursuer hasn't moved, is alive, not asleep, frozen or
+    loafing (Truant), its move (the encored one if Encore holds) is Pursuit with PP left. It hits at double power
     before the switch, the other checks of a normal turn (paralysis, confusion) don't happen.
     Returns True if Pursuit was used
     """
@@ -299,6 +299,8 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
         return False
     slot = _encore_slot(atk, slot)
     if slot >= 4 or atk[_POK_STATUS] == _STATUS_SLEEP or atk[_POK_STATUS] == _STATUS_FREEZE:
+        return False
+    if truant_loafs(atk):
         return False
     mv = atk[OFFSET_MOVE + slot * MOVE_STRIDE : OFFSET_MOVE + (slot + 1) * MOVE_STRIDE]
     if mv[_MOVE_ID] != _MOVENAME_PURSUIT or mv[_MOVE_PP] <= 0:

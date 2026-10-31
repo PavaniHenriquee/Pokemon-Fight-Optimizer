@@ -39,7 +39,7 @@ from Models.trainer_ai_helper import (
     ABSORB_ABI,
     check_absorb_abi_pty,
     check_immunity_pty, check_resistance_pty,
-    ai_move_view
+    ai_move_view, quick_claw_guess
 )
 from Models.helper import count_party
 
@@ -317,6 +317,8 @@ def choose_move(battle_array):
 
 
     moves = ai_pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
+    # One guess per turn for every move's speed check
+    claw_guess = quick_claw_guess(ai_pok, user_pok)
 
     ab=user_pok[_POK_AB_ID]
     # A battle message named it (Pok.AB_KNOWN) or Worry Seed gave it (Field.AI_KNOWS)
@@ -386,7 +388,8 @@ def choose_move(battle_array):
         expert = expert_flag(
             ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg,
             ai_know, user_side,
-            move_id == _MOVENAME_COPYCAT and copycat_beats(ai_pok, user_pok, weather, user_side, gravity)
+            move_id == _MOVENAME_COPYCAT and copycat_beats(ai_pok, user_pok, weather, user_side, gravity),
+            claw_guess
         )
         score += expert
 
