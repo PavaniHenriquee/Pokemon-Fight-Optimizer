@@ -20,7 +20,7 @@ from Models.trainer_ai import return_idx
 from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import calculate_crit, struggle, ohko_fails, ability_immune
-from Engine.ability_helper import levitates
+from Engine.ability_helper import levitates, effective_weather
 from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
 
 
@@ -145,7 +145,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
         ((opp_idx+7) * POK_LEN)
     ]
     my_pty = battle_array[0:(6 * POK_LEN)]
-    weather = battle_array[_FIELD_WEATHER]
+    weather = effective_weather(battle_array)
     my_side = battle_array[_FIELD_MY_SIDE_COND]
     opp_side = battle_array[_FIELD_OPP_SIDE_COND]
     gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0

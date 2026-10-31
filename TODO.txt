@@ -6,7 +6,7 @@
 [X]Battle Armor
 [X]Chlorophyll
 [X]Clear Body *
-[]Cloud Nine *
+[X]Cloud Nine *
 [X]Compound Eyes *
 [X]Cute Charm *
 [X]Damp
@@ -21,7 +21,7 @@
 [X]Hustle
 [X]Hydration *
 [X]Hyper Cutter *
-[]Ice Body *
+[X]Ice Body *
 [X]Inner Focus
 [X]Insomnia *
 [X]Intimidate
@@ -72,19 +72,19 @@
 [X]Water Veil *
 
 ## Abilities that isn't used until 1st gym, but Trainer AI or engine has current special conditions
-[]Air Lock *
+[X]Air Lock *
 [X]Anger Point *
-[]Bad Dreams *
+[X]Bad Dreams *
 []Color Change *
 [X]Download *
-[]Drizzle *
-[]Drought *
-[]Dry Skin *
+[X]Drizzle *
+[X]Drought *
+[X]Dry Skin *
 [X]Effect Spore *
 [X]Flower Gift *
 []Forecast *
 []Frisk *
-[]Heatproof *
+[X]Heatproof *
 []Honey Gather *
 [X]Immunity *
 [X]Leaf Guard *
@@ -99,15 +99,15 @@
 []Normalize *
 [X]Own Tempo *
 []Plus *
-[]Poison Heal *
+[X]Poison Heal *
 [X]Pressure *
 [X]Pure Power *
 [X]Rough Skin *
-[]Sand Stream *
+[X]Sand Stream *
 [X]Skill Link *
 [X]Slow Start *
-[]Snow Cloak *
-[]Snow Warning *
+[X]Snow Cloak *
+[X]Snow Warning *
 [X]Solid Rock *
 [X]Stall *
 []Stench *
@@ -419,7 +419,7 @@
 [X]Flame Orb *
 []Focus Band *
 [X]Hard Stone *
-[]Leftovers *
+[X]Leftovers *
 [X]Light Clay *
 [X]Mental Herb *
 [X]Metal Coat *
@@ -449,7 +449,7 @@
 ## Items that isn't used until 1st gym, but Trainer AI or engine has current special conditions
 [X]Babiri Berry *
 []Berry Juice *
-[]Black Sludge *
+[X]Black Sludge *
 [X]Charti Berry *
 [X]Chesto Berry *
 [X]Chilan Berry *

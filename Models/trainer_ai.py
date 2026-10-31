@@ -3,6 +3,7 @@ import random
 import numpy as np
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage, gravity_types
 from Engine.engine_helper import move_blocked
+from Engine.ability_helper import effective_weather
 from Engine.status_calc import last_move_slot
 from Utils.jit import njit
 from Utils.helper import (
@@ -255,7 +256,9 @@ def choose_move(battle_array):
         (my_active * POK_LEN):((my_active+1) * POK_LEN)
     ]
     turn = battle_array[_FIELD_TURN]
+    # The AI script reads the field's weather, its damage and speed checks the effective one
     weather = battle_array[_FIELD_WEATHER]
+    eff_weather = effective_weather(battle_array)
     gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
     ai_know = battle_array[_FIELD_AI_KNOWS]
     my_last_move = battle_array[_FIELD_MY_LAST_MOVE]
@@ -282,7 +285,7 @@ def choose_move(battle_array):
         and ai_pok[_POK_VOL_STATUS] & _VOLSTATUS_PERISH_SONG
         and ai_pok[_POK_PERISH_TURNS] == 0
     ):
-        sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active, gravity)
+        sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, eff_weather, opp_active, gravity)
         _evaluated_moves[0] = [sub-6,0,0,False]
         return _evaluated_moves
     # Withdraw 5 - The active Pokémon is asleep and has the ability Natural Cure. Like every
@@ -295,7 +298,7 @@ def choose_move(battle_array):
         and ai_pok[_POK_CURRENT_HP]/ai_pok[_POK_MAX_HP] >= 0.50
     ):
         if not took_dmg and random.getrandbits(1):
-            sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active, gravity)
+            sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, eff_weather, opp_active, gravity)
             if sub == opp_active:
                 pass
             else:
@@ -311,7 +314,7 @@ def choose_move(battle_array):
                 _evaluated_moves[0] = [res[0]-6,0,0,False]
                 return _evaluated_moves
             if random.getrandbits(1):
-                sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, weather, opp_active, gravity)
+                sub = sub_after_death(ai_pty, user_pok, ai_pok, user_side, eff_weather, opp_active, gravity)
                 _evaluated_moves[0] = [sub-6,0,0,False]
                 return _evaluated_moves
 
@@ -354,19 +357,19 @@ def choose_move(battle_array):
         # damage still counts as the one to beat (pokeplatinum TrainerAI_CalcAllDamage)
         if move[_MOVE_PP] < 1 or move_blocked(ai_pok, i, gravity):
             if is_damaging:
-                view = ai_move_view(move, ai_pok, user_pok, weather)
+                view = ai_move_view(move, ai_pok, user_pok, eff_weather)
                 eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok, gravity)
-                dmg = ai_move_damage(view, eff, ai_pok, user_pok, weather, user_side, gravity)
+                dmg = ai_move_damage(view, eff, ai_pok, user_pok, eff_weather, user_side, gravity)
                 if dmg > max_damage:
                     max_damage = dmg
             continue
-        move = ai_move_view(move, ai_pok, user_pok, weather)
+        move = ai_move_view(move, ai_pok, user_pok, eff_weather)
 
         effectiveness, s_e_check = trainer_ai_effectiveness(move, ai_pok, user_pok, gravity)
 
         if not move_is_status:
             final_damage = ai_move_damage(
-                move, effectiveness, ai_pok, user_pok, weather, user_side, gravity
+                move, effectiveness, ai_pok, user_pok, eff_weather, user_side, gravity
             )
             not_status_counter +=1
             if s_e_check:
@@ -388,8 +391,9 @@ def choose_move(battle_array):
         expert = expert_flag(
             ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg,
             ai_know, user_side,
-            move_id == _MOVENAME_COPYCAT and copycat_beats(ai_pok, user_pok, weather, user_side, gravity),
-            claw_guess
+            move_id == _MOVENAME_COPYCAT
+            and copycat_beats(ai_pok, user_pok, eff_weather, user_side, gravity),
+            claw_guess, eff_weather
         )
         score += expert
 

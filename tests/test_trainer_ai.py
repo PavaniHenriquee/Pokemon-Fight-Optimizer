@@ -1495,6 +1495,29 @@ def test_ai_uses_a_revealed_ability(monkeypatch, make_pokemon, make_battle, know
     assert seen and set(seen) == {expected}
 
 
+def test_ai_script_reads_weather_through_cloud_nine(monkeypatch, make_pokemon, make_battle):
+    """pokeplatinum AICmd_LoadCurrentWeather reads the field, the damage estimate and the speed
+    compare see Cloud Nine (CalcMoveDamage, CompareBattlerSpeed)"""
+    from Models import trainer_ai
+    arr = make_battle([make_pokemon("Psyduck", 20, "Cloud Nine", ["Tackle"])],
+                      [make_pokemon("Squirtle", 20, "Torrent", ["Water Gun"])])
+    arr[Field.WEATHER] = Weather.RAIN
+    damage, script, speed = [], [], []
+    monkeypatch.setattr(trainer_ai, "ai_move_damage", lambda *a: damage.append(a[4]) or 10)
+    monkeypatch.setattr(trainer_ai, "basic_flag", lambda *a: script.append(a[5]) or 0)
+    real_expert = trainer_ai.expert_flag
+
+    def spy(*args):
+        script.append(args[6])
+        speed.append(args[-1])
+        return real_expert(*args)
+    monkeypatch.setattr(trainer_ai, "expert_flag", spy)
+    return_idx(arr)
+    assert damage and set(damage) == {0}
+    assert script and set(script) == {Weather.RAIN}
+    assert speed == [0]
+
+
 @pytest.mark.parametrize("ai_ab, u_ab, claw_guess, expected", [
     ("Run Away", "Sturdy", 0, -1),   # Geodude is slower than Rattata: the AI (Geodude) is second
     ("Run Away", "Sturdy", 1, 1),    # its guessed Quick Claw puts it first

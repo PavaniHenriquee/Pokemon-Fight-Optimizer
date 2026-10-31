@@ -18,7 +18,7 @@ from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
     ability_blocks_status, cure_status,
 )
-from Engine.ability_helper import reveal_ability
+from Engine.ability_helper import reveal_ability, effective_weather
 from Engine.damage_calc import (
     calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES, EXPLODE_MOVES, is_scrappy
 )
@@ -75,6 +75,8 @@ from Models.constants import (
     _HOLDEFFECT_BRN_USER, _POK_TYPE1, _POK_TYPE2, _TYPES_FIRE,
     _FIELD_MY_ENTER_FIELD, _ABILITYNAMES_ROCK_HEAD,
     _MOVE_OH_KO, _ABILITYNAMES_ANGER_POINT, _ABILITYNAMES_SKILL_LINK, _ABILITYNAMES_HYDRATION,
+    _HOLDEFFECT_HP_RESTORE_GRADUAL, _HOLDEFFECT_HP_RESTORE_PSN_TYPE, _TYPES_POISON,
+    _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_HEATPROOF, _ABILITYNAMES_BAD_DREAMS,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 
@@ -117,6 +119,8 @@ RAPID_SPIN_CLEARS = _SIDECONDITION_STEALTH_ROCK | _SIDECONDITION_SPIKES | _SIDEC
 # Screens, Mist, Safeguard, Lucky Chant and move weather
 FIELD_EFFECT_TURNS = 5
 TOXIC_SPIKES_MAX = 2
+# Leftovers, and Black Sludge on a Poison type
+GRADUAL_HEAL_EFFECTS = (_HOLDEFFECT_HP_RESTORE_GRADUAL, _HOLDEFFECT_HP_RESTORE_PSN_TYPE)
 WEATHER_MOVES = ((_MOVENAME_RAIN_DANCE, _WEATHER_RAIN), (_MOVENAME_SANDSTORM, _WEATHER_SANDSTORM))
 # Stealth Rock and Toxic Spikes go on the foe's side, the other side conditions on the user's
 FOE_SIDE_TARGET = Target.FOE_SIDE
@@ -264,7 +268,7 @@ def start_of_turn(opp_move, switch_idx, battle_array, current_move=-1):
 
     if switch_idx >= 0 and opp_switch >= 0:
         my_s, opp_s = check_speed(
-            current_pokemon, current_opp, battle_array[_FIELD_WEATHER]
+            current_pokemon, current_opp, effective_weather(battle_array)
         )
         speed_tie = my_s == opp_s and random.getrandbits(1)
         if my_s > opp_s or speed_tie:
@@ -315,7 +319,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
         battle_array[_FIELD_AI_KNOWS] |= AI_KNOWS_MOVES[slot]
     doubled = mv.copy()
     doubled[_MOVE_POWER] *= 2
-    weather = battle_array[_FIELD_WEATHER]
+    weather = effective_weather(battle_array)
     gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
     if calculate_hit_miss(doubled, atk, defn, weather, gravity) == _MOVEOUTCOME_HIT:
         ps_moves(
@@ -842,7 +846,7 @@ def _baton_pass(atk, defn, battle_array, is_mine):
     opp_idx = battle_array[_FIELD_OPP_POK]
     i = sub_after_death(
         battle_array[(6 * POK_LEN):(12 * POK_LEN)], defn, atk, battle_array[_FIELD_MY_SIDE_COND],
-        battle_array[_FIELD_WEATHER], opp_idx, battle_array[_FIELD_GRAVITY_TURNS] > 0
+        effective_weather(battle_array), opp_idx, battle_array[_FIELD_GRAVITY_TURNS] > 0
     )
     _switch_opp_side(battle_array, atk, defn, i, True)
 
@@ -866,7 +870,7 @@ def action(current_move, opp_move, battle_array):
         ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):
         ((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
     ]
-    weather = battle_array[_FIELD_WEATHER]
+    weather = effective_weather(battle_array)
     p1_switch = False
     p2_switch = False
     flinch = False
@@ -948,7 +952,7 @@ def action(current_move, opp_move, battle_array):
                 current_move = mv2_slot
         _execute_move_slot(
             atk2, def2, mv2, not first_is_mine, current_move, opp_move,
-            flinch, 2, True, battle_array, battle_array[_FIELD_WEATHER]
+            flinch, 2, True, battle_array, effective_weather(battle_array)
         )
         _clear_charge(atk2, mv2)
         _after_move_items(battle_array)
@@ -1038,7 +1042,7 @@ def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
     """Weather heal and damage for one side, Gen IV runs it for everyone before any other residual"""
     if pok[_POK_CURRENT_HP] <= 0:
         return
-    heal_weather(pok, weather)
+    heal_weather(pok, weather, pok[_POK_SEMI_INV_MOVE] in UNDERGROUND_MOVES)
     # Hydration cures any status in rain (pokeplatinum BtlCmd_EndOfTurnWeatherEffect)
     if weather == _WEATHER_RAIN and pok[_POK_STATUS] and pok[_POK_AB_ID] == _ABILITYNAMES_HYDRATION:
         cure_status(pok)
@@ -1050,7 +1054,7 @@ def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
         and pok[_POK_SEMI_INV_MOVE] not in UNDERGROUND_MOVES
     ):
         w_dmg = weather_dmg(pok, weather, pok[_POK_MAX_HP])
-        # Solar Power's sun damage names it (pokeplatinum subscript_weather_continues)
+        # Solar Power's and Dry Skin's sun damage names it (pokeplatinum subscript_weather_continues)
         if w_dmg and weather == _WEATHER_SUN:
             reveal_ability(pok)
         _apply_residual_damage(
@@ -1072,6 +1076,29 @@ def _flame_orb(pok, side_cond, weather):
         reveal_ability(pok)
         return
     pok[_POK_STATUS] = _STATUS_BURN
+
+
+@njit
+def _gradual_item(pok, enter_field_flag_idx, battle_array, enter_field) -> bool:
+    """
+    Leftovers heals 1/16 below max HP, so does Black Sludge for a Poison type; anyone else loses
+    1/8 to Black Sludge unless it has Magic Guard (pokeplatinum BattleSystem_TriggerLeftovers).
+    Returns True if it fainted
+    """
+    effect = pok[_ITEM_HOLD_EFFECT]
+    max_hp = pok[_POK_MAX_HP]
+    if (
+        effect == _HOLDEFFECT_HP_RESTORE_PSN_TYPE
+        and pok[_POK_TYPE1] != _TYPES_POISON and pok[_POK_TYPE2] != _TYPES_POISON
+    ):
+        if pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
+            return False
+        return _apply_residual_damage(
+            pok, max(1, max_hp // 8), enter_field_flag_idx, battle_array, enter_field
+        )
+    if effect in GRADUAL_HEAL_EFFECTS and pok[_POK_CURRENT_HP] < max_hp:
+        pok[_POK_CURRENT_HP] = min(max_hp, pok[_POK_CURRENT_HP] + max(1, max_hp // 16))
+    return False
 
 
 @njit
@@ -1100,6 +1127,10 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     if pok[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_RESIDUAL:
         on_residual(pok, enter_field)
 
+    # 2b. Leftovers and Black Sludge
+    if _gradual_item(pok, enter_field_flag_idx, battle_array, enter_field):
+        return
+
     # 3. Leech Seed
     if (
         pok[_POK_VOL_STATUS] & _VOLSTATUS_LEECH_SEED
@@ -1116,22 +1147,32 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     # 4. Psn/Tox
     status = pok[_POK_STATUS]
     if status == _STATUS_POISON or status == _STATUS_TOXIC:
+        # pokeplatinum: 1/16 at least 1, times the counter
         if status == _STATUS_TOXIC:
             badly_psn = pok[_POK_BADLY_POISON]
             if badly_psn < 1:
                 badly_psn = 1
-            dmg = pok[_POK_MAX_HP] * badly_psn // 16
+            dmg = max(1, pok[_POK_MAX_HP] // 16) * badly_psn
             pok[_POK_BADLY_POISON] = badly_psn + 1
         else:
-            dmg = pok[_POK_MAX_HP] // 8
-        if not is_magic_guard:
+            dmg = max(1, pok[_POK_MAX_HP] // 8)
+        # Poison Heal heals 1/8 instead, the toxic counter above still goes up (pokeplatinum
+        # subscript_poison_damage)
+        if pok[_POK_AB_ID] == _ABILITYNAMES_POISON_HEAL:
+            max_hp = pok[_POK_MAX_HP]
+            if pok[_POK_CURRENT_HP] < max_hp:
+                pok[_POK_CURRENT_HP] = min(max_hp, pok[_POK_CURRENT_HP] + max(1, max_hp // 8))
+                reveal_ability(pok)
+        elif not is_magic_guard:
             if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                 return
 
-    # 5. Burn
+    # 5. Burn, Heatproof halves it (pokeplatinum subscript_burn_damage)
     if pok[_POK_STATUS] == _STATUS_BURN:
         if not is_magic_guard:
-            dmg = pok[_POK_MAX_HP] // 8
+            dmg = max(1, pok[_POK_MAX_HP] // 8)
+            if pok[_POK_AB_ID] == _ABILITYNAMES_HEATPROOF:
+                dmg = max(1, dmg // 2)
             if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                 return
 
@@ -1154,6 +1195,19 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
                 dmg = max(1, pok[_POK_MAX_HP] // 16)
                 if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                     return
+
+    # 7b. Bad Dreams: a sleeper loses 1/8 to a living foe's Bad Dreams (pokeplatinum
+    # MON_COND_CHECK_STATE_BAD_DREAMS)
+    if (
+        pok[_POK_STATUS] == _STATUS_SLEEP
+        and foe[_POK_AB_ID] == _ABILITYNAMES_BAD_DREAMS
+        and foe[_POK_CURRENT_HP] > 0
+        and not is_magic_guard
+    ):
+        reveal_ability(foe)
+        dmg = max(1, pok[_POK_MAX_HP] // 8)
+        if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
+            return
 
     # 8. Uproar, wakes everyone up then counts down
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR:
@@ -1183,7 +1237,7 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
 
     # 12. Yawn
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN:
-        _yawn(pok, foe, battle_array[_FIELD_WEATHER])
+        _yawn(pok, foe, effective_weather(battle_array))
 
     # 13. Status items, for Yawn's sleep (pokeplatinum MON_COND_CHECK_STATE_ITEM_CONDITION)
     status_item(pok)
@@ -1191,7 +1245,7 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     # 14. Flame Orb
     if pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_BRN_USER:
         side = side_base(enter_field_flag_idx == _FIELD_MY_ENTER_FIELD)
-        _flame_orb(pok, battle_array[side], battle_array[_FIELD_WEATHER])
+        _flame_orb(pok, battle_array[side], effective_weather(battle_array))
 
     if enter_field:
         battle_array[enter_field_flag_idx] = 0
@@ -1235,7 +1289,7 @@ def _replace_fainted_opp(battle_array, current_pokemon, current_opp):
             break
         i = sub_after_death(
             opp_pty, current_pokemon, current_opp, battle_array[_FIELD_MY_SIDE_COND],
-            battle_array[_FIELD_WEATHER], gravity=battle_array[_FIELD_GRAVITY_TURNS] > 0
+            effective_weather(battle_array), gravity=battle_array[_FIELD_GRAVITY_TURNS] > 0
         )
         battle_array[_FIELD_OPP_POK] = i
         battle_array[_FIELD_MY_LAST_MOVE] = 0
@@ -1265,7 +1319,8 @@ def end_of_turn(battle_array):
     weather = battle_array[_FIELD_WEATHER]
 
     # TODO: Items
-    weather = _count_down_field(battle_array)
+    _count_down_field(battle_array)
+    weather = effective_weather(battle_array)
 
     # Gen IV re-sorts by speed before the end of the turn, then weather hits everyone before the
     # per-Pokemon residuals
@@ -1379,7 +1434,7 @@ def switch_in_action(battle_array, switch_idx: int):
     if current_opp[_POK_CURRENT_HP] <= 0:
         i = sub_after_death(
             opp_pty, current_pokemon, current_opp, battle_array[_FIELD_MY_SIDE_COND],
-            battle_array[_FIELD_WEATHER], gravity=battle_array[_FIELD_GRAVITY_TURNS] > 0
+            effective_weather(battle_array), gravity=battle_array[_FIELD_GRAVITY_TURNS] > 0
         )
         opp_switch = opp_pty[(i * POK_LEN):((i+1) * POK_LEN)]
         my_switch = my_pty[
@@ -1391,7 +1446,7 @@ def switch_in_action(battle_array, switch_idx: int):
         # I actually don't know if when both are switching in the order matters, but its better be safe
         # than sorry
         my_s, opp_s = check_speed(
-            my_switch, opp_switch, battle_array[_FIELD_WEATHER]
+            my_switch, opp_switch, effective_weather(battle_array)
         )
         speed_tie= False
         if my_s == opp_s:
@@ -1495,7 +1550,7 @@ def baton_pass_action(battle_array, switch_idx: int):
               if slot != 10 else STRUGGLE.copy())
         _execute_move_slot(
             current_opp, current_pokemon, mv, False, -1, slot, False, 2, True, battle_array,
-            battle_array[_FIELD_WEATHER]
+            effective_weather(battle_array)
         )
         _clear_charge(current_opp, mv)
         _after_move_items(battle_array)

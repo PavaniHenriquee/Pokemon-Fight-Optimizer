@@ -1,9 +1,14 @@
 """Ability checks shared by damage_calc and engine_helper"""
 from Utils.jit import njit
+from Models.idx_const import POK_LEN
 from Models.constants import (
     _POK_AB_BREAKABLE, _POK_AB_ID, _ABILITYNAMES_MOLD_BREAKER, _ABILITYNAMES_LEVITATE,
-    _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _POK_AB_KNOWN,
+    _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _POK_AB_KNOWN, _POK_CURRENT_HP, _FIELD_MY_POK,
+    _FIELD_OPP_POK, _FIELD_WEATHER, _ABILITYNAMES_CLOUD_NINE, _ABILITYNAMES_AIR_LOCK,
 )
+
+# Abilities that switch the weather's effects off while their holder is out
+WEATHER_SUPPRESSORS = (_ABILITYNAMES_CLOUD_NINE, _ABILITYNAMES_AIR_LOCK)
 
 
 @njit
@@ -27,6 +32,21 @@ def levitates(pok, attacker, gravity=False):
         and not pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN
         and ignorable_ability(pok, attacker)
     )
+
+
+@njit
+def effective_weather(battle_array):
+    """
+    The weather its effects see: none while a living active has Cloud Nine or Air Lock. The
+    weather itself stays up and keeps counting down (pokeplatinum NO_CLOUD_NINE)
+    """
+    for base in (battle_array[_FIELD_MY_POK] * POK_LEN, (battle_array[_FIELD_OPP_POK] + 6) * POK_LEN):
+        if (
+            battle_array[base + _POK_CURRENT_HP] > 0
+            and battle_array[base + _POK_AB_ID] in WEATHER_SUPPRESSORS
+        ):
+            return 0
+    return battle_array[_FIELD_WEATHER]
 
 
 @njit

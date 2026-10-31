@@ -104,7 +104,7 @@ def test_residual_status_damage(one_v_one, status, fraction):
 
 
 def test_toxic_escalates(make_pokemon, make_battle):
-    """Toxic does 1/16, 2/16, 3/16..."""
+    """Toxic does 1/16, 2/16, 3/16..., the 1/16 floored first (pokeplatinum Divide(max, 16) * n)"""
     arr = make_battle([make_pokemon("Geodude", 100, "Sturdy", ["Tackle"])],
                       [make_pokemon("Geodude", 100, "Sturdy", ["Tackle"])])
     me = my_active(arr)
@@ -114,7 +114,7 @@ def test_toxic_escalates(make_pokemon, make_battle):
     hp = me[Pok.CURRENT_HP]
     for n in (1, 2, 3):
         end_of_turn(arr)
-        hp -= mx * n // 16
+        hp -= max(1, mx // 16) * n
         assert me[Pok.CURRENT_HP] == hp
 
 
@@ -1048,6 +1048,76 @@ def test_weather_without_duration_is_permanent(one_v_one):
     arr[Field.WEATHER] = Weather.SANDSTORM
     for _ in range(8):
         end_of_turn(arr)
+    assert arr[Field.WEATHER] == Weather.SANDSTORM
+
+
+@pytest.mark.parametrize("mine", [True, False])
+@pytest.mark.parametrize("ability", ["Cloud Nine", "Air Lock"])
+def test_cloud_nine_stops_weather_but_not_its_countdown(make_pokemon, make_battle, mine, ability):
+    """No sandstorm damage while either active has it, the sandstorm still runs out
+    (pokeplatinum NO_CLOUD_NINE gates the weather step, not CheckFieldConditions)"""
+    holder = make_pokemon("Psyduck", 20, ability, ["Tackle"])
+    other = make_pokemon("Rattata", 20, "Run Away", ["Tackle"])
+    arr = make_battle([holder], [other]) if mine else make_battle([other], [holder])
+    arr[Field.WEATHER] = Weather.SANDSTORM
+    arr[Field.WEATHER_DURATION] = 3
+    assert battle.effective_weather(arr) == 0
+    end_of_turn(arr)
+    assert my_active(arr)[Pok.CURRENT_HP] == my_active(arr)[Pok.MAX_HP]
+    assert opp_active(arr)[Pok.CURRENT_HP] == opp_active(arr)[Pok.MAX_HP]
+    assert arr[Field.WEATHER] == Weather.SANDSTORM and arr[Field.WEATHER_DURATION] == 2
+
+
+def test_fainted_cloud_nine_lets_the_weather_back(make_pokemon, make_battle):
+    """Only a living holder suppresses the weather"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Tackle"])],
+                      [make_pokemon("Psyduck", 20, "Cloud Nine", ["Tackle"])])
+    arr[Field.WEATHER] = Weather.RAIN
+    assert battle.effective_weather(arr) == 0
+    opp_active(arr)[Pok.CURRENT_HP] = 0
+    assert battle.effective_weather(arr) == Weather.RAIN
+
+
+@pytest.mark.parametrize("ability, weather", [
+    ("Drizzle", Weather.RAIN), ("Drought", Weather.SUN), ("Sand Stream", Weather.SANDSTORM),
+    ("Snow Warning", Weather.HAIL),
+])
+def test_weather_abilities_set_permanent_weather(make_pokemon, make_battle, ability, weather):
+    """The weather comes in with no turn count and names the ability (pokeplatinum
+    subscript_drizzle and co. set the _PERM flag)"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Tackle"])],
+                      [make_pokemon("Snover", 20, ability, ["Tackle"])])
+    assert arr[Field.WEATHER] == weather and arr[Field.WEATHER_DURATION] == 0
+    assert opp_active(arr)[Pok.AB_KNOWN]
+    for _ in range(8):
+        end_of_turn(arr)
+    assert arr[Field.WEATHER] == weather
+
+
+@pytest.mark.parametrize("weather, duration, replaced", [
+    (Weather.RAIN, 0, False),
+    (Weather.RAIN, 3, True),
+    (Weather.SANDSTORM, 0, True),
+])
+def test_weather_ability_fails_only_on_its_own_permanent_weather(make_pokemon, make_battle,
+                                                                 weather, duration, replaced):
+    """Rain from Rain Dance turns permanent, another ability's weather is replaced, the same
+    permanent rain makes Drizzle fail silently"""
+    my = [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+          make_pokemon("Psyduck", 20, "Drizzle", ["Tackle"])]
+    arr = make_battle(my, [make_pokemon("Rattata", 20, "Run Away", ["Growl"])])
+    arr[Field.WEATHER] = weather
+    arr[Field.WEATHER_DURATION] = duration
+    engine_helper.switch_in(pok_slice(arr, 1), opp_active(arr), arr, True)
+    assert arr[Field.WEATHER] == Weather.RAIN
+    assert arr[Field.WEATHER_DURATION] == 0
+    assert bool(pok_slice(arr, 1)[Pok.AB_KNOWN]) == replaced
+
+
+def test_slower_lead_weather_wins(make_pokemon, make_battle):
+    """Both leads come in by speed, so the slower one's weather is the one left"""
+    arr = make_battle([make_pokemon("Psyduck", 50, "Drizzle", ["Tackle"])],
+                      [make_pokemon("Hippopotas", 5, "Sand Stream", ["Tackle"])])
     assert arr[Field.WEATHER] == Weather.SANDSTORM
 
 
@@ -2032,6 +2102,149 @@ def test_hydration_cures_in_rain(make_pokemon, make_battle, weather, cured):
     p[Pok.STATUS] = Status.POISON
     battle._residual_weather(p, weather, Field.MY_ENTER_FIELD, arr)
     assert (p[Pok.STATUS] == 0) == cured
+
+
+def _residual_battle(make_pokemon, make_battle, species, ability, item=None):
+    """My active with ability/item against a Rattata, ready for _apply_residual"""
+    arr = make_battle([make_pokemon(species, 30, ability, ["Tackle"], item=item)],
+                      [make_pokemon("Rattata", 30, "Run Away", ["Growl"])])
+    return arr, my_active(arr)
+
+
+def _residual(arr):
+    battle._apply_residual(my_active(arr), opp_active(arr), Field.MY_ENTER_FIELD, arr)
+
+
+@pytest.mark.parametrize("species, item, change", [
+    ("Rattata", "Leftovers", 16),
+    ("Grimer", "Black Sludge", 16),
+    ("Rattata", "Black Sludge", -8),
+])
+def test_gradual_items(make_pokemon, make_battle, species, item, change):
+    """Leftovers heals 1/16, Black Sludge 1/16 for a Poison type and -1/8 for anyone else
+    (pokeplatinum BattleSystem_TriggerLeftovers)"""
+    arr, p = _residual_battle(make_pokemon, make_battle, species, "Run Away", item)
+    p[Pok.CURRENT_HP] = 40
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == 40 + (p[Pok.MAX_HP] // abs(change)) * (1 if change > 0 else -1)
+
+
+@pytest.mark.parametrize("species, ability, item", [
+    ("Rattata", "Run Away", "Leftovers"), ("Grimer", "Stench", "Black Sludge"),
+    ("Clefairy", "Magic Guard", "Black Sludge"),
+])
+def test_gradual_items_do_nothing(make_pokemon, make_battle, species, ability, item):
+    """No heal at full HP, Magic Guard takes no Black Sludge damage"""
+    arr, p = _residual_battle(make_pokemon, make_battle, species, ability, item)
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP]
+
+
+def test_leftovers_before_poison(make_pokemon, make_battle):
+    """The LEFTOVERS step comes first, so at full HP it heals nothing and poison takes 1/8"""
+    arr, p = _residual_battle(make_pokemon, make_battle, "Rattata", "Run Away", "Leftovers")
+    p[Pok.STATUS] = Status.POISON
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] - p[Pok.MAX_HP] // 8
+
+
+def test_black_sludge_can_faint(make_pokemon, make_battle):
+    """Fainting to it skips the rest of the residuals"""
+    arr, p = _residual_battle(make_pokemon, make_battle, "Rattata", "Run Away", "Black Sludge")
+    p[Pok.CURRENT_HP] = 1
+    p[Pok.STATUS] = Status.POISON
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == 0
+
+
+@pytest.mark.parametrize("status", [Status.POISON, Status.TOXIC])
+def test_poison_heal(make_pokemon, make_battle, status):
+    """Heals 1/8 instead of the poison damage and names itself; toxic's counter still goes up
+    (pokeplatinum subscript_poison_damage)"""
+    arr, p = _residual_battle(make_pokemon, make_battle, "Shroomish", "Poison Heal")
+    p[Pok.STATUS] = status
+    p[Pok.BADLY_POISON] = 1 if status == Status.TOXIC else 0
+    p[Pok.CURRENT_HP] = 40
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == 40 + p[Pok.MAX_HP] // 8 and p[Pok.AB_KNOWN]
+    assert p[Pok.BADLY_POISON] == (2 if status == Status.TOXIC else 0)
+
+
+def test_poison_heal_at_full_hp(make_pokemon, make_battle):
+    """Nothing to heal, no message"""
+    arr, p = _residual_battle(make_pokemon, make_battle, "Shroomish", "Poison Heal")
+    p[Pok.STATUS] = Status.POISON
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] and not p[Pok.AB_KNOWN]
+
+
+def test_heatproof_halves_burn(make_pokemon, make_battle):
+    """1/8 then halved (pokeplatinum subscript_burn_damage)"""
+    arr, p = _residual_battle(make_pokemon, make_battle, "Bronzor", "Heatproof")
+    p[Pok.STATUS] = Status.BURN
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] - p[Pok.MAX_HP] // 8 // 2
+
+
+@pytest.mark.parametrize("status", [Status.POISON, Status.BURN])
+def test_status_damage_is_at_least_one(make_pokemon, make_battle, status):
+    """pokeplatinum BattleSystem_Divide never gives 0"""
+    arr, p = _residual_battle(make_pokemon, make_battle, "Rattata", "Run Away")
+    p[Pok.MAX_HP] = 7
+    p[Pok.CURRENT_HP] = 7
+    p[Pok.STATUS] = status
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == 6
+
+
+def _bad_dreams_battle(make_pokemon, make_battle, ability="Run Away"):
+    """My sleeping Rattata against a Bad Dreams Darkrai"""
+    arr = make_battle([make_pokemon("Rattata", 30, ability, ["Tackle"])],
+                      [make_pokemon("Darkrai", 30, "Bad Dreams", ["Growl"])])
+    p = my_active(arr)
+    p[Pok.STATUS] = Status.SLEEP
+    p[Pok.SLEEP_COUNTER] = 3
+    return arr, p
+
+
+def test_bad_dreams(make_pokemon, make_battle):
+    """A sleeper loses 1/8 to the foe's Bad Dreams, whose message names it"""
+    arr, p = _bad_dreams_battle(make_pokemon, make_battle)
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] - p[Pok.MAX_HP] // 8
+    assert opp_active(arr)[Pok.AB_KNOWN]
+
+
+@pytest.mark.parametrize("case", ["awake", "magic_guard", "fainted_holder"])
+def test_bad_dreams_does_nothing(make_pokemon, make_battle, case):
+    """Only a sleeper without Magic Guard, only while the holder is alive (pokeplatinum
+    MON_COND_CHECK_STATE_BAD_DREAMS)"""
+    arr, p = _bad_dreams_battle(
+        make_pokemon, make_battle, "Magic Guard" if case == "magic_guard" else "Run Away"
+    )
+    if case == "awake":
+        p[Pok.STATUS] = 0
+    if case == "fainted_holder":
+        opp_active(arr)[Pok.CURRENT_HP] = 0
+    _residual(arr)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("species, ability, weather, change", [
+    ("Snorunt", "Ice Body", Weather.HAIL, 16),
+    ("Paras", "Dry Skin", Weather.RAIN, 8),
+    ("Paras", "Dry Skin", Weather.SUN, -8),
+    ("Rattata", "Snow Cloak", Weather.HAIL, 0),
+])
+def test_weather_step_abilities(make_pokemon, make_battle, species, ability, weather, change):
+    """Ice Body and Dry Skin heal or hurt at the weather step, Snow Cloak takes no hail damage"""
+    arr = make_battle([make_pokemon(species, 30, ability, ["Tackle"])],
+                      [make_pokemon("Rattata", 30, "Run Away", ["Growl"])])
+    p = my_active(arr)
+    p[Pok.CURRENT_HP] = 40
+    battle._residual_weather(p, weather, Field.MY_ENTER_FIELD, arr)
+    sign = 1 if change > 0 else -1
+    assert p[Pok.CURRENT_HP] == 40 + (sign * (p[Pok.MAX_HP] // abs(change)) if change else 0)
 
 
 def test_shed_skin_cures_before_poison_damage(monkeypatch, make_pokemon, make_battle):

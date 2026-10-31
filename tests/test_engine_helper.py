@@ -1008,12 +1008,52 @@ def test_struggle_recoil(poke):
     ("Charmander", "Solar Power", Weather.SUN, 8),
     ("Charmander", "Blaze", Weather.SUN, 0),
     ("Rattata", "Run Away", Weather.RAIN, 0),
+    ("Rattata", "Snow Cloak", Weather.HAIL, 0),
+    ("Rattata", "Ice Body", Weather.HAIL, 0),
+    ("Paras", "Dry Skin", Weather.SUN, 8),
+    ("Paras", "Dry Skin", Weather.RAIN, 0),
 ])
 def test_weather_damage(poke, name, ability, weather, fraction):
-    """Sandstorm/Hail chip 1/16 unless immune; Solar Power costs 1/8 in sun"""
+    """Sandstorm/Hail chip 1/16 unless immune (Snow Cloak, Ice Body); Solar Power and Dry Skin
+    cost 1/8 in sun"""
     p = poke(name, 100, ability, ["Tackle"])
     expected = p[Pok.MAX_HP] // fraction if fraction else 0
     assert weather_dmg(p, weather, p[Pok.MAX_HP]) == expected
+
+
+@pytest.mark.parametrize("weather", [Weather.SANDSTORM, Weather.HAIL, Weather.SUN])
+def test_weather_damage_is_at_least_one(poke, weather):
+    """pokeplatinum BattleSystem_Divide never gives 0"""
+    p = poke("Rattata", 100, "Solar Power", ["Tackle"])
+    assert weather_dmg(p, weather, 7) == 1
+
+
+@pytest.mark.parametrize("ability, weather, fraction, underground", [
+    ("Rain Dish", Weather.RAIN, 16, False),
+    ("Dry Skin", Weather.RAIN, 8, False),
+    ("Dry Skin", Weather.RAIN, 8, True),
+    ("Ice Body", Weather.HAIL, 16, False),
+    ("Ice Body", Weather.HAIL, 0, True),
+    ("Ice Body", Weather.RAIN, 0, False),
+    ("Dry Skin", Weather.SUN, 0, False),
+])
+def test_weather_heals(poke, ability, weather, fraction, underground):
+    """Rain Dish 1/16 and Dry Skin 1/8 in rain, Ice Body 1/16 in hail but not underground
+    (pokeplatinum BtlCmd_EndOfTurnWeatherEffect)"""
+    p = poke("Paras", 100, ability, ["Tackle"])
+    p[Pok.CURRENT_HP] = 50
+    heal_weather(p, weather, underground)
+    assert p[Pok.CURRENT_HP] == 50 + (p[Pok.MAX_HP] // fraction if fraction else 0)
+    assert bool(p[Pok.AB_KNOWN]) == bool(fraction)
+
+
+def test_weather_heal_is_at_least_one(poke):
+    """A heal below 1 HP rounds up to 1"""
+    p = poke("Lotad", 100, "Rain Dish", ["Absorb"])
+    p[Pok.MAX_HP] = 10
+    p[Pok.CURRENT_HP] = 5
+    heal_weather(p, Weather.RAIN)
+    assert p[Pok.CURRENT_HP] == 6
 
 
 def test_rain_dish(poke):

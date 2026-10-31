@@ -22,7 +22,7 @@
 | 8     | Type immunity and absorb abilities                                  | [x]    |
 | 9     | Switch-in abilities and stat-drop guards                            | [x]    |
 | 10    | Speed and turn order                                                | [x]    |
-| 11    | Weather and end of turn                                             | [ ]    |
+| 11    | Weather and end of turn                                             | [x]    |
 | 12    | Trapping                                                            | [ ]    |
 | 13    | Survival, charge, consecutive use, drain                            | [ ]    |
 | 14    | No-op confirmations and out of scope                                | [ ]    |
@@ -132,6 +132,21 @@
   20% Quick Claw guess per holder rolled once per AI turn (Pokemow). `node_key` k3 bit 31 (opp) / 63 (mine): Truant
   loafs this turn or Slow Start holds. Golden: healing_misc moved on 8 seeds; with `truant_loafs` off all 20 replay
   the old snapshot, hashes included.
+- 2026-10-31 (Batch 11): `effective_weather(battle_array)` (`Engine/ability_helper.py`) is 0 while a living active has
+  Cloud Nine / Air Lock ([pp] `NO_CLOUD_NINE`); every engine weather read uses it except `_set_weather`,
+  `_count_down_field`, `node_key` and the rollout's `field_move_fails`, so the weather still counts down and can still be
+  set. The AI splits it (your call): the script checks read the field's weather ([pp] `AICmd_LoadCurrentWeather` has no
+  Cloud Nine check), the damage estimate, Gyro Ball, `sub_after_death` and the speed compare the effective one
+  (`expert_flag(..., speed_weather)`). Drizzle / Drought / Sand Stream / Snow Warning run in `switch_in_ability`, set
+  permanent weather (`WEATHER_DURATION` 0) and fail silently only on the same permanent weather ([pp]
+  `SWITCH_IN_CHECK_STATE_WEATHER_ABILITIES` + `subscript_drizzle`); Snow Warning sets hail ([SD gen4] sets snowscape).
+  Weather step per [pp] `EndOfTurnWeatherEffect`: Ice Body +1/16 in hail (not underground), Dry Skin +1/8 in rain and
+  -1/8 in sun, Snow Cloak / Ice Body skip hail damage. Leftovers / Black Sludge after Speed Boost ([pp]
+  `TriggerLeftovers`), Poison Heal +1/8 with the toxic counter still rising, Heatproof halves burn, Bad Dreams per
+  sleeper after bind ([pp] slot; [SD gen4] runs it from the holder at 10/10). Rounding fix (your call): residuals use
+  [pp] `BattleSystem_Divide` (at least 1): weather damage, Rain Dish, poison, burn (`DivideVarByValue` calls Divide
+  too), and toxic is `Divide(max, 16) * n` (was `max * n // 16`). Golden: no change (no scenario has toxic or a
+  Pokemon under 16 HP in weather).
 
 **Still open (your call, at the batch that needs it)**
 
@@ -493,7 +508,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 - Golden: healing_misc (Truant) will move.
 - TODO ticks: Quick Claw, Quick Feet, Unburden; deferred Slow Start, Stall, Truant.
 
-## Batch 11 — Weather and end of turn
+## Batch 11 — Weather and end of turn — DONE
 
 | Name                                                   | Gen IV effect                                                                  | Hook                                                                                                                  |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
@@ -689,6 +704,16 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
 - Batch 10: Slow Start's end message ("finally got its act together", ability tag) has no `reveal_ability`; the switch-in
   one already revealed it and `AB_KNOWN` lasts until switch-out.
 - Batch 10: TODO.txt's "Unburden (Need to implement usable held items)" note is outdated.
+- Batch 11: Curse's `max_hp // 4` has no minimum of 1; [pp] `subscript_curse_damage` wasn't read.
+- Batch 11: the weather is read once per move execution, so a Cloud Nine holder that faints mid-move keeps the
+  weather off for the rest of that move ([pp] checks `NO_CLOUD_NINE` live at every read).
+- Batch 11: Klutz and Embargo aren't handled anywhere ([pp] `Battler_HeldItem` returns no item for them), so Leftovers /
+  Black Sludge, like every item, still work under them.
+- Batch 11: Issue 11 again: `_EXPLICIT_RELEVANT` lacks Poison Heal, which the AI reads in `POISON_AB_IM`
+  (Basic_CheckCannotPoison).
+- Batch 11: the UI shows the field's weather while Cloud Nine / Air Lock switch it off (no "suppressed" marker).
+- Batch 11: outdated comments (left in place): `end_of_turn`'s `# TODO: Items`, `start_of_battle`'s `# TODO: Switch in
+  abilities like Intimidate, Drought etc.`, and `_apply_residual`'s Gen IV order docstring (no Leftovers / Bad Dreams).
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

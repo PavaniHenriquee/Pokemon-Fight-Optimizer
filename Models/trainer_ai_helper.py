@@ -1849,17 +1849,21 @@ def ai_speed_order(ai_pok, u_pok, weather, claw_guess):
 @njit
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
-    user_side=0, copycat_beats=False, claw_guess=0
+    user_side=0, copycat_beats=False, claw_guess=0, speed_weather=-1
 ):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it.
     ai_know is Field.AI_KNOWS, its move bits are the target's moves the AI saw.
     user_side is the target's Field.SIDE_COND. copycat_beats: the target's last move, used on
-    itself, does more damage than any of the AI's moves. claw_guess: quick_claw_guess
+    itself, does more damage than any of the AI's moves. claw_guess: quick_claw_guess.
+    weather is the field's, as the script reads it (pokeplatinum AICmd_LoadCurrentWeather ignores
+    Cloud Nine); speed_weather is the one the speed compare sees, -1 for the same
     """
+    if speed_weather < 0:
+        speed_weather = weather
     # Check if move first (TODO add Trick room logic here)
-    order = ai_speed_order(ai_pok, u_pok, weather, claw_guess)
+    order = ai_speed_order(ai_pok, u_pok, speed_weather, claw_guess)
     if order > 0:
         move_first = True
     elif order == 0:

@@ -14,7 +14,7 @@ from Engine.damage_calc import (
     item_power, item_attack, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
     AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB, is_scrappy
 )
-from Engine.ability_helper import ignorable_ability, levitates, reveal_ability
+from Engine.ability_helper import ignorable_ability, levitates, reveal_ability, effective_weather
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, Target
 from Models.item import ITEM_TABLE
@@ -83,6 +83,8 @@ from Models.constants import (
     _ABILITYNAMES_TRACE, _ABILITYNAMES_DOWNLOAD, _ABILITYNAMES_PRESSURE, _ABILITYNAMES_FORECAST,
     _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _POK_AB_KNOWN,
     _ABILITYNAMES_STALL, _ABILITYNAMES_UNBURDEN, _VOLSTATUS2_CAN_UNBURDEN, _ABILITYNAMES_SLOW_START,
+    _ABILITYNAMES_DRIZZLE, _ABILITYNAMES_DROUGHT, _ABILITYNAMES_SAND_STREAM,
+    _ABILITYNAMES_SNOW_WARNING, _ABILITYNAMES_ICE_BODY, _FIELD_WEATHER_DURATION,
 )
 
 
@@ -113,6 +115,11 @@ WORRY_SEED_FAILS = (_ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE)
 # pokeplatinum ChooseTraceTarget
 TRACE_FAILS = (_ABILITYNAMES_TRACE, _ABILITYNAMES_MULTITYPE, _ABILITYNAMES_FORECAST)
 SWITCH_IN_MESSAGE_ABS = (_ABILITYNAMES_SLOW_START, _ABILITYNAMES_MOLD_BREAKER, _ABILITYNAMES_PRESSURE)
+# The weather each ability sets on switch-in (pokeplatinum SWITCH_IN_CHECK_STATE_WEATHER_ABILITIES)
+WEATHER_ABILITIES = (
+    (_ABILITYNAMES_DRIZZLE, _WEATHER_RAIN), (_ABILITYNAMES_DROUGHT, _WEATHER_SUN),
+    (_ABILITYNAMES_SAND_STREAM, _WEATHER_SANDSTORM), (_ABILITYNAMES_SNOW_WARNING, _WEATHER_HAIL),
+)
 PERISH_SONG_TURNS = 3
 # Moves that call another move
 CALLER_MOVES = (_MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER)
@@ -880,7 +887,7 @@ def apply_hazards(pok, battle_array, side):
     if cond == 0 or pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
         return
     if cond & _SIDECONDITION_TOXIC_SPIKES and is_grounded(pok, battle_array[_FIELD_GRAVITY_TURNS] > 0):
-        _toxic_spikes(pok, battle_array, side, battle_array[_FIELD_WEATHER])
+        _toxic_spikes(pok, battle_array, side, effective_weather(battle_array))
     if cond & _SIDECONDITION_STEALTH_ROCK:
         dmg = stealth_rock_damage(pok)
         mark_hurt(pok)
@@ -942,11 +949,28 @@ def download(pok, foe):
 
 
 @njit
+def weather_ability(pok, battle_array):
+    """
+    Drizzle, Drought, Sand Stream and Snow Warning set their weather with no turn count, so it
+    lasts until another one replaces it. Only the same weather already set by an ability stops
+    them, silently (pokeplatinum SWITCH_IN_CHECK_STATE_WEATHER_ABILITIES, subscript_drizzle)
+    """
+    for ability, weather in WEATHER_ABILITIES:
+        if pok[_POK_AB_ID] == ability:
+            if battle_array[_FIELD_WEATHER] == weather and battle_array[_FIELD_WEATHER_DURATION] == 0:
+                return
+            battle_array[_FIELD_WEATHER] = weather
+            battle_array[_FIELD_WEATHER_DURATION] = 0
+            reveal_ability(pok)
+            return
+
+
+@njit
 def switch_in_ability(pok, foe, battle_array, is_mine):
     """
-    pok's own switch-in abilities, in pokeplatinum's order after Trace: Intimidate, Download, then
-    Slow Start, Mold Breaker and Pressure, whose messages tell the AI my ability
-    (BattleMessage_AbilityTag).
+    pok's own switch-in abilities, in pokeplatinum's order after Trace: the weather abilities,
+    Intimidate, Download, then Slow Start, Mold Breaker and Pressure, whose messages tell the AI
+    my ability (BattleMessage_AbilityTag).
     is_mine: pok is on my side
     """
     if not pok[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
@@ -958,6 +982,8 @@ def switch_in_ability(pok, foe, battle_array, is_mine):
         download(pok, foe)
     elif ability in SWITCH_IN_MESSAGE_ABS:
         reveal_ability(pok)
+    else:
+        weather_ability(pok, battle_array)
 
 
 @njit
@@ -1291,7 +1317,7 @@ def start_of_battle(array):
     current_opp = array[
             ((array[_FIELD_OPP_POK]+6) * POK_LEN):((array[_FIELD_OPP_POK]+7) * POK_LEN)
         ]
-    weather = array[_FIELD_WEATHER]
+    weather = effective_weather(array)
     p1_speed, p2_speed = check_speed(current_pokemon, current_opp, weather)
     speed_tie = 0
     if p1_speed == p2_speed:
@@ -1310,14 +1336,22 @@ def start_of_battle(array):
 
 
 @njit
-def heal_weather(self_, weather):
+def heal_weather(self_, weather, underground=False):
     """
-    Heals after turns, from items, abilities and volatile conditions
+    Heals after turns, from items, abilities and volatile conditions.
+    Rain Dish 1/16 and Dry Skin 1/8 in rain, Ice Body 1/16 in hail unless underground, at least 1
+    (pokeplatinum BtlCmd_EndOfTurnWeatherEffect)
     """
     heal = 0
     max_hp = self_[_POK_MAX_HP]
-    if self_[_POK_AB_ID] == _ABILITYNAMES_RAIN_DISH and weather == _WEATHER_RAIN:
-        heal += max_hp//16
+    ability = self_[_POK_AB_ID]
+    if weather == _WEATHER_RAIN:
+        if ability == _ABILITYNAMES_RAIN_DISH:
+            heal = max(1, max_hp // 16)
+        elif ability == _ABILITYNAMES_DRY_SKIN:
+            heal = max(1, max_hp // 8)
+    elif weather == _WEATHER_HAIL and ability == _ABILITYNAMES_ICE_BODY and not underground:
+        heal = max(1, max_hp // 16)
 
     if heal:
         hp_missing = max_hp - self_[_POK_CURRENT_HP]
@@ -1355,15 +1389,19 @@ def weather_dmg(pokemon, weather, max_hp:int):
             and type2 not in SANDSTORM_IM
             and abi != _ABILITYNAMES_SAND_VEIL
         ):
-            return max_hp//16
+            return max(1, max_hp//16)
         return 0
+    # Ice Body heals in hail instead (heal_weather)
     if weather == _WEATHER_HAIL:
-        if type1 != _TYPES_ICE and type2!= _TYPES_ICE:
-            return max_hp//16
+        if (
+            type1 != _TYPES_ICE and type2!= _TYPES_ICE
+            and abi != _ABILITYNAMES_SNOW_CLOAK and abi != _ABILITYNAMES_ICE_BODY
+        ):
+            return max(1, max_hp//16)
         return 0
     if weather == _WEATHER_SUN:
-        if abi == _ABILITYNAMES_SOLAR_POWER:
-            return max_hp//8
+        if abi == _ABILITYNAMES_SOLAR_POWER or abi == _ABILITYNAMES_DRY_SKIN:
+            return max(1, max_hp//8)
         return 0
     return 0
 
