@@ -8,11 +8,11 @@
 []Clear Body *
 []Cloud Nine *
 [X]Compound Eyes *
-[]Cute Charm *
+[X]Cute Charm *
 [X]Damp
 []Early Bird *
 [X]Filter *
-[]Flame Body *
+[X]Flame Body *
 []Flash Fire *
 []Forewarn *
 []Gluttony *
@@ -51,7 +51,7 @@
 [X]Solar Power
 [X]Soundproof
 [X]Speed Boost
-[]Static *
+[X]Static *
 [X]Steadfast
 []Storm Drain *
 [X]Sturdy
@@ -80,7 +80,7 @@
 []Drizzle *
 []Drought *
 []Dry Skin *
-[]Effect Spore *
+[X]Effect Spore *
 [X]Flower Gift *
 []Forecast *
 []Frisk *
@@ -102,7 +102,7 @@
 []Poison Heal *
 []Pressure *
 [X]Pure Power *
-[]Rough Skin *
+[X]Rough Skin *
 []Sand Stream *
 [X]Skill Link *
 []Slow Start *

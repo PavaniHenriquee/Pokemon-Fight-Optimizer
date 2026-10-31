@@ -6,7 +6,7 @@ from Engine.speed import check_speed
 from Engine.engine_helper import (
     move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     flinch_checker, thaw, early_returns, switch_in, SIDE_OR_FIELD_TARGETS,
-    contact_ability, heal_weather, on_residual, trainer_ai_items, drain,
+    on_hit_abilities, heal_weather, on_residual, trainer_ai_items, drain,
     item_on_rdmg, eat_berry_bug_bite, struggle, switch_items,
     RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
@@ -32,8 +32,8 @@ from Models.constants import (
     _FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1, _FIELD_WEATHER,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_MY_ENTER_FIELD, _FIELD_OPP_ENTER_FIELD, _FIELD_TURN,
     _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS, _MOVECATEGORY_SPECIAL,
-    _ABILITYACTIVATION_ON_CONTACT, _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER, _POK_TURNS_ACTIVE,
-    _ABILITYNAMES_AFTERMATH, _ABILITYNAMES_DAMP, _FLAGS_CONTACT, _MOVE_ID, _MOVE_PP, _MOVENAME_COVET,
+    _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER, _POK_TURNS_ACTIVE,
+    _MOVE_ID, _MOVE_PP, _MOVENAME_COVET,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
     _SEC_VOL_STATUS2,
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START, _MOVECATEGORY_PHYSICAL,
@@ -358,8 +358,8 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
 
 @njit
 def _apply_move_damage(attacker, defender, move, damage, crit=False):
-    """Subtracts HP, checks contact abilities, flinch, item-on-damage, and Aftermath on kill.
-    Returns (flinch, both_dead)"""
+    """Subtracts HP, checks flinch and item-on-damage. Contact abilities come later, in
+    on_hit_abilities. Returns flinch"""
     if damage > 0:
         mark_hurt(defender)
     if damage < defender[_POK_CURRENT_HP]:
@@ -371,14 +371,6 @@ def _apply_move_damage(attacker, defender, move, damage, crit=False):
         if crit and defender[_POK_AB_ID] == _ABILITYNAMES_ANGER_POINT:
             defender[_POK_ATTACK_STAT_STAGE] = 6
         flinch = False
-        if (
-            move[_FLAGS_CONTACT]
-            and (
-                attacker[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CONTACT
-                or defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CONTACT
-            )
-        ):
-            contact_ability(attacker, defender)
         if move[_SEC_VOL_STATUS] & _VOLSTATUS_FLINCH:
             flinch = flinch_checker(move, attacker, defender)
         elif move[_SEC_VOL_STATUS2] & _VOLSTATUS_FLINCH:
@@ -388,21 +380,6 @@ def _apply_move_damage(attacker, defender, move, damage, crit=False):
         return flinch
 
     defender[_POK_CURRENT_HP] = 0
-    # Aftermath damage after kill
-    if (
-        defender[_POK_AB_ID] == _ABILITYNAMES_AFTERMATH
-        and move[_FLAGS_CONTACT]
-        and move[_MOVE_DAMAGE] != 0  # For some reason they don't trigger it
-        and attacker[_POK_AB_ID] != _ABILITYNAMES_DAMP
-    ):
-        dmg = attacker[_POK_MAX_HP] // 4
-        mark_hurt(attacker)
-        if dmg < attacker[_POK_CURRENT_HP]:
-            attacker[_POK_CURRENT_HP] -= dmg
-            if attacker[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
-                item_on_rdmg(attacker)
-        else:
-            attacker[_POK_CURRENT_HP] = 0
     return False
 
 
@@ -448,7 +425,8 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
     else:
         raise ValueError("Moves that are variable and not 2-5 shouldn't exit, check DB")
     for i in range(multhit):
-        if i and defender[_POK_CURRENT_HP]<=0:
+        # Rough Skin can knock the user out mid-sequence
+        if i and (defender[_POK_CURRENT_HP] <= 0 or attacker[_POK_CURRENT_HP] <= 0):
             break
         flinch_c, damage, dealt = _ps_moves_core(
             attacker, defender, move, weather, def_side, gravity
@@ -460,6 +438,7 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
         # Check for secondary effects and apply them
         if move[_SEC_CHANCE]:
             sec_effects(move, attacker, defender, weather, def_side)
+        on_hit_abilities(attacker, defender, move, dealt, weather)
 
     _recoil(attacker, move, dealt_total)
     if move[_MOVE_DRAIN]:
@@ -491,6 +470,8 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
     # Check for secondary effects and apply them
     if move[_SEC_CHANCE]:
         sec_effects(move, attacker, defender, weather, def_side)
+    # After recoil, drain and the secondary effect (pokeplatinum after-move order)
+    on_hit_abilities(attacker, defender, move, dealt, weather)
 
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         defender[_POK_DMG_TAKEN] += damage

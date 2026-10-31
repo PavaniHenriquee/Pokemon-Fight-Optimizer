@@ -4,7 +4,8 @@ import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
 from Engine.speed import check_speed
-from Engine.status_calc import  freeze, paralysis, synchronize_reflect, sleep_blocked, SLOT_MASK
+from Engine.status_calc import  freeze, paralysis, sleep_blocked, SLOT_MASK
+from Engine.status_calc import apply_status, infatuate
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
     item_power, item_attack, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
@@ -12,7 +13,7 @@ from Engine.damage_calc import (
 )
 from Engine.ability_helper import ignorable_ability
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
-from Models.helper import TARGET_SELF_SIDE, STEEL_POISON, Target
+from Models.helper import TARGET_SELF_SIDE, Target
 from Models.item import ITEM_TABLE
 from Models.ability import ABILITY_TABLE
 from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN
@@ -67,7 +68,9 @@ from Models.constants import (
     _ABILITYNAMES_STURDY, _ABILITYNAMES_NO_GUARD, _ABILITYNAMES_COMPOUND_EYES,
     _ABILITYNAMES_SNOW_CLOAK, _ABILITYNAMES_TANGLED_FEET, _ABILITYNAMES_SUPER_LUCK,
     _ABILITYNAMES_SERENE_GRACE, _ABILITYNAMES_SHIELD_DUST, _ABILITYNAMES_UNAWARE,
-    _HOLDEFFECT_ACC_REDUCE, _HOLDEFFECT_CRITRATE_UP,
+    _HOLDEFFECT_ACC_REDUCE, _HOLDEFFECT_CRITRATE_UP, _ABILITYNAMES_STATIC, _ABILITYNAMES_FLAME_BODY,
+    _ABILITYNAMES_CUTE_CHARM, _ABILITYNAMES_EFFECT_SPORE, _ABILITYNAMES_ROUGH_SKIN,
+    _ABILITYNAMES_AFTERMATH, _FLAGS_CONTACT, _ABILITYACTIVATION_ON_CONTACT,
 )
 
 
@@ -76,6 +79,8 @@ DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 HP_RESTORE_EFFECTS = (_HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE)
 RECORD_DAMAGE = (_DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT)
+# pokeplatinum BattleSystem_TriggerAbilityOnHit: RandNext % 3 picks poison, paralysis, sleep
+EFFECT_SPORE_STATUSES = (_STATUS_POISON, _STATUS_PARALYSIS, _STATUS_SLEEP)
 # Gravity's accuracy boost, x5/3 as 6840/4096
 GRAVITY_ACC_NUM = 6840
 GRAVITY_ACC_DEN = 4096
@@ -768,19 +773,73 @@ def confusion(pok):
 
 
 @njit
-def contact_ability(attacker, defender):
+def _contact_damage(pok, dmg):
+    """Rough Skin / Aftermath damage to the attacker, its berry can still trigger"""
+    mark_hurt(pok)
+    if dmg < pok[_POK_CURRENT_HP]:
+        pok[_POK_CURRENT_HP] -= dmg
+        if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+            item_on_rdmg(pok)
+    else:
+        pok[_POK_CURRENT_HP] = 0
+
+
+@njit
+def on_hit_abilities(attacker, defender, move, dealt, weather):
     """
-    Abilities that activate with contact
+    The defender's abilities that react to a contact hit, after the hit's recoil, drain and
+    secondary effect, the KO hit included (pokeplatinum BattleSystem_TriggerAbilityOnHit). The
+    attacker has to be alive. Statuses from them ignore Safeguard
     """
-    if defender[_POK_AB_ID] == _ABILITYNAMES_POISON_POINT:
+    def_ab = defender[_POK_AB_ID]
+    if (
+        not move[_FLAGS_CONTACT]
+        or attacker[_POK_CURRENT_HP] <= 0
+        or not (
+            defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CONTACT
+            or def_ab == _ABILITYNAMES_AFTERMATH
+        )
+    ):
+        return
+    atk_ab = attacker[_POK_AB_ID]
+    if def_ab == _ABILITYNAMES_AFTERMATH:
         if (
-            attacker[_POK_STATUS] == 0
-            and attacker[_POK_TYPE1] not in STEEL_POISON
-            and attacker[_POK_TYPE2] not in STEEL_POISON
-            and random.random() < .30
+            defender[_POK_CURRENT_HP] <= 0
+            and atk_ab != _ABILITYNAMES_MAGIC_GUARD
+            and atk_ab != _ABILITYNAMES_DAMP
         ):
-            attacker[_POK_STATUS] = _STATUS_POISON
-            synchronize_reflect(attacker, _STATUS_POISON, defender)
+            _contact_damage(attacker, max(1, attacker[_POK_MAX_HP] // 4))
+        return
+    if dealt <= 0:
+        return
+    if def_ab == _ABILITYNAMES_ROUGH_SKIN:
+        if atk_ab != _ABILITYNAMES_MAGIC_GUARD:
+            _contact_damage(attacker, max(1, attacker[_POK_MAX_HP] // 8))
+        return
+    if def_ab == _ABILITYNAMES_CUTE_CHARM:
+        if (
+            defender[_POK_CURRENT_HP] > 0
+            and not attacker[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT
+            and random.randint(0, 9) < 3
+        ):
+            infatuate(attacker, defender)
+        return
+
+    if def_ab == _ABILITYNAMES_STATIC:
+        status = _STATUS_PARALYSIS
+    elif def_ab == _ABILITYNAMES_FLAME_BODY:
+        status = _STATUS_BURN
+    elif def_ab == _ABILITYNAMES_POISON_POINT:
+        status = _STATUS_POISON
+    elif def_ab == _ABILITYNAMES_EFFECT_SPORE:
+        status = -1
+    else:
+        return
+    if attacker[_POK_STATUS] != 0 or random.randint(0, 9) >= 3:
+        return
+    if status == -1:
+        status = EFFECT_SPORE_STATUSES[random.randint(0, 2)]
+    apply_status(move, attacker, weather, defender, False, 0, status)
 
 
 # ── The turn-blocking gate ───────────────────────────────────────────────────────

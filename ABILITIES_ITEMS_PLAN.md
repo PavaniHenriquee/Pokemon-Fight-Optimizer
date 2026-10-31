@@ -17,7 +17,7 @@
 | 3     | Trainer abilities: Rock Head, Sturdy                                | [x]    |
 | 4     | Damage abilities                                                    | [x]    |
 | 5     | Accuracy, crit, secondary effects                                   | [x]    |
-| 6     | Contact abilities                                                   | [ ]    |
+| 6     | Contact abilities                                                   | [x]    |
 | 7     | Status immunity, cures, status berries                              | [ ]    |
 | 8     | Type immunity and absorb abilities                                  | [ ]    |
 | 9     | Switch-in abilities and stat-drop guards                            | [ ]    |
@@ -87,6 +87,14 @@
   Shield Dust blocks every secondary aimed at its holder, Fake Out's flinch included (it's an indirect side effect
   in [pp effect_script_0158], as in [SD]). Anger Point follows [SD gen4] (no [pp] C code found):
   `_resolve_move_damage` returns `(damage, crit)` and `_apply_move_damage` takes the crit.
+- 2026-10-30 (Batch 6): Issue 5 fixed. `on_hit_abilities` replaces `contact_ability` and the Aftermath block in
+  `_apply_move_damage`. It runs per hit after recoil, drain and the secondary effect ([pp] after-move order), the
+  KO hit included; only Cute Charm needs the holder alive and only Aftermath needs it fainted. The attacker has to
+  be alive. Statuses go through `apply_status` with Safeguard skipped ([pp] subscripts skip it for an ability
+  source), so Batch 7's immunities reach them. Every 30% roll is `randint(0, 9) < 3`, Poison Point included (was
+  `random.random() < .30`). Attract moved into `infatuate(pok, source)`, shared by `vol_status` and Cute Charm. A
+  multi-hit move stops when its user faints. The reorder also ended a revive: Draining Kiss KOing an Aftermath
+  holder used to be healed back from 0 HP by `drain()`.
 
 **Still open (your call, at the batch that needs it)**
 
@@ -173,7 +181,7 @@
    or Withdraw used against a Water Absorb foe heal it and fail. [pp BattleSystem_TriggerImmunityAbility]
    only absorbs damaging Water moves. Needed by Batch 8.
 5. **Aftermath's condition looks inverted** (`battle.py:380`): `move[_MOVE_DAMAGE] != 0` is only true for
-   fixed-damage moves, so Tackle-style contact moves never trigger it. Same gate as Batch 6.
+   fixed-damage moves, so Tackle-style contact moves never trigger it. Same gate as Batch 6. **FIXED in Batch 6.**
 6. **A berry can revive a Pokemon KO'd by its own confusion hit**: `confusion()` calls `item_on_rdmg` at
    0 HP (`engine_helper.py:631-635`) and `eat_berry` only checks ≤50%. Batch 2 reuses that hook.
    **FIXED in Batch 2** (`eat_berry` needs HP > 0).
@@ -343,7 +351,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 - TODO ticks: Compound Eyes, No Guard, Tangled Feet, Bright Powder, Scope Lens, Super Luck, Shell Armor,
   Serene Grace, Shield Dust; deferred Lax Incense, Skill Link, Anger Point (Snow Cloak after Batch 11).
 
-## Batch 6 — Contact abilities
+## Batch 6 — Contact abilities — DONE
 
 | Ability                 | Gen IV effect [pp BattleSystem_TriggerAbilityOnHit, `RandNext % 10 < 3`] |
 | ----------------------- | ------------------------------------------------------------------------ |
@@ -565,6 +573,10 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   `_resolve_move_damage` returns with `False`).
 - Batch 5: [pp] rolls the secondary chance and then lets Shield Dust discard it; the engine skips the roll for a
   Shield Dust holder. RNG order only.
+- Batch 6: `drain()` itself still heals a Pokemon at 0 HP; the reorder only removes the path that reached it
+  (Aftermath / Rough Skin now run after the drain). A guard in `drain()` would cover any future path.
+- Batch 6: [pp] Aftermath checks Damp on every alive battler; in singles that's only the attacker, which is what
+  the engine checks. Color Change has `on_contact` in AbilitiesDB but isn't handled (out of scope, Batch 14).
 - Batch 5: Snow Cloak's hail-damage immunity is still Batch 11; `#TODO: Lock-On` stays in the OHKO branch (Lock-On
   and Mind Reader aren't in MoveDB).
 ## UI (cross-batch)

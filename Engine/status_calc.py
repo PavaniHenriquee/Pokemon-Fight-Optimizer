@@ -217,6 +217,20 @@ def stat_changes(move, attacker, defender, sec=False, def_side=0):
 
 
 @njit
+def infatuate(pok, source):
+    """Attract and Cute Charm: only between a male and a female"""
+    pok_gender = pok[_POK_GENDER]
+    src_gender = source[_POK_GENDER]
+    if (
+        not pok[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT
+        and pok_gender != _GENDER_GENDERLESS
+        and src_gender != _GENDER_GENDERLESS
+        and pok_gender != src_gender
+    ):
+        pok[_POK_VOL_STATUS] |= _VOLSTATUS_ATTRACT
+
+
+@njit
 def vol_status(move, pok, source, sec=False, side=0):
     """Check and apply volatile status. side is pok's Field.SIDE_COND, Safeguard there blocks
     confusion and Yawn"""
@@ -254,17 +268,8 @@ def vol_status(move, pok, source, sec=False, side=0):
         ):
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_LEECH_SEED
 
-    # Only between a male and a female
     if v_status & _VOLSTATUS_ATTRACT:
-        pok_gender = pok[_POK_GENDER]
-        src_gender = source[_POK_GENDER]
-        if (
-            not pok[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT
-            and pok_gender != _GENDER_GENDERLESS
-            and src_gender != _GENDER_GENDERLESS
-            and pok_gender != src_gender
-        ):
-            pok[_POK_VOL_STATUS] |= _VOLSTATUS_ATTRACT
+        infatuate(pok, source)
 
     # Fails on a target that already has a status or is already drowsy
     if v_status & _VOLSTATUS_YAWN and not safeguard and not sleep_ability(pok, source):

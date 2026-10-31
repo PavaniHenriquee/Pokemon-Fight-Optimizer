@@ -11,7 +11,7 @@ from Engine.engine_helper import (
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
-    is_grounded, ohko_fails, move_accuracy,
+    is_grounded, ohko_fails, move_accuracy, on_hit_abilities,
 )
 from Engine.ability_helper import ignorable_ability
 from Models.ability import ABILITY_TABLE
@@ -25,7 +25,7 @@ from Models.helper import Terrain
 from DataBase.MoveDB import MoveName
 from Models.idx_const import Pok, Move, Item, Sec, Field, SIDE_TOXIC_SPIKES, FIELD_LEN
 from Models.helper import (
-    Status, Weather, VolStatus, VolStatus2, Potions, MoveOutcome, Types, SideCondition,
+    Status, Weather, VolStatus, VolStatus2, Potions, MoveOutcome, Types, SideCondition, Gender,
 )
 from DataBase.ItemDB import ItemNames
 from battle_driver import move_slice
@@ -375,6 +375,134 @@ def test_serene_grace_doubles_flinch_chance(monkeypatch, poke, ability, flinches
     mv = move_slice(a, 0).copy()
     mv[Sec.CHANCE] = 50
     assert flinch_checker(mv, a, d) == flinches
+
+
+# ── Contact abilities ────────────────────────────────────────────────────────
+
+def _fix_rolls(monkeypatch, chance_roll, pick=0):
+    """randint(0, 9) is the 30% roll, randint(0, 2) Effect Spore's pick"""
+    monkeypatch.setattr(engine_helper.random, "randint",
+                        lambda lo, hi: chance_roll if hi == 9 else pick)
+
+
+@pytest.mark.parametrize("ability, status", [
+    ("Static", Status.PARALYSIS), ("Flame Body", Status.BURN), ("Poison Point", Status.POISON),
+])
+@pytest.mark.parametrize("roll, applies", [(2, True), (3, False)])
+def test_contact_status_abilities(monkeypatch, poke, ability, status, roll, applies):
+    """30% on a contact hit, pokeplatinum RandNext % 10 < 3"""
+    _fix_rolls(monkeypatch, roll)
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Pikachu", 50, ability, ["Tackle"])
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert (a[Pok.STATUS] == status) == applies
+
+
+@pytest.mark.parametrize("move, dealt, attacker_hp, attacker_status", [
+    ("Ember", 10, 50, 0),                   # no contact
+    ("Tackle", 0, 50, 0),                   # no damage
+    ("Tackle", 10, 0, 0),                   # attacker already fainted
+    ("Tackle", 10, 50, Status.BURN),        # already has a status
+])
+def test_contact_status_needs_contact_damage_and_a_healthy_attacker(
+        monkeypatch, poke, move, dealt, attacker_hp, attacker_status):
+    """Nothing happens without contact, damage, a living attacker or with a status already"""
+    _fix_rolls(monkeypatch, 0)
+    a = poke("Rattata", 50, "Run Away", [move])
+    a[Pok.CURRENT_HP] = attacker_hp
+    a[Pok.STATUS] = attacker_status
+    d = poke("Pikachu", 50, "Static", ["Tackle"])
+    on_hit_abilities(a, d, move_slice(a, 0), dealt, 0)
+    assert a[Pok.STATUS] == attacker_status
+
+
+@pytest.mark.parametrize("ability, attacker", [("Flame Body", "Charmander"), ("Poison Point", "Grimer")])
+def test_contact_status_respects_type_immunity(monkeypatch, poke, ability, attacker):
+    """Fire types don't burn, Poison types don't get poisoned"""
+    _fix_rolls(monkeypatch, 0)
+    a = poke(attacker, 50, "Run Away", ["Scratch"] if attacker == "Charmander" else ["Pound"])
+    d = poke("Ponyta", 50, ability, ["Tackle"])
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert a[Pok.STATUS] == 0
+
+
+def test_static_on_the_ko_hit(monkeypatch, poke):
+    """The hit that knocks the Static holder out can still paralyze (pokeplatinum, Showdown gen4)"""
+    _fix_rolls(monkeypatch, 0)
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Pikachu", 50, "Static", ["Tackle"])
+    d[Pok.CURRENT_HP] = 0
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert a[Pok.STATUS] == Status.PARALYSIS
+
+
+def test_synchronize_bounces_a_contact_status(monkeypatch, poke):
+    """Static paralyzes a Synchronize attacker, which paralyzes the Static holder back"""
+    _fix_rolls(monkeypatch, 0)
+    a = poke("Abra", 50, "Synchronize", ["Fire Punch"])
+    d = poke("Pikachu", 50, "Static", ["Tackle"])
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert a[Pok.STATUS] == d[Pok.STATUS] == Status.PARALYSIS
+
+
+@pytest.mark.parametrize("pick, status", [
+    (0, Status.POISON), (1, Status.PARALYSIS), (2, Status.SLEEP),
+])
+def test_effect_spore_picks_one_of_three(monkeypatch, poke, pick, status):
+    """30%, then RandNext % 3: poison, paralysis, sleep"""
+    _fix_rolls(monkeypatch, 2, pick)
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Paras", 50, "Effect Spore", ["Tackle"])
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert a[Pok.STATUS] == status
+    if status == Status.SLEEP:
+        assert a[Pok.SLEEP_COUNTER] > 0
+
+
+@pytest.mark.parametrize("atk_gender, def_hp, attracted", [
+    (Gender.MALE, 50, True), (Gender.FEMALE, 50, False), (Gender.MALE, 0, False),
+])
+def test_cute_charm(monkeypatch, poke, atk_gender, def_hp, attracted):
+    """30% Attract, opposite genders only, and the Cute Charm holder has to be alive"""
+    _fix_rolls(monkeypatch, 0)
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.GENDER] = atk_gender
+    d = poke("Clefairy", 50, "Cute Charm", ["Pound"])
+    d[Pok.GENDER] = Gender.FEMALE
+    d[Pok.CURRENT_HP] = def_hp
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert bool(a[Pok.VOL_STATUS] & VolStatus.ATTRACT) == attracted
+
+
+@pytest.mark.parametrize("atk_ab, def_hp, loses", [
+    ("Run Away", 50, True), ("Run Away", 0, True), ("Magic Guard", 50, False),
+])
+def test_rough_skin(poke, atk_ab, def_hp, loses):
+    """The attacker loses 1/8 of its max HP, the KO hit too; Magic Guard is immune"""
+    a = poke("Rattata", 50, atk_ab, ["Tackle"])
+    d = poke("Carvanha", 50, "Rough Skin", ["Bite"])
+    d[Pok.CURRENT_HP] = def_hp
+    hp = a[Pok.CURRENT_HP]
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert a[Pok.CURRENT_HP] == (hp - a[Pok.MAX_HP] // 8 if loses else hp)
+
+
+@pytest.mark.parametrize("atk_ab, move, def_hp, loses", [
+    ("Run Away", "Tackle", 0, True),
+    ("Run Away", "Tackle", 30, False),          # the holder has to faint
+    ("Run Away", "Ember", 0, False),            # no contact
+    ("Damp", "Tackle", 0, False),
+    ("Magic Guard", "Tackle", 0, False),
+])
+def test_aftermath(poke, atk_ab, move, def_hp, loses):
+    """Issue 5: a contact KO costs the attacker 1/4 of its max HP, whatever the move's damage
+    source; Damp and Magic Guard stop it"""
+    a = poke("Rattata", 50, atk_ab, [move])
+    d = poke("Stunky", 50, "Aftermath", ["Scratch"])
+    d[Pok.CURRENT_HP] = def_hp
+    hp = a[Pok.CURRENT_HP]
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert a[Pok.CURRENT_HP] == (hp - a[Pok.MAX_HP] // 4 if loses else hp)
 
 
 # ── Switching ────────────────────────────────────────────────────────────────

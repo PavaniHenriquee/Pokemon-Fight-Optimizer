@@ -256,6 +256,47 @@ def test_skill_link_always_hits_five_times(monkeypatch, poke, ability, hits):
     assert seen == hits
 
 
+def test_drain_doesnt_revive_after_aftermath(poke):
+    """Draining Kiss KOs an Aftermath holder: drain heals first, then Aftermath knocks the user out,
+    so it stays fainted (it used to be revived by the drain)"""
+    a = poke("Clefairy", 50, "Cute Charm", ["Draining Kiss"])
+    a[Pok.CURRENT_HP] = 5
+    d = poke("Stunky", 5, "Aftermath", ["Scratch"])
+    d[Pok.CURRENT_HP] = 1
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.CURRENT_HP] == 0
+    assert a[Pok.CURRENT_HP] == 0
+
+
+def test_rough_skin_stops_a_multihit_move(monkeypatch, poke):
+    """Rough Skin KOs the user on the first hit, the remaining hits don't happen"""
+    core = battle._ps_moves_core
+    calls = []
+
+    def counting_core(*args):
+        calls.append(1)
+        return core(*args)
+
+    monkeypatch.setattr(battle, "_ps_moves_core", counting_core)
+    a = poke("Shellder", 50, "Skill Link", ["Fury Attack"])
+    a[Pok.CURRENT_HP] = 1
+    d = poke("Carvanha", 100, "Rough Skin", ["Bite"])
+    battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+    assert a[Pok.CURRENT_HP] == 0
+    assert len(calls) == 1
+
+
+def test_static_paralyzes_on_the_ko_hit(monkeypatch, poke):
+    """Through the whole hit: Tackle KOs the Static holder and still gets paralyzed"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: lo)
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d = poke("Pikachu", 50, "Static", ["Tackle"])
+    d[Pok.CURRENT_HP] = 1
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.CURRENT_HP] == 0
+    assert a[Pok.STATUS] == Status.PARALYSIS
+
+
 @pytest.mark.parametrize("crit, damage, stage", [(True, 10, 6), (False, 10, 0), (True, 60, 0)])
 def test_anger_point_maxes_attack_after_a_crit(poke, crit, damage, stage):
     """Surviving a critical hit sets Anger Point's Attack to +6 (Showdown gen4 angerpoint); a
