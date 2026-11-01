@@ -60,7 +60,8 @@ class Pok:
     CALLED_MOVE               = AB_KNOWN + 1
     MIRROR_MOVE               = CALLED_MOVE + 1
     SEMI_INV_MOVE             = MIRROR_MOVE + 1
-    VOL_STATUS2               = SEMI_INV_MOVE + 1
+    METRONOME_COUNT           = SEMI_INV_MOVE + 1
+    VOL_STATUS2               = METRONOME_COUNT + 1
     HIDDEN_POWER_TYPE         = VOL_STATUS2 + 1
     HIDDEN_POWER_POWER        = HIDDEN_POWER_TYPE + 1
     AB_ID                     = HIDDEN_POWER_POWER + 1

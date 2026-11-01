@@ -12,8 +12,10 @@ from Engine.engine_helper import (
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
     is_grounded, ohko_fails, move_accuracy, on_hit_abilities, trace, download,
-    recover_status_by_ability, pressure_pp,
+    recover_status_by_ability, pressure_pp, confusion, metronome_count, metronome_fail,
+    power_herb, sticky_hold,
 )
+from Engine.damage_calc import METRONOME_MOVE_SHIFT
 from Engine.ability_helper import ignorable_ability
 from Models.ability import ABILITY_TABLE
 from Models.item import ITEM_TABLE
@@ -976,13 +978,14 @@ def test_ignorable_ability(poke, defender_ab, attacker_ab, applies):
 def test_drain_half_with_minimum_one(poke):
     """Absorb heals half the damage dealt, at least 1, capped at max"""
     p = poke("Oddish", 50, "Chlorophyll", ["Absorb"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
     absorb = move_slice(p, 0)
     p[Pok.CURRENT_HP] = 10
-    drain(p, absorb, 20)
+    drain(p, d, absorb, 20)
     assert p[Pok.CURRENT_HP] == 20
-    drain(p, absorb, 1)
+    drain(p, d, absorb, 1)
     assert p[Pok.CURRENT_HP] == 21
-    drain(p, absorb, 10_000)
+    drain(p, d, absorb, 10_000)
     assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP]
 
 
@@ -2459,3 +2462,107 @@ def test_switch_out_forgets_the_ability(poke):
     p[Pok.AB_KNOWN] = 1
     reset_switch_out(p)
     assert p[Pok.AB_KNOWN] == 0
+
+
+# ── Focus Band, Metronome item, Power Herb, Liquid Ooze, Sticky Hold ─────────
+
+@pytest.mark.parametrize("roll, hp, damage, expected", [
+    (9, 10, 30, 9), (10, 10, 30, 30), (9, 10, 5, 5), (9, 10, 10, 9),
+])
+def test_focus_band_holds_on_one_time_in_ten(monkeypatch, poke, roll, hp, damage, expected):
+    """A 0-99 roll under 10 (effect_param) leaves the holder at 1 HP from a KO hit"""
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item="Focus Band")
+    d[Pok.CURRENT_HP] = hp
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: roll)
+    assert endure_damage(d, damage) == expected
+
+
+def test_focus_band_rolls_every_hit_but_not_under_endure(monkeypatch, poke):
+    """pokeplatinum rolls on a hit that wouldn't KO too, Endure goes first and skips the roll"""
+    rolls = []
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: rolls.append((lo, hi)) or 99)
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item="Focus Band")
+    assert endure_damage(d, 1) == 1 and rolls == [(0, 99)]
+    assert endure_damage(d, 0) == 0 and len(rolls) == 1
+    d[Pok.VOL_STATUS] = VolStatus.ENDURE
+    assert endure_damage(d, 10_000) == d[Pok.CURRENT_HP] - 1 and len(rolls) == 1
+
+
+def test_confusion_self_hit_ignores_magic_guard(poke):
+    """Issue 7: Magic Guard doesn't stop the self-hit (pokeplatinum subscript_hurt_self_in_confusion)"""
+    p = poke("Abra", 50, "Magic Guard", ["Tackle"])
+    confusion(p)
+    assert p[Pok.CURRENT_HP] < p[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("roll, survives", [(0, True), (99, False)])
+def test_focus_band_holds_on_through_a_confusion_self_hit(monkeypatch, poke, roll, survives):
+    """CheckHoldOnWith1HP runs in the self-hit too"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item="Focus Band")
+    p[Pok.CURRENT_HP] = 1
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: roll)
+    confusion(p)
+    assert p[Pok.CURRENT_HP] == (1 if survives else 0)
+
+
+def test_metronome_item_counts_the_same_move_up_to_ten(poke):
+    """Another move starts over at 0, a failed counted move gives back one"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle", "Growl"], item="Metronome")
+    tackle = MoveName.TACKLE << METRONOME_MOVE_SHIFT
+    metronome_count(p, MoveName.TACKLE)
+    assert p[Pok.METRONOME_COUNT] == tackle
+    for _ in range(12):
+        metronome_count(p, MoveName.TACKLE)
+    assert p[Pok.METRONOME_COUNT] == tackle + 10
+    metronome_fail(p, MoveName.TACKLE)
+    assert p[Pok.METRONOME_COUNT] == tackle + 9
+    metronome_fail(p, MoveName.GROWL)
+    assert p[Pok.METRONOME_COUNT] == tackle + 9
+    metronome_count(p, MoveName.GROWL)
+    metronome_fail(p, MoveName.GROWL)
+    assert p[Pok.METRONOME_COUNT] == MoveName.GROWL << METRONOME_MOVE_SHIFT
+
+
+def test_metronome_count_needs_the_item_and_ends_on_switch_out(poke):
+    """Without the item the count is 0 (the move stays, as in pokeplatinum), a switch clears both"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle"])
+    tackle = MoveName.TACKLE << METRONOME_MOVE_SHIFT
+    p[Pok.METRONOME_COUNT] = tackle + 3
+    metronome_count(p, MoveName.TACKLE)
+    assert p[Pok.METRONOME_COUNT] == tackle
+    p[Pok.METRONOME_COUNT] = tackle + 3
+    reset_switch_out(p)
+    assert p[Pok.METRONOME_COUNT] == 0
+
+
+def test_power_herb_is_used_up_on_a_charge_move_not_bide(poke):
+    """Dig skips its charge turn and the herb can be recycled, Bide keeps the herb"""
+    p = poke("Diglett", 20, "Sand Veil", ["Dig", "Bide"], item="Power Herb")
+    assert not power_herb(p, move_slice(p, 1)) and p[Item.ID] == ItemNames.POWER_HERB
+    assert power_herb(p, move_slice(p, 0))
+    assert p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] == ItemNames.POWER_HERB
+    assert not power_herb(p, move_slice(p, 0))
+
+
+@pytest.mark.parametrize("drainer_ab, start_hp, expected_hp", [
+    ("Chlorophyll", 30, 20), ("Chlorophyll", 5, 0), ("Magic Guard", 30, 30),
+])
+def test_liquid_ooze_hurts_the_drainer(poke, drainer_ab, start_hp, expected_hp):
+    """The drainer loses what it would have healed, a Magic Guard drainer gets nothing (pokeplatinum
+    subscript_drain_half_damage_dealt)"""
+    p = poke("Oddish", 50, drainer_ab, ["Absorb"])
+    ooze = poke("Tentacool", 50, "Liquid Ooze", ["Tackle"])
+    p[Pok.CURRENT_HP] = start_hp
+    drain(p, ooze, move_slice(p, 0), 20)
+    assert p[Pok.CURRENT_HP] == expected_hp
+
+
+@pytest.mark.parametrize("defender_ab, attacker_ab, holds", [
+    ("Sticky Hold", "Run Away", True), ("Sticky Hold", "Mold Breaker", False),
+    ("Run Away", "Run Away", False),
+])
+def test_sticky_hold_ignorable(poke, defender_ab, attacker_ab, holds):
+    """Sticky Hold is breakable (pokeplatinum Battler_IgnorableAbility)"""
+    d = poke("Grimer", 20, defender_ab, ["Tackle"])
+    a = poke("Rattata", 20, attacker_ab, ["Tackle"])
+    assert bool(sticky_hold(d, a)) == holds

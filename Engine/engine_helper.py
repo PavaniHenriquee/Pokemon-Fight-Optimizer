@@ -12,7 +12,8 @@ from Engine.status_calc import (
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
     item_power, item_attack, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
-    AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB, is_scrappy
+    AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB, is_scrappy,
+    METRONOME_MOVE_SHIFT, METRONOME_COUNT_MASK
 )
 from Engine.ability_helper import ignorable_ability, levitates, reveal_ability, effective_weather
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
@@ -76,7 +77,7 @@ from Models.constants import (
     _ABILITYNAMES_AFTERMATH, _FLAGS_CONTACT, _ABILITYACTIVATION_ON_CONTACT,
     _HOLDEFFECT_PSN_RESTORE, _HOLDEFFECT_SLP_RESTORE, _HOLDEFFECT_STATUS_RESTORE,
     _HOLDEFFECT_HEAL_INFATUATION, _ABILITYNAMES_EARLY_BIRD, _ABILITYNAMES_NATURAL_CURE,
-    _ABILITYNAMES_SHED_SKIN, _POK_VOL_STATUS2, _VOLSTATUS2_FLASH_FIRE,
+    _ABILITYNAMES_SHED_SKIN, _VOLSTATUS2_FLASH_FIRE,
     _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE, _ABILITYNAMES_DRY_SKIN,
     _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_WONDER_GUARD, _TYPES_ELECTRIC, _MOVENAME_FIRE_FANG,
     _MOVENAME_WILL_O_WISP, _MOVE_PP, _POK_SPECIAL_DEFENSE, _POK_SPECIAL_DEFENSE_STAT_STAGE,
@@ -86,7 +87,8 @@ from Models.constants import (
     _ABILITYNAMES_DRIZZLE, _ABILITYNAMES_DROUGHT, _ABILITYNAMES_SAND_STREAM,
     _ABILITYNAMES_SNOW_WARNING, _ABILITYNAMES_ICE_BODY, _FIELD_WEATHER_DURATION,
     _HOLDEFFECT_SWITCH, _VOLSTATUS_INGRAIN, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_MAGNET_PULL,
-    _ABILITYNAMES_ARENA_TRAP,
+    _ABILITYNAMES_ARENA_TRAP, _HOLDEFFECT_MAYBE_ENDURE, _HOLDEFFECT_BOOST_REPEATED,
+    _POK_METRONOME_COUNT, _ABILITYNAMES_LIQUID_OOZE, _HOLDEFFECT_CHARGE_SKIP,
 )
 
 
@@ -94,6 +96,7 @@ SANDSTORM_IM = (_TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL)
 DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 HP_RESTORE_EFFECTS = (_HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE)
+METRONOME_MAX_COUNT = 10
 # Pecha, Chesto, Lum and Mental Herb
 STATUS_CURE_EFFECTS = (
     _HOLDEFFECT_PSN_RESTORE, _HOLDEFFECT_SLP_RESTORE, _HOLDEFFECT_STATUS_RESTORE,
@@ -201,11 +204,59 @@ def try_protect(pok, move_id, is_last):
 
 
 @njit
+def focus_band(pok, damage):
+    """
+    Focus Band rolls on every hit its holder takes, lethal or not: 10% (its effect_param) to hold
+    on (pokeplatinum BattleControllerPlayer_UpdateHP, BtlCmd_CheckHoldOnWith1HP)
+    """
+    return (
+        damage > 0
+        and pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_MAYBE_ENDURE
+        and random.randint(0, 99) < pok[_ITEM_EFFECT_PARAM]
+    )
+
+
+@njit
 def endure_damage(defender, damage):
-    """Endure leaves the defender at 1 HP from a hit that would KO it"""
-    if defender[_POK_VOL_STATUS] & _VOLSTATUS_ENDURE and damage >= defender[_POK_CURRENT_HP]:
+    """Endure leaves the defender at 1 HP from a hit that would KO it, without Endure a Focus Band
+    can do the same"""
+    if defender[_POK_VOL_STATUS] & _VOLSTATUS_ENDURE:
+        holds_on = True
+    else:
+        holds_on = focus_band(defender, damage)
+    if holds_on and damage >= defender[_POK_CURRENT_HP]:
         return defender[_POK_CURRENT_HP] - 1
     return damage
+
+
+@njit
+def metronome_count(pok, move_id):
+    """
+    The Metronome item counts the selected move's uses in a row, up to 10, another move starts over
+    at 0. Locked turns and turns that don't reach the move don't count (pokeplatinum
+    BattleSystem_UpdateMetronomeCount). Packed as move id * 16 + count
+    """
+    packed = pok[_POK_METRONOME_COUNT]
+    if pok[_ITEM_HOLD_EFFECT] != _HOLDEFFECT_BOOST_REPEATED:
+        pok[_POK_METRONOME_COUNT] = packed & ~METRONOME_COUNT_MASK
+    elif packed >> METRONOME_MOVE_SHIFT == move_id:
+        if packed & METRONOME_COUNT_MASK < METRONOME_MAX_COUNT:
+            pok[_POK_METRONOME_COUNT] = packed + 1
+    else:
+        pok[_POK_METRONOME_COUNT] = move_id << METRONOME_MOVE_SHIFT
+
+
+@njit
+def metronome_fail(pok, move_id):
+    """A counted move that fails gives back its Metronome count (pokeplatinum
+    BattleSystem_VerifyMetronomeCount)"""
+    packed = pok[_POK_METRONOME_COUNT]
+    if (
+        pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_BOOST_REPEATED
+        and packed >> METRONOME_MOVE_SHIFT == move_id
+        and packed & METRONOME_COUNT_MASK
+    ):
+        pok[_POK_METRONOME_COUNT] = packed - 1
 
 
 # ── Item / berry helpers ───────────────────────────────────────────────────────
@@ -330,6 +381,24 @@ def switch_items(pok1, pok2):
     item_copy = np.copy(pok1[item_slice])
     pok1[item_slice] = pok2[item_slice]
     pok2[item_slice] = item_copy
+
+
+@njit
+def power_herb(pok, move):
+    """Power Herb is used up to skip a charge turn, Bide's turns aren't one (pokeplatinum
+    subscript_item_skip_charge_turn). Returns True if it skipped"""
+    if pok[_ITEM_HOLD_EFFECT] != _HOLDEFFECT_CHARGE_SKIP or move[_MOVE_ID] == _MOVENAME_BIDE:
+        return False
+    pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
+    clear_item(pok)
+    return True
+
+
+@njit
+def sticky_hold(defender, attacker):
+    """Sticky Hold keeps the item from Covet and Bug Bite, Mold Breaker ignores it (pokeplatinum
+    BtlCmd_TryStealItem, BtlCmd_TryPluck)"""
+    return defender[_POK_AB_ID] == _ABILITYNAMES_STICKY_HOLD and ignorable_ability(defender, attacker)
 
 
 @njit
@@ -800,6 +869,7 @@ def reset_switch_out(pok):
     pok[_POK_CALLED_MOVE] = 0
     pok[_POK_MIRROR_MOVE] = 0
     pok[_POK_SEMI_INV_MOVE] = 0
+    pok[_POK_METRONOME_COUNT] = 0
     pok[_POK_VOL_STATUS2] = 0
     pok[_POK_AB_KNOWN] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
@@ -1110,10 +1180,11 @@ def confusion(pok):
     If the pokemon gets hit by confusion, it's kinda the same as ps_core,
     but since the damage calculation is different and it doesn't have a "move"
     Better have a own thing to apply everything
+    Magic Guard doesn't stop it, Focus Band can hold on (pokeplatinum subscript_hurt_self_in_confusion)
     """
-    if pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
-        return
     damage = calculate_damage_confusion(pok)
+    if focus_band(pok, damage) and damage >= pok[_POK_CURRENT_HP]:
+        damage = pok[_POK_CURRENT_HP] - 1
     pok[_POK_CURRENT_HP] = max(0, (pok[_POK_CURRENT_HP]-damage))
     if damage > 0:
         mark_hurt(pok)
@@ -1462,14 +1533,19 @@ def trainer_ai_items(pok, item):
 
 
 @njit
-def drain(pok, move, dmg):
+def drain(pok, defender, move, dmg):
     """
-    Drain calculation and application
+    Drain calculation and application. A Liquid Ooze target hurts the drainer by the same amount
+    instead, a Magic Guard drainer gets nothing (pokeplatinum subscript_drain_half_damage_dealt)
     """
     drain_pct = move[_MOVE_DRAIN]
     heal = (dmg*drain_pct)//4
     if heal == 0:
         heal = 1
+    if defender[_POK_AB_ID] == _ABILITYNAMES_LIQUID_OOZE:
+        if pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD:
+            _contact_damage(pok, heal)
+        return
     pok[_POK_CURRENT_HP] = min(pok[_POK_CURRENT_HP]+heal, pok[_POK_MAX_HP])
 
 

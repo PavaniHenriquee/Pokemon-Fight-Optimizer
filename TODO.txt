@@ -28,7 +28,7 @@
 [X]Keen Eye
 [X]Levitate *
 []Lightning Rod *
-[]Magic Guard (Needs a lot of other implementations first, but half done)
+[X]Magic Guard (Needs a lot of other implementations first, but half done)
 [X]Natural Cure *
 [X]No Guard *
 [X]Oblivious *
@@ -89,7 +89,7 @@
 [X]Immunity *
 [X]Leaf Guard *
 [X]Limber *
-[]Liquid Ooze *
+[X]Liquid Ooze *
 [X]Magma Armor *
 [X]Magnet Pull *
 [X]Marvel Scale *
@@ -111,7 +111,7 @@
 [X]Solid Rock *
 [X]Stall *
 []Stench *
-[]Sticky Hold *
+[X]Sticky Hold *
 [X]Truant *
 [X]Volt Absorb *
 [X]White Smoke *
@@ -417,13 +417,13 @@
 [X]Charcoal *
 [X]Expert Belt *
 [X]Flame Orb *
-[]Focus Band *
+[X]Focus Band *
 [X]Hard Stone *
 [X]Leftovers *
 [X]Light Clay *
 [X]Mental Herb *
 [X]Metal Coat *
-[]Metronome *
+[X]Metronome *
 [X]Miracle Seed *
 [X]Muscle Band *
 [X]Mystic Water *
@@ -431,7 +431,7 @@
 [X]Oran Berry
 [X]Pecha Berry *
 [X]Poison Barb *
-[]Power Herb *
+[X]Power Herb *
 [X]Quick Claw *
 [X]Rindo Berry *
 [X]Scope Lens *
@@ -448,7 +448,7 @@
 
 ## Items that isn't used until 1st gym, but Trainer AI or engine has current special conditions
 [X]Babiri Berry *
-[]Berry Juice *
+[X]Berry Juice *
 [X]Black Sludge *
 [X]Charti Berry *
 [X]Chesto Berry *

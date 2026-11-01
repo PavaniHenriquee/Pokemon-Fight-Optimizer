@@ -6,6 +6,7 @@ from Engine.damage_calc import (
     weight_power, magnitude_power, variable_power, base_power_ability, charge_power,
     sport_power, matchup_types, calculate_ai_logic_damage, item_power, item_attack, raw_atk_def,
     technician_power, rivalry_power, filter_damage, crit_multiplier, MULTIPLIERS,
+    METRONOME_MOVE_SHIFT,
 )
 from Engine.engine_helper import struggle
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
@@ -1049,3 +1050,13 @@ def test_scrappy_damages_ghosts(poke):
     d = poke("Gastly", 30, "Levitate", ["Lick"])
     assert dmg(poke("Kangaskhan", 30, "Run Away", ["Tackle"]), d) == 0
     assert dmg(poke("Kangaskhan", 30, "Scrappy", ["Tackle"]), d) > 0
+
+
+@pytest.mark.parametrize("count", [0, 1, 5, 10])
+def test_metronome_item_multiplier(poke, count):
+    """x(10+n)/10 before the roll; with no STAB or type change it's the last step at roll 100"""
+    plain = poke("Rattata", 50, "Run Away", ["Ember"])
+    held = poke("Rattata", 50, "Run Away", ["Ember"], item="Metronome")
+    held[Pok.METRONOME_COUNT] = (MoveName.EMBER << METRONOME_MOVE_SHIFT) + count
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    assert dmg(held, d) == dmg(plain, d) * (10 + count) // 10

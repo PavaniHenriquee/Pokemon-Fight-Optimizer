@@ -2322,3 +2322,102 @@ def test_flame_orb_blocked_by_water_veil_reveals_it(poke):
     p = poke("Goldeen", 20, "Water Veil", ["Tackle"])
     battle._flame_orb(p, 0, 0)
     assert p[Pok.STATUS] == 0 and p[Pok.AB_KNOWN]
+
+
+# ── Power Herb, Metronome item, Liquid Ooze, Sticky Hold ─────────────────────
+
+def test_power_herb_digs_and_hits_in_one_turn(make_pokemon, make_battle):
+    """No underground turn: the hit lands now, the slower foe's Tackle reaches me, the herb is gone"""
+    arr = make_battle([make_pokemon("Diglett", 50, "Sand Veil", ["Dig"], item="Power Herb")],
+                      [make_pokemon("Munchlax", 30, "Thick Fat", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP] and me[Pok.CURRENT_HP] < me[Pok.MAX_HP]
+    assert not me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert me[Pok.SEMI_INV_MOVE] == 0 and me[Pok.LOCKED_MOVE] == -1
+    assert me[Item.ID] == 0 and me[Pok.CONSUMED_ITEM] == ItemNames.POWER_HERB
+
+
+def _metronome_battle(make_pokemon, make_battle):
+    """My Rattata holding the Metronome item vs a Munchlax that only Hardens"""
+    return make_battle(
+        [make_pokemon("Rattata", 50, "Run Away", ["Tackle", "Growl"], item="Metronome")],
+        [make_pokemon("Munchlax", 50, "Thick Fat", ["Harden"])],
+    )
+
+
+def test_metronome_item_count_over_turns(monkeypatch, make_pokemon, make_battle):
+    """Counts each Tackle in a row; a miss gives it back, a turn the move isn't reached keeps it,
+    another move starts over"""
+    arr = _metronome_battle(make_pokemon, make_battle)
+    me = my_active(arr)
+    tackle = MoveName.TACKLE << 4
+    turn_sim(0, (MOVE, 0), arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.METRONOME_COUNT] == tackle + 1
+    with monkeypatch.context() as m:
+        m.setattr(battle, "calculate_hit_miss", lambda *args: MoveOutcome.MISS)
+        turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.METRONOME_COUNT] == tackle + 1
+    with monkeypatch.context() as m:
+        m.setattr(battle, "early_returns", lambda *args: True)
+        turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.METRONOME_COUNT] == tackle + 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.METRONOME_COUNT] == tackle + 2
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.METRONOME_COUNT] == MoveName.GROWL << 4
+
+
+def test_metronome_item_skips_the_attack_turn_of_dig(make_pokemon, make_battle):
+    """The locked attack turn doesn't count, so Dig twice in a row is one count"""
+    arr = make_battle([make_pokemon("Diglett", 50, "Sand Veil", ["Dig"], item="Metronome")],
+                      [make_pokemon("Munchlax", 50, "Thick Fat", ["Harden"])])
+    me = my_active(arr)
+    for _ in range(4):
+        turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.METRONOME_COUNT] == (MoveName.DIG << 4) + 1
+
+
+@pytest.mark.parametrize("seeder_ab", ["Run Away", "Magic Guard"])
+def test_liquid_ooze_hurts_the_leech_seeder(make_pokemon, make_battle, seeder_ab):
+    """The seeder loses what the seeded foe lost; Magic Guard takes nothing and both abilities are
+    named (pokeplatinum subscript_leech_seed_effect)"""
+    arr = make_battle([make_pokemon("Oddish", 30, seeder_ab, ["Tackle"])],
+                      [make_pokemon("Tentacool", 30, "Liquid Ooze", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.LEECH_SEED
+    me[Pok.CURRENT_HP] = 20
+    end_of_turn(arr)
+    drained = max(1, foe[Pok.MAX_HP] // 8)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP] - drained
+    magic_guard = seeder_ab == "Magic Guard"
+    assert me[Pok.CURRENT_HP] == (20 if magic_guard else 20 - drained)
+    assert me[Pok.AB_KNOWN] == foe[Pok.AB_KNOWN] == magic_guard
+
+
+def test_liquid_ooze_can_knock_out_the_leech_seeder(make_pokemon, make_battle):
+    """The seeder faints from it like any end-of-turn damage"""
+    arr = make_battle([make_pokemon("Oddish", 30, "Run Away", ["Tackle"]),
+                       make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])],
+                      [make_pokemon("Tentacool", 30, "Liquid Ooze", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.LEECH_SEED
+    me[Pok.CURRENT_HP] = 1
+    end_of_turn(arr)
+    assert me[Pok.CURRENT_HP] == 0
+
+
+@pytest.mark.parametrize("move, item, attacker_ab, kept", [
+    ("Covet", "Oran Berry", "Guts", True), ("Covet", "Oran Berry", "Mold Breaker", False),
+    ("Bug Bite", "Sitrus Berry", "Guts", True), ("Bug Bite", "Sitrus Berry", "Mold Breaker", False),
+])
+def test_sticky_hold_keeps_the_item_from_covet_and_bug_bite(
+        make_pokemon, make_battle, move, item, attacker_ab, kept):
+    """The hit lands, only the steal / pluck fails (pokeplatinum BtlCmd_TryStealItem, TryPluck)"""
+    arr = make_battle([make_pokemon("Machop", 20, attacker_ab, [move])],
+                      [make_pokemon("Grimer", 20, "Sticky Hold", ["Leer"], item=item)])
+    me, foe = my_active(arr), opp_active(arr)
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert (foe[Item.ID] != 0) == kept

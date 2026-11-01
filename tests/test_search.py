@@ -22,6 +22,7 @@ from Models.helper import ActionType, BattlePhase, VolStatus, VolStatus2, SideCo
 from Models.trainer_ai import return_idx
 from DataBase.ItemDB import ItemNames
 from DataBase.AbilitiesDB import AbilityNames
+from DataBase.MoveDB import MoveName
 from battle_driver import (
     SCENARIOS, build_scenario, play_battle, legal_actions, is_over, my_active, opp_active,
     pok_slice, move_slice,
@@ -649,3 +650,17 @@ def test_rollout_skips_moves_an_ability_takes(make_pokemon, make_battle, foe_ab,
     actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
     picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)}
     assert (0 in picks) == picked
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_the_metronome_item_count(one_v_one, mine):
+    """The count changes damage and the stored move changes the next count, both split nodes"""
+    arr = one_v_one()
+    pok = my_active(arr) if mine else opp_active(arr)
+    key = node_key(arr)
+    pok[Pok.METRONOME_COUNT] = (MoveName.TACKLE << 4) + 1
+    one = node_key(arr)
+    pok[Pok.METRONOME_COUNT] += 1
+    two = node_key(arr)
+    pok[Pok.METRONOME_COUNT] = (MoveName.GROWL << 4) + 2
+    assert len({key, one, two, node_key(arr)}) == 4

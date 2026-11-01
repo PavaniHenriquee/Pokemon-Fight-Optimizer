@@ -164,6 +164,7 @@ class Pokemon:
             0,   # Move called by Metronome, Mirror Move, Copycat or Nature Power, 0 means none
             0,   # Move Mirror Move would copy, 0 means none
             0,   # Semi-invulnerable move being charged (Bounce, Dig), 0 means none
+            0,   # Metronome item: last selected move id * 16 + consecutive count
             0,   # vol_status2, same as vol_status
             *self.hidden_power()  # Hidden Power type and power, for a called Hidden Power
         ], dtype=np.int32)

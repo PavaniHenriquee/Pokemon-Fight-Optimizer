@@ -34,7 +34,7 @@ from Models.constants import (
     _GENDER_GENDERLESS, _ABILITYNAMES_HEATPROOF, _ABILITYNAMES_DRY_SKIN, _ABILITYNAMES_FILTER,
     _ABILITYNAMES_SOLID_ROCK, _ABILITYNAMES_SNIPER, _ABILITYNAMES_UNAWARE, _ABILITYNAMES_PURE_POWER,
     _ABILITYNAMES_MARVEL_SCALE, _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SCRAPPY,
-    _VOLSTATUS2_FLASH_FIRE,
+    _VOLSTATUS2_FLASH_FIRE, _HOLDEFFECT_BOOST_REPEATED, _POK_METRONOME_COUNT,
 )
 from Engine.ability_helper import ignorable_ability
 
@@ -56,6 +56,9 @@ WEIGHT_TO_POWER = ((100, 20), (250, 40), (500, 60), (1000, 80), (2000, 100))
 # (roll 0..99 below this, power), the rest is 150
 MAGNITUDE_TABLE = ((5, 10), (15, 30), (35, 50), (65, 70), (85, 90), (95, 110))
 ROLLOUT_MOVES = (_MOVENAME_ROLLOUT, _MOVENAME_ICE_BALL)
+# Pok.METRONOME_COUNT packs the Metronome item's move id above its count
+METRONOME_MOVE_SHIFT = 4
+METRONOME_COUNT_MASK = (1 << METRONOME_MOVE_SHIFT) - 1
 FORESIGHT_TYPES = (_TYPES_NORMAL, _TYPES_FIGHTING)
 # Semi-invulnerable moves by where the user is, and the moves that still reach it there
 AIRBORNE_MOVES = (_MOVENAME_BOUNCE,)
@@ -439,7 +442,9 @@ def multipliers(
     if crit:
         damage *= crit_multiplier(attacker)
 
-    # TODO: Item
+    # Metronome item x(10+n)/10 (pokeplatinum BattleScript_CalcMoveDamage)
+    if attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_BOOST_REPEATED:
+        damage = damage * (10 + (attacker[_POK_METRONOME_COUNT] & METRONOME_COUNT_MASK)) // 10
 
     # TODO: Me First
 

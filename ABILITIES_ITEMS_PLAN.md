@@ -23,8 +23,8 @@
 | 9     | Switch-in abilities and stat-drop guards                            | [x]    |
 | 10    | Speed and turn order                                                | [x]    |
 | 11    | Weather and end of turn                                             | [x]    |
-| 12    | Trapping                                                            | [ ]    |
-| 13    | Survival, charge, consecutive use, drain                            | [ ]    |
+| 12    | Trapping                                                            | [x]    |
+| 13    | Survival, charge, consecutive use, drain                            | [x]    |
 | 14    | No-op confirmations and out of scope                                | [ ]    |
 
 **Decisions**
@@ -147,6 +147,20 @@
   [pp] `BattleSystem_Divide` (at least 1): weather damage, Rain Dish, poison, burn (`DivideVarByValue` calls Divide
   too), and toxic is `Divide(max, 16) * n` (was `max * n // 16`). Golden: no change (no scenario has toxic or a
   Pokemon under 16 HP in weather).
+- 2026-10-31 (Batch 13): Issue 7 fixed (Magic Guard no longer skips the confusion self-hit). Focus Band rolls
+  `randint(0, 99) < 10` on every damaging hit its holder takes, lethal or not, unless Endure is up, and in the
+  confusion self-hit ([pp] UpdateHP / CheckHoldOnWith1HP; [SD] also rolls every hit). Power Herb skips the charge
+  turn of any charge move but Bide, recyclable, so no semi-invulnerable turn (`power_herb`). Metronome item
+  follows [pp] (your call): new Pok slot `METRONOME_COUNT` = move id << 4 | n, counted where PP is spent on the
+  selected move (Metronome-the-move counts as itself) when not locked, cap 10, another move resets to 0, a
+  failed counted move gives one back (miss / immune / Protect, no foe, Feint, Natural Gift, a called move that
+  fails), turns stopped in `early_returns` keep it; x(10+n)/10 after the crit, before the roll; cleared on any
+  switch, Baton Pass included. [SD gen4] has no cap and uses `moveLastTurnResult`. `node_key` got a 4th word
+  `k4` = opp packed | mine packed << 32 (your call: key it; k1-k3 were full). Liquid Ooze: drain moves and
+  Leech Seed hurt the drainer by the heal amount, Magic Guard drainer unaffected; only the Leech Seed Magic Guard
+  message is ability-tagged, so only it reveals (both sides). Sticky Hold (ignorable) blocks Covet and Bug Bite.
+  Covet: [pp BtlCmd_TryStealItem] fails for side-1 attackers outside the Frontier; your call is that RP's AI does
+  steal in battle, so the engine keeps it. Golden: hashes only (new slot), turns and HP identical.
 
 **Still open (your call, at the batch that needs it)**
 
@@ -237,7 +251,7 @@
    0 HP (`engine_helper.py:631-635`) and `eat_berry` only checks ≤50%. Batch 2 reuses that hook.
    **FIXED in Batch 2** (`eat_berry` needs HP > 0).
 7. **Magic Guard skips the confusion self-hit** (`engine_helper.py:628`). [pp subscript_hurt_self_in_confusion]
-   has no Magic Guard check, and in [SD gen4] confusion damage is a Move effect. Batch 13.
+   has no Magic Guard check, and in [SD gen4] confusion damage is a Move effect. Batch 13. **FIXED in Batch 13.**
 8. **The AI estimate halves burn without the Guts exemption** (`damage_calc.py:513-515`; the engine path
    exempts it at 242-247). [pp] uses one function for both. Batch 1. **FIXED in Batch 1.**
 9. **`sub_after_death` damage is divided by 100**: `trainer_ai.py:150` passes `roll_multiplier=1`.
@@ -527,7 +541,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
 - TODO ticks: Cloud Nine, Ice Body, Leftovers; deferred Air Lock, Drizzle, Drought, Sand Stream, Snow
   Warning, Snow Cloak, Dry Skin, Black Sludge, Poison Heal, Heatproof, Bad Dreams.
 
-## Batch 12 — Trapping
+## Batch 12 — Trapping — DONE
 
 | Name                   | Gen IV effect [pp Battler_IsTrapped]                                                                      |
 | ---------------------- | --------------------------------------------------------------------------------------------------------- |
@@ -540,7 +554,7 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
   (`trainer_ai.py:273`) for its withdraws. Baton Pass and Roar ignore trapping.
 - TODO ticks: Arena Trap, Shadow Tag, Shed Shell; deferred Magnet Pull.
 
-## Batch 13 — Survival, charge, consecutive use, drain
+## Batch 13 — Survival, charge, consecutive use, drain — DONE
 
 | Name                   | Gen IV effect                                                                                                                                                                        | Hook                                                                                           |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
@@ -690,7 +704,7 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
 - Batch 9 follow-up: the UI doesn't show which of my abilities the AI knows.
 - Batch 10: an AI trainer's Covet / Thief never steals in [pp BtlCmd_TryStealItem] (attacker on side 1, not
   Frontier → fail); the engine lets the opponent's Covet steal, and one TrainerDB trainer has Covet or Thief. Batch 13
-  touches Covet.
+  touches Covet. (Batch 13: your call, RP's AI steals, a decomp oversight; commented at the Covet branch.)
 - Batch 10: [pp] Covet / Thief also fail on a defender whose Quick Claw activated this turn (`moveEffectsData.quickClaw`);
   not done.
 - Batch 10: [pp] pre-draws the Quick Claw roll (`speedRand`, rolled in PRE_MOVE_ACTION_STATE_SPEED_RNG after the order is
@@ -722,6 +736,16 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   BattlerIsGrounded] reads both for Arena Trap.
 - Batch 12: `tests/battle_driver.py` `legal_actions` got its own trapping copy (`_trapped`), kept independent of
   `is_trapped` like the rest of that function.
+- Batch 13: status moves that fail inside `calculate_effects` (Thunder Wave on a statused foe, a stat move at
+  ±6) don't give back their Metronome count; [pp] does (MOVE_STATUS_FAILED). Only matters for Metronome-the-move,
+  which counts as one move whatever it calls.
+- Batch 13: [pp] `HasNoTarget` runs before `UpdateMetronomeCount`, so a move with no foe leaves the count and the
+  stored move as they were; the engine counts and gives it back, so a different move there resets the count to 0.
+- Batch 13: the rollout's damage estimates (`calculate_damage`) apply the Metronome boost to any move of the holder,
+  not only the counted one. The battle damage doesn't need the check (the count was just set for that move).
+- Batch 13: `_contact_damage`'s docstring only names Rough Skin / Aftermath; Liquid Ooze uses it too.
+- Batch 13: outdated (left in place): the Status audit rows for Sticky Hold and Magic Guard.
+- Batch 13: Berry Juice already had a test (`test_engine_helper.py`, HP_RESTORE dispatch); nothing new added.
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

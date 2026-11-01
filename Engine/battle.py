@@ -12,7 +12,8 @@ from Engine.engine_helper import (
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
     try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
-    damp_blocks, status_item, pressure_pp, truant_loafs,
+    damp_blocks, status_item, pressure_pp, truant_loafs, metronome_count, metronome_fail,
+    power_herb, sticky_hold,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -32,7 +33,7 @@ from Models.helper import (
 )
 from Models.constants import (
     _FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1, _FIELD_WEATHER,
-    _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_MY_ENTER_FIELD, _FIELD_OPP_ENTER_FIELD, _FIELD_TURN,
+    _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_OPP_ENTER_FIELD, _FIELD_TURN,
     _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS, _MOVECATEGORY_SPECIAL,
     _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER, _POK_TURNS_ACTIVE,
     _MOVE_ID, _MOVE_PP, _MOVENAME_COVET,
@@ -77,6 +78,7 @@ from Models.constants import (
     _MOVE_OH_KO, _ABILITYNAMES_ANGER_POINT, _ABILITYNAMES_SKILL_LINK, _ABILITYNAMES_HYDRATION,
     _HOLDEFFECT_HP_RESTORE_GRADUAL, _HOLDEFFECT_HP_RESTORE_PSN_TYPE, _TYPES_POISON,
     _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_HEATPROOF, _ABILITYNAMES_BAD_DREAMS,
+    _ABILITYNAMES_LIQUID_OOZE,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 
@@ -458,7 +460,7 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
 
     _recoil(attacker, move, dealt_total)
     if move[_MOVE_DRAIN]:
-        drain(attacker, move, dealt_total)
+        drain(attacker, defender, move, dealt_total)
 
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         #Only last damage counts i think, needs check TODO
@@ -481,7 +483,7 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
 
     _recoil(attacker, move, dealt)
     if move[_MOVE_DRAIN]:
-        drain(attacker, move, dealt)
+        drain(attacker, defender, move, dealt)
 
     # Check for secondary effects and apply them
     if move[_SEC_CHANCE]:
@@ -497,11 +499,18 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
     ):
         defender[_POK_DMG_TAKEN] = damage
 
-    if move[_MOVE_ID] == _MOVENAME_BUG_BITE and defender[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY:
+    if (
+        move[_MOVE_ID] == _MOVENAME_BUG_BITE
+        and defender[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY
+        and not sticky_hold(defender, attacker)
+    ):
         eat_berry_bug_bite(attacker, defender)
+    # The AI's Covet steals too: correct for RP despite pokeplatinum BtlCmd_TryStealItem failing for
+    # side-1 attackers outside the Frontier (a decomp oversight)
     elif (
         move[_MOVE_ID] == _MOVENAME_COVET
         and defender[_ITEM_ITEM_TYPE]
+        and not sticky_hold(defender, attacker)
         and not attacker[_ITEM_ITEM_TYPE]
         and not attacker[_POK_ITEM_KNOCKED_OFF]
         and not defender[_POK_ITEM_KNOCKED_OFF]
@@ -672,6 +681,10 @@ def _execute_move_slot(
     atk[_POK_LAST_MOVE_ID] = outer_id
     if mv[_MOVE_ID] not in STALL_MOVES:
         atk[_POK_PROTECT_COUNT] = 0
+    # The Metronome item counts the selected move on turns it isn't locked into
+    counted = atk[_POK_LOCKED_MOVE] == -1
+    if counted:
+        metronome_count(atk, outer_id)
 
     if mv[_MOVE_ID] != _MOVENAME_STRUGGLE:
         if atk[_POK_LOCKED_MOVE] == -1:
@@ -688,19 +701,24 @@ def _execute_move_slot(
         called = called_move(atk, outer_id, battle_array)
         battle_array[_FIELD_LAST_MOVE] = outer_id
         if called == 0:
+            metronome_fail(atk, outer_id)
             return False
         atk[_POK_CALLED_MOVE] = called
         mv = _called_move_array(atk, called)
         # A called move Gravity stops fails like a selected one (Showdown onModifyMove)
         if gravity and mv[_FLAGS_GRAVITY]:
             unlock_move(atk)
+            metronome_fail(atk, outer_id)
             return False
     else:
         battle_array[_FIELD_LAST_MOVE] = outer_id
     is_called = is_caller and atk[_POK_CALLED_MOVE] != 0
 
-    # Charge moves are positive so they don't do anything first turn
-    if mv[_MOVE_CHARGE_RECHARGE] > 0 and atk[_POK_LOCKED_MOVE] == -1:
+    # Charge moves are positive so they don't do anything first turn, Power Herb hits right away
+    if (
+        mv[_MOVE_CHARGE_RECHARGE] > 0 and atk[_POK_LOCKED_MOVE] == -1
+        and not power_herb(atk, mv)
+    ):
         atk[_POK_CHARGE_RECHARGE] = mv[_MOVE_CHARGE_RECHARGE]
         atk[_POK_LOCKED_MOVE] = current_move if is_mine else opp_move
         if mv[_MOVE_VOL_STATUS] & _VOLSTATUS_BIDE:
@@ -718,10 +736,13 @@ def _execute_move_slot(
     # The foe fainted (recoil, Explosion...): PP is spent, a move aimed at it fails.
     # TODO: Some moves still go through, like future sight
     if defn[_POK_CURRENT_HP] <= 0 and mv[_MOVE_TARGET] not in NO_FOE_TARGETS:
+        if counted:
+            metronome_fail(atk, outer_id)
         return False
 
     _consec_before_move(atk, mv, current_move if is_mine else opp_move)
     if mv[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and not natural_gift(atk, mv):
+        metronome_fail(atk, outer_id)
         return False
     if mv[_MOVE_ID] in STALL_MOVES:
         try_protect(atk, mv[_MOVE_ID], is_last)
@@ -729,6 +750,7 @@ def _execute_move_slot(
     # Gen IV Feint fails unless the target is protecting, then it lifts the protection
     if mv[_MOVE_ID] == _MOVENAME_FEINT:
         if not defn[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT:
+            metronome_fail(atk, outer_id)
             return False
         defn[_POK_VOL_STATUS] &= ~_VOLSTATUS_PROTECT
     # Perish Song has no hit check, each Pokemon is checked on its own (a Soundproof foe doesn't
@@ -745,6 +767,8 @@ def _execute_move_slot(
     if move_hit != _MOVEOUTCOME_HIT:
         if not (atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and move_hit in UPROAR_KEEPS_ON):
             unlock_move(atk)
+        if counted:
+            metronome_fail(atk, outer_id)
         return False
     if mv[_MOVE_TARGET] not in NO_FOE_TARGETS:
         mirror_record(mv, defn, is_called)
@@ -1102,6 +1126,26 @@ def _gradual_item(pok, enter_field_flag_idx, battle_array, enter_field) -> bool:
 
 
 @njit
+def _leech_seed_heal(seeder, seeded, dealt, seeded_flag_idx, battle_array):
+    """
+    The seeder heals what the seeded Pokemon lost. Liquid Ooze hurts it by that much instead, a
+    Magic Guard seeder takes nothing and both abilities are named (pokeplatinum
+    subscript_leech_seed_effect)
+    """
+    if seeded[_POK_AB_ID] != _ABILITYNAMES_LIQUID_OOZE:
+        seeder[_POK_CURRENT_HP] = min(seeder[_POK_MAX_HP], seeder[_POK_CURRENT_HP] + dealt)
+    elif seeder[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
+        reveal_ability(seeder)
+        reveal_ability(seeded)
+    else:
+        flag_idx = (
+            _FIELD_OPP_ENTER_FIELD if seeded_flag_idx == _FIELD_MY_ENTER_FIELD
+            else _FIELD_MY_ENTER_FIELD
+        )
+        _apply_residual_damage(seeder, dealt, flag_idx, battle_array, battle_array[flag_idx])
+
+
+@njit
 def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     """
     Per-Pokemon residuals after the weather, on-residual ability, enter-field clear — one side.
@@ -1140,7 +1184,7 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
         dmg = max(1, pok[_POK_MAX_HP] // 8)
         dealt = min(dmg, pok[_POK_CURRENT_HP])
         fainted = _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field)
-        foe[_POK_CURRENT_HP] = min(foe[_POK_MAX_HP], foe[_POK_CURRENT_HP] + dealt)
+        _leech_seed_heal(foe, pok, dealt, enter_field_flag_idx, battle_array)
         if fainted:
             return
 
