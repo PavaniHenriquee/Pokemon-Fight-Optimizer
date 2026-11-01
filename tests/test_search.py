@@ -481,6 +481,53 @@ def test_bind_blocks_switching(make_pokemon, make_battle):
     assert mask_actions(arr) == [(MOVE, 0)] == legal_actions(arr)
 
 
+@pytest.mark.parametrize("mine, my_ability, foe_ability, gravity, trapped", [
+    ("Rattata", "Run Away", "Shadow Tag", False, True),
+    ("Wobbuffet", "Shadow Tag", "Shadow Tag", False, False),
+    ("Geodude", "Rock Head", "Magnet Pull", False, False),
+    ("Magnemite", "Sturdy", "Magnet Pull", False, True),
+    ("Rattata", "Run Away", "Arena Trap", False, True),
+    ("Pidgey", "Keen Eye", "Arena Trap", False, False),
+    ("Gastly", "Levitate", "Arena Trap", False, False),
+    ("Pidgey", "Keen Eye", "Arena Trap", True, True),
+    ("Gastly", "Levitate", "Arena Trap", True, True),
+    ("Rattata", "Run Away", "Static", False, False),
+])
+def test_trapping_abilities_block_switching(make_pokemon, make_battle, mine, my_ability,
+                                            foe_ability, gravity, trapped):
+    """pokeplatinum Battler_IsTrapped: Shadow Tag unless I have it too, Magnet Pull on Steel
+    types, Arena Trap on grounded Pokemon (Gravity grounds Flying and Levitate). Ghosts aren't
+    exempt in Gen IV"""
+    team = [make_pokemon(mine, 10, my_ability, ["Tackle"]),
+            make_pokemon("Rattata", 10, "Run Away", ["Tackle"])]
+    arr = make_battle(team, [make_pokemon("Diglett", 10, foe_ability, ["Scratch"])])
+    arr[Field.GRAVITY_TURNS] = 5 if gravity else 0
+    expected = [(MOVE, 0)] if trapped else [(MOVE, 0), (SWITCH, 1)]
+    assert mask_actions(arr) == expected == legal_actions(arr)
+
+
+def test_fainted_trapper_does_not_trap(make_pokemon, make_battle):
+    """The trapping abilities only count a living foe"""
+    team = [make_pokemon(n, 10, "Run Away", ["Tackle"]) for n in ("Rattata", "Pidgey")]
+    arr = make_battle(team, [make_pokemon("Diglett", 10, "Arena Trap", ["Scratch"])])
+    opp_active(arr)[Pok.CURRENT_HP] = 0
+    assert mask_actions(arr) == [(MOVE, 0), (SWITCH, 1)]
+
+
+@pytest.mark.parametrize("vol, foe_ability", [
+    (0, "Shadow Tag"), (0, "Arena Trap"),
+    (VolStatus.PARTIALLY_TRAPPED, "Run Away"), (VolStatus.INGRAIN, "Run Away"),
+])
+def test_shed_shell_always_switches(make_pokemon, make_battle, vol, foe_ability):
+    """pokeplatinum Battler_IsTrapped returns "not trapped" for a Shed Shell holder before any
+    other check, bind and Ingrain included"""
+    team = [make_pokemon("Rattata", 10, "Run Away", ["Tackle"], item="Shed Shell"),
+            make_pokemon("Pidgey", 10, "Keen Eye", ["Tackle"])]
+    arr = make_battle(team, [make_pokemon("Diglett", 10, foe_ability, ["Scratch"])])
+    my_active(arr)[Pok.VOL_STATUS] = vol
+    assert mask_actions(arr) == [(MOVE, 0), (SWITCH, 1)] == legal_actions(arr)
+
+
 def test_step_stays_in_death_phase_when_the_replacement_faints(make_pokemon, make_battle):
     """A replacement that faints to Stealth Rock leaves the state in the death phase, offering
     only the Pokemon still alive"""

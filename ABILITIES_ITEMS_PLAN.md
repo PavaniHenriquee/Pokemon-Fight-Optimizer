@@ -714,6 +714,14 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
 - Batch 11: the UI shows the field's weather while Cloud Nine / Air Lock switch it off (no "suppressed" marker).
 - Batch 11: outdated comments (left in place): `end_of_turn`'s `# TODO: Items`, `start_of_battle`'s `# TODO: Switch in
   abilities like Intimidate, Drought etc.`, and `_apply_residual`'s Gen IV order docstring (no Leftovers / Bad Dreams).
+- Batch 12: [pp AICmd_LoadBattlerAbility / AICmd_CheckBattlerAbility] always know my Shadow Tag, Magnet Pull or Arena
+  Trap (no coin flip). Not coded: no AI script check up to Roark reads those three.
+- Batch 12: the AI's withdraw block copies [pp TrainerAI_ShouldSwitch]'s naive check (my Shadow Tag / Arena Trap block
+  it even when it's Flying, has Shadow Tag or holds Shed Shell; Shed Shell doesn't free it from bind / Ingrain).
+- Batch 12: `is_trapped` grounds through `is_grounded`, which still lacks Magnet Rise and Iron Ball (TODO there); [pp
+  BattlerIsGrounded] reads both for Arena Trap.
+- Batch 12: `tests/battle_driver.py` `legal_actions` got its own trapping copy (`_trapped`), kept independent of
+  `is_trapped` like the rest of that function.
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

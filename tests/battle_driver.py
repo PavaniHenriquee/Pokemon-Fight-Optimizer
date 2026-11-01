@@ -6,8 +6,9 @@ SearchEngine/, so the golden engine snapshots don't move when the search changes
 import random
 import numpy as np
 from Models.pokemon import Pokemon
-from Models.idx_const import POK_LEN, Pok, Move, MOVE_STRIDE, Field
-from Models.helper import ActionType, BattlePhase, VolStatus, MoveCategory
+from Models.idx_const import POK_LEN, Pok, Move, MOVE_STRIDE, Field, Item
+from Models.helper import ActionType, BattlePhase, VolStatus, MoveCategory, Types, HoldEffect
+from DataBase.AbilitiesDB import AbilityNames
 from Models.constants import _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_FULL_HEAL
 from Models.trainer_ai import return_idx
 from Utils.helper import to_battle_array
@@ -59,6 +60,27 @@ def _blocked(active, i, mv):
     return bool(vol & VolStatus.TAUNT and mv[Move.CATEGORY] == MoveCategory.STATUS)
 
 
+def _trapped(arr, active):
+    """Shed Shell frees, bind and Ingrain trap, then the living foe's Shadow Tag, Magnet Pull
+    (Steel) and Arena Trap (not Flying or Levitate, unless Gravity)"""
+    if active[Item.HOLD_EFFECT] == HoldEffect.SWITCH:
+        return False
+    if active[Pok.VOL_STATUS] & (VolStatus.INGRAIN | VolStatus.PARTIALLY_TRAPPED):
+        return True
+    foe = opp_active(arr)
+    if foe[Pok.CURRENT_HP] <= 0:
+        return False
+    types = (active[Pok.TYPE1], active[Pok.TYPE2])
+    if foe[Pok.AB_ID] == AbilityNames.SHADOW_TAG:
+        return active[Pok.AB_ID] != AbilityNames.SHADOW_TAG
+    if foe[Pok.AB_ID] == AbilityNames.MAGNET_PULL:
+        return Types.STEEL in types
+    if foe[Pok.AB_ID] == AbilityNames.ARENA_TRAP:
+        airborne = Types.FLYING in types or active[Pok.AB_ID] == AbilityNames.LEVITATE
+        return arr[Field.GRAVITY_TURNS] > 0 or not airborne
+    return False
+
+
 def legal_actions(arr):
     """My legal actions, computed independently of SearchEngine.valid_action_mask"""
     me = int(arr[Field.MY_POK])
@@ -75,7 +97,7 @@ def legal_actions(arr):
             moves.append((ActionType.MOVE, i))
     if not moves:
         moves = [(ActionType.MOVE, 10)]
-    if active[Pok.VOL_STATUS] & (VolStatus.INGRAIN | VolStatus.PARTIALLY_TRAPPED):
+    if _trapped(arr, active):
         return moves
     return moves + switches
 

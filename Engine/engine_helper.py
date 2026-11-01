@@ -85,6 +85,8 @@ from Models.constants import (
     _ABILITYNAMES_STALL, _ABILITYNAMES_UNBURDEN, _VOLSTATUS2_CAN_UNBURDEN, _ABILITYNAMES_SLOW_START,
     _ABILITYNAMES_DRIZZLE, _ABILITYNAMES_DROUGHT, _ABILITYNAMES_SAND_STREAM,
     _ABILITYNAMES_SNOW_WARNING, _ABILITYNAMES_ICE_BODY, _FIELD_WEATHER_DURATION,
+    _HOLDEFFECT_SWITCH, _VOLSTATUS_INGRAIN, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_MAGNET_PULL,
+    _ABILITYNAMES_ARENA_TRAP,
 )
 
 
@@ -839,6 +841,29 @@ def is_grounded(pok, gravity=False):
         or pok[_POK_TYPE2] == _TYPES_FLYING
         or levitates(pok, pok)
     )
+
+
+@njit
+def is_trapped(pok, foe, gravity=False):
+    """
+    pokeplatinum Battler_IsTrapped: Shed Shell always lets the holder switch, bind and Ingrain
+    trap it, and a living foe's Shadow Tag (unless it has Shadow Tag too), Magnet Pull (Steel
+    types) or Arena Trap (grounded) do
+    """
+    if pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_SWITCH:
+        return False
+    if pok[_POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED):
+        return True
+    if foe[_POK_CURRENT_HP] <= 0:
+        return False
+    foe_ab = foe[_POK_AB_ID]
+    if foe_ab == _ABILITYNAMES_SHADOW_TAG:
+        return pok[_POK_AB_ID] != _ABILITYNAMES_SHADOW_TAG
+    if foe_ab == _ABILITYNAMES_MAGNET_PULL:
+        return pok[_POK_TYPE1] == _TYPES_STEEL or pok[_POK_TYPE2] == _TYPES_STEEL
+    if foe_ab == _ABILITYNAMES_ARENA_TRAP:
+        return is_grounded(pok, gravity)
+    return False
 
 
 @njit

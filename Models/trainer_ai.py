@@ -27,7 +27,8 @@ from Models.constants import (
     _MOVENAME_MAGNITUDE, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL,
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_MY_SIDE_COND,
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
-    _MOVENAME_COPYCAT
+    _MOVENAME_COPYCAT, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_ARENA_TRAP, _ABILITYNAMES_MAGNET_PULL,
+    _TYPES_STEEL
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -274,8 +275,18 @@ def choose_move(battle_array):
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
     # pokeplatinum TrainerAI_ShouldSwitch skips every withdraw check when Ingrain roots the active
-    # or a bind traps it
-    can_switch = not ai_pok[_POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED)
+    # or a bind traps it, or my side has Shadow Tag, Arena Trap, or Magnet Pull against a Steel
+    # type. Naive on purpose: its own Shadow Tag, Flying type or Shed Shell don't free it
+    user_ab = user_pok[_POK_AB_ID]
+    can_switch = not (
+        ai_pok[_POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED)
+        or user_ab == _ABILITYNAMES_SHADOW_TAG
+        or user_ab == _ABILITYNAMES_ARENA_TRAP
+        or (
+            user_ab == _ABILITYNAMES_MAGNET_PULL
+            and (ai_pok[_POK_TYPE1] == _TYPES_STEEL or ai_pok[_POK_TYPE2] == _TYPES_STEEL)
+        )
+    )
     # Withdraw 1 - The active faints to Perish Song at the end of this turn (count 0), it always
     # switches to the post-KO pick (Pokemow; pret says AI_PerishSongKO never fires, the countdown
     # code says it does)

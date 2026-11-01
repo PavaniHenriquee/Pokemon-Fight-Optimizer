@@ -11,8 +11,7 @@ from Models.item import ITEM_TABLE
 from Models.constants import (
     _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
-    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _VOLSTATUS_INGRAIN,
-    _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_WEATHER, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND,
+    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _FIELD_WEATHER, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND,
     _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
     _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID, _POK_AB_ID,
     _POK_BASE_AB_ID
@@ -20,7 +19,7 @@ from Models.constants import (
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action, baton_pass_action
-from Engine.engine_helper import move_blocked, truant_loafs
+from Engine.engine_helper import move_blocked, truant_loafs, is_trapped
 from Engine.speed import slow_start_active
 from Utils.jit import njit
 
@@ -73,8 +72,12 @@ def valid_action_mask(battle_array):
                 usable = True
         if not usable:
             mask |= 1 << 4
-        # Ingrain roots the active and a bind traps it, no switching out
-        if battle_array[base + _POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED):
+        # Ingrain, a bind and the foe's trapping abilities keep it in, unless Shed Shell
+        opp_base = (battle_array[_FIELD_OPP_POK] + 6) * POK_LEN
+        if is_trapped(
+            battle_array[base:base + POK_LEN], battle_array[opp_base:opp_base + POK_LEN],
+            battle_array[_FIELD_GRAVITY_TURNS] > 0
+        ):
             return mask
     for i in range(6):
         if i != my_active and battle_array[i * POK_LEN + _POK_CURRENT_HP] > 0:

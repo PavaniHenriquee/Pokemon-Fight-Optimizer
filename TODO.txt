@@ -2,7 +2,7 @@
 [X]Adaptability *
 [X]Aftermath
 []Anticipation *
-[]Arena Trap *
+[X]Arena Trap *
 [X]Battle Armor
 [X]Chlorophyll
 [X]Clear Body *
@@ -42,7 +42,7 @@
 [X]Sand Veil
 [X]Scrappy *
 [X]Serene Grace *
-[]Shadow Tag *
+[X]Shadow Tag *
 [X]Shed Skin *
 [X]Shell Armor *
 [X]Shield Dust *
@@ -91,7 +91,7 @@
 [X]Limber *
 []Liquid Ooze *
 [X]Magma Armor *
-[]Magnet Pull *
+[X]Magnet Pull *
 [X]Marvel Scale *
 []Minus *
 [X]Motor Drive *
@@ -437,7 +437,7 @@
 [X]Scope Lens *
 [X]Sea Incense *
 [X]Sharp Beak *
-[]Shed Shell *
+[X]Shed Shell *
 [X]Silk Scarf *
 [X]Silver Powder *
 [X]Sitrus Berry

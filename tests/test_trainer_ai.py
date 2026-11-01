@@ -685,6 +685,29 @@ def test_bound_ai_never_switches(make_pokemon, make_battle):
     assert all(return_idx(arr) in (0, 1) for _ in range(30))
 
 
+@pytest.mark.parametrize("ai_species, ai_ability, ai_item, my_ability, switches", [
+    ("Rattata", "Run Away", None, "Shadow Tag", False),
+    ("Rattata", "Run Away", None, "Arena Trap", False),
+    ("Pidgey", "Keen Eye", None, "Arena Trap", False),
+    ("Wobbuffet", "Shadow Tag", None, "Shadow Tag", False),
+    ("Rattata", "Run Away", "Shed Shell", "Shadow Tag", False),
+    ("Magnemite", "Sturdy", None, "Magnet Pull", False),
+    ("Rattata", "Run Away", None, "Magnet Pull", True),
+    ("Pidgey", "Keen Eye", None, "Levitate", True),
+])
+def test_trapped_ai_never_switches(make_pokemon, make_battle, ai_species, ai_ability, ai_item,
+                                   my_ability, switches):
+    """pokeplatinum TrainerAI_ShouldSwitch skips the withdraws for any Shadow Tag or Arena Trap
+    on my side and for Magnet Pull on a Steel type, its own Shadow Tag, Flying type or Shed
+    Shell don't count"""
+    me = make_pokemon("Gastly", 20, my_ability, ["Lick"])
+    opp = [make_pokemon(ai_species, 20, ai_ability, ["Tackle", "Quick Attack"], item=ai_item),
+           make_pokemon("Pikachu", 20, "Static", ["Thunder Shock"])]
+    arr = make_battle([me], opp)
+    picks = [return_idx(arr) for _ in range(30)]
+    assert any(p < 0 for p in picks) == switches
+
+
 # ── Phase 5 side conditions and weather ──────────────────────────────────────
 
 SC = SideCondition
