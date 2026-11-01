@@ -96,7 +96,7 @@
 [X]Minus *
 [X]Motor Drive *
 []Multitype *
-[]Normalize *
+[X]Normalize *
 [X]Own Tempo *
 [X]Plus *
 [X]Poison Heal *

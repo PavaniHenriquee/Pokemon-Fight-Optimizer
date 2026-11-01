@@ -5,6 +5,7 @@ from Models.constants import (
     _POK_AB_BREAKABLE, _POK_AB_ID, _ABILITYNAMES_MOLD_BREAKER, _ABILITYNAMES_LEVITATE,
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _POK_AB_KNOWN, _POK_CURRENT_HP, _FIELD_MY_POK,
     _FIELD_OPP_POK, _FIELD_WEATHER, _ABILITYNAMES_CLOUD_NINE, _ABILITYNAMES_AIR_LOCK,
+    _ABILITYNAMES_NORMALIZE, _MOVE_ID, _MOVE_TYPE, _MOVENAME_STRUGGLE, _TYPES_NORMAL,
 )
 
 # Abilities that switch the weather's effects off while their holder is out
@@ -18,6 +19,17 @@ def ignorable_ability(defender, attacker):
     every breakable one (pokeplatinum Battler_IgnorableAbility)
     """
     return not (defender[_POK_AB_BREAKABLE] and attacker[_POK_AB_ID] == _ABILITYNAMES_MOLD_BREAKER)
+
+
+@njit
+def normalized_type(attacker, move):
+    """
+    The type the attacker's move hits with: Normalize makes every move but Struggle Normal,
+    Hidden Power and Natural Gift included (pokeplatinum BattleSystem_ApplyTypeChart, Showdown gen4)
+    """
+    if attacker[_POK_AB_ID] == _ABILITYNAMES_NORMALIZE and move[_MOVE_ID] != _MOVENAME_STRUGGLE:
+        return _TYPES_NORMAL
+    return move[_MOVE_TYPE]
 
 
 @njit

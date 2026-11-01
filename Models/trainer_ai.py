@@ -3,7 +3,7 @@ import random
 import numpy as np
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage, gravity_types
 from Engine.engine_helper import move_blocked
-from Engine.ability_helper import effective_weather
+from Engine.ability_helper import effective_weather, normalized_type
 from Engine.status_calc import last_move_slot
 from Utils.jit import njit
 from Utils.helper import (
@@ -103,9 +103,9 @@ def sub_after_death(
         pok = ai_party[off * idx: off * (idx + 1)]
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
-            mv_type = mv[_MOVE_TYPE]
-            if mv_type == 0:
+            if mv[_MOVE_TYPE] == 0:
                 break
+            mv_type = normalized_type(pok, mv)
             t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
             eff, den = get_type_effectiveness(mv_type, t1, t2)
             if eff // den >= 2:

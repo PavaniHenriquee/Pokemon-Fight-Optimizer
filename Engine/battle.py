@@ -19,9 +19,9 @@ from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
     ability_blocks_status, cure_status,
 )
-from Engine.ability_helper import reveal_ability, effective_weather
+from Engine.ability_helper import reveal_ability, effective_weather, normalized_type
 from Engine.damage_calc import (
-    calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES, EXPLODE_MOVES, is_scrappy
+    calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES, EXPLODE_MOVES
 )
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
@@ -329,7 +329,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
             atk, defn, doubled, weather, False, False, battle_array[side_base(not is_mine)], gravity
         )
         if is_mine:
-            battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = mv[_MOVE_TYPE]
+            battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = normalized_type(atk, mv)
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
             atk[_POK_CURRENT_HP] = 0
@@ -351,7 +351,7 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
     if not move_damage:
         crit = calculate_crit(attacker, defender, move, def_side)
         damage = calculate_damage(attacker, defender, move, weather, crit, None, def_side, gravity)
-        return resist_berry(defender, move, damage, gravity, is_scrappy(attacker)), crit
+        return resist_berry(attacker, defender, move, damage, gravity), crit
     if move_damage == _DAMAGESOURCES_LEVEL:
         return attacker[_POK_LEVEL], False
     if move_damage == _DAMAGESOURCES_PSYWAVE:
@@ -812,10 +812,10 @@ def _execute_move_slot(
             atk[_POK_CURRENT_HP] = 0
         # Information for trainer ai logic
         if is_mine:
-            battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = mv[_MOVE_TYPE]
+            battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = normalized_type(atk, mv)
         # Check to see if the move from the attacker thawed the defender
         if defn[_POK_STATUS] == _STATUS_FREEZE:
-            thaw(mv, defn)
+            thaw(atk, mv, defn)
         return flinch
 
     if mv[_MOVE_FORCE_SWITCH]:

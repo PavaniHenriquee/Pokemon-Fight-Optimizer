@@ -15,7 +15,9 @@ from Engine.damage_calc import (
     AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB, is_scrappy,
     METRONOME_MOVE_SHIFT, METRONOME_COUNT_MASK
 )
-from Engine.ability_helper import ignorable_ability, levitates, reveal_ability, effective_weather
+from Engine.ability_helper import (
+    ignorable_ability, levitates, reveal_ability, effective_weather, normalized_type,
+)
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, Target
 from Models.item import ITEM_TABLE
@@ -343,20 +345,19 @@ def eat_berry(pok):
 
 
 @njit
-def resist_berry(defender, move, damage, gravity=False, scrappy=False):
+def resist_berry(attacker, defender, move, damage, gravity=False):
     """
     A resist berry halves a super effective hit of its type and Chilan any Normal hit, then it's
-    eaten. Showdown onSourceModifyDamage, a final modifier that leaves at least 1. scrappy: the
-    attacker has Scrappy
+    eaten. Showdown onSourceModifyDamage, a final modifier that leaves at least 1
     """
     effect = defender[_ITEM_HOLD_EFFECT]
     if damage <= 0 or (effect != _HOLDEFFECT_WEAKEN_SE and effect != _HOLDEFFECT_WEAKEN_NORMAL):
         return damage
-    m_type = move[_MOVE_TYPE]
+    m_type = normalized_type(attacker, move)
     if m_type != defender[_ITEM_EFFECT_TYPE]:
         return damage
     if effect == _HOLDEFFECT_WEAKEN_SE:
-        def_type1, def_type2 = matchup_types(m_type, defender, gravity, scrappy)
+        def_type1, def_type2 = matchup_types(m_type, defender, gravity, is_scrappy(attacker))
         effectiveness, _ = get_type_effectiveness(m_type, def_type1, 0)
         effectiveness2 = 2
         if def_type2:
@@ -586,7 +587,7 @@ def ability_immune(move, attacker, defender, gravity=False):
     ):
         return 0
     ability = defender[_POK_AB_ID]
-    m_type = move[_MOVE_TYPE]
+    m_type = normalized_type(attacker, move)
     damaging = move[_MOVE_CATEGORY] != _MOVECATEGORY_STATUS
     if m_type == _TYPES_ELECTRIC and (
         ability == _ABILITYNAMES_VOLT_ABSORB or ability == _ABILITYNAMES_MOTOR_DRIVE
@@ -760,11 +761,12 @@ def _hit_outcome(move, attacker, defender, weather, gravity=False):
         move_acc = -1
 
     if move[_MOVE_TARGET] not in TARGET_SELF_SIDE and not move[_MOVE_IGNORE_IMMUNITY]:
-        def_t1, def_t2 = matchup_types(move[_MOVE_TYPE], defender, gravity, is_scrappy(attacker))
-        eff, _ = get_type_effectiveness(move[_MOVE_TYPE], def_t1, def_t2)
+        m_type = normalized_type(attacker, move)
+        def_t1, def_t2 = matchup_types(m_type, defender, gravity, is_scrappy(attacker))
+        eff, _ = get_type_effectiveness(m_type, def_t1, def_t2)
         if eff == 0:
             return _MOVEOUTCOME_INVULNERABLE
-        if move[_MOVE_TYPE] == _TYPES_GROUND and levitates(defender, attacker, gravity):
+        if m_type == _TYPES_GROUND and levitates(defender, attacker, gravity):
             reveal_ability(defender)
             return _MOVEOUTCOME_INVULNERABLE
 
@@ -1067,7 +1069,7 @@ def anticipation_shudders(pok, foe, gravity):
     One of the foe's moves is super effective on pok, or is an OHKO move from a foe at pok's
     level or higher. A status move is never super effective, the fixed-damage moves and Counter /
     Mirror Coat don't count, and an immune move doesn't either (pokeplatinum
-    SWITCH_IN_CHECK_STATE_ANTICIPATION, ApplyTypeChart on the move's data type)
+    SWITCH_IN_CHECK_STATE_ANTICIPATION, ApplyTypeChart on the move's data type or the foe's Normalize)
     """
     if foe[_POK_CURRENT_HP] <= 0:
         return False
@@ -1075,7 +1077,7 @@ def anticipation_shudders(pok, foe, gravity):
         mv = foe[OFFSET_MOVE + i * MOVE_STRIDE:OFFSET_MOVE + (i + 1) * MOVE_STRIDE]
         if not mv[_MOVE_ID] or mv[_MOVE_DAMAGE]:
             continue
-        m_type = mv[_MOVE_TYPE]
+        m_type = normalized_type(foe, mv)
         def_t1, def_t2 = matchup_types(m_type, pok, gravity, is_scrappy(foe))
         eff, den = get_type_effectiveness(m_type, def_t1, def_t2)
         if eff == 0:
@@ -1201,9 +1203,9 @@ def flinch_checker(move, attacker, defender, second=False):
 
 
 @njit
-def thaw(move, defender):
+def thaw(attacker, move, defender):
     """Check if a move thaws"""
-    if move[_MOVE_TYPE] == _TYPES_FIRE:
+    if normalized_type(attacker, move) == _TYPES_FIRE:
         defender[_POK_STATUS] = 0
         return True
     return False

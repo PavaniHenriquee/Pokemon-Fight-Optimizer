@@ -13,7 +13,7 @@ from Models.constants import (
     _POK_SPECIAL_ATTACK, _POK_SPECIAL_DEFENSE, _POK_SPECIAL_ATTACK_STAT_STAGE,
     _POK_SPECIAL_DEFENSE_STAT_STAGE, _WEATHER_SANDSTORM, _POK_TYPE1, _TYPES_ROCK,
     _POK_TYPE2, _POK_AB_WHEN, _ABILITYACTIVATION_ON_MODIFY_STAT, _POK_CURRENT_HP,
-    _POK_MAX_HP, _MOVE_TYPE, _TYPES_FIRE, _TYPES_WATER, _TYPES_GRASS, _ABILITYNAMES_IRON_FIST,
+    _POK_MAX_HP, _TYPES_FIRE, _TYPES_WATER, _TYPES_GRASS, _ABILITYNAMES_IRON_FIST,
     _FLAGS_PUNCH, _STATUS_BURN, _WEATHER_SUN, _WEATHER_RAIN, _MOVE_POWER,
     _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
     _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE, _ABILITYNAMES_SOLAR_POWER,
@@ -36,7 +36,7 @@ from Models.constants import (
     _ABILITYNAMES_MARVEL_SCALE, _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SCRAPPY,
     _VOLSTATUS2_FLASH_FIRE, _HOLDEFFECT_BOOST_REPEATED, _POK_METRONOME_COUNT,
 )
-from Engine.ability_helper import ignorable_ability
+from Engine.ability_helper import ignorable_ability, normalized_type
 
 # ==========================================
 # 1. CONSTANTS & LOOKUPS
@@ -278,7 +278,7 @@ def base_power_ability(attacker, defender, move, power):
     stays last. Defender abilities are ignored by Mold Breaker
     """
     att_ab = attacker[_POK_AB_ID]
-    m_type = move[_MOVE_TYPE]
+    m_type = normalized_type(attacker, move)
     def_ab = defender[_POK_AB_ID] if ignorable_ability(defender, attacker) else 0
 
     if def_ab == _ABILITYNAMES_THICK_FAT and m_type in THICK_F_TYPES:
@@ -402,7 +402,7 @@ def multipliers(
         weather:int, crit: bool, roll_mult: int, damage: int, def_side: int=0, gravity: bool=False
 ) -> int:
     """Calc multipliers for base formula damage, def_side is the defender's Field.SIDE_COND"""
-    m_type = move[_MOVE_TYPE]
+    m_type = normalized_type(attacker, move)
     atk_type1 = attacker[_POK_TYPE1]
     atk_type2 = attacker[_POK_TYPE2]
     def_type1, def_type2 = matchup_types(m_type, defender, gravity, is_scrappy(attacker))
@@ -433,7 +433,7 @@ def multipliers(
             elif m_type == _TYPES_FIRE:
                 damage //= 2
 
-    damage = flash_fire_damage(attacker, move[_MOVE_TYPE], damage)
+    damage = flash_fire_damage(attacker, normalized_type(attacker, move), damage)
 
     # Adding 2 after the above
     damage += 2
@@ -575,7 +575,7 @@ def variable_power(attacker, defender, move, weather=0):
 @njit
 def charge_power(attacker, move, power):
     """Charge doubles the power of the user's Electric move"""
-    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_CHARGE and move[_MOVE_TYPE] == _TYPES_ELECTRIC:
+    if attacker[_POK_VOL_STATUS] & _VOLSTATUS_CHARGE and normalized_type(attacker, move) == _TYPES_ELECTRIC:
         return power * 2
     return power
 
@@ -584,7 +584,7 @@ def charge_power(attacker, move, power):
 def sport_power(attacker, defender, move, power):
     """Mud Sport halves Electric power and Water Sport halves Fire power while either active has it"""
     vol = attacker[_POK_VOL_STATUS] | defender[_POK_VOL_STATUS]
-    m_type = move[_MOVE_TYPE]
+    m_type = normalized_type(attacker, move)
     if m_type == _TYPES_ELECTRIC and vol & _VOLSTATUS_MUD_SPORT:
         return power // 2
     if m_type == _TYPES_FIRE and vol & _VOLSTATUS_WATER_SPORT:
@@ -608,7 +608,7 @@ def calculate_damage(
 
     power = charge_power(attacker, move, variable_power(attacker, defender, move, weather))
     power = technician_power(attacker, move, power)
-    power = item_power(attacker, move[_MOVE_TYPE], move[_MOVE_CATEGORY], power)
+    power = item_power(attacker, normalized_type(attacker, move), move[_MOVE_CATEGORY], power)
     power = base_power_ability(attacker, defender, move, power)
 
     level = attacker[_POK_LEVEL]
@@ -681,7 +681,7 @@ def calculate_ai_logic_damage(
     # Ability
     power = charge_power(attacker, move, move[_MOVE_POWER])
     power = technician_power(attacker, move, power)
-    power = item_power(attacker, move[_MOVE_TYPE], move[_MOVE_CATEGORY], power)
+    power = item_power(attacker, normalized_type(attacker, move), move[_MOVE_CATEGORY], power)
     power = base_power_ability(attacker, defender, move, power)
 
     level = attacker[_POK_LEVEL]
@@ -704,7 +704,7 @@ def calculate_ai_logic_damage(
     # Weather
     if weather:
         w = weather
-        m_type = move[_MOVE_TYPE]
+        m_type = normalized_type(attacker, move)
         if w == _WEATHER_SUN:
             if m_type == _TYPES_FIRE:
                 damage = (damage*3) // 2
@@ -716,7 +716,7 @@ def calculate_ai_logic_damage(
             elif m_type == _TYPES_FIRE:
                 damage //= 2
 
-    damage = flash_fire_damage(attacker, move[_MOVE_TYPE], damage)
+    damage = flash_fire_damage(attacker, normalized_type(attacker, move), damage)
 
     # Adding 2 after the above
     damage += 2
@@ -725,7 +725,7 @@ def calculate_ai_logic_damage(
     # STAB and each type, the AI's effectiveness only decides the immunities
     if effectivenes == 0:
         return 0
-    m_type = move[_MOVE_TYPE]
+    m_type = normalized_type(attacker, move)
     if m_type == attacker[_POK_TYPE1] or m_type == attacker[_POK_TYPE2]:  # pylint: disable=R1714
         if attacker[_POK_AB_ID] == _ABILITYNAMES_ADAPTABILITY:
             damage *= 2

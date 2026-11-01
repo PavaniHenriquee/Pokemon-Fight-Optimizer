@@ -1850,7 +1850,7 @@ def test_resist_berry(make_pokemon, item, move, defender, halved):
     atk = make_pokemon("Bulbasaur", 20, "Overgrow", [move]).to_np()
     dfn = make_pokemon(defender, 20, "Sturdy", ["Tackle"], item=item).to_np()
     item_id = dfn[Item.ID]
-    got = engine_helper.resist_berry(dfn, move_slice(atk, 0), 41)
+    got = engine_helper.resist_berry(atk, dfn, move_slice(atk, 0), 41)
     if halved:
         assert got == 20 and dfn[Item.ID] == 0 and dfn[Pok.CONSUMED_ITEM] == item_id
     else:
@@ -1861,9 +1861,9 @@ def test_resist_berry_leaves_at_least_one_and_skips_immune(make_pokemon):
     """Halving 1 still does 1; a hit that does nothing (Normal into Ghost) keeps the berry"""
     atk = make_pokemon("Rattata", 20, "Run Away", ["Tackle"]).to_np()
     dfn = make_pokemon("Rattata", 20, "Run Away", ["Tackle"], item="Chilan Berry").to_np()
-    assert engine_helper.resist_berry(dfn, move_slice(atk, 0), 1) == 1
+    assert engine_helper.resist_berry(atk, dfn, move_slice(atk, 0), 1) == 1
     ghost = make_pokemon("Gastly", 20, "Levitate", ["Tackle"], item="Chilan Berry").to_np()
-    assert engine_helper.resist_berry(ghost, move_slice(atk, 0), 0) == 0
+    assert engine_helper.resist_berry(atk, ghost, move_slice(atk, 0), 0) == 0
     assert ghost[Item.ID] == ItemNames.CHILAN_BERRY
 
 
@@ -2476,3 +2476,25 @@ def test_sticky_hold_keeps_the_item_from_covet_and_bug_bite(
     battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
     assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
     assert (foe[Item.ID] != 0) == kept
+
+
+# ── Batch 15: Normalize ──────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("item, halved", [("Chilan Berry", True), ("Occa Berry", False)])
+def test_normalize_resist_berries(make_pokemon, item, halved):
+    """A normalized Ember is a Normal hit: Chilan halves it, Occa doesn't"""
+    atk = make_pokemon("Skitty", 20, "Normalize", ["Ember"]).to_np()
+    dfn = make_pokemon("Bulbasaur", 20, "Overgrow", ["Tackle"], item=item).to_np()
+    got = engine_helper.resist_berry(atk, dfn, move_slice(atk, 0), 41)
+    assert got == (20 if halved else 41)
+
+
+def test_normalize_tells_the_ai_a_normal_hit(monkeypatch, make_pokemon, make_battle):
+    """The type the AI's withdraw checks read is the one the move hit with (pokeplatinum
+    moveHitType from CalcCurrentMoveType)"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda a, b: a)
+    arr = make_battle([make_pokemon("Skitty", 20, "Normalize", ["Ember"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.CURRENT_HP] < opp_active(arr)[Pok.MAX_HP]
+    assert arr[Field.AI_TOOK_DMG_LAST_TURN] == Types.NORMAL

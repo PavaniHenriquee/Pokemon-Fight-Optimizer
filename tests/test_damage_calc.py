@@ -1060,3 +1060,54 @@ def test_metronome_item_multiplier(poke, count):
     held[Pok.METRONOME_COUNT] = (MoveName.EMBER << METRONOME_MOVE_SHIFT) + count
     d = poke("Rattata", 50, "Run Away", ["Tackle"])
     assert dmg(held, d) == dmg(plain, d) * (10 + count) // 10
+
+
+# ── Batch 15: Normalize ──────────────────────────────────────────────────────
+
+def test_normalize_type(poke):
+    """Every move but Struggle hits as Normal, Hidden Power and Natural Gift included
+    (pokeplatinum ApplyTypeChart / CalcMoveDamage, Showdown gen4)"""
+    from Engine.ability_helper import normalized_type
+    from Engine.engine_helper import natural_gift
+    plain = poke("Skitty", 30, "Cute Charm", ["Ember", "Hidden Power", "Natural Gift"],
+                 item="Oran Berry")
+    norm = poke("Skitty", 30, "Normalize", ["Ember", "Hidden Power", "Natural Gift"],
+                item="Oran Berry")
+    assert normalized_type(plain, move_slice(plain, 0)) == Types.FIRE
+    assert normalized_type(norm, move_slice(norm, 0)) == Types.NORMAL
+    assert move_slice(norm, 1)[Move.TYPE] != Types.NORMAL
+    assert normalized_type(norm, move_slice(norm, 1)) == Types.NORMAL
+    gift = move_slice(norm, 2)
+    assert natural_gift(norm, gift) and gift[Move.TYPE] == Types.POISON
+    assert normalized_type(norm, gift) == Types.NORMAL
+    assert normalized_type(norm, STRUGGLE) == Types.TYPELESS
+
+
+def test_normalize_damage(poke):
+    """A Normal-type user gets STAB on its normalized Ember, which is neutral on Bulbasaur and
+    can't touch a Ghost; the battle damage and the AI estimate agree"""
+    plain = poke("Skitty", 30, "Cute Charm", ["Ember"])
+    norm = poke("Skitty", 30, "Normalize", ["Ember"])
+    grass = poke("Bulbasaur", 30, "Overgrow", ["Tackle"])
+    assert ratio(dmg(norm, grass), dmg(plain, grass)) == pytest.approx(0.75, abs=0.05)
+    assert dmg(norm, poke("Gastly", 30, "Levitate", ["Lick"])) == 0
+
+    def est(atk):
+        return calculate_ai_logic_damage(1.0, atk, grass, move_slice(atk, 0), 0)
+    assert ratio(est(norm), est(plain)) == pytest.approx(0.75, abs=0.05)
+
+
+def test_normalize_type_boosts(poke):
+    """Silk Scarf boosts every normalized move and Charcoal none; sun, Charge and the Sports
+    don't touch them"""
+    d = poke("Rattata", 30, "Run Away", ["Tackle"])
+    base = dmg(poke("Skitty", 30, "Normalize", ["Ember"]), d)
+    assert dmg(poke("Skitty", 30, "Normalize", ["Ember"], item="Silk Scarf"), d) > base
+    assert dmg(poke("Skitty", 30, "Normalize", ["Ember"], item="Charcoal"), d) == base
+    assert dmg(poke("Skitty", 30, "Normalize", ["Ember"]), d, weather=Weather.SUN) == base
+
+    shock = poke("Skitty", 30, "Normalize", ["Thunder Shock"])
+    power = move_slice(shock, 0)[Move.POWER]
+    shock[Pok.VOL_STATUS] |= VolStatus.CHARGE | VolStatus.MUD_SPORT
+    assert charge_power(shock, move_slice(shock, 0), power) == power
+    assert sport_power(shock, d, move_slice(shock, 0), power) == power

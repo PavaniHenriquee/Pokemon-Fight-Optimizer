@@ -1122,8 +1122,8 @@ def test_fire_move_thaws(poke):
     a = poke("Charmander", 50, "Blaze", ["Ember", "Scratch"])
     d = poke("Rattata", 50, "Run Away", ["Tackle"])
     d[Pok.STATUS] = Status.FREEZE
-    assert not thaw(move_slice(a, 1), d) and d[Pok.STATUS] == Status.FREEZE
-    assert thaw(move_slice(a, 0), d) and d[Pok.STATUS] == 0
+    assert not thaw(a, move_slice(a, 1), d) and d[Pok.STATUS] == Status.FREEZE
+    assert thaw(a, move_slice(a, 0), d) and d[Pok.STATUS] == 0
 
 
 # ── early_returns (the "can I act this turn" gate) ───────────────────────────
@@ -2613,3 +2613,44 @@ def test_sticky_hold_ignorable(poke, defender_ab, attacker_ab, holds):
     d = poke("Grimer", 20, defender_ab, ["Tackle"])
     a = poke("Rattata", 20, attacker_ab, ["Tackle"])
     assert bool(sticky_hold(d, a)) == holds
+
+
+# ── Batch 15: Normalize ──────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("move, defender, ability, outcome", [
+    ("Lick", "Gastly", "Levitate", MoveOutcome.INVULNERABLE),
+    ("Night Shade", "Gastly", "Levitate", MoveOutcome.INVULNERABLE),
+    ("Thunder Wave", "Geodude", "Sturdy", MoveOutcome.HIT),
+    ("Thunder Wave", "Gastly", "Levitate", MoveOutcome.INVULNERABLE),
+    ("Earthquake", "Rattata", "Levitate", MoveOutcome.HIT),
+    ("Thunder Shock", "Rattata", "Volt Absorb", MoveOutcome.HIT),
+    ("Water Gun", "Rattata", "Water Absorb", MoveOutcome.HIT),
+    ("Ember", "Ponyta", "Flash Fire", MoveOutcome.HIT),
+    ("Ember", "Bulbasaur", "Wonder Guard", MoveOutcome.INVULNERABLE),
+])
+def test_normalize_hit_check(monkeypatch, poke, move, defender, ability, outcome):
+    """The hit check, Levitate and the absorbing abilities see Normal (pokeplatinum ApplyTypeChart,
+    TriggerImmunityAbility): Ghosts are immune, Ground types and Levitate aren't, nothing absorbs"""
+    _always_hit(monkeypatch)
+    a = poke("Skitty", 50, "Normalize", [move])
+    d = poke(defender, 50, ability, ["Tackle"])
+    d[Pok.CURRENT_HP] = 10
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == outcome
+    assert d[Pok.CURRENT_HP] == 10 and not d[Pok.VOL_STATUS2] & VolStatus2.FLASH_FIRE
+
+
+def test_normalize_fire_move_doesnt_thaw(poke):
+    """The thaw checks the move's type after Normalize (pokeplatinum AFTER_MOVE_EFFECT_THAW_DEFENDER)"""
+    a = poke("Skitty", 50, "Normalize", ["Ember"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    d[Pok.STATUS] = Status.FREEZE
+    assert not thaw(a, move_slice(a, 0), d) and d[Pok.STATUS] == Status.FREEZE
+
+
+@pytest.mark.parametrize("foe_ab, knows", [("Synchronize", True), ("Normalize", False)])
+def test_anticipation_reads_the_foes_normalize(poke, foe_ab, knows):
+    """A Normalize foe's Confusion is Normal, so it doesn't make Croagunk shudder"""
+    p = poke("Croagunk", 20, "Anticipation", ["Tackle"])
+    foe = poke("Abra", 20, foe_ab, ["Confusion"])
+    switch_in(p, foe, empty_field(), True)
+    assert bool(p[Pok.AB_KNOWN]) == knows

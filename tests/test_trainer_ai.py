@@ -1593,3 +1593,28 @@ def test_quick_claw_guess(monkeypatch, poke):
     monkeypatch.setattr(ai.random, "randint", lambda lo, hi: 0)
     assert ai.quick_claw_guess(plain, claw) == 2
     assert ai.quick_claw_guess(claw, claw) == 3
+
+
+# ── Batch 15: Normalize ──────────────────────────────────────────────────────
+
+def test_ai_effectiveness_normalize(poke):
+    """pokeplatinum's AI runs ApplyTypeChart with the attacker's Normalize: STAB on Skitty's
+    neutral Ember, nothing into a Ghost"""
+    plain = poke("Skitty", 30, "Cute Charm", ["Ember"])
+    norm = poke("Skitty", 30, "Normalize", ["Ember"])
+    grass = poke("Bulbasaur", 30, "Overgrow", ["Tackle"])
+    assert ai.trainer_ai_effectiveness(move_slice(plain, 0), plain, grass)[0] == 2.0
+    assert ai.trainer_ai_effectiveness(move_slice(norm, 0), norm, grass)[0] == 1.5
+    ghost = poke("Gastly", 30, "Levitate", ["Lick"])
+    assert ai.trainer_ai_effectiveness(move_slice(norm, 0), norm, ghost)[0] == 0
+
+
+@pytest.mark.parametrize("ability, has_se", [("Cute Charm", True), ("Normalize", False)])
+def test_party_checks_see_normalize(poke, ability, has_se):
+    """BattleSystem_CalcEffectiveness takes the party member's ability: a Normalize Ember isn't
+    super effective"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Leer"])
+    party[POK_LEN:2 * POK_LEN] = poke("Skitty", 20, ability, ["Ember"])
+    grass = poke("Bulbasaur", 20, "Overgrow", ["Tackle"])
+    assert (1 in ai.check_super_ef_move_pty(party, grass, 0)) == has_se

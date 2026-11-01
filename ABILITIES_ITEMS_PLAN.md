@@ -777,6 +777,13 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   is in `_EXPLICIT_RELEVANT`. A missing one lets the AI read my real ability for that species.
 - Batch 14: the rollout and the AI don't see Big Root (no heal estimate reads it) or Grip Claw (no bind-length
   estimate).
+- Batch 15: `basic_ability`'s Wonder Guard branch reads the move's raw type; [pp] Basic_CheckWonderGuard uses
+  `IfMoveEffectivenessEquals` (ApplyTypeChart, so Normalize counts). Only matters for an AI Normalize holder; no
+  TrainerDB trainer has one.
+- Batch 15: [pp] `CalcMoveDamage` makes a Normalize user's Struggle Normal (only `ApplyTypeChart` skips Struggle), so
+  Silk Scarf would boost it there; the engine keeps Struggle typeless ([SD gen4]).
+- Batch 15: `ai_move_view` hands Natural Gift's berry type to `basic_ability`'s absorb checks; [pp] `LoadTypeFrom
+  LOAD_MOVE_TYPE` reads the move data's type (Normal). Older than this batch.
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

@@ -80,7 +80,7 @@ from Models.constants import (
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy
 )
-from Engine.ability_helper import ignorable_ability, levitates
+from Engine.ability_helper import ignorable_ability, levitates, normalized_type
 
 COUNTER_EX_TYPES = (
     _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
@@ -356,7 +356,7 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok, gravity=False):
     Otherwise, if the move is Natural Gift, Hidden Power, Judgment, or Weather Ball,
     the move is adjusted to its correct type."""
     effectiveness = 1.0
-    move_type = move[_MOVE_TYPE]
+    move_type = normalized_type(ai_pok, move)
     move_cat = move[_MOVE_CATEGORY]
     ai_type1 = ai_pok[_POK_TYPE1]
     ai_type2 = ai_pok[_POK_TYPE2]
@@ -2156,7 +2156,7 @@ def check_super_ef_move_pty(ai_party, user_pok, opp_active, gravity=False):
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
-            mv_type = mv[_MOVE_TYPE]
+            mv_type = normalized_type(pok, mv)
             t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
             eff, den = get_type_effectiveness(mv_type, t1, t2)
             if eff // den >= 2:
@@ -2186,7 +2186,7 @@ def check_any_damaging_move_pty(ai_party, user_pok, opp_active, gravity=False):
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
-            mv_type = mv[_MOVE_TYPE]
+            mv_type = normalized_type(pok, mv)
             t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
             eff, den = get_type_effectiveness(mv_type, t1, t2)
             if eff / den != 0:
@@ -2253,7 +2253,7 @@ def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active, gravity=F
         if ef/de == 0:
             moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
             for mv in moves:
-                mv_type = mv[_MOVE_TYPE]
+                mv_type = normalized_type(pok, mv)
                 t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
                 eff, den = get_type_effectiveness(mv_type, t1, t2)
                 if eff // den >= 2:
@@ -2292,7 +2292,7 @@ def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active, gravity
         if 0 < ef/de < 1:
             moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
             for mv in moves:
-                mv_type = mv[_MOVE_TYPE]
+                mv_type = normalized_type(pok, mv)
                 t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
                 eff, den = get_type_effectiveness(mv_type, t1, t2)
                 if eff // den >= 2:

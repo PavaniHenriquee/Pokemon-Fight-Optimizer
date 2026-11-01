@@ -684,3 +684,15 @@ def test_node_key_sees_the_metronome_item_count(one_v_one, mine):
     two = node_key(arr)
     pok[Pok.METRONOME_COUNT] = (MoveName.GROWL << 4) + 2
     assert len({key, one, two, node_key(arr)}) == 4
+
+
+@pytest.mark.parametrize("ability, picked", [("Cute Charm", True), ("Normalize", False)])
+def test_rollout_sees_normalize(make_pokemon, make_battle, ability, picked):
+    """A normalized Lick can't touch a Ghost, so the rollout gives it weight 0"""
+    me = make_pokemon("Skitty", 20, ability, ["Lick", "Growl"])
+    foe = make_pokemon("Gastly", 20, "Levitate", ["Lick"])
+    arr = make_battle([me], [foe])
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
+    picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)}
+    assert (0 in picks) == picked
