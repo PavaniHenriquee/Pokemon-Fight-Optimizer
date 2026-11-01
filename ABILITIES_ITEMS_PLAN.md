@@ -25,7 +25,9 @@
 | 11    | Weather and end of turn                                             | [x]    |
 | 12    | Trapping                                                            | [x]    |
 | 13    | Survival, charge, consecutive use, drain                            | [x]    |
-| 14    | No-op confirmations and out of scope                                | [ ]    |
+| 14    | No-op confirmations and out of scope                                | [x]    |
+| 15    | Normalize                                                           | [ ]    |
+| 16    | Check and fix the Discoveries                                       | [ ]    |
 
 **Decisions**
 
@@ -161,6 +163,18 @@
   message is ability-tagged, so only it reveals (both sides). Sticky Hold (ignorable) blocks Covet and Bug Bite.
   Covet: [pp BtlCmd_TryStealItem] fails for side-1 attackers outside the Frontier; your call is that RP's AI does
   steal in battle, so the engine keeps it. Golden: hashes only (new slot), turns and HP identical.
+- 2026-11-01 (Batch 14): no-ops, [pp] battle code and AI script: Lightning Rod / Storm Drain only redirect (singles: the
+  target is already the holder; no immunity before Gen V), Plus / Minus need an ally, Stench nothing in Gen IV, Honey
+  Gather post-battle only (the AI's Gastro Acid list names both; Gastro Acid isn't in MoveDB), Frisk's message names the
+  item only, Gluttony only moves the pinch berries (none in ItemDB). Not no-ops: Anticipation's and Forewarn's switch-in
+  messages carry the ability tag, so they `reveal_ability`. Forewarn whenever a foe is out; Anticipation per [pp]
+  SWITCH_IN_CHECK_STATE_ANTICIPATION (`anticipation_shudders`: a damaging super-effective move on the data type, or an
+  OHKO move from a foe at the holder's level or higher, immune moves and the `damage` moves left out). Forecast,
+  Multitype, Color Change stay open. Issue 10 was already fixed in Batch 9; Issues 11 and 13 fixed. Golden from Issue 11:
+  switching / healing_misc moved on every seed (my Murkrow, Insomnia / Super Luck, now gets the AI's guess roll; with
+  Murkrow's flag off all 8 matched). Optional items done ([pp] item data and subscripts): Damp Rock +3 rain turns on
+  Rain Dance, Big Root x(100+30)/100 on drain, Leech Seed (the seeder's), Ingrain and Aqua Ring, before Liquid Ooze, and
+  Grip Claw sets the bind counter to 6 after the 3-6 roll. Golden: hashes only (`ItemNames` shift).
 
 **Still open (your call, at the batch that needs it)**
 
@@ -259,14 +273,15 @@
    there are invisible. Batch 1. **FIXED in Batch 1** (`roll_multiplier=100`).
 10. **`basic_stat_change`** reads Keen Eye from the AI (`trainer_ai_helper.py:623`) while Hyper Cutter /
     Clear Body read the target, and those checks ignore the boost's sign (Swagger and Flatter score −10).
-    Batch 9.
+    Batch 9. **FIXED in Batch 9** (found still marked open in Batch 14).
 11. **The ability-guess relevance set** misses Insomnia, Sticky Hold, Poison Heal, Truant and Multitype
-    (`trainer_ai_helper.py:114-170`). Every AI ability batch.
+    (`trainer_ai_helper.py:114-170`). Every AI ability batch. **FIXED in Batch 14** (Poison Heal included).
 12. **Bench items are stale** in the UI and in `continue_from_node` (`serializer.py:129`,
     `SearchEngine/models.py:352-390`), so an eaten berry reappears. Shows up once Batch 2 adds consumables.
     **FIXED in Batch 2** (`bench_delta` keeps item id, consumed item and knocked off; the block is rebuilt
     from `ITEM_TABLE`).
 13. `test_jit_smoke.py:74` `CASES` never asserts the switching, healing_misc and move_calling scenarios.
+    **FIXED in Batch 14** (`CASES` follows `battle_driver.SCENARIOS`).
 14. Hustle and Sand Veil scale accuracy before the stage ratio (`engine_helper.py:336-346`); [pp] scales
     after. Minor rounding. **FIXED in Batch 5.**
 15. Existing base-power order differs slightly from [pp]: Sport runs after Blaze/Iron Fist (`calculate_damage`);
@@ -570,13 +585,24 @@ them: `eat_berry`, `eat_berry_bug_bite`, `natural_gift`, `knock_off`, the Covet 
   today) or not, decide in the note.
 - TODO ticks: Focus Band, Power Herb, Metronome, Magic Guard; deferred Berry Juice, Liquid Ooze, Sticky Hold.
 
-## Batch 14 — No-op confirmations and out of scope
+## Batch 14 — No-op confirmations and out of scope — DONE
 
 - Tick after a one-line note each, no code: Lightning Rod, Storm Drain, Anticipation, Forewarn, Frisk, Plus,
   Minus, Stench, Honey Gather, Gluttony.
 - Leave open: Forecast, Multitype, Color Change.
 - Optional extras from CLAUDE.md's known gaps, not in ItemDB (adding them shifts `ItemNames` ids): Damp Rock,
   Big Root, Grip Claw.
+
+## Batch 15 — Normalize
+
+- Every move the holder uses becomes Normal ([pp] `ApplyTypeChart` / `CalcMoveType`; [SD] keeps Struggle). See
+  the Batch 4 row: the move type has to reach the damage calc, the hit check, the type chart, the AI
+  effectiveness and the rollout. Anticipation's check (`anticipation_shudders`) also reads the foe's Normalize.
+
+## Batch 16 — Check and fix the Discoveries
+
+- Go through every entry in **Discoveries**: re-check it against the current code, then fix it, drop it, or move
+  it to CLAUDE.md's known gaps. Group the fixes by shared mechanism like the other batches, evidence first.
 
 ## Discoveries (noticed, not fixed yet)
 
@@ -611,8 +637,6 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
   holder with Flame Orb.
 - Batch 2: resist berries ignore Substitute because the engine has no Substitute yet; [SD] skips the berry
   when the hit lands on a substitute.
-- Batch 2: outdated TODO comment (left in place): `_set_weather`'s `TODO: Damp Rock, Smooth Rock` (Smooth Rock
-  is done; Damp Rock isn't in ItemDB).
 - Explosion: the AI branches come from [pp script.s] only; Pokemow's per-move Basic/Expert pages couldn't be
   fetched. In `Expert_Explosion` the code is followed where its comments differ: the second evasion -1 starts
   at +4 (stage index 10, comment says +3), and at 30% HP or less both +1 rolls apply (comment table implies
@@ -746,6 +770,13 @@ Added at the end of each batch. Remove an entry only once it's fixed or you drop
 - Batch 13: `_contact_damage`'s docstring only names Rough Skin / Aftermath; Liquid Ooze uses it too.
 - Batch 13: outdated (left in place): the Status audit rows for Sticky Hold and Magic Guard.
 - Batch 13: Berry Juice already had a test (`test_engine_helper.py`, HP_RESTORE dispatch); nothing new added.
+- Batch 14: Anticipation reads the foe's move data type, so it ignores the foe's Normalize until Batch 15 adds it
+  ([pp] `ApplyTypeChart` turns every move Normal for a Normalize attacker).
+- Batch 14: [pp] Forewarn and Frisk roll `RandNext` for ties; the engine only reveals, no roll. RNG order only.
+- Batch 14: Issue 11 was found by hand; nothing checks that every ability the AI compares my guessed ability against
+  is in `_EXPLICIT_RELEVANT`. A missing one lets the AI read my real ability for that species.
+- Batch 14: the rollout and the AI don't see Big Root (no heal estimate reads it) or Grip Claw (no bind-length
+  estimate).
 ## UI (cross-batch)
 
 - New `VolStatus2` bits get badges automatically (`serializer.py` builds the names from the enum).

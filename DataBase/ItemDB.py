@@ -6,7 +6,8 @@ class ItemNames:
     """Item names to number"""
     BABIRI_BERRY   = 1
     BERRY_JUICE    = BABIRI_BERRY + 1
-    BLACK_BELT     = BERRY_JUICE + 1
+    BIG_ROOT       = BERRY_JUICE + 1
+    BLACK_BELT     = BIG_ROOT + 1
     BLACK_SLUDGE   = BLACK_BELT + 1
     BRIGHT_POWDER  = BLACK_SLUDGE + 1
     CHARCOAL       = BRIGHT_POWDER + 1
@@ -16,10 +17,12 @@ class ItemNames:
     CHOPLE_BERRY   = CHILAN_BERRY + 1
     COBA_BERRY     = CHOPLE_BERRY + 1
     COLBUR_BERRY   = COBA_BERRY + 1
-    EXPERT_BELT    = COLBUR_BERRY + 1
+    DAMP_ROCK      = COLBUR_BERRY + 1
+    EXPERT_BELT    = DAMP_ROCK + 1
     FLAME_ORB      = EXPERT_BELT + 1
     FOCUS_BAND     = FLAME_ORB + 1
-    HABAN_BERRY    = FOCUS_BAND + 1
+    GRIP_CLAW      = FOCUS_BAND + 1
+    HABAN_BERRY    = GRIP_CLAW + 1
     HARD_STONE     = HABAN_BERRY + 1
     KASIB_BERRY    = HARD_STONE + 1
     KEBIA_BERRY    = KASIB_BERRY + 1

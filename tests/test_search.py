@@ -581,6 +581,26 @@ def test_game_state_steps_through_the_baton_pass_phase(make_pokemon, make_battle
     assert state.phase == BattlePhase.TURN_START and state.my_active == 1
 
 
+def test_baton_pass_phase_after_the_foe_fainted(make_pokemon, make_battle):
+    """The foe moved first and fainted (a confusion self-hit), my Baton Pass still runs: the pick,
+    the key and a rollout work, and the end of the turn brings in its replacement"""
+    mine = [make_pokemon("Rattata", 30, "Run Away", ["Baton Pass", "Tackle"]),
+            make_pokemon("Zubat", 20, "Inner Focus", ["Bite"])]
+    arr = make_battle(mine, [make_pokemon("Machop", 10, "Guts", ["Tackle"]),
+                             make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])])
+    step_arr(arr, MOVE, 0, 0)
+    assert arr[Field.PHASE] == BattlePhase.BATON_PASS
+    opp_active(arr)[Pok.CURRENT_HP] = 0
+    arr[Field.PENDING_OPP_MOVE] = 0
+    assert mask_actions(arr) == [(SWITCH, 1)]
+    node_key(arr)
+    value, _, _ = rollout_arr(arr.copy())
+    assert 0.0 <= value <= 1.0
+    step_arr(arr, SWITCH, 1, -50)
+    assert arr[Field.MY_POK] == 1 and arr[Field.OPP_POK] == 1
+    assert opp_active(arr)[Pok.CURRENT_HP] > 0
+
+
 def test_node_key_sees_my_slot_and_the_baton_pass_phase(make_pokemon, make_battle):
     """Roar's random pick on my side and the paused turn are different nodes"""
     mine = [make_pokemon("Rattata", 10, "Run Away", ["Tackle"]) for _ in range(2)]

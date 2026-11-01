@@ -13,7 +13,7 @@ from Engine.engine_helper import (
     try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
     damp_blocks, status_item, pressure_pp, truant_loafs, metronome_count, metronome_fail,
-    power_herb, sticky_hold,
+    power_herb, sticky_hold, big_root,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -73,6 +73,7 @@ from Models.constants import (
     _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _POK_SEMI_INV_MOVE, _FIELD_GRAVITY_TURNS,
     _MOVENAME_GRAVITY, _MOVENAME_MINIMIZE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _FLAGS_GRAVITY,
     _ITEM_HOLD_EFFECT, _ITEM_EFFECT_PARAM, _HOLDEFFECT_EXTEND_SCREENS, _HOLDEFFECT_EXTEND_SANDSTORM,
+    _HOLDEFFECT_EXTEND_RAIN, _HOLDEFFECT_EXTEND_TRAPPING,
     _HOLDEFFECT_BRN_USER, _POK_TYPE1, _POK_TYPE2, _TYPES_FIRE,
     _FIELD_MY_ENTER_FIELD, _ABILITYNAMES_ROCK_HEAD,
     _MOVE_OH_KO, _ABILITYNAMES_ANGER_POINT, _ABILITYNAMES_SKILL_LINK, _ABILITYNAMES_HYDRATION,
@@ -590,14 +591,15 @@ def _move_weather(move_id):
 @njit
 def _set_weather(battle_array, weather, user):
     """Rain Dance and Sandstorm fail under the same weather, else it lasts 5 turns, plus the
-    user's Smooth Rock turns for Sandstorm.
-    TODO: Damp Rock, Smooth Rock"""
+    user's Smooth Rock turns for Sandstorm and Damp Rock turns for Rain Dance."""
     if battle_array[_FIELD_WEATHER] == weather:
         return
     battle_array[_FIELD_WEATHER] = weather
     battle_array[_FIELD_WEATHER_DURATION] = FIELD_EFFECT_TURNS
     if weather == _WEATHER_SANDSTORM:
         battle_array[_FIELD_WEATHER_DURATION] += _held_extension(user, _HOLDEFFECT_EXTEND_SANDSTORM)
+    elif weather == _WEATHER_RAIN:
+        battle_array[_FIELD_WEATHER_DURATION] += _held_extension(user, _HOLDEFFECT_EXTEND_RAIN)
 
 
 @njit
@@ -793,7 +795,8 @@ def _execute_move_slot(
             atk[_POK_VOL_STATUS] |= _VOLSTATUS_UPROAR
             atk[_POK_UPROAR_TURNS] = random.randint(3, 6)
             atk[_POK_LOCKED_MOVE] = current_move if is_mine else opp_move
-        # Wrap and co. trap a target that survived for 3-6 turns, it isn't refreshed
+        # Wrap and co. trap a target that survived for 3-6 turns, it isn't refreshed. The
+        # binder's Grip Claw makes it 6, after the roll (pokeplatinum subscript_bind_start)
         if (
             mv[_MOVE_VOL_STATUS] & _VOLSTATUS_PARTIALLY_TRAPPED
             and defn[_POK_CURRENT_HP] > 0
@@ -801,6 +804,8 @@ def _execute_move_slot(
         ):
             defn[_POK_VOL_STATUS] |= _VOLSTATUS_PARTIALLY_TRAPPED
             defn[_POK_TRAP_TURNS] = random.randint(3, 6)
+            if atk[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_EXTEND_TRAPPING:
+                defn[_POK_TRAP_TURNS] = 6
         # Destiny Bond, after drain and recoil like the Gen IV faint check
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
@@ -1014,10 +1019,10 @@ def _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_f
 
 @njit
 def _residual_heal(pok):
-    """Ingrain and Aqua Ring heal 1/16 of max HP"""
+    """Ingrain and Aqua Ring heal 1/16 of max HP, Big Root adds 30%"""
     max_hp = pok[_POK_MAX_HP]
     if pok[_POK_CURRENT_HP] < max_hp:
-        pok[_POK_CURRENT_HP] = min(max_hp, pok[_POK_CURRENT_HP] + max(1, max_hp // 16))
+        pok[_POK_CURRENT_HP] = min(max_hp, pok[_POK_CURRENT_HP] + big_root(pok, max(1, max_hp // 16)))
 
 
 @njit
@@ -1130,8 +1135,9 @@ def _leech_seed_heal(seeder, seeded, dealt, seeded_flag_idx, battle_array):
     """
     The seeder heals what the seeded Pokemon lost. Liquid Ooze hurts it by that much instead, a
     Magic Guard seeder takes nothing and both abilities are named (pokeplatinum
-    subscript_leech_seed_effect)
+    subscript_leech_seed_effect). The seeder's Big Root raises both
     """
+    dealt = big_root(seeder, dealt)
     if seeded[_POK_AB_ID] != _ABILITYNAMES_LIQUID_OOZE:
         seeder[_POK_CURRENT_HP] = min(seeder[_POK_MAX_HP], seeder[_POK_CURRENT_HP] + dealt)
     elif seeder[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:

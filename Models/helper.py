@@ -230,6 +230,9 @@ class HoldEffect:
     BOOST_REPEATED      = 23
     CUBONE_ATK_UP       = 24
     PIKA_SPATK_UP       = 25
+    EXTEND_RAIN         = 26
+    LEECH_BOOST         = 27
+    EXTEND_TRAPPING     = 28
 
 
 _HP_RAW = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))

@@ -191,10 +191,8 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   skips Magnet Rise; `expert_charge_invulnerable` skips the "target's last move isn't
   always-hit" check; pokeplatinum's Expert swaps the EVA_DOWN_2 / ACC_DOWN_2 logic (copy it when
   a -2 accuracy/evasion move lands).
-- Waiting on the abilities pass: Limber / Immunity / Water Veil / Magma Armor status immunity,
-  Oblivious vs Attract, Rock Head, Liquid Ooze, Drizzle / Sand Stream. Items pass: Light Clay,
-  Smooth Rock, Damp Rock, Big Root, Shed Shell, Grip Claw. Not in MoveDB yet: Spikes damage,
-  Magnet Rise, Iron Ball, Rest, Snore, U-turn, Fly, Dive, Heal Block.
+- Not in MoveDB yet: Spikes damage, Magnet Rise, Iron Ball, Rest, Snore, U-turn, Fly, Dive,
+  Heal Block.
 - Metronome can call moves whose mechanics aren't in yet; they run as their data says.
 - Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
 
@@ -231,7 +229,9 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Backend tests redirect `_BOX_PATH` to a temp file; never let a test write the real
   `UserData/box.json`.
 - Fuzz invariants (`test_battle.py`): during the death phase after a double KO the opponent's
-  active can be fainted; its replacement waits for `switch_in_action`. That's expected.
+  active can be fainted; its replacement waits for `switch_in_action`. That's expected. The same
+  goes for the Baton Pass phase when the foe fainted before my Baton Pass (e.g. a confusion
+  self-hit); it's replaced at the end of the paused turn.
 
 ## Code conventions
 

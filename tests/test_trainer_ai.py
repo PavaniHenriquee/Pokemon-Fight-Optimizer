@@ -1518,6 +1518,25 @@ def test_ai_uses_a_revealed_ability(monkeypatch, make_pokemon, make_battle, know
     assert seen and set(seen) == {expected}
 
 
+@pytest.mark.parametrize("ability", ["Insomnia", "Poison Heal", "Sticky Hold", "Truant", "Multitype"])
+def test_abilities_the_ai_reads_are_relevant(ability):
+    """Abilities the AI script compares my ability against make it guess for my species"""
+    assert getattr(AbilityNames, ability.upper().replace(" ", "_")) in ai.RELEVANT_ABILITIES
+
+
+def test_ai_guesses_insomnia_on_an_unrevealed_drowzee(monkeypatch, make_pokemon, make_battle):
+    """Drowzee is Insomnia or Forewarn: with nothing revealed the AI guesses from the pool"""
+    from Models import trainer_ai
+    arr = make_battle([make_pokemon("Drowzee", 20, "Forewarn", ["Pound"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Tackle"])])
+    pok_slice(arr, 0)[Pok.AB_KNOWN] = 0
+    seen = []
+    monkeypatch.setattr(trainer_ai.random, "getrandbits", lambda k: 0)
+    monkeypatch.setattr(trainer_ai, "basic_flag", lambda move, ability, *a, **k: seen.append(ability) or 0)
+    return_idx(arr)
+    assert seen and set(seen) == {AbilityNames.INSOMNIA}
+
+
 def test_ai_script_reads_weather_through_cloud_nine(monkeypatch, make_pokemon, make_battle):
     """pokeplatinum AICmd_LoadCurrentWeather reads the field, the damage estimate and the speed
     compare see Cloud Nine (CalcMoveDamage, CompareBattlerSpeed)"""

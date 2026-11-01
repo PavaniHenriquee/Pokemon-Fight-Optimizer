@@ -193,7 +193,9 @@ def check_invariants(arr, action):
     if not is_over(arr):
         if arr[Field.PHASE] != BattlePhase.DEATH_END_OF_TURN:
             assert my_active(arr)[Pok.CURRENT_HP] > 0, "my active fainted outside death phase"
-            assert opp_active(arr)[Pok.CURRENT_HP] > 0, "opponent active fainted mid-battle"
+            # A foe that fainted before my Baton Pass is replaced at the end of the paused turn
+            if arr[Field.PHASE] != BattlePhase.BATON_PASS:
+                assert opp_active(arr)[Pok.CURRENT_HP] > 0, "opponent active fainted mid-battle"
         else:
             # Double KO: the opponent's replacement waits for switch_in_action
             assert my_active(arr)[Pok.CURRENT_HP] == 0, "death phase with my active alive"
@@ -1946,6 +1948,59 @@ def test_smooth_rock_extends_sandstorm_only(make_pokemon, make_battle, move, ite
     arr = make_battle([me], [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
     turn_sim(0, (MOVE, 0), arr)
     assert arr[Field.WEATHER_DURATION] == left
+
+
+@pytest.mark.parametrize("move, item, left", [
+    ("Rain Dance", "Damp Rock", 7),
+    ("Rain Dance", None, 4),
+    ("Sandstorm", "Damp Rock", 4),
+])
+def test_damp_rock_extends_rain_only(make_pokemon, make_battle, move, item, left):
+    """Damp Rock makes the user's Rain Dance last 8 turns, Sandstorm keeps 5 (pokeplatinum
+    HOLD_EFFECT_EXTEND_RAIN, effectParam 3)"""
+    me = make_pokemon("Geodude", 30, "Sturdy", [move], item=item)
+    arr = make_battle([me], [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.WEATHER_DURATION] == left
+
+
+@pytest.mark.parametrize("item, low, high", [("Grip Claw", 5, 5), (None, 2, 5)])
+def test_grip_claw_binds_for_six_turns(monkeypatch, make_pokemon, make_battle, item, low, high):
+    """The binder's Grip Claw sets the 3-6 counter to 6 (pokeplatinum subscript_bind_start); it
+    ticks once at this turn's end"""
+    _always_hit(monkeypatch)
+    my = [make_pokemon("Rattata", 50, "Run Away", ["Wrap"], item=item)]
+    arr = make_battle(my, [make_pokemon("Rattata", 5, "Run Away", ["Growl"])])
+    foe = opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS] & VolStatus.PARTIALLY_TRAPPED
+    assert low <= foe[Pok.TRAP_TURNS] <= high
+
+
+@pytest.mark.parametrize("vol", [VolStatus.INGRAIN, VolStatus.AQUA_RING])
+def test_big_root_boosts_ingrain_and_aqua_ring(make_pokemon, make_battle, vol):
+    """1/16 of max HP x130/100 (pokeplatinum subscript_ingrain_heal / subscript_aqua_ring_heal)"""
+    arr = make_battle([make_pokemon("Rattata", 50, "Run Away", ["Tackle"], item="Big Root")],
+                      [make_pokemon("Rattata", 5, "Run Away", ["Tackle"])])
+    me = my_active(arr)
+    me[Pok.VOL_STATUS] = vol
+    me[Pok.CURRENT_HP] = 10
+    end_of_turn(arr)
+    assert me[Pok.CURRENT_HP] == 10 + max(1, me[Pok.MAX_HP] // 16) * 130 // 100
+
+
+def test_big_root_boosts_leech_seed(make_pokemon, make_battle):
+    """The seeder's Big Root raises what Leech Seed gives it, not what the seeded loses"""
+    arr = make_battle([make_pokemon("Rattata", 50, "Run Away", ["Tackle"], item="Big Root")],
+                      [make_pokemon("Rattata", 50, "Run Away", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.LEECH_SEED
+    me[Pok.CURRENT_HP] = 10
+    foe_hp = foe[Pok.CURRENT_HP]
+    end_of_turn(arr)
+    drained = max(1, foe[Pok.MAX_HP] // 8)
+    assert foe[Pok.CURRENT_HP] == foe_hp - drained
+    assert me[Pok.CURRENT_HP] == 10 + drained * 130 // 100
 
 
 

@@ -837,6 +837,42 @@ def test_switch_in_announcements_tell_the_ai(poke, ability, knows):
     assert bool(p[Pok.AB_KNOWN]) == knows
 
 
+@pytest.mark.parametrize("species, foe_moves, foe_level, knows", [
+    ("Croagunk", ["Tackle", "Confusion"], 20, True),
+    ("Croagunk", ["Tackle", "Water Gun"], 20, False),
+    ("Croagunk", ["Psywave"], 20, False),
+    ("Croagunk", ["Hypnosis"], 20, False),
+    ("Barboach", ["Guillotine"], 20, True),
+    ("Barboach", ["Guillotine"], 19, False),
+])
+def test_anticipation_shudder_tells_the_ai(poke, species, foe_moves, foe_level, knows):
+    """The shudder names the ability and shows only for a super-effective damaging move (not
+    fixed damage) or an OHKO move from a foe at the holder's level or higher (pokeplatinum
+    SWITCH_IN_CHECK_STATE_ANTICIPATION)"""
+    p = poke(species, 20, "Anticipation", ["Tackle"])
+    foe = poke("Abra", foe_level, "Synchronize", foe_moves)
+    switch_in(p, foe, empty_field(), True)
+    assert bool(p[Pok.AB_KNOWN]) == knows
+
+
+@pytest.mark.parametrize("foe_hp, knows", [(1, True), (0, False)])
+def test_forewarn_alert_tells_the_ai(poke, foe_hp, knows):
+    """Forewarn names a move of any foe that's out (pokeplatinum SWITCH_IN_CHECK_STATE_FOREWARN)"""
+    p = poke("Drowzee", 20, "Forewarn", ["Pound"])
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    foe[Pok.CURRENT_HP] = foe_hp
+    switch_in(p, foe, empty_field(), True)
+    assert bool(p[Pok.AB_KNOWN]) == knows
+
+
+def test_frisk_doesnt_tell_the_ai(poke):
+    """Frisk's message names the item, not the ability"""
+    p = poke("Stantler", 20, "Frisk", ["Tackle"])
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    switch_in(p, foe, empty_field(), True)
+    assert not p[Pok.AB_KNOWN]
+
+
 @pytest.mark.parametrize("move, ability, extra", [
     ("Tackle", "Pressure", 1), ("Stealth Rock", "Pressure", 1), ("Rain Dance", "Pressure", 1),
     ("Harden", "Pressure", 0), ("Metronome", "Pressure", 0), ("Tackle", "Run Away", 0),
@@ -2554,6 +2590,17 @@ def test_liquid_ooze_hurts_the_drainer(poke, drainer_ab, start_hp, expected_hp):
     ooze = poke("Tentacool", 50, "Liquid Ooze", ["Tackle"])
     p[Pok.CURRENT_HP] = start_hp
     drain(p, ooze, move_slice(p, 0), 20)
+    assert p[Pok.CURRENT_HP] == expected_hp
+
+
+@pytest.mark.parametrize("foe_ab, expected_hp", [("Run Away", 43), ("Liquid Ooze", 17)])
+def test_big_root_boosts_drain_and_liquid_ooze(poke, foe_ab, expected_hp):
+    """Half of 20 is 10, x130/100 is 13, applied before Liquid Ooze turns it into damage
+    (pokeplatinum subscript_drain_half_damage_dealt)"""
+    p = poke("Oddish", 50, "Chlorophyll", ["Absorb"], item="Big Root")
+    d = poke("Tentacool", 50, foe_ab, ["Tackle"])
+    p[Pok.CURRENT_HP] = 30
+    drain(p, d, move_slice(p, 0), 20)
     assert p[Pok.CURRENT_HP] == expected_hp
 
 

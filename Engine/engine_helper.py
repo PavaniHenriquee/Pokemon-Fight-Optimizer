@@ -47,7 +47,7 @@ from Models.constants import (
     _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEM_HOLD_EFFECT,
     _ITEM_ID, _ITEM_EFFECT_PARAM, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _VOLSTATUS_FOCUS_ENERGY, _MOVE_CRIT_RATIO,
     _HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE, _POK_CONFUSION_COUNTER, _ITEM_WHEN,
-    _HOLDEFFECT_WEAKEN_SE, _HOLDEFFECT_WEAKEN_NORMAL, _ITEM_EFFECT_TYPE,
+    _HOLDEFFECT_WEAKEN_SE, _HOLDEFFECT_WEAKEN_NORMAL, _ITEM_EFFECT_TYPE, _HOLDEFFECT_LEECH_BOOST,
     _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_WILL_CRIT,
     _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN,
     _MOVEOUTCOME_SEMI_INVULNERABLE, _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN,
@@ -83,6 +83,7 @@ from Models.constants import (
     _MOVENAME_WILL_O_WISP, _MOVE_PP, _POK_SPECIAL_DEFENSE, _POK_SPECIAL_DEFENSE_STAT_STAGE,
     _ABILITYNAMES_TRACE, _ABILITYNAMES_DOWNLOAD, _ABILITYNAMES_PRESSURE, _ABILITYNAMES_FORECAST,
     _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _POK_AB_KNOWN,
+    _ABILITYNAMES_ANTICIPATION, _ABILITYNAMES_FOREWARN,
     _ABILITYNAMES_STALL, _ABILITYNAMES_UNBURDEN, _VOLSTATUS2_CAN_UNBURDEN, _ABILITYNAMES_SLOW_START,
     _ABILITYNAMES_DRIZZLE, _ABILITYNAMES_DROUGHT, _ABILITYNAMES_SAND_STREAM,
     _ABILITYNAMES_SNOW_WARNING, _ABILITYNAMES_ICE_BODY, _FIELD_WEATHER_DURATION,
@@ -1061,11 +1062,38 @@ def weather_ability(pok, battle_array):
 
 
 @njit
+def anticipation_shudders(pok, foe, gravity):
+    """
+    One of the foe's moves is super effective on pok, or is an OHKO move from a foe at pok's
+    level or higher. A status move is never super effective, the fixed-damage moves and Counter /
+    Mirror Coat don't count, and an immune move doesn't either (pokeplatinum
+    SWITCH_IN_CHECK_STATE_ANTICIPATION, ApplyTypeChart on the move's data type)
+    """
+    if foe[_POK_CURRENT_HP] <= 0:
+        return False
+    for i in range(4):
+        mv = foe[OFFSET_MOVE + i * MOVE_STRIDE:OFFSET_MOVE + (i + 1) * MOVE_STRIDE]
+        if not mv[_MOVE_ID] or mv[_MOVE_DAMAGE]:
+            continue
+        m_type = mv[_MOVE_TYPE]
+        def_t1, def_t2 = matchup_types(m_type, pok, gravity, is_scrappy(foe))
+        eff, den = get_type_effectiveness(m_type, def_t1, def_t2)
+        if eff == 0:
+            continue
+        if eff > den and mv[_MOVE_CATEGORY] != _MOVECATEGORY_STATUS:
+            return True
+        if mv[_MOVE_OH_KO] and pok[_POK_LEVEL] <= foe[_POK_LEVEL]:
+            return True
+    return False
+
+
+@njit
 def switch_in_ability(pok, foe, battle_array, is_mine):
     """
     pok's own switch-in abilities, in pokeplatinum's order after Trace: the weather abilities,
     Intimidate, Download, then Slow Start, Mold Breaker and Pressure, whose messages tell the AI
-    my ability (BattleMessage_AbilityTag).
+    my ability (BattleMessage_AbilityTag). So do Anticipation's shudder and Forewarn's alert,
+    when they show up; Frisk's message doesn't name the ability.
     is_mine: pok is on my side
     """
     if not pok[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_SWITCH_IN:
@@ -1077,6 +1105,13 @@ def switch_in_ability(pok, foe, battle_array, is_mine):
         download(pok, foe)
     elif ability in SWITCH_IN_MESSAGE_ABS:
         reveal_ability(pok)
+    elif ability == _ABILITYNAMES_ANTICIPATION:
+        if anticipation_shudders(pok, foe, battle_array[_FIELD_GRAVITY_TURNS] > 0):
+            reveal_ability(pok)
+    elif ability == _ABILITYNAMES_FOREWARN:
+        # It names one of the foe's moves whenever a foe is out
+        if foe[_POK_CURRENT_HP] > 0:
+            reveal_ability(pok)
     else:
         weather_ability(pok, battle_array)
 
@@ -1533,6 +1568,18 @@ def trainer_ai_items(pok, item):
 
 
 @njit
+def big_root(pok, heal):
+    """
+    A Big Root holder's drain, Leech Seed, Ingrain and Aqua Ring heal x(100+30)/100, before
+    Liquid Ooze turns it into damage (pokeplatinum HOLD_EFFECT_LEECH_BOOST in
+    subscript_drain_half_damage_dealt and the other heal subscripts)
+    """
+    if pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_LEECH_BOOST:
+        return heal * (100 + pok[_ITEM_EFFECT_PARAM]) // 100
+    return heal
+
+
+@njit
 def drain(pok, defender, move, dmg):
     """
     Drain calculation and application. A Liquid Ooze target hurts the drainer by the same amount
@@ -1542,6 +1589,7 @@ def drain(pok, defender, move, dmg):
     heal = (dmg*drain_pct)//4
     if heal == 0:
         heal = 1
+    heal = big_root(pok, heal)
     if defender[_POK_AB_ID] == _ABILITYNAMES_LIQUID_OOZE:
         if pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD:
             _contact_damage(pok, heal)

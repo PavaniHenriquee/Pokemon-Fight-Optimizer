@@ -18,6 +18,14 @@
     "type": "consumable",
     "when": "on_receive_damage"
   },
+  "Big Root": {
+    "effect_param": 30,
+    "fling_power": 10,
+    "hold_effect": "leech_boost",
+    "name": "big_root",
+    "type": "held",
+    "when": "on_end"
+  },
   "Black Belt": {
     "effect_param": 20,
     "effect_type": "Fighting",
@@ -117,6 +125,14 @@
     "type": "berry",
     "when": "on_receive_damage"
   },
+  "Damp Rock": {
+    "effect_param": 3,
+    "fling_power": 60,
+    "hold_effect": "extend_rain",
+    "name": "damp_rock",
+    "type": "held",
+    "when": "on_weather_change"
+  },
   "Expert Belt": {
     "effect_param": 20,
     "fling_power": 10,
@@ -138,6 +154,14 @@
     "fling_power": 10,
     "hold_effect": "maybe_endure",
     "name": "focus_band",
+    "type": "held",
+    "when": "on_damage"
+  },
+  "Grip Claw": {
+    "effect_param": 0,
+    "fling_power": 90,
+    "hold_effect": "extend_trapping",
+    "name": "grip_claw",
     "type": "held",
     "when": "on_damage"
   },

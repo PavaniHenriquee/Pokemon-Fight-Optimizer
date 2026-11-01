@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import pytest
+from battle_driver import SCENARIOS
 
 pytestmark = pytest.mark.jit
 
@@ -71,7 +72,7 @@ except Exception as exc:
 print("JIT_RESULTS=" + json.dumps(results))
 """
 
-CASES = ["starters", "status", "damage_sources", "multihit_items", "weather_charge", "mcts"]
+CASES = list(SCENARIOS) + ["mcts"]
 
 
 def _source_hash():

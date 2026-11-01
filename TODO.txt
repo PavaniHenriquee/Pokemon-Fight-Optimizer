@@ -1,7 +1,7 @@
 # Abilities
 [X]Adaptability *
 [X]Aftermath
-[]Anticipation *
+[X]Anticipation *
 [X]Arena Trap *
 [X]Battle Armor
 [X]Chlorophyll
@@ -14,8 +14,8 @@
 [X]Filter *
 [X]Flame Body *
 [X]Flash Fire *
-[]Forewarn *
-[]Gluttony *
+[X]Forewarn *
+[X]Gluttony *
 [X]Guts
 [X]Huge Power
 [X]Hustle
@@ -27,7 +27,7 @@
 [X]Intimidate
 [X]Keen Eye
 [X]Levitate *
-[]Lightning Rod *
+[X]Lightning Rod *
 [X]Magic Guard (Needs a lot of other implementations first, but half done)
 [X]Natural Cure *
 [X]No Guard *
@@ -53,7 +53,7 @@
 [X]Speed Boost
 [X]Static *
 [X]Steadfast
-[]Storm Drain *
+[X]Storm Drain *
 [X]Sturdy
 [X]Suction Cups (Need to implement force switches moves)
 [X]Super Luck *
@@ -83,9 +83,9 @@
 [X]Effect Spore *
 [X]Flower Gift *
 []Forecast *
-[]Frisk *
+[X]Frisk *
 [X]Heatproof *
-[]Honey Gather *
+[X]Honey Gather *
 [X]Immunity *
 [X]Leaf Guard *
 [X]Limber *
@@ -93,12 +93,12 @@
 [X]Magma Armor *
 [X]Magnet Pull *
 [X]Marvel Scale *
-[]Minus *
+[X]Minus *
 [X]Motor Drive *
 []Multitype *
 []Normalize *
 [X]Own Tempo *
-[]Plus *
+[X]Plus *
 [X]Poison Heal *
 [X]Pressure *
 [X]Pure Power *
@@ -110,7 +110,7 @@
 [X]Snow Warning *
 [X]Solid Rock *
 [X]Stall *
-[]Stench *
+[X]Stench *
 [X]Sticky Hold *
 [X]Truant *
 [X]Volt Absorb *
