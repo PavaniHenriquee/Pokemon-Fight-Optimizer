@@ -78,7 +78,8 @@ from Models.constants import (
     _MOVENAME_FIRE_FANG,
 )
 from Engine.damage_calc import (
-    weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy
+    weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
+    FORESIGHT_TYPES
 )
 from Engine.ability_helper import ignorable_ability, levitates, normalized_type
 
@@ -938,7 +939,6 @@ def basic_flag(
     )
     Force Switches(Example moves: Roar, Whirlwind)
     Recovery Moves(Example moves: Roost)
-    OHKO Moves(Example moves: Horn Drill, Fissure, Sheer Cold, Guillotine)
     Hazard-Setting Moves (Spikes, Toxic Spikes, Stealth Rock)
     Weather-Setting Moves (Sandstorm, Rain Dance, Sunny Day, Hail)
     '''
@@ -1795,13 +1795,13 @@ def expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first):
 @njit
 def expert_explosion(ai_pok, u_pok, rand, idx, slower):
     """
-    pokeplatinum Expert_Explosion. The code is followed where its comment differs: the second
-    evasion -1 starts at +4 (stage index 10), and at 30% HP or less both +1 rolls apply
+    Pokemow Expert Selfdestruction: the second evasion -1 starts at +3 (pokeplatinum's code
+    reads +4, Pokemow wins), and at 30% HP or less both +1 rolls apply
     """
     score = 0
     if u_pok[_POK_EVASION_STAT_STAGE] >= 1:
         score -= 1
-        if u_pok[_POK_EVASION_STAT_STAGE] >= 4:
+        if u_pok[_POK_EVASION_STAT_STAGE] >= 3:
             add_adjustment(rand, idx, -1, 128)
     ai_hp_pct = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
     if ai_hp_pct >= 80 and not slower:
@@ -2075,7 +2075,6 @@ def expert_flag(
     --------------Effect Moves-----------------
     Switch-Forcing Moves (Roar, Whirlwind)
     Recovery Moves (e.g., Swallow)
-    OHKO Moves (Example moves: Horn Drill, Fissure, Sheer Cold, Guillotine)
     Charge Turn Moves Without Invulnerability (Razor Wind, Skull Bash, Sky Attack, Solar Beam/Blade)
     Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)
     Recoil Moves (e.g. Submission, Flare Blitz, Double-Edge)
@@ -2137,9 +2136,85 @@ def expert_flag(
 
 
 @njit
-def check_super_ef_move_pty(ai_party, user_pok, opp_active, gravity=False):
+def on_damaging_turn(move):
+    """pokeplatinum MoveIsOnDamagingTurn while the AI scores: false for a charge move and Fire Fang"""
+    return move[_MOVE_CHARGE_RECHARGE] <= 0 and move[_MOVE_ID] != _MOVENAME_FIRE_FANG
+
+
+@njit
+def party_effectiveness(move_type, attacker, defender, gravity=False, damaging_turn=True):
     """
-    Check if there's any pokemon with super effective move
+    pokeplatinum BattleSystem_CalcEffectiveness, the type check the AI uses for its bench: Levitate
+    takes Ground moves unless the attacker has Mold Breaker or Gravity is up, Gravity grounds Flying
+    types, Scrappy hits Ghosts and Wonder Guard (unless Mold Breaker) takes every move that isn't
+    super effective unless damaging_turn is False (on_damaging_turn). No Foresight or Ingrain.
+    Returns (eff, den) like get_type_effectiveness
+    """
+    mold_breaker = attacker[_POK_AB_ID] == _ABILITYNAMES_MOLD_BREAKER
+    def_ab = defender[_POK_AB_ID]
+    if (
+        move_type == _TYPES_GROUND and def_ab == _ABILITYNAMES_LEVITATE
+        and not mold_breaker and not gravity
+    ):
+        return 0, 1
+    t1, t2 = gravity_types(move_type, defender[_POK_TYPE1], defender[_POK_TYPE2], gravity)
+    if is_scrappy(attacker) and move_type in FORESIGHT_TYPES:
+        if t1 == _TYPES_GHOST:
+            t1 = 0
+        if t2 == _TYPES_GHOST:
+            t2 = 0
+    eff, den = get_type_effectiveness(move_type, t1, t2)
+    if (
+        def_ab == _ABILITYNAMES_WONDER_GUARD and not mold_breaker
+        and damaging_turn and eff < 2 * den
+    ):
+        return 0, 1
+    return eff, den
+
+
+# Dual non-immunity glitch: (move type, immune defending type, weak defending type) where the immune
+# row comes first in pokeplatinum's sTypeMatchupMultipliers, so the weakness flag set after it stays
+DUAL_NON_IMMUNITY = (
+    (_TYPES_ELECTRIC, _TYPES_GROUND, _TYPES_FLYING),
+    (_TYPES_GROUND, _TYPES_FLYING, _TYPES_ROCK),
+    (_TYPES_GROUND, _TYPES_FLYING, _TYPES_STEEL),
+    (_TYPES_GHOST, _TYPES_NORMAL, _TYPES_PSYCHIC),
+    (_TYPES_GHOST, _TYPES_NORMAL, _TYPES_GHOST),
+)
+
+
+@njit
+def party_super_effective(move_type, attacker, defender, gravity=False, damaging_turn=True):
+    """
+    The super-effective flag of party_effectiveness, with the dual non-immunity glitch (Pokemow
+    switching page): Electric into Gligar, Ground into Aerodactyl / Skarmory and Ghost into
+    Girafarig count as super effective though the immunity stays. Levitate skips the type chart,
+    so it has no glitch
+    """
+    eff, den = party_effectiveness(move_type, attacker, defender, gravity, damaging_turn)
+    if eff // den >= 2:
+        return True
+    if (
+        move_type == _TYPES_GROUND and defender[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
+        and attacker[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and not gravity
+    ):
+        return False
+    t1 = defender[_POK_TYPE1]
+    t2 = defender[_POK_TYPE2]
+    for atk_type, immune, weak in DUAL_NON_IMMUNITY:
+        if move_type == atk_type and (
+            (t1 == immune and t2 == weak) or (t1 == weak and t2 == immune)
+        ):
+            return True
+    return False
+
+
+@njit
+def check_super_ef_move_pty(ai_party, user_pok, opp_active, gravity=False, damaging_only=False):
+    """
+    Check if there's any pokemon with super effective move. damaging_only skips status moves and
+    empty slots (Pokemow: the Wonder Guard withdraw counts any move, the ineffective-moves one only
+    damaging moves)
     """
     buf = np.zeros(6,dtype=np.int16)
     n = 0
@@ -2148,18 +2223,17 @@ def check_super_ef_move_pty(ai_party, user_pok, opp_active, gravity=False):
     if len(alive) <= 1:
         return buf[:0]
 
-    user_t1 = user_pok[_POK_TYPE1]
-    user_t2 = user_pok[_POK_TYPE2]
     for idx in alive:
         if idx == opp_active:
             continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
-            mv_type = normalized_type(pok, mv)
-            t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
-            eff, den = get_type_effectiveness(mv_type, t1, t2)
-            if eff // den >= 2:
+            if damaging_only and (mv[_MOVE_ID] == 0 or mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS):
+                continue
+            if party_super_effective(
+                normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+            ):
                 buf[n] = idx
                 n += 1
                 break
@@ -2169,7 +2243,8 @@ def check_super_ef_move_pty(ai_party, user_pok, opp_active, gravity=False):
 @njit
 def check_any_damaging_move_pty(ai_party, user_pok, opp_active, gravity=False):
     """
-    Check party for any damaging move
+    Check party for a damaging move that affects the target, status moves and empty slots don't
+    count (Pokemow ineffective-moves withdraw)
     """
     buf = np.zeros(6,dtype=np.int16)
     n = 0
@@ -2178,17 +2253,17 @@ def check_any_damaging_move_pty(ai_party, user_pok, opp_active, gravity=False):
     if len(alive) <= 1:
         return buf[:0]
 
-    user_t1 = user_pok[_POK_TYPE1]
-    user_t2 = user_pok[_POK_TYPE2]
     for idx in alive:
         if idx == opp_active:
             continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
         moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
         for mv in moves:
-            mv_type = normalized_type(pok, mv)
-            t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
-            eff, den = get_type_effectiveness(mv_type, t1, t2)
+            if mv[_MOVE_ID] == 0 or mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
+                continue
+            eff, den = party_effectiveness(
+                normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+            )
             if eff / den != 0:
                 buf[n] = idx
                 n += 1
@@ -2242,21 +2317,17 @@ def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active, gravity=F
     if len(alive) <= 1:
         return buf[:0]
 
-    user_t1 = user_pok[_POK_TYPE1]
-    user_t2 = user_pok[_POK_TYPE2]
     for idx in alive:
         if idx == opp_active:
             continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
-        p_t1, p_t2 = gravity_types(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2], gravity)
-        ef, de = get_type_effectiveness(last_move_type, p_t1, p_t2)
+        ef, de = party_effectiveness(last_move_type, user_pok, pok, gravity)
         if ef/de == 0:
             moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
             for mv in moves:
-                mv_type = normalized_type(pok, mv)
-                t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
-                eff, den = get_type_effectiveness(mv_type, t1, t2)
-                if eff // den >= 2:
+                if party_super_effective(
+                    normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+                ):
                     buf[n] = idx
                     n += 1
                     break
@@ -2281,21 +2352,17 @@ def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active, gravity
     if len(alive) <= 1:
         return buf[:0]
 
-    user_t1 = user_pok[_POK_TYPE1]
-    user_t2 = user_pok[_POK_TYPE2]
     for idx in alive:
         if idx == opp_active:
             continue
         pok = ai_party[(POK_LEN * idx):(POK_LEN * (idx + 1))]
-        p_t1, p_t2 = gravity_types(last_move_type, pok[_POK_TYPE1], pok[_POK_TYPE2], gravity)
-        ef, de = get_type_effectiveness(last_move_type, p_t1, p_t2)
+        ef, de = party_effectiveness(last_move_type, user_pok, pok, gravity)
         if 0 < ef/de < 1:
             moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
             for mv in moves:
-                mv_type = normalized_type(pok, mv)
-                t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
-                eff, den = get_type_effectiveness(mv_type, t1, t2)
-                if eff // den >= 2:
+                if party_super_effective(
+                    normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+                ):
                     buf[n] = idx
                     n += 1
                     break

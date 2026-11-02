@@ -205,7 +205,9 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
     """
     physical = move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL
     atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
-    def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
+    def_is_simple = (
+        defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE and ignorable_ability(defender, attacker)
+    )
     if physical:
         raw_attack = item_attack(attacker, attacker[_POK_ATTACK])
         raw_defense = defender[_POK_DEFENSE]
@@ -474,7 +476,6 @@ def multipliers(
 
     damage = filter_damage(attacker, defender, effectiveness, effectiveness2, damage)
 
-    # TODO: Expert belt
     damage = expert_belt(attacker, effectiveness, effectiveness2, damage)
 
     # Tinted Lens
@@ -626,10 +627,10 @@ def calculate_damage_confusion(pok):
     """Calculate the damage for Confusion self hit"""
     is_simple = pok[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
 
-    attack = apply_stat_stage(item_attack(pok, pok[_POK_ATTACK]), pok[_POK_ATTACK_STAT_STAGE], is_simple)
-    defense = apply_stat_stage(pok[_POK_DEFENSE], pok[_POK_DEFENSE_STAT_STAGE], is_simple)
+    attack = item_attack(pok, pok[_POK_ATTACK])
 
-    # Abilities affecting stat(equal logic to ab_mod_stat but without move)
+    # Abilities affecting stat(equal logic to ab_mod_stat but without move), on the raw stat
+    # before the stage like ab_modify_stat
     pok_ab = pok[_POK_AB_ID]
     if pok_ab == _ABILITYNAMES_GUTS and pok[_POK_STATUS] != 0:
         attack = (attack*3)//2
@@ -639,6 +640,9 @@ def calculate_damage_confusion(pok):
         attack //= 2
     elif pok_ab == _ABILITYNAMES_HUSTLE:
         attack = (attack*3)//2
+
+    attack = apply_stat_stage(attack, pok[_POK_ATTACK_STAT_STAGE], is_simple)
+    defense = apply_stat_stage(pok[_POK_DEFENSE], pok[_POK_DEFENSE_STAT_STAGE], is_simple)
 
     # Confusion counts as a 40 power Normal move: Silk Scarf and Light Ball boost it, Muscle Band doesn't
     power = 40
@@ -652,15 +656,14 @@ def calculate_damage_confusion(pok):
 
     # Base damage formula
     damage = attack * power * (pok[_POK_LEVEL] * 2 // 5 + 2) // defense // 50
-    if pok[_POK_STATUS] == _STATUS_BURN:
+    if pok[_POK_STATUS] == _STATUS_BURN and pok_ab != _ABILITYNAMES_GUTS:
         damage //= 2
     # Adding 2 after the above
     damage += 2
     # Random Multiplier
     damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
     #TODO: Helping Hand
-    #TODO: Silk Scarf
-    #TODO: Choice Band, Thick Club
+    #TODO: Choice Band
     #TODO: Power Trick, Power Split, Guard Split
 
     return damage

@@ -7,13 +7,13 @@ from Engine.engine_helper import (
     move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     flinch_checker, thaw, early_returns, switch_in, SIDE_OR_FIELD_TARGETS,
     on_hit_abilities, heal_weather, on_residual, trainer_ai_items, drain,
-    item_on_rdmg, eat_berry_bug_bite, struggle, switch_items,
+    item_on_rdmg, eat_berry_bug_bite, struggle_damage, switch_items,
     RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
     try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
     damp_blocks, status_item, pressure_pp, truant_loafs, metronome_count, metronome_fail,
-    power_herb, sticky_hold, big_root,
+    power_herb, sticky_hold, big_root, recover_status_by_ability, counter_fails,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -343,7 +343,8 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
     """Figure out how much damage this hit does, independent of applying it, and whether it
     was a critical hit. def_side is the defender's Field.SIDE_COND"""
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
-        return struggle(attacker, defender, False, def_side), False
+        crit = calculate_crit(attacker, defender, None, def_side)
+        return struggle_damage(attacker, defender, crit, def_side, weather), crit
     # OHKO moves take the target's current HP (pokeplatinum BtlCmd_TryOHKOMove)
     if move[_MOVE_OH_KO]:
         return defender[_POK_CURRENT_HP], False
@@ -683,8 +684,11 @@ def _execute_move_slot(
     atk[_POK_LAST_MOVE_ID] = outer_id
     if mv[_MOVE_ID] not in STALL_MOVES:
         atk[_POK_PROTECT_COUNT] = 0
-    # The Metronome item counts the selected move on turns it isn't locked into
-    counted = atk[_POK_LOCKED_MOVE] == -1
+    # The Metronome item counts the selected move on turns it isn't locked into. A move aimed at a
+    # foe that already fainted leaves the count as it was (pokeplatinum HasNoTarget runs first)
+    counted = atk[_POK_LOCKED_MOVE] == -1 and not (
+        defn[_POK_CURRENT_HP] <= 0 and mv[_MOVE_TARGET] not in NO_FOE_TARGETS
+    )
     if counted:
         metronome_count(atk, outer_id)
 
@@ -748,6 +752,10 @@ def _execute_move_slot(
         return False
     if mv[_MOVE_ID] in STALL_MOVES:
         try_protect(atk, mv[_MOVE_ID], is_last)
+        return False
+    if counter_fails(atk, mv, slot_num):
+        if counted:
+            metronome_fail(atk, outer_id)
         return False
     # Gen IV Feint fails unless the target is protecting, then it lifts the protection
     if mv[_MOVE_ID] == _MOVENAME_FEINT:
@@ -991,14 +999,19 @@ def action(current_move, opp_move, battle_array):
 def _after_move_items(battle_array):
     """
     Status items of both actives after a move, whoever was hit or switched in by it
-    (pokeplatinum AFTER_MOVE_EFFECT_ATTACKER_ITEM / DEFENDER_ITEM / HELD_ITEM_STATUS)
+    (pokeplatinum AFTER_MOVE_EFFECT_ATTACKER_ITEM / DEFENDER_ITEM / HELD_ITEM_STATUS), then a
+    status their ability forbids is cured (BattleControllerPlayer_MoveEnd)
     """
-    status_item(battle_array[
+    mine = battle_array[
         (battle_array[_FIELD_MY_POK] * POK_LEN):((battle_array[_FIELD_MY_POK]+1) * POK_LEN)
-    ])
-    status_item(battle_array[
+    ]
+    opp = battle_array[
         ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
-    ])
+    ]
+    status_item(mine)
+    status_item(opp)
+    recover_status_by_ability(mine)
+    recover_status_by_ability(opp)
 
 
 @njit
@@ -1159,8 +1172,8 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     """
     """
     Gen IV order (pokeplatinum CheckMonConditions, Showdown gen4 residual suborders):
-    Ingrain, Aqua Ring, Speed Boost, Leech Seed, Psn/Tox, Burn, Curse, Bind, Uproar, Disable,
-    Encore, Taunt, Yawn, status items, Flame Orb
+    Ingrain, Aqua Ring, Speed Boost, Leftovers / Black Sludge, Leech Seed, Psn/Tox, Burn, Curse,
+    Bind, Bad Dreams, Uproar, Disable, Encore, Taunt, Yawn, status items, Flame Orb
     """
     if pok[_POK_CURRENT_HP] <= 0:
         return
@@ -1226,10 +1239,10 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
             if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                 return
 
-    # 6. Curse
+    # 6. Curse, at least 1 (pokeplatinum subscript_curse_damage DivideVarByValue)
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_CURSE:
         if not is_magic_guard:
-            dmg = pok[_POK_MAX_HP] // 4
+            dmg = max(1, pok[_POK_MAX_HP] // 4)
             if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                 return
 
@@ -1368,7 +1381,6 @@ def end_of_turn(battle_array):
     ]
     weather = battle_array[_FIELD_WEATHER]
 
-    # TODO: Items
     _count_down_field(battle_array)
     weather = effective_weather(battle_array)
 

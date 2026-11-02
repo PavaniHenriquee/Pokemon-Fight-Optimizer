@@ -22,7 +22,7 @@ from Models.constants import (
     _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _POK_LAST_MOVE_ID, _VOLSTATUS_UPROAR, _MOVE_PP,
     _ABILITYNAMES_SOUNDPROOF, _MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE,
     _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT,
-    _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_TRI_ATTACK, _ABILITYNAMES_SERENE_GRACE,
+    _MOVENAME_TRI_ATTACK, _ABILITYNAMES_SERENE_GRACE,
     _ABILITYNAMES_SHIELD_DUST, _ABILITYNAMES_MAGMA_ARMOR, _ABILITYNAMES_LEAF_GUARD,
     _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _ABILITYNAMES_CLEAR_BODY,
     _ABILITYNAMES_WHITE_SMOKE, _ABILITYNAMES_HYPER_CUTTER,
@@ -152,12 +152,6 @@ def uproar_active(p1, p2):
 def sleep_blocked(pok, foe):
     """Nobody falls asleep during an uproar, except a Soundproof Pokemon"""
     return pok[_POK_AB_ID] != _ABILITYNAMES_SOUNDPROOF and uproar_active(pok, foe)
-
-
-@njit
-def sleep_ability(pok, source):
-    """Insomnia and Vital Spirit keep the Pokemon awake, a Mold Breaker source's move ignores them"""
-    return pok[_POK_AB_ID] in SLEEP_AB_IM and source[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER
 
 
 @njit
@@ -357,11 +351,12 @@ def vol_status(move, pok, source, sec=False, side=0, weather=0):
             reveal_ability(pok)
         infatuate(pok, source)
 
-    # Fails on a target that already has a status or is already drowsy. pokeplatinum subscript_yawn
-    # checks the ability first and its message names it
+    # Fails on a target that already has a status or is already drowsy, and during an uproar unless
+    # the target is Soundproof. pokeplatinum subscript_yawn checks the ability first and its message
+    # names it
     if v_status & _VOLSTATUS_YAWN and ability_blocks_status(pok, source, _STATUS_SLEEP, weather):
         reveal_ability(pok)
-    elif v_status & _VOLSTATUS_YAWN and not safeguard:
+    elif v_status & _VOLSTATUS_YAWN and not safeguard and not sleep_blocked(pok, source):
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN and pok[_POK_STATUS] == 0:
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_YAWN
             pok[_POK_YAWN_TURNS] = YAWN_DURATION

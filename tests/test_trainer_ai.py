@@ -1385,8 +1385,74 @@ def test_party_checks_see_gravity(poke, gravity):
     steel = poke("Skarmory", 20, "Keen Eye", ["Peck"])
     immune = list(ai.check_immunity_pty(party, steel, Types.GROUND, 0, gravity))
     assert immune == ([] if gravity else [1])
-    aerodactyl = poke("Aerodactyl", 40, "Rock Head", ["Bite"])
-    assert (2 in ai.check_super_ef_move_pty(party, aerodactyl, 0, gravity)) == gravity
+    moltres = poke("Moltres", 40, "Pressure", ["Ember"])
+    assert (2 in ai.check_super_ef_move_pty(party, moltres, 0, gravity)) == gravity
+
+
+@pytest.mark.parametrize("move_type, target, weak", [
+    (Types.ELECTRIC, "Gligar", True),
+    (Types.GROUND, "Aerodactyl", True),
+    (Types.GROUND, "Skarmory", True),
+    (Types.GHOST, "Girafarig", True),
+    (Types.GROUND, "Moltres", False),     # Fire's weakness row comes before Flying's immunity
+    (Types.ELECTRIC, "Quagsire", False),  # Water's row comes before Ground's
+])
+def test_party_check_dual_non_immunity_glitch(poke, move_type, target, weak):
+    """Pokemow switching page: an immunity earlier in the type table keeps the weakness flag that a
+    later row sets, so the AI's party scans see these as super effective; the immunity stays"""
+    attacker = poke("Machop", 20, "Guts", ["Karate Chop"])
+    defender = poke(target, 20, "Keen Eye", ["Tackle"])
+    assert ai.party_super_effective(move_type, attacker, defender) == weak
+    assert ai.party_effectiveness(move_type, attacker, defender)[0] == 0 or not weak
+
+
+@pytest.mark.parametrize("attacker_ab, gravity, immune", [
+    ("Sturdy", False, True), ("Mold Breaker", False, False), ("Sturdy", True, False),
+])
+def test_party_checks_see_levitate(poke, attacker_ab, gravity, immune):
+    """pokeplatinum BattleSystem_CalcEffectiveness: a Levitate bench member is immune to the Ground
+    move that hit the active, unless the attacker has Mold Breaker or Gravity is up"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Karate Chop"])
+    party[POK_LEN:2 * POK_LEN] = poke("Gastly", 20, "Levitate", ["Lick"])
+    user = poke("Drifloon", 20, attacker_ab, ["Gust"])
+    assert (list(ai.check_immunity_pty(party, user, Types.GROUND, 0, gravity)) == [1]) == immune
+
+
+@pytest.mark.parametrize("ability, hits_ghost", [("Guts", False), ("Scrappy", True)])
+def test_party_effectiveness_sees_scrappy(poke, ability, hits_ghost):
+    """Scrappy's Fighting move hits a Ghost (pokeplatinum BattleSystem_CalcEffectiveness)"""
+    attacker = poke("Machop", 20, ability, ["Karate Chop"])
+    gastly = poke("Gastly", 20, "Levitate", ["Lick"])
+    eff, _ = ai.party_effectiveness(Types.FIGHTING, attacker, gastly)
+    assert (eff != 0) == hits_ghost
+
+
+@pytest.mark.parametrize("attacker_ab, move_type, damaging_turn, blocked", [
+    ("Guts", Types.WATER, True, True),
+    ("Guts", Types.FIRE, True, False),
+    ("Mold Breaker", Types.WATER, True, False),
+    ("Guts", Types.WATER, False, False),
+])
+def test_party_effectiveness_sees_wonder_guard(poke, attacker_ab, move_type, damaging_turn, blocked):
+    """Wonder Guard takes every move that isn't super effective, unless the attacker has Mold
+    Breaker or the move isn't on its damaging turn (a charge move, Fire Fang)"""
+    attacker = poke("Machop", 20, attacker_ab, ["Karate Chop"])
+    shedinja = poke("Shedinja", 20, "Wonder Guard", ["Scratch"])
+    eff, _ = ai.party_effectiveness(move_type, attacker, shedinja, False, damaging_turn)
+    assert (eff == 0) == blocked
+
+
+def test_sub_after_death_stage_two_skips_power_one_moves(poke):
+    """pokeplatinum BattleAI_PostKOSwitchIn stage 2 skips data power 1 moves (Low Kick, Hidden
+    Power, fixed damage) but scores a status move's power 0 chip"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Low Kick", "Seismic Toss"])
+    party[POK_LEN:2 * POK_LEN] = poke("Rattata", 20, "Run Away", ["Growl"])
+    dead = poke("Machop", 20, "Guts", ["Karate Chop"])
+    dead[Pok.CURRENT_HP] = 0
+    user = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    assert sub_after_death(party, user, dead) == 1
 
 
 
@@ -1411,10 +1477,13 @@ def test_basic_explosion(kwargs, expected):
     (40, 0, True, (0, [(1, 128)])),
     (30, 0, True, (0, [(1, 128), (1, 206)])),
     (100, 1, True, (-1, [(-3, 206)])),
+    (100, 2, True, (-1, [(-3, 206)])),
+    (100, 3, True, (-1, [(-1, 128), (-3, 206)])),
     (100, 4, True, (-1, [(-1, 128), (-3, 206)])),
 ])
 def test_expert_explosion(poke, hp_pct, evasion, faster, expected):
-    """pokeplatinum Expert_Explosion: evasion, then the user's HP and speed"""
+    """Pokemow Expert Selfdestruction: evasion (the second -1 from +3), then the user's HP and
+    speed"""
     ai_pok = poke("Geodude", 20, "Sturdy", ["Selfdestruct"])
     user = poke("Rattata", 20, "Run Away", ["Tackle"])
     ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * hp_pct // 100
@@ -1618,3 +1687,15 @@ def test_party_checks_see_normalize(poke, ability, has_se):
     party[POK_LEN:2 * POK_LEN] = poke("Skitty", 20, ability, ["Ember"])
     grass = poke("Bulbasaur", 20, "Overgrow", ["Tackle"])
     assert (1 in ai.check_super_ef_move_pty(party, grass, 0)) == has_se
+
+
+def test_ineffective_moves_withdraw_scans_count_only_damaging_moves(poke):
+    """Pokemow: the ineffective-moves withdraw only counts a bench member's damaging moves, the
+    Wonder Guard one counts any move (Taunt can trigger it)"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Karate Chop"])
+    party[POK_LEN:2 * POK_LEN] = poke("Murkrow", 20, "Insomnia", ["Taunt", "Growl"])
+    psychic = poke("Abra", 20, "Synchronize", ["Teleport"])
+    assert list(ai.check_super_ef_move_pty(party, psychic, 0)) == [1]
+    assert list(ai.check_super_ef_move_pty(party, psychic, 0, False, True)) == []
+    assert list(ai.check_any_damaging_move_pty(party, psychic, 0)) == []

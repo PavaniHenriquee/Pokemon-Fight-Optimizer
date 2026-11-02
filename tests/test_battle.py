@@ -3,6 +3,7 @@ whole battles that checks state invariants after every decision"""
 import pytest
 from Engine import battle
 from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
+from Engine.status_calc import vol_status
 from Models.idx_const import (
     Pok, Move, Field, POK_LEN, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS,
     SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, FIELD_LEN,
@@ -2498,3 +2499,69 @@ def test_normalize_tells_the_ai_a_normal_hit(monkeypatch, make_pokemon, make_bat
     turn_sim(0, (MOVE, 0), arr)
     assert opp_active(arr)[Pok.CURRENT_HP] < opp_active(arr)[Pok.MAX_HP]
     assert arr[Field.AI_TOOK_DMG_LAST_TURN] == Types.NORMAL
+
+
+def test_struggle_crit_reaches_anger_point(monkeypatch, poke):
+    """Struggle's crit comes out of the damage roll like any move's, so Anger Point sees it"""
+    monkeypatch.setattr(battle, "calculate_crit", lambda *a: True)
+    a = poke("Rattata", 5, "Run Away", ["Tackle"])
+    d = poke("Mankey", 50, "Anger Point", ["Scratch"])
+    battle._ps_moves_core(a, d, STRUGGLE.copy(), 0)  # pylint: disable=protected-access
+    assert d[Pok.CURRENT_HP] > 0 and d[Pok.ATTACK_STAT_STAGE] == 6
+
+
+def test_curse_takes_at_least_one(make_pokemon, make_battle):
+    """Curse's quarter is at least 1 HP (pokeplatinum subscript_curse_damage, DivideVarByValue)"""
+    arr = make_battle([make_pokemon("Rattata", 5, "Run Away", ["Tackle"])],
+                      [make_pokemon("Rattata", 5, "Run Away", ["Tackle"])])
+    me = my_active(arr)
+    me[Pok.MAX_HP] = me[Pok.CURRENT_HP] = 3
+    me[Pok.VOL_STATUS] |= VolStatus.CURSE
+    end_of_turn(arr)
+    assert me[Pok.CURRENT_HP] == 2
+
+
+@pytest.mark.parametrize("ability, drowsy", [("Run Away", False), ("Soundproof", True)])
+def test_yawn_fails_during_an_uproar(poke, ability, drowsy):
+    """pokeplatinum subscript_yawn: an uproar makes Yawn fail, unless the target is Soundproof"""
+    user = poke("Rattata", 20, "Run Away", ["Yawn"])
+    target = poke("Rattata", 20, ability, ["Uproar"])
+    target[Pok.VOL_STATUS] |= VolStatus.UPROAR
+    vol_status(move_slice(user, 0), target, user)
+    assert bool(target[Pok.VOL_STATUS] & VolStatus.YAWN) == drowsy
+
+
+def test_ability_cures_a_forbidden_status_after_a_move(make_pokemon, make_battle):
+    """pokeplatinum BattleControllerPlayer_MoveEnd runs RecoverStatusByAbility for the attacker and
+    the defender after every move: a paralyzed Limber holder is cured"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle"], ["Growl"])
+    me = my_active(arr)
+    me[Pok.AB_ID] = AbilityNames.LIMBER
+    me[Pok.STATUS] = Status.PARALYSIS
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.STATUS] == 0
+
+
+def test_failed_counter_spends_pp_and_counts_as_used(make_pokemon, make_battle):
+    """Counter moving first fails after its PP is spent, and it's still the last move used"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Counter"], ["Growl"])
+    me = my_active(arr)
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+    assert me[Pok.LAST_MOVE_ID] == MoveName.COUNTER
+
+
+def test_metronome_item_keeps_the_count_with_no_foe(monkeypatch, make_pokemon, make_battle):
+    """The foe fainted to its own Selfdestruct before my Growl: the stored move and count stay
+    (pokeplatinum HasNoTarget runs before UpdateMetronomeCount)"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.MISS)
+    arr = make_battle(
+        [make_pokemon("Rattata", 5, "Run Away", ["Tackle", "Growl"], item="Metronome")],
+        [make_pokemon("Koffing", 50, "Levitate", ["Selfdestruct"])],
+    )
+    me = my_active(arr)
+    me[Pok.METRONOME_COUNT] = (MoveName.TACKLE << 4) + 2
+    turn_sim(0, (MOVE, 1), arr)
+    assert opp_active(arr)[Pok.CURRENT_HP] == 0
+    assert me[Pok.METRONOME_COUNT] == (MoveName.TACKLE << 4) + 2

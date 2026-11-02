@@ -1111,3 +1111,57 @@ def test_normalize_type_boosts(poke):
     shock[Pok.VOL_STATUS] |= VolStatus.CHARGE | VolStatus.MUD_SPORT
     assert charge_power(shock, move_slice(shock, 0), power) == power
     assert sport_power(shock, d, move_slice(shock, 0), power) == power
+
+
+def test_confusion_self_hit_guts_ignores_burn(poke):
+    """Guts skips the burn halving in the confusion hit too, so a burned Guts holder hits itself
+    as hard as a poisoned one (pokeplatinum CalcMoveDamage)"""
+    burned = poke("Machop", 50, "Guts", ["Karate Chop"])
+    poisoned = poke("Machop", 50, "Guts", ["Karate Chop"])
+    burned[Pok.STATUS] = Status.BURN
+    poisoned[Pok.STATUS] = Status.POISON
+    random.seed(4)
+    hit = calculate_damage_confusion(burned)
+    random.seed(4)
+    assert hit == calculate_damage_confusion(poisoned)
+
+
+def test_confusion_self_hit_ability_before_the_stage(poke):
+    """Hustle boosts the raw Attack before the stage, like the move damage: 100 Attack at -1 is
+    100 * 3 // 2 * 2 // 3 = 100, the same as a plain 150 Attack at -1"""
+    hustle = poke("Rattata", 50, "Hustle", ["Tackle"])
+    plain = poke("Rattata", 50, "Run Away", ["Tackle"])
+    hustle[Pok.ATTACK], plain[Pok.ATTACK] = 100, 150
+    hustle[Pok.ATTACK_STAT_STAGE] = plain[Pok.ATTACK_STAT_STAGE] = -1
+    random.seed(6)
+    hit = calculate_damage_confusion(hustle)
+    random.seed(6)
+    assert hit == calculate_damage_confusion(plain)
+
+
+@pytest.mark.parametrize("attacker_ab, doubled", [("Run Away", True), ("Mold Breaker", False)])
+def test_defending_simple_respects_mold_breaker(poke, attacker_ab, doubled):
+    """A defending Simple doubles its Defense stages unless the attacker has Mold Breaker
+    (pokeplatinum Battler_IgnorableAbility)"""
+    a = poke("Rattata", 50, attacker_ab, ["Tackle"])
+    simple = poke("Bidoof", 50, "Simple", ["Tackle"])
+    plain = poke("Bidoof", 50, "Run Away", ["Tackle"])
+    simple[Pok.DEFENSE_STAT_STAGE] = plain[Pok.DEFENSE_STAT_STAGE] = 1
+    mv = move_slice(a, 0)
+    same = calculate_damage(a, simple, mv, 0, False, 100) == calculate_damage(a, plain, mv, 0, False, 100)
+    assert same != doubled
+    random.seed(2)
+    s_hit = struggle(a, simple, False)
+    random.seed(2)
+    assert (s_hit == struggle(a, plain, False)) != doubled
+
+
+def test_struggle_flower_gift_in_sun(poke):
+    """Flower Gift's Attack boost in sun reaches Struggle (pokeplatinum runs it through
+    CalcMoveDamage)"""
+    a = poke("Cherrim", 50, "Flower Gift", ["Tackle"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    random.seed(8)
+    base = struggle(a, d, False, 0, 0)
+    random.seed(8)
+    assert ratio(struggle(a, d, False, 0, Weather.SUN), base) == pytest.approx(1.5, abs=0.1)

@@ -8,12 +8,14 @@ from Models.idx_const import(
 )
 from Models.constants import (
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _POK_CURRENT_HP, _POK_MAX_HP,
-    _POK_SPEED, _ACTIONTYPE_MOVE, _MOVECATEGORY_STATUS, _MOVE_CATEGORY,
+    _ACTIONTYPE_MOVE, _MOVECATEGORY_STATUS, _MOVE_CATEGORY,
     _POK_TYPE1, _POK_TYPE2, _MOVE_POWER, _SEC_CHANCE, _FIELD_TURN, _FIELD_PHASE,
     _BATTLEPHASE_TURN_START, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _MOVE_ID,
     _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_TOXIC_SPIKES, _FIELD_GRAVITY_TURNS,
-    _MOVENAME_GRAVITY, _MOVE_OH_KO, _TYPES_GROUND
+    _MOVENAME_GRAVITY, _MOVE_OH_KO, _TYPES_GROUND, _MOVE_STATUS, _MOVE_VOL_STATUS,
+    _MOVE_BOOST_ACC, _POK_ACCURACY_STAT_STAGE
 )
+from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
 from Models.trainer_ai_helper import check_immunity_pty, check_resistance_pty
 from Models.trainer_ai import return_idx
@@ -22,6 +24,8 @@ from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import calculate_crit, struggle, ohko_fails, ability_immune
 from Engine.ability_helper import levitates, effective_weather, normalized_type
 from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
+from Engine.status_calc import ability_blocks_status, stat_drop_blocked, STAT_MAPPING
+from Engine.speed import check_speed
 
 
 @njit
@@ -125,6 +129,36 @@ def field_move_fails(move, battle_array):
     return move_weather != 0 and move_weather == battle_array[_FIELD_WEATHER]
 
 
+@njit
+def status_move_blocked(move, me, foe, weather):
+    """A status move aimed at the foe that its ability makes useless: the status it gives is one
+    ability_blocks_status keeps off, or every stat drop it causes is one stat_drop_blocked stops"""
+    if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
+        return False
+    status = move[_MOVE_STATUS]
+    if status:
+        return ability_blocks_status(foe, me, status, weather)
+    if move[_MOVE_VOL_STATUS]:
+        return False
+    drops = 0
+    for move_idx, stat_idx in STAT_MAPPING:
+        boost = move[move_idx]
+        if boost > 0:
+            return False
+        if boost < 0:
+            if not stat_drop_blocked(foe, me, stat_idx):
+                return False
+            drops += 1
+    acc = move[_MOVE_BOOST_ACC]
+    if acc > 0:
+        return False
+    if acc < 0:
+        if not stat_drop_blocked(foe, me, _POK_ACCURACY_STAT_STAGE):
+            return False
+        drops += 1
+    return drops > 0
+
+
 IMNTY = np.full(6,-1, dtype=np.int16)
 RES   = np.full(6,-1, dtype=np.int16)
 
@@ -157,19 +191,24 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
 
     if opp_choice != 10 and opp_choice>=0:  # Struggle
         o_move = o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE]
-        o_dmg = calculate_damage(
-            o_pok, c_pok, o_move, weather, calculate_crit(o_pok, c_pok, o_move, my_side), None,
-            my_side, gravity
-        )
+        if o_move[_MOVE_OH_KO]:
+            # Counted as a KO whenever it can work, so the safer path stays in mind
+            o_dmg = 0 if ohko_fails(o_pok, c_pok) else c_pok[_POK_CURRENT_HP]
+        else:
+            o_dmg = calculate_damage(
+                o_pok, c_pok, o_move, weather, calculate_crit(o_pok, c_pok, o_move, my_side), None,
+                my_side, gravity
+            )
         o_mv_type = normalized_type(o_pok, o_move)
         imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx, gravity)
         res   = check_resistance_pty(my_pty, o_pok, o_mv_type, my_idx, gravity)
     elif opp_choice < 0:  # Switch or potion
         o_dmg = 0
     else:
-        o_dmg = struggle(o_pok, c_pok, False, my_side)
+        o_dmg = struggle(o_pok, c_pok, False, my_side, weather)
     opp_hp_ratio = o_pok[_POK_CURRENT_HP] * 4 // o_pok[_POK_MAX_HP]
-    faster = c_pok[_POK_SPEED] > o_pok[_POK_SPEED]
+    my_speed, opp_speed = check_speed(c_pok, o_pok, weather)
+    faster = my_speed > opp_speed
     can_survive = o_dmg < c_pok[_POK_CURRENT_HP]
     act_types = np.empty(10, dtype=np.int16)
     act_idxs  = np.empty(10, dtype=np.int16)
@@ -190,15 +229,19 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
 
             if cat == _MOVECATEGORY_STATUS:
                 # Status moves: give a small base weight so they're not excluded,
-                # unless it's a side or weather move that would fail
-                weight = 0 if field_move_fails(move, battle_array) else 1
+                # unless it's a side or weather move that would fail or the foe's ability stops it
+                weight = 0 if (
+                    field_move_fails(move, battle_array)
+                    or status_move_blocked(move, c_pok, o_pok, weather)
+                ) else 1
 
             else:
-                # Cheap type effectiveness first — no damage calc
+                # Cheap type effectiveness first — no damage calc. eff_ratio is in quarters:
+                # 0 immune, 1 = 0.25x, 2 = 0.5x, 4 neutral, 8 = 2x, 16 = 4x
                 move_type = normalized_type(c_pok, move)
                 o_t1, o_t2 = gravity_types(move_type, o_pok[_POK_TYPE1], o_pok[_POK_TYPE2], gravity)
                 eff, den = get_type_effectiveness(move_type, o_t1, o_t2)
-                eff_ratio = eff // den
+                eff_ratio = eff * 4 // den
 
                 if (
                     eff_ratio == 0
@@ -219,10 +262,10 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
 
                     # Only do full damage calc if it looks like a KO candidate
                     likely_strong = (
-                        eff_ratio >= 2                          # super effective
+                        eff_ratio >= 8                          # super effective
                         or (stab and move[_MOVE_POWER] >= 60)   # strong STAB
-                        or (opp_hp_ratio == 0 and eff_ratio >= 1 and opp_choice > 0)  # <25% HP, non-resisted
-                        or (opp_hp_ratio == 1 and eff_ratio >= 1 and stab)  # <50% HP, STAB neutral
+                        or (opp_hp_ratio == 0 and eff_ratio >= 4 and opp_choice >= 0)  # <25% HP, non-resisted
+                        or (opp_hp_ratio == 1 and eff_ratio >= 4 and stab)  # <50% HP, STAB neutral
                     )
 
                     if likely_strong:
@@ -231,15 +274,15 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                         )
                         if dmg >= o_pok[_POK_CURRENT_HP] and (faster or can_survive):
                             weight = 100  # KO when safe to do so
-                        elif eff_ratio == 4:
+                        elif eff_ratio == 16:
                             weight = 30
-                        elif eff_ratio == 2:
+                        elif eff_ratio == 8:
                             weight = 15
                         elif stab:
                             weight = 4
                     else:
                         # Resisted or neutral, no calc — rough signal only
-                        if eff_ratio == 1:
+                        if eff_ratio == 4:
                             weight = 2 if stab else 1
                         else:  # 0.5x
                             weight = 1

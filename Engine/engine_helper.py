@@ -53,7 +53,7 @@ from Models.constants import (
     _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_WILL_CRIT,
     _ABILITYNAMES_SIMPLE, _POK_LEVEL, _POK_ATTACK, _POK_DEFENSE, _STATUS_BURN,
     _MOVEOUTCOME_SEMI_INVULNERABLE, _VOLSTATUS_SEMI_INVULNERABLE, _VOLSTATUS_HURT_THIS_TURN,
-    _POK_CONSEC_COUNT, _ABILITYNAMES_GUTS, _MOVE_RECOIL,
+    _POK_CONSEC_COUNT, _ABILITYNAMES_GUTS, _MOVE_RECOIL, _ABILITYNAMES_FLOWER_GIFT,
     _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _POK_CONSUMED_ITEM, _MOVE_POWER,
     _MOVEOUTCOME_PROTECTED, _VOLSTATUS_PROTECT, _VOLSTATUS_ENDURE, _VOLSTATUS_FORESIGHT,
     _VOLSTATUS_DESTINY_BOND, _VOLSTATUS_ATTRACT, _FLAGS_PROTECT, _POK_PROTECT_COUNT,
@@ -705,7 +705,7 @@ def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False):
     if defender[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_ACC_REDUCE:
         accuracy = accuracy * (100 - defender[_ITEM_EFFECT_PARAM]) // 100
 
-    if gravity and not move[_MOVE_OH_KO]:
+    if gravity:
         return accuracy * GRAVITY_ACC_NUM / GRAVITY_ACC_DEN
     return accuracy * 1.0
 
@@ -1123,8 +1123,8 @@ def recover_status_by_ability(pok):
     """
     Cures a status, confusion or Attract that pok's current ability forbids, reachable through
     Trace or a Mold Breaker foe (pokeplatinum BattleSystem_RecoverStatusByAbility, run for every
-    active on switch-in). Unburden there marks a holder that still has its item: losing it later
-    doubles its speed
+    active on switch-in and after every move). Unburden there marks a holder that still has its
+    item: losing it later doubles its speed
     """
     if pok[_POK_CURRENT_HP] <= 0:
         return
@@ -1231,7 +1231,7 @@ def confusion(pok):
 
 @njit
 def _contact_damage(pok, dmg):
-    """Rough Skin / Aftermath damage to the attacker, its berry can still trigger"""
+    """Rough Skin / Aftermath / Liquid Ooze damage to the attacker, its berry can still trigger"""
     mark_hurt(pok)
     if dmg < pok[_POK_CURRENT_HP]:
         pok[_POK_CURRENT_HP] -= dmg
@@ -1427,14 +1427,20 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
         attacker[_POK_CHARGE_RECHARGE] -= 1
         if attacker[_POK_CHARGE_RECHARGE] > 0:
             return True
+    return False
 
-    # Counter and Mirror Coat
-    if (
+
+@njit
+def counter_fails(attacker, move, idx):
+    """
+    Counter and Mirror Coat fail when the user moved first or took no damage this turn. Checked
+    after the PP is spent, like a move that fails (pokeplatinum BEFORE_MOVE_STATE_DECREMENT_PP
+    runs before the move's script)
+    """
+    return (
         (move[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER or move[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT)
         and (idx == 1 or attacker[_POK_DMG_TAKEN] == 0)
-    ):
-        return True
-    return False
+    )
 
 
 # ── Battle start & end-of-turn residuals ───────────────────────────────────────
@@ -1442,7 +1448,6 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
 def start_of_battle(array):
     """Select the two first pokemon of each team and does ability effects on switch in
     for each following their speed"""
-    # TODO: Switch in abilities like Intimidate, Drought etc.
     # Order of entry is in account for things like Drought against Drizzle
     current_pokemon = array[
             (array[_FIELD_MY_POK] * POK_LEN):((array[_FIELD_MY_POK]+1) * POK_LEN)
@@ -1587,6 +1592,8 @@ def drain(pok, defender, move, dmg):
     Drain calculation and application. A Liquid Ooze target hurts the drainer by the same amount
     instead, a Magic Guard drainer gets nothing (pokeplatinum subscript_drain_half_damage_dealt)
     """
+    if pok[_POK_CURRENT_HP] <= 0:
+        return
     drain_pct = move[_MOVE_DRAIN]
     heal = (dmg*drain_pct)//4
     if heal == 0:
@@ -1600,18 +1607,29 @@ def drain(pok, defender, move, dmg):
 
 
 @njit
-def struggle(attacker, defender, rec=True, def_side=0):
+def struggle(attacker, defender, rec=True, def_side=0, weather=0):
     """
     Struggle damage to the defender, plus recoil to the attacker. rec=False skips
     the recoil application — used by rollout heuristics that only want a damage
     estimate without mutating the attacker's HP. def_side is the defender's Field.SIDE_COND
     """
+    crit = calculate_crit(attacker, defender, None, def_side)
+    damage = struggle_damage(attacker, defender, crit, def_side, weather)
+    if rec:
+        apply_recoil(attacker, struggle_recoil(attacker))
+    return damage
+
+
+@njit
+def struggle_damage(attacker, defender, crit, def_side=0, weather=0):
+    """Struggle's damage with the crit already rolled, so the battle can pass it to Anger Point"""
     atk_is_simple = attacker[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
-    def_is_simple = defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE
+    def_is_simple = (
+        defender[_POK_AB_ID] == _ABILITYNAMES_SIMPLE and ignorable_ability(defender, attacker)
+    )
     atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
     def_stage = defender[_POK_DEFENSE_STAT_STAGE]
     level = attacker[_POK_LEVEL]
-    crit = calculate_crit(attacker, defender, None, def_side)
 
     atk_stage, def_stage = unaware_stages(attacker, defender, atk_stage, def_stage)
     if crit:
@@ -1629,9 +1647,11 @@ def struggle(attacker, defender, rec=True, def_side=0):
         raw_attack //= 2
     elif atk_ab == _ABILITYNAMES_HUSTLE:
         raw_attack = (raw_attack * 3) // 2
+    elif atk_ab == _ABILITYNAMES_FLOWER_GIFT and weather == _WEATHER_SUN:
+        raw_attack = (raw_attack * 3) // 2
 
     attack = apply_stat_stage(raw_attack, atk_stage, atk_is_simple)
-    raw_defense = ab_modify_def(attacker, defender, defender[_POK_DEFENSE], True, 0)
+    raw_defense = ab_modify_def(attacker, defender, defender[_POK_DEFENSE], True, weather)
     defense = apply_stat_stage(raw_defense, def_stage, def_is_simple)
 
     # Base damage formula for Struggle with power 50. It's typeless, so no type item
@@ -1651,12 +1671,7 @@ def struggle(attacker, defender, rec=True, def_side=0):
     if crit:
         damage *= crit_multiplier(attacker)
 
-    damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
-
-    if rec:
-        apply_recoil(attacker, struggle_recoil(attacker))
-
-    return damage
+    return (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
 
 
 @njit

@@ -696,3 +696,49 @@ def test_rollout_sees_normalize(make_pokemon, make_battle, ability, picked):
     actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
     picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)}
     assert (0 in picks) == picked
+
+
+def test_rollout_keeps_resisted_moves(make_pokemon, make_battle):
+    """A resisted move gets the minimum weight, not the immune weight 0 (the ratio is in quarters,
+    so 0.5x no longer floors to 0)"""
+    me = make_pokemon("Charmander", 20, "Blaze", ["Ember", "Growl"])
+    foe = make_pokemon("Squirtle", 20, "Torrent", ["Tackle"])
+    arr = make_battle([me], [foe])
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
+    picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)}
+    assert picks == {0, 1}
+
+
+@pytest.mark.parametrize("move, foe_ab, attacker_ab, picked", [
+    ("Thunder Wave", "Run Away", "Static", True),
+    ("Thunder Wave", "Limber", "Static", False),
+    ("Thunder Wave", "Limber", "Mold Breaker", True),
+    ("Growl", "Clear Body", "Static", False),
+    ("Growl", "Hyper Cutter", "Static", False),
+    ("Tail Whip", "Hyper Cutter", "Static", True),
+])
+def test_rollout_skips_status_moves_an_ability_stops(make_pokemon, make_battle, move, foe_ab,
+                                                     attacker_ab, picked):
+    """A status move the foe's ability makes useless gets weight 0: the status is one it keeps off,
+    or every stat drop is one it stops"""
+    me = make_pokemon("Pikachu", 20, attacker_ab, [move, "Thunder Shock"])
+    foe = make_pokemon("Rattata", 20, foe_ab, ["Growl"])
+    arr = make_battle([me], [foe])
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
+    picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)}
+    assert (0 in picks) == picked
+
+
+def test_rollout_counts_a_working_ohko_as_a_ko(make_pokemon, make_battle):
+    """The opponent's OHKO move that can work counts as a KO, so a slower active switches out"""
+    me = make_pokemon("Geodude", 20, "Rock Head", ["Tackle"])
+    bench = make_pokemon("Rattata", 20, "Run Away", ["Tackle"])
+    foe = make_pokemon("Krabby", 20, "Hyper Cutter", ["Guillotine"])
+    arr = make_battle([me, bench], [foe])
+    my_active(arr)[Pok.CURRENT_HP] = 10
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.SWITCH, 1]], dtype=np.int16)
+    picks = {(int(t), int(i)) for t, i in (rollout_pref(arr, 0, actions) for _ in range(100))}
+    assert picks == {(ActionType.SWITCH, 1)}

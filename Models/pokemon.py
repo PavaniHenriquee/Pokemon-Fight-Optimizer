@@ -158,7 +158,7 @@ class Pokemon:
             0,   # Consecutive count (Rollout, Ice Ball, Fury Cutter)
             0,   # Last move id, 0 means none
             0,   # Consumed item, 0 means none
-            0,   # Base ability while Worry Seed changed it, 0 means unchanged
+            0,   # Base ability while Worry Seed or Trace changed it, 0 means unchanged
             0,   # Item knocked off
             0,   # Ability known to the foe's AI (a message named it)
             0,   # Move called by Metronome, Mirror Move, Copycat or Nature Power, 0 means none

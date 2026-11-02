@@ -1,7 +1,7 @@
 """Gives the class for the trainer Ai to be what the game would do"""
 import random
 import numpy as np
-from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage, gravity_types
+from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
 from Engine.engine_helper import move_blocked
 from Engine.ability_helper import effective_weather, normalized_type
 from Engine.status_calc import last_move_slot
@@ -28,7 +28,7 @@ from Models.constants import (
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_MY_SIDE_COND,
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
     _MOVENAME_COPYCAT, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_ARENA_TRAP, _ABILITYNAMES_MAGNET_PULL,
-    _TYPES_STEEL
+    _TYPES_STEEL, _MOVE_POWER, _MOVENAME_HIDDEN_POWER
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -41,7 +41,7 @@ from Models.trainer_ai_helper import (
     ABSORB_ABI,
     check_absorb_abi_pty,
     check_immunity_pty, check_resistance_pty,
-    ai_move_view, quick_claw_guess
+    ai_move_view, quick_claw_guess, party_super_effective, on_damaging_turn
 )
 from Models.helper import count_party
 
@@ -105,10 +105,9 @@ def sub_after_death(
         for mv in moves:
             if mv[_MOVE_TYPE] == 0:
                 break
-            mv_type = normalized_type(pok, mv)
-            t1, t2 = gravity_types(mv_type, user_t1, user_t2, gravity)
-            eff, den = get_type_effectiveness(mv_type, t1, t2)
-            if eff // den >= 2:
+            if party_super_effective(
+                normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+            ):
                 phase1_indices.append(idx)
                 break
 
@@ -149,7 +148,13 @@ def sub_after_death(
         for mv in moves:
             if mv[_MOVE_ID] == 0:
                 break
-            if mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
+            # pokeplatinum skips the moves with data power 1 (variable power, fixed damage, OHKO
+            # and Hidden Power), MoveDB keeps those at 0 but Hidden Power. Status moves still score
+            # their power 0 chip
+            if (
+                (mv[_MOVE_POWER] == 0 and mv[_MOVE_CATEGORY] != _MOVECATEGORY_STATUS)
+                or mv[_MOVE_ID] == _MOVENAME_HIDDEN_POWER
+            ):
                 continue
             raw_dmg = calculate_damage(deadmon, user_pok, mv, weather, False, 100, user_side, gravity)
             #overflow bug:
@@ -417,7 +422,6 @@ def choose_move(battle_array):
         _evaluated_moves[i] = [i, score, final_damage, is_damaging]
 
     # Withdraw 2 - The active Pokémon is facing a foe with Wonder Guard and cannot hit it supereffectively
-    cand = None
     if can_switch and ab == _ABILITYNAMES_WONDER_GUARD and not s_e:
         cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active, gravity)
         if cand.size > 0:
@@ -429,8 +433,8 @@ def choose_move(battle_array):
 
     # Withdraw 3 - More than 2 damaging moves and All of them do not affect the target
     if can_switch and not_status_counter>1 and not can_hit:
-        if cand is None:
-            cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active, gravity)
+        # Only damaging moves count here, unlike the Wonder Guard check (Pokemow)
+        cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active, gravity, True)
         if cand.size> 0:
             for i in cand:
                 if random.random() < 0.888:

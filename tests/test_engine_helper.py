@@ -13,7 +13,7 @@ from Engine.engine_helper import (
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
     is_grounded, ohko_fails, move_accuracy, on_hit_abilities, trace, download,
     recover_status_by_ability, pressure_pp, confusion, metronome_count, metronome_fail,
-    power_herb, sticky_hold,
+    power_herb, sticky_hold, counter_fails,
 )
 from Engine.damage_calc import METRONOME_MOVE_SHIFT
 from Engine.ability_helper import ignorable_ability
@@ -1025,6 +1025,14 @@ def test_drain_half_with_minimum_one(poke):
     assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP]
 
 
+def test_drain_never_heals_a_fainted_user(poke):
+    """A drainer at 0 HP stays fainted, whatever path reaches drain()"""
+    p = poke("Oddish", 50, "Chlorophyll", ["Absorb"])
+    p[Pok.CURRENT_HP] = 0
+    drain(p, poke("Rattata", 50, "Run Away", ["Tackle"]), move_slice(p, 0), 20)
+    assert p[Pok.CURRENT_HP] == 0
+
+
 def test_struggle_recoil(poke):
     """Struggle recoil is 1/4 max HP, rec=False leaves the user alone"""
     a = poke("Rattata", 50, "Run Away", ["Tackle"])
@@ -1192,10 +1200,11 @@ def test_counter_needs_damage_and_to_move_second(poke):
     a = poke("Machop", 50, "Guts", ["Counter"])
     d = poke("Rattata", 50, "Run Away", ["Tackle"])
     mv = move_slice(a, 0)
-    assert early_returns(a, d, 2, False, mv)
-    a[Pok.DMG_TAKEN] = 20
-    assert early_returns(a, d, 1, False, mv)
     assert not early_returns(a, d, 2, False, mv)
+    assert counter_fails(a, mv, 2)
+    a[Pok.DMG_TAKEN] = 20
+    assert counter_fails(a, mv, 1)
+    assert not counter_fails(a, mv, 2)
 
 
 def test_random_is_seeded_per_test():

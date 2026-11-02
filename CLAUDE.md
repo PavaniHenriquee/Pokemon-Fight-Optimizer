@@ -161,6 +161,21 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
     turns/HP change; `pytest`, `-m jit`, `-m slow`. Then list the TODO.txt boxes that can be
     ticked and the TODO comments that became outdated (remove them only when I ask).
 
+### Rules for abilities and items
+
+- Item effects are data: `HOLD_EFFECT` / `EFFECT_PARAM` / `EFFECT_TYPE` come from ItemDB ([pp] holdEffect /
+  effectParam).
+- Every defender-side ability check goes through `ignorable_ability` (Mold Breaker).
+- Every weather read goes through `effective_weather` (Cloud Nine / Air Lock), except setting it, counting it
+  down and `node_key`. The AI's script checks read the field's weather; its damage estimate, speed compare and
+  `sub_after_death` read the effective one.
+- Every base-power / stat / type-chart modifier also goes into `calculate_ai_logic_damage`; crit, the Metronome
+  item and resist berries don't ([pp] TrainerAI_CalcDamage).
+- A new target-ability check in `basic_flag` goes into `_EXPLICIT_RELEVANT`. An ability-tagged message calls
+  `reveal_ability`.
+- New RNG calls run only when the ability/item is present, so golden scenarios without it keep their RNG order.
+- `VOL2_KEY_BITS` (3) is full; a 4th `VolStatus2` bit needs room in `node_key` first.
+
 ## Engine decisions (settled, don't re-litigate)
 
 - Pokemow wins over pokeplatinum when they differ on the AI (Feint, Worry Seed's HP check, the
@@ -182,18 +197,75 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - End of turn (Gen IV): side timers, weather, Gravity count down; weather damage for both
   actives; then per Pokemon Ingrain, Aqua Ring, Speed Boost, Leech Seed, poison/burn, Curse,
   bind, Uproar, Disable, Encore, Taunt, Yawn; then Perish Song. Speed order, a tie is a coin flip.
+- My calls (abilities/items): Simple doubles accuracy/evasion stages; Quick Claw / Stall follow [SD gen4] (one
+  20% roll per holder per turn, within the same priority); the Metronome item follows [pp] (cap 10, keyed in
+  `node_key` k4); RP's AI does steal with Covet; the rollout counts a working opponent OHKO as a KO.
+- [pp] over [SD]: Heatproof halves base power; Safeguard blocks Flame Orb; Snow Warning sets hail; Shed Skin is
+  30%. Copied quirks: Fire Fang always passes Wonder Guard; Expert Explosion's second evasion -1 starts at +3
+  (Pokemow).
+- Sleep of 2-5 lasts 1-4 turns (counter drops first, wakes at 0). Struggle is typeless (no type item).
+  Explosion / Selfdestruct faint the user before the hit check; a double KO counts as a loss. Focus Band rolls
+  on every damaging hit, lethal or not. The confusion self-hit uses Bulbapedia's Gen IV factor table (no Muscle
+  Band). OHKO moves follow [pp] TryOHKOMove; Horn Drill is left out (RP has Drill Run there).
+
+## Mechanics order reference ([pp])
+
+- Base power (CalcMoveDamage): variable → Charge ×2 → Technician (≤60, ×15/10, not Struggle) → type item
+  ×120/100 → Light Ball ×2 → Muscle Band ×110/100 → Thick Fat (def) /2 → Mud/Water Sport /2 → pinch abilities
+  ×15/10 → Heatproof (def) /2 → Dry Skin (def) ×125/100 → Rivalry → Iron Fist ×12/10 → Reckless (spot not found).
+- After the base formula: burn (not Guts) → screens → weather → Flash Fire ×15/10 → +2 → crit ×2 (Sniper ×3) →
+  Metronome item ×(10+n)/10 → roll → STAB (Adaptability ×2) → types → Filter / Solid Rock ×3/4 (SE, at least 1)
+  → Expert Belt ×120/100 → Tinted Lens. Resist berries / Chilan: [SD] final modifier, `max(1, dmg // 2)`.
+- Item boosts use [pp]'s integer x(100+effect_param)/100, never Showdown's 4096 chain.
+- Accuracy (CheckMoveHitAccuracy): stages → Compound Eyes → Sand Veil → Snow Cloak → Hustle → Tangled Feet →
+  Bright Powder / Lax Incense → Gravity. No Guard skips the roll and the semi-invulnerable check.
+- Hit check: type check (Levitate, Scrappy, Wonder Guard) → accuracy → absorbing abilities (`_hit_outcome` →
+  `absorb_move`).
+- Speed (CompareBattlerSpeed): stages (Simple) → Swift Swim / Chlorophyll → Quick Feet or paralysis ÷4 → Slow
+  Start ÷2 → Unburden ×2.
+- Residual damage and heals use `BattleSystem_Divide` (at least 1); toxic is `Divide(max, 16) * n`.
+- Status items run after every move for both actives (`_after_move_items`), on switch-in after the hazards, and
+  at end of turn after Yawn.
+- On-hit abilities (`on_hit_abilities`) run per hit after recoil, drain and the secondary effect, the KO hit
+  included. Every 30% roll is `randint(0, 9) < 3`.
 
 ## Known gaps (not done yet)
 
-- OHKO moves skip the semi-invulnerability check; in Showdown gen4 they can't hit Fly / Dig.
-- AI: the type-vs-type score in `sub_after_death` ignores Gravity (pokeplatinum
-  `BattleAI_PostKOSwitchIn` wasn't located); Expert Gravity reads the target's real ability and
-  skips Magnet Rise; `expert_charge_invulnerable` skips the "target's last move isn't
-  always-hit" check; pokeplatinum's Expert swaps the EVA_DOWN_2 / ACC_DOWN_2 logic (copy it when
-  a -2 accuracy/evasion move lands).
+- AI: Expert Gravity reads the target's real ability and skips Magnet Rise;
+  `expert_charge_invulnerable` skips the "target's last move isn't always-hit" check;
+  pokeplatinum's Expert swaps the EVA_DOWN_2 / ACC_DOWN_2 logic (copy it when a -2
+  accuracy/evasion move lands).
+- AI, small [pp] differences no trainer up to Roark reaches: `basic_ability`'s Wonder Guard check
+  reads the raw move type (Normalize ignored), and Natural Gift's berry type reaches its absorb
+  checks ([pp] `LOAD_MOVE_TYPE` reads the data type); [pp] Basic_Main skips the immunity check for
+  Guillotine / Sheer Cold, so into Wonder Guard the engine gives -12, [pp] 0; [pp] always knows my
+  Shadow Tag / Magnet Pull / Arena Trap (no script check reads them yet).
+- AI party type check (`party_effectiveness`, [pp] `BattleSystem_CalcEffectiveness`): no Iron Ball
+  (not in ItemDB).
+- AI: `sub_after_death` stage 2 doesn't copy [pp]'s stale-score quirk (a skipped or empty move slot
+  still compares the previous `score`, at first the last stage 1 type score).
+- The confusion self-hit has no weather, so Flower Gift's sun boost doesn't reach it
+  (`early_returns` has no field state).
+- Drill Run (not in MoveDB): RP puts it in Horn Drill's slot, so [pp] Basic_Main's
+  `IfMoveEqualTo MOVE_HORN_DRILL` would skip its damage scoring if RP kept that script.
 - Not in MoveDB yet: Spikes damage, Magnet Rise, Iron Ball, Rest, Snore, U-turn, Fly, Dive,
   Heal Block.
+- Not handled: Klutz and Embargo ([pp] `Battler_HeldItem` returns no item for them); resist berries
+  vs Substitute (no Substitute yet, [SD] skips the berry on a substitute); Covet / Thief failing on a
+  defender whose Quick Claw activated ([pp] `BtlCmd_TryStealItem` wasn't found).
 - Metronome can call moves whose mechanics aren't in yet; they run as their data says.
+- Metronome item: a status move that fails inside `calculate_effects` (Thunder Wave on a statused
+  foe, a stat move at ±6) doesn't give its count back; [pp] does (MOVE_STATUS_FAILED).
+- Accuracy stages are netted with exact thirds; [pp] `HitRateByStage` is a rounded table (differs
+  at -5, -4, +2, +4, +5), [SD gen4] applies accuracy and evasion separately.
+- Reckless runs last in `base_power_ability`; its [pp] spot wasn't found (not in `battle_lib.c`).
+  Rounding only.
+- The weather is read once per move execution, so a Cloud Nine holder fainting mid-move keeps it
+  off for the rest of that move ([pp] checks live).
+- Unverified: an absorbed move ends an Uproar like any immune target; the "Soundproof user can't
+  use a sound move on its own side" rule isn't in [pp] `TriggerImmunityAbility`.
+- UI: no copied ability, no "the AI knows this ability" marker, and the field's weather shows while
+  Cloud Nine / Air Lock suppress it.
 - Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
 
 ## Trainer AI constraints
@@ -253,3 +325,4 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 
 - Run the project's checks: `pytest`, plus `pytest -m jit` if any `@njit` code changed.
 - Summarize what changed, and list anything you noticed but did NOT change.
+- Anything noticed but not fixed: tell me. If I don't say otherwise, add it to Known gaps.
