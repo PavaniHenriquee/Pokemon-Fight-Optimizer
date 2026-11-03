@@ -33,17 +33,27 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   (terminal eval, rollout heuristic), `helper.py` (pruning).
 - `NeuralNetwork/`: feature extraction only. The network itself is planned, not built.
 - `backend/`: FastAPI + WebSocket, MCTS in a background thread. `frontend/`: React + TS +
-  Vite + Tailwind + shadcn/ui.
-- `UserData/box.json`: my saved Pokemon box.
+  Vite + Tailwind + shadcn/ui. `frontend/electron/`: the desktop app (`main.js` starts the
+  backend on a free port, `preload.cjs`, `build_python.py` bundles Python for the installer).
+- `UserData/box.json`: my saved Pokemon box (the installed app keeps its own copy in
+  `%APPDATA%\Nuzlocke Optimizer`, seeded from this one on first launch).
 - `tests/`: pytest suite. `battle_driver.py` (engine-only battle loop + fixed scenarios),
   `golden/engine_battles.json` (engine snapshots), `conftest.py` (fixtures, JIT off).
 
 ## Commands
 
 - Run everything: `dev.bat` (backend on :8000, Vite frontend)
+- Desktop app (in `frontend/`): `npm run electron:dev` (Vite + Electron + the .venv backend on a
+  free port, no backend hot reload); `npm run electron:preview` loads the built `dist/` instead.
+- Installer (in `frontend/`): `npm run dist` → `frontend/release/Nuzlocke Optimizer Setup x.y.z.exe`
+  (fetches sprites, builds, bundles Python with the .venv's package versions, runs electron-builder)
+- Offline sprites: `python fetch_sprites.py` → `frontend/public/sprites/` (gitignored, skips files
+  it has). `npm run dist` runs it.
 - Benchmark / profile: `python main.py` (see the run\_\* functions)
 - Debuggable, non-JIT run: set `NUMBA_DISABLE_JIT=1`
-- Numba cache is off by default; set `NUMBA_CACHE_ON=1` to enable (see `Utils/jit.py`)
+- Numba cache: the backend turns it on (`Utils/jit_cache.py`, `.numba_cache/backend/<hash of the
+  sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`). `python main.py`
+  runs uncached unless `NUMBA_CACHE_ON=1` (see `Utils/jit.py`); pytest runs with JIT off.
 - After changing any enum or index class (`Pok`, `Move`, `Flags`, `Sec`, `Field`, `Item`,
   `MoveName`, `AbilityNames`, etc.): run `python generate_constants.py`
 - Tests: `pytest` (fast, ~15s, JIT off), `pytest -m jit` (compiled engine + MCTS, ~2 min

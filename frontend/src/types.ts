@@ -5,11 +5,16 @@ export interface MoveEntry {
   name: string;
   pp: number;
   max_pp: number;
+  type?: string; // live type from the battle array ("Fire"), Hidden Power keeps its IV type
+  category?: string; // "Physical" | "Special" | "Status"
+  power?: number;
 }
 
 export interface PokemonState {
   id: number;
   name: string;
+  level?: number;
+  types?: string[]; // live types, e.g. ["Grass", "Poison"]
   hp: number;
   max_hp: number;
   status: string; // "BRN" | "PAR" | "SLP" | ""
@@ -58,6 +63,9 @@ export interface ActionData {
   current_pp: number | null; // current PP for moves, null for switches
   max_pp: number | null;     // max base PP from MoveDB, null for switches
   pp_up?: number;            // PP Up count (0-3)
+  move_type?: string | null; // null for switches and Struggle
+  category?: string | null;
+  power?: number | null;
   nodes: TreeNode[]; // the multiple possible outcomes after this action
 }
 
@@ -76,6 +84,8 @@ export interface WSMessage {
   type: "tree_update" | "waiting" | "status";
   iterations: number;
   running: boolean;
+  error?: string | null; // traceback when the MCTS worker crashed
+  compiling?: boolean; // the backend's startup warm-up is compiling / loading the engine
   tree?: TreeNode;
 }
 
@@ -128,6 +138,17 @@ export interface PokemonData {
   nameToId: Record<string, number>;
   baseStats: Record<string, BaseStats>;
   natureMultipliers: Record<string, Record<string, number>>;
+  moveInfo?: Record<string, MoveInfo>;
+  pokemonTypes?: Record<string, string[]>;
+  pokemonAbilities?: Record<string, string[]>; // each species' possible abilities
+}
+
+export interface MoveInfo {
+  type: string;
+  category: string;
+  power: number;
+  accuracy: number | boolean | null; // true = never misses
+  pp: number | null;
 }
 
 export interface PokemonEntry {
@@ -161,6 +182,7 @@ export interface BenchEntry {
   max_hp: number;
   status: string;
   level: number;
+  types?: string[];
   item?: string;
   moves?: MoveEntry[];
 }

@@ -7,9 +7,11 @@ from Models.idx_const import (
     SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS,
     SIDE_TOXIC_SPIKES,
 )
-from Models.helper import BattlePhase, VolStatus, VolStatus2, SideCondition, Weather
+from Models.helper import (
+    BattlePhase, VolStatus, VolStatus2, SideCondition, Weather, Types, MoveCategory,
+)
 from DataBase.PkDB import PokIdToName, sprite_id
-from DataBase.MoveDB import MoveIdToName
+from DataBase.MoveDB import MoveIdToName, MoveName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
 from DataBase.loader import moveDB as _moveDB
 from SearchEngine.models import BENCH_ITEM
@@ -43,18 +45,25 @@ _ITEM_ID_TO_NAME: dict[int, str] = {
     if isinstance(v, int)
 }
 
+_TYPE_NAMES: dict[int, str] = {
+    v: k.title() for k, v in vars(Types).items() if k.isupper() and isinstance(v, int)
+}
+_CATEGORY_NAMES: dict[int, str] = {
+    v: k.title() for k, v in vars(MoveCategory).items() if k.isupper() and isinstance(v, int)
+}
+
 _POTION_ID_TO_NAME: dict[int, str] = {
     1: "Potion", 2: "Super Potion", 3: "Hyper Potion",
     4: "Full Restore", 5: "Full Heal",
     6: "X Special", 7: "X Defend", 8: "X Speed",
 }
 
-# Map move-ID → base PP from MoveDB.json (for the frontend PP display)
+# Map move-ID → base PP from MoveDB.json (for the frontend PP display).
+# Keyed by the entry's "name" like Models/move.py, so hyphenated keys (Mud-Slap) match too.
 _MOVE_ID_TO_MAX_PP: dict[int, int] = {}
-for _mid, _raw_name in MoveIdToName.items():
-    _display = _raw_name.replace("_", " ").title()
-    _entry = _moveDB.get(_display)
-    if _entry and "pp" in _entry:
+for _entry in _moveDB.values():
+    _mid = getattr(MoveName, _entry["name"].upper(), None)
+    if _mid is not None and "pp" in _entry:
         _MOVE_ID_TO_MAX_PP[_mid] = int(_entry["pp"])
 
 _FLD_BASE = FieldIdx.MY_POK
@@ -77,6 +86,25 @@ _HAZARDS = (
     (SideCondition.SPIKES, "Spikes"),
     (SideCondition.TOXIC_SPIKES, "Toxic Spikes"),
 )
+
+
+def _move_fields(base_slice, offset: int) -> dict:
+    """Live type, category and power of the move slot at offset (Hidden Power keeps its IV type)"""
+    return {
+        "type":     _TYPE_NAMES.get(int(base_slice[offset + Move.TYPE]), ""),
+        "category": _CATEGORY_NAMES.get(int(base_slice[offset + Move.CATEGORY]), ""),
+        "power":    int(base_slice[offset + Move.POWER]),
+    }
+
+
+def _types(arr) -> list[str]:
+    """Live types from the TYPE1 / TYPE2 slots (0 = no second type)"""
+    out = []
+    for t in (int(arr[Pok.TYPE1]), int(arr[Pok.TYPE2])):
+        name = _TYPE_NAMES.get(t)
+        if name and name not in out:
+            out.append(name)
+    return out
 
 
 def _extract_moves(base_slice, current_pps=None) -> list[dict]:
@@ -106,6 +134,7 @@ def _extract_moves(base_slice, current_pps=None) -> list[dict]:
             "name":   move_name,
             "pp":     cur_pp,
             "max_pp": max_pp,
+            **_move_fields(base_slice, offset),
         })
     return moves
 
@@ -127,6 +156,7 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
         "max_hp": int(battle_array[base + Pok.MAX_HP]),
         "status": STATUS.get(int(snap.bench_delta[delta_i, 1]), ""),
         "level":  int(battle_array[base + Pok.LEVEL]),
+        "types":  _types(battle_array[base : base + POK_LEN]),
         "item":   _ITEM_ID_TO_NAME.get(int(snap.bench_delta[delta_i, BENCH_ITEM]), ""),
         "moves":  moves,
     }
@@ -140,6 +170,8 @@ def _pok(arr) -> dict | None:
     return {
         "id":         sprite_id(pok_id),
         "name":       PokIdToName.get(pok_id, "?").capitalize(),
+        "level":      int(arr[Pok.LEVEL]),
+        "types":      _types(arr),
         "hp":         int(arr[Pok.CURRENT_HP]),
         "max_hp":     int(arr[Pok.MAX_HP]),
         "status":     STATUS.get(int(arr[Pok.STATUS]), ""),
@@ -304,9 +336,11 @@ def serialize_node(
         current_pp = None
         max_pp = None
         pp_up = 0
+        move_info = {"type": None, "category": None, "power": None}
         if act_type == 1 and act_idx != 10:  # MOVE, not Struggle
             my = node.snapshot.my_slice
             if my is not None and len(my) > 0:
+                move_info = _move_fields(my, Pok.MOVE1_ID + act_idx * MOVE_STRIDE)
                 current_pp = int(my[Pok.MOVE1_ID + act_idx * MOVE_STRIDE + Move.PP])
                 move_id = int(my[Pok.MOVE1_ID + act_idx * MOVE_STRIDE + Move.ID])
                 base_pp = _MOVE_ID_TO_MAX_PP.get(move_id)
@@ -326,6 +360,9 @@ def serialize_node(
             "current_pp":   current_pp,
             "max_pp":       max_pp,
             "pp_up":        pp_up,
+            "move_type":    move_info["type"],
+            "category":     move_info["category"],
+            "power":        move_info["power"],
             # Child nodes: only serialize if above threshold (or at root level)
             "nodes": [
                 serialize_node(

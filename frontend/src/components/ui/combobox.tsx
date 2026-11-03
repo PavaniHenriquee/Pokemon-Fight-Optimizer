@@ -15,6 +15,10 @@ import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
 
 const Combobox = ComboboxPrimitive.Root
 
+// Where popups mount. A modal dialog provides an element inside itself: the dialog blocks
+// pointer events outside its content, so a list portaled to <body> couldn't be clicked.
+const ComboboxPortalContainer = React.createContext<React.RefObject<HTMLElement | null> | null>(null)
+
 function ComboboxValue({ ...props }: ComboboxPrimitive.Value.Props) {
   return <ComboboxPrimitive.Value data-slot="combobox-value" {...props} />
 }
@@ -99,8 +103,9 @@ function ComboboxContent({
     ComboboxPrimitive.Positioner.Props,
     "side" | "align" | "sideOffset" | "alignOffset" | "anchor"
   >) {
+  const container = React.useContext(ComboboxPortalContainer)
   return (
-    <ComboboxPrimitive.Portal>
+    <ComboboxPrimitive.Portal container={container ?? undefined}>
       <ComboboxPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}
@@ -281,6 +286,7 @@ function useComboboxAnchor() {
 
 export {
   Combobox,
+  ComboboxPortalContainer,
   ComboboxInput,
   ComboboxContent,
   ComboboxList,

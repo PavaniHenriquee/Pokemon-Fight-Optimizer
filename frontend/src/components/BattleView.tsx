@@ -1,212 +1,81 @@
+import {
+  ArrowRightLeft,
+  CloudHail,
+  CloudRain,
+  CornerDownRight,
+  GitBranchPlus,
+  Orbit,
+  RotateCcw,
+  Skull,
+  Sun,
+  TriangleAlert,
+  Trophy,
+  Wind,
+} from "lucide-react";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "./ui/hover-card";
-import type { TreeNode, PokemonState, BenchEntry, SideEffect } from "../types";
+import { Button } from "./ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { cn } from "@/lib/utils";
+import { battleSprite, pokIcon } from "@/lib/sprites";
+import { displayName, fmtInt, statusColor, switchTarget } from "@/lib/format";
+import { bestActionKey } from "@/lib/tree";
+import type { TreeNode, PokemonState, BenchEntry, SnapshotData, SideEffect } from "../types";
+import { Sprite } from "./common/Sprite";
+import { HpBar } from "./common/HpBar";
+import { WinRing } from "./common/WinRing";
+import { ItemIcon } from "./common/ItemIcon";
+import { MoveList } from "./common/MoveList";
+import {
+  Chip,
+  SideChips,
+  StageChips,
+  StatusBadge,
+  TypeBadges,
+  TypeDot,
+  VolatileChips,
+} from "./common/Badges";
 
-// ── Sprite URLs ───────────────────────────────────────────────────────────────
-const animFront = (id: number) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/${id}.gif`;
-const animBack = (id: number) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/back/${id}.gif`;
-const staticFront = (id: number) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
-const staticBack = (id: number) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/${id}.png`;
-const gen7Icon = (id: number) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-vii/icons/${id}.png`;
-const itemIcon = (name: string) =>
-  `https://play.pokemonshowdown.com/sprites/itemicons/${name.toLowerCase().replace(/[\s_]+/g, "-")}.png`;
+const WEATHER_ICON: Record<string, typeof Sun> = {
+  Sun,
+  Rain: CloudRain,
+  Hail: CloudHail,
+  Sandstorm: Wind,
+};
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function hpColor(hp: number, max: number) {
-  const pct = hp / Math.max(max, 1);
-  return pct > 0.5 ? "#4ade80" : pct > 0.25 ? "#fbbf24" : "#f87171";
-}
-
-function hpRange(hp: number, max: number): string {
-  const pct = hp / Math.max(max, 1);
-  if (pct <= 0) return "Fainted";
-  if (pct === 1) return "100%";
-  if (pct >= 0.75) return "75%–100%";
-  if (pct >= 0.5) return "50%–74%";
-  if (pct >= 0.25) return "25%–49%";
-  return "1%–24%";
-}
-
-// ── Win Ring ──────────────────────────────────────────────────────────────────
-function WinRing({ win, size = 44 }: { win: number; size?: number }) {
-  const strokeWidth = 3;
-  const r = (size - strokeWidth * 2) / 2;
-  const circ = 2 * Math.PI * r;
-  const fill = win * circ;
-  const color = win > 0.65 ? "#4ade80" : win > 0.4 ? "#fbbf24" : "#f87171";
-  const cx = size / 2;
+// ── Field strip: turn, weather, Gravity, trainer items ────────────────────────
+function FieldStrip({ snapshot }: { snapshot: SnapshotData }) {
+  const field = snapshot.field;
+  const WeatherIcon = field?.weather ? WEATHER_ICON[field.weather] : undefined;
+  const items = snapshot.trainer_items?.filter(Boolean) ?? [];
   return (
-    <div
-      style={{ position: "relative", width: size, height: size, flexShrink: 0 }}
-    >
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle
-          cx={cx}
-          cy={cx}
-          r={r}
-          fill="none"
-          stroke="rgba(255,255,255,0.08)"
-          strokeWidth={strokeWidth}
-        />
-        <circle
-          cx={cx}
-          cy={cx}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={`${fill} ${circ - fill}`}
-          strokeLinecap="round"
-          style={{ transition: "stroke-dasharray 0.4s ease, stroke 0.3s" }}
-        />
-      </svg>
-      <span
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: size >= 44 ? "0.6rem" : "0.54rem",
-          fontWeight: 800,
-          color,
-          lineHeight: 1,
-          letterSpacing: "-0.02em",
-        }}
-      >
-        {Math.round(win * 100)}%
+    <div className="flex items-center gap-2">
+      <span className="num rounded-md bg-foreground/6 px-2 py-0.5 text-xs font-semibold text-foreground ring-1 ring-foreground/10 ring-inset">
+        Turn {snapshot.turn}
       </span>
-    </div>
-  );
-}
-
-// ── HP Bar ────────────────────────────────────────────────────────────────────
-function HpBar({ pok }: { pok: PokemonState }) {
-  const pct = pok.hp / Math.max(pok.max_hp, 1);
-  const color = hpColor(pok.hp, pok.max_hp);
-  return (
-    <div
-      style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}
-    >
-      <span
-        style={{
-          fontSize: "0.56rem",
-          fontWeight: 800,
-          color: "var(--muted)",
-          letterSpacing: "0.1em",
-          flexShrink: 0,
-          width: 16,
-        }}
-      >
-        HP
-      </span>
-      <div
-        style={{
-          flex: 1,
-          height: 6,
-          background: "rgba(255,255,255,0.07)",
-          borderRadius: 3,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${(pct * 100).toFixed(1)}%`,
-            background: color,
-            borderRadius: 3,
-            transition: "width 0.4s ease",
-            boxShadow: `0 0 8px ${color}55`,
-          }}
-        />
-      </div>
-      <span
-        style={{
-          fontSize: "0.62rem",
-          color,
-          fontWeight: 700,
-          width: 62,
-          textAlign: "right",
-          flexShrink: 0,
-        }}
-      >
-        {hpRange(pok.hp, pok.max_hp)}
-      </span>
-    </div>
-  );
-}
-
-// ── Active Pokémon info block ──────────────────────────────────────────────────
-function PokInfo({ pok, label }: { pok: PokemonState; label: string }) {
-  const stages = Object.entries(pok.stages);
-  return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          marginBottom: 6,
-          flexWrap: "wrap",
-        }}
-      >
-        <span
-          style={{
-            fontSize: "0.56rem",
-            color: "var(--muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
+      {field?.weather && (
+        <Chip
+          tone="info"
+          title={field.weather_turns > 0 ? `${field.weather_turns} turn(s) left` : "Permanent"}
         >
-          {label}
-        </span>
-        <span
-          style={{
-            fontWeight: 700,
-            fontSize: "1rem",
-            color: "#f1f5f9",
-            lineHeight: 1,
-          }}
-        >
-          {pok.name}
-        </span>
-        {pok.status && <span className="badge status-badge">{pok.status}</span>}
-        {pok.vol_status.map((s) => (
-          <span key={s} className="badge vol-badge">
-            {s}
-          </span>
-        ))}
-      </div>
-      {pok.item && (
-        <img
-          src={itemIcon(pok.item)}
-          alt={pok.item}
-          title={pok.item}
-          width={16}
-          height={16}
-          style={{ imageRendering: "pixelated", flexShrink: 0 }}
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
+          {WeatherIcon && <WeatherIcon className="size-3" />}
+          {field.weather}
+          {field.weather_turns > 0 && <span className="opacity-70">· {field.weather_turns}</span>}
+        </Chip>
       )}
-      <HpBar pok={pok} />
-      {stages.length > 0 && (
-        <div
-          style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 5 }}
-        >
-          {stages.map(([stat, val]) => (
-            <span
-              key={stat}
-              className={`badge stage-badge ${val > 0 ? "up" : "down"}`}
-            >
-              {stat} {val > 0 ? "+" : ""}
-              {val}
-            </span>
+      {!!field?.gravity_turns && (
+        <Chip tone="primary" title={`${field.gravity_turns} turn(s) left`}>
+          <Orbit className="size-3" />
+          Gravity <span className="opacity-70">· {field.gravity_turns}</span>
+        </Chip>
+      )}
+      {snapshot.terminal && <Chip tone="warn">Terminal</Chip>}
+      {items.length > 0 && (
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-[10px] font-medium tracking-wider text-subtle-foreground uppercase">
+            Trainer items
+          </span>
+          {items.map((item, i) => (
+            <ItemIcon key={i} name={item} size={22} />
           ))}
         </div>
       )}
@@ -214,452 +83,289 @@ function PokInfo({ pok, label }: { pok: PokemonState; label: string }) {
   );
 }
 
-// ── Battle sprite ─────────────────────────────────────────────────────────────
+// ── What just happened ─────────────────────────────────────────────────────────
+function EventLines({ snapshot }: { snapshot: SnapshotData }) {
+  const isDeath = snapshot.phase === "DEATH";
+  if (!isDeath && snapshot.phase !== "BATON_PASS" && !snapshot.opp_move) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {isDeath && (
+        <div className="flex items-center gap-2 rounded-lg bg-bad/10 px-3 py-1.5 text-xs text-bad ring-1 ring-bad/25 ring-inset">
+          <TriangleAlert className="size-3.5" />
+          Your Pokémon fainted. Choose a replacement below.
+        </div>
+      )}
+      {snapshot.phase === "BATON_PASS" && (
+        <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-1.5 text-xs text-primary ring-1 ring-primary/25 ring-inset">
+          <ArrowRightLeft className="size-3.5" />
+          Baton Pass: choose who receives it below.
+        </div>
+      )}
+      {snapshot.opp_move && (
+        <div className="flex items-center gap-2 rounded-lg bg-foreground/5 px-3 py-1.5 text-xs text-muted-foreground ring-1 ring-foreground/10 ring-inset">
+          <CornerDownRight className="size-3.5" />
+          Opponent used <span className="font-semibold text-foreground">{snapshot.opp_move}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Info plate for an active Pokémon ───────────────────────────────────────────
+function PokPlate({
+  pok,
+  label,
+  side,
+}: {
+  pok: PokemonState;
+  label: string;
+  side?: SideEffect[];
+}) {
+  const hasChips =
+    Object.keys(pok.stages).length > 0 || pok.vol_status.length > 0 || (side?.length ?? 0) > 0;
+  return (
+    <div className="w-full max-w-[340px] rounded-xl border bg-card/85 p-3 shadow-xl shadow-black/25 backdrop-blur-sm">
+      <div className="flex items-center gap-2">
+        <span className="rounded bg-foreground/8 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+          {label}
+        </span>
+        <span className="truncate text-[15px] font-semibold tracking-tight">
+          {displayName(pok.name)}
+        </span>
+        {!!pok.level && (
+          <span className="num text-xs text-subtle-foreground">Lv {pok.level}</span>
+        )}
+        <span className="ml-auto flex items-center gap-1.5">
+          <StatusBadge status={pok.status} />
+          {pok.item && <ItemIcon name={pok.item} size={22} />}
+        </span>
+      </div>
+      <TypeBadges types={pok.types} className="mt-1.5" />
+      <HpBar hp={pok.hp} max={pok.max_hp} className="mt-2.5" />
+      {hasChips && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          <StageChips stages={pok.stages} />
+          <VolatileChips names={pok.vol_status} />
+          <SideChips effects={side} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Battle sprite on its platform; hover lists the moves ──────────────────────
 function BattleSprite({
   pok,
   side,
 }: {
-  pok: PokemonState;
+  pok: PokemonState | null;
   side: "mine" | "opp";
 }) {
-  const sprite = (
-    <img
-      src={side === "opp" ? animFront(pok.id) : animBack(pok.id)}
-      alt={pok.name}
+  const scale = side === "mine" ? 1.75 : 1.5;
+  const platform = (
+    <div
+      className="pointer-events-none absolute bottom-1 left-1/2 h-9 w-48 -translate-x-1/2 rounded-[50%]"
       style={{
-        imageRendering: "pixelated",
-        height: 84,
-        filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.5))",
-        cursor: pok.moves && pok.moves.length > 0 ? "help" : "default",
-      }}
-      className="object-contain block mx-auto mw-100 item-center"
-      onError={(e) => {
-        const img = e.currentTarget;
-        if (!img.dataset.fallen) {
-          img.dataset.fallen = "1";
-          img.src = side === "opp" ? staticFront(pok.id) : staticBack(pok.id);
-        }
+        background:
+          "radial-gradient(closest-side, oklch(1 0 0 / 11%), oklch(1 0 0 / 4%) 65%, transparent)",
       }}
     />
   );
 
-  if (!pok.moves || pok.moves.length === 0) {
-    return sprite;
+  if (!pok) {
+    return (
+      <div className="relative flex h-[148px] items-end justify-center pb-5">
+        {platform}
+        <span className="flex items-center gap-1.5 text-xs text-subtle-foreground italic">
+          <Skull className="size-3.5" /> Fainted
+        </span>
+      </div>
+    );
   }
+
+  const img = (
+    <div className="relative flex h-[148px] items-end justify-center pb-4">
+      {platform}
+      <Sprite
+        srcs={battleSprite(pok.id, side === "opp" ? "front" : "back")}
+        alt={pok.name}
+        className="relative block drop-shadow-[0_6px_10px_rgb(0_0_0/45%)]"
+        style={{ transform: `scale(${scale})`, transformOrigin: "bottom center" }}
+      />
+    </div>
+  );
+
+  if (!pok.moves || pok.moves.length === 0) return img;
 
   return (
     <HoverCard openDelay={150} closeDelay={80}>
       <HoverCardTrigger asChild>
-        <div style={{ display: "inline-block" }}>{sprite}</div>
+        <div className="cursor-help">{img}</div>
       </HoverCardTrigger>
-      <HoverCardContent
-        side="top"
-        align={"center"}
-        className="bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 animate-in fade-in-0 zoom-in-95 w-auto p-2.5"
-      >
-        <div style={{ minWidth: 145 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: 8,
-              marginBottom: 6,
-              paddingBottom: 4,
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <span
-              style={{ fontWeight: 700, color: "#f1f5f9", fontSize: "0.85rem" }}
-            >
-              {pok.name}
-            </span>
-            <span
-              style={{
-                fontSize: "0.52rem",
-                color: "var(--muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-              }}
-            >
-              Moves
-            </span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 3.5 }}>
-            {pok.moves.map((m, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: "0.72rem",
-                  gap: 12,
-                }}
-              >
-                <span style={{ color: "#e2e8f0" }}>- {m.name}</span>
-                <span
-                  style={{
-                    fontSize: "0.65rem",
-                    fontWeight: 600,
-                    fontVariantNumeric: "tabular-nums",
-                    color: m.pp <= 0 ? "#f87171" : "var(--muted)",
-                  }}
-                >
-                  ({m.pp}/{m.max_pp})
-                </span>
-              </div>
-            ))}
-          </div>
+      <HoverCardContent side="top" className="w-60">
+        <div className="mb-2 flex items-baseline justify-between border-b pb-1.5">
+          <span className="font-semibold">{displayName(pok.name)}</span>
+          <span className="text-[10px] tracking-wider text-subtle-foreground uppercase">Moves</span>
         </div>
+        <MoveList moves={pok.moves} />
       </HoverCardContent>
     </HoverCard>
   );
 }
 
-// ── Pokéball placeholder for empty party slots ─────────────────────────────────
-function EmptyBenchSlot() {
-  return (
-    <div
-      style={{
-        width: 44,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          width: 34,
-          height: 26,
-          borderRadius: 4,
-          border: "1.5px dashed rgba(255,255,255,0.1)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 22 22"
-          opacity={0.18}
-          color="white"
-        >
-          <circle
-            cx="11"
-            cy="11"
-            r="9.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <line
-            x1="1.5"
-            y1="11"
-            x2="20.5"
-            y2="11"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <circle
-            cx="11"
-            cy="11"
-            r="3"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-        </svg>
-      </div>
-      <div style={{ height: 3, width: 28 }} />
-    </div>
-  );
-}
-
-// ── Bench Pokémon card with hover ──────────────────────────────────────────────
-function BenchCard({ entry }: { entry: BenchEntry }) {
-  const isFainted = entry.hp <= 0;
-  const color = hpColor(entry.hp, entry.max_hp);
-  const pct = isFainted ? 0 : entry.hp / Math.max(entry.max_hp, 1);
-
+// ── Party strip ────────────────────────────────────────────────────────────────
+function PartySlot({ entry }: { entry: BenchEntry }) {
+  const fainted = entry.hp <= 0;
   return (
     <HoverCard openDelay={180} closeDelay={80}>
       <HoverCardTrigger asChild>
         <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 3,
-            padding: "4px 5px 5px",
-            borderRadius: 8,
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.07)",
-            cursor: "default",
-            opacity: isFainted ? 0.4 : 1,
-            flexShrink: 0,
-            minWidth: 44,
-          }}
+          className={cn(
+            "relative flex h-[52px] w-12 flex-col items-center justify-between rounded-lg bg-foreground/4 px-1 pt-1 pb-1.5 ring-1 ring-foreground/8 transition-colors ring-inset hover:bg-foreground/8",
+            fainted && "opacity-40 grayscale",
+          )}
         >
-          <img
-            src={gen7Icon(entry.id)}
-            alt={entry.name}
-            style={{
-              width: 34,
-              height: 26,
-              imageRendering: "pixelated",
-              objectFit: "contain",
-              filter: isFainted ? "grayscale(100%)" : undefined,
-            }}
-          />
-          <div
-            style={{
-              height: 3,
-              width: 28,
-              background: "rgba(255,255,255,0.07)",
-              borderRadius: 2,
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                height: "100%",
-                width: `${pct * 100}%`,
-                background: color,
-                borderRadius: 2,
-              }}
-            />
-          </div>
+          <Sprite srcs={pokIcon(entry.id)} alt={entry.name} width={40} height={30} className="object-contain" />
+          <HpBar hp={entry.hp} max={entry.max_hp} size="xs" showText={false} showLabel={false} className="px-0.5" />
           {entry.status && (
             <span
-              style={{
-                fontSize: "0.48rem",
-                fontWeight: 800,
-                color: "#fbbf24",
-                letterSpacing: "0.04em",
-                lineHeight: 1,
-              }}
-            >
-              {entry.status}
-            </span>
+              className="absolute top-1 right-1 size-1.5 rounded-full"
+              style={{ background: statusColor(entry.status) }}
+            />
           )}
         </div>
       </HoverCardTrigger>
-      <HoverCardContent
-        side="top"
-        className="bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 animate-in fade-in-0 zoom-in-95 w-auto"
-      >
-        <div style={{ minWidth: 155 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              gap: 5,
-              marginBottom: 7,
-            }}
-          >
-            <span
-              style={{ fontWeight: 700, color: "#f1f5f9", fontSize: "0.9rem" }}
-            >
-              {entry.name}
-            </span>
-            <span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>
-              Lv.{entry.level}
-            </span>
-          </div>
-          {entry.status && (
-            <span
-              className="badge status-badge"
-              style={{ display: "inline-block", marginBottom: 7 }}
-            >
-              {entry.status}
-            </span>
-          )}
-          {entry.item && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 7,
-              }}
-            >
-              <img
-                src={itemIcon(entry.item)}
-                alt={entry.item}
-                width={16}
-                height={16}
-                style={{ imageRendering: "pixelated" }}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
-              <span style={{ fontSize: "0.65rem", color: "var(--muted)" }}>
-                {entry.item}
-              </span>
-            </div>
-          )}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span
-              style={{
-                fontSize: "0.56rem",
-                fontWeight: 800,
-                color: "var(--muted)",
-                letterSpacing: "0.1em",
-                width: 14,
-                flexShrink: 0,
-              }}
-            >
-              HP
-            </span>
-            <div
-              style={{
-                flex: 1,
-                height: 5,
-                background: "rgba(255,255,255,0.08)",
-                borderRadius: 3,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${pct * 100}%`,
-                  background: color,
-                  borderRadius: 3,
-                }}
-              />
-            </div>
-            <span
-              style={{
-                fontSize: "0.62rem",
-                color,
-                fontWeight: 700,
-                width: 62,
-                textAlign: "right",
-                flexShrink: 0,
-              }}
-            >
-              {isFainted ? "Fainted" : hpRange(entry.hp, entry.max_hp)}
-            </span>
-          </div>
-          {entry.moves && entry.moves.length > 0 && (
-            <div
-              style={{
-                marginTop: 8,
-                paddingTop: 6,
-                borderTop: "1px solid rgba(255,255,255,0.08)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 3.5,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "0.52rem",
-                  color: "var(--muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  marginBottom: 1,
-                }}
-              >
-                Moves
-              </span>
-              {entry.moves.map((m, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    fontSize: "0.7rem",
-                    gap: 12,
-                  }}
-                >
-                  <span style={{ color: "#e2e8f0" }}>- {m.name}</span>
-                  <span
-                    style={{
-                      fontSize: "0.62rem",
-                      fontWeight: 600,
-                      fontVariantNumeric: "tabular-nums",
-                      color: m.pp <= 0 ? "#f87171" : "var(--muted)",
-                    }}
-                  >
-                    ({m.pp}/{m.max_pp})
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+      <HoverCardContent side="top" className="w-60">
+        <div className="flex items-baseline gap-2">
+          <span className="font-semibold">{displayName(entry.name)}</span>
+          <span className="num text-xs text-subtle-foreground">Lv {entry.level}</span>
+          <StatusBadge status={entry.status} className="ml-auto" />
         </div>
+        <TypeBadges types={entry.types} className="mt-1.5" />
+        {entry.item && (
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ItemIcon name={entry.item} size={18} />
+            {entry.item}
+          </div>
+        )}
+        <HpBar hp={entry.hp} max={entry.max_hp} size="sm" className="mt-2" />
+        {entry.moves && entry.moves.length > 0 && (
+          <div className="mt-2.5 border-t pt-2">
+            <MoveList moves={entry.moves} />
+          </div>
+        )}
       </HoverCardContent>
     </HoverCard>
   );
 }
 
-// ── Bench row (up to 5 slots, pokéballs fill gaps) ────────────────────────────
-function BenchRow({
-  entries,
-  maxSlots = 5,
-  showEmpty = true,
-  justify = "flex-start",
-}: {
-  entries: BenchEntry[];
-  maxSlots?: number;
-  showEmpty?: boolean;
-  justify?: "flex-start" | "flex-end";
-}) {
+// Bench in slot order; only real party members (no empty-slot padding)
+function PartyStrip({ entries, className }: { entries: BenchEntry[]; className?: string }) {
+  if (entries.length === 0) return null;
   const sorted = [...entries].sort((a, b) => a.slot - b.slot);
-  const emptyCount = showEmpty ? Math.max(0, maxSlots - sorted.length) : 0;
-  if (sorted.length === 0 && emptyCount === 0) return null;
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 4,
-        flexWrap: "wrap",
-        justifyContent: justify,
-      }}
-    >
+    <div className={cn("flex flex-wrap gap-1.5", className)}>
       {sorted.map((e) => (
-        <BenchCard key={e.slot} entry={e} />
-      ))}
-      {Array.from({ length: emptyCount }).map((_, i) => (
-        <EmptyBenchSlot key={`ep-${i}`} />
+        <PartySlot key={e.slot} entry={e} />
       ))}
     </div>
   );
 }
 
-// ── Side conditions (screens, hazards...) ─────────────────────────────────────
-function effectLabel(e: SideEffect): string {
-  if (e.layers !== undefined) return `${e.name} ×${e.layers}`;
-  if (e.turns !== undefined) return `${e.name} ${e.turns}`;
-  return e.name;
-}
-
-function SideChips({
-  effects,
-  justify = "flex-start",
+// ── Recommendation / result bar ───────────────────────────────────────────────
+function Recommendation({
+  node,
+  onContinue,
+  onStartNew,
+  running,
+  starting,
 }: {
-  effects?: SideEffect[];
-  justify?: "flex-start" | "flex-end";
+  node: TreeNode;
+  onContinue: (id: string) => void;
+  onStartNew?: () => void;
+  running?: boolean;
+  starting?: boolean;
 }) {
-  if (!effects || effects.length === 0) return null;
+  const bestKey = bestActionKey(node);
+  const best = bestKey ? node.actions[bestKey] : null;
+  const terminal = node.snapshot.terminal;
+  const won = node.win_chance >= 0.5;
+
   return (
-    <div className="badge-row" style={{ justifyContent: justify, marginTop: 0 }}>
-      {effects.map((e) => (
-        <span
-          key={e.name}
-          className="badge field-badge"
-          title={e.turns !== undefined ? `${e.turns} turn(s) left` : undefined}
-        >
-          {effectLabel(e)}
-        </span>
-      ))}
+    <div className="flex items-center gap-4 rounded-xl border bg-card px-4 py-2.5">
+      {terminal ? (
+        <>
+          <div
+            className={cn(
+              "flex size-12 items-center justify-center rounded-full ring-1",
+              won ? "bg-good/12 text-good ring-good/30" : "bg-bad/12 text-bad ring-bad/30",
+            )}
+          >
+            {won ? <Trophy className="size-5" /> : <Skull className="size-5" />}
+          </div>
+          <div>
+            <div className="text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
+              Battle over
+            </div>
+            <div className="text-lg font-semibold">{won ? "Victory" : "Defeat"}</div>
+            <div className="num text-xs text-muted-foreground">
+              {node.dead_avg.toFixed(2)} expected deaths ·{" "}
+              <span className="text-subtle-foreground">{fmtInt(node.visits)} visits</span>
+            </div>
+          </div>
+        </>
+      ) : best ? (
+        <>
+          <WinRing win={best.win_chance} size={50} />
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
+              Recommended
+            </div>
+            <div className="flex items-center gap-2">
+              <TypeDot type={best.move_type} className="size-2.5" />
+              <span className="truncate text-lg font-semibold tracking-tight">
+                {best.action_type === 2 ? `Switch to ${switchTarget(best.label)}` : best.label}
+              </span>
+            </div>
+            <div className="num text-xs text-muted-foreground">
+              {best.dead_avg.toFixed(2)} expected deaths ·{" "}
+              <span className="text-subtle-foreground">{fmtInt(node.visits)} visits here</span>
+            </div>
+          </div>
+        </>
+      ) : (
+        <span className="text-sm text-muted-foreground italic">No recommendation yet</span>
+      )}
+
+      <div className="ml-auto flex items-center gap-2">
+        {onStartNew && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onStartNew}
+                  disabled={running || starting}
+                >
+                  <RotateCcw />
+                  {starting ? "Starting…" : "Start brand new"}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Start a brand new search from the root</TooltipContent>
+          </Tooltip>
+        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="sm" onClick={() => onContinue(node.id)}>
+              <GitBranchPlus />
+              Continue from here
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Search again from this position, with your real HP</TooltipContent>
+        </Tooltip>
+      </div>
     </div>
   );
 }
@@ -680,341 +386,72 @@ export default function BattleView({
 }) {
   const { snapshot } = node;
   const isDeath = snapshot.phase === "DEATH";
-  const bestAction =
-    Object.values(node.actions).sort(
-      (a, b) => b.total_visits - a.total_visits,
-    )[0] ?? null;
 
   return (
-    <section
-      style={{
-        padding: "12px 16px 10px",
-        background:
-          "linear-gradient(165deg, #11141d 0%, #1a1d27 50%, #141720 100%)",
-        borderBottom: "1px solid var(--border)",
-        flexShrink: 0,
-      }}
-    >
-      {/* Banners */}
-      {isDeath && (
-        <div className="death-banner">
-          ⚠ Your Pokémon fainted — choose a replacement below
-        </div>
-      )}
-      {snapshot.phase === "BATON_PASS" && (
-        <div className="opp-move-banner">
-          Baton Pass: choose who receives it below
-        </div>
-      )}
-      {snapshot.opp_move && (
-        <div className="opp-move-banner">
-          Opp used: <strong>{snapshot.opp_move}</strong>
-        </div>
-      )}
+    <section className="space-y-3 p-4 pb-3">
+      <FieldStrip snapshot={snapshot} />
+      <EventLines snapshot={snapshot} />
 
-      {/* Battle field */}
+      {/* Stage */}
       <div
+        className="relative overflow-hidden rounded-2xl border"
         style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "stretch",
-          minHeight: 160,
+          background: [
+            "radial-gradient(ellipse 55% 60% at 78% 28%, oklch(0.32 0.06 250 / 55%), transparent 70%)",
+            "radial-gradient(ellipse 55% 60% at 22% 82%, oklch(0.32 0.08 290 / 45%), transparent 70%)",
+            "linear-gradient(180deg, oklch(0.205 0.016 265), oklch(0.17 0.01 265))",
+          ].join(", "),
         }}
       >
-        {/* ── MY SIDE ────────────────────────────────────────────────── */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            minWidth: 0,
-          }}
-        >
-          <SideChips effects={snapshot.field?.my_side} />
-          {isDeath ? (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                paddingTop: 8,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "0.78rem",
-                  color: "var(--muted)",
-                  fontStyle: "italic",
-                }}
-              >
-                Choose a Pokémon ↓
-              </span>
-              {/* In death phase show all party mons to pick from, no pokéball padding */}
-              <BenchRow entries={snapshot.my_bench} showEmpty={false} />
-            </div>
-          ) : (
-            <>
-              {snapshot.my ? (
-                <BattleSprite pok={snapshot.my} side="mine" />
-              ) : (
-                <div
-                  style={{
-                    height: 84,
-                    display: "flex",
-                    alignItems: "center",
-                    color: "var(--muted)",
-                    fontSize: "0.78rem",
-                    fontStyle: "italic",
-                  }}
-                >
-                  fainted
-                </div>
-              )}
-              {snapshot.my && (
-                <div
-                  style={{
-                    background: "rgba(255,255,255,0.025)",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    borderLeft: `2px solid ${hpColor(snapshot.my.hp, snapshot.my.max_hp)}55`,
-                    borderRadius: 8,
-                    padding: "8px 10px",
-                  }}
-                >
-                  <PokInfo pok={snapshot.my} label="YOU" />
-                </div>
-              )}
-              <BenchRow entries={snapshot.my_bench} />
-            </>
-          )}
-        </div>
+        {/* faint horizon */}
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-foreground/8 to-transparent" />
 
-        {/* ── VS & TURN ───────────────────────────────────────────────── */}
-        <div
-          style={{
-            alignSelf: "center",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 6,
-            flexShrink: 0,
-            userSelect: "none",
-            padding: "0 4px",
-          }}
-        >
-          {snapshot.turn !== undefined && (
-            <span
-              style={{
-                fontSize: "0.62rem",
-                fontWeight: 700,
-                color: "#94a3b8",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 4,
-                padding: "1px 6px",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}
-            >
-              Turn {snapshot.turn}
-            </span>
-          )}
-          {snapshot.field?.weather && (
-            <span
-              className="badge field-badge"
-              title={
-                snapshot.field.weather_turns > 0
-                  ? `${snapshot.field.weather_turns} turn(s) left`
-                  : "Permanent"
-              }
-            >
-              {snapshot.field.weather}
-              {snapshot.field.weather_turns > 0 ? ` ${snapshot.field.weather_turns}` : ""}
-            </span>
-          )}
-          {!!snapshot.field?.gravity_turns && (
-            <span
-              className="badge field-badge"
-              title={`${snapshot.field.gravity_turns} turn(s) left`}
-            >
-              Gravity {snapshot.field.gravity_turns}
-            </span>
-          )}
-          <span
-            style={{
-              color: "rgba(120,128,160,0.3)",
-              fontSize: "0.58rem",
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-            }}
-          >
-            VS
-          </span>
-        </div>
-
-        {/* ── OPP SIDE ───────────────────────────────────────────────── */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            minWidth: 0,
-          }}
-        >
-          {/* Trainer remaining items */}
-          {snapshot.trainer_items?.some(Boolean) && (
-            <div
-              style={{
-                display: "flex",
-                gap: 4,
-                justifyContent: "flex-end",
-                alignItems: "center",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "0.48rem",
-                  color: "var(--muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                Items
-              </span>
-              {snapshot.trainer_items.map((item, i) =>
-                item ? (
-                  <img
-                    key={i}
-                    src={itemIcon(item)}
-                    alt={item}
-                    title={item}
-                    width={20}
-                    height={20}
-                    style={{ imageRendering: "pixelated" }}
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : null,
-              )}
-            </div>
-          )}
-          <SideChips effects={snapshot.field?.opp_side} justify="flex-end" />
-          {/* Bench above info */}
-          <BenchRow entries={snapshot.opp_bench} justify="flex-end" />
-          {snapshot.opp && (
-            <div
-              style={{
-                background: "rgba(255,255,255,0.025)",
-                border: "1px solid rgba(255,255,255,0.07)",
-                borderRight: `2px solid ${hpColor(snapshot.opp.hp, snapshot.opp.max_hp)}55`,
-                borderRadius: 8,
-                padding: "8px 10px",
-              }}
-            >
-              <PokInfo pok={snapshot.opp} label="OPP" />
-            </div>
-          )}
-          {/* Sprite below info */}
-          <div style={{ display: "flex", justifyContent: "center" }}>
+        <div className="relative grid grid-cols-2 gap-x-6 px-5 pt-3 pb-2">
+          {/* Opponent: plate + party (left), sprite (right) */}
+          <div className="flex flex-col justify-center gap-2 pb-2">
+            <PartyStrip entries={snapshot.opp_bench} />
             {snapshot.opp ? (
-              <BattleSprite pok={snapshot.opp} side="opp" />
+              <PokPlate pok={snapshot.opp} label="Opp" side={snapshot.field?.opp_side} />
             ) : (
-              <div
-                style={{
-                  height: 84,
-                  display: "flex",
-                  alignItems: "center",
-                  color: "var(--muted)",
-                  fontSize: "0.78rem",
-                  fontStyle: "italic",
-                }}
-              >
-                fainted
+              <div className="text-xs text-subtle-foreground italic">Opponent fainted</div>
+            )}
+          </div>
+          <BattleSprite pok={snapshot.opp} side="opp" />
+
+          {/* Me: sprite (left), plate + party (right) */}
+          <BattleSprite pok={isDeath ? null : snapshot.my} side="mine" />
+          <div className="flex flex-col items-end justify-center gap-2 pt-2">
+            {isDeath ? (
+              <div className="w-full max-w-[340px] rounded-xl border border-bad/25 bg-bad/8 p-3">
+                <div className="mb-2 text-xs text-bad">Fainted. Pick a replacement:</div>
+                <PartyStrip entries={snapshot.my_bench} />
+                {(snapshot.field?.my_side?.length ?? 0) > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    <SideChips effects={snapshot.field?.my_side} />
+                  </div>
+                )}
               </div>
+            ) : (
+              <>
+                {snapshot.my ? (
+                  <PokPlate pok={snapshot.my} label="You" side={snapshot.field?.my_side} />
+                ) : (
+                  <div className="text-xs text-subtle-foreground italic">Fainted</div>
+                )}
+                <PartyStrip entries={snapshot.my_bench} className="justify-end" />
+              </>
             )}
           </div>
         </div>
       </div>
 
-      {/* ── Node stats ─────────────────────────────────────────────────── */}
-      <div className="node-stats">
-        {snapshot.turn !== undefined && (
-          <span>
-            Turn <strong>{snapshot.turn}</strong>
-          </span>
-        )}
-        <span>
-          <strong>{node.visits.toLocaleString()}</strong> visits
-        </span>
-        {bestAction ? (
-          <>
-            <WinRing win={bestAction.win_chance} size={44} />
-            <span>
-              <strong>{bestAction.dead_avg.toFixed(2)}</strong> exp. deaths
-            </span>
-            <span className="best-action-label">if {bestAction.label}</span>
-          </>
-        ) : (
-          <span className="muted">no actions explored yet</span>
-        )}
-        {snapshot.terminal && (
-          <span className="badge terminal-badge">TERMINAL</span>
-        )}
-        <div
-          style={{
-            marginLeft: "auto",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          {onStartNew && (
-            <button
-              onClick={onStartNew}
-              disabled={running || starting}
-              style={{
-                padding: "3px 10px",
-                background: "transparent",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                color: "var(--muted)",
-                fontSize: "0.7rem",
-                cursor: running || starting ? "not-allowed" : "pointer",
-                opacity: running || starting ? 0.5 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!running && !starting)
-                  e.currentTarget.style.color = "var(--text)";
-              }}
-              onMouseLeave={(e) => {
-                if (!running && !starting)
-                  e.currentTarget.style.color = "var(--muted)";
-              }}
-              title="Start a brand new search from root"
-            >
-              {starting ? "Starting…" : "Start brand new"}
-            </button>
-          )}
-          <button
-            onClick={() => onContinue(node.id)}
-            style={{
-              padding: "3px 10px",
-              background: "transparent",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              color: "var(--muted)",
-              fontSize: "0.7rem",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
-          >
-            Continue from here
-          </button>
-        </div>
-      </div>
+      <Recommendation
+        node={node}
+        onContinue={onContinue}
+        onStartNew={onStartNew}
+        running={running}
+        starting={starting}
+      />
     </section>
   );
 }

@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Downloaded by fetch_sprites.py (repo root)
+public/sprites/
+
+# Electron: bundled backend (electron/build_python.py) and installers (npm run dist)
+build/
+release/

@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Loader2, Play, Search, Settings2, Unplug } from "lucide-react";
+import { toast } from "sonner";
 import type {
   TreeNode,
   ActionData,
@@ -7,15 +9,18 @@ import type {
   PokemonConfig,
   TrainerDB,
 } from "./types";
+import { WS_URL, API_URL, getJSON, postJSON } from "./lib/api";
+import { orderActions } from "./lib/tree";
+import TopBar, { type View } from "./components/TopBar";
+import PathRail from "./components/PathRail";
 import BattleView from "./components/BattleView";
 import ActionPanel from "./components/ActionPanel";
-import NodePopup from "./components/NodePopup";
+import OutcomeInspector from "./components/OutcomeInspector";
 import ConfigureView from "./components/ConfigureView";
 import ContinueModal from "./components/ContinueModal";
-import "./App.css";
-
-const WS_URL = "ws://localhost:8000/ws";
-const API_URL = "http://localhost:8000";
+import { Button } from "./components/ui/button";
+import { Toaster } from "./components/ui/sonner";
+import { TooltipProvider } from "./components/ui/tooltip";
 
 // Build a flat id→node map so we can look up any node in O(1).
 // This runs whenever the tree updates (once per second).
@@ -35,28 +40,30 @@ export default function App() {
   const [tree, setTree] = useState<TreeNode | null>(null);
   const [running, setRunning] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [everConnected, setEverConnected] = useState(false);
+  const [compiling, setCompiling] = useState(false); // backend warm-up still compiling
   const [actualIterations, setActualIterations] = useState(0);
   const [displayIterations, setDisplayIterations] = useState(0);
   const prevDisplayRef = useRef(0); // tracks where animation is currently at
-  const [view, setView] = useState<"configure" | "explore">("configure");
+  const lastErrorRef = useRef<string | null>(null); // last search crash already shown
+  const [view, setView] = useState<View>("configure");
   const [pokemonData, setPokemonData] = useState<PokemonData | null>(null);
   const [trainerDB, setTrainerDB] = useState<TrainerDB>({});
   const [myTeam, setMyTeam] = useState<PokemonConfig[]>([]);
   const [oppTeam, setOppTeam] = useState<PokemonConfig[]>([]);
   const [iterations, setIterations] = useState(100_000);
-  const [isFocused, setIsFocused] = useState(false);
+  const [runMax, setRunMax] = useState(0); // max iterations of the current run (progress bar)
   const [continueNodeId, setContinueNodeId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [trainerItems, setTrainerItems] = useState<string[]>(["", "", "", ""]);
   const [terrain, setTerrain] = useState("plain");
 
+  // Data loads once the backend is reachable (in Electron the window can open first)
   useEffect(() => {
-    fetch(`${API_URL}/trainers`)
-      .then((r) => r.json())
-      .then(setTrainerDB)
-      .catch(console.error);
-  }, []);
+    if (!everConnected) return;
+    getJSON<TrainerDB>("/trainers").then(setTrainerDB).catch(console.error);
+  }, [everConnected]);
 
   useEffect(() => {
     const from = prevDisplayRef.current;
@@ -87,7 +94,7 @@ export default function App() {
   // [] = we're at the root.  ["42", "108"] = two levels deep.
   const [pathIds, setPathIds] = useState<string[]>([]);
 
-  // Which action card is selected (drives the popup). null = popup closed.
+  // Which action card is selected (drives the outcome inspector). null = nothing selected.
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   // ── derived values ─────────────────────────────────────────────────────────
@@ -115,18 +122,56 @@ export default function App() {
   // useEffect runs after the component mounts (appears on screen).
   // The empty [] dependency array means "run once, never again".
   // The return value is a cleanup function: runs when the component unmounts.
+  // A dropped connection retries with backoff (1s, 2s, 4s, then every 5s).
   useEffect(() => {
-    const ws = new WebSocket(WS_URL);
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
-    ws.onerror = () => setConnected(false);
-    ws.onmessage = (e) => {
-      const msg: WSMessage = JSON.parse(e.data);
-      setActualIterations(msg.iterations);
-      setRunning(msg.running);
-      if (msg.type === "tree_update" && msg.tree) setTree(msg.tree);
+    let ws: WebSocket | null = null;
+    let retryId: number | undefined;
+    let delay = 1000;
+    let disposed = false;
+
+    // Events from a socket this effect already disposed are ignored: in dev, StrictMode mounts
+    // the effect twice and the first socket's late "close" would mark the live one offline.
+    const connect = () => {
+      const socket = new WebSocket(WS_URL);
+      ws = socket;
+      socket.onopen = () => {
+        if (disposed) return;
+        delay = 1000;
+        setConnected(true);
+        setEverConnected(true);
+      };
+      socket.onclose = () => {
+        if (disposed) return;
+        setConnected(false);
+        retryId = window.setTimeout(connect, delay);
+        delay = Math.min(delay * 2, 5000);
+      };
+      socket.onerror = () => socket.close(); // onclose schedules the retry
+      socket.onmessage = (e) => {
+        if (disposed) return;
+        setConnected(true);
+        const msg: WSMessage = JSON.parse(e.data);
+        setActualIterations(msg.iterations);
+        setRunning(msg.running);
+        setCompiling(!!msg.compiling);
+        if (msg.type === "tree_update" && msg.tree) setTree(msg.tree);
+        if (msg.error && msg.error !== lastErrorRef.current) {
+          lastErrorRef.current = msg.error;
+          const lines = msg.error.trim().split("\n");
+          toast.error("The search stopped with an error", {
+            description: lines[lines.length - 1],
+          });
+        }
+      };
     };
-    return () => ws.close(); // cleanup: close WebSocket when app unmounts
+
+    connect();
+    return () => {
+      // cleanup: stop retrying and close the WebSocket when the app unmounts
+      disposed = true;
+      window.clearTimeout(retryId);
+      ws?.close();
+    };
   }, []);
 
   // ── navigation ─────────────────────────────────────────────────────────────
@@ -143,8 +188,14 @@ export default function App() {
     setSelectedKey(null);
   }, []);
 
+  // Path rail: depth 0 = root, depth n = the n-th step
+  const jumpTo = useCallback((depth: number) => {
+    setPathIds((prev) => prev.slice(0, depth));
+    setSelectedKey(null);
+  }, []);
+
   // ── action click handler ───────────────────────────────────────────────────
-  // If there's exactly 1 outcome we skip the popup and navigate directly.
+  // If there's exactly 1 outcome we skip the inspector and navigate directly.
   const handleActionClick = (key: string) => {
     const action = currentNode?.actions[key];
     if (!action) return;
@@ -154,6 +205,26 @@ export default function App() {
       setSelectedKey(key);
     }
   };
+
+  // ── keyboard (Analyze only, never while typing or with a dialog open) ───────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (view !== "explore" || continueNodeId) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "Escape") {
+        setSelectedKey(null);
+      } else if ((e.key === "Backspace" && !e.altKey) || (e.altKey && e.key === "ArrowLeft")) {
+        e.preventDefault();
+        goBack();
+      } else if (/^[1-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && currentNode) {
+        const entry = orderActions(currentNode)[Number(e.key) - 1];
+        if (entry) handleActionClick(entry[0]);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   // ──Timer───────────────────────────────────────────────────────────
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -168,275 +239,224 @@ export default function App() {
     return () => clearInterval(id);
   }, [running, startTime]);
 
-  // Fetch pokemon data once on mount (add to the existing useEffect block or separate)
+  // Fetch pokemon data once the backend is up (add to the existing useEffect block or separate)
   useEffect(() => {
-    fetch(`${API_URL}/pokemon-data`)
-      .then((r) => r.json())
-      .then(setPokemonData)
-      .catch(console.error);
-  }, []);
+    if (!everConnected) return;
+    getJSON<PokemonData>("/pokemon-data").then(setPokemonData).catch(console.error);
+  }, [everConnected]);
 
   // ── MCTS controls ───────────────────────────────────────────────────────────
   const start = async (myTeam: PokemonConfig[], oppTeam: PokemonConfig[]) => {
     if (starting || running) return;
     setStarting(true);
     try {
-      const res = await fetch(`${API_URL}/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          my_team: myTeam,
-          opp_team: oppTeam,
-          iterations,
-          trainer_items: trainerItems.filter(Boolean),
-          terrain,
-        }),
+      await postJSON("/start", {
+        my_team: myTeam,
+        opp_team: oppTeam,
+        iterations,
+        trainer_items: trainerItems.filter(Boolean),
+        terrain,
       });
-      const data = await res.json();
-      if (!res.ok || data.status === "error") {
-        alert(`Could not start: ${data.error ?? res.statusText}`);
-        return;
-      }
       setSessionActive(true);
       setTree(null);
       setPathIds([]);
       setSelectedKey(null);
       setStartTime(Date.now());
       setElapsed(0);
+      setRunMax(iterations);
       setView("explore");
     } catch (e) {
       console.error(e);
-      alert("Could not reach the backend.");
+      const message = e instanceof Error ? e.message : String(e);
+      toast.error("Could not start the search", {
+        description: message === "Failed to fetch" ? `Can't reach ${API_URL}` : message,
+      });
     } finally {
       setStarting(false);
     }
   };
 
   const stop = () => {
-    fetch(`${API_URL}/stop`, { method: "POST" }).catch(console.error);
+    postJSON("/stop").catch(console.error);
   };
 
-  // format as m:ss
-  const formatTime = (ms: number) => {
-    const s = Math.floor(ms / 1000);
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  };
+  const canStart = myTeam.length > 0 && oppTeam.length > 0;
 
   // ── render ──────────────────────────────────────────────────────────────────
   // JSX looks like HTML but it's actually JavaScript.
   // className instead of class (class is a reserved word in JS).
   // onClick, onChange etc. are camelCase event handlers.
   return (
-    <div className="flex flex-col bg-slate-900 text-slate-200">
-      <header className="flex flex-wrap items-center h-30 gap-1 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0 sticky top-0 z-10 justify-center">
-        <h1 className="text-yellow-400 font-bold text-4xl w-full text-shadow-lg/20 font-sans">
-          MCTS
-        </h1>
-
-        {/* Tabs */}
-        <div className="flex gap-1 bg-slate-900 rounded-lg p-1">
-          {(["configure", "explore"] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`px-3 py-1 rounded text-xs font-medium capitalize transition-colors cursor-pointer
-          ${
-            view === v
-              ? "bg-(--accent) text-black"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-
-        <div className="basis-full h-0"></div>
-
-        {/* Status */}
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <span
-            className={`w-2 h-2 rounded-full ${connected ? "bg-green-400" : "bg-red-500"}`}
-          />
-          {running
-            ? `${displayIterations.toLocaleString()} iters — ${formatTime(elapsed)}`
-            : actualIterations > 0
-              ? `Done — ${actualIterations.toLocaleString()} in ${formatTime(elapsed)}`
-              : "Not started"}
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center gap-2">
-          {(sessionActive || view === "configure") && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-400">Max:</span>
-              <input
-                type="text"
-                value={
-                  isFocused
-                    ? iterations === 0
-                      ? ""
-                      : iterations
-                    : new Intl.NumberFormat("en-US").format(iterations)
-                }
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => {
-                  setIsFocused(false);
-                  setIterations((prev) => Math.max(1, prev));
-                }}
-                onChange={(e) => {
-                  const rawValue = e.target.value.replace(/\D/g, "");
-                  setIterations(rawValue === "" ? 0 : parseInt(rawValue, 10));
-                }}
-                disabled={running || starting}
-                title="Max iterations"
-                className="px-2 py-0.5 bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded disabled:opacity-50 w-24 text-center"
-              />
-              <button
-                onClick={() => start(myTeam, oppTeam)}
-                disabled={
-                  myTeam.length === 0 || oppTeam.length === 0 || running || starting
-                }
-                title={
-                  myTeam.length === 0 || oppTeam.length === 0
-                    ? "Configure both teams to start"
-                    : undefined
-                }
-                className={`px-3 py-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-xs rounded-lg transition-colors cursor-${running || starting ? "not-allowed" : "pointer"}`}
-              >
-                {starting
-                  ? "Starting…"
-                  : running
-                    ? "Running…"
-                    : sessionActive
-                      ? "▶ Start New"
-                      : "▶ Start MCTS"}
-              </button>
-            </div>
-          )}
-          {running && (
-            <button
-              onClick={stop}
-              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs rounded-lg border border-slate-600 transition-colors cursor-pointer"
-            >
-              ■ Stop
-            </button>
-          )}
-          {view === "explore" && pathIds.length > 0 && (
-            <button
-              onClick={goBack}
-              className="px-3 py-1 text-slate-400 hover:text-slate-200 text-xs border border-slate-700 rounded-lg transition-colors cursor-pointer"
-            >
-              ← Back
-            </button>
-          )}
-          {view === "explore" && pathIds.length > 0 && (
-            <span className="text-xs text-slate-500 self-center">
-              Depth {pathIds.length}
-            </span>
-          )}
-        </div>
-      </header>
-
-      {/* Always mounted — CSS hide/show preserves team state between tab switches */}
-      <div
-        className={
-          view === "configure"
-            ? "flex flex-1 flex-col overflow-hidden"
-            : "hidden"
-        }
-      >
-        <ConfigureView
-          pokemonData={pokemonData}
-          trainerDB={trainerDB}
-          myTeam={myTeam}
-          setMyTeam={setMyTeam}
-          oppTeam={oppTeam}
-          setOppTeam={setOppTeam}
-          trainerItems={trainerItems}
-          setTrainerItems={setTrainerItems}
-          setTerrain={setTerrain}
+    <TooltipProvider delayDuration={300}>
+      <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <TopBar
+          view={view}
+          onView={setView}
+          connected={connected}
+          compiling={compiling}
+          running={running}
+          starting={starting}
+          sessionActive={sessionActive}
+          displayIterations={displayIterations}
+          actualIterations={actualIterations}
+          maxIterations={runMax || iterations}
+          elapsed={elapsed}
+          iterations={iterations}
+          onIterations={setIterations}
+          canStart={canStart}
+          onStart={() => start(myTeam, oppTeam)}
+          onStop={stop}
         />
-      </div>
 
-      {view !== "configure" &&
-        (!sessionActive || !currentNode ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-500">
-            <div className="flex flex-col items-center gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-400">
-                  Max iterations
-                </label>
-                <input
-                  type="text"
-                  value={
-                    isFocused
-                      ? iterations === 0
-                        ? ""
-                        : iterations
-                      : new Intl.NumberFormat("en-US").format(iterations)
-                  }
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => {
-                    setIsFocused(false);
-                    setIterations((prev) => Math.max(1, prev));
-                  }}
-                  onChange={(e) => {
-                    const rawValue = e.target.value.replace(/\D/g, "");
-                    setIterations(rawValue === "" ? 0 : parseInt(rawValue, 10));
-                  }}
-                  disabled={running || starting}
-                  className="px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 text-sm rounded disabled:opacity-50 w-32 text-center"
-                />
-              </div>
-              <button
-                onClick={() => start(myTeam, oppTeam)}
-                disabled={
-                  myTeam.length === 0 || oppTeam.length === 0 || running || starting
-                }
-                className={`px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors cursor-${running || starting ? "not-allowed" : "pointer"}`}
-              >
-                {starting ? "Starting…" : running ? "Running…" : "▶ Start MCTS"}
-              </button>
-            </div>
-          </div>
+        {!everConnected ? (
+          <WaitingForBackend />
         ) : (
-          <>
-            <BattleView
-              node={currentNode}
-              onContinue={setContinueNodeId}
-              onStartNew={() => start(myTeam, oppTeam)}
-              running={running}
-              starting={starting}
-            />
-            <ActionPanel
-              node={currentNode}
-              onActionClick={handleActionClick}
-              selectedKey={selectedKey}
-            />
-          </>
-        ))}
-      {selectedAction && (
-        <NodePopup
-          action={selectedAction}
-          onSelect={navigateTo}
-          onClose={() => setSelectedKey(null)}
-        />
-      )}
-      {continueNodeId && (
-        <ContinueModal
-          nodeId={continueNodeId}
-          onClose={() => setContinueNodeId(null)}
-          onStarted={() => {
-            setSessionActive(true);
-            setTree(null);
-            setPathIds([]);
-            setSelectedKey(null);
-            setStartTime(Date.now());
-            setElapsed(0);
-          }}
-        />
-      )}
+          <main className="min-h-0 flex-1">
+            {/* Always mounted — CSS hide/show preserves team state between tab switches */}
+            <div className={view === "configure" ? "flex h-full flex-col" : "hidden"}>
+              <ConfigureView
+                pokemonData={pokemonData}
+                trainerDB={trainerDB}
+                myTeam={myTeam}
+                setMyTeam={setMyTeam}
+                oppTeam={oppTeam}
+                setOppTeam={setOppTeam}
+                trainerItems={trainerItems}
+                setTrainerItems={setTrainerItems}
+                terrain={terrain}
+                setTerrain={setTerrain}
+              />
+            </div>
+
+            {view === "explore" &&
+              (!sessionActive || !tree || !currentNode ? (
+                <ExploreEmpty
+                  sessionActive={sessionActive}
+                  canStart={canStart}
+                  starting={starting}
+                  running={running}
+                  onSetup={() => setView("configure")}
+                  onStart={() => start(myTeam, oppTeam)}
+                />
+              ) : (
+                <div className="grid h-full grid-cols-[220px_minmax(0,1fr)_340px] 2xl:grid-cols-[260px_minmax(0,1fr)_400px]">
+                  <PathRail
+                    tree={tree}
+                    pathIds={pathIds}
+                    nodeMap={nodeMap}
+                    onJump={jumpTo}
+                    onBack={goBack}
+                  />
+                  <div className="min-h-0 overflow-y-auto">
+                    <div className="mx-auto max-w-[1080px]">
+                      <BattleView
+                        node={currentNode}
+                        onContinue={setContinueNodeId}
+                        onStartNew={() => start(myTeam, oppTeam)}
+                        running={running}
+                        starting={starting}
+                      />
+                      <ActionPanel
+                        node={currentNode}
+                        onActionClick={handleActionClick}
+                        selectedKey={selectedKey}
+                      />
+                    </div>
+                  </div>
+                  <OutcomeInspector
+                    action={selectedAction}
+                    onSelect={navigateTo}
+                    onClose={() => setSelectedKey(null)}
+                  />
+                </div>
+              ))}
+          </main>
+        )}
+
+        {continueNodeId && (
+          <ContinueModal
+            nodeId={continueNodeId}
+            onClose={() => setContinueNodeId(null)}
+            onStarted={(n) => {
+              setSessionActive(true);
+              setTree(null);
+              setPathIds([]);
+              setSelectedKey(null);
+              setStartTime(Date.now());
+              setElapsed(0);
+              setRunMax(n);
+            }}
+          />
+        )}
+        <Toaster position="bottom-right" />
+      </div>
+    </TooltipProvider>
+  );
+}
+
+function WaitingForBackend() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-4">
+      <div className="relative flex size-14 items-center justify-center rounded-2xl bg-card ring-1 ring-border">
+        <Unplug className="size-6 text-muted-foreground" />
+        <Loader2 className="absolute -right-1.5 -bottom-1.5 size-5 animate-spin text-primary" />
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-medium">Waiting for the backend…</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Trying <span className="num">{API_URL}</span>. Start it with{" "}
+          <code className="rounded bg-foreground/8 px-1 py-0.5">dev.bat</code> if it isn't
+          running.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ExploreEmpty({
+  sessionActive,
+  canStart,
+  starting,
+  running,
+  onSetup,
+  onStart,
+}: {
+  sessionActive: boolean;
+  canStart: boolean;
+  starting: boolean;
+  running: boolean;
+  onSetup: () => void;
+  onStart: () => void;
+}) {
+  if (sessionActive) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 className="size-6 animate-spin text-primary" />
+        <p className="text-sm">Building the search tree…</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-full items-center justify-center p-8">
+      <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-2xl shadow-black/30">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/12 ring-1 ring-primary/30">
+          <Search className="size-5 text-primary" />
+        </div>
+        <h2 className="mt-4 text-base font-semibold">No search yet</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Pick your team and a trainer in Setup, then start the search. Results show up here
+          while it runs.
+        </p>
+        <div className="mt-6 flex justify-center gap-2">
+          <Button variant="outline" onClick={onSetup}>
+            <Settings2 /> Go to Setup
+          </Button>
+          <Button onClick={onStart} disabled={!canStart || starting || running}>
+            {starting ? <Loader2 className="animate-spin" /> : <Play className="fill-current" />}
+            {starting ? "Starting…" : "Start search"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

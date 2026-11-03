@@ -1,34 +1,17 @@
 import { useState } from "react";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "./ui/combobox";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "./ui/input-group";
-import type { BoxEntry, IVs, PokemonData } from "../types";
+import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Save, Search, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { battleSprite, pokIcon } from "@/lib/sprites";
+import { displayName } from "@/lib/format";
+import type { BoxEntry, IVs, PokemonConfig, PokemonData } from "../types";
+import { Button } from "./ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { Sprite } from "./common/Sprite";
+import { GenderMark, PokeballIcon, TypeBadges, TypeDot } from "./common/Badges";
+import BoxEditor from "./BoxEditor";
 
-// ─── Shared helpers ───────────────────────────────────────────────────────────
-
-const inp =
-  "bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-2 py-1 focus:outline-none focus:border-violet-500 w-full";
-
-const IV_KEYS: (keyof IVs)[] = [
-  "HP",
-  "Attack",
-  "Defense",
-  "Special Attack",
-  "Special Defense",
-  "Speed",
-];
-const IV_LABELS = ["HP", "Atk", "Def", "SpA", "SpD", "Spe"];
+const SLOTS = 30; // a PC box: 6 × 5
+const WALLPAPER_HUES = [250, 155, 25, 300, 65, 200];
 
 const DEFAULT_IVS: IVs = {
   HP: 31,
@@ -51,539 +34,335 @@ function makeBlank(): Omit<BoxEntry, "id"> {
   };
 }
 
-function iconUrl(id: number) {
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-vii/icons/${id}.png`;
-}
+// ─── Summary of the hovered / selected Pokémon ────────────────────────────────
 
-function PokIcon({ id, size = 40 }: { id: number | undefined; size?: number }) {
-  if (!id) {
-    return (
-      <div
-        className="bg-slate-700 rounded shrink-0"
-        style={{ width: size, height: Math.round(size * 0.75) }}
-      />
-    );
-  }
-  return (
-    <img
-      src={iconUrl(id)}
-      width={size}
-      height={Math.round(size * 0.75)}
-      alt=""
-      draggable={false}
-      style={{ imageRendering: "pixelated" }}
-    />
-  );
-}
-
-// ─── Add / Edit modal ─────────────────────────────────────────────────────────
-
-function BoxEntryModal({
+function Summary({
   entry,
   pokemonData,
-  onSave,
-  onCancel,
+  inTeam,
+  teamFull,
+  onAdd,
+  onEdit,
+  onRelease,
 }: {
   entry: BoxEntry | null;
   pokemonData: PokemonData;
-  onSave: (entry: BoxEntry) => void;
-  onCancel: () => void;
-}) {
-  const [draft, setDraft] = useState<Omit<BoxEntry, "id">>(() =>
-    entry
-      ? { ...entry, moves: [...entry.moves], ivs: { ...entry.ivs } }
-      : makeBlank(),
-  );
-
-  const patch = (p: Partial<Omit<BoxEntry, "id">>) =>
-    setDraft((d) => ({ ...d, ...p }));
-
-  const setMove = (i: number, v: string) => {
-    const moves = [...draft.moves];
-    moves[i] = v;
-    patch({ moves });
-  };
-
-  const setIv = (stat: keyof IVs, raw: string) => {
-    const v = Math.max(0, Math.min(31, parseInt(raw) || 0));
-    patch({ ivs: { ...draft.ivs, [stat]: v } as IVs });
-  };
-
-  const { pokemon, moves, natures, abilities } = pokemonData;
-
-  // z-index 20 so it renders above the box popup (z-index 10)
-  return (
-    <div className="popup-overlay" style={{ zIndex: 20 }} onClick={onCancel}>
-      <div
-        className="popup-panel"
-        style={{ maxWidth: "460px", zIndex: 20 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="popup-header">
-          <h2>{entry ? `Edit ${entry.name}` : "Add to Box"}</h2>
-          <button className="close-btn" onClick={onCancel}>
-            ✕
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {/* Name */}
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Name</label>
-            <Combobox
-              value={draft.name}
-              onValueChange={(v) => patch({ name: v ?? "" })}
-              items={pokemon}
-            >
-              <ComboboxInput className={inp} showClear />
-              <ComboboxContent>
-                <ComboboxEmpty>No results</ComboboxEmpty>
-                <ComboboxList>
-                  {(item: string) => (
-                    <ComboboxItem key={item} value={item}>
-                      {item}
-                    </ComboboxItem>
-                  )}
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-          </div>
-
-          {/* Level + Gender */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="block text-xs text-slate-400 mb-1">Level</label>
-              <InputGroup>
-                <InputGroupAddon align="inline-start">
-                  <InputGroupButton
-                    onClick={() =>
-                      patch({ level: Math.max(1, draft.level - 1) })
-                    }
-                  >
-                    -
-                  </InputGroupButton>
-                </InputGroupAddon>
-                <InputGroupInput
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={draft.level}
-                  onChange={(e) =>
-                    patch({ level: parseInt(e.target.value) || 1 })
-                  }
-                  className="text-center"
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    onClick={() =>
-                      patch({ level: Math.min(100, draft.level + 1) })
-                    }
-                  >
-                    +
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs text-slate-400 mb-1">
-                Gender
-              </label>
-              <Combobox
-                value={draft.gender ?? "None"}
-                onValueChange={(v) =>
-                  patch({ gender: v === "None" ? null : (v ?? null) })
-                }
-                items={["Male", "Female", "None"]}
-              >
-                <ComboboxInput className={inp} />
-                <ComboboxContent>
-                  <ComboboxList>
-                    {(item: string) => (
-                      <ComboboxItem key={item} value={item}>
-                        {item}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-            </div>
-          </div>
-
-          {/* Ability + Nature */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="block text-xs text-slate-400 mb-1">
-                Ability
-              </label>
-              <Combobox
-                value={draft.ability}
-                onValueChange={(v) => patch({ ability: v ?? "" })}
-                items={abilities}
-              >
-                <ComboboxInput className={inp} showClear />
-                <ComboboxContent>
-                  <ComboboxEmpty>No results</ComboboxEmpty>
-                  <ComboboxList>
-                    {(item: string) => (
-                      <ComboboxItem key={item} value={item}>
-                        {item}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs text-slate-400 mb-1">
-                Nature
-              </label>
-              <Combobox
-                value={draft.nature}
-                onValueChange={(v) => patch({ nature: v ?? "Hardy" })}
-                items={natures}
-              >
-                <ComboboxInput className={inp} />
-                <ComboboxContent>
-                  <ComboboxEmpty>No results</ComboboxEmpty>
-                  <ComboboxList>
-                    {(item: string) => (
-                      <ComboboxItem key={item} value={item}>
-                        {item}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-            </div>
-          </div>
-
-          {/* Moves */}
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Moves</label>
-            <div className="grid grid-cols-2 gap-2">
-              {draft.moves.map((mv, i) => (
-                <Combobox
-                  key={i}
-                  value={mv}
-                  onValueChange={(v) => setMove(i, v ?? "")}
-                  items={moves}
-                >
-                  <ComboboxInput
-                    className={inp}
-                    placeholder="— empty —"
-                    showClear
-                  />
-                  <ComboboxContent>
-                    <ComboboxEmpty>No results</ComboboxEmpty>
-                    <ComboboxList>
-                      {(item: string) => (
-                        <ComboboxItem key={item} value={item}>
-                          {item}
-                        </ComboboxItem>
-                      )}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-              ))}
-            </div>
-          </div>
-
-          {/* IVs */}
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">IVs</label>
-            <div className="grid grid-cols-3 gap-2">
-              {IV_KEYS.map((stat, i) => (
-                <div key={stat}>
-                  <label className="block text-xs text-slate-500 mb-0.5">
-                    {IV_LABELS[i]}
-                  </label>
-                  <InputGroup>
-                    <InputGroupAddon align="inline-start">
-                      <InputGroupButton
-                        onClick={() =>
-                          patch({
-                            ivs: {
-                              ...draft.ivs,
-                              [stat]: Math.max(0, draft.ivs[stat] - 1),
-                            },
-                          })
-                        }
-                      >
-                        -
-                      </InputGroupButton>
-                    </InputGroupAddon>
-                    <InputGroupInput
-                      type="number"
-                      min={0}
-                      max={31}
-                      value={draft.ivs[stat]}
-                      onChange={(e) => setIv(stat, e.target.value)}
-                      className="text-center"
-                    />
-                    <InputGroupAddon align="inline-end">
-                      <InputGroupButton
-                        onClick={() =>
-                          patch({
-                            ivs: {
-                              ...draft.ivs,
-                              [stat]: Math.min(31, draft.ivs[stat] + 1),
-                            },
-                          })
-                        }
-                      >
-                        +
-                      </InputGroupButton>
-                    </InputGroupAddon>
-                  </InputGroup>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="px-4 py-1.5 text-sm text-slate-400 hover:text-slate-200 border border-slate-600 rounded-lg transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() =>
-              draft.name &&
-              onSave({ ...draft, id: entry?.id ?? crypto.randomUUID() })
-            }
-            disabled={
-              !draft.name ||
-              !draft.ability ||
-              !draft.moves.some((m) => m) ||
-              !draft.ivs
-            }
-            className="px-4 py-1.5 text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-lg transition-colors disabled:cursor-not-allowed cursor-pointer"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Grid cell with hover three-dots menu ─────────────────────────────────────
-
-function BoxCell({
-  entry,
-  nameToId,
-  onEdit,
-  onDelete,
-}: {
-  entry: BoxEntry;
-  nameToId: Record<string, number>;
+  inTeam: boolean;
+  teamFull: boolean;
+  onAdd: () => void;
   onEdit: () => void;
-  onDelete: () => void;
+  onRelease: () => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  // a different Pokémon resets the release confirmation
+  const [shownId, setShownId] = useState(entry?.id);
+  if (entry?.id !== shownId) {
+    setShownId(entry?.id);
+    setConfirming(false);
+  }
 
+  if (!entry) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-4 text-center">
+        <PokeballIcon className="size-6 opacity-40 grayscale" />
+        <p className="text-xs text-subtle-foreground">
+          Hover a Pokémon to see its summary. Click to select, double-click to add it to your party.
+        </p>
+      </div>
+    );
+  }
+
+  const id = pokemonData.nameToId[entry.name];
+  const moveInfo = pokemonData.moveInfo;
   return (
-    <div className="relative group flex flex-col items-center gap-1 p-1.5 rounded-lg hover:bg-slate-700/60 cursor-default select-none">
-      <PokIcon id={nameToId[entry.name]} />
-      <span className="text-[10px] text-slate-400 truncate w-full text-center leading-tight">
-        {entry.name}
-      </span>
-
-      {/* Three-dots — only visible on hover */}
-      <button
-        className="absolute top-0.5 right-0.5 w-4 h-4 rounded opacity-0 group-hover:opacity-100
-                   bg-slate-600/90 hover:bg-slate-500 text-slate-200 text-[10px] leading-none
-                   flex items-center justify-center transition-opacity z-10"
-        onClick={(e) => {
-          e.stopPropagation();
-          setMenuOpen((v) => !v);
-        }}
-        title="Options"
-      >
-        ⋯
-      </button>
-
-      {menuOpen && (
-        <>
-          {/* Click-outside close */}
+    <div className="flex h-full flex-col rounded-xl border bg-card p-3">
+      <div className="flex gap-3">
+        <div className="relative flex size-[84px] shrink-0 items-end justify-center pb-1.5">
           <div
-            className="fixed inset-0 z-40"
-            onClick={() => setMenuOpen(false)}
+            className="absolute bottom-0.5 left-1/2 h-5 w-20 -translate-x-1/2 rounded-[50%]"
+            style={{ background: "radial-gradient(closest-side, oklch(1 0 0 / 12%), transparent)" }}
           />
-          <div className="absolute top-5 right-0 z-51 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden min-w-[72px]">
-            <button
-              className="block w-full text-left px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700 whitespace-nowrap"
-              onClick={() => {
-                onEdit();
-                setMenuOpen(false);
-              }}
-            >
-              Edit
-            </button>
-            <button
-              className="block w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-slate-700 whitespace-nowrap"
-              onClick={() => {
-                onDelete();
-                setMenuOpen(false);
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ─── Box grid popup ───────────────────────────────────────────────────────────
-
-function BoxPopup({
-  box,
-  pokemonData,
-  onBoxChange,
-  onSave,
-  saved,
-  onClose,
-  onOpenEdit,
-}: {
-  box: BoxEntry[];
-  pokemonData: PokemonData;
-  onBoxChange: (box: BoxEntry[]) => void;
-  onSave: () => void;
-  saved: boolean;
-  onClose: () => void;
-  onOpenEdit: (entry: BoxEntry | null) => void;
-}) {
-  const { nameToId } = pokemonData;
-  const emptyCount = box.length % 6 === 0 ? 0 : 6 - (box.length % 6);
-
-  return (
-    <div
-      className="fixed inset-0 z-10 bg-black/60 flex items-center justify-center p-20 m-0"
-      onClick={onClose}
-    >
-      <div
-        className="popup-panel"
-        style={{ maxWidth: "520px" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="popup-header">
-          <h2>
-            Box{" "}
-            <span
-              style={{
-                color: "var(--muted)",
-                fontWeight: 400,
-                fontSize: "0.8em",
-              }}
-            >
-              ({box.length})
+          {id && (
+            <Sprite
+              key={id}
+              srcs={battleSprite(id, "front")}
+              alt={entry.name}
+              className="relative max-h-[84px] max-w-[96px]"
+            />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-[15px] font-semibold tracking-tight">
+              {displayName(entry.name)}
             </span>
-          </h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onSave}
-              className="text-xs px-2.5 py-1 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg transition-colors"
-            >
-              {saved ? "✓ Saved" : "Save"}
-            </button>
-            <button
-              onClick={() => onOpenEdit(null)}
-              className="text-xs px-2.5 py-1 bg-violet-600 hover:bg-violet-500 rounded-lg text-white transition-colors"
-            >
-              + New
-            </button>
-            <button className="close-btn" onClick={onClose}>
-              ✕
-            </button>
+            <GenderMark gender={entry.gender} />
+          </div>
+          <div className="num text-xs text-subtle-foreground">Lv {entry.level}</div>
+          <TypeBadges types={pokemonData.pokemonTypes?.[entry.name]} height={14} className="mt-1" />
+          <div className="mt-1 truncate text-[11px] text-muted-foreground">
+            {entry.ability} · {entry.nature}
           </div>
         </div>
+      </div>
 
-        {box.length === 0 ? (
-          <p className="text-sm text-slate-500 italic text-center py-8">
-            Box is empty — click + New to add a Pokémon
-          </p>
-        ) : (
-          <div className="grid grid-cols-6 gap-1.5">
-            {box.map((entry) => (
-              <BoxCell
-                key={entry.id}
-                entry={entry}
-                nameToId={nameToId}
-                onEdit={() => onOpenEdit(entry)}
-                onDelete={() =>
-                  onBoxChange(box.filter((e) => e.id !== entry.id))
-                }
-              />
-            ))}
-            {/* Placeholder cells to complete the last row */}
-            {Array.from({ length: emptyCount }).map((_, i) => (
-              <div
-                key={`ph-${i}`}
-                className="rounded-lg border border-dashed border-slate-700/40"
-                style={{ height: 62 }}
-              />
-            ))}
-          </div>
-        )}
+      <div className="mt-2.5 grid grid-cols-2 gap-1">
+        {entry.moves.map((m, i) => (
+          <span
+            key={i}
+            className={cn(
+              "flex items-center gap-1.5 truncate rounded-md px-2 py-1 text-[11px]",
+              m ? "bg-foreground/5" : "text-subtle-foreground italic",
+            )}
+          >
+            {m && <TypeDot type={moveInfo?.[m]?.type} />}
+            <span className="truncate">{m || "—"}</span>
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-auto flex gap-1.5 pt-3">
+        <Button
+          size="sm"
+          className="flex-1"
+          onClick={onAdd}
+          disabled={inTeam || teamFull}
+        >
+          {inTeam ? <Check /> : <PokeballIcon />}
+          {inTeam ? "In party" : teamFull ? "Party full" : "Add to party"}
+        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon-sm" onClick={onEdit} aria-label="Edit">
+              <Pencil />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Edit</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={confirming ? "destructive" : "ghost"}
+              size={confirming ? "sm" : "icon-sm"}
+              onClick={() => {
+                if (confirming) onRelease();
+                else setConfirming(true);
+              }}
+              aria-label="Release"
+            >
+              <Trash2 />
+              {confirming && "Release?"}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{confirming ? "Click again to release" : "Release (remove from box)"}</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
 }
 
-// ─── Exported: trigger + popup orchestration ──────────────────────────────────
+// ─── Exported: the box as a PC-box side rail ──────────────────────────────────
 
 export default function BoxView({
   box,
   pokemonData,
   onBoxChange,
   onSave,
+  dirty,
+  saved,
+  team,
+  onAdd,
 }: {
   box: BoxEntry[];
   pokemonData: PokemonData;
   onBoxChange: (box: BoxEntry[]) => void;
   onSave: () => void;
+  dirty: boolean;
+  saved: boolean;
+  team: PokemonConfig[];
+  onAdd: (entry: BoxEntry) => void;
 }) {
-  const [popupOpen, setPopupOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<BoxEntry | "new" | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [hovered, setHovered] = useState<BoxEntry | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { nameToId } = pokemonData;
 
-  function handleSave() {
-    onSave();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
-  }
+  const q = query.trim().toLowerCase();
+  const shown = q ? box.filter((e) => displayName(e.name).toLowerCase().includes(q)) : box;
+  const pageCount = Math.max(1, Math.ceil(shown.length / SLOTS));
+  const current = Math.min(page, pageCount - 1);
+  const slots = shown.slice(current * SLOTS, current * SLOTS + SLOTS);
+  const hue = WALLPAPER_HUES[current % WALLPAPER_HUES.length];
+
+  const selected = box.find((e) => e.id === selectedId) ?? null;
+  const focus = hovered ?? selected;
+  const teamFull = team.length >= 6;
+  const inTeam = (e: BoxEntry) => team.some((t) => t.name === e.name);
 
   return (
-    <>
-      <button
-        onClick={() => setPopupOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-sm text-slate-200 transition-colors cursor-pointer"
-      >
-        Box
-        <span className="text-slate-400 text-xs">({box.length})</span>
-      </button>
+    <aside className="flex min-h-0 flex-col border-r bg-card/40">
+      <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+        <span className="text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
+          PC Box
+        </span>
+        <span className="num text-[11px] text-subtle-foreground/70">{box.length}</span>
+        <div className="ml-auto flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-sm" onClick={onSave} aria-label="Save box" className="relative">
+                {saved ? <Check className="text-good" /> : <Save />}
+                {dirty && !saved && (
+                  <span className="absolute top-1 right-1 size-1.5 rounded-full bg-warn" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{dirty ? "Save box (unsaved changes)" : "Save box"}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon-sm" onClick={() => setEditEntry("new")} aria-label="New Pokémon">
+                <Plus />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Store a new Pokémon</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
 
-      {/* Grid popup */}
-      {popupOpen && (
-        <BoxPopup
-          box={box}
-          pokemonData={pokemonData}
-          onBoxChange={onBoxChange}
-          onSave={handleSave}
-          saved={saved}
-          onClose={() => setPopupOpen(false)}
-          onOpenEdit={(entry) => setEditEntry(entry ?? "new")}
-        />
-      )}
+      <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+        <div className="flex h-8 shrink-0 items-center gap-2 rounded-lg border border-input bg-input/30 px-2 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+          <Search className="size-3.5 text-subtle-foreground" />
+          <input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(0); // a search starts again from the first box
+            }}
+            placeholder="Search box"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
+          />
+        </div>
 
-      {/* Entry modal — z-index 20, renders above box popup */}
+        {/* the box */}
+        <div
+          className="shrink-0 overflow-hidden rounded-xl ring-1"
+          style={{ boxShadow: `inset 0 0 0 1px oklch(0.6 0.08 ${hue} / 35%)` }}
+        >
+          <div
+            className="flex h-8 items-center justify-between px-1"
+            style={{ background: `oklch(0.34 0.07 ${hue})` }}
+          >
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setPage((current - 1 + pageCount) % pageCount)}
+              disabled={pageCount === 1}
+              aria-label="Previous box"
+            >
+              <ChevronLeft />
+            </Button>
+            <span className="text-xs font-bold tracking-[0.2em] text-white/90 uppercase">
+              {q ? "Search" : `Box ${current + 1}`}
+              {pageCount > 1 && (
+                <span className="num ml-1.5 font-medium tracking-normal text-white/50">
+                  {current + 1}/{pageCount}
+                </span>
+              )}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setPage((current + 1) % pageCount)}
+              disabled={pageCount === 1}
+              aria-label="Next box"
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+          <div
+            className="grid grid-cols-6 gap-0.5 p-1.5"
+            style={{
+              background: [
+                `radial-gradient(ellipse 80% 60% at 50% 0%, oklch(0.42 0.08 ${hue} / 35%), transparent 70%)`,
+                `repeating-linear-gradient(45deg, oklch(0.25 0.04 ${hue}) 0 9px, oklch(0.225 0.035 ${hue}) 9px 18px)`,
+              ].join(", "),
+            }}
+            onMouseLeave={() => setHovered(null)}
+          >
+            {Array.from({ length: SLOTS }).map((_, i) => {
+              const entry = slots[i];
+              if (!entry) {
+                return <div key={`empty-${i}`} className="aspect-square rounded-md bg-black/10" />;
+              }
+              const id = nameToId[entry.name];
+              const isSelected = entry.id === selectedId;
+              const member = inTeam(entry);
+              return (
+                <button
+                  key={entry.id}
+                  onMouseEnter={() => setHovered(entry)}
+                  onClick={() => setSelectedId(entry.id)}
+                  onDoubleClick={() => onAdd(entry)}
+                  title={displayName(entry.name)}
+                  className={cn(
+                    "group relative flex aspect-square items-center justify-center rounded-md transition-colors cursor-pointer",
+                    isSelected ? "bg-white/20 ring-2 ring-white/70" : "bg-black/10 hover:bg-white/12",
+                  )}
+                >
+                  {id && (
+                    <Sprite
+                      srcs={pokIcon(id)}
+                      alt={entry.name}
+                      width={40}
+                      height={30}
+                      className={cn(
+                        "max-w-none group-hover:animate-hop",
+                        member && "opacity-55",
+                        isSelected && "animate-hop",
+                      )}
+                    />
+                  )}
+                  {member && <PokeballIcon className="absolute right-0 bottom-0 size-2.5" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {box.length === 0 && (
+          <p className="text-center text-[11px] text-subtle-foreground">
+            The box is empty: use + to store the Pokémon you've caught.
+          </p>
+        )}
+
+        <div className="min-h-[220px] flex-1">
+          <Summary
+            entry={focus}
+            pokemonData={pokemonData}
+            inTeam={focus ? inTeam(focus) : false}
+            teamFull={teamFull}
+            onAdd={() => focus && onAdd(focus)}
+            onEdit={() => focus && setEditEntry(focus)}
+            onRelease={() => {
+              if (!focus) return;
+              onBoxChange(box.filter((e) => e.id !== focus.id));
+              setHovered(null);
+              setSelectedId(null);
+            }}
+          />
+        </div>
+      </div>
+
       {editEntry !== null && (
-        <BoxEntryModal
+        <BoxEditor
           entry={editEntry === "new" ? null : editEntry}
+          draft={
+            editEntry === "new"
+              ? makeBlank()
+              : { ...editEntry, moves: [...editEntry.moves], ivs: { ...editEntry.ivs } }
+          }
           pokemonData={pokemonData}
           onSave={(entry) => {
             onBoxChange(
@@ -591,11 +370,12 @@ export default function BoxView({
                 ? [...box, entry]
                 : box.map((e) => (e.id === entry.id ? entry : e)),
             );
+            setSelectedId(entry.id);
             setEditEntry(null);
           }}
           onCancel={() => setEditEntry(null)}
         />
       )}
-    </>
+    </aside>
   );
 }

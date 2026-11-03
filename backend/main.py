@@ -11,7 +11,9 @@ import threading
 import asyncio
 import random
 import json
+import time
 import traceback
+from contextlib import asynccontextmanager
 from typing import Optional, cast
 from pydantic import BaseModel, Field
 import numpy as np
@@ -48,7 +50,14 @@ _DEFAULT_IVS = {
     "HP": 31, "Attack": 31, "Defense": 31,
     "Special Attack": 31, "Special Defense": 31, "Speed": 31,
 }
-_BOX_PATH = os.path.join(_ROOT, "UserData", "box.json")
+
+
+def _box_path() -> str:
+    """UserData/box.json, or PBO_BOX_PATH (the Electron app keeps the box in %APPDATA%)"""
+    return os.environ.get("PBO_BOX_PATH") or os.path.join(_ROOT, "UserData", "box.json")
+
+
+_BOX_PATH = _box_path()
 
 _TRAINER_ITEM_FIELDS = (
     _FIELD_AI_ITEM1, _FIELD_AI_ITEM2, _FIELD_AI_ITEM3, _FIELD_AI_ITEM4,
@@ -74,7 +83,31 @@ def _seed_numba(seed: int) -> None:
 
 # ─── app setup ───────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Pokemon MCTS Visualiser")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """Compile the engine in the background at startup, unless JIT is off (pytest)"""
+    global _warmup_running  #pylint:disable=W0603
+    if os.environ.get("NUMBA_DISABLE_JIT") != "1":
+        _warmup_running = True
+        threading.Thread(target=_warm_up, daemon=True).start()
+    if os.environ.get("PBO_EXIT_WITH_PARENT") == "1" and sys.stdin is not None:
+        threading.Thread(target=_exit_when_parent_closes, args=(sys.stdin.fileno(),), daemon=True).start()
+    yield
+
+
+def _exit_when_parent_closes(fd: int) -> None:
+    """Electron starts the backend with a stdin pipe that closes when Electron exits, crash
+    included, so the backend never outlives the app. Reads the raw fd: a thread blocked in
+    sys.stdin's buffered reader holds its lock and crashes the interpreter's shutdown."""
+    try:
+        while os.read(fd, 1024):
+            pass
+    except (OSError, ValueError):
+        pass
+    os._exit(0)
+
+
+app = FastAPI(title="Pokemon MCTS Visualiser", lifespan=_lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],   # fine for local dev
@@ -97,6 +130,7 @@ class Session:
 
 
 _session: Session | None = None
+_warmup_running = False  # True while the startup warm-up compiles / loads the engine
 
 # ─── battle builder ──────────────────────────────────────────────────────────
 class BoxEntry(BaseModel):
@@ -190,6 +224,18 @@ async def get_pokemon_data() -> dict:
         "nameToId":  name_to_id,
         "baseStats": base_stats,
         "natureMultipliers": natures,
+        "moveInfo": {
+            name: {
+                "type":     m.get("type", ""),
+                "category": m.get("category", ""),
+                "power":    m.get("power", 0),
+                "accuracy": m.get("accuracy"),
+                "pp":       m.get("pp"),
+            }
+            for name, m in moveDB.items()
+        },
+        "pokemonTypes": {name: list(pkDB[name].get("type", [])) for name in pkDB},
+        "pokemonAbilities": {name: list(pkDB[name].get("abilities", [])) for name in pkDB},
     }
 
 # ─── MCTS worker ─────────────────────────────────────────────────────────────
@@ -244,9 +290,8 @@ async def _launch(root_state: GameState, battle: np.ndarray, max_iterations: int
 
 # ─── REST endpoints ───────────────────────────────────────────────────────────
 
-@app.post("/start")
-async def start_mcts(config: BattleConfig) -> dict:
-    """Start from app"""
+def _build_battle(config: BattleConfig) -> np.ndarray:
+    """Battle array for a config: both parties, start of battle, trainer items, terrain"""
     def make_pokemon(p: PokemonConfig) -> Pokemon:
         moves = [m for m in p.moves if m]
         return Pokemon(
@@ -255,21 +300,54 @@ async def start_mcts(config: BattleConfig) -> dict:
             item=p.item if p.item else None,
         )
 
+    my_party  = [make_pokemon(p) for p in config.my_team]
+    opp_party = [make_pokemon(p) for p in config.opp_team]
+    battle    = to_battle_array(my_party, opp_party)
+
+    if battle[_FIELD_TURN] == 0:
+        start_of_battle(battle)
+
+    for i, item_name in enumerate(config.trainer_items[:4]):
+        val = _TRAINER_ITEM_MAP.get(item_name, 0)
+        if val:
+            battle[_TRAINER_ITEM_FIELDS[i]] = val
+    battle[_FIELD_TERRAIN] = getattr(Terrain, config.terrain.upper())
+    return battle
+
+
+_WARMUP_CONFIG = BattleConfig(
+    my_team=[PokemonConfig(name="Charmander", level=5, ability="Blaze",
+                           moves=["Scratch", "Growl", "Ember"], item="Oran Berry")],
+    opp_team=[PokemonConfig(name="Squirtle", level=5, ability="Torrent", moves=["Tackle", "Tail Whip"]),
+              PokemonConfig(name="Bulbasaur", level=5, ability="Overgrow", moves=["Tackle", "Growl"])],
+    iterations=300,
+    trainer_items=["Potion"],
+)
+
+
+def _warm_up() -> None:
+    """Compile (or load from the Numba cache) everything a search runs, on a throwaway session,
+    so the first real search doesn't wait on compilation"""
+    global _warmup_running  #pylint:disable=W0603
+    t0 = time.perf_counter()
+    try:
+        battle = _build_battle(_WARMUP_CONFIG)
+        state = GameState(battle)
+        _mcts_worker(Session(Node(state), battle.copy(), _WARMUP_CONFIG.iterations), state)
+        print(f"[warm-up] engine ready in {time.perf_counter() - t0:.1f}s")
+    except Exception:
+        traceback.print_exc()
+    finally:
+        _warmup_running = False
+
+
+@app.post("/start")
+async def start_mcts(config: BattleConfig) -> dict:
+    """Start from app"""
     # Build everything BEFORE touching the current run, so a bad config
     # reports an error instead of killing a working search.
     try:
-        my_party  = [make_pokemon(p) for p in config.my_team]
-        opp_party = [make_pokemon(p) for p in config.opp_team]
-        battle    = to_battle_array(my_party, opp_party)
-
-        if battle[_FIELD_TURN] == 0:
-            start_of_battle(battle)
-
-        for i, item_name in enumerate(config.trainer_items[:4]):
-            val = _TRAINER_ITEM_MAP.get(item_name, 0)
-            if val:
-                battle[_TRAINER_ITEM_FIELDS[i]] = val
-        battle[_FIELD_TERRAIN] = getattr(Terrain, config.terrain.upper())
+        battle = _build_battle(config)
     except Exception as exc:
         traceback.print_exc()
         return {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
@@ -418,7 +496,8 @@ async def ws_endpoint(ws: WebSocket) -> None:
         while True:
             sess = _session
             if sess is None:
-                await ws.send_json({"type": "status", "iterations": 0, "running": False})
+                await ws.send_json({"type": "status", "iterations": 0, "running": False,
+                                    "compiling": _warmup_running})
             else:
                 iterations = sess.iterations
                 changed = sess is not last_sess or iterations != last_sent
@@ -431,6 +510,7 @@ async def ws_endpoint(ws: WebSocket) -> None:
                         "iterations": iterations,
                         "running": sess.running,
                         "error": sess.error,
+                        "compiling": _warmup_running,
                         "tree": tree,
                     })
                     last_sess, last_sent = sess, iterations
@@ -440,6 +520,7 @@ async def ws_endpoint(ws: WebSocket) -> None:
                         "iterations": iterations,
                         "running": sess.running,
                         "error": sess.error,
+                        "compiling": _warmup_running,
                     })
             await asyncio.sleep(1.0)
     except WebSocketDisconnect:

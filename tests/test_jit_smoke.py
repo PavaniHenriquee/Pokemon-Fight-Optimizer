@@ -9,19 +9,17 @@ First run compiles everything (~1 min). The compile cache lives in
 seconds and ANY source edit forces a clean compile (Numba's own cache doesn't notice edits
 to functions called from another file).
 """
-import hashlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 import pytest
 from battle_driver import SCENARIOS
+from Utils.jit_cache import cache_dir
 
 pytestmark = pytest.mark.jit
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CACHE_BASE = os.path.join(ROOT, ".numba_cache", "tests")
 SOURCE_DIRS = ("DataBase", "Engine", "Models", "SearchEngine", "Utils", "tests")
 
 SCRIPT = r"""
@@ -75,28 +73,12 @@ print("JIT_RESULTS=" + json.dumps(results))
 CASES = list(SCENARIOS) + ["mcts"]
 
 
-def _source_hash():
-    digest = hashlib.sha256()
-    for folder in SOURCE_DIRS:
-        for base, _, files in sorted(os.walk(os.path.join(ROOT, folder))):
-            for f in sorted(files):
-                if f.endswith((".py", ".json")):
-                    with open(os.path.join(base, f), "rb") as fh:
-                        digest.update(f.encode() + fh.read())
-    return digest.hexdigest()[:12]
-
-
 @pytest.fixture(scope="module", name="jit_results")
 def fixture_jit_results():
     """Run the compiled smoke script once for the whole module"""
-    key = _source_hash()
-    if os.path.isdir(CACHE_BASE):
-        for old in os.listdir(CACHE_BASE):
-            if old != key:
-                shutil.rmtree(os.path.join(CACHE_BASE, old), ignore_errors=True)
     env = {k: v for k, v in os.environ.items() if k != "NUMBA_DISABLE_JIT"}
     env["NUMBA_CACHE_ON"] = "1"
-    env["NUMBA_CACHE_DIR"] = os.path.join(CACHE_BASE, key)
+    env["NUMBA_CACHE_DIR"] = cache_dir("tests", SOURCE_DIRS, ROOT)
     proc = subprocess.run(
         [sys.executable, "-W", "ignore", "-c", SCRIPT],
         cwd=ROOT, env=env, capture_output=True, text=True, timeout=900, check=False,

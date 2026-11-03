@@ -1,6 +1,7 @@
 """FastAPI endpoints and the tree serializer the frontend depends on.
 The real UserData/box.json is never written: _BOX_PATH points to a temp file."""
 import json
+import os
 import pytest
 from fastapi.testclient import TestClient
 from backend import main
@@ -49,6 +50,15 @@ def test_pokemon_data(client):
     assert "Charmander" in data["pokemon"] and "Ember" in data["moves"]
     assert set(data["nameToId"]) <= set(data["pokemon"])
     assert data["baseStats"]["Charmander"]["HP"] == 39
+    assert set(data["moveInfo"]) == set(data["moves"])
+    assert data["moveInfo"]["Ember"] == {"type": "Fire", "category": "Special", "power": 40,
+                                         "accuracy": 100, "pp": 25}
+    assert set(data["pokemonTypes"]) == set(data["pokemon"])
+    assert data["pokemonTypes"]["Charmander"] == ["Fire"]
+    assert data["pokemonTypes"]["Bulbasaur"] == ["Grass", "Poison"]
+    assert set(data["pokemonAbilities"]) == set(data["pokemon"])
+    assert data["pokemonAbilities"]["Bulbasaur"] == ["Chlorophyll", "Overgrow"]
+    assert set(a for abs_ in data["pokemonAbilities"].values() for a in abs_) <= set(data["abilities"])
 
 
 def test_trainers(client):
@@ -111,6 +121,18 @@ def test_start_node_info_and_continue(client):
     assert new_sess.root.snapshot.my_slice[Pok.CURRENT_HP] == 5
 
 
+def test_max_pp_covers_every_move():
+    """Every MoveDB move has its base PP, hyphenated names (Mud-Slap, Will-O-Wisp) included"""
+    from backend.serializer import _MOVE_ID_TO_MAX_PP  # pylint: disable=import-outside-toplevel
+    from DataBase.MoveDB import MoveName  # pylint: disable=import-outside-toplevel
+    from DataBase.loader import moveDB  # pylint: disable=import-outside-toplevel
+    missing = [k for k, e in moveDB.items()
+               if _MOVE_ID_TO_MAX_PP.get(getattr(MoveName, e["name"].upper())) != e["pp"]]
+    assert not missing, missing
+    assert _MOVE_ID_TO_MAX_PP[MoveName.MUD_SLAP] == 10
+    assert _MOVE_ID_TO_MAX_PP[MoveName.WILL_O_WISP] == 15
+
+
 def test_serialize_node_is_json_ready():
     """The tree payload sent over the websocket survives json.dumps and has the fields
     frontend/src/types.ts expects"""
@@ -125,9 +147,83 @@ def test_serialize_node_is_json_ready():
     for key in ("phase", "my", "opp", "my_bench", "opp_bench", "trainer_items", "turn"):
         assert key in snap
     assert snap["my"]["name"] == "Charmander"
+    assert snap["my"]["types"] == ["Fire"] and snap["my"]["level"] > 0
+    for bench in snap["my_bench"] + snap["opp_bench"]:
+        assert bench["types"], bench["name"]
+    for mv in snap["my"]["moves"]:
+        for key in ("name", "pp", "max_pp", "type", "category", "power"):
+            assert key in mv
+        assert mv["type"] and mv["category"] in ("Physical", "Special", "Status")
     assert tree["actions"], "root should list its explored actions"
     for act in tree["actions"].values():
         for key in ("action_type", "action_idx", "label", "total_visits", "win_chance",
-                    "nodes"):
+                    "nodes", "move_type", "category", "power"):
             assert key in act
         assert 0.0 <= act["win_chance"] <= 1.0
+        if act["action_type"] == 1 and act["label"] != "Struggle":
+            assert act["move_type"] and act["category"], act["label"]
+        else:
+            assert act["move_type"] is None, act["label"]
+    ember = [a for a in tree["actions"].values() if a["label"] == "Ember"]
+    if ember:
+        assert (ember[0]["move_type"], ember[0]["category"], ember[0]["power"]) == (
+            "Fire", "Special", 40)
+
+
+def test_warm_up_runs_a_throwaway_search(monkeypatch, capsys):
+    """The startup warm-up builds its battle and searches without touching the real session"""
+    monkeypatch.setattr(main, "_session", None)
+    monkeypatch.setattr(main, "_WARMUP_CONFIG",
+                        main._WARMUP_CONFIG.model_copy(update={"iterations": 20}))  # pylint: disable=protected-access
+    main._warm_up()  # pylint: disable=protected-access
+    assert "engine ready" in capsys.readouterr().out
+    assert main._session is None and not main._warmup_running  # pylint: disable=protected-access
+
+
+def test_no_warm_up_with_jit_off(client):
+    """pytest runs with NUMBA_DISABLE_JIT=1, so the lifespan never starts the warm-up thread"""
+    assert client.get("/box").status_code == 200
+    assert not main._warmup_running  # pylint: disable=protected-access
+
+
+def test_cache_dir_is_keyed_by_sources(tmp_path):
+    """A source edit gets a new cache folder and the old one is deleted"""
+    from Utils.jit_cache import cache_dir  # pylint: disable=import-outside-toplevel
+    (tmp_path / "Engine").mkdir()
+    src = tmp_path / "Engine" / "a.py"
+    src.write_text("x = 1")
+    first = cache_dir("backend", ("Engine",), str(tmp_path))
+    os.makedirs(first)
+    assert cache_dir("backend", ("Engine",), str(tmp_path)) == first
+    src.write_text("x = 2")
+    second = cache_dir("backend", ("Engine",), str(tmp_path))
+    assert second != first and not os.path.exists(first)
+
+
+def test_cache_root_moves_the_cache(tmp_path):
+    """PBO_CACHE_ROOT's folder replaces the repo's .numba_cache (the Electron app)"""
+    from Utils.jit_cache import cache_dir  # pylint: disable=import-outside-toplevel
+    (tmp_path / "src" / "Engine").mkdir(parents=True)
+    (tmp_path / "src" / "Engine" / "a.py").write_text("x = 1")
+    path = cache_dir("backend", ("Engine",), str(tmp_path / "src"), cache_root=str(tmp_path / "cache"))
+    assert os.path.dirname(path) == str(tmp_path / "cache" / "backend")
+
+
+def test_box_path_env(monkeypatch, tmp_path):
+    """PBO_BOX_PATH overrides UserData/box.json"""
+    monkeypatch.setenv("PBO_BOX_PATH", str(tmp_path / "box.json"))
+    assert main._box_path() == str(tmp_path / "box.json")  # pylint: disable=protected-access
+    monkeypatch.delenv("PBO_BOX_PATH")
+    assert main._box_path().endswith(os.path.join("UserData", "box.json"))  # pylint: disable=protected-access
+
+
+def test_exit_when_parent_closes(monkeypatch):
+    """The backend exits once Electron's stdin pipe closes"""
+    exits = []
+    monkeypatch.setattr(main.os, "_exit", exits.append)
+    read_fd, write_fd = os.pipe()
+    os.write(write_fd, b"still open")
+    os.close(write_fd)
+    main._exit_when_parent_closes(read_fd)  # pylint: disable=protected-access
+    os.close(read_fd)
+    assert exits == [0]

@@ -1,272 +1,130 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { MapPin, Plus, Users } from "lucide-react";
+import { toast } from "sonner";
 import BoxView from "./BoxView";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "./ui/combobox";
 import type { BoxEntry, PokemonConfig, PokemonData, TrainerDB } from "../types";
-import { MyTeamSlot, OpponentSlot } from "./PokemonSlots";
+import { MyTeamSlot, NameSelect, OpponentSlot } from "./PokemonSlots";
+import { getJSON, postJSON } from "@/lib/api";
+import { trainerSprite } from "@/lib/sprites";
+import { Sprite } from "./common/Sprite";
+import { ItemIcon } from "./common/ItemIcon";
+import { Chip } from "./common/Badges";
 
-const API_URL = "http://localhost:8000";
-
-const itemIcon = (name: string) =>
-  `https://play.pokemonshowdown.com/sprites/itemicons/${name.toLowerCase().replace(/[\s_]+/g, "-")}.png`;
-
-function OpponentHeader({
-  trainerDB,
-  selectedTrainer,
-  onSelectTrainer,
-}: {
-  trainerDB: TrainerDB;
-  selectedTrainer: string;
-  onSelectTrainer: (trainer: string | null) => void;
-}) {
-  const options = Object.keys(trainerDB);
-  const sprite = trainerDB[selectedTrainer]?.sprite ?? null;
-
+function PanelTitle({ children, count }: { children: React.ReactNode; count?: string }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-20 h-full flex-shrink-0">
-        {sprite && (
-          <img
-            src={`https://play.pokemonshowdown.com/sprites/trainers/${sprite}.png`}
-            alt={selectedTrainer}
-            style={{ imageRendering: "pixelated" }}
-            className="object-contain"
-          />
-        )}
-      </div>
-      <Combobox
-        value={selectedTrainer}
-        onValueChange={(v) => {
-          if (!v) onSelectTrainer(null);
-          else onSelectTrainer(v);
-        }}
-        items={options}
-      >
-        <ComboboxInput
-          className="bg-slate-700 border border-slate-600 text-slate-100 text-sm rounded px-2 py-1 w-full"
-          placeholder={options[0]}
-        />
-        <ComboboxContent>
-          <ComboboxEmpty>No results</ComboboxEmpty>
-          <ComboboxList>
-            {(item: string) => (
-              <ComboboxItem key={item} value={item}>
-                {item}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
+      <h2 className="text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
+        {children}
+      </h2>
+      {count && <span className="num text-[11px] text-subtle-foreground/70">{count}</span>}
     </div>
   );
 }
 
-function TeamPanel({
-  label,
-  team,
-  allPokemon,
-  allMoves,
-  onChange,
-  boxEntries,
-  nameToId,
-  slotVariant = "my",
+// ─── Opponent side: trainer picker, items, read-only team ─────────────────────
+
+function OpponentPanel({
   trainerDB,
   selectedTrainer,
-  onTrainerSelect,
-  locked = false,
-  pokemonData,
+  onSelectTrainer,
+  team,
+  locked,
   trainerItems,
+  terrain,
+  pokemonData,
+  onAddSlot,
 }: {
-  label: string;
+  trainerDB: TrainerDB;
+  selectedTrainer: string;
+  onSelectTrainer: (trainer: string | null) => void;
   team: PokemonConfig[];
-  allPokemon: string[];
-  allMoves: string[];
-  onChange: (team: PokemonConfig[]) => void;
-  boxEntries?: BoxEntry[];
-  nameToId?: Record<string, number>;
-  slotVariant?: "my" | "opp";
-  trainerDB?: TrainerDB;
-  selectedTrainer?: string;
-  onTrainerSelect?: (trainer: string | null) => void;
-  locked?: boolean;
-  pokemonData?: PokemonData;
-  trainerItems?: string[];
+  locked: boolean;
+  trainerItems: string[];
+  terrain: string;
+  pokemonData: PokemonData;
+  onAddSlot: () => void;
 }) {
-  function addSlot() {
-    if (team.length >= 6) return;
-    onChange([
-      ...team,
-      {
-        name: allPokemon[0] ?? "",
-        gender: "Male",
-        level: 5,
-        ability: "",
-        nature: "Hardy",
-        moves: ["", "", "", ""],
-      },
-    ]);
-  }
-
-  function update(idx: number, updated: PokemonConfig) {
-    const next = [...team];
-    next[idx] = updated;
-    onChange(next);
-  }
-
-  function remove(idx: number) {
-    onChange(team.filter((_, i) => i !== idx));
-  }
+  const options = Object.keys(trainerDB);
+  const sprite = trainerDB[selectedTrainer]?.sprite;
+  const items = trainerItems.filter(Boolean);
 
   return (
-    <div className="flex-1">
-      <div className="flex flex-wrap items-center gap-3 justify-between">
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
-          {label} <span className="text-slate-600">({team.length}/6)</span>
-        </h2>
-        {onTrainerSelect && trainerDB && selectedTrainer !== undefined && (
-          <div className="w-60">
-            <OpponentHeader
-              trainerDB={trainerDB}
-              selectedTrainer={selectedTrainer}
-              onSelectTrainer={onTrainerSelect}
-            />
-          </div>
-        )}
+    <aside className="flex min-h-0 flex-col border-l bg-card/40">
+      <div className="flex h-11 shrink-0 items-center border-b px-3">
+        <PanelTitle count={`${team.length}/6`}>Opponent</PanelTitle>
       </div>
 
-      {/* Trainer battle items — opponent side only */}
-      {trainerItems !== undefined && trainerItems.some(Boolean) && (
-        <div className="my-2">
-          <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">
-            Trainer Items
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+        {/* trainer card */}
+        <div
+          className="relative overflow-hidden rounded-xl border p-3"
+          style={{
+            background:
+              "radial-gradient(ellipse 70% 90% at 85% 50%, oklch(0.32 0.06 250 / 45%), transparent 70%), var(--card)",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex size-16 shrink-0 items-center justify-center">
+              {sprite ? (
+                <Sprite srcs={trainerSprite(sprite)} alt={selectedTrainer} width={64} height={64} />
+              ) : (
+                <Users className="size-6 text-subtle-foreground" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 text-[11px] text-subtle-foreground">Trainer</div>
+              <NameSelect
+                value={selectedTrainer}
+                onChange={(v) => onSelectTrainer(v || null)}
+                items={options}
+                placeholder={options[0]}
+                clearable={!!selectedTrainer}
+              />
+            </div>
+          </div>
+          {(selectedTrainer || items.length > 0) && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <Chip title="Nature Power's battle terrain">
+                <MapPin className="size-3" />
+                <span className="capitalize">{terrain}</span>
+              </Chip>
+              {items.map((item, i) => (
+                <Chip key={i}>
+                  <ItemIcon name={item} size={16} />
+                  {item}
+                </Chip>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {team.length === 0 ? (
+          <p className="rounded-xl border border-dashed px-4 py-8 text-center text-xs text-muted-foreground">
+            Pick a trainer to load their team.
           </p>
-          <div className="flex flex-wrap gap-2">
-            {trainerItems.filter(Boolean).map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-1.5 px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg"
-              >
-                <img
-                  src={itemIcon(item)}
-                  alt=""
-                  width={16}
-                  height={16}
-                  style={{ imageRendering: "pixelated" }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-                <span className="text-xs text-slate-300">{item}</span>
-              </div>
+        ) : (
+          <div className="space-y-2">
+            {team.map((config, idx) => (
+              <OpponentSlot
+                key={idx}
+                config={config}
+                nameToId={pokemonData.nameToId}
+                pokemonData={pokemonData}
+              />
             ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {locked && onTrainerSelect ? (
-        <p className="text-xs text-slate-500">
-          Trainer-selected teams are locked.
-        </p>
-      ) : null}
-
-      <div className="grid grid-cols-2 gap-3">
-        {team.map((config, idx) =>
-          slotVariant === "my" ? (
-            <MyTeamSlot
-              key={idx}
-              config={config}
-              allMoves={allMoves}
-              nameToId={nameToId ?? {}}
-              onChange={(updated) => update(idx, updated)}
-              onRemove={() => remove(idx)}
-              pokemonData={pokemonData}
-            />
-          ) : (
-            <OpponentSlot
-              key={idx}
-              config={config}
-              nameToId={nameToId ?? {}}
-              pokemonData={pokemonData}
-            />
-          ),
+        {!locked && team.length < 6 && (
+          <button
+            onClick={onAddSlot}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground cursor-pointer"
+          >
+            <Plus className="size-4" /> Add Pokémon
+          </button>
         )}
       </div>
-
-      {team.length < 6 &&
-        !locked &&
-        (boxEntries !== undefined ? (
-          (() => {
-            const availableEntries = boxEntries.filter(
-              (entry) => !team.some((t) => t.name === entry.name),
-            );
-            return availableEntries.length === 0 ? (
-              <p className="text-xs text-slate-500 italic text-center py-3 border border-dashed border-slate-700 rounded-lg">
-                {boxEntries.length === 0
-                  ? "Box is empty — open Box to add Pokémon"
-                  : "All box Pokémon are in your team"}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-slate-500 uppercase tracking-wide">
-                  Add from box
-                </p>
-                <div className="grid grid-cols-6 gap-2">
-                  {availableEntries.map((entry) => (
-                    <button
-                      key={entry.id}
-                      onClick={() =>
-                        onChange([
-                          ...team,
-                          {
-                            name: entry.name,
-                            gender: entry.gender,
-                            level: entry.level,
-                            ability: entry.ability,
-                            nature: entry.nature,
-                            moves: [...entry.moves],
-                            ivs: { ...entry.ivs },
-                          },
-                        ])
-                      }
-                      className="flex flex-col items-center gap-1 px-2 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm transition-colors cursor-pointer"
-                    >
-                      {nameToId?.[entry.name] && (
-                        <img
-                          src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/icons/${nameToId[entry.name]}.png`}
-                          width={32}
-                          height={24}
-                          alt=""
-                          draggable={false}
-                          style={{ imageRendering: "pixelated" }}
-                        />
-                      )}
-                      <span className="text-xs truncate w-full text-center">
-                        {entry.name}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        Lv.{entry.level}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })()
-        ) : (
-          <button
-            onClick={addSlot}
-            className="w-full py-2 border border-dashed border-slate-600 text-slate-500 hover:text-slate-300 hover:border-slate-500 rounded-lg text-sm transition-colors"
-          >
-            + Add Pokémon
-          </button>
-        ))}
-    </div>
+    </aside>
   );
 }
 
@@ -279,6 +137,7 @@ interface Props {
   setOppTeam: (team: PokemonConfig[]) => void;
   trainerItems: string[];
   setTrainerItems: (items: string[]) => void;
+  terrain: string;
   setTerrain: (terrain: string) => void;
 }
 
@@ -291,11 +150,15 @@ export default function ConfigureView({
   setOppTeam,
   trainerItems,
   setTrainerItems,
+  terrain,
   setTerrain,
 }: Props) {
   const [box, setBox] = useState<BoxEntry[] | null>(null);
+  const [boxDirty, setBoxDirty] = useState(false);
+  const [boxSaved, setBoxSaved] = useState(false);
   const [oppLocked, setOppLocked] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState("");
+  const trainerInitialized = useRef(false); // the first trainer is picked once, not after a clear
 
   // Helper: pad a trainer_items array to always have exactly 4 slots
   function padItems(items: string[] = []): string[] {
@@ -304,7 +167,8 @@ export default function ConfigureView({
 
   useEffect(() => {
     const firstTrainer = Object.keys(trainerDB)[0];
-    if (firstTrainer && selectedTrainer === "") {
+    if (firstTrainer && selectedTrainer === "" && !trainerInitialized.current) {
+      trainerInitialized.current = true;
       setSelectedTrainer(firstTrainer);
       setOppTeam(trainerDB[firstTrainer]?.team ?? []);
       setTrainerItems(padItems(trainerDB[firstTrainer]?.trainer_items));
@@ -314,19 +178,20 @@ export default function ConfigureView({
   }, [trainerDB, selectedTrainer]);
 
   useEffect(() => {
-    fetch(`${API_URL}/box`)
-      .then((r) => r.json())
-      .then((data: BoxEntry[]) => setBox(data))
+    getJSON<BoxEntry[]>("/box")
+      .then((data) => setBox(data))
       .catch(() => setBox([]));
   }, []);
 
   function saveBox() {
     if (box === null) return;
-    fetch(`${API_URL}/box`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(box),
-    }).catch(console.error);
+    postJSON("/box", box)
+      .then(() => {
+        setBoxDirty(false);
+        setBoxSaved(true);
+        setTimeout(() => setBoxSaved(false), 1500);
+      })
+      .catch((e: Error) => toast.error("Couldn't save the box", { description: e.message }));
   }
 
   function handleSelectTrainer(trainer: string | null) {
@@ -346,60 +211,125 @@ export default function ConfigureView({
 
   if (!pokemonData) {
     return (
-      <div className="flex-1 flex items-center justify-center text-slate-500">
-        Loading Pokémon data…
+      <div className="grid h-full grid-cols-[292px_minmax(0,1fr)_360px] gap-px">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="space-y-3 p-4">
+            {[0, 1, 2].map((j) => (
+              <div key={j} className="h-24 animate-pulse rounded-xl bg-foreground/5" />
+            ))}
+          </div>
+        ))}
       </div>
     );
   }
 
-  const { pokemon, moves, nameToId } = pokemonData;
+  const { pokemon, nameToId } = pokemonData;
+
+  function update(idx: number, updated: PokemonConfig) {
+    const next = [...myTeam];
+    next[idx] = updated;
+    setMyTeam(next);
+  }
+
+  function addFromBox(entry: BoxEntry) {
+    if (myTeam.length >= 6 || myTeam.some((t) => t.name === entry.name)) return;
+    setMyTeam([
+      ...myTeam,
+      {
+        name: entry.name,
+        gender: entry.gender,
+        level: entry.level,
+        ability: entry.ability,
+        nature: entry.nature,
+        moves: [...entry.moves],
+        ivs: { ...entry.ivs },
+      },
+    ]);
+  }
+
+  function addOppSlot() {
+    if (oppTeam.length >= 6) return;
+    setOppTeam([
+      ...oppTeam,
+      {
+        name: pokemon[0] ?? "",
+        gender: "Male",
+        level: 5,
+        ability: "",
+        nature: "Hardy",
+        moves: ["", "", "", ""],
+      },
+    ]);
+  }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-[95%] mx-auto space-y-3">
-          <BoxView
-            box={box ?? []}
-            pokemonData={pokemonData}
-            onBoxChange={(b) => setBox(b)}
-            onSave={saveBox}
-          />
+    <div className="grid h-full grid-cols-[292px_minmax(0,1fr)_360px] 2xl:grid-cols-[320px_minmax(0,1fr)_420px]">
+      <BoxView
+        box={box ?? []}
+        pokemonData={pokemonData}
+        onBoxChange={(b) => {
+          setBox(b);
+          setBoxDirty(true);
+        }}
+        onSave={saveBox}
+        dirty={boxDirty}
+        saved={boxSaved}
+        team={myTeam}
+        onAdd={addFromBox}
+      />
 
-          <div className="flex gap-4 items-start">
-            <div style={{ flex: 1.15, minWidth: 0 }}>
-              <TeamPanel
-                label="My Team"
-                slotVariant="my"
-                team={myTeam}
-                allPokemon={pokemon}
-                allMoves={moves}
-                onChange={setMyTeam}
-                boxEntries={box ?? []}
+      {/* My team */}
+      <section className="flex min-h-0 flex-col">
+        <div className="flex h-11 shrink-0 items-center border-b px-4">
+          <PanelTitle count={`${myTeam.length}/6`}>Your team</PanelTitle>
+          {myTeam.length > 0 && (
+            <span className="ml-auto text-[11px] text-subtle-foreground">
+              Lead first · hover a sprite for stats
+            </span>
+          )}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+            {myTeam.map((config, idx) => (
+              <MyTeamSlot
+                key={idx}
+                config={config}
                 nameToId={nameToId}
+                onChange={(updated) => update(idx, updated)}
+                onRemove={() => setMyTeam(myTeam.filter((_, i) => i !== idx))}
                 pokemonData={pokemonData}
               />
-            </div>
-            <div className="w-px bg-slate-700 self-stretch shrink-0" />
-            <div style={{ flex: 0.85, minWidth: 0 }}>
-              <TeamPanel
-                label="Opponent Team"
-                slotVariant="opp"
-                team={oppTeam}
-                allPokemon={pokemon}
-                allMoves={moves}
-                onChange={setOppTeam}
-                nameToId={nameToId}
-                trainerDB={trainerDB}
-                selectedTrainer={selectedTrainer}
-                onTrainerSelect={handleSelectTrainer}
-                locked={oppLocked}
-                pokemonData={pokemonData}
-                trainerItems={trainerItems}
-              />
-            </div>
+            ))}
+            {myTeam.length < 6 && (
+              <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-center">
+                <div className="flex size-9 items-center justify-center rounded-full bg-foreground/5">
+                  <Plus className="size-4 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {myTeam.length === 0 ? "Build your team" : "Add another Pokémon"}
+                </p>
+                <p className="text-xs text-subtle-foreground">
+                  {box && box.length > 0
+                    ? "Double-click a Pokémon in your PC box, or use Add to party."
+                    : "Your box is empty: use + in the box to add one."}
+                </p>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </section>
+
+      <OpponentPanel
+        trainerDB={trainerDB}
+        selectedTrainer={selectedTrainer}
+        onSelectTrainer={handleSelectTrainer}
+        team={oppTeam}
+        locked={oppLocked}
+        trainerItems={trainerItems}
+        terrain={terrain}
+        pokemonData={pokemonData}
+        onAddSlot={addOppSlot}
+      />
     </div>
   );
 }
