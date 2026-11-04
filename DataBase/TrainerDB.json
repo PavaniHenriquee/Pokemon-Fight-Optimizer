@@ -1,25 +1,4 @@
 {
-  "Test": {
-    "sprite": "youngster",
-    "team": [
-      {
-        "name": "Mudkip",
-        "gender": "Female",
-        "level": 10,
-        "ability": "Torrent",
-        "nature": "Mild",
-        "moves": ["Mud-Slap", "Water Gun", "Growl", "Tackle"],
-        "ivs": {
-          "HP": 12,
-          "Attack": 12,
-          "Defense": 12,
-          "Special Attack": 12,
-          "Special Defense": 12,
-          "Speed": 12
-        }
-      }
-    ]
-  },
   "Barry 1-P": {
     "sprite": "barry",
     "team": [
