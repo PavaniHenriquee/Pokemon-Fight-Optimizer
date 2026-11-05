@@ -2,7 +2,7 @@
   "name": "frontend",
   "productName": "Nuzlocke Optimizer",
   "private": true,
-  "version": "0.1",
+  "version": "0.1.0",
   "description": "Decision support for Nuzlocke battles (Renegade Platinum)",
   "main": "electron/main.js",
   "type": "module",

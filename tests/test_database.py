@@ -133,8 +133,9 @@ def test_trainer_db_shape():
 
 
 def test_box_pokemon_build():
-    """Every saved box entry builds"""
-    items = _team_items(_load_json("UserData", "box.json"), "box")
+    """Every saved box entry builds (the committed file is empty: the app starts with an empty box)"""
+    empty = os.path.getsize(os.path.join(ROOT, "UserData", "box.json")) == 0
+    items = _team_items([] if empty else _load_json("UserData", "box.json"), "box")
     assert not _failures(items, _block_check(_team_block, POK_LEN))
 
 
