@@ -298,9 +298,9 @@ def start_of_turn(opp_move, switch_idx, battle_array, current_move=-1):
 def _pursuit(atk, defn, slot, is_mine, battle_array):
     """
     pokeplatinum BtlCmd_TryPursuit: the pursuer hasn't moved, is alive, not asleep, frozen or
-    loafing (Truant), its move (the encored one if Encore holds) is Pursuit with PP left. It hits at double power
-    before the switch, the other checks of a normal turn (paralysis, confusion) don't happen.
-    Returns True if Pursuit was used
+    loafing (Truant), its move (the encored one if Encore holds) is Pursuit with PP left.
+    It hits at double power before the switch, the other checks of a normal turn (paralysis, confusion)
+    don't happen. Returns True if Pursuit was used
     """
     if slot < 0 or atk[_POK_CURRENT_HP] <= 0:
         return False

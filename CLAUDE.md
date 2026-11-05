@@ -20,7 +20,7 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   fetches; use Showdown and pokeplatinum (raw.githubusercontent.com) and say which one a fact
   came from. Move numbers come from the Renegade Platinum MOVES sheet (CSV export, sometimes
   needs a login); mechanics stay Gen IV.
-- The Neural Network is just a shell right now, can ignore everything about it until further development
+- Neural network work follows `NN_PLAN.md`: read it before touching `NeuralNetwork/`. Outside that work, ignore the folder.
 
 ## Layout
 

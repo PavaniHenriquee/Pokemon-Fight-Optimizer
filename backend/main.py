@@ -17,7 +17,6 @@ from contextlib import asynccontextmanager
 from typing import Optional, cast
 from pydantic import BaseModel, Field
 import numpy as np
-from Utils.jit import njit
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from Models.idx_const import Pok, POK_LEN
@@ -34,6 +33,7 @@ from Engine.engine_helper import start_of_battle
 from SearchEngine.models import GameState, Node, reconstruct_battle_array
 from SearchEngine.my_mcts import _select_expand, _rollout, _backprop, find_best_terminal_node
 from SearchEngine.helper import prune_dominated
+from Utils.jit import njit
 from Utils.helper import to_battle_array
 from Utils.loader import natures
 from DataBase.loader import pkDB, moveDB, abDB, itemDB
@@ -260,7 +260,7 @@ def _mcts_worker(session: Session, root_state: GameState) -> None:
             if i % 2500 == 0 and i > 0:
                 terminal_node, _, _ = find_best_terminal_node(root)
                 _ = prune_dominated(root)
-                if terminal_node.snapshot.terminal and terminal_node.visits >= 1_000:
+                if terminal_node.snapshot.terminal and terminal_node.visits >= 5_000:
                     print(f"[MCTS] converged at {i:,} iterations")
                     break
     except Exception:

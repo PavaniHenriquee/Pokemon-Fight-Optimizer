@@ -51,7 +51,7 @@ export default function App() {
   const [trainerDB, setTrainerDB] = useState<TrainerDB>({});
   const [myTeam, setMyTeam] = useState<PokemonConfig[]>([]);
   const [oppTeam, setOppTeam] = useState<PokemonConfig[]>([]);
-  const [iterations, setIterations] = useState(100_000);
+  const [iterations, setIterations] = useState(500_000);
   const [runMax, setRunMax] = useState(0); // max iterations of the current run (progress bar)
   const [continueNodeId, setContinueNodeId] = useState<string | null>(null);
   const [sessionActive, setSessionActive] = useState(false);
@@ -211,13 +211,28 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (view !== "explore" || continueNodeId) return;
       const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.isContentEditable)
+      )
+        return;
       if (e.key === "Escape") {
         setSelectedKey(null);
-      } else if ((e.key === "Backspace" && !e.altKey) || (e.altKey && e.key === "ArrowLeft")) {
+      } else if (
+        (e.key === "Backspace" && !e.altKey) ||
+        (e.altKey && e.key === "ArrowLeft")
+      ) {
         e.preventDefault();
         goBack();
-      } else if (/^[1-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && currentNode) {
+      } else if (
+        /^[1-9]$/.test(e.key) &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        currentNode
+      ) {
         const entry = orderActions(currentNode)[Number(e.key) - 1];
         if (entry) handleActionClick(entry[0]);
       }
@@ -242,7 +257,9 @@ export default function App() {
   // Fetch pokemon data once the backend is up (add to the existing useEffect block or separate)
   useEffect(() => {
     if (!everConnected) return;
-    getJSON<PokemonData>("/pokemon-data").then(setPokemonData).catch(console.error);
+    getJSON<PokemonData>("/pokemon-data")
+      .then(setPokemonData)
+      .catch(console.error);
   }, [everConnected]);
 
   // ── MCTS controls ───────────────────────────────────────────────────────────
@@ -269,7 +286,8 @@ export default function App() {
       console.error(e);
       const message = e instanceof Error ? e.message : String(e);
       toast.error("Could not start the search", {
-        description: message === "Failed to fetch" ? `Can't reach ${API_URL}` : message,
+        description:
+          message === "Failed to fetch" ? `Can't reach ${API_URL}` : message,
       });
     } finally {
       setStarting(false);
@@ -313,7 +331,11 @@ export default function App() {
         ) : (
           <main className="min-h-0 flex-1">
             {/* Always mounted — CSS hide/show preserves team state between tab switches */}
-            <div className={view === "configure" ? "flex h-full flex-col" : "hidden"}>
+            <div
+              className={
+                view === "configure" ? "flex h-full flex-col" : "hidden"
+              }
+            >
               <ConfigureView
                 pokemonData={pokemonData}
                 trainerDB={trainerDB}
@@ -405,8 +427,8 @@ function WaitingForBackend() {
         <p className="text-sm font-medium">Waiting for the backend…</p>
         <p className="mt-1 text-xs text-muted-foreground">
           Trying <span className="num">{API_URL}</span>. Start it with{" "}
-          <code className="rounded bg-foreground/8 px-1 py-0.5">dev.bat</code> if it isn't
-          running.
+          <code className="rounded bg-foreground/8 px-1 py-0.5">dev.bat</code>{" "}
+          if it isn't running.
         </p>
       </div>
     </div>
@@ -444,15 +466,19 @@ function ExploreEmpty({
         </div>
         <h2 className="mt-4 text-base font-semibold">No search yet</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Pick your team and a trainer in Setup, then start the search. Results show up here
-          while it runs.
+          Pick your team and a trainer in Setup, then start the search. Results
+          show up here while it runs.
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <Button variant="outline" onClick={onSetup}>
             <Settings2 /> Go to Setup
           </Button>
           <Button onClick={onStart} disabled={!canStart || starting || running}>
-            {starting ? <Loader2 className="animate-spin" /> : <Play className="fill-current" />}
+            {starting ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Play className="fill-current" />
+            )}
             {starting ? "Starting…" : "Start search"}
           </Button>
         </div>

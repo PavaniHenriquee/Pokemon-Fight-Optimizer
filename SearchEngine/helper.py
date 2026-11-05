@@ -1,45 +1,5 @@
 """helper functions"""
-import random
-import copy
-import numpy as np
-from DataBase.pok_sets import charmander, squirtle, bulbasaur
-from Utils.helper import to_battle_array
 from SearchEngine.models import Node
-
-
-def create_random_initial_state():
-    """random team selector"""
-    team_pool = [charmander, squirtle, bulbasaur]
-
-    def random_team(pool, max_size=3):
-        size = random.randint(1, max_size)  # random team size 1–3
-        chosen = random.sample(pool, size)  # pick without replacement
-        team = [copy.deepcopy(p) for p in chosen]  # make independent copies
-        random.shuffle(team)  # randomize order
-        return team
-
-    my_team = random_team(team_pool)
-    opp_team = random_team(team_pool)
-    battle_array = to_battle_array(my_team, opp_team)
-    return battle_array
-
-
-def _bracket(pct: float) -> int:
-    """HP brackets pre-computed as ints — avoids recalculating per child"""
-    if pct == 1.0:
-        return 4
-    if pct >= .75:
-        return 3
-    if pct >= .50:
-        return 2
-    if pct >= .25:
-        return 1
-    if pct == 0:
-        return -1
-    return 0
-
-
-EOT_ZEROS = np.zeros(7).tobytes()
 
 
 def multiple_nodes(child: list, key):

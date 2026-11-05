@@ -25,7 +25,7 @@ def ignorable_ability(defender, attacker):
 def normalized_type(attacker, move):
     """
     The type the attacker's move hits with: Normalize makes every move but Struggle Normal,
-    Hidden Power and Natural Gift included (pokeplatinum BattleSystem_ApplyTypeChart, Showdown gen4)
+    Hidden Power and Natural Gift included
     """
     if attacker[_POK_AB_ID] == _ABILITYNAMES_NORMALIZE and move[_MOVE_ID] != _MOVENAME_STRUGGLE:
         return _TYPES_NORMAL
@@ -36,7 +36,7 @@ def normalized_type(attacker, move):
 def levitates(pok, attacker, gravity=False):
     """
     Levitate keeps Ground moves off unless the attacker has Mold Breaker. Gravity and Ingrain
-    switch it off (pokeplatinum Battler_Ability)
+    switch it off
     """
     return (
         pok[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
@@ -50,7 +50,7 @@ def levitates(pok, attacker, gravity=False):
 def effective_weather(battle_array):
     """
     The weather its effects see: none while a living active has Cloud Nine or Air Lock. The
-    weather itself stays up and keeps counting down (pokeplatinum NO_CLOUD_NINE)
+    weather itself stays up and keeps counting down
     """
     for base in (battle_array[_FIELD_MY_POK] * POK_LEN, (battle_array[_FIELD_OPP_POK] + 6) * POK_LEN):
         if (

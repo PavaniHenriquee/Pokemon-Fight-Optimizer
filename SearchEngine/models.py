@@ -11,10 +11,10 @@ from Models.item import ITEM_TABLE
 from Models.constants import (
     _STATUS_TOXIC, _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _POK_CURRENT_HP, _POK_MAX_HP,
     _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
-    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _FIELD_WEATHER, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND,
-    _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
-    _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID, _POK_AB_ID, _POK_METRONOME_COUNT,
-    _POK_BASE_AB_ID
+    _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _FIELD_WEATHER, _FIELD_MY_SIDE_COND,
+    _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
+    _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID, _POK_AB_ID,
+    _POK_METRONOME_COUNT, _POK_BASE_AB_ID
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
@@ -191,7 +191,8 @@ def node_key(battle_array):
     """Integer fingerprint of what decides whether two outcomes of an action share a node:
     phase, opp slot, status, every vol status bit (both bitmaps), HP bracket and stat stages of
     both actives, whether each active holds an item, an ability Trace or Worry Seed changed (it
-    depends on the history), Truant's loaf turn or an active Slow Start, the weather, Gravity, each side's conditions and Toxic Spikes layers
+    depends on the history), Truant's loaf turn or an active Slow Start, the weather, Gravity, each
+    side's conditions and Toxic Spikes layers
     (not the turns left), my active slot (Roar picks it at random), the Baton Pass phase and each
     active's Metronome item move and count (k4, opp low 32 bits, mine high)"""
     opp_idx = battle_array[_FIELD_OPP_POK]
@@ -507,7 +508,12 @@ class Node():
         self.stats = None
 
     def best_action(self, c=0.42, risk_lambda=0.3, alpha=0.15):
-        """Best action by risk-adjusted UCB, returns (action key, outcome list)"""
+        """
+        Best action by risk-adjusted UCB, returns (action key, outcome list) \n
+        the higher the c the more it favours explorations \n
+        the higher the risk_lambda the more risk it takes \n
+        the higher the alpha the bigger the range of the tail risks
+        """
         slot = best_slot(self.stats, self.visits, c, risk_lambda, alpha)
         if slot < 0:
             raise ValueError("best_action called on a node with no explored actions")

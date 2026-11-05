@@ -1,8 +1,11 @@
 """Every JSON database entry converts to its array form, and saved teams build"""
+import csv
+import io
 import json
 import os
 import pytest
 from DataBase.loader import moveDB, abDB, itemDB, pkDB
+from DataBase.import_learnsets import move_key, parse_dex, species_name, with_learnsets
 from Models.move import Moves
 from Models.ability import ability_to_np
 from Models.item import item_to_np
@@ -155,3 +158,98 @@ def test_growth_is_gen4():
     """Gen IV Growth raises only Sp. Atk (RP sheet, Showdown gen4 mod)"""
     arr = Moves(moveDB["Growth"]).to_array()
     assert (arr[Move.BOOST_ATK], arr[Move.BOOST_SPATK]) == (0, 1)
+
+
+@pytest.mark.parametrize("name, stats", [
+    ("Azumarill", (110, 50, 80, 80, 80, 50)),
+    ("Sudowoodo", (90, 115, 125, 30, 75, 30)),
+    ("Qwilfish", (65, 95, 95, 45, 55, 95)),
+    ("Delibird", (45, 85, 50, 110, 50, 110)),
+    ("Mothim", (70, 70, 50, 110, 50, 100)),
+    ("Cresselia", (120, 70, 120, 75, 130, 85)),
+])
+def test_base_stats_are_rp_complete(name, stats):
+    """The RP sheet's DEX tab, COM line (these species held Classic or vanilla numbers)"""
+    assert tuple(pkDB[name]["base stats"].values()) == stats
+
+
+def test_species_learnsets():
+    """Every species has level-up moves in level order, and a move the engine has uses MoveDB's spelling"""
+    spelling = {move_key(name): name for name in moveDB}
+    def check(entry):
+        levels = [level for level, _ in entry["learnset"]]
+        assert levels and levels == sorted(levels) and levels[0] >= 1 and levels[-1] <= 100, levels
+        wrong = [move for _, move in entry["learnset"] if spelling.get(move_key(move), move) != move]
+        assert not wrong, wrong
+    assert not _failures(sorted(pkDB.items()), check)
+
+
+def _dex_row(name="", level="", move=""):
+    """A row of the sheet's DEX tab, with only the columns the importer reads"""
+    row = [""] * 15
+    row[1], row[13], row[14] = name, level, move
+    return row
+
+
+def _dex_csv(rows):
+    out = io.StringIO()
+    csv.writer(out).writerows(rows)
+    return out.getvalue()
+
+
+def test_import_reads_only_level_up_moves():
+    """Change marks are dropped, MoveDB's spelling wins, TM rows and other blocks' cells don't count"""
+    dex = _dex_csv([
+        _dex_row("#003 Venusaur", "LEARNSET"),
+        _dex_row(level="Level Up :"),
+        _dex_row(level="1", move="Earth Power (!!)"),
+        _dex_row(level="5", move="Mud-slap᠎"),
+        _dex_row(level="TMs HMs :"),
+        _dex_row(level="TM06", move="Toxic"),
+        _dex_row("#386 Deoxys (Attack)", "LEARNSET"),
+        _dex_row(level="Level Up :"),
+        _dex_row(level="1", move="Leer"),
+    ])
+    assert parse_dex(dex, ["Mud-Slap", "Leer"]) == {
+        "Venusaur": [[1, "Earth Power"], [5, "Mud-Slap"]],
+        "Deoxys_attack": [[1, "Leer"]],
+    }
+
+
+def test_import_fails_on_an_unexpected_cell():
+    """A layout change in the sheet stops the import instead of writing bad data"""
+    dex = _dex_csv([_dex_row("#001 Bulbasaur", "LEARNSET"), _dex_row(level="not a level", move="Tackle")])
+    with pytest.raises(ValueError):
+        parse_dex(dex, [])
+
+
+@pytest.mark.parametrize("header, name", [
+    ("#001 Bulbasaur", "Bulbasaur"),
+    ("#029 Nidoran ♀", "Nidoran_f"),
+    ("#032 Nidoran ♂", "Nidoran_m"),
+    ("#479 Rotom (Spin)", "Rotom_fan"),
+    ("#487 Giratina (Altered)", "Giratina"),
+])
+def test_import_species_names(header, name):
+    """Sheet headers map to PkDB names"""
+    assert species_name(header) == name
+
+
+def test_import_only_adds_lines():
+    """The learnset goes right before weight, in the format Prettier keeps on save (a single entry
+    stays inline), and a rerun replaces it instead of adding another"""
+    text = '{\n  "Abra": {\n    "abilities": ["Synchronize"],\n    "weight": 19.5\n  }\n}\n'
+    weight = '    "weight"'
+    one = with_learnsets(text, {"Abra": [[1, "Teleport"]]})
+    assert one == text.replace(weight, f'    "learnset": [[1, "Teleport"]],\n{weight}')
+    two = with_learnsets(one, {"Abra": [[1, "Teleport"], [9, "Confusion"]]})
+    block = '    "learnset": [\n      [1, "Teleport"],\n      [9, "Confusion"]\n    ],\n'
+    assert two == text.replace(weight, f"{block}{weight}")
+    assert with_learnsets(two, {"Abra": [[1, "Teleport"]]}) == one
+
+
+def test_pkdb_keeps_the_importers_format():
+    """Rerunning the import changes nothing, so saving PkDB.json in the editor won't either"""
+    with open(os.path.join(ROOT, "DataBase", "PkDB.json"), encoding="utf-8", newline="") as f:
+        text = f.read()
+    assert with_learnsets(text, {name: entry["learnset"] for name, entry in pkDB.items()}) == text

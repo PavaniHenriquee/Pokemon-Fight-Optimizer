@@ -2,7 +2,11 @@ import { GitBranch, Loader2, Play, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtInt, formatTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { IterationsInput } from "./common/IterationsInput";
 
 export type View = "configure" | "explore";
@@ -47,7 +51,8 @@ export default function TopBar({
   onStart: () => void;
   onStop: () => void;
 }) {
-  const progress = maxIterations > 0 ? Math.min(1, actualIterations / maxIterations) : 0;
+  const progress =
+    maxIterations > 0 ? Math.min(1, actualIterations / maxIterations) : 0;
 
   return (
     <header className="relative z-20 flex h-12 shrink-0 items-center gap-5 border-b bg-card/70 px-4 backdrop-blur select-none">
@@ -57,8 +62,12 @@ export default function TopBar({
           <GitBranch className="size-4 text-primary-foreground" />
         </div>
         <div className="leading-tight">
-          <div className="text-[13px] font-semibold tracking-tight">Nuzlocke Optimizer</div>
-          <div className="text-[10px] text-subtle-foreground">Renegade Platinum · Gen IV</div>
+          <div className="text-[13px] font-semibold tracking-tight">
+            Nuzlocke Optimizer
+          </div>
+          <div className="text-[10px] text-subtle-foreground">
+            Renegade Platinum · Gen IV
+          </div>
         </div>
       </div>
 
@@ -99,17 +108,26 @@ export default function TopBar({
               <span className="num">
                 {running ? (
                   <>
-                    <span className="text-foreground">{fmtInt(displayIterations)}</span>
-                    <span className="text-subtle-foreground"> / {fmtInt(maxIterations)}</span>
+                    <span className="text-foreground">
+                      {fmtInt(displayIterations)}
+                    </span>
+                    <span className="text-subtle-foreground">
+                      {" "}
+                      / {fmtInt(maxIterations)}
+                    </span>
                   </>
                 ) : connected && compiling ? (
                   <span className="flex items-center gap-1.5 text-warn">
-                    <Loader2 className="size-3 animate-spin" /> Compiling engine…
+                    <Loader2 className="size-3 animate-spin" /> Compiling
+                    engine…
                   </span>
                 ) : actualIterations > 0 ? (
                   <>
                     Done ·{" "}
-                    <span className="text-foreground">{fmtInt(actualIterations)}</span> iterations
+                    <span className="text-foreground">
+                      {fmtInt(actualIterations)}
+                    </span>{" "}
+                    iterations
                   </>
                 ) : connected ? (
                   "Idle"
@@ -161,8 +179,16 @@ export default function TopBar({
                   disabled={!canStart || starting || !connected}
                   className="w-28 shadow-[0_0_20px_-6px_var(--primary)]"
                 >
-                  {starting ? <Loader2 className="animate-spin" /> : <Play className="fill-current" />}
-                  {starting ? "Starting…" : sessionActive ? "Start new" : "Start search"}
+                  {starting ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Play className="fill-current" />
+                  )}
+                  {starting
+                    ? "Starting…"
+                    : sessionActive
+                      ? "Start new"
+                      : "Start search"}
                 </Button>
               </span>
             </TooltipTrigger>
@@ -183,7 +209,9 @@ export default function TopBar({
           <div
             className={cn(
               "h-full transition-[width] duration-700 ease-out",
-              running ? "bg-primary shadow-[0_0_8px_var(--primary)]" : "bg-primary/40",
+              running
+                ? "bg-primary shadow-[0_0_8px_var(--primary)]"
+                : "bg-primary/40",
             )}
             style={{ width: `${(running ? progress : 1) * 100}%` }}
           />
