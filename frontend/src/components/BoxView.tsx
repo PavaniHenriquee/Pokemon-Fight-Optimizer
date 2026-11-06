@@ -168,6 +168,7 @@ export default function BoxView({
   pokemonData,
   onBoxChange,
   onSave,
+  onClear,
   dirty,
   saved,
   team,
@@ -177,6 +178,7 @@ export default function BoxView({
   pokemonData: PokemonData;
   onBoxChange: (box: BoxEntry[]) => void;
   onSave: () => void;
+  onClear: () => void;
   dirty: boolean;
   saved: boolean;
   team: PokemonConfig[];
@@ -187,6 +189,7 @@ export default function BoxView({
   const [page, setPage] = useState(0);
   const [hovered, setHovered] = useState<BoxEntry | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const { nameToId } = pokemonData;
 
   const q = query.trim().toLowerCase();
@@ -209,6 +212,42 @@ export default function BoxView({
         </span>
         <span className="num text-[11px] text-subtle-foreground/70">{box.length}</span>
         <div className="ml-auto flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {/* span wrapper: a disabled button doesn't fire hover events */}
+              <span>
+                <Button
+                  variant={confirmingClear ? "destructive" : "ghost"}
+                  size={confirmingClear ? "sm" : "icon-sm"}
+                  disabled={box.length === 0}
+                  onClick={() => {
+                    if (!confirmingClear) {
+                      setConfirmingClear(true);
+                      return;
+                    }
+                    onClear();
+                    setConfirmingClear(false);
+                    setQuery("");
+                    setPage(0);
+                    setHovered(null);
+                    setSelectedId(null);
+                  }}
+                  onMouseLeave={() => setConfirmingClear(false)}
+                  aria-label="Clear box"
+                >
+                  <Trash2 />
+                  {confirmingClear && "Clear?"}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {box.length === 0
+                ? "The box is already empty"
+                : confirmingClear
+                  ? "Click again to delete the whole box and party"
+                  : "Clear box and party (new run)"}
+            </TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon-sm" onClick={onSave} aria-label="Save box" className="relative">

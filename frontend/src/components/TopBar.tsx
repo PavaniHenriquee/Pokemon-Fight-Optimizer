@@ -1,4 +1,4 @@
-import { GitBranch, Loader2, Play, Square } from "lucide-react";
+import { Loader2, Play, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtInt, formatTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -58,9 +58,6 @@ export default function TopBar({
     <header className="relative z-20 flex h-12 shrink-0 items-center gap-5 border-b bg-card/70 px-4 backdrop-blur select-none">
       {/* Brand */}
       <div className="flex items-center gap-2.5">
-        <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-[oklch(0.55_0.2_250)] shadow-[0_0_16px_-4px_var(--primary)]">
-          <GitBranch className="size-4 text-primary-foreground" />
-        </div>
         <div className="leading-tight">
           <div className="text-[13px] font-semibold tracking-tight">
             Nuzlocke Optimizer

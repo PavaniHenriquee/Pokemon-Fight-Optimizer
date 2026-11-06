@@ -10,13 +10,23 @@ import { Sprite } from "./common/Sprite";
 import { ItemIcon } from "./common/ItemIcon";
 import { Chip } from "./common/Badges";
 
-function PanelTitle({ children, count }: { children: React.ReactNode; count?: string }) {
+function PanelTitle({
+  children,
+  count,
+}: {
+  children: React.ReactNode;
+  count?: string;
+}) {
   return (
     <div className="flex items-center gap-2">
       <h2 className="text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
         {children}
       </h2>
-      {count && <span className="num text-[11px] text-subtle-foreground/70">{count}</span>}
+      {count && (
+        <span className="num text-[11px] text-subtle-foreground/70">
+          {count}
+        </span>
+      )}
     </div>
   );
 }
@@ -66,13 +76,20 @@ function OpponentPanel({
           <div className="flex items-center gap-3">
             <div className="flex size-16 shrink-0 items-center justify-center">
               {sprite ? (
-                <Sprite srcs={trainerSprite(sprite)} alt={selectedTrainer} width={64} height={64} />
+                <Sprite
+                  srcs={trainerSprite(sprite)}
+                  alt={selectedTrainer}
+                  width={64}
+                  height={64}
+                />
               ) : (
                 <Users className="size-6 text-subtle-foreground" />
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="mb-1 text-[11px] text-subtle-foreground">Trainer</div>
+              <div className="mb-1 text-[11px] text-subtle-foreground">
+                Trainer
+              </div>
               <NameSelect
                 value={selectedTrainer}
                 onChange={(v) => onSelectTrainer(v || null)}
@@ -183,15 +200,24 @@ export default function ConfigureView({
       .catch(() => setBox([]));
   }, []);
 
-  function saveBox() {
-    if (box === null) return;
-    postJSON("/box", box)
+  function saveBox(entries: BoxEntry[] | null = box) {
+    if (entries === null) return;
+    postJSON("/box", entries)
       .then(() => {
         setBoxDirty(false);
         setBoxSaved(true);
         setTimeout(() => setBoxSaved(false), 1500);
       })
-      .catch((e: Error) => toast.error("Couldn't save the box", { description: e.message }));
+      .catch((e: Error) =>
+        toast.error("Couldn't save the box", { description: e.message }),
+      );
+  }
+
+  function clearBox() {
+    setBox([]);
+    setBoxDirty(true); // stays marked until the save below lands
+    setMyTeam([]);
+    saveBox([]);
   }
 
   function handleSelectTrainer(trainer: string | null) {
@@ -215,7 +241,10 @@ export default function ConfigureView({
         {[0, 1, 2].map((i) => (
           <div key={i} className="space-y-3 p-4">
             {[0, 1, 2].map((j) => (
-              <div key={j} className="h-24 animate-pulse rounded-xl bg-foreground/5" />
+              <div
+                key={j}
+                className="h-24 animate-pulse rounded-xl bg-foreground/5"
+              />
             ))}
           </div>
         ))}
@@ -271,7 +300,8 @@ export default function ConfigureView({
           setBox(b);
           setBoxDirty(true);
         }}
-        onSave={saveBox}
+        onSave={() => saveBox()}
+        onClear={clearBox}
         dirty={boxDirty}
         saved={boxSaved}
         team={myTeam}
@@ -306,7 +336,9 @@ export default function ConfigureView({
                   <Plus className="size-4 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {myTeam.length === 0 ? "Build your team" : "Add another Pokémon"}
+                  {myTeam.length === 0
+                    ? "Build your team"
+                    : "Add another Pokémon"}
                 </p>
                 <p className="text-xs text-subtle-foreground">
                   {box && box.length > 0
