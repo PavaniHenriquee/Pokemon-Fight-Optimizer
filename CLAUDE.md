@@ -54,7 +54,7 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Benchmark / profile: `python main.py` (see the run\_\* functions)
 - Full benchmarks: `python -m benchmarks.run quick` (search speed, network kernels, ~1.5 min), `all`
   (~8 min) or section names; `--smoke` only checks they still work. Extras only when named:
-  `compile`, `quality25k`. `--long` gives `NN_PLAN.md`'s full tables (~1.5 h). Each report records
+  `compile`, `quality25k`, `tuning` (`best_action` values, `NN_PLAN.md` Step 1a, ~2.5 h). `--long` gives `NN_PLAN.md`'s full tables (~1.5 h). Each report records
   the machine and the change against earlier runs of the same length. The `training` section needs
   `pip install -r requirements-train.txt`.
 - Debuggable, non-JIT run: set `NUMBA_DISABLE_JIT=1`
@@ -284,6 +284,16 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - UI: no copied ability, no "the AI knows this ability" marker, and the field's weather shows while
   Cloud Nine / Air Lock suppress it.
 - Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
+- Search: the CVaR penalty reads exploration and rollout noise as risk, so it can keep a safe action
+  from being searched (`NN_PLAN.md` Step 1a has the measurements).
+- Search: `best_action`'s docstring says a higher `risk_lambda` takes more risk; the code does the
+  opposite. At 1 or above the mean cancels out of the score for actions with equal CVaR.
+- Search: `best_slot`'s mean uses exact values but `cvar_from_hist` uses bin midpoints, so a 100% clean
+  win still shows a tail gap of about 0.08. A win with 5 deaths usually lands in a loss's bin.
+- Search: `prune_dominated`'s 0.88 and the 5,000-visit stop rule are hand-set too. Nothing has pointed
+  at them yet.
+- Benchmarks on the i5: at this repo's folder depth, `.numba_cache/benchmarks/...` reaches the 260
+  character path limit and the compile fails. `PBO_CACHE_ROOT` set to a short folder gets around it.
 
 ## Trainer AI constraints
 

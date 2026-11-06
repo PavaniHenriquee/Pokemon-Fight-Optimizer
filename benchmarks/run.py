@@ -7,7 +7,8 @@
     python -m benchmarks.run all compile quality25k --long    the plan's tables, about 1.5 hours
 
 Sections: search, network, workers, rates, data, training (needs torch, see
-requirements-train.txt) and quality. Extras, only when named: compile and quality25k. quality uses
+requirements-train.txt) and quality. Extras, only when named: compile, quality25k and tuning (values
+for best_action, NN_PLAN.md Step 1a, about 2.5 hours). quality uses
 fixed seeds, so with no code change it repeats exactly. Reports go to benchmarks/results/ and only
 compare with runs of the same length. Keep the machine quiet for the timing sections.
 """
@@ -33,6 +34,7 @@ _SECTIONS = {
     "quality": ("quality", "run"),
     "compile": ("compile_cost", "run"),
     "quality25k": ("quality", "run_25k"),
+    "tuning": ("tuning", "run"),
 }
 _PRESETS = {
     "quick": ("search", "network"),

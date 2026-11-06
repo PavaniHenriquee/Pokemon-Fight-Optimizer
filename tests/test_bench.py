@@ -2,16 +2,72 @@
 run is `python -m benchmarks.run all --smoke`."""
 import json
 import pytest
-from Models.idx_const import FIELD_LEN, POK_LEN
+from Engine.damage_calc import calculate_damage
+from Engine.speed import check_speed
+from Models.idx_const import FIELD_LEN, MOVE_STRIDE, OFFSET_MOVE, POK_LEN, Pok
+from SearchEngine.models import ACTION_SLOT, valid_action_mask
 from benchmarks.fights import FIGHTS, fight, seed_all
 from benchmarks.play import MAX_DECISIONS, play
 from benchmarks.report import Report
+from benchmarks.tuning import _SETS, BASELINE, POSITIONS, _rank_key, position
 
 
 def test_every_fight_builds():
     """TrainerDB edits can remove what a fight is made of"""
     for name in FIGHTS:
         assert fight(name).size == 12 * POK_LEN + FIELD_LEN, name
+
+
+def test_tuning_positions_build():
+    """Each one has its named HP and its actions can be picked, so its answer still means something"""
+    expected = {
+        "Dawn, Eevee 9/30, foe 9/31": (9, 30, 9, 31),
+        "Dawn, Eevee 15/30, foe 9/31": (15, 30, 9, 31),
+        "Dawn, Eevee 15/30, foe 31/31": (15, 30, 31, 31),
+        "Dawn, Chimchar 11/28, foe 18/31 (stay)": (11, 28, 18, 31),
+    }
+    for name, (_, right, tempting) in POSITIONS.items():
+        battle = position(name)
+        mask = valid_action_mask(battle)
+        assert battle.size == 12 * POK_LEN + FIELD_LEN, name
+        for action in (*right, tempting):
+            assert mask >> ACTION_SLOT[action] & 1, (name, action)
+        if name in expected:
+            foe = battle[6 * POK_LEN:7 * POK_LEN]
+            got = (battle[Pok.CURRENT_HP], battle[Pok.MAX_HP], foe[Pok.CURRENT_HP], foe[Pok.MAX_HP])
+            assert got == expected[name], name
+
+
+@pytest.mark.parametrize("name", [n for n in POSITIONS if n.startswith("Crit")])
+def test_tuning_crit_positions_only_die_to_a_crit(name):
+    """The point of these three: a normal Tackle can't kill, a crit always does, the foe goes first"""
+    battle = position(name)
+    me = battle[0:POK_LEN]
+    foe = battle[6 * POK_LEN:7 * POK_LEN]
+    move = foe[OFFSET_MOVE:OFFSET_MOVE + MOVE_STRIDE]
+    normal = [calculate_damage(foe, me, move, 0, False, None, 0, False) for _ in range(200)]
+    crit = [calculate_damage(foe, me, move, 0, True, None, 0, False) for _ in range(200)]
+    assert max(normal) < me[Pok.CURRENT_HP] <= min(crit)
+    my_speed, foe_speed = check_speed(me, foe, 0)
+    assert foe_speed > my_speed
+
+
+def test_tuning_sets_are_valid():
+    """Today's values are compared against, and lambda 1 or more cancels the mean out of the score"""
+    assert BASELINE in _SETS
+    assert len(set(_SETS)) == len(_SETS)
+    assert all(lam < 1 for _, lam, _ in _SETS)
+
+
+def test_tuning_rank_prefers_fewer_deaths_unless_wins_drop():
+    """Deaths decide, but a significant loss of wins comes last whatever its deaths"""
+    def result(wins, deaths):
+        return {"fight": {"wins": wins, "n": 300, "deaths": deaths, "value": 0.5}}
+    base = result(280, 1.0)
+    fewer_deaths = _rank_key(result(280, 0.5), base)
+    same = _rank_key(base, base)
+    loses_wins = _rank_key(result(200, 0.1), base)
+    assert sorted([loses_wins, same, fewer_deaths]) == [fewer_deaths, same, loses_wins]
 
 
 def test_battle_finishes_and_repeats():

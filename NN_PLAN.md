@@ -16,6 +16,7 @@ Plan approved 2026-11-05.
 | ---- | -------------------------------------------------- | ------ |
 | 0    | This file and pointers                             | [x]    |
 | 1    | Renegade Platinum learnsets in PkDB                | [x]    |
+| 1a   | Values for `best_action` (needs benchmark)         | [ ]    |
 | 1b   | Move `_select_expand`'s hot parts into njit        | [ ]    |
 | 2    | Scenario sampler, arena, baseline numbers          | [ ]    |
 | 3    | State encoder (replaces the shell), coverage test  | [ ]    |
@@ -206,6 +207,71 @@ What landed:
 Coverage: 456 distinct level-up moves, 221 in MoveDB (every MoveDB move but Struggle). Entries not in MoveDB: 13% at level 16 or below (150 moves, led by Ancient Power, Ominous Wind, Thunder Fang, Ice Fang, Poison Gas), 15% at 20 or below, 24% at 30 or below. At level 16 or below, 501 of 505 species have 2+ usable moves and 498 have a damaging one. Ditto and Smeargle have none usable. Metapod, Kakuna, Abra, Silcoon and Cascoon have only status moves.
 
 Checks: `pytest` 1813 passed, `pytest -m jit` 9 passed, golden snapshots unchanged. `/pokemon-data` keeps its shape because it picks its fields by name.
+
+### Step 1a: values for `best_action`
+
+Added 2026-11-06. **Needs benchmark, on the home PC:**
+
+```
+python -m benchmarks.run tuning --smoke
+python -m benchmarks.run tuning
+```
+
+The first command only checks that it runs. The second takes about 2.5 hours, keeps the PC awake while it runs, and saves its report to `benchmarks/results/` after each stage, so a crash keeps what was measured. It changes no defaults.
+
+`c`, `risk_lambda` and `alpha` were chosen by trying 2-3 values by eye, before most of the engine existed, so they need real values. It comes before Step 1b and Step 2 so every later baseline uses them. `N_BINS`, `prune_dominated`'s values and the stop rule stay out of this step.
+
+**Why.** In a real fight against Dawn 1-P the app recommended a move with about a 6% chance of a needless death. The exact team isn't known (IVs and nature weren't saved), so these positions use Eevee 9 and Chimchar 9 with level-up moves and 15 IVs. None of this has been checked against that exact position.
+
+Picks and deaths don't depend on the machine, so these came from short runs on the i5. With 5-10 searches per cell they show direction, not exact rates. Deaths are per battle, with the first move forced and search playing the rest, 150 battles at 2000 iterations per decision:
+
+| Position                  | Move that risks it | Its deaths    | Other move | Its deaths    | Today's values pick |
+| ------------------------- | ------------------ | ------------- | ---------- | ------------- | ------------------- |
+| Eevee 9/30, foe 9/31      | Covet              | 0.060 ± 0.038 | Switch     | 0.000         | Covet, 98% of visits |
+| Eevee 15/30, foe 9/31     | Covet              | 0.060 ± 0.038 | Switch     | 0.000         | Covet, 98% of visits |
+| Eevee 15/30, foe 31/31    | Sand Attack        | 0.073 ± 0.042 | Switch     | 0.000         | Sand Attack, 98%    |
+| Chimchar 11/28, foe 18/31 | Ember              | 0.027 ± 0.026 | Switch     | 0.180 ± 0.061 | Ember, 99% (correct) |
+
+Battles started at full HP looked fine: 80 battles, 0 deaths, and no needless risk in 286 decisions. It only showed up in positions set up with a Pokemon already damaged, as after an earlier fight: 15 of 48 were flagged by one-turn death rate, and the table holds the ones checked by playing them out. The last row matters as much as the others: a switch can be safe this turn and still worse overall, so any new values have to keep picking Ember there.
+
+**Cause.** `best_slot` reads CVaR from the action's histogram, which counts every visit: random rollout moves and the bad lines being explored below that action, not only good play. So a safe action that needs follow-up moves reads as risky until it has been searched, and the penalty stops it from being searched. At Eevee 9/30:
+
+| Action | Reads mean | Reads CVaR | Penalty at λ 0.3 | Real value | Visits |
+| ------ | ---------- | ---------- | ---------------- | ---------- | ------ |
+| Covet  | 0.974      | 0.787      | 0.056            | 0.973      | 98%    |
+| Switch | 0.843      | 0.374      | 0.141            | 0.999      | 1%     |
+
+The penalty lands hardest on the safe move, so here the risk term causes the risk. More search doesn't help: 100,000 iterations with no stop rule still gave Covet 99.8% of visits. The picks change fastest at low λ:
+
+| Picks of the right move, of 10 | λ 0 | 0.05 | 0.1 | 0.15 | 0.2 | 0.3 |
+| ------------------------------ | --- | ---- | --- | ---- | --- | --- |
+| Eevee 9/30, foe 9/31           | 9   | 4    | 0   | 0    | 0   | 0   |
+| Eevee 15/30, foe 31/31         | 8   | 6    | 4   | 2    | 2   | 0   |
+| Chimchar 11/28, foe 18/31      | 10  | 10   | 10  | 10   | 10  | 10  |
+
+Also measured:
+
+- **λ of 1 or more breaks the search.** For actions with equal CVaR the score is `(1-λ)·avg + λ·cvar`, so at 1 the mean cancels (visits split exactly 20.0% across 5 actions) and above 1 the worse action scores higher. The sweep stays below 1.
+- **CVaR can't separate actions early in a hard fight.** At the start of Roark good, Roark weak and Barry 2-P, 76-100% of each root action's results land in the lowest bin at 5000 iterations, so all of them read CVaR 0.083 at any α up to 0.15.
+- **`c` alone didn't fix it.** With λ 0.3, no `c` from 0.1 to 1.4 got more than 1 of 5 right picks on these positions, and 0.1 lost the right pick where staying in is correct.
+- **`evaluate_terminal` needs no change for this.** At λ 0 the current price of a death was enough to pick the safe move. Its numbers are arbitrary, but they follow the intent: try not to lose a Pokemon, and if one must go, don't add more deaths or a wipe.
+
+**What the section does.** `benchmarks/tuning.py`, seeds fixed:
+
+1. Plays both first moves of 7 positions to the end, 300 battles each, to check the right answers again: the 4 above and 3 where only a crit kills.
+2. Scores 34 sets on those positions, 20 searches each, under the backend's loop and stop rule.
+3. Plays the best 9 and today's values in full battles at 1000 iterations per decision: Roark good, Roark weak, Barry 2-P, 300 battles each.
+4. Plays the best 3 and today's values the same way at 5000.
+
+**Choosing.** Fewest deaths per win among sets whose win rate isn't significantly below today's. If none clearly beats today's, the values stay. Write the tables here and wait for your call. Then, with your OK:
+
+- Change the defaults in `Node.best_action`. Check whether `tests/test_search.py` needs anything, though it asserts no tuning values.
+- Run `pytest` and `pytest -m jit`. Golden snapshots must not move, since they don't use the search.
+- Run `python -m benchmarks.run quality quality25k --long` and update the win-rate tables above, since every number there used the old values.
+
+**If no set fixes the positions without losing wins,** the cause is the formula and not its values. Options, each an architecture decision for your OK: search by the mean alone and use CVaR only to choose the final action; or a larger `c` at the root only, so every first move gets enough visits for its histogram to mean something. Either would be tried as extra arms in this same section.
+
+**Bring back:** the report's `.md` file, and whether the cause above matches what you suspected in the real fight.
 
 ### Step 1b: move `_select_expand`'s hot parts into njit
 
