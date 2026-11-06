@@ -39,6 +39,8 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   `%APPDATA%\Nuzlocke Optimizer`, seeded from this one on first launch).
 - `tests/`: pytest suite. `battle_driver.py` (engine-only battle loop + fixed scenarios),
   `golden/engine_battles.json` (engine snapshots), `conftest.py` (fixtures, JIT off).
+- `benchmarks/`: everything behind the numbers in `NN_PLAN.md`, as one command. Reports in
+  `benchmarks/results/`. The home PC runs it; the i5-8400 machine only edits source.
 
 ## Commands
 
@@ -50,6 +52,11 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Offline sprites: `python fetch_sprites.py` → `frontend/public/sprites/` (gitignored, skips files
   it has). `npm run dist` runs it.
 - Benchmark / profile: `python main.py` (see the run\_\* functions)
+- Full benchmarks: `python -m benchmarks.run quick` (search speed, network kernels, ~1.5 min), `all`
+  (~8 min) or section names; `--smoke` only checks they still work. Extras only when named:
+  `compile`, `quality25k`. `--long` gives `NN_PLAN.md`'s full tables (~1.5 h). Each report records
+  the machine and the change against earlier runs of the same length. The `training` section needs
+  `pip install -r requirements-train.txt`.
 - Debuggable, non-JIT run: set `NUMBA_DISABLE_JIT=1`
 - Numba cache: the backend turns it on (`Utils/jit_cache.py`, `.numba_cache/backend/<hash of the
   sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`). `python main.py`
