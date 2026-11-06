@@ -14,7 +14,10 @@ export const WS_URL = `${API_URL.replace(/^http/, "ws")}/ws`;
 
 export async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`);
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})); // an HTTPException says why in detail
+    throw new Error(typeof data?.detail === "string" ? data.detail : `${res.status} ${res.statusText}`);
+  }
   return (await res.json()) as T;
 }
 

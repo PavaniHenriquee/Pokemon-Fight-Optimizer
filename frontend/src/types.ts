@@ -107,6 +107,7 @@ export interface BoxEntry {
   level: number;
   moves: string[];
   ivs: IVs;
+  dead?: boolean; // in the death box: can't join the party, still counts for the species clause
 }
 
 export interface PokemonConfig {
@@ -170,9 +171,38 @@ export interface TrainerEntry {
   team: PokemonConfig[];
   trainer_items?: string[];
   terrain?: string; // Nature Power's battle terrain, plain when missing
+  if_starter?: string; // a rival variant: only met if the player chose this starter
+  if_player?: string; // only met if the player is this gender ("Male" / "Female")
 }
 
 export type TrainerDB = Record<string, TrainerEntry>;
+
+// DataBase/EncounterDB.json: what can be met at each location, in the sheet's story order
+export interface EncounterTable {
+  area: string; // part of the location the sheet's block covers ("South", "B1F"), can be empty
+  method: string; // "Grass (6-7)", "Gift from Mom", ...
+  mons: { name: string; level: string }[];
+}
+
+export interface EncounterDB {
+  starters: string[];
+  locations: Record<string, EncounterTable[]>;
+  evolution_lines: string[][]; // for the species clause
+}
+
+export type EncounterStatus = "caught" | "missed" | "dead";
+
+export interface NuzlockeEncounter {
+  species: string;
+  nickname: string;
+  status: EncounterStatus;
+}
+
+export interface NuzlockeRun {
+  player: "" | "Male" | "Female";
+  starter: NuzlockeEncounter; // species is empty until chosen
+  encounters: Record<string, NuzlockeEncounter>; // by location, a missing one is still open
+}
 
 export interface BenchEntry {
   slot: number;

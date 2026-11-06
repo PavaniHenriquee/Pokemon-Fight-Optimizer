@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { MapPin, Plus, Users } from "lucide-react";
-import { toast } from "sonner";
 import BoxView from "./BoxView";
-import type { BoxEntry, PokemonConfig, PokemonData, TrainerDB } from "../types";
+import type { BoxEntry, NuzlockeRun, PokemonConfig, PokemonData, TrainerDB } from "../types";
 import { MyTeamSlot, NameSelect, OpponentSlot } from "./PokemonSlots";
-import { getJSON, postJSON } from "@/lib/api";
+import { trainerVisible } from "@/lib/nuzlocke";
 import { trainerSprite } from "@/lib/sprites";
+import type { BoxState } from "@/lib/useBox";
 import { Sprite } from "./common/Sprite";
 import { ItemIcon } from "./common/ItemIcon";
 import { Chip } from "./common/Badges";
+import { Button } from "./ui/button";
 
 function PanelTitle({
   children,
@@ -31,10 +32,39 @@ function PanelTitle({
   );
 }
 
+// ─── The box's place until the real box has loaded: nothing to edit or save ───
+
+function BoxUnavailable({
+  error,
+  onRetry,
+}: {
+  error: string | null;
+  onRetry: () => void;
+}) {
+  return (
+    <aside className="flex min-h-0 flex-col border-r bg-card/40">
+      <div className="flex h-11 shrink-0 items-center border-b px-3">
+        <PanelTitle>PC Box</PanelTitle>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
+        <p className="text-xs break-words text-muted-foreground">
+          {error ? `Couldn't load the box, so saving is off: ${error}` : "Loading the box…"}
+        </p>
+        {error && (
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </div>
+    </aside>
+  );
+}
+
 // ─── Opponent side: trainer picker, items, read-only team ─────────────────────
 
 function OpponentPanel({
   trainerDB,
+  run,
   selectedTrainer,
   onSelectTrainer,
   team,
@@ -45,6 +75,7 @@ function OpponentPanel({
   onAddSlot,
 }: {
   trainerDB: TrainerDB;
+  run: NuzlockeRun | null;
   selectedTrainer: string;
   onSelectTrainer: (trainer: string | null) => void;
   team: PokemonConfig[];
@@ -54,7 +85,7 @@ function OpponentPanel({
   pokemonData: PokemonData;
   onAddSlot: () => void;
 }) {
-  const options = Object.keys(trainerDB);
+  const options = Object.keys(trainerDB).filter((t) => trainerVisible(trainerDB[t], run));
   const sprite = trainerDB[selectedTrainer]?.sprite;
   const items = trainerItems.filter(Boolean);
 
@@ -156,6 +187,9 @@ interface Props {
   setTrainerItems: (items: string[]) => void;
   terrain: string;
   setTerrain: (terrain: string) => void;
+  run: NuzlockeRun | null;
+  boxState: BoxState;
+  onSetDead: (entry: BoxEntry, dead: boolean) => void;
 }
 
 export default function ConfigureView({
@@ -169,10 +203,11 @@ export default function ConfigureView({
   setTrainerItems,
   terrain,
   setTerrain,
+  run,
+  boxState,
+  onSetDead,
 }: Props) {
-  const [box, setBox] = useState<BoxEntry[] | null>(null);
-  const [boxDirty, setBoxDirty] = useState(false);
-  const [boxSaved, setBoxSaved] = useState(false);
+  const { box } = boxState;
   const [oppLocked, setOppLocked] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState("");
   const trainerInitialized = useRef(false); // the first trainer is picked once, not after a clear
@@ -194,30 +229,18 @@ export default function ConfigureView({
     }
   }, [trainerDB, selectedTrainer]);
 
+  // A starter or gender choice (or the run loading) hid the selected rival variant
   useEffect(() => {
-    getJSON<BoxEntry[]>("/box")
-      .then((data) => setBox(data))
-      .catch(() => setBox([]));
-  }, []);
-
-  function saveBox(entries: BoxEntry[] | null = box) {
-    if (entries === null) return;
-    postJSON("/box", entries)
-      .then(() => {
-        setBoxDirty(false);
-        setBoxSaved(true);
-        setTimeout(() => setBoxSaved(false), 1500);
-      })
-      .catch((e: Error) =>
-        toast.error("Couldn't save the box", { description: e.message }),
-      );
-  }
+    const selected = trainerDB[selectedTrainer];
+    if (selected && !trainerVisible(selected, run)) {
+      const first = Object.keys(trainerDB).find((t) => trainerVisible(trainerDB[t], run));
+      handleSelectTrainer(first ?? null);
+    }
+  }, [trainerDB, selectedTrainer, run]);
 
   function clearBox() {
-    setBox([]);
-    setBoxDirty(true); // stays marked until the save below lands
     setMyTeam([]);
-    saveBox([]);
+    boxState.commit([]);
   }
 
   function handleSelectTrainer(trainer: string | null) {
@@ -261,7 +284,7 @@ export default function ConfigureView({
   }
 
   function addFromBox(entry: BoxEntry) {
-    if (myTeam.length >= 6 || myTeam.some((t) => t.name === entry.name)) return;
+    if (entry.dead || myTeam.length >= 6 || myTeam.some((t) => t.name === entry.name)) return;
     setMyTeam([
       ...myTeam,
       {
@@ -293,20 +316,23 @@ export default function ConfigureView({
 
   return (
     <div className="grid h-full grid-cols-[292px_minmax(0,1fr)_360px] 2xl:grid-cols-[320px_minmax(0,1fr)_420px]">
-      <BoxView
-        box={box ?? []}
-        pokemonData={pokemonData}
-        onBoxChange={(b) => {
-          setBox(b);
-          setBoxDirty(true);
-        }}
-        onSave={() => saveBox()}
-        onClear={clearBox}
-        dirty={boxDirty}
-        saved={boxSaved}
-        team={myTeam}
-        onAdd={addFromBox}
-      />
+      {box === null ? (
+        <BoxUnavailable error={boxState.error} onRetry={boxState.retry} />
+      ) : (
+        <BoxView
+          box={box}
+          pokemonData={pokemonData}
+          onBoxChange={boxState.edit}
+          onSave={() => boxState.save()}
+          onClear={clearBox}
+          onSetDead={onSetDead}
+          onDelete={(entry) => boxState.commit(box.filter((e) => e.id !== entry.id))}
+          dirty={boxState.dirty}
+          saved={boxState.saved}
+          team={myTeam}
+          onAdd={addFromBox}
+        />
+      )}
 
       {/* My team */}
       <section className="flex min-h-0 flex-col">
@@ -341,9 +367,11 @@ export default function ConfigureView({
                     : "Add another Pokémon"}
                 </p>
                 <p className="text-xs text-subtle-foreground">
-                  {box && box.length > 0
-                    ? "Double-click a Pokémon in your PC box, or use Add to party."
-                    : "Your box is empty: use + in the box to add one."}
+                  {box === null
+                    ? "Your PC box isn't loaded."
+                    : box.some((entry) => !entry.dead)
+                      ? "Double-click a Pokémon in your PC box, or use Add to party."
+                      : "Your box is empty: use + in the box to add one."}
                 </p>
               </div>
             )}
@@ -353,6 +381,7 @@ export default function ConfigureView({
 
       <OpponentPanel
         trainerDB={trainerDB}
+        run={run}
         selectedTrainer={selectedTrainer}
         onSelectTrainer={handleSelectTrainer}
         team={oppTeam}

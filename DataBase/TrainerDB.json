@@ -1,6 +1,7 @@
 {
   "Barry 1-P": {
     "sprite": "barry",
+    "if_starter": "Piplup",
     "team": [
       {
         "name": "Turtwig",
@@ -22,6 +23,7 @@
   },
   "Barry 1-T": {
     "sprite": "barry",
+    "if_starter": "Turtwig",
     "team": [
       {
         "name": "Chimchar",
@@ -43,6 +45,7 @@
   },
   "Barry 1-C": {
     "sprite": "barry",
+    "if_starter": "Chimchar",
     "team": [
       {
         "name": "Piplup",
@@ -64,6 +67,8 @@
   },
   "Lucas 1-P": {
     "sprite": "lucas-gen4pt",
+    "if_starter": "Chimchar",
+    "if_player": "Female",
     "team": [
       {
         "name": "Turtwig",
@@ -85,6 +90,8 @@
   },
   "Lucas 1-T": {
     "sprite": "lucas-gen4pt",
+    "if_starter": "Piplup",
+    "if_player": "Female",
     "team": [
       {
         "name": "Chimchar",
@@ -106,6 +113,8 @@
   },
   "Lucas 1-C": {
     "sprite": "lucas-gen4pt",
+    "if_starter": "Turtwig",
+    "if_player": "Female",
     "team": [
       {
         "name": "Piplup",
@@ -127,6 +136,8 @@
   },
   "Dawn 1-P": {
     "sprite": "dawn-gen4pt",
+    "if_starter": "Chimchar",
+    "if_player": "Male",
     "team": [
       {
         "name": "Turtwig",
@@ -148,6 +159,8 @@
   },
   "Dawn 1-T": {
     "sprite": "dawn-gen4pt",
+    "if_starter": "Piplup",
+    "if_player": "Male",
     "team": [
       {
         "name": "Chimchar",
@@ -169,6 +182,8 @@
   },
   "Dawn 1-C": {
     "sprite": "dawn-gen4pt",
+    "if_starter": "Turtwig",
+    "if_player": "Male",
     "team": [
       {
         "name": "Piplup",
@@ -573,6 +588,7 @@
   },
   "Barry 2-P": {
     "sprite": "barry",
+    "if_starter": "Piplup",
     "trainer_items": ["Potion"],
     "team": [
       {
@@ -628,6 +644,7 @@
   },
   "Barry 2-T": {
     "sprite": "barry",
+    "if_starter": "Turtwig",
     "trainer_items": ["Potion"],
     "team": [
       {
@@ -683,6 +700,7 @@
   },
   "Barry 2-C": {
     "sprite": "barry",
+    "if_starter": "Chimchar",
     "trainer_items": ["Potion"],
     "team": [
       {

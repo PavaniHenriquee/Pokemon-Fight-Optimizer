@@ -15,3 +15,7 @@ flamegraph.speedscope.json
 
 # Numba Cache
 .numba_cache/
+
+# The Nuzlocke run in progress
+UserData/nuzlocke.json
+UserData/nuzlocke.json.tmp

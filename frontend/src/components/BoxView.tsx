@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Save, Search, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, HeartPulse, Pencil, Plus, Save, Search, Skull, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { battleSprite, pokIcon } from "@/lib/sprites";
 import { displayName } from "@/lib/format";
@@ -12,6 +12,7 @@ import BoxEditor from "./BoxEditor";
 
 const SLOTS = 30; // a PC box: 6 × 5
 const WALLPAPER_HUES = [250, 155, 25, 300, 65, 200];
+const DEATH_BOX_HUE = 15;
 
 const DEFAULT_IVS: IVs = {
   HP: 31,
@@ -43,7 +44,8 @@ function Summary({
   teamFull,
   onAdd,
   onEdit,
-  onRelease,
+  onSetDead,
+  onDelete,
 }: {
   entry: BoxEntry | null;
   pokemonData: PokemonData;
@@ -51,10 +53,11 @@ function Summary({
   teamFull: boolean;
   onAdd: () => void;
   onEdit: () => void;
-  onRelease: () => void;
+  onSetDead: (dead: boolean) => void;
+  onDelete: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
-  // a different Pokémon resets the release confirmation
+  // a different Pokémon resets the confirmation
   const [shownId, setShownId] = useState(entry?.id);
   if (entry?.id !== shownId) {
     setShownId(entry?.id);
@@ -87,7 +90,7 @@ function Summary({
               key={id}
               srcs={battleSprite(id, "front")}
               alt={entry.name}
-              className="relative max-h-[84px] max-w-[96px]"
+              className={cn("relative max-h-[84px] max-w-[96px]", entry.dead && "grayscale")}
             />
           )}
         </div>
@@ -121,42 +124,74 @@ function Summary({
         ))}
       </div>
 
-      <div className="mt-auto flex gap-1.5 pt-3">
-        <Button
-          size="sm"
-          className="flex-1"
-          onClick={onAdd}
-          disabled={inTeam || teamFull}
-        >
-          {inTeam ? <Check /> : <PokeballIcon />}
-          {inTeam ? "In party" : teamFull ? "Party full" : "Add to party"}
-        </Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" size="icon-sm" onClick={onEdit} aria-label="Edit">
-              <Pencil />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Edit</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={confirming ? "destructive" : "ghost"}
-              size={confirming ? "sm" : "icon-sm"}
-              onClick={() => {
-                if (confirming) onRelease();
-                else setConfirming(true);
-              }}
-              aria-label="Release"
-            >
-              <Trash2 />
-              {confirming && "Release?"}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{confirming ? "Click again to release" : "Release (remove from box)"}</TooltipContent>
-        </Tooltip>
-      </div>
+      {entry.dead ? (
+        <div className="mt-auto flex gap-1.5 pt-3">
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => onSetDead(false)}>
+            <HeartPulse />
+            Revive
+          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={confirming ? "destructive" : "ghost"}
+                size={confirming ? "sm" : "icon-sm"}
+                onClick={() => {
+                  if (confirming) onDelete();
+                  else setConfirming(true);
+                }}
+                aria-label="Delete"
+              >
+                <Trash2 />
+                {confirming && "Delete?"}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {confirming
+                ? "Click again to delete: its evolution line can be caught again"
+                : "Delete for good (it stops counting for the species clause)"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      ) : (
+        <div className="mt-auto flex gap-1.5 pt-3">
+          <Button
+            size="sm"
+            className="flex-1"
+            onClick={onAdd}
+            disabled={inTeam || teamFull}
+          >
+            {inTeam ? <Check /> : <PokeballIcon />}
+            {inTeam ? "In party" : teamFull ? "Party full" : "Add to party"}
+          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon-sm" onClick={onEdit} aria-label="Edit">
+                <Pencil />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Edit</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={confirming ? "destructive" : "ghost"}
+                size={confirming ? "sm" : "icon-sm"}
+                onClick={() => {
+                  if (confirming) onSetDead(true);
+                  else setConfirming(true);
+                }}
+                aria-label="Move to death box"
+              >
+                <Skull />
+                {confirming && "It died?"}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {confirming ? "Click again to move it to the death box" : "Move to death box"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
     </div>
   );
 }
@@ -169,6 +204,8 @@ export default function BoxView({
   onBoxChange,
   onSave,
   onClear,
+  onSetDead,
+  onDelete,
   dirty,
   saved,
   team,
@@ -179,6 +216,8 @@ export default function BoxView({
   onBoxChange: (box: BoxEntry[]) => void;
   onSave: () => void;
   onClear: () => void;
+  onSetDead: (entry: BoxEntry, dead: boolean) => void;
+  onDelete: (entry: BoxEntry) => void;
   dirty: boolean;
   saved: boolean;
   team: PokemonConfig[];
@@ -190,14 +229,25 @@ export default function BoxView({
   const [hovered, setHovered] = useState<BoxEntry | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [showDead, setShowDead] = useState(false); // the death box instead of the PC box
   const { nameToId } = pokemonData;
 
+  const alive = box.filter((e) => !e.dead);
+  const dead = box.filter((e) => e.dead);
+  const pool = showDead ? dead : alive;
   const q = query.trim().toLowerCase();
-  const shown = q ? box.filter((e) => displayName(e.name).toLowerCase().includes(q)) : box;
+  const shown = q ? pool.filter((e) => displayName(e.name).toLowerCase().includes(q)) : pool;
   const pageCount = Math.max(1, Math.ceil(shown.length / SLOTS));
   const current = Math.min(page, pageCount - 1);
   const slots = shown.slice(current * SLOTS, current * SLOTS + SLOTS);
-  const hue = WALLPAPER_HUES[current % WALLPAPER_HUES.length];
+  const hue = showDead ? DEATH_BOX_HUE : WALLPAPER_HUES[current % WALLPAPER_HUES.length];
+
+  function switchBox(toDead: boolean) {
+    setShowDead(toDead);
+    setPage(0);
+    setHovered(null);
+    setSelectedId(null);
+  }
 
   const selected = box.find((e) => e.id === selectedId) ?? null;
   const focus = hovered ?? selected;
@@ -207,10 +257,27 @@ export default function BoxView({
   return (
     <aside className="flex min-h-0 flex-col border-r bg-card/40">
       <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
-        <span className="text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
-          PC Box
-        </span>
-        <span className="num text-[11px] text-subtle-foreground/70">{box.length}</span>
+        <div className="flex rounded-md bg-background/60 p-0.5 ring-1 ring-border">
+          {[
+            { toDead: false, label: "PC Box", count: alive.length },
+            { toDead: true, label: "Death Box", count: dead.length },
+          ].map((tab) => (
+            <button
+              key={tab.label}
+              type="button"
+              aria-pressed={showDead === tab.toDead}
+              onClick={() => switchBox(tab.toDead)}
+              className={cn(
+                "h-6 cursor-pointer rounded px-1.5 text-[11px] font-medium whitespace-nowrap transition-colors",
+                showDead === tab.toDead
+                  ? "bg-elevated text-foreground ring-1 ring-foreground/10"
+                  : "text-subtle-foreground hover:text-foreground",
+              )}
+            >
+              {tab.label} <span className="num opacity-70">{tab.count}</span>
+            </button>
+          ))}
+        </div>
         <div className="ml-auto flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -244,8 +311,8 @@ export default function BoxView({
               {box.length === 0
                 ? "The box is already empty"
                 : confirmingClear
-                  ? "Click again to delete the whole box and party"
-                  : "Clear box and party (new run)"}
+                  ? "Click again to delete the whole box, death box and party"
+                  : "Clear box, death box and party"}
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -279,7 +346,7 @@ export default function BoxView({
               setQuery(e.target.value);
               setPage(0); // a search starts again from the first box
             }}
-            placeholder="Search box"
+            placeholder={showDead ? "Search death box" : "Search box"}
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
           />
         </div>
@@ -303,7 +370,7 @@ export default function BoxView({
               <ChevronLeft />
             </Button>
             <span className="text-xs font-bold tracking-[0.2em] text-white/90 uppercase">
-              {q ? "Search" : `Box ${current + 1}`}
+              {q ? "Search" : showDead ? "Death Box" : `Box ${current + 1}`}
               {pageCount > 1 && (
                 <span className="num ml-1.5 font-medium tracking-normal text-white/50">
                   {current + 1}/{pageCount}
@@ -357,9 +424,10 @@ export default function BoxView({
                       width={40}
                       height={30}
                       className={cn(
-                        "max-w-none group-hover:animate-hop",
+                        "max-w-none",
+                        entry.dead ? "opacity-70 grayscale" : "group-hover:animate-hop",
                         member && "opacity-55",
-                        isSelected && "animate-hop",
+                        isSelected && !entry.dead && "animate-hop",
                       )}
                     />
                   )}
@@ -370,9 +438,11 @@ export default function BoxView({
           </div>
         </div>
 
-        {box.length === 0 && (
+        {pool.length === 0 && (
           <p className="text-center text-[11px] text-subtle-foreground">
-            The box is empty: use + to store the Pokémon you've caught.
+            {showDead
+              ? "No deaths. A Pokémon moved here still counts for the species clause."
+              : "The box is empty: use + to store the Pokémon you've caught."}
           </p>
         )}
 
@@ -384,9 +454,15 @@ export default function BoxView({
             teamFull={teamFull}
             onAdd={() => focus && onAdd(focus)}
             onEdit={() => focus && setEditEntry(focus)}
-            onRelease={() => {
+            onSetDead={(toDead) => {
               if (!focus) return;
-              onBoxChange(box.filter((e) => e.id !== focus.id));
+              onSetDead(focus, toDead);
+              setHovered(null);
+              setSelectedId(null);
+            }}
+            onDelete={() => {
+              if (!focus) return;
+              onDelete(focus);
               setHovered(null);
               setSelectedId(null);
             }}
