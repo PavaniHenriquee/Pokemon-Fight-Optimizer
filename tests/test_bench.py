@@ -5,11 +5,12 @@ import pytest
 from Engine.damage_calc import calculate_damage
 from Engine.speed import check_speed
 from Models.idx_const import FIELD_LEN, MOVE_STRIDE, OFFSET_MOVE, POK_LEN, Pok
-from SearchEngine.models import ACTION_SLOT, valid_action_mask
+from SearchEngine import my_mcts
+from SearchEngine.models import ACTION_SLOT, Node, valid_action_mask
 from benchmarks.fights import FIGHTS, fight, seed_all
 from benchmarks.play import MAX_DECISIONS, play
 from benchmarks.report import Report
-from benchmarks.tuning import _SETS, BASELINE, POSITIONS, _rank_key, position
+from benchmarks.tuning import _SETS, BASELINE, POSITIONS, _rank_key, _set_values, position
 
 
 def test_every_fight_builds():
@@ -53,10 +54,9 @@ def test_tuning_crit_positions_only_die_to_a_crit(name):
 
 
 def test_tuning_sets_are_valid():
-    """Today's values are compared against, and lambda 1 or more cancels the mean out of the score"""
+    """Today's values are compared against, and no set is tried twice"""
     assert BASELINE in _SETS
     assert len(set(_SETS)) == len(_SETS)
-    assert all(lam < 1 for _, lam, _ in _SETS)
 
 
 def test_tuning_rank_prefers_fewer_deaths_unless_wins_drop():
@@ -68,6 +68,15 @@ def test_tuning_rank_prefers_fewer_deaths_unless_wins_drop():
     same = _rank_key(base, base)
     loses_wins = _rank_key(result(200, 0.1), base)
     assert sorted([loses_wins, same, fewer_deaths]) == [fewer_deaths, same, loses_wins]
+
+
+def test_tuning_values_reach_the_search(monkeypatch):
+    """_set_values writes where selection reads, in both places"""
+    monkeypatch.setattr(Node.best_action, "__defaults__", Node.best_action.__defaults__)
+    monkeypatch.setattr(my_mcts, "ROOT_C", my_mcts.ROOT_C)
+    _set_values((0.5, 2.0))
+    assert Node.best_action.__defaults__ == (0.5,)
+    assert my_mcts.ROOT_C == 2.0
 
 
 def test_battle_finishes_and_repeats():

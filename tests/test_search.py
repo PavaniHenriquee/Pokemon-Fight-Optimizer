@@ -5,9 +5,9 @@ import numpy as np
 import pytest
 from SearchEngine.models import (
     valid_action_mask, valid_actions_array, is_terminal_arr, step_arr, node_key, _hp_bracket,
-    cvar_from_hist, best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array,
-    ACTION_ORDER, ACTION_SLOT, N_SLOTS, N_BINS, VOL2_KEY_BITS, AB_KEY_BITS, AB_KEY_SHIFT,
-    TURN_AB_KEY_BIT,
+    best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array,
+    ACTION_ORDER, ACTION_SLOT, N_SLOTS, ROOT_C, STATS_COLS, VOL2_KEY_BITS, AB_KEY_BITS,
+    AB_KEY_SHIFT, TURN_AB_KEY_BIT,
 )
 from SearchEngine.mcts_eval import (
     evaluate_terminal, rollout_arr, rollout_pref, field_move_fails
@@ -285,48 +285,44 @@ def test_rollout_skips_field_moves_that_would_fail(
     assert field_move_fails(move_slice(my_active(arr), 0), arr) == fails
 
 
-# ── CVaR / UCB / backprop ────────────────────────────────────────────────────
-
-def test_cvar_takes_the_worst_tail():
-    """15% tail of a half-zero/half-one histogram is all from the bottom bin"""
-    hist = np.zeros(N_BINS)
-    hist[0], hist[-1] = 10, 10
-    assert cvar_from_hist(hist, 20, 0.15) == pytest.approx(0.5 / N_BINS)
-    assert cvar_from_hist(np.zeros(N_BINS), 0, 0.15) == 0.0
-
-
-def test_cvar_never_exceeds_mean():
-    """Tail mean <= overall mean for any histogram"""
-    rng = np.random.default_rng(0)
-    for _ in range(50):
-        hist = rng.integers(0, 20, N_BINS).astype(float)
-        visits = hist.sum()
-        if visits == 0:
-            continue
-        mean = sum(hist[i] * (i + 0.5) / N_BINS for i in range(N_BINS)) / visits
-        assert cvar_from_hist(hist, visits, 0.15) <= mean + 1e-9
-
+# ── UCB / backprop ───────────────────────────────────────────────────────────
 
 def _stats(rows):
-    stats = np.zeros((N_SLOTS, 2 + N_BINS))
+    stats = np.zeros((N_SLOTS, STATS_COLS))
     for slot, visits, total in rows:
         stats[slot, 0] = visits
         stats[slot, 1] = total
-        stats[slot, 2 + min(int(total / visits * N_BINS), N_BINS - 1)] = visits
     return stats
 
 
 def test_best_slot_skips_unvisited_and_prefers_better_mean():
-    """No exploration, no risk: the higher mean wins; unvisited rows are ignored"""
+    """No exploration: the higher mean wins; unvisited rows are ignored"""
     stats = _stats([(0, 10, 2.0), (3, 10, 8.0)])
-    assert best_slot(stats, 20, 0.0, 0.0, 0.15) == 3
-    assert best_slot(np.zeros((N_SLOTS, 2 + N_BINS)), 0, 0.42, 0.3, 0.15) == -1
+    assert best_slot(stats, 20, 0.0) == 3
+    assert best_slot(np.zeros((N_SLOTS, STATS_COLS)), 0, 0.42) == -1
 
 
 def test_best_slot_explores_rarely_visited():
     """With exploration a barely-tried action beats a well-known slightly better one"""
     stats = _stats([(0, 1000, 600.0), (1, 2, 1.0)])
-    assert best_slot(stats, 1002, 2.0, 0.0, 0.15) == 1
+    assert best_slot(stats, 1002, 2.0) == 1
+
+
+def test_only_the_root_uses_root_c(monkeypatch):
+    """Selection passes ROOT_C at the root, every node below it keeps best_action's default"""
+    root_state = GameState(build_scenario("starters"))
+    root = Node(root_state)
+    calls = {True: set(), False: set()}
+    real = Node.best_action
+
+    def spy(node, *args):
+        calls[node is root].add(args)
+        return real(node, *args)
+
+    monkeypatch.setattr(Node, "best_action", spy)
+    mcts_loop(root, root_state, max_iterations=300, terminal_iterations=10**9)
+    assert calls[True] == {(ROOT_C,)}
+    assert calls[False] == {()}
 
 
 def test_backprop_counts(one_v_one):
@@ -340,7 +336,7 @@ def test_backprop_counts(one_v_one):
     assert root.visits == child.visits == 2
     assert root.wins == 1 and root.win_chance == 0.5
     row = root.stats[ACTION_SLOT[action]]
-    assert row[0] == 2 and row[1] == 1.0 and row[2:].sum() == 2
+    assert row[0] == 2 and row[1] == 1.0
 
 
 def test_wilson_lower_bound():

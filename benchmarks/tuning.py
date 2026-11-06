@@ -1,35 +1,35 @@
-"""Finds values for Node.best_action's c, risk_lambda and alpha (NN_PLAN.md Step 1a).
+"""Finds values for the search's c: best_action's default and ROOT_C (NN_PLAN.md Step 1a).
 
 Scores each set two ways. Positions: does it pick the action that playouts show is right, in spots
 where the search has been seen taking a needless death risk, and one where staying in is right?
-Full battles: win rate and deaths per win. Only the defaults of best_action change, in the worker
-processes, so no source changes and nothing recompiles. Reports only: a new default needs your OK.
+Full battles: win rate and deaths per win. Only best_action's default and my_mcts.ROOT_C change, in
+the worker processes, so no source changes and nothing recompiles. Reports only: a new default needs
+your OK.
+
+The plan's tables also tried a CVaR penalty, since removed. To run those again, apply
+benchmarks/results/2026-11-06_tuning_with_cvar.patch on commit 2b82d54.
 """
 import math
+import time
 from Engine.engine_helper import start_of_battle
 from Models.helper import ActionType
 from Models.idx_const import Field, Pok, POK_LEN
+from SearchEngine import my_mcts
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
 from SearchEngine.mcts_eval import evaluate_terminal
-from SearchEngine.models import GameState, Node
+from SearchEngine.models import GameState, Node, ROOT_C
 from SearchEngine.my_mcts import _backprop, _rollout, _select_expand
 from Utils.helper import to_battle_array
-from benchmarks.fights import TRAINERS, _mon, _pokemon, seed_all
+from benchmarks.fights import FIGHTS, TRAINERS, _mon, _pokemon, fight, seed_all
 from benchmarks.play import _only_action, _search, battle_task
 from benchmarks.quality import _pool, _wilson
 
-BASELINE = (0.42, 0.3, 0.15)
-# Every c with every lambda: lambda changes how much of the mean the score keeps, so c can't be
-# judged on its own. Lambda stays below 1, where the mean cancels out of the score for actions with
-# equal CVaR. Alpha does nothing at lambda 0, so it's only tried with lambda above 0. The picks
-# change fastest between lambda 0 and 0.1, so that's where the grid is finest.
+BASELINE = (Node.best_action.__defaults__[0], ROOT_C)  # (c, c at the root)
 _SETS = tuple(
-    (c, lam, 0.15) for lam in (0.0, 0.05, 0.1, 0.2, 0.3) for c in (0.2, 0.3, 0.42, 0.6, 0.8)
-) + tuple((0.42, lam, 0.15) for lam in (0.15, 0.45, 0.6)) + tuple(
-    (0.42, lam, alpha) for lam in (0.1, 0.3) for alpha in (0.05, 0.3, 0.5)
+    (c, root_c) for c in (0.2, 0.25, 0.3, 0.35, 0.42) for root_c in (0.6, 0.8, 1.2, 1.6)
 )
 _SEEDS = 20
-_POSITION_ITERS = 100_000  # Less than the app's 350,000: nearly every position stops before this
+_POSITION_ITERS = 100_000  # Less than the app's cap: nearly every position stops before this
 _CHECK_EVERY = 2500  # The backend's stop rule, as in benchmarks/search.py
 _CONVERGED_VISITS = 5000
 _PLAYOUT_BATTLES = 300
@@ -38,6 +38,10 @@ _FIGHTS = ("Roark good", "Roark weak", "Barry 2-P")
 _STAGE_2 = (1000, 300, 10)  # Iterations per decision, battles, sets that reach it
 _STAGE_3 = (5000, 300, 3)
 _Z_95 = 1.96
+_STOP_SEEDS = 8
+# Past every battle count so far, so these seeds played no part in choosing the values. quality
+# uses the same seeds as the tuning stages, so its numbers aren't a fresh check
+_FRESH_FIRST_SEED = 50_000
 
 _MOVE, _SWITCH = ActionType.MOVE, ActionType.SWITCH
 _IVS_15 = {
@@ -104,8 +108,24 @@ def position(name):
 
 
 def _set_values(values):
-    """best_action reads these for the whole tree. Each worker sets them before every task"""
-    Node.best_action.__defaults__ = values
+    """Selection reads these for the whole tree. Each worker sets them before every task"""
+    c, root_c = values
+    Node.best_action.__defaults__ = (c,)
+    my_mcts.ROOT_C = root_c
+
+
+def _backend_loop(root, root_state, iters):
+    """The backend's loop and stop rule. Returns the iterations run and if the stop rule ended it"""
+    for i in range(iters):
+        state, path, actions = _select_expand(root_state.clone(), root)
+        value, win, dead = _rollout(state)
+        _backprop(path, actions, value, win, dead)
+        if i % _CHECK_EVERY == 0 and i > 0:
+            node, _, _ = find_best_terminal_node(root)
+            prune_dominated(root)
+            if node.snapshot.terminal and node.visits >= _CONVERGED_VISITS:
+                return i + 1, True
+    return iters, False
 
 
 def _position_task(task):
@@ -115,17 +135,23 @@ def _position_task(task):
     root_state = GameState(position(name))
     seed_all(seed)
     root = Node(root_state)
-    for i in range(iters):
-        state, path, actions = _select_expand(root_state.clone(), root)
-        value, win, dead = _rollout(state)
-        _backprop(path, actions, value, win, dead)
-        if i % _CHECK_EVERY == 0 and i > 0:
-            node, _, _ = find_best_terminal_node(root)
-            prune_dominated(root)
-            if node.snapshot.terminal and node.visits >= _CONVERGED_VISITS:
-                break
+    _backend_loop(root, root_state, iters)
     best = max(root.children, key=lambda a: sum(n.visits for n in root.children[a]))
     return int(best[0]), int(best[1])
+
+
+def _stop_task(task):
+    """How long the stop rule takes to end a search, and the top action's share of visits by then"""
+    values, name, iters, seed = task
+    _set_values(values)
+    root_state = GameState(position(name) if name in POSITIONS else fight(name))
+    seed_all(seed)
+    root = Node(root_state)
+    start = time.perf_counter()
+    ran, stopped = _backend_loop(root, root_state, iters)
+    seconds = time.perf_counter() - start
+    visits = [sum(n.visits for n in nodes) for nodes in root.children.values()]
+    return ran, stopped, seconds, max(visits) / sum(visits)
 
 
 def _playout_task(task):
@@ -151,7 +177,7 @@ def _battle_task(task):
 
 
 def _label(values):
-    return f"c {values[0]}, λ {values[1]}, α {values[2]}"
+    return f"c {values[0]}, root c {values[1]}"
 
 
 def _playouts(report, pool, budget):
@@ -174,9 +200,9 @@ def _playouts(report, pool, budget):
     report.table(("Position", "First move", "Win", "Deaths per battle", "Value"), rows)
 
 
-def _score_positions(report, pool, budget):
+def _score_positions(report, pool, budget, sets=_SETS):
     """Share of searches that pick a right action, per set. Returns {set: share over positions}"""
-    sets = _SETS[:3] if budget.smoke else _SETS
+    sets = sets[:3] if budget.smoke else sets
     seeds = 2 if budget.smoke else _SEEDS
     iters = budget.max_iters if budget.smoke else _POSITION_ITERS
     scores, rows = {}, []
@@ -198,8 +224,30 @@ def _score_positions(report, pool, budget):
     return scores
 
 
-def _battles(pool, values, name, iters, n):
-    tasks = [(values, name, iters, 100_000 * iters + i) for i in range(n)]
+def _stop_rule(report, pool, budget, sets):
+    """A larger c at the root spreads the visits, which could delay the stop rule the app waits on"""
+    iters = budget.max_iters if budget.smoke else _POSITION_ITERS
+    seeds = 2 if budget.smoke else _STOP_SEEDS
+    rows = []
+    for name in (*FIGHTS, *POSITIONS):
+        for values in sets:
+            tasks = [(values, name, iters, 600_000 + i) for i in range(seeds)]
+            done = pool.map(_stop_task, tasks, chunksize=1)
+            ran = sum(d[0] for d in done) / seeds
+            report.metric(f"tuning/stop/{_label(values)}/{name}/iterations", ran)
+            rows.append((
+                name, _label(values), f"{ran:,.0f}", f"{sum(d[1] for d in done)}/{seeds}",
+                f"{sum(d[2] for d in done) / seeds:.1f} s",
+                f"{sum(d[3] for d in done) / seeds * 100:.0f}%",
+            ))
+            report.progress(rows[-1])
+    report.text(f"How long a search runs under the backend's stop rule, {seeds} searches each, at most "
+                f"{iters:,} iterations, on busy workers.")
+    report.table(("Where", "Values", "Iterations", "Stopped", "Time", "Top action's visits"), rows)
+
+
+def _battles(pool, values, name, iters, n, first_seed=0):
+    tasks = [(values, name, iters, 100_000 * iters + first_seed + i) for i in range(n)]
     done = list(pool.imap_unordered(_battle_task, tasks, chunksize=1))
     wins = sum(r[1] for r in done)
     return {
@@ -226,15 +274,15 @@ def _rank_key(result, base):
     return (worse, deaths, -value)
 
 
-def _stage(report, pool, budget, sets, iters, n):
+def _stage(report, pool, budget, sets, iters, n, first_seed=0):
     """Full battles per set. Returns the sets from best to worst"""
     iters = min(iters, budget.max_iters)
     n = max(2, int(n * budget.battle_fraction)) if budget.smoke else n
     results, rows = {}, []
     for values in sets:
-        results[values] = {f: _battles(pool, values, f, iters, n) for f in _FIGHTS}
+        results[values] = {f: _battles(pool, values, f, iters, n, first_seed) for f in _FIGHTS}
         for fight_name, r in results[values].items():
-            key = f"tuning/{iters}/{_label(values)}/{fight_name}"
+            key = f"tuning/{iters}/{first_seed}/{_label(values)}/{fight_name}"
             low, high = _wilson(r["wins"], r["n"])
             report.metric(f"{key}/win", r["wins"] / r["n"])
             report.metric(f"{key}/deaths_per_win", r["deaths"])
@@ -253,7 +301,8 @@ def _stage(report, pool, budget, sets, iters, n):
 
 
 def run(report, budget):
-    """Playouts to check the answers, every set on the positions, then the best in full battles"""
+    """Playouts to check the answers, every set on the positions, the best in full battles, then
+    the best other set against today's on unused seeds and under the stop rule"""
     report.heading("Tuning best_action")
     _, pool = _pool()
     with pool:
@@ -271,4 +320,10 @@ def run(report, budget):
         iters, n, keep = _STAGE_3
         finalists = [v for v in ranked if v != BASELINE][:1 if budget.smoke else keep]
         ranked = _stage(report, pool, budget, [BASELINE] + finalists, iters, n)
+        report.save()
+
+        best = next(v for v in ranked if v != BASELINE)
+        _stage(report, pool, budget, [BASELINE, best], iters, n, _FRESH_FIRST_SEED)
+        report.save()
+        _stop_rule(report, pool, budget, (BASELINE, best))
     report.text(f"Best at the end: {_label(ranked[0])}. Today's: {_label(BASELINE)}.")

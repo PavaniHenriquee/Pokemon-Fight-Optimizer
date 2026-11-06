@@ -1,0 +1,40 @@
+{
+ "stamp": "2026-11-06_1806",
+ "budget": "default",
+ "sections": [
+  "tuningfresh"
+ ],
+ "machine": {
+  "cpu": "AMD Ryzen 7 7800X3D 8-Core Processor",
+  "cores / threads": "8 / 16",
+  "llvm target": "znver4",
+  "ram": "31.2 GB, 16.7 GB free",
+  "gpu": "NVIDIA GeForce RTX 5070 Ti, 610.88, 16303 MiB, 1583 MiB",
+  "disk free": "971 GB",
+  "python": "3.15.2",
+  "packages": "numba 0.68.1, llvmlite 0.50.0, numpy 2.5.4, torch 2.15.0+cu132",
+  "power plan": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+  "commit": "2b82d54 with uncommitted changes",
+  "background load at start": "9%"
+ },
+ "metrics": {
+  "tuning/5000/50000/c 0.42, \u03bb 0.3, \u03b1 0.15/Roark good/win": 0.9866666666666667,
+  "tuning/5000/50000/c 0.42, \u03bb 0.3, \u03b1 0.15/Roark good/deaths_per_win": 0.5033783783783784,
+  "tuning/5000/50000/c 0.42, \u03bb 0.3, \u03b1 0.15/Roark weak/win": 0.75,
+  "tuning/5000/50000/c 0.42, \u03bb 0.3, \u03b1 0.15/Roark weak/deaths_per_win": 3.928888888888889,
+  "tuning/5000/50000/c 0.42, \u03bb 0.3, \u03b1 0.15/Barry 2-P/win": 0.48333333333333334,
+  "tuning/5000/50000/c 0.42, \u03bb 0.3, \u03b1 0.15/Barry 2-P/deaths_per_win": 1.6896551724137931,
+  "tuning/5000/50000/c 0.3, \u03bb 0.0, \u03b1 0.15, root c 1.2/Roark good/win": 0.9933333333333333,
+  "tuning/5000/50000/c 0.3, \u03bb 0.0, \u03b1 0.15, root c 1.2/Roark good/deaths_per_win": 0.28187919463087246,
+  "tuning/5000/50000/c 0.3, \u03bb 0.0, \u03b1 0.15, root c 1.2/Roark weak/win": 0.8,
+  "tuning/5000/50000/c 0.3, \u03bb 0.0, \u03b1 0.15, root c 1.2/Roark weak/deaths_per_win": 3.4375,
+  "tuning/5000/50000/c 0.3, \u03bb 0.0, \u03b1 0.15, root c 1.2/Barry 2-P/win": 0.49666666666666665,
+  "tuning/5000/50000/c 0.3, \u03bb 0.0, \u03b1 0.15, root c 1.2/Barry 2-P/deaths_per_win": 1.7248322147651007,
+  "tuning/5000/50000/c 0.3, \u03bb 0.1, \u03b1 0.15, root c 1.2/Roark good/win": 0.9933333333333333,
+  "tuning/5000/50000/c 0.3, \u03bb 0.1, \u03b1 0.15, root c 1.2/Roark good/deaths_per_win": 0.28859060402684567,
+  "tuning/5000/50000/c 0.3, \u03bb 0.1, \u03b1 0.15, root c 1.2/Roark weak/win": 0.82,
+  "tuning/5000/50000/c 0.3, \u03bb 0.1, \u03b1 0.15, root c 1.2/Roark weak/deaths_per_win": 3.5569105691056913,
+  "tuning/5000/50000/c 0.3, \u03bb 0.1, \u03b1 0.15, root c 1.2/Barry 2-P/win": 0.5166666666666667,
+  "tuning/5000/50000/c 0.3, \u03bb 0.1, \u03b1 0.15, root c 1.2/Barry 2-P/deaths_per_win": 1.7548387096774194
+ }
+}

@@ -26,7 +26,6 @@ from Utils.jit import njit
 
 _MOVE_ID_IDXS = tuple(Pok.MOVE1_ID + i * MOVE_STRIDE for i in range(4))
 _MOVE_PP_IDXS = tuple(idx + Move.PP for idx in _MOVE_ID_IDXS)
-N_BINS = 6
 _PP_IDXS = (
     Pok.MOVE1_ID + Move.PP,
     Pok.MOVE2_ID + Move.PP,
@@ -44,7 +43,10 @@ ACTION_ORDER = (
 )
 ACTION_SLOT = {action: slot for slot, action in enumerate(ACTION_ORDER)}
 N_SLOTS = len(ACTION_ORDER)
-STATS_COLS = 2 + N_BINS
+STATS_COLS = 2
+# c at the root only. Above best_action's c, so a first move that needs follow-ups gets enough
+# visits, with less exploration noise in the means below it (NN_PLAN.md Step 1a)
+ROOT_C = 1.2
 _SLOT_TYPE = tuple(a[0] for a in ACTION_ORDER)
 _SLOT_IDX = tuple(a[1] for a in ACTION_ORDER)
 
@@ -445,31 +447,8 @@ def reconstruct_battle_array(snap: NodeSnapshot, initial: np.ndarray) -> np.ndar
 
 
 @njit
-def cvar_from_hist(hist, visits, alpha=0.15):
-    """Mean of the worst alpha fraction of outcomes"""
-    cutoff = visits * alpha
-    accumulated = 0
-    total_val = 0.0
-    for i in range(N_BINS):
-        count = hist[i]
-        if count == 0:
-            continue
-        bin_mid = (i + 0.5) / N_BINS
-        if accumulated + count <= cutoff:
-            total_val += count * bin_mid
-            accumulated += count
-        else:
-            # partial bin
-            remaining = cutoff - accumulated
-            total_val += remaining * bin_mid
-            accumulated = cutoff
-            break
-    return total_val / cutoff if cutoff > 0 else 0.0
-
-
-@njit
-def best_slot(stats, parent_visits, c, risk_lambda, alpha):
-    """UCB with CVaR penalty over the per-action stats rows, returns the winning slot"""
+def best_slot(stats, parent_visits, c):
+    """UCB over the per-action stats rows, returns the winning slot"""
     log_parent_visits = math.log(parent_visits) if parent_visits > 1 else 0.0
     best = -1
     best_val = -np.inf
@@ -478,10 +457,8 @@ def best_slot(stats, parent_visits, c, risk_lambda, alpha):
         if visits == 0:
             continue
         avg = stats[i, 1] / visits
-        cvar = cvar_from_hist(stats[i, 2:], visits, alpha)
-        tail_gap = max(0.0, avg - cvar)
         exploration = c * math.sqrt(2 * log_parent_visits / visits)
-        ucb_val = avg - risk_lambda * tail_gap + exploration
+        ucb_val = avg + exploration
         if ucb_val > best_val or (ucb_val == best_val and random.getrandbits(1)):
             best_val = ucb_val
             best = i
@@ -489,7 +466,7 @@ def best_slot(stats, parent_visits, c, risk_lambda, alpha):
 
 
 class Node():
-    """Tree node, stats holds one row per action: visits, total value, outcome histogram"""
+    """Tree node, stats holds one row per action: visits, total value"""
     __slots__ = (
         'snapshot', 'children', 'visits', 'total_value', 'key',
         'wins', 'dead', 'win_chance', 'dead_avg', 'stats', 'expanded'
@@ -507,14 +484,12 @@ class Node():
         self.dead_avg = 0
         self.stats = None
 
-    def best_action(self, c=0.42, risk_lambda=0.3, alpha=0.15):
+    def best_action(self, c=0.3):
         """
-        Best action by risk-adjusted UCB, returns (action key, outcome list) \n
-        the higher the c the more it favours explorations \n
-        the higher the risk_lambda the more risk it takes \n
-        the higher the alpha the bigger the range of the tail risks
+        Best action by UCB, returns (action key, outcome list) \n
+        the higher the c the more it favours explorations
         """
-        slot = best_slot(self.stats, self.visits, c, risk_lambda, alpha)
+        slot = best_slot(self.stats, self.visits, c)
         if slot < 0:
             raise ValueError("best_action called on a node with no explored actions")
         key = ACTION_ORDER[slot]

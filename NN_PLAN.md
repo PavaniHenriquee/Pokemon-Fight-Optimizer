@@ -16,7 +16,7 @@ Plan approved 2026-11-05.
 | ---- | -------------------------------------------------- | ------ |
 | 0    | This file and pointers                             | [x]    |
 | 1    | Renegade Platinum learnsets in PkDB                | [x]    |
-| 1a   | Values for `best_action` (needs benchmark)         | [ ]    |
+| 1a   | Values for `best_action` (needs benchmark)         | [x]    |
 | 1b   | Move `_select_expand`'s hot parts into njit        | [ ]    |
 | 2    | Scenario sampler, arena, baseline numbers          | [ ]    |
 | 3    | State encoder (replaces the shell), coverage test  | [ ]    |
@@ -38,7 +38,7 @@ Out of scope: threaded or batched inference (MCTS stays single-threaded), oppone
 
 Every number here is from the home PC, which does the training and will run the finished network. The i5-8400's numbers are in git (commit 294a567).
 
-To measure again, run `python -m benchmarks.run quick` (search speed and network kernels, about 1.5 minutes) or `all` (about 8 minutes). Each run records the machine and compares itself with earlier runs of the same length in `benchmarks/results/`. Timings move 5-30% between runs with no code change, most when other programs are busy. The tables below are the long version, `all compile quality25k --long` (about 1.5 hours): timings from `benchmarks/results/2026-11-05_2112.md`, win rates from an earlier run with the same seeds, which that command repeats exactly.
+To measure again, run `python -m benchmarks.run quick` (search speed and network kernels, about 1.5 minutes) or `all` (about 8 minutes). Each run records the machine and compares itself with earlier runs of the same length in `benchmarks/results/`. Timings move 5-30% between runs with no code change, most when other programs are busy. The tables below are the long version, `all compile quality25k --long` (about 1.5 hours): timings from `benchmarks/results/2026-11-05_2112.md`, win rates from an earlier run with the same seeds, which that command repeats exactly. The "Where the time goes" and full-battle tables were measured again with Step 1a's values, in `benchmarks/results/2026-11-06_1923.md`. Step 1a has the old numbers next to them.
 
 Machine: Ryzen 7 7800X3D (8 cores, 16 threads, 96 MB L3, AVX-512), 32 GB DDR5-6000 (about 16 GB free with the desktop open), RTX 5070 Ti 16 GB (driver 610.88, CUDA 13.3, about 14 GB free), 2 TB SSD with 980 GB free. Python 3.15.2, numba 0.68.1, llvmlite 0.50.0 (LLVM 22, targets `znver4`), numpy 2.5.4. The desktop stayed open during the timings, at about 10% of the machine. On its Balanced power plan **this PC sleeps after 45 idle minutes** and hibernates after 60.
 
@@ -55,10 +55,10 @@ The first version of this file only named the species, and its scripts stayed on
 
 | Fight           | Iter/s | select/expand | rollout | backprop | Converged?                         |
 | --------------- | ------ | ------------- | ------- | -------- | ---------------------------------- |
-| Roark, good     | 10,030 | 64 µs (64%)   | 28 µs   | 7 µs     | Yes, 15 s                          |
-| Roark, weak     | 8,240  | 53 µs (43%)   | 63 µs   | 5 µs     | No (best action 12% of visits)     |
-| Barry 2-P       | 11,710 | 61 µs (71%)   | 18 µs   | 6 µs     | No (best action 56% of visits)     |
-| Dallas          | 31,230 | 26 µs (81%)   | 2.6 µs  | 3.2 µs   | Yes, 0.5 s                         |
+| Roark, good     | 11,030 | 62 µs (68%)   | 22 µs   | 6 µs     | Yes, 12.5 s                        |
+| Roark, weak     | 8,410  | 52 µs (43%)   | 62 µs   | 4 µs     | No (best action 11% of visits)     |
+| Barry 2-P       | 11,980 | 60 µs (72%)   | 18 µs   | 6 µs     | No (best action 47% of visits)     |
+| Dallas          | 36,880 | 22 µs (82%)   | 1.6 µs  | 2.6 µs   | Yes, 0.7 s                         |
 
 Against the i5, this CPU sped up tree work far more than rollouts (Roark weak: select/expand 6x, rollout 1.8x, probably the 96 MB cache). In the longest fight rollouts are now the larger part, and select/expand still leads everywhere else. Per-decision searches keep small trees and run faster, 13-35k iterations/s on one process.
 
@@ -75,19 +75,19 @@ The same, for full battles played by search with today's rollouts: a fresh tree 
 
 | Iterations per decision | 200                  | 1000                | 5000              | 25,000            |
 | ----------------------- | -------------------- | ------------------- | ----------------- | ----------------- |
-| Time per decision       | 9-18 ms              | 38-90 ms            | 0.36-0.45 s       | 1.8-2.4 s         |
-| Roark, good             | 94% / 0.515 (2000)   | 98% / 0.631 (1000)  | 99% / 0.804 (300) | 99% / 0.930 (80)  |
-| Roark, weak             | 8% / 0.017 (2000)    | 47% / 0.106 (1000)  | 77% / 0.209 (300) | 93% / 0.327 (120) |
-| Barry 2-P               | 29% / 0.145 (2000)   | 43% / 0.219 (1000)  | 51% / 0.253 (300) | 48% / 0.231 (120) |
-| Dallas                  | 99.7% / 0.984 (2000) | 100% / 0.996 (1000) | not run           | not run           |
+| Time per decision       | 10-18 ms             | 39-89 ms            | 0.34-0.45 s       | 1.7-2.3 s         |
+| Roark, good             | 93% / 0.549 (2000)   | 98% / 0.736 (1000)  | 99% / 0.884 (300) | 98% / 0.920 (80)  |
+| Roark, weak             | 2% / 0.005 (2000)    | 44% / 0.107 (1000)  | 80% / 0.254 (300) | 94% / 0.435 (120) |
+| Barry 2-P               | 27% / 0.137 (2000)   | 43% / 0.224 (1000)  | 52% / 0.257 (300) | 48% / 0.231 (120) |
+| Dallas                  | 99.8% / 0.994 (2000) | 99.8% / 0.996 (1000) | not run          | not run           |
 
 What that shows:
 
 - Today's rollouts read far below what the search actually achieves, because 52% of their moves are random. On Roark with a good team they say 24%, while 1000-iteration play wins 98%.
-- When nearly every rollout loses, leaf values are all about 0 and the search can't separate actions. That's the 12% figure above, and the weak-team fight is where a plain heuristic (27%) beats 200-iteration search (8%). Search passes it by 1000 iterations.
-- `heuristic_prob=1.0` costs the same and wins more, but it ignores deaths: on Dallas it wins 99% with 0.92 deaths per win, while search wins 99.7-100% with 0.00-0.02. It stays unused (see Design decisions); the column is kept as a measurement.
-- A bigger budget keeps buying a lot in the Roark fights, so there is real room for a better leaf value to gain at low budgets. Barry flattens from 5000 iterations (51% and 48%, with overlapping confidence intervals), so that fight may simply be about even with this team.
-- On this PC today's search already wins 93-99% of both Roark fights at about 2 s per decision. What's left at that budget is deaths: 3.1 per win with the weak team, 0.15 with the good one. So the network has to earn its place at short budgets or in fewer deaths.
+- When nearly every rollout loses, leaf values are all about 0 and the search can't separate actions. That's the 11% figure above, and the weak-team fight is where a plain heuristic (27%) beats 200-iteration search (2%). Search passes it by 1000 iterations.
+- `heuristic_prob=1.0` costs the same and wins more, but it ignores deaths: on Dallas it wins 99% with 0.92 deaths per win, while search wins 99.8% with 0.00. It stays unused (see Design decisions); the column is kept as a measurement.
+- A bigger budget keeps buying a lot in the Roark fights, so there is real room for a better leaf value to gain at low budgets. Barry flattens from 5000 iterations (52% and 48%, with overlapping confidence intervals), so that fight may simply be about even with this team.
+- On this PC today's search already wins 94-98% of both Roark fights at about 2 s per decision. What's left at that budget is deaths: 2.3 per win with the weak team, 0.17 with the good one. So the network has to earn its place at short budgets or in fewer deaths.
 
 **A network in njit is affordable:**
 
@@ -104,7 +104,7 @@ What that shows:
 | Numba call overhead, 1 array / tuple of 12                   | 0.1 / 0.7 µs             |
 | Engine compile without cache                                 | 87 s, 1,130 MB RSS       |
 | Engine start from the Numba cache (43 MB)                    | 0.8 s, 158 MB RSS        |
-| Search tree memory, Roark weak team                          | about 5.4 KB/iteration   |
+| Search tree memory, Roark weak team                          | about 5.2 KB/iteration   |
 | Data rate at 200 it/decision, one process alone              | 69-130 decisions/s       |
 | Data rate at 1000 it/decision, one process alone             | 13-35 decisions/s        |
 | Data rate at 5000 it/decision, one process alone             | 2.5-9 decisions/s        |
@@ -112,7 +112,7 @@ What that shows:
 | Data rate at 1000 it/decision, 8 pinned workers              | 87-227 decisions/s       |
 | Data rate at 5000 it/decision, 8 pinned workers              | 16-61 decisions/s        |
 
-So a leaf (forward 7-12 µs, encoder budget 10 µs, about 20 µs together) costs less than a rollout in the Roark fights (63 and 28 µs), about the same in Barry (18 µs) and more in Dallas (2.6 µs), which converges in half a second anyway. In Roark weak an iteration would drop from about 121 to about 78 µs before any gain in quality. Select/expand then becomes 68% of it, which is why Step 1b stays first.
+So a leaf (forward 7-12 µs, encoder budget 10 µs, about 20 µs together) costs less than a rollout in the Roark fights (62 and 22 µs), about the same in Barry (18 µs) and more in Dallas (1.6 µs), which converges in under a second anyway. In Roark weak an iteration would drop from about 118 to about 76 µs before any gain in quality. Select/expand then becomes 68% of it, which is why Step 1b stays first.
 
 **The network's size isn't forced by the hardware any more.** Same structure with wider layers, on this CPU:
 
@@ -158,6 +158,7 @@ Data on disk: a state is 4282 `int32`, 16.7 KB raw. `np.savez_compressed` gives 
 - **2026-11-05 (your call): the Renegade Platinum sheet is the source of truth for game data, Complete version.** That's the COM line in its DEX tab (OLD is vanilla, CLA is the Classic patch; 129 species differ between CLA and COM on stats).
 - **2026-11-05: the value head outputs a distribution, not a mean.** Seven classes: loss, or win with 0-5 *more* deaths. `_backprop` fills the histogram that `cvar_from_hist` reads, and a mean would erase the tail CVaR exists to penalize. `value`, `win` and `dead` are computed at run time from the classes with `evaluate_terminal`'s formula (current turn for the small turn penalty), so changing its numbers, `risk_lambda` or `alpha` needs no retraining. Classes that can't happen given who is alive get masked.
 - **2026-11-05: backprop adds the whole distribution to the histogram** instead of sampling one outcome, which avoids putting sampling noise back. `stats` is already float and `cvar_from_hist` handles fractional counts. `Node.wins` and `Node.dead` become floats, and the serializer already sends them as plain numbers.
+- **2026-11-06 (your call): CVaR is out of the search, which changes the two decisions above.** There's no histogram to fill and no tail to keep. The 7 classes still have a job: `win` and `dead` come from them, and changing `evaluate_terminal`'s numbers still needs no retraining. So they stay for now, and `_backprop` takes the value computed from the classes, with `wins` and `dead` as fractions. Look at this again at Step 6, since a value per Pokemon (CLAUDE.md, Known gaps) would change what the classes have to say.
 - **2026-11-05: inference is hand-written njit, no torch or ONNX at run time.** Measured 7-12 µs against 109 µs for torch on the CPU and about 400 µs through the GPU, nothing added to the installer, no RNG, and single-leaf calls suit a single-threaded search. Weights are one flat `float32` array passed as an argument, like `battle_array`. Never a module global: Numba freezes globals into compiled code and its cache doesn't see them. Kernels need `@njit(fastmath=True)` (10x, measured) and must slice before the inner loop (`row = w[a:b]`, then `row[j]`). An index with an unknown offset (`w[off + i * n + j]`) keeps Numba's negative-index check in the loop and stops vectorization: one 128x128 layer took 12 µs that way against 0.7 µs sliced.
 - **2026-11-05: shared encoders, about 64k parameters** (DeepSets style). Move features go through a move encoder and are pooled per Pokemon; Pokemon features plus that pool go through a Pokemon encoder; my active, foe active, my bench mean, foe bench mean and field features go through 2 hidden layers to the 7 classes. Candidate sizes: move 56→32, Pokemon 104→64, then 296→128→128→7. Bench order means nothing and teams are 1-6 Pokemon, so a flat MLP would have 10x the parameters and need far more data. A wider network is affordable now (230k parameters costs 30 µs), so it's an arena arm if Gate 1 or 2 asks for more capacity.
 - **2026-11-05: the encoder gets engine-computed matchups.** Damage as % of HP for my moves against the foe's active and the reverse, using the helpers `rollout_pref` already uses (`effective_weather`, `normalized_type`, `ohko_fails`) with a fixed roll so encoding draws no RNG. At 76 ns per calc the network doesn't have to relearn the type chart.
@@ -209,6 +210,8 @@ Coverage: 456 distinct level-up moves, 221 in MoveDB (every MoveDB move but Stru
 Checks: `pytest` 1813 passed, `pytest -m jit` 9 passed, golden snapshots unchanged. `/pokemon-data` keeps its shape because it picks its fields by name.
 
 ### Step 1a: values for `best_action`
+
+**Decided 2026-11-06: `c` 0.3, `ROOT_C` 1.2, CVaR removed from the code** (see Decision at the end of this step). `tuning` now only tries `(c, root c)` pairs. The tables below came from the code in `benchmarks/results/2026-11-06_tuning_with_cvar.patch`, applied on commit 2b82d54, along with its sections `tuningarms`, `tuningfinal`, `tuningstop` and `tuningfresh`.
 
 Added 2026-11-06. **Needs benchmark, on the home PC:**
 
@@ -273,13 +276,163 @@ Also measured:
 
 **Bring back:** the report's `.md` file, and whether the cause above matches what you suspected in the real fight.
 
+**Your read of the real fight (2026-11-06):** even a switch risks a crit, so the search took the line where a crit kills because it has fewer turns and the turn penalty rewards that, and every Pokemon is worth the same. On these positions the numbers don't support the turn penalty part. A turn costs 0.0005 and a first death 0.43, so a death costs as much as 860 turns. At Eevee 9/30 the real values already put the switch ahead, 0.999 against Covet's 0.973, and the switch had 0 deaths in 300 battles. The search misread it at 0.843, and with `evaluate_terminal` unchanged the picks went from 0/20 to 20/20. The real fight's exact team isn't known, so this doesn't rule it out there. The other part holds: `evaluate_terminal` only counts deaths, so all Pokemon cost the same (CLAUDE.md, Known gaps).
+
+**Results, 2026-11-06, on the 7800X3D.** Full tables are in `benchmarks/results/2026-11-06_1309.md` (`tuning`, 84 minutes, not the 2.5 hours estimated) and `2026-11-06_1434.md` (`tuningarms`, 60 minutes). `tuningarms` is the two extra arms above, with your OK, plus a finer `c` grid. Today's values played the same numbers through both code paths, so the tables can be compared directly.
+
+The right answers held up. In all 7 positions the right first move had fewer deaths when played out, 300 battles each:
+
+| Position                  | Right move's deaths | Tempting move's deaths |
+| ------------------------- | ------------------- | ---------------------- |
+| Eevee 9/30, foe 9/31      | 0.000               | 0.053 ± 0.025          |
+| Eevee 15/30, foe 9/31     | 0.000               | 0.053 ± 0.025          |
+| Eevee 15/30, foe 31/31    | 0.000               | 0.070 ± 0.029          |
+| Chimchar 11/28, foe 18/31 | 0.033 ± 0.020       | 0.180 ± 0.043          |
+| Crit, Quick Attack first  | 0.000               | 0.070 ± 0.029          |
+| Crit, immune switch       | 0.000               | 0.070 ± 0.029          |
+| Crit, Roark behind        | 0.067 ± 0.028       | 0.663 ± 0.053          |
+
+Right picks, 20 searches per position, under the backend's stop rule. The other four positions are 18-20 of 20 for every set here except those with `c` 0.2, so the Eevee columns decide:
+
+| Values                         | Eevee 9/30 | Eevee 15/30, foe 9 | Eevee 15/30, foe 31 | All 7 |
+| ------------------------------ | ---------- | ------------------ | ------------------- | ----- |
+| Today: c 0.42, λ 0.3, α 0.15   | 0/20       | 0/20               | 0/20                | 56%   |
+| c 0.2, λ 0                     | 4/20       | 4/20               | 10/20               | 64%   |
+| c 0.3, λ 0                     | 16/20      | 15/20              | 12/20               | 86%   |
+| c 0.35, λ 0                    | 16/20      | 16/20              | 17/20               | 91%   |
+| c 0.42, λ 0                    | 17/20      | 15/20              | 17/20               | 92%   |
+| c 0.5, λ 0                     | 14/20      | 16/20              | 19/20               | 92%   |
+| c 0.55, λ 0                    | 16/20      | 12/20              | 19/20               | 91%   |
+| c 0.6, λ 0                     | 1/20       | 1/20               | 20/20               | 73%   |
+| c 0.8, λ 0                     | 0/20       | 0/20               | 19/20               | 71%   |
+| c 0.42, λ 0.05                 | 9/20       | 4/20               | 16/20               | 77%   |
+| c 0.42, λ 0.1, α 0.5           | 13/20      | 14/20              | 14/20               | 85%   |
+| c 0.2, λ 0, root c 0.6         | 20/20      | 20/20              | 16/20               | 95%   |
+| c 0.3, λ 0, root c 0.6         | 20/20      | 20/20              | 17/20               | 97%   |
+| c 0.3, λ 0, root c 1.2         | 20/20      | 20/20              | 18/20               | 99%   |
+| c 0.42, λ 0, root c 0.6        | 20/20      | 20/20              | 20/20               | 100%  |
+| c 0.42, λ 0, root c 0.8        | 20/20      | 20/20              | 20/20               | 99%   |
+| c 0.42, λ 0.1, root c 0.8      | 20/20      | 20/20              | 18/20               | 99%   |
+| c 0.42, λ 0.3, root c 1.2      | 20/20      | 20/20              | 17/20               | 98%   |
+
+- A root `c` above the tree's `c` gives 20/20 on both foe 9/31 positions for every value tried, even at today's λ 0.3. With one `c` for the whole tree, plain λ 0 drops sharply between `c` 0.55 and 0.6 on those same two. That fits this reading: a high `c` below the root puts exploration noise into the means of a line that needs follow-up moves, and a low `c` at the root never gives that line enough visits. Not measured directly.
+- Searching by the mean and using CVaR only for the final choice changed no count at any final λ (0.1, 0.3, 0.6), so it tied with plain λ 0 and never reached the battles.
+- α moves the picks a lot, with no clear pattern: at `c` 0.42, λ 0.3 on the Eevee columns, α 0.05 gives 0/20, 0/20, 20/20, α 0.15 gives 0/20, 0/20, 0/20 and α 0.5 gives 10/20, 6/20, 15/20. The histogram has only 6 bins, which may be why. Not measured.
+
+Full battles, 300 each, same seeds. Win, deaths per win, value:
+
+| 5000 iterations per decision | Roark good        | Roark weak        | Barry 2-P         |
+| ---------------------------- | ----------------- | ----------------- | ----------------- |
+| Today: c 0.42, λ 0.3, α 0.15 | 98.7%, 0.54, 0.804 | 77.3%, 3.87, 0.209 | 51.3%, 1.77, 0.253 |
+| c 0.42, λ 0                  | 98.7%, 0.36, 0.857 | 79.3%, 3.86, 0.215 | 51.7%, 1.79, 0.254 |
+| c 0.42, λ 0.05               | 98.7%, 0.39, 0.851 | 78.0%, 3.80, 0.216 | 47.0%, 1.67, 0.245 |
+| c 0.42, λ 0.1, α 0.3         | 98.7%, 0.51, 0.812 | 81.0%, 3.74, 0.231 | 50.3%, 1.72, 0.254 |
+| c 0.42, λ 0, root c 0.6      | 97.0%, 0.37, 0.829 | 80.3%, 3.62, 0.236 | 47.0%, 1.81, 0.231 |
+| **c 0.3, λ 0, root c 1.2**   | **99.3%, 0.30, 0.884** | **79.7%, 3.42, 0.254** | **51.7%, 1.75, 0.257** |
+
+| 1000 iterations per decision | Roark good        | Roark weak        | Barry 2-P         |
+| ---------------------------- | ----------------- | ----------------- | ----------------- |
+| Today: c 0.42, λ 0.3, α 0.15 | 97.7%, 1.13, 0.646 | 47.0%, 4.28, 0.107 | 46.7%, 1.70, 0.239 |
+| c 0.42, λ 0                  | 98.0%, 1.00, 0.670 | 46.0%, 4.37, 0.100 | 41.0%, 1.59, 0.222 |
+| c 0.3, λ 0                   | 98.3%, 0.76, 0.724 | 53.3%, 4.15, 0.129 | 37.3%, 1.74, 0.190 |
+| c 0.42, λ 0, root c 0.6      | 98.3%, 0.89, 0.693 | 46.3%, 4.29, 0.105 | 43.7%, 1.68, 0.223 |
+| **c 0.3, λ 0, root c 1.2**   | **99.0%, 0.73, 0.748** | **42.7%, 4.20, 0.101** | **45.3%, 1.62, 0.236** |
+
+`c` 0.3, λ 0, root `c` 1.2 has the highest value in all three fights in this 5000 table, and is at least as good as today's in every cell there. No win rate there differs significantly from today's. At 1000 its Roark weak win rate is lower (42.7% vs 47.0%, not significant). In the two hard fights the 95% CIs are about ±5%, so wins can't separate these sets; value and deaths per win are what moved. Plain `c` 0.3, λ 0 does lose Barry 2-P significantly at 1000 (37.3%), and the root `c` brings it back to 45.3%.
+
+**Final checks.** `tuningfinal` (136 minutes, `2026-11-06_1537.md`), `tuningstop` (6.5 minutes, `2026-11-06_1756.md`) and `tuningfresh` (41 minutes, `2026-11-06_1806.md`). On the same seeds, today's values played the same numbers again.
+
+Neighbours of the best arm, and the two sets that keep CVaR in the search. Right picks as above, then full battles at 5000, 300 each, same seeds. Win, deaths per win, value:
+
+| Values                       | Picks | Roark good             | Roark weak             | Barry 2-P              |
+| ---------------------------- | ----- | ---------------------- | ---------------------- | ---------------------- |
+| Today: c 0.42, λ 0.3, α 0.15 | 56%   | 98.7%, 0.54, 0.804     | 77.3%, 3.87, 0.209     | 51.3%, 1.77, 0.253     |
+| c 0.42, λ 0.3, root c 1.2    | 98%   | 98.3%, 0.52, 0.803     | 74.7%, 3.84, 0.205     | 44.0%, 1.73, 0.225     |
+| c 0.3, λ 0.1, root c 1.2     | 99%   | 99.3%, 0.34, 0.869     | 78.3%, 3.45, 0.247     | 46.3%, 1.68, 0.237     |
+| **c 0.3, λ 0, root c 1.2**   | 99%   | **99.3%, 0.30, 0.884** | **79.7%, 3.42, 0.254** | **51.7%, 1.75, 0.257** |
+| c 0.25, λ 0, root c 1.2      | 98%   | 98.3%, 0.30, 0.870     | 80.0%, 3.37, 0.260     | 46.3%, 1.62, 0.247     |
+| c 0.35, λ 0, root c 1.2      | 99%   | 98.3%, 0.38, 0.846     | 75.0%, 3.49, 0.232     | 47.3%, 1.75, 0.236     |
+| c 0.3, λ 0, root c 0.8       | 96%   | 98.7%, 0.32, 0.870     | 77.7%, 3.44, 0.246     | 46.7%, 1.71, 0.236     |
+| c 0.3, λ 0, root c 1.6       | 98%   | 99.0%, 0.36, 0.860     | 81.3%, 3.28, 0.270     | 53.0%, 1.67, 0.273     |
+
+Closer to what the app runs, 100 battles each, so direction only:
+
+| 25,000 iterations per decision | Roark good         | Roark weak         | Barry 2-P          |
+| ------------------------------ | ------------------ | ------------------ | ------------------ |
+| Today: c 0.42, λ 0.3, α 0.15   | 99.0%, 0.13, 0.938 | 93.0%, 3.05, 0.332 | 46.0%, 1.78, 0.226 |
+| c 0.3, λ 0, root c 1.2         | 98.0%, 0.14, 0.931 | 95.0%, 2.35, 0.438 | 46.0%, 1.87, 0.225 |
+| c 0.25, λ 0, root c 1.2        | 99.0%, 0.12, 0.936 | 91.0%, 2.53, 0.381 | 52.0%, 1.85, 0.255 |
+
+On seeds that played no part in choosing, 5000, 300 each. `quality` uses the same seeds as the tuning stages, so this is the independent check:
+
+| Fresh seeds, 5000              | Roark good         | Roark weak         | Barry 2-P          |
+| ------------------------------ | ------------------ | ------------------ | ------------------ |
+| Today: c 0.42, λ 0.3, α 0.15   | 98.7%, 0.50, 0.813 | 75.0%, 3.93, 0.199 | 48.3%, 1.69, 0.248 |
+| c 0.3, λ 0, root c 1.2         | 99.3%, 0.28, 0.882 | 80.0%, 3.44, 0.251 | 49.7%, 1.72, 0.253 |
+| c 0.3, λ 0.1, root c 1.2       | 99.3%, 0.29, 0.877 | 82.0%, 3.56, 0.249 | 51.7%, 1.75, 0.258 |
+
+The backend's stop rule, 8 searches each, on busy workers. Iterations, searches that stopped, time, top action's share of the visits. The fights ran up to 350,000 (`BattleConfig`'s default; the UI sends 500,000 unless you change it), the positions up to 100,000:
+
+| Where                     | Today                       | c 0.3, λ 0, root c 1.2      |
+| ------------------------- | --------------------------- | --------------------------- |
+| Roark good                | 200,626, 8/8, 19.8 s, 94%   | 212,188, 8/8, 19.5 s, 96%   |
+| Roark weak                | 350,000, 0/8, 41.7 s, 12%   | 350,000, 0/8, 41.5 s, 12%   |
+| Barry 2-P                 | 350,000, 0/8, 28.6 s, 52%   | 350,000, 0/8, 29.6 s, 55%   |
+| Dallas                    | 19,376, 8/8, 0.7 s, 98%     | 26,251, 8/8, 0.8 s, 96%     |
+| Eevee 9/30, foe 9/31      | 7,501, 8/8, 0.1 s, 98%      | 11,876, 8/8, 0.1 s, 61%     |
+| Eevee 15/30, foe 9/31     | 7,501, 8/8, 0.1 s, 98%      | 12,501, 8/8, 0.2 s, 60%     |
+| Eevee 15/30, foe 31/31    | 64,376, 6/8, 3.0 s, 97%     | 22,188, 8/8, 0.8 s, 94%     |
+| Chimchar 11/28, foe 18/31 | 7,501, 8/8, 0.1 s, 99%      | 18,438, 8/8, 0.3 s, 43%     |
+| Crit, Quick Attack first  | 7,501, 8/8, 0.1 s, 69%      | 15,001, 8/8, 0.2 s, 35%     |
+| Crit, immune switch       | 8,438, 8/8, 0.1 s, 92%      | 20,001, 8/8, 0.3 s, 42%     |
+| Crit, Roark behind        | 47,814, 8/8, 2.1 s, 98%     | 49,376, 8/8, 2.1 s, 99%     |
+
+- **The gain held up on fresh seeds.** Against today's, Roark good deaths go from 0.50 to 0.28 and Roark weak from 3.93 to 3.44, close to the first run's 0.54 to 0.30 and 3.87 to 3.42. Value rises by about the same as well. No win rate differs significantly from today's on either seed range, and Barry 2-P stays level.
+- **It's a plateau, not a lucky peak.** The six sets with a lower tree `c` and λ 0 or 0.1 show Roark good deaths of 0.30-0.38 and Roark weak deaths of 3.28-3.49. The two sets at `c` 0.42, λ 0.3 show 0.52-0.54 and 3.84-3.87, so the gap is wider than the spread inside each group. The neighbours do beat the best arm in some cells: `c` 0.25 and root `c` 1.6 have more value in Roark weak, root `c` 1.6 in Barry 2-P. By the plan's rule alone (mean deaths per win) `c` 0.25 and root `c` 1.6 come first, at 1.76 and 1.77 against 1.82, which these battle counts can't separate.
+- **The root `c` alone fixes the picks but not the battles.** Today's values with only root `c` 1.2 reach 98% right picks but play like today's: value 0.803 vs 0.804 and 0.205 vs 0.209. Their Barry 2-P is lower, 44.0% vs 51.3%, not significant. λ 0 alone takes Roark good deaths from 0.54 to 0.36 but leaves Roark weak at 3.86. Adding a root `c` gives 3.62 (`c` 0.42, root `c` 0.6), and the lower `c` as well gives 3.42.
+- **Nothing shows the CVaR penalty earning anything, or a small one hurting.** In the first run λ 0.1 trails λ 0 at the same `c` and root `c` in value in all three fights, by less than the neighbours differ from each other. On fresh seeds they're level: 0.877 vs 0.882, 0.249 vs 0.251, 0.258 vs 0.253. λ 0.1's Roark weak win rate on fresh seeds passes the test against today's on its own (82.0% vs 75.0%), but not over both runs (80.2% vs 76.2%), and it's one cell of many.
+- **These 7 positions chose the values and also score them,** so 99% isn't a fair estimate for new positions. The fresh seeds re-check the play in the same three fights, not new positions.
+- **At 25,000** the Roark good gain is gone: every set is near the ceiling, about 0.13 deaths per win. Roark weak keeps it, 3.05 to 2.35. Barry 2-P doesn't change.
+- **Barry 2-P moves with nothing here.** 44-53% across these sets at 5000, 46-52% at 25,000, and 25,000 doesn't beat 5000 for today's values. This looks like a limit of the fight or of the search as a whole, not of these values. Not measured.
+- **The stop rule isn't delayed where it matters.** The longest waits are unchanged: Roark good 19.8 s vs 19.5 s, and Roark weak and Barry 2-P reach the cap under both. Small positions run up to 2.5 times the iterations, 0.2 s more at most, and Eevee 15/30, foe 31/31 gets faster, 3.0 s to 0.8 s.
+- **The visits look less decided on small positions.** The top action's share falls, for example 98% to 61% and 92% to 42%, so the other actions' numbers rest on more visits and the visit bars look less one-sided. It stays the right pick (table above). Under 88% at the root, `prune_dominated` also leaves the root's other actions alone. These numbers already include that.
+
+**Decision, 2026-11-06 (your call): `c` 0.3, λ 0, root `c` 1.2, and CVaR removed from the code since it was hurting.** It's the middle of the plateau and the only one of the three leading sets played at all of 1000, 5000 and 25,000, it costs no measurable wait in the fights, and on fresh seeds it comes first by the plan's rule (mean deaths per win 1.81, λ 0.1 1.87, today's 2.04). Its one weaker cell is Roark weak at 1000 (42.7% vs 47.0%, not significant), well below what the app runs. What changed:
+
+1. **A separate root `c`.** `ROOT_C = 1.2` in `SearchEngine/models.py`, and one line in `_select_expand`: `node.best_action(ROOT_C) if len(path) == 1 else node.best_action()`. Every search goes through it, including the backend's.
+2. **CVaR is gone.** `cvar_from_hist`, `N_BINS`, the histogram columns in `stats`, `risk_lambda` and `alpha` are removed, so `best_slot` is plain UCB. The price of a death in `evaluate_terminal` is the only risk term. `quality`'s CVaR15 column stays: it only reports how the worst 15% of battles scored, and Gate 2 uses it.
+
+**Checks.** `pytest` 1824 passed, `pytest -m jit` 9 passed, golden snapshots unchanged. The new code plays the tested set exactly: the same picks on all 140 position searches, the same iterations on all 88 stop-rule searches, and the same results in all 900 battles at 1000.
+
+**Measured again with these values** (`2026-11-06_1923.md`, `search quality quality25k --long`, 53 minutes). Win / value, old then new. The first table of this file now holds the new numbers:
+
+| Iterations per decision | 200                       | 1000                       | 5000                      | 25,000                    |
+| ----------------------- | ------------------------- | -------------------------- | ------------------------- | ------------------------- |
+| Roark, good             | 94% / 0.515, 93% / 0.549  | 98% / 0.631, 98% / 0.736   | 99% / 0.804, 99% / 0.884  | 99% / 0.930, 98% / 0.920  |
+| Roark, weak             | 8% / 0.017, **2% / 0.005** | 47% / 0.106, 44% / 0.107  | 77% / 0.209, 80% / 0.254  | 93% / 0.327, 94% / 0.435  |
+| Barry 2-P               | 29% / 0.145, 27% / 0.137  | 43% / 0.219, 43% / 0.224   | 51% / 0.253, 52% / 0.257  | 48% / 0.231, 48% / 0.231  |
+| Dallas                  | 99.7% / 0.984, 99.8% / 0.994 | 100% / 0.996, 99.8% / 0.996 | not run                | not run                   |
+
+**The one clear loss is Roark weak at 200 iterations, and the root `c` causes it, not removing CVaR.** That budget wasn't in the tuning runs. Roark weak at 200, 2000 battles, same seeds:
+
+| `c`, root `c`, no penalty | Win  | 95% CI    | Value |
+| ------------------------- | ---- | --------- | ----- |
+| 0.42, 0.42                | 9.2% | 8.0-10.5% | 0.019 |
+| 0.3, 0.3                  | 8.7% | 7.5-10.0% | 0.019 |
+| 0.3, 0.6                  | 5.8% | 4.8-6.9%  | 0.013 |
+| 0.3, 1.2                  | 2.1% | 1.6-2.8%  | 0.005 |
+
+Without the penalty and with no larger root `c`, the old 8% holds. A larger root `c` spreads 200 iterations thinly over the first moves, and by 1000 the difference is gone (44% vs 47%, not significant). The app isn't affected: its stop rule needs 5000 visits on one node, so it runs at least 5000 iterations unless stopped by hand or given a lower cap. It does matter for this plan: Step 2's baseline runs at 0.02 s, about 200 iterations. See Step 7.
+
+**Speed.** Iterations/s rose 2% in Roark weak and Barry 2-P, 10% in Roark good and 18% in Dallas, all inside the usual 5-30% timing noise. Rollout times moved too with no rollout change, so this doesn't show a speedup from removing CVaR. Backprop did drop in all four fights (3.2 to 2.6 µs in Dallas), the step that lost its histogram update.
+
 ### Step 1b: move `_select_expand`'s hot parts into njit
 
 Approved 2026-11-05, not started. It comes before Step 2 so the baseline and every later wall-clock number are measured on the faster search. It also raises the data rate in Step 5. No training involved, and it's worth doing whatever the gates say.
 
 - Profile inside `_select_expand` first. The 43-81% isn't broken down yet. Candidates: `GameState` creation in `clone`, `NodeSnapshot.from_state`'s Python bench loops, `Node` creation, and the Python overhead around `best_slot`, `valid_action_mask`, `node_key` and `step_arr` at each tree level.
 - Write a short note with the profile and the proposed change, and wait for your OK, because this is an architecture decision. There are two sizes: keep `Node` objects and move per-node work into njit, or keep the tree in flat arrays with selection as one njit call. The second is the bigger gain, but it also touches `backend/serializer.py`, `SearchEngine/helper.py` and everything else that reads nodes.
-- MCTS stays single-threaded. `c`, `risk_lambda` and `alpha` don't change.
+- MCTS stays single-threaded. `c` and `ROOT_C` don't change.
 
 Done when: `pytest` and `pytest -m jit` pass, and iterations/s before and after on the fights in the first table are written here (`python -m benchmarks.run search`).
 
@@ -295,7 +448,7 @@ No network yet. This defines how everything later gets judged.
   - Ability from PkDB, random nature, IVs and gender, sometimes an early item.
   - Fights that 32 of today's rollouts call nearly decided are mostly dropped, since they teach little. Rollouts read low (0.8% on a fight 1000-iteration search wins 29% of), so check the thresholds against search results first.
 - `_build_battle` lives in `backend/main.py`, and importing `backend` turns on the backend cache and deletes old cache folders. So extract its body into `Utils/helper.py` and have the backend call it.
-- `NeuralNetwork/arena.py`: full battles for an agent, where an agent is a search budget, a leaf evaluator and optional `c` / `risk_lambda` / `alpha`. Single-action decisions skip the search. Reports win %, deaths per win, mean value, CVaR15 of value, confidence intervals and decisions/s. Arms play the same scenarios so differences are paired. Comparison budgets are wall clock per decision, with at most 8 pinned workers and nothing else heavy running. Each worker runs at 80-85% of its speed alone, so a budget here is a little less search than the same time in the app.
+- `NeuralNetwork/arena.py`: full battles for an agent, where an agent is a search budget, a leaf evaluator and optional `c` / `ROOT_C`. Single-action decisions skip the search. Reports win %, deaths per win, mean value, CVaR15 of value, confidence intervals and decisions/s. Arms play the same scenarios so differences are paired. Comparison budgets are wall clock per decision, with at most 8 pinned workers and nothing else heavy running. Each worker runs at 80-85% of its speed alone, so a budget here is a little less search than the same time in the app.
 - `NeuralNetwork/data/bench_set.json`: about 300 fixed scenarios stored by name, so id shifts don't change them. Weighted toward hard trainers, with Roark and the rivals also reported separately.
 - Run the baseline: today's rollouts at 0.02 s, 0.1 s, 0.5 s and 2 s per decision (about 40 minutes on 8 pinned workers at a rough 25 decisions per battle; the test fights measured 4-38). In the hard fights those budgets are about 200, 1000, 5000 and 25,000 iterations here. Write the results here.
 
@@ -347,9 +500,9 @@ Failing means more or better data or features. It does not move on to Step 7.
 - `_backprop` takes the distribution. The rollout path behaves exactly as before.
 - Used by `mcts_loop` and `_mcts_worker`, switched by a `net` argument. Default off.
 - Add `NeuralNetwork` to `BACKEND_DIRS` in `Utils/jit_cache.py`, which also adds it to the installer. `source_hash` ignores `.npz`, which is correct because weights are run-time arguments.
-- `c`, `risk_lambda` and `prune_dominated` were tuned for noisy rollouts. Try other values as arena arms, and change defaults only with your OK.
+- `c`, `ROOT_C` and `prune_dominated` were tuned for noisy rollouts. Try other values as arena arms, and change defaults only with your OK. Include a smaller `ROOT_C` at 0.02 s, where 1.2 loses to 0.3 in Roark weak (2.1% vs 8.7%, Step 1a).
 
-Tests in `tests/test_search.py`: histogram sums equal visits with fractional counts, terminal leaves are exact, nodes stay valid (structural, as usual).
+Tests in `tests/test_search.py`: per-action rows add up with fractional wins and deaths, terminal leaves are exact, nodes stay valid (structural, as usual).
 
 **Gate 2**, on the bench set at 0.02 s, 0.1 s and 0.5 s per decision:
 
@@ -397,3 +550,8 @@ Places where the sheet disagrees with itself or with PkDB, and PkDB was delibera
 - **LEARNSETS tab errors:** `Twinneedle` on Beedrill and Cloyster, and `Thrash` at level 50 on Wailord. DEX has `Twineedle` and `Amnesia`, and Amnesia is the one that fits: the rest of Wailord's list mirrors Wailmer's, which has Amnesia in both tabs.
 - **Snover and Abomasnow:** the sheet writes Ice/Grass on all three lines, PkDB Grass/Ice. Order only, and the engine sites checked read both types together, so PkDB is unchanged.
 - **`Anticipate`** is the sheet's name for PkDB's `Anticipation` (7 species). Spelling only.
+- **Full battles prune sooner than the app.** `mcts_loop` prunes every 500 iterations (`SearchEngine/my_mcts.py:278`), the backend every 2500 (`backend/main.py:260`). Low `c` sets reach `prune_dominated`'s 88% sooner, so they could score a bit differently in these tables than in the app. Not measured. Every win-rate table here uses 500, so they stay comparable.
+- **Two fights never reach the stop rule.** At the first turn of Roark weak and Barry 2-P, no search stopped within 350,000 iterations, under the old values or the new ones. That took 29-42 s on a busy worker. The app keeps going to its cap, 500,000 by default in the UI, so it waits longer (not measured). Roark weak's top action still has only 12% of the visits there.
+- **`quality` and the tuning stages share seeds.** Both use `100_000 * iters + i`, so re-running `quality` replays battles that helped choose the values. `tuning`'s fresh-seed stage starts 50,000 seeds later for that reason.
+- **`ROOT_C` costs wins at very low budgets.** Roark weak at 200 iterations wins 2.1% with 1.2 and 8.7% with 0.3. The app runs at least 5000 unless stopped by hand or given a lower cap, so only Step 2's 0.02 s arm and anything else near 200 iterations feels it.
+- **Every Pokemon costs the same.** `evaluate_terminal` only counts deaths, so losing the team's best Pokemon scores like losing its worst. It didn't cause the picks in Step 1a, but it does shape which Pokemon the search is willing to lose.

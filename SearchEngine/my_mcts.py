@@ -14,7 +14,7 @@ import numpy as np
 from SearchEngine.mcts_eval import rollout_arr
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node, prune_dominated
 from SearchEngine.models import (
-    GameState, Node, ActionType, N_BINS, ACTION_SLOT, ACTION_ORDER, N_SLOTS, STATS_COLS,
+    GameState, Node, ActionType, ROOT_C, ACTION_SLOT, ACTION_ORDER, N_SLOTS, STATS_COLS,
     node_key, valid_action_mask
 )
 from Models.helper import StatustoName, BattlePhase
@@ -211,7 +211,7 @@ def _select_expand(state: GameState, node: Node):
             break
         if node.stats is None:
             raise ValueError("MCTS Selection")
-        action_key, child = node.best_action()
+        action_key, child = node.best_action(ROOT_C) if len(path) == 1 else node.best_action()
         new_state = state.step(action_key)
         key = node_key(new_state.battle_array)
         new_node = multiple_nodes(child, key)
@@ -243,7 +243,6 @@ def _rollout(state: GameState):
 
 def _backprop(path: List, actions: List, value: float, win: int, dead: int):
     """Phase 4 of MCTS"""
-    bin_idx = min(int(value * N_BINS), N_BINS - 1)
     for node in reversed(path):
         node.visits += 1
         node.total_value += value
@@ -258,7 +257,6 @@ def _backprop(path: List, actions: List, value: float, win: int, dead: int):
         row = stats[ACTION_SLOT[action]]
         row[0] += 1
         row[1] += value
-        row[2 + bin_idx] += 1
 
 
 def mcts_loop(

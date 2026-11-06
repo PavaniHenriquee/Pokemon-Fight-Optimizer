@@ -1,7 +1,7 @@
 # Nuzlock Battle Optimizer: CLAUDE.md
 
-Solo, local-only hobby project. A decision-support tool for Nuzlocke runs: MCTS with CVaR
-risk-adjustment over a from-scratch Gen IV battle engine. First target is Renegade Platinum
+Solo, local-only hobby project. A decision-support tool for Nuzlocke runs: MCTS over a
+from-scratch Gen IV battle engine. First target is Renegade Platinum
 (trainers up to the 1st gym). Main goal is usable speed; code organization comes second.
 
 ## How to work with me
@@ -29,7 +29,7 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   `trainer_ai_helper.py`, `idx_const.py` (array layout), `helper.py` (enums as dataclasses).
 - `DataBase/`: JSON databases (`PkDB`, `MoveDB`, `AbilitiesDB`, `ItemDB`, `TrainerDB`) plus the
   `*.py` name-to-int enums. `TrainerDB.json` is the source of truth for trainer teams and items.
-- `SearchEngine/`: `my_mcts.py`, `models.py` (GameState, Node, CVaR UCB), `mcts_eval.py`
+- `SearchEngine/`: `my_mcts.py`, `models.py` (GameState, Node, UCB), `mcts_eval.py`
   (terminal eval, rollout heuristic), `helper.py` (pruning).
 - `NeuralNetwork/`: feature extraction only. The network itself is planned, not built.
 - `backend/`: FastAPI + WebSocket, MCTS in a background thread. `frontend/`: React + TS +
@@ -54,7 +54,7 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - Benchmark / profile: `python main.py` (see the run\_\* functions)
 - Full benchmarks: `python -m benchmarks.run quick` (search speed, network kernels, ~1.5 min), `all`
   (~8 min) or section names; `--smoke` only checks they still work. Extras only when named:
-  `compile`, `quality25k`, `tuning` (`best_action` values, `NN_PLAN.md` Step 1a, ~2.5 h). `--long` gives `NN_PLAN.md`'s full tables (~1.5 h). Each report records
+  `compile`, `quality25k`, `tuning` (the search's `c` values, `NN_PLAN.md` Step 1a, ~2 h). `--long` gives `NN_PLAN.md`'s full tables (~1.5 h). Each report records
   the machine and the change against earlier runs of the same length. The `training` section needs
   `pip install -r requirements-train.txt`.
 - Debuggable, non-JIT run: set `NUMBA_DISABLE_JIT=1`
@@ -118,9 +118,12 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
   workers made select/expand as expensive as a rollout. Don't "optimize" this with threads or
   processes.
 - The `"Test"` trainer in `TrainerDB.json` and odd entries in `box.json` are test data.
-- Search tuning (`c`, `risk_lambda`, `alpha`, `N_BINS`, `terminal_iterations`) lives in
+- Search tuning (`c`, `ROOT_C`, `terminal_iterations`) lives in
   `SearchEngine/models.py` and `my_mcts.py`. The code is the source of truth; ask before
   changing values. Keep `terminal_iterations` low enough to be reachable at tree depth.
+- The search has no risk term on purpose. A CVaR penalty was tested and removed (`README.md`,
+  `NN_PLAN.md` Step 1a); risk comes from the price of a death in `evaluate_terminal`. `ROOT_C` is a
+  larger `c` for the root only. `quality`'s CVaR15 column only reports battle results.
 
 ## Search / rollout constraints
 
@@ -284,14 +287,20 @@ risk-adjustment over a from-scratch Gen IV battle engine. First target is Renega
 - UI: no copied ability, no "the AI knows this ability" marker, and the field's weather shows while
   Cloud Nine / Air Lock suppress it.
 - Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
-- Search: the CVaR penalty reads exploration and rollout noise as risk, so it can keep a safe action
-  from being searched (`NN_PLAN.md` Step 1a has the measurements).
-- Search: `best_action`'s docstring says a higher `risk_lambda` takes more risk; the code does the
-  opposite. At 1 or above the mean cancels out of the score for actions with equal CVaR.
-- Search: `best_slot`'s mean uses exact values but `cvar_from_hist` uses bin midpoints, so a 100% clean
-  win still shows a tail gap of about 0.08. A win with 5 deaths usually lands in a loss's bin.
+- Search: `evaluate_terminal` counts deaths, so every Pokemon is worth the same: a win that loses the
+  team's best Pokemon scores like one that loses its worst.
+- Search: `ROOT_C` costs wins at very low budgets: Roark weak at 200 iterations wins 2.1%, against 8.7% with
+  a root `c` of 0.3. The app runs at least 5000 unless stopped by hand or given a lower cap
+  (`NN_PLAN.md` Step 1a).
 - Search: `prune_dominated`'s 0.88 and the 5,000-visit stop rule are hand-set too. Nothing has pointed
   at them yet.
+- Search: `mcts_loop` (benchmarks, `python main.py`) prunes every 500 iterations, the backend every 2500,
+  so full-battle numbers prune sooner than the app. Low `c` values could score a bit differently there.
+- Search: at the first turn of Roark weak and Barry 2-P the stop rule never fires within 350,000 iterations
+  (29-42 s), so the app runs to its cap, 500,000 by default in the UI. Roark weak's top action has only 12% of
+  the visits.
+- Benchmarks: `quality` and the `tuning` stages share seeds (`100_000 * iters + i`), so re-running `quality`
+  isn't an independent check of values `tuning` chose. `tuning`'s fresh-seed stage is.
 - Benchmarks on the i5: at this repo's folder depth, `.numba_cache/benchmarks/...` reaches the 260
   character path limit and the compile fails. `PBO_CACHE_ROOT` set to a short folder gets around it.
 

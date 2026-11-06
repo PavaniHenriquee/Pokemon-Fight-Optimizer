@@ -8,7 +8,7 @@
 
 Sections: search, network, workers, rates, data, training (needs torch, see
 requirements-train.txt) and quality. Extras, only when named: compile, quality25k and tuning (values
-for best_action, NN_PLAN.md Step 1a, about 2.5 hours). quality uses
+for the search's c, NN_PLAN.md Step 1a, about 2 hours). quality uses
 fixed seeds, so with no code change it repeats exactly. Reports go to benchmarks/results/ and only
 compare with runs of the same length. Keep the machine quiet for the timing sections.
 """
