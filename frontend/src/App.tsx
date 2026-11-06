@@ -8,9 +8,14 @@ import type {
   PokemonData,
   PokemonConfig,
   TrainerDB,
+  EncounterDB,
+  NuzlockeRun,
+  BoxEntry,
 } from "./types";
 import { WS_URL, API_URL, getJSON, postJSON } from "./lib/api";
+import { EMPTY_RUN, deathChanges, makeLineOf, setDeadInBox, setDeadInRun } from "./lib/nuzlocke";
 import { orderActions } from "./lib/tree";
+import { useBox } from "./lib/useBox";
 import TopBar, { type View } from "./components/TopBar";
 import PathRail from "./components/PathRail";
 import BattleView from "./components/BattleView";
@@ -18,6 +23,7 @@ import ActionPanel from "./components/ActionPanel";
 import OutcomeInspector from "./components/OutcomeInspector";
 import ConfigureView from "./components/ConfigureView";
 import ContinueModal from "./components/ContinueModal";
+import TrackerView from "./components/TrackerView";
 import { Button } from "./components/ui/button";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
@@ -58,12 +64,71 @@ export default function App() {
   const [starting, setStarting] = useState(false);
   const [trainerItems, setTrainerItems] = useState<string[]>(["", "", "", ""]);
   const [terrain, setTerrain] = useState("plain");
+  const [encounterDB, setEncounterDB] = useState<EncounterDB | null>(null);
+  const [run, setRun] = useState<NuzlockeRun | null>(null); // null until loaded: see TrackerView
+  const [trackerError, setTrackerError] = useState<string | null>(null);
+  const runSaves = useRef<Promise<unknown>>(Promise.resolve()); // one at a time, in order
+
+  const loadTracker = useCallback(() => {
+    const onError = (e: Error) => setTrackerError(e.message);
+    getJSON<EncounterDB>("/encounters").then(setEncounterDB).catch(onError);
+    getJSON<NuzlockeRun>("/nuzlocke").then(setRun).catch(onError);
+  }, []);
+
+  const boxState = useBox(everConnected);
+  const lineOf = useMemo(() => makeLineOf(encounterDB), [encounterDB]);
+
+  function saveRun(next: NuzlockeRun) {
+    setRun(next);
+    runSaves.current = runSaves.current
+      .then(() => postJSON("/nuzlocke", next))
+      .catch((e: Error) =>
+        toast.error("Couldn't save the Nuzlocke run", { description: e.message }),
+      );
+  }
+
+  // A death on the tracker moves its evolution line in the box too, and takes it out of the party
+  function changeRun(next: NuzlockeRun) {
+    const changes = run ? deathChanges(run, next) : [];
+    saveRun(next);
+    const { box } = boxState;
+    if (box) {
+      const nextBox = changes.reduce(
+        (entries, { species, dead }) => setDeadInBox(entries, lineOf, species, dead),
+        box,
+      );
+      if (nextBox !== box) boxState.commit(nextBox);
+    }
+    const died = new Set(changes.filter((c) => c.dead).map((c) => lineOf(c.species)));
+    if (myTeam.some((member) => died.has(lineOf(member.name)))) {
+      setMyTeam(myTeam.filter((member) => !died.has(lineOf(member.name))));
+    }
+  }
+
+  // The same thing from the box's side
+  function setBoxEntryDead(entry: BoxEntry, dead: boolean) {
+    if (!boxState.box) return;
+    boxState.commit(setDeadInBox(boxState.box, lineOf, entry.name, dead));
+    if (run) {
+      const nextRun = setDeadInRun(run, lineOf, entry.name, dead);
+      if (nextRun !== run) saveRun(nextRun);
+    }
+    if (dead) setMyTeam(myTeam.filter((member) => lineOf(member.name) !== lineOf(entry.name)));
+  }
+
+  // A new run is the tracker and the box: what's left in the box would block its lines
+  function startNewRun() {
+    saveRun(EMPTY_RUN);
+    boxState.commit([]);
+    setMyTeam([]);
+  }
 
   // Data loads once the backend is reachable (in Electron the window can open first)
   useEffect(() => {
     if (!everConnected) return;
     getJSON<TrainerDB>("/trainers").then(setTrainerDB).catch(console.error);
-  }, [everConnected]);
+    loadTracker();
+  }, [everConnected, loadTracker]);
 
   useEffect(() => {
     const from = prevDisplayRef.current;
@@ -347,8 +412,28 @@ export default function App() {
                 setTrainerItems={setTrainerItems}
                 terrain={terrain}
                 setTerrain={setTerrain}
+                run={run}
+                boxState={boxState}
+                onSetDead={setBoxEntryDead}
               />
             </div>
+
+            {view === "tracker" && (
+              <TrackerView
+                run={run}
+                encounterDB={encounterDB}
+                pokemonData={pokemonData}
+                box={boxState.box}
+                lineOf={lineOf}
+                error={trackerError}
+                onRetry={() => {
+                  setTrackerError(null);
+                  loadTracker();
+                }}
+                onChange={changeRun}
+                onNewRun={startNewRun}
+              />
+            )}
 
             {view === "explore" &&
               (!sessionActive || !tree || !currentNode ? (

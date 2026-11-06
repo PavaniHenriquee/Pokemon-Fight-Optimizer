@@ -246,6 +246,7 @@ function InfoPage({
             patch({ name: v, ability: next.includes(draft.ability) ? draft.ability : (next[0] ?? "") });
           }}
           items={pokemon}
+          itemLabel={displayName}
           placeholder="Search a Pokémon"
           clearable={!!draft.name}
           renderItem={(p) => (

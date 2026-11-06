@@ -1,5 +1,5 @@
 """FastAPI endpoints and the tree serializer the frontend depends on.
-The real UserData/box.json is never written: _BOX_PATH points to a temp file."""
+The real UserData/box.json and nuzlocke.json are never written: their paths point to temp files."""
 import json
 import os
 import pytest
@@ -23,8 +23,9 @@ OPP_MEMBER = {
 
 @pytest.fixture
 def client(monkeypatch, tmp_path):
-    """TestClient with the box redirected to a temp file and no leftover session"""
+    """TestClient with the box and the run redirected to temp files and no leftover session"""
     monkeypatch.setattr(main, "_BOX_PATH", str(tmp_path / "box.json"))
+    monkeypatch.setattr(main, "_NUZLOCKE_PATH", str(tmp_path / "nuzlocke.json"))
     monkeypatch.setattr(main, "_session", None)
     with TestClient(main.app) as c:
         yield c
@@ -77,6 +78,77 @@ def test_box_round_trip(client, tmp_path):
     got = client.get("/box").json()
     assert len(got) == 1 and got[0]["name"] == "Charmander" and got[0]["id"] == "abc"
     assert json.loads((tmp_path / "box.json").read_text(encoding="utf-8")) == got
+
+
+def test_box_keeps_the_death_box(client):
+    """The death box is the same file: dead round-trips, and an entry without it isn't dead"""
+    alive = {**TEAM_MEMBER, "id": "a"}
+    alive.pop("item")
+    dead = {**alive, "id": "b", "dead": True}
+    assert client.post("/box", json=[alive, dead]).json() == {"status": "saved"}
+    got = {entry["id"]: entry["dead"] for entry in client.get("/box").json()}
+    assert got == {"a": False, "b": True}
+
+
+def test_box_empty_file_is_an_empty_box(client, tmp_path):
+    """The committed box.json is 0 bytes: the app starts with an empty box"""
+    (tmp_path / "box.json").write_text("", encoding="utf-8")
+    assert client.get("/box").json() == []
+
+
+def test_box_unreadable_file_is_an_error_not_an_empty_box(client, tmp_path):
+    """An empty answer would let the next save wipe the file"""
+    (tmp_path / "box.json").write_text('[{"name": "Starly"', encoding="utf-8")
+    response = client.get("/box")
+    assert response.status_code == 500 and "box.json" in response.json()["detail"]
+    assert (tmp_path / "box.json").read_text(encoding="utf-8") == '[{"name": "Starly"'
+
+
+def test_encounters(client):
+    """Encounter data is EncounterDB.json as-is, in the sheet's order"""
+    data = client.get("/encounters").json()
+    assert data["starters"] == ["Turtwig", "Chimchar", "Piplup"]
+    assert list(data["locations"])[0] == "Route 201"
+
+
+def test_nuzlocke_without_a_file_is_an_empty_run(client):
+    """A new run: no starter, no gender, every location open"""
+    assert client.get("/nuzlocke").json() == {
+        "player": "",
+        "starter": {"species": "", "nickname": "", "status": "caught"},
+        "encounters": {},
+    }
+
+
+def test_nuzlocke_round_trip(client, tmp_path):
+    """POST /nuzlocke then GET /nuzlocke returns the same run (temp file only)"""
+    run = {
+        "player": "Female",
+        "starter": {"species": "Piplup", "nickname": "Pip", "status": "caught"},
+        "encounters": {
+            "Route 201": {"species": "Starly", "nickname": "", "status": "dead"},
+            "Route 202": {"species": "", "nickname": "", "status": "missed"},
+        },
+    }
+    assert client.post("/nuzlocke", json=run).json() == {"status": "saved"}
+    assert client.get("/nuzlocke").json() == run
+    assert json.loads((tmp_path / "nuzlocke.json").read_text(encoding="utf-8")) == run
+    assert not (tmp_path / "nuzlocke.json.tmp").exists()
+
+
+@pytest.mark.parametrize("text", ["", "{ not json", '{"player": "Nobody"}'])
+def test_nuzlocke_unreadable_file_is_an_error_not_an_empty_run(client, tmp_path, text):
+    """The tracker saves every change, so an empty answer would end up replacing the real run"""
+    (tmp_path / "nuzlocke.json").write_text(text, encoding="utf-8")
+    assert client.get("/nuzlocke").status_code == 500
+    assert (tmp_path / "nuzlocke.json").read_text(encoding="utf-8") == text
+
+
+def test_nuzlocke_rejects_an_unknown_status(client, tmp_path):
+    """A bad save is refused and leaves the file alone"""
+    bad = {"encounters": {"Route 201": {"species": "Starly", "status": "lost"}}}
+    assert client.post("/nuzlocke", json=bad).status_code == 422
+    assert not (tmp_path / "nuzlocke.json").exists()
 
 
 def test_no_session_endpoints(client):
@@ -215,6 +287,14 @@ def test_box_path_env(monkeypatch, tmp_path):
     assert main._box_path() == str(tmp_path / "box.json")  # pylint: disable=protected-access
     monkeypatch.delenv("PBO_BOX_PATH")
     assert main._box_path().endswith(os.path.join("UserData", "box.json"))  # pylint: disable=protected-access
+
+
+def test_nuzlocke_path_env(monkeypatch, tmp_path):
+    """PBO_NUZLOCKE_PATH overrides UserData/nuzlocke.json"""
+    monkeypatch.setenv("PBO_NUZLOCKE_PATH", str(tmp_path / "nuzlocke.json"))
+    assert main._nuzlocke_path() == str(tmp_path / "nuzlocke.json")  # pylint: disable=protected-access
+    monkeypatch.delenv("PBO_NUZLOCKE_PATH")
+    assert main._nuzlocke_path().endswith(os.path.join("UserData", "nuzlocke.json"))  # pylint: disable=protected-access
 
 
 def test_exit_when_parent_closes(monkeypatch):

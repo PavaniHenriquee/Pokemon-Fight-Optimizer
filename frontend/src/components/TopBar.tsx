@@ -9,11 +9,12 @@ import {
 } from "@/components/ui/tooltip";
 import { IterationsInput } from "./common/IterationsInput";
 
-export type View = "configure" | "explore";
+export type View = "configure" | "explore" | "tracker";
 
 const TABS: { id: View; label: string }[] = [
   { id: "configure", label: "Setup" },
   { id: "explore", label: "Analyze" },
+  { id: "tracker", label: "Tracker" },
 ];
 
 export default function TopBar({

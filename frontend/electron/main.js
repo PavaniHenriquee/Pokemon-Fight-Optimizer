@@ -54,6 +54,7 @@ function backendPaths() {
     cwd: path.join(res, "src"),
     env: {
       PBO_BOX_PATH: boxPath,
+      PBO_NUZLOCKE_PATH: path.join(app.getPath("userData"), "nuzlocke.json"),
       PBO_CACHE_ROOT: path.join(localAppData, app.getName(), "numba_cache"),
     },
   };

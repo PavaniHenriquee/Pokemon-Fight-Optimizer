@@ -6,6 +6,9 @@ import os
 import pytest
 from DataBase.loader import moveDB, abDB, itemDB, pkDB
 from DataBase.import_learnsets import move_key, parse_dex, species_name, with_learnsets
+from DataBase.import_encounters import (
+    STATS_EVOLUTION_COL, STATS_EVOLUTION_TITLE, db_text, parse_encounters, parse_evolution_lines,
+)
 from Models.move import Moves
 from Models.ability import ability_to_np
 from Models.item import item_to_np
@@ -135,6 +138,45 @@ def test_trainer_db_shape():
             assert len(p["moves"]) <= 4, (trainer, p["name"])
 
 
+# The starter each rival has, by the starter you chose (the sheet's ROARK SPLIT tab, "IF YOU CHOSE ...").
+# Barry takes the one that beats yours, Lucas / Dawn the one left. The key's letter is Barry's rule for
+# all of them, so it's wrong for Lucas and Dawn: Lucas 1-P has Turtwig, met if you chose Chimchar
+RIVAL_STARTER = {
+    "Barry": {"Turtwig": "Chimchar", "Chimchar": "Piplup", "Piplup": "Turtwig"},
+    "Lucas": {"Turtwig": "Piplup", "Chimchar": "Turtwig", "Piplup": "Chimchar"},
+    "Dawn": {"Turtwig": "Piplup", "Chimchar": "Turtwig", "Piplup": "Chimchar"},
+}
+
+
+def _rival_entries():
+    return {name: t for name, t in TRAINER_DB.items() if name.split()[0] in RIVAL_STARTER}
+
+
+def test_rival_variants_match_the_starter():
+    """if_starter on every rival variant says which team the sheet gives that starter"""
+    rivals = _rival_entries()
+    assert len(rivals) == 12
+    for name, trainer in rivals.items():
+        species = [p["name"] for p in trainer["team"]]
+        assert RIVAL_STARTER[name.split()[0]][trainer["if_starter"]] in species, name
+    others = [name for name, t in TRAINER_DB.items() if name not in rivals and "if_starter" in t]
+    assert not others
+
+
+@pytest.mark.parametrize("starter", ["Turtwig", "Chimchar", "Piplup"])
+def test_a_starter_leaves_one_of_each_rival(starter):
+    """A starter leaves Barry 1, Lucas 1, Dawn 1, Barry 2. Choosing a gender then drops Lucas or Dawn"""
+    left = {
+        name: t for name, t in TRAINER_DB.items() if t.get("if_starter") == starter
+    }
+    assert sorted(name.rsplit("-", 1)[0] for name in left) == [
+        "Barry 1", "Barry 2", "Dawn 1", "Lucas 1",
+    ]
+    for player, kept in (("Female", "Lucas"), ("Male", "Dawn")):
+        names = [n for n, t in left.items() if t.get("if_player", player) == player]
+        assert sorted(n.split()[0] for n in names) == sorted(["Barry", "Barry", kept])
+
+
 def test_box_pokemon_build():
     """Every saved box entry builds (the committed file is empty: the app starts with an empty box)"""
     empty = os.path.getsize(os.path.join(ROOT, "UserData", "box.json")) == 0
@@ -233,6 +275,360 @@ def test_import_fails_on_an_unexpected_cell():
 def test_import_species_names(header, name):
     """Sheet headers map to PkDB names"""
     assert species_name(header) == name
+
+
+def _encounter_csv(*groups) -> str:
+    """The ENCOUNTERS tab's CSV: each group a list of rows, each row its first cells. Row 0 is empty and
+    the master table marks where the groups end, like in the sheet"""
+    height = max(len(g) for g in groups) + 1
+    width = 4 + 7 * len(groups) + 1
+    rows = [[""] * width for _ in range(height)]
+    rows[1][width - 1] = "MT CORONET MASTER TABLE"
+    for g, group in enumerate(groups):
+        for r, cells in enumerate(group, start=1):
+            rows[r][4 + 7 * g:4 + 7 * g + len(cells)] = cells
+    out = io.StringIO()
+    csv.writer(out).writerows(rows)
+    return out.getvalue()
+
+
+STARTER_BLOCK = [
+    ["ROUTE 201"],
+    ["Gift from Professor Rowan"],
+    ["", "#387 Turtwig", "5", "-"],
+    ["", "#390 Chimchar", "5", "-"],
+    ["Grass (4-5)", "", "", "M", "D", "N"],
+    ["", "#396 Starly", "4-5", "30", "30", "30"],
+]
+ENCOUNTER_SPECIES = {
+    "Turtwig", "Chimchar", "Starly", "Bidoof", "Spheal", "Ponyta", "Heatran", "Golbat", "Regirock",
+}
+
+
+def _parse_encounters(*groups) -> dict:
+    return parse_encounters(_encounter_csv(STARTER_BLOCK, *groups), ENCOUNTER_SPECIES)
+
+
+def _names(table: dict) -> list:
+    return [mon["name"] for mon in table["mons"]]
+
+
+def test_encounters_starters_leave_route_201():
+    """Rowan's gift becomes the starters, and Route 201 only keeps its own encounters"""
+    db = _parse_encounters()
+    assert db["starters"] == ["Turtwig", "Chimchar"]
+    assert [t["method"] for t in db["locations"]["Route 201"]] == ["Grass (4-5)"]
+
+
+def test_encounters_merge_a_location_split_in_blocks():
+    """Two blocks of one met location are one location, each table keeping its area"""
+    db = _parse_encounters([
+        ["ROUTE 204 (SOUTH)"],
+        ["Grass (6-7)"],
+        ["", "#396 Starly", "6-6"],
+        ["ROUTE 204 (NORTH)"],
+        ["Grass (11-12)"],
+        ["", "#399 Bidoof", "11-11"],
+    ])
+    assert [(t["area"], _names(t)) for t in db["locations"]["Route 204"]] == [
+        ("South", ["Starly"]), ("North", ["Bidoof"]),
+    ]
+    assert db["locations"]["Route 204"][0]["mons"][0]["level"] == "6-6"
+
+
+def test_encounters_alias_is_a_met_location():
+    """A heading [pp] gives another location's label joins that location"""
+    db = _parse_encounters(
+        [["ROUTE 209"], ["Grass (24-26)"], ["", "#396 Starly", "24-24"]],
+        [["LOST TOWER"], ["Details on how to encounter it here :"], ["", "#399 Bidoof", "70", "-"]],
+    )
+    assert "Lost Tower" not in db["locations"]
+    assert [t["area"] for t in db["locations"]["Route 209"]] == ["", "Lost Tower"]
+
+
+def test_encounters_trail_headings_are_not_locations():
+    """A heading with no Pokemon under it is only the sheet's trail between places"""
+    db = _parse_encounters([
+        ["BICYCLE SHOP"],
+        [""],
+        ["ROUTE 206"],
+        ["Grass (20-22)"],
+        ["", "#396 Starly", "21-21"],
+    ])
+    assert "Bicycle Shop" not in db["locations"] and "Route 206" in db["locations"]
+
+
+def test_encounters_trade_gets_only_what_you_receive():
+    """A trade's 'you give' row isn't an encounter, and the '(details :' link text is dropped"""
+    db = _parse_encounters([
+        ["OREBURGH CITY"],
+        ["Trade with a Schoolgirl (details :", "", "", "?"],
+        ["", "#077 Ponyta", "-", "you give"],
+        ["", "#363 Spheal", "-", "you get"],
+    ])
+    table = db["locations"]["Oreburgh City"][0]
+    assert table["method"] == "Trade with a Schoolgirl"
+    assert table["mons"] == [{"name": "Spheal", "level": ""}]
+
+
+def test_encounters_continuation_group_belongs_to_the_left_block():
+    """A group with nothing in row 1 continues the block on its left at the same row: a method line
+    joins that location, a Pokemon with no method line wraps into its last table"""
+    db = _parse_encounters(
+        [
+            ["ROUTE 209"],
+            ["Surf (20-40)"],
+            ["", "#396 Starly", "20-30"],
+        ],
+        [
+            [""],
+            [""],
+            [""],
+            ["", "#399 Bidoof", "20-40"],
+            ["Rods (O-10, G-25, S-50)", "", "", "O", "G", "S"],
+            ["", "#363 Spheal", "", "100", "0", "0"],
+        ],
+    )
+    assert [(t["method"], _names(t)) for t in db["locations"]["Route 209"]] == [
+        ("Surf (20-40)", ["Starly", "Bidoof"]), ("Rods (O-10, G-25, S-50)", ["Spheal"]),
+    ]
+
+
+def test_encounters_pokemon_for_a_method_line_on_the_left():
+    """A method line whose Pokemon sit in the next group gets them, even with newer tables around
+    (Heatran), and a heading's scope ends at a blank row in a continuation group"""
+    db = _parse_encounters(
+        [
+            ["STARK MOUNTAIN"],
+            ["After the Events of Stark Mountain. Talk to Buck"],
+            [""],
+            [""],
+            [""],
+            [""],
+            ["HALL OF ORIGIN"],
+            ["Details on how to encounter it here :", "", "", "?"],
+        ],
+        [
+            [""],
+            ["STARK MOUNTAIN (INSIDE)"],
+            ["Cave (67-69)", "", "", "M", "D", "N"],
+            ["", "#042 Golbat", "67-67"],
+            [""],
+            ["", "#485 Heatran", "68", "-"],
+            [""],
+            ["", "#377 Regirock", "80", "-"],
+        ],
+    )
+    tables = db["locations"]["Stark Mountain"]
+    assert [(t["area"], t["method"], _names(t)) for t in tables] == [
+        ("", "After the Events of Stark Mountain. Talk to Buck", ["Heatran"]),
+        ("Inside", "Cave (67-69)", ["Golbat"]),
+    ]
+    assert _names(db["locations"]["Hall of Origin"][0]) == ["Regirock"]
+
+
+def test_encounters_legendary_lists_repeat_nothing_and_keep_the_story_order():
+    """The sheet's lists of legendaries are read last, repeats dropped, so a location keeps its place"""
+    db = _parse_encounters(
+        [
+            ["POST DISTORTION WORLD LEGENDARIES"],
+            ["VICTORY ROAD"],
+            ["Details on how to encounter it here :", "", "", "?"],
+            ["", "#396 Starly", "60", "-"],
+            ["ROCK PEAK RUINS"],
+            ["Details on how to encounter it here :", "", "", "?"],
+            ["", "#377 Regirock", "60", "-"],
+        ],
+        [
+            ["ROUTE 206"],
+            ["Grass (20-22)"],
+            ["", "#399 Bidoof", "21-21"],
+        ],
+        [
+            ["VICTORY ROAD"],
+            ["Static Encounter"],
+            ["", "#396 Starly", "60", "-"],
+        ],
+    )
+    assert list(db["locations"]) == ["Route 201", "Route 206", "Victory Road", "Rock Peak Ruins"]
+    assert [_names(t) for t in db["locations"]["Victory Road"]] == [["Starly"]]
+
+
+@pytest.mark.parametrize("group", [
+    [["ROUTE 206"], ["Something new"], ["", "#396 Starly", "21-21"]],   # text it doesn't know
+    [["ROUTE 206"], ["Grass (20-22)"], ["", "#999 Missingno", "21-21"]],  # species not in PkDB
+])
+def test_encounters_import_fails_on_what_it_does_not_know(group):
+    """A layout change in the sheet stops the import instead of writing bad data"""
+    with pytest.raises(ValueError):
+        _parse_encounters(group)
+
+
+def test_encounters_import_needs_the_master_table():
+    """No end marker means the layout changed"""
+    with pytest.raises(ValueError):
+        parse_encounters("a,b\n1,2\n", ENCOUNTER_SPECIES)
+
+
+def test_encounters_db_text_round_trips():
+    """The custom file format is plain JSON, ASCII for the platform-encoding loader"""
+    db = {
+        "starters": ["Turtwig"],
+        "locations": {"Pokémon League": [
+            {"area": "", "method": "Poké Radar", "mons": [{"name": "Starly", "level": "4-5"}]},
+        ]},
+        "evolution_lines": [["Starly", "Staravia"], ["Bidoof"]],
+    }
+    text = db_text(db)
+    assert json.loads(text) == db and text.isascii()
+
+
+def _stats_csv(*species) -> str:
+    """The STATS tab's CSV: a title row, then (name, evolution cell) per species"""
+    rows = [[""] * (STATS_EVOLUTION_COL + 1) for _ in range(len(species) + 1)]
+    rows[0][STATS_EVOLUTION_COL] = STATS_EVOLUTION_TITLE
+    for row, (name, cell) in zip(rows[1:], species):
+        row[1], row[STATS_EVOLUTION_COL] = name, cell
+    out = io.StringIO()
+    csv.writer(out).writerows(rows)
+    return out.getvalue()
+
+
+def test_evolution_lines_follow_the_links_in_both_directions():
+    """Either side of a link joins the line, and a species with no links is a line of its own"""
+    stats = _stats_csv(
+        ("#396 Starly", "Can evolve into #397"),
+        ("#397 Staravia", "#396 Lv. 14 - Can evolve into #398"),
+        ("#398 Staraptor", "#397 Lv. 34"),
+        ("#399 Bidoof", "-"),
+    )
+    assert parse_evolution_lines(stats, {"Starly", "Staravia", "Staraptor", "Bidoof"}) == [
+        ["Starly", "Staravia", "Staraptor"], ["Bidoof"],
+    ]
+
+
+def test_evolution_lines_put_forms_with_their_species():
+    """Forms share a dex number, so all of them join the line"""
+    stats = _stats_csv(
+        ("#412 Burmy", "Can evolve into #413, #414"),
+        ("#413 Wormadam (Plant)", "#412 Female Lv. 20"),
+        ("#413 Wormadam (Sandy)", "#412 Female Lv. 20"),
+        ("#414 Mothim", "#412 Male Lv. 20"),
+    )
+    assert parse_evolution_lines(stats, {"Burmy", "Wormadam", "Wormadam_sandy", "Mothim"}) == [
+        ["Burmy", "Wormadam", "Wormadam_sandy", "Mothim"],
+    ]
+
+
+def test_evolution_lines_correct_the_sheets_hoppip_typo():
+    """The sheet's Skiploom comes 'from #186' (Politoed): it stays out of Poliwag's line"""
+    stats = _stats_csv(
+        ("#186 Politoed", "#061 Use King's Rock (!)"),
+        ("#061 Poliwhirl", "Can evolve into #186"),
+        ("#187 Hoppip", "Can evolve into #187"),
+        ("#188 Skiploom", "#186 Lv. 18 - Can evolve into #188"),
+        ("#189 Jumpluff", "#187 Lv. 27"),
+    )
+    known = {"Politoed", "Poliwhirl", "Hoppip", "Skiploom", "Jumpluff"}
+    assert parse_evolution_lines(stats, known) == [
+        ["Politoed", "Poliwhirl"], ["Hoppip", "Skiploom", "Jumpluff"],
+    ]
+
+
+@pytest.mark.parametrize("stats, known", [
+    (_stats_csv(("#396 Starly", "-")), {"Starly", "Staravia"}),  # a PkDB species has no row
+    (_stats_csv(("#396 Starly", "-")), set()),                   # a row isn't in PkDB
+    ("a,b\n1,2\n", {"Starly"}),                                  # the column moved
+])
+def test_evolution_lines_fail_on_what_they_do_not_know(stats, known):
+    """A layout change in the sheet stops the import instead of writing bad data"""
+    with pytest.raises(ValueError):
+        parse_evolution_lines(stats, known)
+
+
+ENCOUNTER_DB = _load_json("DataBase", "EncounterDB.json")
+
+
+def test_encounter_db_species_exist():
+    """Every Pokemon in EncounterDB.json is in PkDB"""
+    entries = [
+        (f"{location}/{table['method']}", mon["name"])
+        for location, tables in ENCOUNTER_DB["locations"].items()
+        for table in tables
+        for mon in table["mons"]
+    ]
+    assert not [entry for entry in entries if entry[1] not in pkDB]
+    assert not [name for name in ENCOUNTER_DB["starters"] if name not in pkDB]
+
+
+def test_encounter_db_has_every_species_in_one_evolution_line():
+    """The species clause can place every species. 247 lines is what the sheet and Showdown both give"""
+    lines = ENCOUNTER_DB["evolution_lines"]
+    species = [name for line in lines for name in line]
+    assert len(lines) == 247
+    assert len(species) == len(set(species)) and set(species) == set(pkDB)
+
+
+@pytest.mark.parametrize("member, line", [
+    ("Eevee", {"Eevee", "Vaporeon", "Jolteon", "Flareon", "Espeon", "Umbreon", "Leafeon", "Glaceon"}),
+    ("Wurmple", {"Wurmple", "Silcoon", "Beautifly", "Cascoon", "Dustox"}),  # branches
+    ("Tyrogue", {"Tyrogue", "Hitmonlee", "Hitmonchan", "Hitmontop"}),
+    ("Pikachu", {"Pichu", "Pikachu", "Raichu"}),                            # a baby
+    ("Poliwag", {"Poliwag", "Poliwhirl", "Poliwrath", "Politoed"}),         # the sheet's typo
+    ("Skiploom", {"Hoppip", "Skiploom", "Jumpluff"}),
+    ("Wormadam_trash", {"Burmy", "Wormadam", "Wormadam_sandy", "Wormadam_trash", "Mothim"}),  # forms
+    ("Rotom_mow", {"Rotom", "Rotom_heat", "Rotom_wash", "Rotom_frost", "Rotom_fan", "Rotom_mow"}),
+    ("Manaphy", {"Manaphy"}),                                               # no evolution to Phione
+    ("Phione", {"Phione"}),
+    ("Nidoran_f", {"Nidoran_f", "Nidorina", "Nidoqueen"}),                  # the two are separate
+    ("Nidoran_m", {"Nidoran_m", "Nidorino", "Nidoking"}),
+])
+def test_encounter_db_evolution_lines(member, line):
+    """Branches, babies, forms and the near misses land in the right line"""
+    assert set(next(l for l in ENCOUNTER_DB["evolution_lines"] if member in l)) == line
+
+
+def test_encounter_db_tables_have_pokemon():
+    """No empty tables or locations"""
+    locations = ENCOUNTER_DB["locations"]
+    assert all(locations.values())
+    assert not [(name, t["method"]) for name, tables in locations.items() for t in tables if not t["mons"]]
+
+
+def test_encounter_db_is_by_met_location():
+    """Locations are [pp]'s met locations, not the sheet's blocks or section titles"""
+    locations = ENCOUNTER_DB["locations"]
+    for not_a_location in ("Route 204 (South)", "Lost Tower", "Areas 1 and 2", "Area 1 And 2",
+                           "Changing Pokemon", "Post Game", "Bicycle Shop", "Mt Coronet",
+                           "Trainer School", "Galactic Building", "Hall Of Origin"):
+        assert not_a_location not in locations
+    assert {t["area"] for t in locations["Route 204"]} == {"South", "North"}
+    assert {"East", "West"} <= {t["area"] for t in locations["Route 211"]}
+    assert {"North", "South"} <= {t["area"] for t in locations["Route 210"]}
+    assert any("Lost Tower" in t["method"] for t in locations["Route 209"])
+    assert "Great Marsh" in locations and "Trainers' School" in locations
+
+
+def test_encounter_db_starters_are_separate_from_route_201():
+    """The starter doesn't use Route 201's encounter, and its gift table moved out"""
+    assert ENCOUNTER_DB["starters"] == ["Turtwig", "Chimchar", "Piplup"]
+    route_201 = {mon["name"] for t in ENCOUNTER_DB["locations"]["Route 201"] for mon in t["mons"]}
+    assert not route_201 & set(ENCOUNTER_DB["starters"])
+
+
+@pytest.mark.parametrize("species, location, wrong", [
+    ("Moltres", "Victory Road", "Route 223"),   # its block is two groups wide, under Route 223's
+    ("Heatran", "Stark Mountain", None),        # its method line is in the group on the left
+    ("Arceus", "Hall of Origin", "Stark Mountain"),
+    ("Manaphy", "Pokémon Mansion", None),
+    ("Giratina", "Distortion World", None),     # one column over in the sheet
+])
+def test_encounter_db_layout_traps(species, location, wrong):
+    """Pokemon the grid's layout doesn't put under their heading landed in the right location"""
+    def has(name):
+        return any(m["name"] == species for t in ENCOUNTER_DB["locations"][name] for m in t["mons"])
+    assert has(location)
+    assert wrong is None or not has(wrong)
 
 
 def test_import_only_adds_lines():

@@ -14,10 +14,10 @@ import json
 import time
 import traceback
 from contextlib import asynccontextmanager
-from typing import Optional, cast
+from typing import Literal, Optional, cast
 from pydantic import BaseModel, Field
 import numpy as np
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from Models.idx_const import Pok, POK_LEN
 from Models.constants import (
@@ -58,6 +58,14 @@ def _box_path() -> str:
 
 
 _BOX_PATH = _box_path()
+
+
+def _nuzlocke_path() -> str:
+    """UserData/nuzlocke.json, or PBO_NUZLOCKE_PATH (the Electron app keeps it in %APPDATA%)"""
+    return os.environ.get("PBO_NUZLOCKE_PATH") or os.path.join(_ROOT, "UserData", "nuzlocke.json")
+
+
+_NUZLOCKE_PATH = _nuzlocke_path()
 
 _TRAINER_ITEM_FIELDS = (
     _FIELD_AI_ITEM1, _FIELD_AI_ITEM2, _FIELD_AI_ITEM3, _FIELD_AI_ITEM4,
@@ -143,6 +151,21 @@ class BoxEntry(BaseModel):
     level: int = 5
     moves: list[str] = Field(default_factory=list)
     ivs: dict = Field(default_factory=lambda: dict(_DEFAULT_IVS))
+    dead: bool = False  # in the death box: can't join the party, still counts for the species clause
+
+
+class NuzlockeEncounter(BaseModel):
+    """What happened at one location of a run. The box matches it by evolution line."""
+    species: str = ""
+    nickname: str = ""
+    status: Literal["caught", "missed", "dead"] = "caught"
+
+
+class NuzlockeRun(BaseModel):
+    """Persisted Nuzlocke run. A location with no entry is still open."""
+    player: Literal["", "Male", "Female"] = ""
+    starter: NuzlockeEncounter = Field(default_factory=NuzlockeEncounter)  # no species until chosen
+    encounters: dict[str, NuzlockeEncounter] = Field(default_factory=dict)
 
 
 class PokemonConfig(BaseModel):
@@ -367,6 +390,13 @@ async def get_trainers() -> dict:
         return {}
 
 
+@app.get("/encounters")
+async def get_encounters() -> dict:
+    """What can be met at each location, from EncounterDB.json (DataBase/import_encounters.py)."""
+    with open(os.path.join(_ROOT, "DataBase", "EncounterDB.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 @app.post("/stop")
 async def stop_mcts() -> dict:
     """
@@ -378,12 +408,16 @@ async def stop_mcts() -> dict:
 
 @app.get("/box")
 async def get_box() -> list:
-    """Load the player's Pokémon box from disk."""
+    """Load the player's Pokémon box from disk. No file or an empty one is an empty box (the committed
+    file is empty). An unreadable one is an error, not an empty box: saving that would wipe the file."""
     try:
         with open(_BOX_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+            text = f.read()
+        return json.loads(text) if text.strip() else []
+    except FileNotFoundError:
         return []
+    except ValueError as e:  # bad JSON and bad encoding are both ValueErrors
+        raise HTTPException(500, f"Can't read {_BOX_PATH}: {e}") from e
 
 
 @app.post("/box")
@@ -392,6 +426,30 @@ async def save_box(entries: list[BoxEntry]) -> dict:
     os.makedirs(os.path.dirname(_BOX_PATH), exist_ok=True)
     with open(_BOX_PATH, "w", encoding="utf-8") as f:
         json.dump([e.model_dump() for e in entries], f, indent=2)
+    return {"status": "saved"}
+
+
+@app.get("/nuzlocke")
+async def get_nuzlocke() -> dict:
+    """Load the Nuzlocke run. No file yet is an empty run. An unreadable file is an error, not an empty
+    run: the tracker saves every change, so an empty answer would end up replacing the real run."""
+    try:
+        with open(_NUZLOCKE_PATH, "r", encoding="utf-8") as f:
+            return NuzlockeRun.model_validate(json.load(f)).model_dump()
+    except FileNotFoundError:
+        return NuzlockeRun().model_dump()
+    except ValueError as e:  # bad JSON and pydantic's ValidationError are both ValueErrors
+        raise HTTPException(500, f"Can't read {_NUZLOCKE_PATH}: {e}") from e
+
+
+@app.post("/nuzlocke")
+async def save_nuzlocke(run: NuzlockeRun) -> dict:
+    """Persist the Nuzlocke run, through a temp file so a crash mid-write can't lose it."""
+    os.makedirs(os.path.dirname(_NUZLOCKE_PATH), exist_ok=True)
+    temp_path = f"{_NUZLOCKE_PATH}.tmp"
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(run.model_dump(), f, indent=2)
+    os.replace(temp_path, _NUZLOCKE_PATH)
     return {"status": "saved"}
 
 

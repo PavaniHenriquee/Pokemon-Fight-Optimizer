@@ -81,6 +81,7 @@ export function NameSelect({
   placeholder,
   clearable,
   renderItem,
+  itemLabel,
   className,
 }: {
   value: string;
@@ -89,10 +90,16 @@ export function NameSelect({
   placeholder?: string;
   clearable?: boolean;
   renderItem?: (item: string) => React.ReactNode;
+  itemLabel?: (item: string) => string; // the text in the box and what a search matches
   className?: string;
 }) {
   return (
-    <Combobox value={value} onValueChange={(v) => onChange(v ?? "")} items={items}>
+    <Combobox
+      value={value}
+      onValueChange={(v) => onChange(v ?? "")}
+      items={items}
+      itemToStringLabel={itemLabel}
+    >
       <ComboboxInput
         className={cn("h-8 w-full min-w-0", className)}
         placeholder={placeholder}
