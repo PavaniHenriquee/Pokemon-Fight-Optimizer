@@ -3,7 +3,7 @@ Bundle the backend for the Electron app: python.org's embeddable Python (same ve
 .venv), the runtime packages pinned to the .venv's versions, and the engine source as plain .py
 files (the Numba cache needs real source files to work).
 
-Output: frontend/build/backend/{python,src,seed}, which electron-builder copies into the app as
+Output: frontend/build/backend/{python,src}, which electron-builder copies into the app as
 resources/backend. Run it with the repo's .venv Python (`npm run dist` does):
     ..\\.venv\\Scripts\\python.exe electron\\build_python.py
 """
@@ -86,12 +86,9 @@ def copy_sources() -> None:
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     compileall.compile_dir(str(src), quiet=1)
 
-    seed = OUT / "seed"
-    shutil.rmtree(seed, ignore_errors=True)
-    box = REPO / "UserData" / "box.json"
-    if box.exists():
-        seed.mkdir(parents=True)
-        shutil.copy2(box, seed / "box.json")
+    # UserData stays out of the app: it starts with an empty box and run. This removes the seed
+    # folder older builds made, so its test box doesn't ship
+    shutil.rmtree(OUT / "seed", ignore_errors=True)
 
 
 def smoke_test() -> None:

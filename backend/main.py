@@ -89,6 +89,16 @@ def _seed_numba(seed: int) -> None:
     np.random.seed(seed)
 
 
+def _seed_search() -> None:
+    """Seeds every RNG with PBO_SEED when it's set (dev.bat sets it, so dev runs repeat). The
+    installed app doesn't set it, so its searches are random."""
+    seed = os.environ.get("PBO_SEED")
+    if seed:
+        random.seed(int(seed))
+        np.random.seed(int(seed))
+        _seed_numba(int(seed))
+
+
 # ─── app setup ───────────────────────────────────────────────────────────────
 
 @asynccontextmanager
@@ -305,9 +315,7 @@ async def get_pokemon_data() -> dict:
 
 def _mcts_worker(session: Session, root_state: GameState) -> None:
     try:
-        random.seed(37)
-        np.random.seed(37)
-        _seed_numba(37)
+        _seed_search()
         root = session.root
 
         for i in range(session.max_iterations):
@@ -571,7 +579,7 @@ async def continue_from_node(config: ContinueConfig) -> dict:
     snap   = node.snapshot
     path   = _clicked_path(sess.root, config.path, sess.battle_array)
     if path and path[-1][2] is node:
-        _seed_numba(37)
+        _seed_search()
         battle = real_position(sess.battle_array, path)
     else:
         battle = reconstruct_battle_array(snap, sess.battle_array)

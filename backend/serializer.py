@@ -8,11 +8,12 @@ from Models.idx_const import (
     SIDE_TOXIC_SPIKES,
 )
 from Models.helper import (
-    BattlePhase, VolStatus, VolStatus2, SideCondition, Weather, Types, MoveCategory,
+    BattlePhase, Gender, VolStatus, VolStatus2, SideCondition, Weather, Types, MoveCategory,
 )
 from DataBase.PkDB import PokIdToName, sprite_id
 from DataBase.MoveDB import MoveIdToName, MoveName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
+from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import moveDB as _moveDB
 from SearchEngine.models import (
     BENCH_ITEM, OPP_DIDNT_MOVE, OPP_STRUGGLED, OPP_SWITCHED, OPP_USED_ITEM, opp_turns,
@@ -46,6 +47,13 @@ _ITEM_ID_TO_NAME: dict[int, str] = {
     for k, v in vars(_ItemNameEnum).items()
     if isinstance(v, int)
 }
+
+_ABILITY_NAMES: dict[int, str] = {
+    v: k.replace("_", " ").title()
+    for k, v in vars(AbilityNames).items()
+    if k.isupper() and isinstance(v, int)
+}
+_GENDER_NAMES = {Gender.MALE: "Male", Gender.FEMALE: "Female"}  # genderless: None, like a box entry
 
 _TYPE_NAMES: dict[int, str] = {
     v: k.title() for k, v in vars(Types).items() if k.isupper() and isinstance(v, int)
@@ -158,6 +166,8 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
         "max_hp": int(battle_array[base + Pok.MAX_HP]),
         "status": STATUS.get(int(snap.bench_delta[delta_i, 1]), ""),
         "level":  int(battle_array[base + Pok.LEVEL]),
+        "gender": _GENDER_NAMES.get(int(battle_array[base + Pok.GENDER])),
+        "ability": _ABILITY_NAMES.get(int(battle_array[base + Pok.AB_ID]), ""),
         "types":  _types(battle_array[base : base + POK_LEN]),
         "item":   _ITEM_ID_TO_NAME.get(int(snap.bench_delta[delta_i, BENCH_ITEM]), ""),
         "moves":  moves,
@@ -173,6 +183,8 @@ def _pok(arr) -> dict | None:
         "id":         sprite_id(pok_id),
         "name":       PokIdToName.get(pok_id, "?").capitalize(),
         "level":      int(arr[Pok.LEVEL]),
+        "gender":     _GENDER_NAMES.get(int(arr[Pok.GENDER])),
+        "ability":    _ABILITY_NAMES.get(int(arr[Pok.AB_ID]), ""),
         "types":      _types(arr),
         "hp":         int(arr[Pok.CURRENT_HP]),
         "max_hp":     int(arr[Pok.MAX_HP]),

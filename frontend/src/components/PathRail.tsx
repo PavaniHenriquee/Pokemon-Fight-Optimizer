@@ -5,7 +5,7 @@ import { pathSteps } from "@/lib/tree";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TreeNode } from "../types";
-import { Kbd, TypeIcon } from "./common/Badges";
+import { TypeIcon } from "./common/Badges";
 
 // Decision path from root to the node on screen; click a step to jump back to it
 export default function PathRail({
@@ -46,9 +46,7 @@ export default function PathRail({
               </Button>
             </span>
           </TooltipTrigger>
-          <TooltipContent>
-            Back <Kbd>Backspace</Kbd>
-          </TooltipContent>
+          <TooltipContent>Back</TooltipContent>
         </Tooltip>
       </div>
 
@@ -93,19 +91,19 @@ export default function PathRail({
                     {step.action?.move_type && <TypeIcon type={step.action.move_type} size={14} />}
                     <span
                       className={cn(
-                        "truncate text-[13px]",
+                        "truncate text-[13px] max-[1400px]:whitespace-normal",
                         isCurrent ? "font-semibold text-foreground" : "font-medium text-foreground/90",
                       )}
                     >
                       {label}
                     </span>
                   </span>
-                  <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-subtle-foreground">
+                  <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-subtle-foreground max-[1400px]:items-start">
                     <span className="num">T{snap.turn}</span>
                     {oppMove && (
                       <>
                         <span>·</span>
-                        <span className="truncate" title={oppMove}>
+                        <span className="truncate max-[1400px]:whitespace-normal" title={oppMove}>
                           Opp {OPP_DID[oppMove] ?? oppMove}
                         </span>
                       </>
@@ -129,11 +127,8 @@ export default function PathRail({
         })}
       </ol>
 
-      <div className="flex h-9 shrink-0 items-center justify-between border-t px-3 text-[11px] text-subtle-foreground">
+      <div className="flex h-9 shrink-0 items-center border-t px-3 text-[11px] text-subtle-foreground">
         <span>Depth {current}</span>
-        <span>
-          <Kbd>1</Kbd>–<Kbd>9</Kbd> pick · <Kbd>Esc</Kbd> clear
-        </span>
       </div>
     </aside>
   );

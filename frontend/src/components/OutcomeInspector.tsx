@@ -17,7 +17,6 @@ import { HpBar } from "./common/HpBar";
 import { WinRing } from "./common/WinRing";
 import {
   CategoryIcon,
-  Kbd,
   StageChips,
   StatusBadge,
   TypeBadge,
@@ -100,12 +99,13 @@ function OutcomeCard({
         )}
       </div>
 
-      <div className="mt-2.5 flex items-center justify-between">
+      <div className="mt-2.5 flex items-center justify-between gap-2">
         <span className="num text-[11px] text-subtle-foreground">
           {fmtInt(node.visits)} visits · {node.dead_avg.toFixed(2)} deaths
         </span>
-        <span className="flex items-center gap-1 text-xs font-medium text-primary opacity-80 transition-opacity group-hover:opacity-100">
-          Explore <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-primary opacity-80 transition-opacity group-hover:opacity-100">
+          <span className="max-[1400px]:hidden">Explore</span>{" "}
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>
     </button>
@@ -250,7 +250,7 @@ export default function OutcomeInspector({ action, onSelect, onClose }: Props) {
             Select a move or switch to see what can happen next.
           </p>
           <p className="text-[11px] text-subtle-foreground">
-            Actions with a single outcome open directly. Shortcut: <Kbd>1</Kbd>–<Kbd>9</Kbd>
+            Actions with a single outcome open directly.
           </p>
         </div>
       ) : (

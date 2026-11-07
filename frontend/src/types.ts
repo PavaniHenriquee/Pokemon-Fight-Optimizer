@@ -14,6 +14,8 @@ export interface PokemonState {
   id: number;
   name: string;
   level?: number;
+  gender?: string | null; // "Male" | "Female", null when genderless
+  ability?: string; // live, so Worry Seed or Trace shows
   types?: string[]; // live types, e.g. ["Grass", "Poison"]
   hp: number;
   max_hp: number;
@@ -229,6 +231,8 @@ export interface BenchEntry {
   max_hp: number;
   status: string;
   level: number;
+  gender?: string | null;
+  ability?: string;
   types?: string[];
   item?: string;
   moves?: MoveEntry[];

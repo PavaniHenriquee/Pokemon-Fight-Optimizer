@@ -5,7 +5,7 @@
     "gender": "Male",
     "nature": "Hardy",
     "ability": "Blaze",
-    "level": 11,
+    "level": 14,
     "moves": [
       "Scratch",
       "Leer",
@@ -29,7 +29,7 @@
     "gender": "Male",
     "nature": "Hardy",
     "ability": "Keen Eye",
-    "level": 11,
+    "level": 15,
     "moves": [
       "Tackle",
       "Growl",
@@ -53,7 +53,7 @@
     "gender": "Male",
     "nature": "Hardy",
     "ability": "Adaptability",
-    "level": 11,
+    "level": 15,
     "moves": [
       "Tackle",
       "Tail Whip",
@@ -77,7 +77,7 @@
     "gender": "Male",
     "nature": "Hardy",
     "ability": "Inner Focus",
-    "level": 11,
+    "level": 15,
     "moves": [
       "Endure",
       "Low Kick",

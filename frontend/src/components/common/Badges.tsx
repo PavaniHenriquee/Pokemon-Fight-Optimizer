@@ -1,4 +1,4 @@
-import { CircleDot, Sparkles, Swords } from "lucide-react";
+import { CircleDot, Mars, Sparkles, Swords, Venus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STATUS_NAMES, statusColor, typeColor } from "@/lib/format";
 import { typeIcon, typeSprite } from "@/lib/sprites";
@@ -244,13 +244,22 @@ export function SideChips({ effects }: { effects?: SideEffect[] }) {
   );
 }
 
-// ♂ / ♀ in the game's blue / pink; nothing for genderless
+// ♂ / ♀ in the game's blue / pink; nothing for genderless. An icon, so it reads apart from the text symbol in
+// Nidoran♀'s name beside it. 1em, so it follows the text size around it
 export function GenderMark({ gender, className }: { gender: string | null; className?: string }) {
-  if (gender === "Male")
-    return <span className={cn("font-semibold text-[oklch(0.7_0.14_245)]", className)}>♂</span>;
-  if (gender === "Female")
-    return <span className={cn("font-semibold text-[oklch(0.72_0.16_350)]", className)}>♀</span>;
-  return null;
+  if (gender !== "Male" && gender !== "Female") return null;
+  const Icon = gender === "Male" ? Mars : Venus;
+  return (
+    <Icon
+      aria-label={gender}
+      strokeWidth={3}
+      className={cn(
+        "size-[1em] shrink-0 self-center",
+        gender === "Male" ? "text-[oklch(0.7_0.14_245)]" : "text-[oklch(0.72_0.16_350)]",
+        className,
+      )}
+    />
+  );
 }
 
 // Small Poké Ball drawn inline (no sprite needed offline)
@@ -261,18 +270,5 @@ export function PokeballIcon({ className }: { className?: string }) {
       <path d="M1.5 12a10.5 10.5 0 0 1 21 0z" fill="#ef4444" stroke="#18181b" strokeWidth="1.8" />
       <circle cx="12" cy="12" r="3.2" fill="#f4f4f5" stroke="#18181b" strokeWidth="1.8" />
     </svg>
-  );
-}
-
-export function Kbd({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <kbd
-      className={cn(
-        "num inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-foreground/10 bg-foreground/5 px-1 font-sans text-[10px] font-medium text-subtle-foreground",
-        className,
-      )}
-    >
-      {children}
-    </kbd>
   );
 }

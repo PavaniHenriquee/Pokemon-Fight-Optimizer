@@ -1,4 +1,4 @@
-import { Flag, Sparkle } from "lucide-react";
+import { Skull, Star, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pokIcon } from "@/lib/sprites";
 import {
@@ -13,7 +13,7 @@ import { bestActionKey, orderActions } from "@/lib/tree";
 import type { TreeNode, ActionData, BenchEntry } from "../types";
 import { Sprite } from "./common/Sprite";
 import { HpBar } from "./common/HpBar";
-import { CategoryIcon, Kbd, StatusBadge, TypeBadge } from "./common/Badges";
+import { CategoryIcon, StatusBadge, TypeBadge } from "./common/Badges";
 
 interface Props {
   node: TreeNode;
@@ -23,7 +23,7 @@ interface Props {
 
 function SectionTitle({ children, count }: { children: React.ReactNode; count?: number }) {
   return (
-    <div className="mb-2 flex items-center gap-2">
+    <div className="mb-2 flex items-center gap-2 short:mb-1">
       <span className="text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
         {children}
       </span>
@@ -38,7 +38,6 @@ function CardShell({
   action,
   isBest,
   isSelected,
-  shortcut,
   maxVisits,
   onClick,
   stripe,
@@ -48,7 +47,6 @@ function CardShell({
   action: ActionData;
   isBest: boolean;
   isSelected: boolean;
-  shortcut?: number;
   maxVisits: number;
   onClick: () => void;
   stripe?: string;
@@ -60,18 +58,19 @@ function CardShell({
     <button
       onClick={onClick}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-xl border bg-card p-3 text-left transition-all cursor-pointer",
-        "hover:-translate-y-px hover:border-foreground/20 hover:bg-elevated hover:shadow-lg hover:shadow-black/20",
+        "relative flex flex-col rounded-xl border bg-card p-3 text-left transition-all cursor-pointer",
+        "hover:-translate-y-px hover:bg-elevated",
+        !isBest && "hover:border-foreground/20 hover:shadow-lg hover:shadow-black/20",
         isSelected && "border-primary bg-elevated ring-2 ring-primary/40",
-        !isSelected && isBest && "border-primary/45 shadow-[0_0_24px_-12px_var(--primary)]",
+        !isSelected &&
+          isBest &&
+          "border-best bg-[color-mix(in_oklch,var(--best)_7%,var(--card))] shadow-[0_0_28px_-6px_var(--best)] ring-1 ring-best hover:bg-[color-mix(in_oklch,var(--best)_12%,var(--card))]",
         stripe && "pl-4",
       )}
     >
-      {stripe && (
-        <span className="absolute inset-y-0 left-0 w-1" style={{ background: stripe }} />
-      )}
+      {isBest && <BestTab />}
       {children}
-      <div className="mt-2 flex items-end justify-between gap-2">
+      <div className="mt-2 flex items-end justify-between gap-2 short:mt-1">
         <span className={cn("num text-2xl leading-none font-semibold tracking-tight", TIER_TEXT[winTier(action.win_chance)])}>
           {Math.round(action.win_chance * 100)}
           <span className="text-base opacity-70">%</span>
@@ -84,33 +83,35 @@ function CardShell({
           </span>
         </span>
       </div>
-      <div className="num mt-1.5 flex items-center justify-between gap-2 text-[10px] whitespace-nowrap text-subtle-foreground">
+      <div className="num mt-1.5 flex items-center justify-between gap-2 text-[10px] whitespace-nowrap text-subtle-foreground short:mt-1">
         <span>{footer}</span>
         <span>{fmtInt(action.total_visits)} visits</span>
       </div>
-      {/* visit share relative to the most visited action */}
-      <div className="absolute inset-x-0 bottom-0 h-0.5 bg-foreground/4">
-        <div
-          className={cn(
-            "h-full transition-[width] duration-500",
-            isBest ? "bg-primary" : "bg-foreground/20",
-          )}
-          style={{ width: `${visitPct}%` }}
-        />
+      {/* Clips the stripe and the visit bar to the corners; the card itself can't, BestTab sticks out */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+        {stripe && (
+          <span className="absolute inset-y-0 left-0 w-1" style={{ background: stripe }} />
+        )}
+        {/* visit share relative to the most visited action */}
+        <div className={cn("absolute inset-x-0 bottom-0 bg-foreground/4", isBest ? "h-1" : "h-0.5")}>
+          <div
+            className={cn(
+              "h-full transition-[width] duration-500",
+              isBest ? "bg-best" : "bg-foreground/20",
+            )}
+            style={{ width: `${visitPct}%` }}
+          />
+        </div>
       </div>
-      {shortcut !== undefined && shortcut <= 9 && (
-        <Kbd className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
-          {shortcut}
-        </Kbd>
-      )}
     </button>
   );
 }
 
-function BestPill() {
+// Sits on the card's top edge, out of the name row, so it reads the same on moves and switches
+function BestTab() {
   return (
-    <span className="inline-flex h-[18px] shrink-0 items-center gap-0.5 rounded-full bg-primary/18 px-1.5 text-[10px] font-semibold text-primary ring-1 ring-primary/35">
-      <Sparkle className="size-2.5 fill-current" /> Best
+    <span className="absolute -top-2.5 right-3 inline-flex h-5 items-center gap-1 rounded-full bg-best px-2 text-[11px] font-bold tracking-wide text-best-foreground uppercase shadow-md shadow-black/40">
+      <Star className="size-3 fill-current" /> Best
     </span>
   );
 }
@@ -119,11 +120,10 @@ function MoveCard(props: {
   action: ActionData;
   isBest: boolean;
   isSelected: boolean;
-  shortcut: number;
   maxVisits: number;
   onClick: () => void;
 }) {
-  const { action, isBest } = props;
+  const { action } = props;
   const outOfPp = action.current_pp != null && action.current_pp <= 0;
   return (
     <CardShell
@@ -138,9 +138,8 @@ function MoveCard(props: {
         )
       }
     >
-      <div className="flex items-center gap-2 pr-5">
+      <div className="flex items-center gap-2">
         <span className="truncate text-[15px] font-semibold tracking-tight">{action.label}</span>
-        {isBest && <BestPill />}
       </div>
       <div className="mt-1.5 flex items-center gap-1.5 text-[11px] whitespace-nowrap text-muted-foreground">
         {action.move_type && <TypeBadge type={action.move_type} height={14} />}
@@ -156,23 +155,28 @@ function SwitchCard(props: {
   bench?: BenchEntry;
   isBest: boolean;
   isSelected: boolean;
-  shortcut: number;
   maxVisits: number;
   onClick: () => void;
 }) {
-  const { action, bench, isBest } = props;
+  const { action, bench } = props;
   const pokId = bench?.id ?? action.nodes[0]?.snapshot.my?.id;
   const name = bench ? displayName(bench.name) : switchTarget(action.label);
+  const mainType = bench?.types?.[0] ?? action.nodes[0]?.snapshot.my?.types?.[0];
   return (
-    <CardShell {...props}>
-      <div className="flex items-center gap-2 pr-5">
+    <CardShell {...props} stripe={mainType ? typeColor(mainType) : undefined}>
+      <div className="flex items-center gap-1.5 max-[1440px]:gap-1 roomy:gap-2">
         {pokId !== undefined && (
-          <Sprite srcs={pokIcon(pokId)} alt="" width={40} height={30} className="-my-1 -ml-1 object-contain" />
+          <Sprite
+            srcs={pokIcon(pokId)}
+            alt=""
+            width={40}
+            height={30}
+            className="-my-1.5 -mr-1 -ml-2 h-[45px] w-[60px] max-w-none shrink-0 object-contain max-[1440px]:-mr-2 max-[1440px]:-ml-3 roomy:-my-2 roomy:h-[60px] roomy:w-20"
+          />
         )}
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold">{name}</span>
-            {isBest && <BestPill />}
+            <span className="truncate text-[15px] font-semibold tracking-tight">{name}</span>
           </span>
           {bench && (
             <span className="mt-1 flex items-center gap-1.5">
@@ -194,11 +198,28 @@ export default function ActionPanel({ node, onActionClick, selectedKey }: Props)
   const { snapshot } = node;
 
   if (snapshot.terminal) {
+    const won = node.win_chance >= 0.5;
     return (
       <section className="px-4 pb-4">
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-8 text-muted-foreground">
-          <Flag className="size-5" />
-          <p className="text-sm">Battle over: this is a terminal state.</p>
+        <div className="flex items-center justify-center gap-4 rounded-xl border bg-card px-4 py-6">
+          <div
+            className={cn(
+              "flex size-12 items-center justify-center rounded-full ring-1",
+              won ? "bg-good/12 text-good ring-good/30" : "bg-bad/12 text-bad ring-bad/30",
+            )}
+          >
+            {won ? <Trophy className="size-5" /> : <Skull className="size-5" />}
+          </div>
+          <div>
+            <div className="text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
+              Battle over
+            </div>
+            <div className="text-lg font-semibold">{won ? "Victory" : "Defeat"}</div>
+            <div className="num text-xs text-muted-foreground">
+              {node.dead_avg.toFixed(2)} expected deaths ·{" "}
+              <span className="text-subtle-foreground">{fmtInt(node.visits)} visits</span>
+            </div>
+          </div>
         </div>
       </section>
     );
@@ -226,10 +247,9 @@ export default function ActionPanel({ node, onActionClick, selectedKey }: Props)
   const moves = ordered.filter(([, a]) => a.action_type === 1);
   const switches = ordered.filter(([, a]) => a.action_type === 2);
   const benchBySlot = new Map(snapshot.my_bench.map((b) => [b.slot, b]));
-  const shortcutOf = (key: string) => ordered.findIndex(([k]) => k === key) + 1;
 
   return (
-    <section className="space-y-4 px-4 pb-5">
+    <section className="space-y-4 px-4 pb-5 short:space-y-2 short:pb-2">
       {!isDeath && moves.length > 0 && (
         <div>
           <SectionTitle count={moves.length}>Moves</SectionTitle>
@@ -240,7 +260,6 @@ export default function ActionPanel({ node, onActionClick, selectedKey }: Props)
                 action={action}
                 isBest={key === bestKey}
                 isSelected={key === selectedKey}
-                shortcut={shortcutOf(key)}
                 maxVisits={maxVisits}
                 onClick={() => onActionClick(key)}
               />
@@ -257,7 +276,8 @@ export default function ActionPanel({ node, onActionClick, selectedKey }: Props)
           <SectionTitle count={switches.length}>
             {isDeath ? "Switch to" : isBatonPass ? "Baton Pass to" : "Switches"}
           </SectionTitle>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
+          {/* Five across, unless that makes a card narrower than 145px. 48px is the row's four gaps */}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(max(145px,calc((100%-48px)/5)),1fr))] gap-3">
             {switches.map(([key, action]) => (
               <SwitchCard
                 key={key}
@@ -265,7 +285,6 @@ export default function ActionPanel({ node, onActionClick, selectedKey }: Props)
                 bench={benchBySlot.get(action.action_idx)}
                 isBest={key === bestKey}
                 isSelected={key === selectedKey}
-                shortcut={shortcutOf(key)}
                 maxVisits={maxVisits}
                 onClick={() => onActionClick(key)}
               />

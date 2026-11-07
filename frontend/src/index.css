@@ -2,10 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/noto-sans-symbols";
 @custom-variant dark (&:where(.dark, .dark *));
 /* A full HD window: the side panels of Setup grow */
 @custom-variant roomy (@media (min-width: 1800px) and (min-height: 900px));
 @custom-variant roomy-tall (@media (min-width: 1800px) and (min-height: 1000px));
+@custom-variant roomy-full (@media (min-width: 1800px) and (min-height: 1060px));
+/* Too short for Analyze's stage, moves and switches at their normal spacing */
+@custom-variant short (@media (max-height: 800px));
 
 /* ── Theme ──────────────────────────────────────────────────────────────────
    One dark theme. Names follow shadcn so every ui/* component picks them up. */
@@ -20,20 +24,24 @@
   --popover-foreground: var(--foreground);
   --elevated: oklch(0.235 0.012 265);
 
-  --primary: oklch(0.63 0.2 285);
-  --primary-foreground: oklch(0.99 0.005 285);
+  --primary: oklch(0.6 0.19 258);
+  --primary-foreground: oklch(0.99 0.005 258);
+  /* Marks the best action on Analyze and the party in Setup's box, and nothing else. They never
+     share a screen, so it stays the one yellow thing on each */
+  --best: oklch(0.88 0.18 95);
+  --best-foreground: oklch(0.2 0.03 95);
   --secondary: oklch(0.255 0.012 265);
   --secondary-foreground: var(--foreground);
   --muted: oklch(0.25 0.012 265);
   --muted-foreground: oklch(0.7 0.016 265);
   --subtle-foreground: oklch(0.54 0.016 265);
-  --accent: oklch(0.27 0.03 285);
+  --accent: oklch(0.27 0.03 258);
   --accent-foreground: var(--foreground);
   --destructive: oklch(0.66 0.2 25);
 
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 11%);
-  --ring: oklch(0.63 0.2 285);
+  --ring: oklch(0.6 0.19 258);
   --radius: 0.625rem;
 
   /* Outcome tiers: win chance (>65% / >40%) and HP (>50% / >25%) */
@@ -89,7 +97,8 @@
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Geist has no ♀ / ♂ for Nidoran's names, and Windows' fallback for them is thin and has no bold */
+  --font-sans: "Geist Variable", "Noto Sans Symbols Variable", ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -116,6 +125,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-best-foreground: var(--best-foreground);
+  --color-best: var(--best);
   --color-elevated: var(--elevated);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
@@ -188,6 +199,40 @@
   /* PC box icons hop while hovered */
   .animate-hop {
     animation: hop 0.45s ease-in-out infinite;
+  }
+}
+
+/* A party card's move field, by its own width (symbol + field), since party size changes it as much as the window.
+   Narrow: the ✕ gives the name its room, and shows over the name's end on hover or while typing.
+   Narrower: smaller text too, enough for the longest name in MoveDB (Disarming Voice). */
+.move-field {
+  container: move-field / inline-size;
+  min-width: 0;
+}
+@container move-field (max-width: 190px) {
+  [data-slot="input-group"]:has([data-slot="combobox-clear"]) > input {
+    padding-right: 0.375rem;
+  }
+  [data-slot="input-group-addon"]:has([data-slot="combobox-clear"]) {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    margin-right: 0;
+    padding-left: 0.75rem;
+    border-radius: inherit;
+    background: linear-gradient(to right, transparent, var(--card) 40%);
+    opacity: 0;
+  }
+  [data-slot="input-group"]:hover > [data-slot="input-group-addon"],
+  [data-slot="input-group"]:focus-within > [data-slot="input-group-addon"] {
+    opacity: 1;
+  }
+}
+@container move-field (max-width: 160px) {
+  [data-slot="input-group"] > input,
+  [data-slot="input-group"]:has([data-slot="combobox-clear"]) > input {
+    padding-inline: 0.25rem;
+    font-size: 0.75rem;
   }
 }
 

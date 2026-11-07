@@ -42,12 +42,7 @@ function backendPaths() {
     return { python: fs.existsSync(venv) ? venv : "python", cwd: repo, env: {} };
   }
   const res = path.join(process.resourcesPath, "backend");
-  const boxPath = path.join(app.getPath("userData"), "box.json");
-  const seed = path.join(res, "seed", "box.json");
-  if (!fs.existsSync(boxPath) && fs.existsSync(seed)) {
-    fs.mkdirSync(path.dirname(boxPath), { recursive: true });
-    fs.copyFileSync(seed, boxPath); // first launch starts with the box from the repo
-  }
+  const boxPath = path.join(app.getPath("userData"), "box.json"); // none on first launch: an empty box
   const localAppData = process.env.LOCALAPPDATA || app.getPath("userData");
   return {
     python: path.join(res, "python", "python.exe"),

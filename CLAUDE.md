@@ -39,9 +39,9 @@ from-scratch Gen IV battle engine. First target is Renegade Platinum
   Vite + Tailwind + shadcn/ui. `frontend/electron/`: the desktop app (`main.js` starts the
   backend on a free port, `preload.cjs`, `build_python.py` bundles Python for the installer).
 - `UserData/box.json`: my saved Pokemon box, death box included (`dead` on an entry). The installed
-  app keeps its own copy in `%APPDATA%\Nuzlocke Optimizer`, seeded from this one on first launch.
-  `UserData/nuzlocke.json`:
-  the run in the Tracker tab (gitignored, the installed app keeps it in the same folder, not seeded).
+  app keeps its own in `%APPDATA%\Nuzlocke Optimizer`, empty on first launch (the installer never
+  bundles `UserData`). `UserData/nuzlocke.json`:
+  the run in the Tracker tab (gitignored, the installed app keeps it in the same folder).
 - `tests/`: pytest suite. `battle_driver.py` (engine-only battle loop + fixed scenarios),
   `golden/engine_battles.json` (engine snapshots), `conftest.py` (fixtures, JIT off).
 - `benchmarks/`: everything behind the numbers in `NN_PLAN.md`, as one command. Reports in
@@ -49,7 +49,8 @@ from-scratch Gen IV battle engine. First target is Renegade Platinum
 
 ## Commands
 
-- Run everything: `dev.bat` (backend on :8000, Vite frontend)
+- Run everything: `dev.bat` (backend on :8000, Vite frontend). It sets `PBO_SEED=37`, so its searches
+  repeat; without `PBO_SEED` (the installed app, `electron:dev`) they're random.
 - Desktop app (in `frontend/`): `npm run electron:dev` (Vite + Electron + the .venv backend on a
   free port, no backend hot reload); `npm run electron:preview` loads the built `dist/` instead.
 - Installer (in `frontend/`): `npm run dist` → `frontend/release/Nuzlocke Optimizer Setup x.y.z.exe`
@@ -298,8 +299,8 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   off for the rest of that move ([pp] checks live).
 - Unverified: an absorbed move ends an Uproar like any immune target; the "Soundproof user can't
   use a sound move on its own side" rule isn't in [pp] `TriggerImmunityAbility`.
-- UI: no copied ability, no "the AI knows this ability" marker, and the field's weather shows while
-  Cloud Nine / Air Lock suppress it.
+- UI: no "the AI knows this ability" marker, and the field's weather shows while Cloud Nine / Air Lock
+  suppress it.
 - Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
 - Search: `evaluate_terminal` counts deaths, so every Pokemon is worth the same: a win that loses the
   team's best Pokemon scores like one that loses its worst.
@@ -336,10 +337,11 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - Box editor: manual add can still add any species, on purpose, for manual testing while the app only
   covers up to the 1st gym. To be removed once it covers the full game.
 - Setup: below 1800×900 (full HD at 125% Windows scaling is 1536×864) the side panels stay small and a party of
-  5-6 takes 3 rows and scrolls. At 1280×720 two-column moves cut off long names.
+  5-6 takes 3 rows and scrolls.
 - Setup: a party card's ✕ reflows the cards, so a sprite can land under the cursor and open its hover card.
 - Setup: at 3× a sprite that fills its frame (Gyarados) pokes a few pixels past its party card's edge.
-- Lint: the `calculateStats` export in `PokemonSlots.tsx` fails `react-refresh/only-export-components`.
+- Lint: the `calculateStats` export in `PokemonSlots.tsx` fails `react-refresh/only-export-components`, and so do
+  `ui/button.tsx` and `ui/combobox.tsx`. `ConfigureView.tsx` has two `react-hooks/exhaustive-deps` warnings.
 - Search: Struggle as a regular move crashes the search after 2 iterations with `IndexError: tuple index out of
   range` in `rollout_arr`, cause not traced. The same party without it runs fine. `/pokemon-data` leaves it out, so
   the move lists don't offer it, and only a box entry already saved with it can reach this.

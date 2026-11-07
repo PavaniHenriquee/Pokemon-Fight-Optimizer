@@ -1,4 +1,4 @@
-import { Loader2, Play, Square } from "lucide-react";
+import { GitBranchPlus, Loader2, Play, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmtInt, formatTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,9 @@ export default function TopBar({
   canStart,
   onStart,
   onStop,
+  canContinue,
+  battleOver,
+  onContinue,
 }: {
   view: View;
   onView: (v: View) => void;
@@ -51,6 +54,9 @@ export default function TopBar({
   canStart: boolean;
   onStart: () => void;
   onStop: () => void;
+  canContinue: boolean;
+  battleOver: boolean;
+  onContinue: () => void;
 }) {
   const progress =
     maxIterations > 0 ? Math.min(1, actualIterations / maxIterations) : 0;
@@ -149,24 +155,57 @@ export default function TopBar({
           </TooltipContent>
         </Tooltip>
 
-        <div className="h-5 w-px bg-border" />
+        {(view !== "tracker" || running) && <div className="h-5 w-px bg-border" />}
 
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          Iterations
-          <IterationsInput
-            value={iterations}
-            onChange={onIterations}
-            disabled={running || starting}
-            className="w-28"
-          />
-        </label>
+        {view === "configure" && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            Iterations
+            <IterationsInput
+              value={iterations}
+              onChange={onIterations}
+              disabled={running || starting}
+              className="w-28"
+            />
+          </label>
+        )}
 
-        {running ? (
+        {running && (
           <Button variant="outline" size="sm" onClick={onStop} className="w-28">
             <Square className="fill-current" />
             Stop
           </Button>
-        ) : (
+        )}
+
+        {/* Works during a run too: the backend stops the old search first */}
+        {view === "explore" && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {/* span wrapper: a disabled button doesn't fire hover events */}
+              <span>
+                <Button
+                  size="sm"
+                  onClick={onContinue}
+                  disabled={!canContinue || !connected}
+                  className="shadow-[0_0_20px_-6px_var(--primary)]"
+                >
+                  <GitBranchPlus />
+                  Continue from here
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {!connected
+                ? "Waiting for the backend"
+                : battleOver
+                  ? "The battle is over at this point"
+                  : !canContinue
+                    ? "Start a search in Setup first"
+                    : "Search again from this position, with your real HP"}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {!running && view === "configure" && (
           <Tooltip>
             <TooltipTrigger asChild>
               {/* span wrapper: a disabled button doesn't fire hover events */}

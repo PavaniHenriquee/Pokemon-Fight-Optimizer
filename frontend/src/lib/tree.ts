@@ -1,7 +1,6 @@
 import type { ActionData, TreeNode } from "../types";
 
 // Card order on screen: moves then switches, each most visited first.
-// The 1–9 shortcuts follow this order.
 export function orderActions(node: TreeNode): [string, ActionData][] {
   return Object.entries(node.actions).sort(([, a], [, b]) => {
     if (a.action_type !== b.action_type) return a.action_type - b.action_type;

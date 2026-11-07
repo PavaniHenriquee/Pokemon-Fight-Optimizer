@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dial
 import { Button } from "./ui/button";
 import { ComboboxPortalContainer } from "./ui/combobox";
 import { Sprite } from "./common/Sprite";
-import { CategoryIcon, PokeballIcon, TypeBadge, TypeBadges } from "./common/Badges";
+import { CategoryIcon, GenderMark, PokeballIcon, TypeBadge, TypeBadges } from "./common/Badges";
 import { NameSelect, calculateStats } from "./PokemonSlots";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -68,9 +68,9 @@ function GenderToggle({
   genderless: boolean; // the species has no gender: "—" is the only choice, and otherwise it isn't one
   onChange: (g: string | null) => void;
 }) {
-  const opts: { v: string | null; label: string; cls: string; title: string }[] = [
-    { v: "Male", label: "♂", cls: "text-[oklch(0.7_0.14_245)]", title: "Male" },
-    { v: "Female", label: "♀", cls: "text-[oklch(0.72_0.16_350)]", title: "Female" },
+  const opts: { v: string | null; label: React.ReactNode; cls: string; title: string }[] = [
+    { v: "Male", label: <GenderMark gender="Male" className="mx-auto" />, cls: "text-[oklch(0.7_0.14_245)]", title: "Male" },
+    { v: "Female", label: <GenderMark gender="Female" className="mx-auto" />, cls: "text-[oklch(0.72_0.16_350)]", title: "Female" },
     { v: null, label: "—", cls: "text-muted-foreground", title: "Genderless" },
   ];
   return (

@@ -11,6 +11,7 @@ from SearchEngine.models import (
     OPP_USED_ITEM, OPP_TURN_BITS,
 )
 from SearchEngine.my_mcts import mcts_loop
+from DataBase.AbilitiesDB import AbilityNames
 from Models.helper import Gender
 from Models.idx_const import Pok, POK_LEN, Move
 from battle_driver import build_scenario, pok_slice, move_slice
@@ -427,6 +428,27 @@ def test_serialize_node_is_json_ready():
             "Fire", "Special", 40)
 
 
+def test_snapshot_has_ability_and_gender():
+    """The battle view's hover cards read these: a changed ability shows, genderless is None"""
+    battle = build_scenario("starters")
+    battle[Pok.GENDER] = Gender.FEMALE
+    battle[Pok.AB_ID] = AbilityNames.ROCK_HEAD
+    opp_first = 6 * POK_LEN
+    battle[opp_first + Pok.GENDER] = Gender.GENDERLESS
+    root_state = GameState(battle)
+    root = Node(root_state)
+    mcts_loop(root, root_state, max_iterations=20, terminal_iterations=10**9)
+    snap = serialize_node(root, root_state.battle_array, min_visits=1, max_depth=1)["snapshot"]
+    json.dumps(snap)
+    assert snap["my"]["gender"] == "Female"
+    assert snap["my"]["ability"] == "Rock Head"
+    assert snap["opp"]["gender"] is None
+    assert snap["opp"]["ability"]
+    for bench in snap["my_bench"] + snap["opp_bench"]:
+        assert bench["ability"], bench["name"]
+        assert "gender" in bench
+
+
 def test_warm_up_runs_a_throwaway_search(monkeypatch, capsys):
     """The startup warm-up builds its battle and searches without touching the real session"""
     monkeypatch.setattr(main, "_session", None)
@@ -480,6 +502,19 @@ def test_nuzlocke_path_env(monkeypatch, tmp_path):
     assert main._nuzlocke_path() == str(tmp_path / "nuzlocke.json")  # pylint: disable=protected-access
     monkeypatch.delenv("PBO_NUZLOCKE_PATH")
     assert main._nuzlocke_path().endswith(os.path.join("UserData", "nuzlocke.json"))  # pylint: disable=protected-access
+
+
+def test_search_seed_env(monkeypatch):
+    """PBO_SEED (dev.bat) makes searches repeat; without it (the installed app) they don't"""
+    def draws():
+        main._seed_search()  # pylint: disable=protected-access
+        return [main.random.random() for _ in range(3)]
+
+    monkeypatch.setenv("PBO_SEED", "37")
+    assert draws() == draws()
+    monkeypatch.delenv("PBO_SEED")
+    main.random.seed(1)
+    assert draws() != draws()
 
 
 def test_exit_when_parent_closes(monkeypatch):

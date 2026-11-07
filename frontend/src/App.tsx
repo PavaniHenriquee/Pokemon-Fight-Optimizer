@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Loader2, Play, Search, Settings2, Unplug } from "lucide-react";
+import { Loader2, Search, Settings2, Unplug } from "lucide-react";
 import { toast } from "sonner";
 import type {
   TreeNode,
@@ -21,7 +21,6 @@ import {
   setDeadInBox,
   setDeadInRun,
 } from "./lib/nuzlocke";
-import { orderActions } from "./lib/tree";
 import { useBox } from "./lib/useBox";
 import TopBar, { type View } from "./components/TopBar";
 import PathRail from "./components/PathRail";
@@ -304,41 +303,6 @@ export default function App() {
     }
   };
 
-  // ── keyboard (Analyze only, never while typing or with a dialog open) ───────
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (view !== "explore" || continueNodeId) return;
-      const t = e.target as HTMLElement | null;
-      if (
-        t &&
-        (t.tagName === "INPUT" ||
-          t.tagName === "TEXTAREA" ||
-          t.isContentEditable)
-      )
-        return;
-      if (e.key === "Escape") {
-        setSelectedKey(null);
-      } else if (
-        (e.key === "Backspace" && !e.altKey) ||
-        (e.altKey && e.key === "ArrowLeft")
-      ) {
-        e.preventDefault();
-        goBack();
-      } else if (
-        /^[1-9]$/.test(e.key) &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
-        currentNode
-      ) {
-        const entry = orderActions(currentNode)[Number(e.key) - 1];
-        if (entry) handleActionClick(entry[0]);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
-
   // ──Timer───────────────────────────────────────────────────────────
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -424,6 +388,9 @@ export default function App() {
           canStart={canStart}
           onStart={() => start(myTeam, oppTeam)}
           onStop={stop}
+          canContinue={!!currentNode && !currentNode.snapshot.terminal}
+          battleOver={!!currentNode?.snapshot.terminal}
+          onContinue={() => currentNode && setContinueNodeId(currentNode.id)}
         />
 
         {!everConnected ? (
@@ -480,14 +447,10 @@ export default function App() {
               (!sessionActive || !tree || !currentNode ? (
                 <ExploreEmpty
                   sessionActive={sessionActive}
-                  canStart={canStart}
-                  starting={starting}
-                  running={running}
                   onSetup={() => setView("configure")}
-                  onStart={() => start(myTeam, oppTeam)}
                 />
               ) : (
-                <div className="grid h-full grid-cols-[220px_minmax(0,1fr)_340px] 2xl:grid-cols-[260px_minmax(0,1fr)_400px]">
+                <div className="grid h-full grid-cols-[180px_minmax(0,1fr)_270px] min-[1400px]:grid-cols-[220px_minmax(0,1fr)_340px] 2xl:grid-cols-[260px_minmax(0,1fr)_400px]">
                   <PathRail
                     tree={tree}
                     pathIds={pathIds}
@@ -505,10 +468,6 @@ export default function App() {
                             ? pathMoves[pathMoves.length - 1]
                             : null
                         }
-                        onContinue={setContinueNodeId}
-                        onStartNew={() => start(myTeam, oppTeam)}
-                        running={running}
-                        starting={starting}
                       />
                       <ActionPanel
                         node={currentNode}
@@ -571,18 +530,10 @@ function WaitingForBackend() {
 
 function ExploreEmpty({
   sessionActive,
-  canStart,
-  starting,
-  running,
   onSetup,
-  onStart,
 }: {
   sessionActive: boolean;
-  canStart: boolean;
-  starting: boolean;
-  running: boolean;
   onSetup: () => void;
-  onStart: () => void;
 }) {
   if (sessionActive) {
     return (
@@ -604,16 +555,8 @@ function ExploreEmpty({
           show up here while it runs.
         </p>
         <div className="mt-6 flex justify-center gap-2">
-          <Button variant="outline" onClick={onSetup}>
+          <Button onClick={onSetup}>
             <Settings2 /> Go to Setup
-          </Button>
-          <Button onClick={onStart} disabled={!canStart || starting || running}>
-            {starting ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <Play className="fill-current" />
-            )}
-            {starting ? "Starting…" : "Start search"}
           </Button>
         </div>
       </div>

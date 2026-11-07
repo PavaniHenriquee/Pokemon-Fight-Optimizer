@@ -24,7 +24,7 @@ import { moveInfoFor } from "@/lib/hiddenPower";
 import type { PokemonConfig, IVs, PokemonData, MoveInfo, BaseStats } from "../types";
 import { Sprite } from "./common/Sprite";
 import { ItemIcon } from "./common/ItemIcon";
-import { Chip, TypeBadges, TypeIcon } from "./common/Badges";
+import { Chip, GenderMark, TypeBadges, TypeIcon } from "./common/Badges";
 
 const IV_KEYS: (keyof IVs)[] = [
   "HP",
@@ -158,27 +158,29 @@ export function MoveSelect({
   const moveInfo = pokemonData?.moveInfo;
   const type = value ? moveInfoFor(moveInfo, value, ivs)?.type : undefined;
   return (
-    <div className="flex min-w-0 items-center gap-1.5">
-      {type ? (
-        <TypeIcon type={type} size={size === "lg" ? 20 : 16} />
-      ) : (
-        // an empty slot keeps the space, so the fields stay lined up
-        <span
-          className={cn(
-            "shrink-0 rounded-full ring-1 ring-foreground/10",
-            size === "lg" ? "size-5" : "size-4",
-          )}
+    <div className="move-field">
+      <div className="flex min-w-0 items-center gap-1.5">
+        {type ? (
+          <TypeIcon type={type} size={size === "lg" ? 20 : 16} />
+        ) : (
+          // an empty slot keeps the space, so the fields stay lined up
+          <span
+            className={cn(
+              "shrink-0 rounded-full ring-1 ring-foreground/10",
+              size === "lg" ? "size-5" : "size-4",
+            )}
+          />
+        )}
+        <NameSelect
+          value={value}
+          onChange={onChange}
+          items={pokemonData?.moves ?? []}
+          placeholder="Empty"
+          clearable={clearable && !!value}
+          renderItem={(m) => <MoveOption name={m} info={moveInfoFor(moveInfo, m, ivs)} />}
+          className={INPUT_SIZE[size]}
         />
-      )}
-      <NameSelect
-        value={value}
-        onChange={onChange}
-        items={pokemonData?.moves ?? []}
-        placeholder="Empty"
-        clearable={clearable && !!value}
-        renderItem={(m) => <MoveOption name={m} info={moveInfoFor(moveInfo, m, ivs)} />}
-        className={INPUT_SIZE[size]}
-      />
+      </div>
     </div>
   );
 }
@@ -347,6 +349,11 @@ export function StatBars({
   );
 }
 
+// A saved entry can still say Male on a genderless species, the battle ignores that too (_build_battle)
+function shownGender({ name, gender }: PokemonConfig, pokemonData?: PokemonData) {
+  return pokemonData?.genderless?.includes(name) ? null : gender;
+}
+
 // ─── Hover card content ───────────────────────────────────────────────────────
 
 function SlotDetails({
@@ -364,11 +371,11 @@ function SlotDetails({
     <div className="flex flex-col gap-3">
       <div>
         <div className="flex items-baseline gap-2">
-          <span className="font-semibold">{displayName(config.name)}</span>
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-semibold">{displayName(config.name)}</span>
+            <GenderMark gender={shownGender(config, pokemonData)} />
+          </span>
           <span className="num text-xs text-subtle-foreground">Lv {config.level}</span>
-          {config.gender && (
-            <span className="ml-auto text-xs text-muted-foreground">{config.gender}</span>
-          )}
         </div>
         <div className="mt-0.5 text-xs text-muted-foreground">
           {config.ability || "No ability"} · {config.nature}
@@ -502,8 +509,11 @@ export function MyTeamSlot({
   const info = (
     <div className="min-w-0">
       {/* room for the remove button */}
-      <div className={cn("truncate pr-6 font-semibold tracking-tight", NAME_TEXT[size])}>
-        {displayName(config.name) || "—"}
+      <div className={cn("flex items-baseline gap-1.5 pr-6", NAME_TEXT[size])}>
+        <span className="min-w-0 truncate font-semibold tracking-tight">
+          {displayName(config.name) || "—"}
+        </span>
+        <GenderMark gender={shownGender(config, pokemonData)} className="shrink-0" />
       </div>
       <TypeBadges
         types={pokemonData?.pokemonTypes?.[config.name]}
@@ -642,11 +652,16 @@ export function OpponentSlot({
           className={cn(
             "flex items-center gap-1.5 truncate rounded-md px-2",
             large ? "py-1 text-sm" : "py-0.5 text-xs",
+            height < 220 && "max-2xl:gap-1 max-2xl:px-1 max-2xl:text-xs",
             move ? "bg-foreground/5 text-foreground/90" : "text-subtle-foreground italic",
           )}
         >
           {move && (
-            <TypeIcon type={moveInfoFor(moveInfo, move, config.ivs)?.type} size={large ? 16 : 14} />
+            <TypeIcon
+              type={moveInfoFor(moveInfo, move, config.ivs)?.type}
+              size={large ? 16 : 14}
+              className={cn(height < 220 && "max-2xl:size-3.5")}
+            />
           )}
           <span className="truncate">{move || "—"}</span>
         </span>
@@ -664,10 +679,14 @@ export function OpponentSlot({
   // Name, level and types, then ability and nature, for a card with a real sprite
   const heading = (
     <div>
-      <div className="flex items-baseline gap-2">
-        <span className="min-w-0 truncate text-lg font-semibold tracking-tight">
+      <div className="flex items-baseline gap-2 max-2xl:gap-1.5">
+        <span className="min-w-0 truncate text-lg font-semibold tracking-tight max-2xl:text-base">
           {displayName(config.name) || "—"}
         </span>
+        <GenderMark
+          gender={shownGender(config, pokemonData)}
+          className="shrink-0 text-lg max-2xl:text-base"
+        />
         <span className="num shrink-0 text-sm whitespace-nowrap text-subtle-foreground">
           Lv {config.level}
         </span>
@@ -736,7 +755,7 @@ export function OpponentSlot({
   }
 
   return (
-    <div className="flex h-full min-h-0 items-center gap-3 overflow-hidden rounded-xl border bg-card p-2.5">
+    <div className="flex h-full min-h-0 items-center gap-3 overflow-hidden rounded-xl border bg-card p-2.5 max-2xl:gap-2 max-2xl:p-2">
       <div
         className={cn(
           "flex shrink-0 flex-col items-center gap-1.5",
@@ -787,14 +806,22 @@ export function OpponentSlot({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <span className={cn("min-w-0 truncate font-semibold", large ? "text-base" : "text-sm")}>
             {displayName(config.name) || "—"}
           </span>
+          <GenderMark
+            gender={shownGender(config, pokemonData)}
+            className={cn("-ml-0.5 shrink-0", large ? "text-base" : "text-sm")}
+          />
           <span className="num shrink-0 text-xs whitespace-nowrap text-subtle-foreground">
             Lv {config.level}
           </span>
-          <TypeBadges types={types} height={large ? 16 : 14} className="ml-auto shrink-0" />
+          <TypeBadges types={types} height={14} className="ml-auto hidden shrink-0 2xl:inline-flex" />
+          {/* The panel is 60px narrower below 2xl, and two full badges would cut the name */}
+          <span className="ml-auto flex shrink-0 gap-1 2xl:hidden">
+            {types?.map((t) => <TypeIcon key={t} type={t} size={16} />)}
+          </span>
         </div>
         <div className="mt-1.5">{moves}</div>
       </div>

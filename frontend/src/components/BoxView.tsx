@@ -14,7 +14,7 @@ import BoxEditor from "./BoxEditor";
 import { StatBars } from "./PokemonSlots";
 
 const SLOTS = 30; // a PC box: 6 × 5
-const WALLPAPER_HUES = [250, 155, 25, 300, 65, 200];
+const WALLPAPER_HUES = [250, 155, 25, 345, 65, 200];
 const DEATH_BOX_HUE = 15;
 
 // ─── Summary of the hovered / selected Pokémon ────────────────────────────────
@@ -424,7 +424,7 @@ export default function BoxView({
                     isSelected
                       ? "bg-white/20 ring-2 ring-white/70"
                       : member
-                        ? "bg-primary/30 ring-1 ring-primary/80 hover:bg-primary/40"
+                        ? "bg-best/15 ring-2 ring-best/90 hover:bg-best/25"
                         : "bg-black/10 hover:bg-white/12",
                   )}
                 >
