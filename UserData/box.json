@@ -1,0 +1,74 @@
+[
+  {
+    "id": "c4aa7326-e1ba-4659-afae-7bd6a6a0ddee",
+    "name": "Chimchar",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Iron Fist",
+    "level": 10,
+    "moves": [
+      "Scratch",
+      "Leer",
+      "Ember",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    },
+    "item": null,
+    "dead": false
+  },
+  {
+    "id": "416c89e1-815d-455c-bd89-abb5b96543f8",
+    "name": "Eevee",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Adaptability",
+    "level": 10,
+    "moves": [
+      "Tackle",
+      "Tail Whip",
+      "Bite",
+      "Covet"
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    },
+    "item": null,
+    "dead": false
+  },
+  {
+    "id": "557752c5-ca57-43e4-be06-073afc3fdf34",
+    "name": "Starly",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Reckless",
+    "level": 10,
+    "moves": [
+      "Tackle",
+      "Growl",
+      "",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    },
+    "item": null,
+    "dead": false
+  }
+]

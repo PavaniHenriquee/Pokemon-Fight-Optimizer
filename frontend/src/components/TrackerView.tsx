@@ -1,16 +1,21 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, RotateCcw, Search, X } from "lucide-react";
+import { ChevronUp, HeartPulse, RotateCcw, Search, Skull, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { displayName } from "@/lib/format";
+import { displayName, typeColor } from "@/lib/format";
 import {
-  NO_ENCOUNTER,
+  boxEntryOf,
+  catchDraft,
   catchState,
   countNew,
+  encounterLevel,
   lineHolders,
+  newSpecies,
+  starterLocked,
+  withRow,
   type LineHolder,
   type LineOf,
 } from "@/lib/nuzlocke";
-import { frontStatic, pokIcon } from "@/lib/sprites";
+import { battleSprite, frontStatic, pokIcon, trainerSprite } from "@/lib/sprites";
 import type {
   BoxEntry,
   EncounterDB,
@@ -20,257 +25,355 @@ import type {
   NuzlockeRun,
   PokemonData,
 } from "../types";
+import BoxEditor from "./BoxEditor";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { Chip } from "./common/Badges";
 import { Sprite } from "./common/Sprite";
-import { NameSelect } from "./PokemonSlots";
 
-const STATUSES: { id: EncounterStatus; label: string; hint: string; active: string }[] = [
-  {
-    id: "caught",
-    label: "Caught",
-    hint: "Caught and alive",
-    active: "bg-good/15 text-good ring-good/30",
-  },
-  {
-    id: "missed",
-    label: "Missed",
-    hint: "Encounter used up: it fainted or fled",
-    active: "bg-warn/15 text-warn ring-warn/30",
-  },
-  {
-    id: "dead",
-    label: "Dead",
-    hint: "Caught, then fainted",
-    active: "bg-bad/15 text-bad ring-bad/30",
-  },
-];
+const PLAYERS = [
+  { id: "Male", label: "Boy", sprite: "lucas-gen4pt", rival: "Dawn" },
+  { id: "Female", label: "Girl", sprite: "dawn-gen4pt", rival: "Lucas" },
+] as const;
+
+const STARTER_LEVEL = 5; // Sandgem Town's briefcase table
+const OPEN_ICONS = 4; // Pokémon shown on the card of an open location
 
 const tableLabel = (table: EncounterTable) =>
   [table.area, table.method].filter(Boolean).join(" · ");
 
-function SegmentButton({
-  active,
-  activeClass,
-  disabled,
-  title,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  activeClass: string;
-  disabled?: boolean;
-  title: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      disabled={disabled}
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "h-7 rounded-md px-2.5 text-[11px] font-medium ring-1 ring-inset transition-colors",
-        disabled
-          ? "cursor-not-allowed text-subtle-foreground/50 ring-transparent"
-          : "cursor-pointer",
-        !disabled && (active ? activeClass : "text-muted-foreground ring-transparent hover:text-foreground"),
-      )}
-    >
-      {children}
-    </button>
-  );
+// A soft glow in the Pokémon's type behind its sprite
+const typeGlow = (type: string | undefined) =>
+  `radial-gradient(ellipse 85% 60% at 50% 45%, color-mix(in oklab, ${typeColor(type)} 24%, transparent), transparent 75%), var(--card)`;
+
+// What the popup is open on. A row is a new catch for that place (where: null is the starter).
+interface Popup {
+  entry: BoxEntry | null;
+  draft: Omit<BoxEntry, "id">;
+  row?: { where: string | null; species: string };
 }
 
-function StatusPicker({
+// ─── Hover buttons on a Pokémon: it died, it's back, clear ─────────────────────
+
+function RowActions({
   status,
-  hasSpecies,
-  allowMissed,
-  onChange,
+  locked,
+  onStatus,
+  onClear,
 }: {
-  status: EncounterStatus | null;
-  hasSpecies: boolean;
-  allowMissed: boolean;
-  onChange: (status: EncounterStatus) => void;
+  status: EncounterStatus;
+  locked?: boolean; // it can't be cleared
+  onStatus: (status: EncounterStatus) => void;
+  onClear: () => void;
 }) {
+  const [confirming, setConfirming] = useState<"dead" | "clear" | null>(null);
   return (
-    <div className="flex shrink-0 gap-0.5 rounded-lg bg-background/60 p-0.5 ring-1 ring-border">
-      {STATUSES.filter((s) => allowMissed || s.id !== "missed").map((s) => (
-        <SegmentButton
-          key={s.id}
-          active={status === s.id}
-          activeClass={s.active}
-          // Missed can have no species (it fled before you saw much), the others need one
-          disabled={s.id !== "missed" && !hasSpecies}
-          title={s.id !== "missed" && !hasSpecies ? "Pick the Pokémon first" : s.hint}
-          onClick={() => onChange(s.id)}
+    <div
+      onMouseLeave={() => setConfirming(null)}
+      className={cn(
+        "absolute top-1 right-1 z-10 flex gap-0.5 rounded-md bg-card/85 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
+        !confirming && "opacity-0",
+      )}
+    >
+      {status === "caught" && confirming !== "clear" && (
+        <Button
+          variant={confirming === "dead" ? "destructive" : "ghost"}
+          size={confirming === "dead" ? "xs" : "icon-xs"}
+          title={confirming === "dead" ? "Click again to move it to the death box" : "It died"}
+          aria-label="It died"
+          onClick={() => {
+            setConfirming(confirming === "dead" ? null : "dead");
+            if (confirming === "dead") onStatus("dead");
+          }}
         >
-          {s.label}
-        </SegmentButton>
-      ))}
+          <Skull />
+          {confirming === "dead" && "It died?"}
+        </Button>
+      )}
+      {status === "dead" && confirming !== "clear" && (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          title="Revive: back to the PC box"
+          aria-label="Revive"
+          onClick={() => onStatus("caught")}
+        >
+          <HeartPulse />
+        </Button>
+      )}
+      {confirming !== "dead" && !locked && (
+        <Button
+          variant={confirming === "clear" ? "destructive" : "ghost"}
+          size={confirming === "clear" ? "xs" : "icon-xs"}
+          title={
+            status === "missed"
+              ? "Clear this encounter"
+              : confirming === "clear"
+                ? "Click again: it leaves the tracker, the box and the party"
+                : "Clear: it leaves the tracker, the box and the party"
+          }
+          aria-label="Clear"
+          onClick={() => {
+            if (status === "missed" || confirming === "clear") onClear();
+            else setConfirming("clear");
+          }}
+        >
+          <X />
+          {confirming === "clear" && "Remove?"}
+        </Button>
+      )}
     </div>
   );
 }
 
-// Typing only saves when the field loses focus, not on every letter
-function NicknameInput({
-  value,
-  disabled,
-  onCommit,
-  className,
+// ─── Top: you, your starter, the run ──────────────────────────────────────────
+
+function PlayerPicker({
+  player,
+  locked,
+  onChange,
 }: {
-  value: string;
-  disabled: boolean;
-  onCommit: (nickname: string) => void;
-  className?: string;
+  player: NuzlockeRun["player"];
+  locked: boolean;
+  onChange: (player: NuzlockeRun["player"]) => void;
 }) {
-  const [draft, setDraft] = useState(value);
-  const [shown, setShown] = useState(value);
-  if (value !== shown) {
-    setShown(value);
-    setDraft(value);
-  }
+  const frozen = locked && !!player; // a run with no gender yet can still choose one
   return (
-    <input
-      value={draft}
-      disabled={disabled}
-      placeholder="Nickname"
-      maxLength={10}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => {
-        if (draft !== value) onCommit(draft);
-      }}
-      className={cn(
-        "h-8 min-w-0 rounded-lg border border-input bg-input/30 px-2 text-sm outline-none placeholder:text-subtle-foreground focus:border-ring focus:ring-3 focus:ring-ring/50 disabled:opacity-40",
-        className,
-      )}
-    />
+    <div className="flex gap-1">
+      {PLAYERS.map((p) => {
+        const chosen = player === p.id;
+        return (
+          <button
+            key={p.id}
+            type="button"
+            aria-pressed={chosen}
+            aria-label={p.label}
+            disabled={frozen}
+            title={
+              frozen
+                ? "Your choice is locked: you've caught another Pokémon"
+                : `${p.label}: you meet ${p.rival} on Route 202`
+            }
+            onClick={() => onChange(chosen ? "" : p.id)}
+            className={cn(
+              "flex h-36 w-24 items-center justify-center overflow-hidden rounded-xl ring-1 transition-all",
+              !frozen && "cursor-pointer",
+              chosen ? "bg-primary/15 ring-primary/50" : "ring-transparent",
+              !chosen && !frozen && "hover:bg-foreground/5",
+              player && !chosen && "opacity-35 grayscale",
+              player && !chosen && !frozen && "hover:opacity-70",
+            )}
+          >
+            {/* 2× of the 80px sprite; its transparent padding may spill out of the box */}
+            <Sprite
+              srcs={trainerSprite(p.sprite)}
+              alt={p.label}
+              width={160}
+              height={160}
+              className="pointer-events-none max-w-none shrink-0"
+            />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
-// ─── Top strip: starter, gender, counts ───────────────────────────────────────
+function ChosenStarter({
+  encounter,
+  boxEntry,
+  pokemonData,
+  locked,
+  onOpen,
+  onStatus,
+  onClear,
+}: {
+  encounter: NuzlockeEncounter;
+  boxEntry: BoxEntry | undefined;
+  pokemonData: PokemonData;
+  locked: boolean;
+  onOpen: () => void;
+  onStatus: (status: EncounterStatus) => void;
+  onClear: () => void;
+}) {
+  const species = boxEntry?.name ?? encounter.species; // it may have evolved
+  const id = pokemonData.nameToId[species];
+  const dead = encounter.status === "dead";
+  const body = (
+    <>
+      <span className="relative flex h-[136px] w-full items-end justify-center pb-3">
+        <span
+          className="absolute bottom-1 left-1/2 h-8 w-36 -translate-x-1/2 rounded-[50%]"
+          style={{
+            background:
+              "radial-gradient(closest-side, oklch(1 0 0 / 14%), oklch(1 0 0 / 5%) 65%, transparent)",
+          }}
+        />
+        {id && (
+          <Sprite
+            key={id}
+            srcs={battleSprite(id, "front")}
+            alt={species}
+            className={cn("relative drop-shadow-[0_6px_10px_rgb(0_0_0/45%)]", dead && "grayscale")}
+            style={{ transform: "scale(2)", transformOrigin: "bottom center" }}
+          />
+        )}
+      </span>
+      <span className="flex items-center gap-1.5 text-lg font-semibold tracking-tight">
+        {dead && <Skull className="size-4 text-bad" />}
+        {displayName(species)}
+      </span>
+      {boxEntry ? (
+        <span className="num text-xs text-subtle-foreground">Lv {boxEntry.level}</span>
+      ) : (
+        <span className="text-xs text-warn">Not in your box</span>
+      )}
+    </>
+  );
+  return (
+    <div
+      className="group relative w-52 rounded-2xl pb-2 ring-1 ring-foreground/10"
+      style={{ background: typeGlow(dead ? undefined : pokemonData.pokemonTypes?.[species]?.[0]) }}
+    >
+      {dead ? (
+        <div className="flex flex-col items-center">{body}</div>
+      ) : (
+        <button
+          type="button"
+          onClick={onOpen}
+          title={boxEntry ? "Edit it" : "Store it in the box"}
+          className="flex w-full cursor-pointer flex-col items-center"
+        >
+          {body}
+        </button>
+      )}
+      <RowActions status={encounter.status} locked={locked} onStatus={onStatus} onClear={onClear} />
+    </div>
+  );
+}
 
-function StarterCard({
+function StarterPicker({
   starters,
   run,
-  nameToId,
-  onChange,
+  box,
+  pokemonData,
+  holders,
+  lineOf,
+  onPick,
+  onOpen,
+  onStatus,
+  onClear,
 }: {
   starters: string[];
   run: NuzlockeRun;
-  nameToId: Record<string, number>;
-  onChange: (starter: NuzlockeEncounter) => void;
+  box: BoxEntry[];
+  pokemonData: PokemonData;
+  holders: Map<string, LineHolder>;
+  lineOf: LineOf;
+  onPick: (species: string) => void;
+  onOpen: () => void;
+  onStatus: (status: EncounterStatus) => void;
+  onClear: () => void;
 }) {
   const { starter } = run;
+  const locked = starterLocked(run, box, lineOf);
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex gap-1">
-        {starters.map((name) => {
-          const chosen = starter.species === name;
+    <div className="flex items-center gap-1">
+      {starters.map((name) => {
+        if (starter.species === name) {
           return (
-            <button
+            <ChosenStarter
               key={name}
-              type="button"
-              title={chosen ? "Clear the starter" : `Choose ${displayName(name)}`}
-              aria-pressed={chosen}
-              onClick={() => onChange(chosen ? NO_ENCOUNTER : { ...NO_ENCOUNTER, species: name })}
-              className={cn(
-                "flex size-14 cursor-pointer items-center justify-center rounded-lg ring-1 transition-colors",
-                chosen ? "bg-primary/15 ring-primary/50" : "bg-background/60 ring-border hover:bg-foreground/5",
-                starter.species && !chosen && "opacity-40",
-              )}
-            >
-              {nameToId[name] && (
-                <Sprite
-                  srcs={frontStatic(nameToId[name])}
-                  alt={name}
-                  width={48}
-                  height={48}
-                  className={cn(starter.status === "dead" && chosen && "grayscale")}
-                />
-              )}
-            </button>
+              encounter={starter}
+              boxEntry={boxEntryOf(box, lineOf, name)}
+              pokemonData={pokemonData}
+              locked={locked}
+              onOpen={onOpen}
+              onStatus={onStatus}
+              onClear={onClear}
+            />
           );
-        })}
-      </div>
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <NicknameInput
-          value={starter.nickname}
-          disabled={!starter.species}
-          onCommit={(nickname) => onChange({ ...starter, nickname })}
-          className="w-36"
-        />
-        <StatusPicker
-          status={starter.species ? starter.status : null}
-          hasSpecies={!!starter.species}
-          allowMissed={false}
-          onChange={(status) => onChange({ ...starter, status })}
-        />
-      </div>
+        }
+        const id = pokemonData.nameToId[name];
+        const passed = !!starter.species;
+        const blocked = catchState(name, "", holders, lineOf) === "blocked";
+        return (
+          <button
+            key={name}
+            type="button"
+            disabled={passed || blocked}
+            title={
+              passed
+                ? locked
+                  ? "Your starter is locked: you've caught another Pokémon"
+                  : "Clear your starter to change it"
+                : blocked
+                  ? `Already caught: ${holderText(holders.get(lineOf(name)))}`
+                  : `Choose ${displayName(name)}`
+            }
+            onClick={() => onPick(name)}
+            className={cn(
+              "flex items-center justify-center overflow-hidden rounded-2xl transition-all",
+              passed ? "size-16 opacity-35 grayscale" : "size-36",
+              !passed && !blocked && "cursor-pointer hover:bg-foreground/5",
+              blocked && !passed && "cursor-not-allowed opacity-35 grayscale",
+            )}
+          >
+            {id && (
+              <Sprite
+                srcs={frontStatic(id)}
+                alt={name}
+                width={passed ? 96 : 192}
+                height={passed ? 96 : 192}
+                className="pointer-events-none max-w-none shrink-0"
+              />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function RunSummary({
-  run,
-  total,
-  canStartOver,
-  onNewRun,
-}: {
-  run: NuzlockeRun;
-  total: number;
-  canStartOver: boolean; // it erases the box too, so the box has to be loaded
-  onNewRun: () => void;
-}) {
+function RunSummary({ run, onNewRun }: { run: NuzlockeRun; onNewRun: () => void }) {
   const [confirming, setConfirming] = useState(false);
   const entries = [...Object.values(run.encounters), ...(run.starter.species ? [run.starter] : [])];
   const count = (status: EncounterStatus) => entries.filter((e) => e.status === status).length;
   return (
-    <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
-      <Chip title="Locations whose one encounter is used">
-        {Object.keys(run.encounters).length}/{total} locations
-      </Chip>
-      <Chip tone="good" title="Alive, starter included">
-        {count("caught")} alive
-      </Chip>
-      <Chip tone="bad" title="Caught, then fainted, starter included">
-        {count("dead")} dead
-      </Chip>
-      <Chip tone="warn" title="Encounters that fainted or fled">
-        {count("missed")} missed
-      </Chip>
+    <div className="ml-auto flex flex-col items-end gap-2 self-center">
+      <div className="num flex items-baseline gap-3 text-sm text-muted-foreground">
+        <span>
+          <span className="text-lg font-semibold text-good">{count("caught")}</span> alive
+        </span>
+        <span>
+          <span className="text-lg font-semibold text-bad">{count("dead")}</span> dead
+        </span>
+        <span>
+          <span className="text-lg font-semibold text-warn">{count("missed")}</span> missed
+        </span>
+      </div>
       <Tooltip>
         <TooltipTrigger asChild>
-          {/* span wrapper: a disabled button doesn't fire hover events */}
-          <span>
-            <Button
-              variant={confirming ? "destructive" : "ghost"}
-              size="sm"
-              disabled={!canStartOver}
-              onClick={() => {
-                if (!confirming) {
-                  setConfirming(true);
-                  return;
-                }
-                onNewRun();
-                setConfirming(false);
-              }}
-              onMouseLeave={() => setConfirming(false)}
-            >
-              <RotateCcw />
-              {confirming ? "Erase run and box?" : "New run"}
-            </Button>
-          </span>
+          <Button
+            variant={confirming ? "destructive" : "ghost"}
+            size="sm"
+            onClick={() => {
+              if (!confirming) {
+                setConfirming(true);
+                return;
+              }
+              onNewRun();
+              setConfirming(false);
+            }}
+            onMouseLeave={() => setConfirming(false)}
+          >
+            <RotateCcw />
+            {confirming ? "Erase run and box?" : "New run"}
+          </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {!canStartOver
-            ? "The box isn't loaded, so it couldn't be erased with the run"
-            : confirming
-              ? "Click again to erase the run, PC box, death box and party"
-              : "Start over: erases the run, PC box, death box and party"}
+          {confirming
+            ? "Click again to erase the run, PC box, death box and party"
+            : "Start over: erases the run, PC box, death box and party"}
         </TooltipContent>
       </Tooltip>
     </div>
@@ -298,16 +401,16 @@ function LocationTables({
   ownSpecies: string;
   holders: Map<string, LineHolder>;
   lineOf: LineOf;
-  onPick: (species: string) => void;
+  onPick: (species: string, level: number) => void;
 }) {
   return (
-    <div className="grid gap-2 border-t bg-background/30 p-2.5 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-3 border-t p-3 sm:grid-cols-2 xl:grid-cols-3">
       {tables.map((table) => (
         <div key={tableLabel(table)} className="min-w-0">
-          <div className="mb-1 truncate text-[11px] font-medium text-subtle-foreground" title={tableLabel(table)}>
+          <div className="mb-1.5 truncate text-[11px] font-medium text-subtle-foreground" title={tableLabel(table)}>
             {tableLabel(table)}
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {table.mons.map((mon) => {
               const state = catchState(mon.name, ownSpecies, holders, lineOf);
               const holder = holderText(holders.get(lineOf(mon.name)));
@@ -317,8 +420,8 @@ function LocationTables({
                     <Sprite
                       srcs={pokIcon(nameToId[mon.name])}
                       alt={mon.name}
-                      width={32}
-                      height={24}
+                      width={40}
+                      height={30}
                       className={cn(state === "blocked" && "grayscale")}
                     />
                   )}
@@ -332,7 +435,7 @@ function LocationTables({
                   <span
                     key={mon.name}
                     title={`Already caught: ${holder}`}
-                    className="flex h-7 cursor-not-allowed items-center gap-1 rounded-md pr-2 text-[11px] opacity-40"
+                    className="flex h-9 cursor-not-allowed items-center gap-1 rounded-lg pr-2.5 text-xs opacity-40"
                   >
                     {content}
                   </span>
@@ -342,10 +445,10 @@ function LocationTables({
                 <button
                   key={mon.name}
                   type="button"
-                  onClick={() => onPick(mon.name)}
+                  onClick={() => onPick(mon.name, encounterLevel(mon.level, table.method))}
                   title={state === "boxed" ? `Log it here, it's your ${holder}` : `Pick ${displayName(mon.name)}`}
                   className={cn(
-                    "flex h-7 cursor-pointer items-center gap-1 rounded-md pr-2 text-[11px] transition-colors hover:bg-foreground/10",
+                    "flex h-9 cursor-pointer items-center gap-1 rounded-lg pr-2.5 text-xs transition-colors hover:bg-foreground/10",
                     state === "boxed" ? "bg-foreground/5 ring-1 ring-info/40 ring-inset" : "bg-foreground/5",
                   )}
                 >
@@ -360,14 +463,90 @@ function LocationTables({
   );
 }
 
-function LocationRow({
+// A caught or dead Pokémon: the sprite is the card
+function CaughtCard({
+  name,
+  encounter,
+  boxEntry,
+  pokemonData,
+  onOpen,
+  onStatus,
+  onClear,
+}: {
+  name: string;
+  encounter: NuzlockeEncounter;
+  boxEntry: BoxEntry | undefined;
+  pokemonData: PokemonData;
+  onOpen: () => void;
+  onStatus: (status: EncounterStatus) => void;
+  onClear: () => void;
+}) {
+  const species = boxEntry?.name ?? encounter.species; // it may have evolved
+  const id = pokemonData.nameToId[species];
+  const dead = encounter.status === "dead";
+  const body = (
+    <>
+      {/* 2× of the 96px sprite; its transparent padding may spill out of the box */}
+      <span className="flex h-[124px] w-full items-center justify-center">
+        {id && (
+          <Sprite
+            srcs={frontStatic(id)}
+            alt={species}
+            width={192}
+            height={192}
+            className={cn("pointer-events-none max-w-none shrink-0", dead && "opacity-60 grayscale")}
+          />
+        )}
+      </span>
+      <span className="relative flex max-w-full items-center gap-1 px-2 text-sm font-semibold tracking-tight [text-shadow:0_1px_3px_rgb(0_0_0/80%)]">
+        {dead && <Skull className="size-3.5 shrink-0 text-bad" />}
+        <span className="truncate">{displayName(species)}</span>
+      </span>
+      {boxEntry ? (
+        <span className="num relative text-[11px] text-subtle-foreground">Lv {boxEntry.level}</span>
+      ) : (
+        <span className="relative text-[11px] text-warn">Not in your box</span>
+      )}
+    </>
+  );
+  return (
+    <div
+      className="group relative row-span-2 overflow-hidden rounded-xl border pb-2 transition-colors hover:border-foreground/20"
+      style={{ background: typeGlow(dead ? undefined : pokemonData.pokemonTypes?.[species]?.[0]) }}
+    >
+      <div
+        className="relative z-[1] truncate px-2.5 pt-1.5 text-[11px] font-medium text-muted-foreground [text-shadow:0_1px_3px_rgb(0_0_0/80%)]"
+        title={name}
+      >
+        {name}
+      </div>
+      {dead ? (
+        <div className="flex flex-col items-center">{body}</div>
+      ) : (
+        <button
+          type="button"
+          onClick={onOpen}
+          title={boxEntry ? "Edit it" : "Store it in the box"}
+          className="flex w-full cursor-pointer flex-col items-center"
+        >
+          {body}
+        </button>
+      )}
+      <RowActions status={encounter.status} onStatus={onStatus} onClear={onClear} />
+    </div>
+  );
+}
+
+// A location with nothing caught yet, or a missed encounter
+function OpenCard({
   name,
   tables,
   encounter,
   nameToId,
   holders,
   lineOf,
-  onChange,
+  onExpand,
+  onClear,
 }: {
   name: string;
   tables: EncounterTable[];
@@ -375,154 +554,118 @@ function LocationRow({
   nameToId: Record<string, number>;
   holders: Map<string, LineHolder>;
   lineOf: LineOf;
-  onChange: (encounter: NuzlockeEncounter | null) => void;
+  onExpand: () => void;
+  onClear: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const species = encounter?.species ?? "";
-  const status = encounter?.status ?? null;
-  const newHere = countNew(tables, holders, lineOf);
-
-  // A species can be in several tables: the picker lists it once, under the first
-  const firstTable = new Map<string, EncounterTable>();
-  for (const table of tables) {
-    for (const mon of table.mons) {
-      if (!firstTable.has(mon.name)) firstTable.set(mon.name, table);
-    }
-  }
-
-  // The species clause: only what can be caught here, and what this row already holds
-  const pickable = [...firstTable.keys()].filter(
-    (mon) => catchState(mon, species, holders, lineOf) !== "blocked",
-  );
-  if (species && !pickable.includes(species)) pickable.unshift(species);
-
-  function pick(next: string) {
-    if (next) {
-      // Logging a line that's in the death box: it already died
-      const died = holders.get(lineOf(next))?.where === "Death box";
-      onChange({
-        ...NO_ENCOUNTER,
-        ...encounter,
-        species: next,
-        status: died ? "dead" : (status ?? "caught"),
-      });
-    } else if (status === "missed") onChange({ ...NO_ENCOUNTER, ...encounter, species: "" });
-    else onChange(null);
-  }
-
+  const species = newSpecies(tables, holders, lineOf);
+  const missed = encounter?.status === "missed";
+  const missedId = encounter?.species ? nameToId[encounter.species] : undefined;
   return (
-    <div className={cn("overflow-hidden rounded-lg border", encounter ? "bg-card" : "bg-card/40")}>
-      <div className="grid grid-cols-[minmax(180px,230px)_minmax(170px,1fr)_minmax(90px,150px)_auto_28px] items-center gap-2 px-2 py-1.5">
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          aria-expanded={open}
-          title="Show what's here"
-          className="flex min-w-0 cursor-pointer items-center gap-1 text-left text-[13px] font-medium"
-        >
-          {open ? (
-            <ChevronDown className="size-3.5 shrink-0 text-subtle-foreground" />
-          ) : (
-            <ChevronRight className="size-3.5 shrink-0 text-subtle-foreground" />
-          )}
-          <span className="truncate">{name}</span>
-          {!encounter && (
-            <span
-              className={cn(
-                "num ml-auto shrink-0 pl-1 text-[10px] font-normal",
-                newHere > 0 ? "text-subtle-foreground" : "text-warn",
-              )}
-              title="Pokémon here you can still catch"
-            >
-              {newHere > 0 ? `${newHere} new` : "nothing new"}
-            </span>
-          )}
-        </button>
-
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="flex h-6 w-8 shrink-0 items-center justify-center">
-            {species && nameToId[species] && (
+    <div className="group relative rounded-xl border border-dashed bg-card/40 transition-colors hover:border-foreground/20 hover:bg-card">
+      <button
+        type="button"
+        onClick={onExpand}
+        title={missed ? "Pick what it was" : "Show what's here"}
+        className="flex h-full w-full cursor-pointer flex-col p-2.5 text-left"
+      >
+        <span className="truncate text-[13px] font-medium" title={name}>
+          {name}
+        </span>
+        {missed ? (
+          <span className="mt-1.5 flex h-6 items-center gap-1">
+            {missedId && (
               <Sprite
-                srcs={pokIcon(nameToId[species])}
-                alt={species}
+                srcs={pokIcon(missedId)}
+                alt={encounter?.species}
+                title={encounter?.species && displayName(encounter.species)}
                 width={32}
                 height={24}
-                className={cn(status === "dead" && "grayscale", status === "missed" && "opacity-40")}
+                className="opacity-50 grayscale"
               />
             )}
+            <span className="text-xs font-medium text-warn">Missed</span>
           </span>
-          <div className="min-w-0 flex-1">
-            <NameSelect
-              value={species}
-              onChange={pick}
-              items={pickable}
-              itemLabel={displayName}
-              placeholder="Pokémon"
-              clearable={!!species}
-              renderItem={(item) => {
-                const table = firstTable.get(item);
-                const boxed = catchState(item, species, holders, lineOf) === "boxed";
-                return (
-                  <span className="flex w-full min-w-0 items-center gap-1.5">
-                    {nameToId[item] && (
-                      <Sprite srcs={pokIcon(nameToId[item])} alt="" width={32} height={24} className="shrink-0" />
-                    )}
-                    <span className="truncate">{displayName(item)}</span>
-                    {table && (
-                      <span
-                        className={cn(
-                          "ml-auto truncate pl-2 text-[10px]",
-                          boxed ? "text-info" : "text-subtle-foreground",
-                        )}
-                      >
-                        {boxed ? "in your box" : tableLabel(table)}
-                      </span>
-                    )}
-                  </span>
-                );
-              }}
-            />
-          </div>
-        </div>
+        ) : (
+          <>
+            <span className="mt-1.5 flex items-center gap-x-0.5 opacity-60 transition-opacity group-hover:opacity-100">
+              {species.slice(0, OPEN_ICONS).map(
+                (mon) =>
+                  nameToId[mon] && (
+                    <Sprite key={mon} srcs={pokIcon(nameToId[mon])} alt={mon} title={displayName(mon)} width={32} height={24} />
+                  ),
+              )}
+              {species.length > OPEN_ICONS && (
+                <span className="num pl-1 text-[11px] text-subtle-foreground">+{species.length - OPEN_ICONS}</span>
+              )}
+            </span>
+            {species.length === 0 && <span className="mt-auto text-[11px] text-warn">Nothing new</span>}
+          </>
+        )}
+      </button>
+      {missed && <RowActions status="missed" onStatus={() => {}} onClear={onClear} />}
+    </div>
+  );
+}
 
-        <NicknameInput
-          value={encounter?.nickname ?? ""}
-          disabled={!species}
-          onCommit={(nickname) => onChange({ ...NO_ENCOUNTER, ...encounter, nickname })}
-        />
-
-        <StatusPicker
-          status={status}
-          hasSpecies={!!species}
-          allowMissed
-          onChange={(next) => onChange({ ...NO_ENCOUNTER, ...encounter, status: next })}
-        />
-
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          disabled={!encounter}
-          onClick={() => onChange(null)}
-          aria-label={`Clear ${name}`}
-          title="Clear this location"
+// An open location, showing what can be met there
+function ExpandedCard({
+  name,
+  tables,
+  encounter,
+  nameToId,
+  holders,
+  lineOf,
+  onCollapse,
+  onPick,
+  onMissed,
+  onClear,
+}: {
+  name: string;
+  tables: EncounterTable[];
+  encounter: NuzlockeEncounter | undefined;
+  nameToId: Record<string, number>;
+  holders: Map<string, LineHolder>;
+  lineOf: LineOf;
+  onCollapse: () => void;
+  onPick: (species: string, level: number) => void;
+  onMissed: () => void;
+  onClear: () => void;
+}) {
+  const missed = encounter?.status === "missed";
+  return (
+    <div className="col-span-full overflow-hidden rounded-xl border bg-card">
+      <div className="flex items-center gap-3 px-3 py-2">
+        <button
+          type="button"
+          onClick={onCollapse}
+          title="Close"
+          className="flex min-w-0 cursor-pointer items-center gap-1.5 text-sm font-semibold"
         >
-          <X />
-        </Button>
+          <ChevronUp className="size-4 shrink-0 text-subtle-foreground" />
+          <span className="truncate">{name}</span>
+        </button>
+        {missed && <span className="text-xs text-warn">Missed. Pick what it was, if you saw it.</span>}
+        <div className="ml-auto shrink-0">
+          {missed ? (
+            <Button variant="ghost" size="xs" onClick={onClear} title="It wasn't missed after all">
+              <X />
+              Undo missed
+            </Button>
+          ) : (
+            <Button variant="outline" size="xs" onClick={onMissed} title="The encounter is used up: it fainted or fled">
+              Missed it
+            </Button>
+          )}
+        </div>
       </div>
-
-      {open && (
-        <LocationTables
-          tables={tables}
-          nameToId={nameToId}
-          ownSpecies={species}
-          holders={holders}
-          lineOf={lineOf}
-          onPick={(next) => {
-            pick(next);
-            setOpen(false);
-          }}
-        />
-      )}
+      <LocationTables
+        tables={tables}
+        nameToId={nameToId}
+        ownSpecies={encounter?.species ?? ""}
+        holders={holders}
+        lineOf={lineOf}
+        onPick={onPick}
+      />
     </div>
   );
 }
@@ -538,6 +681,8 @@ export default function TrackerView({
   error,
   onRetry,
   onChange,
+  onStore,
+  onClearRow,
   onNewRun,
 }: {
   run: NuzlockeRun | null;
@@ -548,13 +693,17 @@ export default function TrackerView({
   error: string | null;
   onRetry: () => void;
   onChange: (run: NuzlockeRun) => void;
+  onStore: (entry: BoxEntry, run?: NuzlockeRun) => void;
+  onClearRow: (run: NuzlockeRun, entry?: BoxEntry) => void;
   onNewRun: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [canCatchOnly, setCanCatchOnly] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [popup, setPopup] = useState<Popup | null>(null);
 
-  // Nothing here may save until the real run has loaded: an empty run would replace it
-  if (!run || !encounterDB || !pokemonData) {
+  // Nothing here may save until the real run and box have loaded: an empty one would replace them
+  if (!run || !encounterDB || !pokemonData || !box) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="max-w-md text-sm text-muted-foreground">
@@ -571,7 +720,7 @@ export default function TrackerView({
 
   const { nameToId } = pokemonData;
   const locations = Object.entries(encounterDB.locations);
-  const holders = lineHolders(run, box ?? [], lineOf);
+  const holders = lineHolders(run, box, lineOf);
   const q = query.trim().toLowerCase();
   // A search also finds where a Pokémon lives
   const shown = locations.filter(([name, tables]) => {
@@ -580,103 +729,168 @@ export default function TrackerView({
     return tables.some((t) => t.mons.some((m) => displayName(m.name).toLowerCase().includes(q)));
   });
 
-  function setEncounter(name: string, encounter: NuzlockeEncounter | null) {
-    if (!run) return;
-    const encounters = { ...run.encounters };
-    if (encounter) encounters[name] = encounter;
-    else delete encounters[name];
-    onChange({ ...run, encounters });
+  // Picking a Pokémon: the popup, unless there's nothing to store
+  function pick(where: string | null, species: string, level: number) {
+    if (!run || !pokemonData) return;
+    const encounter = where === null ? undefined : run.encounters[where];
+    const holder = holders.get(lineOf(species));
+    if (encounter?.status === "missed") {
+      onChange(withRow(run, where, { ...encounter, species }));
+      setExpanded(null);
+    } else if (holder?.boxOnly) {
+      // Already in the box: it only gets logged here. A line in the death box already died.
+      onChange(withRow(run, where, { species, status: holder.where === "Death box" ? "dead" : "caught" }));
+      setExpanded(null);
+    } else {
+      setPopup({ entry: null, draft: catchDraft(pokemonData, species, level), row: { where, species } });
+    }
+  }
+
+  // Clicking a caught Pokémon: its box entry, or storing it if an older run never did
+  function openRow(where: string | null, encounter: NuzlockeEncounter, tables: EncounterTable[]) {
+    if (!box || !pokemonData) return;
+    const entry = boxEntryOf(box, lineOf, encounter.species);
+    if (entry) {
+      setPopup({ entry, draft: { ...entry, moves: [...entry.moves], ivs: { ...entry.ivs } } });
+      return;
+    }
+    const { species } = encounter;
+    const table = tables.find((t) => t.mons.some((m) => m.name === species));
+    const mon = table?.mons.find((m) => m.name === species);
+    const level = table && mon ? encounterLevel(mon.level, table.method) : STARTER_LEVEL;
+    setPopup({ entry: null, draft: catchDraft(pokemonData, species, level), row: { where, species } });
+  }
+
+  function clearRow(where: string | null, encounter: NuzlockeEncounter | undefined) {
+    if (!run || !box) return;
+    // A missed one never reached the box, what's there of its line was caught somewhere else
+    const entry =
+      encounter && encounter.status !== "missed" ? boxEntryOf(box, lineOf, encounter.species) : undefined;
+    onClearRow(withRow(run, where, null), entry);
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b bg-card/40">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5">
-          <div>
-            <div className="mb-1 text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
-              Starter
-            </div>
-            <StarterCard
-              starters={encounterDB.starters}
-              run={run}
-              nameToId={nameToId}
-              onChange={(starter) => onChange({ ...run, starter })}
-            />
-          </div>
-
-          <div>
-            <div className="mb-1 text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
-              Playing as
-            </div>
-            <div className="flex gap-0.5 rounded-lg bg-background/60 p-0.5 ring-1 ring-border">
-              {(
-                [
-                  { id: "Male", label: "Boy", rival: "Dawn" },
-                  { id: "Female", label: "Girl", rival: "Lucas" },
-                ] as const
-              ).map((p) => (
-                <SegmentButton
-                  key={p.id}
-                  active={run.player === p.id}
-                  activeClass="bg-primary/15 text-primary ring-primary/30"
-                  title={`You meet ${p.rival} on Route 202`}
-                  onClick={() => onChange({ ...run, player: run.player === p.id ? "" : p.id })}
-                >
-                  {p.label}
-                </SegmentButton>
-              ))}
-            </div>
-          </div>
-
-          <RunSummary
-            run={run}
-            total={locations.length}
-            canStartOver={box !== null}
-            onNewRun={onNewRun}
+    <div className="h-full min-h-0 overflow-y-auto">
+      <div className="border-b bg-card/40">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-4">
+          <PlayerPicker
+            player={run.player}
+            locked={starterLocked(run, box, lineOf)}
+            onChange={(player) => onChange({ ...run, player })}
           />
+          <StarterPicker
+            starters={encounterDB.starters}
+            run={run}
+            box={box}
+            pokemonData={pokemonData}
+            holders={holders}
+            lineOf={lineOf}
+            onPick={(species) => pick(null, species, STARTER_LEVEL)}
+            onOpen={() => openRow(null, run.starter, [])}
+            onStatus={(status) => onChange(withRow(run, null, { ...run.starter, status }))}
+            onClear={() => clearRow(null, run.starter)}
+          />
+          <RunSummary run={run} onNewRun={onNewRun} />
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-6xl flex-col gap-1.5 px-4 py-3">
-          <div className="flex items-center gap-2 pb-1">
-            <div className="flex h-8 flex-1 items-center gap-2 rounded-lg border border-input bg-input/30 px-2 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
-              <Search className="size-3.5 text-subtle-foreground" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search a location or a Pokémon"
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
-              />
-            </div>
-            <Button
-              variant={canCatchOnly ? "secondary" : "ghost"}
-              size="sm"
-              aria-pressed={canCatchOnly}
-              title="Unused locations with at least one Pokémon you can still catch"
-              onClick={() => setCanCatchOnly(!canCatchOnly)}
-            >
-              Can still catch
-            </Button>
-          </div>
-
-          {shown.map(([name, tables]) => (
-            <LocationRow
-              key={name}
-              name={name}
-              tables={tables}
-              encounter={run.encounters[name]}
-              nameToId={nameToId}
-              holders={holders}
-              lineOf={lineOf}
-              onChange={(encounter) => setEncounter(name, encounter)}
+      <div className="mx-auto max-w-6xl px-4 pb-6">
+        <div className="sticky top-0 z-20 flex items-center gap-2 bg-background py-3">
+          <div className="flex h-8 flex-1 items-center gap-2 rounded-lg border border-input bg-input/30 px-2 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+            <Search className="size-3.5 text-subtle-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search a location or a Pokémon"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-subtle-foreground"
             />
-          ))}
-          {shown.length === 0 && (
-            <p className="py-8 text-center text-sm text-subtle-foreground">No locations match.</p>
-          )}
+          </div>
+          <Button
+            variant={canCatchOnly ? "secondary" : "ghost"}
+            size="sm"
+            aria-pressed={canCatchOnly}
+            title="Unused locations with at least one Pokémon you can still catch"
+            onClick={() => setCanCatchOnly(!canCatchOnly)}
+          >
+            Can still catch
+          </Button>
         </div>
+
+        {/* dense: open cards fill in around the taller caught ones, an expanded card opens under its row */}
+        <div className="grid grid-flow-dense auto-rows-[minmax(90px,auto)] grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-2">
+          {shown.map(([name, tables]) => {
+            const encounter = run.encounters[name];
+            if (encounter && encounter.status !== "missed") {
+              return (
+                <CaughtCard
+                  key={name}
+                  name={name}
+                  encounter={encounter}
+                  boxEntry={boxEntryOf(box, lineOf, encounter.species)}
+                  pokemonData={pokemonData}
+                  onOpen={() => openRow(name, encounter, tables)}
+                  onStatus={(status) => onChange(withRow(run, name, { ...encounter, status }))}
+                  onClear={() => clearRow(name, encounter)}
+                />
+              );
+            }
+            if (expanded === name) {
+              return (
+                <ExpandedCard
+                  key={name}
+                  name={name}
+                  tables={tables}
+                  encounter={encounter}
+                  nameToId={nameToId}
+                  holders={holders}
+                  lineOf={lineOf}
+                  onCollapse={() => setExpanded(null)}
+                  onPick={(species, level) => pick(name, species, level)}
+                  onMissed={() => onChange(withRow(run, name, { species: "", status: "missed" }))}
+                  onClear={() => clearRow(name, encounter)}
+                />
+              );
+            }
+            return (
+              <OpenCard
+                key={name}
+                name={name}
+                tables={tables}
+                encounter={encounter}
+                nameToId={nameToId}
+                holders={holders}
+                lineOf={lineOf}
+                onExpand={() => setExpanded(name)}
+                onClear={() => clearRow(name, encounter)}
+              />
+            );
+          })}
+        </div>
+        {shown.length === 0 && (
+          <p className="py-8 text-center text-sm text-subtle-foreground">No locations match.</p>
+        )}
       </div>
+
+      {popup && (
+        <BoxEditor
+          entry={popup.entry}
+          draft={popup.draft}
+          pokemonData={pokemonData}
+          catching={!!popup.row}
+          speciesChoices={
+            popup.entry
+              ? pokemonData.pokemon.filter((p) => popup.entry && lineOf(p) === lineOf(popup.entry.name))
+              : undefined
+          }
+          onSave={(entry) => {
+            const { row } = popup;
+            onStore(entry, row && withRow(run, row.where, { species: row.species, status: "caught" }));
+            setPopup(null);
+            setExpanded(null);
+          }}
+          onCancel={() => setPopup(null)}
+        />
+      )}
     </div>
   );
 }

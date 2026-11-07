@@ -313,7 +313,15 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - Tracker: met locations come from vanilla [pp] `header.json`s, RP's ROM wasn't read. The sheet's
   "met location" notes agree on every location they mention (Routes 204, 205, 212, the Lost Tower).
 - Tracker: two box Pokemon of one evolution line (only possible through manual add) move to the death
-  box together, since the tracker and the box match by line.
+  box together, since the tracker and the box match by line. Clearing a row removes only the first one.
+- Tracker: a sprite that fills its frame (Gyarados, Onix) covers part of its card's text at 2x.
+- Tracker: the starter lock only hides its ✕. Deleting its entry from the PC box still works; the starter stays
+  chosen and shows "Not in your box".
+- Box: a one-gender species (12 male only, 18 female only, [SD] and [pp] agree) starts Male and can be
+  set to either, so Nidoran♀ can be saved Male. PkDB only marks the genderless ones.
+- Box: an entry saved with a gender before PkDB marked its species genderless keeps its ♂ / ♀ mark until
+  it's edited. Battles already ignore it (`_build_battle`).
+- Box: a held item is only set and shown in the party, the box editor and summary don't have it.
 - Box editor: manual add can still add any species, on purpose, for manual testing while the app only
   covers up to the 1st gym. To be removed once it covers the full game.
 
@@ -365,7 +373,20 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   Chimchar).
 - Species clause: a line is taken by the starter, a tracker row marked Caught or Dead, or anything in
   the PC box or death box. Missed doesn't take it. A Pokemon in the box with no tracker row can still
-  be logged once. Deaths sync both ways by line and save at once; other box edits wait for Save.
+  be logged once. Deaths sync both ways by line and save at once, and so does everything done on the
+  Tracker tab (it has no Save button); other box edits, party edits included, wait for Save or a search
+  starting.
+- Tracker and box: picking a Pokemon opens `BoxEditor` as a new catch, storing it adds the box entry and
+  the row together, Cancel logs nothing. A line already in the box is only logged, no popup. Clicking a
+  caught one edits its box entry, its species limited to its line so it can evolve. Clearing a row also
+  takes it out of the box and party. A box entry and its party copy (matched by name) follow each other's
+  edits, held item included.
+- A new catch starts from `catchDraft` (`lib/nuzlocke.ts`): the level is the low end of the table clicked,
+  the moves follow [pp] `BoxPokemon_SetDefaultMoves` and refill with the level until a move is edited, a
+  move not in MoveDB is left out (it would stop a search with a `KeyError`), and the ability stays empty
+  when the species has two.
+- `"genderless": true` in `PkDB.json` comes from [SD] `gender: "N"` and [pp] `GENDER_RATIO_NO_GENDER`, which
+  agree on every species. The box popup offers only "—" for those and only ♂ / ♀ for the rest.
 - The box stays `null` until the real box has loaded (`lib/useBox.ts`), and an unreadable `box.json` or
   `nuzlocke.json` is an error, never an empty answer: both are saved whole, so an empty answer would
   overwrite the real file.

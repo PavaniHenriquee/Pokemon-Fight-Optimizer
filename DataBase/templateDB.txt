@@ -9,7 +9,8 @@
     "Special Defense":Number,
     "Speed":Number
   },
-  "abilities":["Ability 1", "Ability 2", "Hidden Ability"]
+  "abilities":["Ability 1", "Ability 2", "Hidden Ability"],
+  "genderless": true (only on a species with no gender, otherwise left out)
 }
 
 

@@ -3,7 +3,8 @@ import { Check, ChevronLeft, ChevronRight, HeartPulse, Pencil, Plus, Save, Searc
 import { cn } from "@/lib/utils";
 import { battleSprite, pokIcon } from "@/lib/sprites";
 import { displayName } from "@/lib/format";
-import type { BoxEntry, IVs, PokemonConfig, PokemonData } from "../types";
+import { makeBlank } from "@/lib/nuzlocke";
+import type { BoxEntry, PokemonConfig, PokemonData } from "../types";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Sprite } from "./common/Sprite";
@@ -13,27 +14,6 @@ import BoxEditor from "./BoxEditor";
 const SLOTS = 30; // a PC box: 6 × 5
 const WALLPAPER_HUES = [250, 155, 25, 300, 65, 200];
 const DEATH_BOX_HUE = 15;
-
-const DEFAULT_IVS: IVs = {
-  HP: 31,
-  Attack: 31,
-  Defense: 31,
-  "Special Attack": 31,
-  "Special Defense": 31,
-  Speed: 31,
-};
-
-function makeBlank(): Omit<BoxEntry, "id"> {
-  return {
-    name: "",
-    gender: "Male",
-    nature: "Hardy",
-    ability: "",
-    level: 5,
-    moves: ["", "", "", ""],
-    ivs: { ...DEFAULT_IVS },
-  };
-}
 
 // ─── Summary of the hovered / selected Pokémon ────────────────────────────────
 
@@ -202,6 +182,7 @@ export default function BoxView({
   box,
   pokemonData,
   onBoxChange,
+  onEdited,
   onSave,
   onClear,
   onSetDead,
@@ -214,6 +195,7 @@ export default function BoxView({
   box: BoxEntry[];
   pokemonData: PokemonData;
   onBoxChange: (box: BoxEntry[]) => void;
+  onEdited: (before: BoxEntry, after: BoxEntry) => void;
   onSave: () => void;
   onClear: () => void;
   onSetDead: (entry: BoxEntry, dead: boolean) => void;
@@ -485,6 +467,7 @@ export default function BoxView({
                 ? [...box, entry]
                 : box.map((e) => (e.id === entry.id ? entry : e)),
             );
+            if (editEntry !== "new") onEdited(editEntry, entry);
             setSelectedId(entry.id);
             setEditEntry(null);
           }}

@@ -3,6 +3,7 @@ import { Minus, Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { battleSprite, pokIcon } from "@/lib/sprites";
 import { displayName, typeColor } from "@/lib/format";
+import { genderFor, startingMoves } from "@/lib/nuzlocke";
 import type { BoxEntry, IVs, PokemonData } from "../types";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
@@ -85,9 +86,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function GenderToggle({
   value,
+  genderless,
   onChange,
 }: {
   value: string | null;
+  genderless: boolean; // the species has no gender: "—" is the only choice, and otherwise it isn't one
   onChange: (g: string | null) => void;
 }) {
   const opts: { v: string | null; label: string; cls: string; title: string }[] = [
@@ -97,7 +100,7 @@ function GenderToggle({
   ];
   return (
     <div className="flex rounded-lg bg-background/50 p-0.5 ring-1 ring-foreground/10">
-      {opts.map((o) => (
+      {opts.filter((o) => (o.v === null) === genderless).map((o) => (
         <button
           key={o.title}
           title={o.title}
@@ -163,7 +166,11 @@ function ProfilePanel({
         <span className="truncate text-xl font-semibold tracking-tight">
           {draft.name ? displayName(draft.name) : "???"}
         </span>
-        <GenderToggle value={draft.gender} onChange={(g) => patch({ gender: g })} />
+        <GenderToggle
+          value={draft.gender}
+          genderless={genderFor(pokemonData, draft.name, draft.gender) === null}
+          onChange={(g) => patch({ gender: g })}
+        />
       </div>
       <div className="flex min-h-[18px] w-full">
         <TypeBadges types={types} />
@@ -215,10 +222,14 @@ function InfoPage({
   draft,
   patch,
   pokemonData,
+  catching,
+  speciesChoices,
 }: {
   draft: Draft;
   patch: (p: Partial<Draft>) => void;
   pokemonData: PokemonData;
+  catching: boolean;
+  speciesChoices?: string[];
 }) {
   const { pokemon, nameToId, natureMultipliers, abilities } = pokemonData;
   const speciesAbilities = pokemonData.pokemonAbilities?.[draft.name] ?? [];
@@ -236,31 +247,37 @@ function InfoPage({
 
   return (
     <div className="space-y-5">
-      <div>
-        <SectionLabel>Species</SectionLabel>
-        <NameSelect
-          value={draft.name}
-          onChange={(v) => {
-            // a new species keeps the ability only when it can have it
-            const next = pokemonData.pokemonAbilities?.[v] ?? [];
-            patch({ name: v, ability: next.includes(draft.ability) ? draft.ability : (next[0] ?? "") });
-          }}
-          items={pokemon}
-          itemLabel={displayName}
-          placeholder="Search a Pokémon"
-          clearable={!!draft.name}
-          renderItem={(p) => (
-            <span className="flex items-center gap-2">
-              {nameToId[p] ? (
-                <Sprite srcs={pokIcon(nameToId[p])} alt="" width={32} height={24} />
-              ) : (
-                <span className="w-8" />
-              )}
-              {displayName(p)}
-            </span>
-          )}
-        />
-      </div>
+      {!catching && (
+        <div>
+          <SectionLabel>Species</SectionLabel>
+          <NameSelect
+            value={draft.name}
+            onChange={(v) => {
+              // a new species keeps the ability only when it can have it
+              const next = pokemonData.pokemonAbilities?.[v] ?? [];
+              patch({
+                name: v,
+                gender: genderFor(pokemonData, v, draft.gender),
+                ability: next.includes(draft.ability) ? draft.ability : (next[0] ?? ""),
+              });
+            }}
+            items={speciesChoices ?? pokemon}
+            itemLabel={displayName}
+            placeholder="Search a Pokémon"
+            clearable={!!draft.name}
+            renderItem={(p) => (
+              <span className="flex items-center gap-2">
+                {nameToId[p] ? (
+                  <Sprite srcs={pokIcon(nameToId[p])} alt="" width={32} height={24} />
+                ) : (
+                  <span className="w-8" />
+                )}
+                {displayName(p)}
+              </span>
+            )}
+          />
+        </div>
+      )}
 
       <div>
         <SectionLabel>Ability</SectionLabel>
@@ -605,20 +622,37 @@ export default function BoxEditor({
   entry,
   draft: initial,
   pokemonData,
+  catching = false,
+  speciesChoices,
   onSave,
   onCancel,
 }: {
   entry: BoxEntry | null;
   draft: Draft;
   pokemonData: PokemonData;
+  catching?: boolean; // a new catch from the Tracker: the species is set, the moves follow the level
+  speciesChoices?: string[]; // what the species can change to, any by default
   onSave: (entry: BoxEntry) => void;
   onCancel: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(initial);
+  const [draft, setDraft] = useState<Draft>(() => ({
+    ...initial,
+    gender: genderFor(pokemonData, initial.name, initial.gender), // a box saved before PkDB knew it
+  }));
   const [page, setPage] = useState<Page>("info");
+  const [autoMoves, setAutoMoves] = useState(catching); // until a move is edited by hand
   const popupRoot = useRef<HTMLDivElement>(null); // combobox lists mount here, inside the dialog
-  const patch = (p: Partial<Draft>) => setDraft((d) => ({ ...d, ...p }));
 
+  function patch(p: Partial<Draft>) {
+    if (p.moves) setAutoMoves(false);
+    const refill =
+      autoMoves && p.level !== undefined
+        ? { moves: startingMoves(pokemonData, draft.name, p.level).moves }
+        : {};
+    setDraft((d) => ({ ...d, ...p, ...refill }));
+  }
+
+  const leftOut = autoMoves ? startingMoves(pokemonData, draft.name, draft.level).leftOut : [];
   const moveCount = draft.moves.filter(Boolean).length;
   const missing = [
     !draft.name && "a species",
@@ -672,7 +706,15 @@ export default function BoxEditor({
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto p-5">
-                {page === "info" && <InfoPage draft={draft} patch={patch} pokemonData={pokemonData} />}
+                {page === "info" && (
+                  <InfoPage
+                    draft={draft}
+                    patch={patch}
+                    pokemonData={pokemonData}
+                    catching={catching}
+                    speciesChoices={speciesChoices}
+                  />
+                )}
                 {page === "moves" && <MovesPage draft={draft} patch={patch} pokemonData={pokemonData} />}
                 {page === "stats" && <StatsPage draft={draft} patch={patch} pokemonData={pokemonData} />}
               </div>
@@ -680,6 +722,9 @@ export default function BoxEditor({
               <div className="flex items-center gap-3 border-t px-5 py-3">
                 <span className="text-xs text-subtle-foreground">
                   {canSave ? "Ready to store in the box." : `Still needs ${missing.join(", ")}.`}
+                  {leftOut.length > 0 && (
+                    <span className="block text-warn">Not in the engine yet, left out: {leftOut.join(", ")}.</span>
+                  )}
                 </span>
                 <div className="ml-auto flex gap-2">
                   <Button variant="outline" onClick={onCancel}>

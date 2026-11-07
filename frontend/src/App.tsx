@@ -13,7 +13,14 @@ import type {
   BoxEntry,
 } from "./types";
 import { WS_URL, API_URL, getJSON, postJSON } from "./lib/api";
-import { EMPTY_RUN, deathChanges, makeLineOf, setDeadInBox, setDeadInRun } from "./lib/nuzlocke";
+import {
+  EMPTY_RUN,
+  deathChanges,
+  makeLineOf,
+  partyAfterEdit,
+  setDeadInBox,
+  setDeadInRun,
+} from "./lib/nuzlocke";
 import { orderActions } from "./lib/tree";
 import { useBox } from "./lib/useBox";
 import TopBar, { type View } from "./components/TopBar";
@@ -114,6 +121,26 @@ export default function App() {
       if (nextRun !== run) saveRun(nextRun);
     }
     if (dead) setMyTeam(myTeam.filter((member) => lineOf(member.name) !== lineOf(entry.name)));
+  }
+
+  // A box Pokémon stored or edited from the Tracker, with the run change that goes with it. The Tracker
+  // has no Save button, so it saves right away. An edit reaches its copy in the party too.
+  function storeFromTracker(entry: BoxEntry, nextRun?: NuzlockeRun) {
+    const { box } = boxState;
+    if (!box) return;
+    const before = box.find((e) => e.id === entry.id);
+    boxState.commit(before ? box.map((e) => (e.id === entry.id ? entry : e)) : [...box, entry]);
+    if (before) setMyTeam(partyAfterEdit(myTeam, before.name, entry));
+    if (nextRun) saveRun(nextRun);
+  }
+
+  // Clearing a tracker row takes its Pokémon out of the box and the party too
+  function clearTrackerRow(nextRun: NuzlockeRun, entry?: BoxEntry) {
+    saveRun(nextRun);
+    if (entry && boxState.box) {
+      boxState.commit(boxState.box.filter((e) => e.id !== entry.id));
+      setMyTeam(myTeam.filter((member) => member.name !== entry.name));
+    }
   }
 
   // A new run is the tracker and the box: what's left in the box would block its lines
@@ -339,6 +366,7 @@ export default function App() {
         trainer_items: trainerItems.filter(Boolean),
         terrain,
       });
+      if (boxState.dirty) boxState.save(); // the party's edits are in the box, a search saves them
       setSessionActive(true);
       setTree(null);
       setPathIds([]);
@@ -413,6 +441,7 @@ export default function App() {
                 terrain={terrain}
                 setTerrain={setTerrain}
                 run={run}
+                onRunChange={saveRun}
                 boxState={boxState}
                 onSetDead={setBoxEntryDead}
               />
@@ -425,12 +454,17 @@ export default function App() {
                 pokemonData={pokemonData}
                 box={boxState.box}
                 lineOf={lineOf}
-                error={trackerError}
+                error={trackerError ?? boxState.error}
                 onRetry={() => {
-                  setTrackerError(null);
-                  loadTracker();
+                  if (trackerError) {
+                    setTrackerError(null);
+                    loadTracker();
+                  }
+                  if (boxState.error) boxState.retry();
                 }}
                 onChange={changeRun}
+                onStore={storeFromTracker}
+                onClearRow={clearTrackerRow}
                 onNewRun={startNewRun}
               />
             )}

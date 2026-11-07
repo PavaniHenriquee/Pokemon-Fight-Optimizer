@@ -226,6 +226,30 @@ def test_species_learnsets():
     assert not _failures(sorted(pkDB.items()), check)
 
 
+def test_genderless_species():
+    """[SD] pokedex gender "N" and [pp] GENDER_RATIO_NO_GENDER agree on every species, forms included"""
+    assert {name for name, entry in pkDB.items() if entry.get("genderless") is True} == {
+        "Magnemite", "Magneton", "Magnezone", "Voltorb", "Electrode", "Staryu", "Starmie", "Ditto",
+        "Porygon", "Porygon2", "Porygon_z", "Articuno", "Zapdos", "Moltres", "Mewtwo", "Mew", "Unown",
+        "Raikou", "Entei", "Suicune", "Lugia", "Ho_oh", "Celebi", "Shedinja", "Lunatone", "Solrock",
+        "Baltoy", "Claydol", "Beldum", "Metang", "Metagross", "Regirock", "Regice", "Registeel", "Kyogre",
+        "Groudon", "Rayquaza", "Jirachi", "Deoxys", "Deoxys_attack", "Deoxys_defense", "Deoxys_speed",
+        "Bronzor", "Bronzong", "Rotom", "Rotom_heat", "Rotom_wash", "Rotom_frost", "Rotom_fan", "Rotom_mow",
+        "Uxie", "Mesprit", "Azelf", "Dialga", "Palkia", "Regigigas", "Giratina", "Giratina_origin",
+        "Phione", "Manaphy", "Darkrai", "Shaymin", "Shaymin_sky", "Arceus",
+    }
+    assert not any("genderless" in entry and entry["genderless"] is not True for entry in pkDB.values())
+
+
+def test_trainer_genders_follow_the_species():
+    """A trainer's Pokemon has no gender only if its species has none"""
+    def check(entry):
+        assert (not entry.get("gender")) == bool(pkDB[entry["name"]].get("genderless")), entry["gender"]
+    trainers = _load_json("DataBase", "TrainerDB.json")
+    team = [(f"{name} {m['name']}", m) for name, trainer in trainers.items() for m in trainer["team"]]
+    assert not _failures(team, check)
+
+
 def _dex_row(name="", level="", move=""):
     """A row of the sheet's DEX tab, with only the columns the importer reads"""
     row = [""] * 15

@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import { MapPin, Plus, Users } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronLeft, ChevronRight, MapPin, Plus, Users } from "lucide-react";
 import BoxView from "./BoxView";
 import type { BoxEntry, NuzlockeRun, PokemonConfig, PokemonData, TrainerDB } from "../types";
 import { MyTeamSlot, NameSelect, OpponentSlot } from "./PokemonSlots";
-import { trainerVisible } from "@/lib/nuzlocke";
+import { boxAfterPartyEdit, partyAfterEdit, trainerVisible } from "@/lib/nuzlocke";
 import { trainerSprite } from "@/lib/sprites";
 import type { BoxState } from "@/lib/useBox";
 import { Sprite } from "./common/Sprite";
@@ -86,6 +86,7 @@ function OpponentPanel({
   onAddSlot: () => void;
 }) {
   const options = Object.keys(trainerDB).filter((t) => trainerVisible(trainerDB[t], run));
+  const position = options.indexOf(selectedTrainer); // -1 with none selected: › goes to the first
   const sprite = trainerDB[selectedTrainer]?.sprite;
   const items = trainerItems.filter(Boolean);
 
@@ -118,8 +119,30 @@ function OpponentPanel({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="mb-1 text-[11px] text-subtle-foreground">
+              <div className="mb-1 flex items-center justify-between text-[11px] text-subtle-foreground">
                 Trainer
+                <div className="flex gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => onSelectTrainer(options[position - 1])}
+                    disabled={position <= 0}
+                    title="Previous trainer"
+                    aria-label="Previous trainer"
+                  >
+                    <ChevronLeft />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => onSelectTrainer(options[position + 1])}
+                    disabled={position >= options.length - 1}
+                    title="Next trainer"
+                    aria-label="Next trainer"
+                  >
+                    <ChevronRight />
+                  </Button>
+                </div>
               </div>
               <NameSelect
                 value={selectedTrainer}
@@ -188,6 +211,7 @@ interface Props {
   terrain: string;
   setTerrain: (terrain: string) => void;
   run: NuzlockeRun | null;
+  onRunChange: (run: NuzlockeRun) => void;
   boxState: BoxState;
   onSetDead: (entry: BoxEntry, dead: boolean) => void;
 }
@@ -204,30 +228,28 @@ export default function ConfigureView({
   terrain,
   setTerrain,
   run,
+  onRunChange,
   boxState,
   onSetDead,
 }: Props) {
   const { box } = boxState;
   const [oppLocked, setOppLocked] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState("");
-  const trainerInitialized = useRef(false); // the first trainer is picked once, not after a clear
+  const savedTrainer = run?.last_trainer; // undefined until the run has loaded
 
   // Helper: pad a trainer_items array to always have exactly 4 slots
   function padItems(items: string[] = []): string[] {
     return [...items, "", "", "", ""].slice(0, 4);
   }
 
+  // The run's trainer once both have loaded, or the first one it can meet. A new run empties it, so this
+  // also goes back to the start. A pick made here is already selected when its save comes back.
   useEffect(() => {
-    const firstTrainer = Object.keys(trainerDB)[0];
-    if (firstTrainer && selectedTrainer === "" && !trainerInitialized.current) {
-      trainerInitialized.current = true;
-      setSelectedTrainer(firstTrainer);
-      setOppTeam(trainerDB[firstTrainer]?.team ?? []);
-      setTrainerItems(padItems(trainerDB[firstTrainer]?.trainer_items));
-      setTerrain(trainerDB[firstTrainer]?.terrain ?? "plain");
-      setOppLocked(true);
-    }
-  }, [trainerDB, selectedTrainer]);
+    if (savedTrainer === undefined || Object.keys(trainerDB).length === 0) return;
+    if (savedTrainer && savedTrainer === selectedTrainer) return;
+    const first = Object.keys(trainerDB).find((t) => trainerVisible(trainerDB[t], run));
+    loadTrainer(trainerDB[savedTrainer] ? savedTrainer : (first ?? null));
+  }, [trainerDB, savedTrainer]);
 
   // A starter or gender choice (or the run loading) hid the selected rival variant
   useEffect(() => {
@@ -243,7 +265,7 @@ export default function ConfigureView({
     boxState.commit([]);
   }
 
-  function handleSelectTrainer(trainer: string | null) {
+  function loadTrainer(trainer: string | null) {
     if (trainer === null) {
       setOppLocked(false);
       setSelectedTrainer("");
@@ -256,6 +278,12 @@ export default function ConfigureView({
     setTrainerItems(padItems(trainerDB[trainer]?.trainer_items));
     setTerrain(trainerDB[trainer]?.terrain ?? "plain");
     setOppLocked(true);
+  }
+
+  // Clearing isn't saved: the app reopens on the last real trainer
+  function handleSelectTrainer(trainer: string | null) {
+    loadTrainer(trainer);
+    if (trainer && run) onRunChange({ ...run, last_trainer: trainer });
   }
 
   if (!pokemonData) {
@@ -281,6 +309,9 @@ export default function ConfigureView({
     const next = [...myTeam];
     next[idx] = updated;
     setMyTeam(next);
+    // The box follows, unsaved until a search starts or its Save button
+    const nextBox = box && boxAfterPartyEdit(box, updated);
+    if (nextBox && nextBox !== box) boxState.edit(nextBox);
   }
 
   function addFromBox(entry: BoxEntry) {
@@ -295,6 +326,7 @@ export default function ConfigureView({
         nature: entry.nature,
         moves: [...entry.moves],
         ivs: { ...entry.ivs },
+        item: entry.item ?? undefined,
       },
     ]);
   }
@@ -323,6 +355,7 @@ export default function ConfigureView({
           box={box}
           pokemonData={pokemonData}
           onBoxChange={boxState.edit}
+          onEdited={(before, after) => setMyTeam(partyAfterEdit(myTeam, before.name, after))}
           onSave={() => boxState.save()}
           onClear={clearBox}
           onSetDead={onSetDead}

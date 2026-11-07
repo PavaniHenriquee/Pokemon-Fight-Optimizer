@@ -8,7 +8,8 @@ from backend import main
 from backend.serializer import serialize_node
 from SearchEngine.models import GameState, Node
 from SearchEngine.my_mcts import mcts_loop
-from Models.idx_const import Pok
+from Models.helper import Gender
+from Models.idx_const import Pok, POK_LEN
 from battle_driver import build_scenario
 
 TEAM_MEMBER = {
@@ -60,6 +61,11 @@ def test_pokemon_data(client):
     assert set(data["pokemonAbilities"]) == set(data["pokemon"])
     assert data["pokemonAbilities"]["Bulbasaur"] == ["Chlorophyll", "Overgrow"]
     assert set(a for abs_ in data["pokemonAbilities"].values() for a in abs_) <= set(data["abilities"])
+    assert data["pokemonAbilities"]["Zubat"] == ["Inner Focus"]  # PkDB lists it twice
+    assert all(len(set(abs_)) == len(abs_) for abs_ in data["pokemonAbilities"].values())
+    assert set(data["learnsets"]) == set(data["pokemon"])
+    assert data["learnsets"]["Bulbasaur"][:3] == [[1, "Tackle"], [1, "Growl"], [5, "Vine Whip"]]
+    assert "Magnemite" in data["genderless"] and "Bulbasaur" not in data["genderless"]
 
 
 def test_trainers(client):
@@ -78,6 +84,27 @@ def test_box_round_trip(client, tmp_path):
     got = client.get("/box").json()
     assert len(got) == 1 and got[0]["name"] == "Charmander" and got[0]["id"] == "abc"
     assert json.loads((tmp_path / "box.json").read_text(encoding="utf-8")) == got
+
+
+def test_box_keeps_the_held_item(client):
+    """A party's item edit reaches the box, an entry without one has none"""
+    entry = {**TEAM_MEMBER, "id": "a"}
+    plain = {**TEAM_MEMBER, "id": "b"}
+    plain.pop("item")
+    assert client.post("/box", json=[entry, plain]).json() == {"status": "saved"}
+    got = {e["id"]: e["item"] for e in client.get("/box").json()}
+    assert got == {"a": "Oran Berry", "b": None}
+
+
+def test_build_battle_ignores_a_gender_on_a_genderless_species():
+    """A box saved before PkDB knew it can still say Male: Rivalry and Attract must not see that"""
+    def config(name):
+        return main.PokemonConfig(name=name, gender="Male", ability="Sturdy", moves=["Tackle"])
+    battle = main._build_battle(main.BattleConfig(  # pylint: disable=protected-access
+        my_team=[config("Magnemite"), config("Geodude")], opp_team=[config("Geodude")],
+    ))
+    assert battle[Pok.GENDER] == Gender.GENDERLESS
+    assert battle[POK_LEN + Pok.GENDER] == Gender.MALE
 
 
 def test_box_keeps_the_death_box(client):
@@ -115,8 +142,9 @@ def test_nuzlocke_without_a_file_is_an_empty_run(client):
     """A new run: no starter, no gender, every location open"""
     assert client.get("/nuzlocke").json() == {
         "player": "",
-        "starter": {"species": "", "nickname": "", "status": "caught"},
+        "starter": {"species": "", "status": "caught"},
         "encounters": {},
+        "last_trainer": "",
     }
 
 
@@ -124,16 +152,31 @@ def test_nuzlocke_round_trip(client, tmp_path):
     """POST /nuzlocke then GET /nuzlocke returns the same run (temp file only)"""
     run = {
         "player": "Female",
-        "starter": {"species": "Piplup", "nickname": "Pip", "status": "caught"},
+        "starter": {"species": "Piplup", "status": "caught"},
         "encounters": {
-            "Route 201": {"species": "Starly", "nickname": "", "status": "dead"},
-            "Route 202": {"species": "", "nickname": "", "status": "missed"},
+            "Route 201": {"species": "Starly", "status": "dead"},
+            "Route 202": {"species": "", "status": "missed"},
         },
+        "last_trainer": "Lass Natalie 1",
     }
     assert client.post("/nuzlocke", json=run).json() == {"status": "saved"}
     assert client.get("/nuzlocke").json() == run
     assert json.loads((tmp_path / "nuzlocke.json").read_text(encoding="utf-8")) == run
     assert not (tmp_path / "nuzlocke.json.tmp").exists()
+
+
+def test_nuzlocke_loads_a_run_saved_with_nicknames(client, tmp_path):
+    """Runs saved before nicknames were removed still load, the nickname is just dropped"""
+    old = {"player": "", "starter": {"species": "Piplup", "nickname": "Pip", "status": "caught"}, "encounters": {}}
+    (tmp_path / "nuzlocke.json").write_text(json.dumps(old), encoding="utf-8")
+    assert client.get("/nuzlocke").json()["starter"] == {"species": "Piplup", "status": "caught"}
+
+
+def test_nuzlocke_loads_a_run_saved_before_last_trainer(client, tmp_path):
+    """Runs saved before the last trainer was kept still load, with none picked"""
+    old = {"player": "Male", "starter": {"species": "Piplup", "status": "caught"}, "encounters": {}}
+    (tmp_path / "nuzlocke.json").write_text(json.dumps(old), encoding="utf-8")
+    assert client.get("/nuzlocke").json() == {**old, "last_trainer": ""}
 
 
 @pytest.mark.parametrize("text", ["", "{ not json", '{"player": "Nobody"}'])

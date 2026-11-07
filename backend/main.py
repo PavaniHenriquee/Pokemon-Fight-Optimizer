@@ -151,13 +151,13 @@ class BoxEntry(BaseModel):
     level: int = 5
     moves: list[str] = Field(default_factory=list)
     ivs: dict = Field(default_factory=lambda: dict(_DEFAULT_IVS))
+    item: Optional[str] = None
     dead: bool = False  # in the death box: can't join the party, still counts for the species clause
 
 
 class NuzlockeEncounter(BaseModel):
     """What happened at one location of a run. The box matches it by evolution line."""
     species: str = ""
-    nickname: str = ""
     status: Literal["caught", "missed", "dead"] = "caught"
 
 
@@ -166,6 +166,7 @@ class NuzlockeRun(BaseModel):
     player: Literal["", "Male", "Female"] = ""
     starter: NuzlockeEncounter = Field(default_factory=NuzlockeEncounter)  # no species until chosen
     encounters: dict[str, NuzlockeEncounter] = Field(default_factory=dict)
+    last_trainer: str = ""  # the trainer picked last in Setup, empty until one is
 
 
 class PokemonConfig(BaseModel):
@@ -258,7 +259,10 @@ async def get_pokemon_data() -> dict:
             for name, m in moveDB.items()
         },
         "pokemonTypes": {name: list(pkDB[name].get("type", [])) for name in pkDB},
-        "pokemonAbilities": {name: list(pkDB[name].get("abilities", [])) for name in pkDB},
+        # PkDB lists a species with one ability twice
+        "pokemonAbilities": {name: list(dict.fromkeys(pkDB[name].get("abilities", []))) for name in pkDB},
+        "learnsets": {name: pkDB[name].get("learnset", []) for name in pkDB},
+        "genderless": [name for name in pkDB if pkDB[name].get("genderless")],
     }
 
 # ─── MCTS worker ─────────────────────────────────────────────────────────────
@@ -317,8 +321,10 @@ def _build_battle(config: BattleConfig) -> np.ndarray:
     """Battle array for a config: both parties, start of battle, trainer items, terrain"""
     def make_pokemon(p: PokemonConfig) -> Pokemon:
         moves = [m for m in p.moves if m]
+        # A box saved before PkDB knew it can still say Male
+        gender = None if pkDB[p.name].get("genderless") else p.gender
         return Pokemon(
-            p.name, p.gender, p.level, p.ability, p.nature, moves,
+            p.name, gender, p.level, p.ability, p.nature, moves,
             ivs=p.ivs,
             item=p.item if p.item else None,
         )

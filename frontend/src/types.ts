@@ -107,6 +107,7 @@ export interface BoxEntry {
   level: number;
   moves: string[];
   ivs: IVs;
+  item?: string | null; // set from the party, the box has no field for it
   dead?: boolean; // in the death box: can't join the party, still counts for the species clause
 }
 
@@ -142,6 +143,8 @@ export interface PokemonData {
   moveInfo?: Record<string, MoveInfo>;
   pokemonTypes?: Record<string, string[]>;
   pokemonAbilities?: Record<string, string[]>; // each species' possible abilities
+  learnsets?: Record<string, [number, string][]>; // level-up moves in game order, some not in MoveDB yet
+  genderless?: string[];
 }
 
 export interface MoveInfo {
@@ -194,7 +197,6 @@ export type EncounterStatus = "caught" | "missed" | "dead";
 
 export interface NuzlockeEncounter {
   species: string;
-  nickname: string;
   status: EncounterStatus;
 }
 
@@ -202,6 +204,7 @@ export interface NuzlockeRun {
   player: "" | "Male" | "Female";
   starter: NuzlockeEncounter; // species is empty until chosen
   encounters: Record<string, NuzlockeEncounter>; // by location, a missing one is still open
+  last_trainer: string; // the trainer picked last in Setup, empty until one is
 }
 
 export interface BenchEntry {

@@ -2,14 +2,16 @@ import type {
   BoxEntry,
   EncounterDB,
   EncounterTable,
+  IVs,
   NuzlockeEncounter,
   NuzlockeRun,
+  PokemonConfig,
+  PokemonData,
   TrainerEntry,
 } from "../types";
 
 export const NO_ENCOUNTER: NuzlockeEncounter = {
   species: "",
-  nickname: "",
   status: "caught",
 };
 
@@ -17,6 +19,7 @@ export const EMPTY_RUN: NuzlockeRun = {
   player: "",
   starter: NO_ENCOUNTER,
   encounters: {},
+  last_trainer: "",
 };
 
 // Rival variants the run can't meet are hidden. A choice not made yet hides nothing.
@@ -83,14 +86,177 @@ export function catchState(
   return holder.boxOnly ? "boxed" : "blocked";
 }
 
+// The location's Pokémon that can still be caught, each once
+export function newSpecies(
+  tables: EncounterTable[],
+  holders: Map<string, LineHolder>,
+  lineOf: LineOf,
+): string[] {
+  const names = new Set(tables.flatMap((table) => table.mons.map((mon) => mon.name)));
+  return [...names].filter((name) => !holders.has(lineOf(name)));
+}
+
 // How many of a location's Pokémon can still be caught
 export function countNew(
   tables: EncounterTable[],
   holders: Map<string, LineHolder>,
   lineOf: LineOf,
 ): number {
-  const names = new Set(tables.flatMap((table) => table.mons.map((mon) => mon.name)));
-  return [...names].filter((name) => !holders.has(lineOf(name))).length;
+  return newSpecies(tables, holders, lineOf).length;
+}
+
+// ─── Catching: what a new box Pokémon starts with ─────────────────────────────
+
+const DEFAULT_IVS: IVs = {
+  HP: 31,
+  Attack: 31,
+  Defense: 31,
+  "Special Attack": 31,
+  "Special Defense": 31,
+  Speed: 31,
+};
+
+export function makeBlank(): Omit<BoxEntry, "id"> {
+  return {
+    name: "",
+    gender: "Male",
+    nature: "Hardy",
+    ability: "",
+    level: 5,
+    moves: ["", "", "", ""],
+    ivs: { ...DEFAULT_IVS },
+  };
+}
+
+// The moves a Pokémon is created with ([pp] BoxPokemon_SetDefaultMoves): it learns its level-up moves
+// in order, a move it knows is skipped, and with four known the oldest makes room.
+export function defaultMoves(learnset: [number, string][], level: number): string[] {
+  const moves: string[] = [];
+  for (const [learnedAt, move] of learnset) {
+    if (learnedAt > level) break;
+    if (moves.includes(move)) continue;
+    if (moves.length === 4) moves.shift();
+    moves.push(move);
+  }
+  return moves;
+}
+
+// Those moves as the popup's four slots. A move that isn't in MoveDB stops a search from starting, so
+// it leaves its slot empty and comes back in leftOut.
+export function startingMoves(
+  data: PokemonData,
+  species: string,
+  level: number,
+): { moves: string[]; leftOut: string[] } {
+  const known = defaultMoves(data.learnsets?.[species] ?? [], level);
+  const usable = known.filter((move) => data.moves.includes(move));
+  return {
+    moves: [...usable, "", "", "", ""].slice(0, 4),
+    leftOut: known.filter((move) => !usable.includes(move)),
+  };
+}
+
+// The level the popup starts at: the low end of the table's range. The sheet leaves some of them empty
+// with the level in the method ("Honey Tree (39)", the Old Rod's in "Rods (O-10, G-25, S-50)"). Trades
+// and the Great Marsh have none, so they start at the blank entry's level.
+export function encounterLevel(level: string, method: string): number {
+  const found = /\d+/.exec(level || method);
+  return found ? Number(found[0]) : makeBlank().level;
+}
+
+// A genderless species has no gender, and any other species always has one
+export function genderFor(data: PokemonData, species: string, gender: string | null): string | null {
+  return data.genderless?.includes(species) ? null : (gender ?? "Male");
+}
+
+export function catchDraft(data: PokemonData, species: string, level: number): Omit<BoxEntry, "id"> {
+  const abilities = data.pokemonAbilities?.[species] ?? [];
+  const blank = makeBlank();
+  return {
+    ...blank,
+    name: species,
+    gender: genderFor(data, species, blank.gender),
+    level,
+    // With two to choose from it stays empty until you say which: the search depends on it
+    ability: abilities.length === 1 ? abilities[0] : "",
+    moves: startingMoves(data, species, level).moves,
+  };
+}
+
+// ─── The tracker and the box: they match by evolution line ────────────────────
+
+// The box Pokémon behind a tracker row, in the PC box or the death box
+export function boxEntryOf(
+  box: BoxEntry[],
+  lineOf: LineOf,
+  species: string,
+): BoxEntry | undefined {
+  const line = lineOf(species);
+  return box.find((entry) => lineOf(entry.name) === line);
+}
+
+// The starter and the player's gender (they decide the rival) can't change once the box holds a Pokémon
+// of another line, dead or alive. Clearing that catch frees them again.
+export function starterLocked(run: NuzlockeRun, box: BoxEntry[], lineOf: LineOf): boolean {
+  const { species } = run.starter;
+  return !!species && box.some((entry) => lineOf(entry.name) !== lineOf(species));
+}
+
+// The run with a row changed. where: a location, null for the starter. No encounter clears it.
+export function withRow(
+  run: NuzlockeRun,
+  where: string | null,
+  encounter: NuzlockeEncounter | null,
+): NuzlockeRun {
+  if (where === null) return { ...run, starter: encounter ?? NO_ENCOUNTER };
+  const encounters = { ...run.encounters };
+  if (encounter) encounters[where] = encounter;
+  else delete encounters[where];
+  return { ...run, encounters };
+}
+
+// The party with an edited box Pokémon's copy updated
+export function partyAfterEdit(
+  team: PokemonConfig[],
+  oldName: string,
+  entry: BoxEntry,
+): PokemonConfig[] {
+  return team.map((member) =>
+    member.name === oldName
+      ? {
+          ...member,
+          name: entry.name,
+          gender: entry.gender,
+          level: entry.level,
+          ability: entry.ability,
+          nature: entry.nature,
+          moves: [...entry.moves],
+          ivs: { ...entry.ivs },
+          item: entry.item ?? undefined,
+        }
+      : member,
+  );
+}
+
+// The box with a party member's edits. They match by name, the same way "in the party" does. The same
+// array if it isn't in the box.
+export function boxAfterPartyEdit(box: BoxEntry[], member: PokemonConfig): BoxEntry[] {
+  const target = box.find((entry) => !entry.dead && entry.name === member.name);
+  if (!target) return box;
+  return box.map((entry) =>
+    entry === target
+      ? {
+          ...entry,
+          gender: member.gender,
+          level: member.level,
+          ability: member.ability,
+          nature: member.nature,
+          moves: [...member.moves],
+          ivs: member.ivs ? { ...member.ivs } : entry.ivs,
+          item: member.item ?? null,
+        }
+      : entry,
+  );
 }
 
 // ─── Deaths: the tracker and the box agree, by evolution line ─────────────────

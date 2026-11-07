@@ -2505,6 +2505,7 @@
       "Speed": 45
     },
     "abilities": ["Magnet Pull", "Sturdy"],
+    "genderless": true,
     "learnset": [
       [1, "Tackle"],
       [1, "Supersonic"],
@@ -2539,6 +2540,7 @@
       "Speed": 70
     },
     "abilities": ["Magnet Pull", "Sturdy"],
+    "genderless": true,
     "learnset": [
       [1, "Tackle"],
       [1, "Supersonic"],
@@ -3148,6 +3150,7 @@
       "Speed": 100
     },
     "abilities": ["Soundproof", "Static"],
+    "genderless": true,
     "learnset": [
       [1, "Charge"],
       [1, "Tackle"],
@@ -3181,6 +3184,7 @@
       "Speed": 150
     },
     "abilities": ["Soundproof", "Static"],
+    "genderless": true,
     "learnset": [
       [1, "Charge"],
       [1, "Tackle"],
@@ -3811,6 +3815,7 @@
       "Speed": 85
     },
     "abilities": ["Illuminate", "Natural Cure"],
+    "genderless": true,
     "learnset": [
       [1, "Tackle"],
       [1, "Harden"],
@@ -3844,6 +3849,7 @@
       "Speed": 115
     },
     "abilities": ["Illuminate", "Natural Cure"],
+    "genderless": true,
     "learnset": [
       [1, "Hydro Pump"],
       [1, "Water Gun"],
@@ -4193,6 +4199,7 @@
       "Speed": 48
     },
     "abilities": ["Limber", "Limber"],
+    "genderless": true,
     "learnset": [[1, "Transform"]],
     "weight": 4.0
   },
@@ -4343,6 +4350,7 @@
       "Speed": 40
     },
     "abilities": ["Trace", "Download"],
+    "genderless": true,
     "learnset": [
       [1, "Conversion 2"],
       [1, "Conversion"],
@@ -4584,6 +4592,7 @@
       "Speed": 85
     },
     "abilities": ["Pressure", "Snow Cloak"],
+    "genderless": true,
     "learnset": [
       [1, "Gust"],
       [1, "Powder Snow"],
@@ -4615,6 +4624,7 @@
       "Speed": 100
     },
     "abilities": ["Pressure", "Static"],
+    "genderless": true,
     "learnset": [
       [1, "Peck"],
       [1, "Thunder Shock"],
@@ -4646,6 +4656,7 @@
       "Speed": 90
     },
     "abilities": ["Pressure", "Flame Body"],
+    "genderless": true,
     "learnset": [
       [1, "Wing Attack"],
       [1, "Ember"],
@@ -4775,6 +4786,7 @@
       "Speed": 130
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Teleport"],
       [1, "Psywave"],
@@ -4809,6 +4821,7 @@
       "Speed": 100
     },
     "abilities": ["Synchronize", "Synchronize"],
+    "genderless": true,
     "learnset": [
       [1, "Pound"],
       [1, "Transform"],
@@ -6461,6 +6474,7 @@
       "Speed": 54
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Secret Power"],
       [1, "Nature Power"],
@@ -7538,6 +7552,7 @@
       "Speed": 60
     },
     "abilities": ["Trace", "Download"],
+    "genderless": true,
     "learnset": [
       [1, "Conversion 2"],
       [1, "Conversion"],
@@ -7861,6 +7876,7 @@
       "Speed": 115
     },
     "abilities": ["Pressure", "Inner Focus"],
+    "genderless": true,
     "learnset": [
       [1, "Zap Cannon"],
       [1, "Extreme Speed"],
@@ -7893,6 +7909,7 @@
       "Speed": 100
     },
     "abilities": ["Pressure", "Inner Focus"],
+    "genderless": true,
     "learnset": [
       [1, "Sacred Fire"],
       [1, "Extreme Speed"],
@@ -7925,6 +7942,7 @@
       "Speed": 85
     },
     "abilities": ["Pressure", "Inner Focus"],
+    "genderless": true,
     "learnset": [
       [1, "Sheer Cold"],
       [1, "Extreme Speed"],
@@ -8057,6 +8075,7 @@
       "Speed": 110
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Whirlwind"],
       [1, "Weather Ball"],
@@ -8088,6 +8107,7 @@
       "Speed": 90
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Whirlwind"],
       [1, "Weather Ball"],
@@ -8119,6 +8139,7 @@
       "Speed": 100
     },
     "abilities": ["Natural Cure", "Natural Cure"],
+    "genderless": true,
     "learnset": [
       [1, "Leech Seed"],
       [1, "Confusion"],
@@ -9363,6 +9384,7 @@
       "Speed": 40
     },
     "abilities": ["Wonder Guard", "Wonder Guard"],
+    "genderless": true,
     "learnset": [
       [1, "Scratch"],
       [1, "Harden"],
@@ -10876,6 +10898,7 @@
       "Speed": 70
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Moonblast"],
       [1, "Tackle"],
@@ -10909,6 +10932,7 @@
       "Speed": 70
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Tackle"],
       [1, "Harden"],
@@ -11079,6 +11103,7 @@
       "Speed": 55
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Harden"],
       [1, "Confusion"],
@@ -11112,6 +11137,7 @@
       "Speed": 75
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Teleport"],
       [1, "Gravity"],
@@ -12085,6 +12111,7 @@
       "Speed": 30
     },
     "abilities": ["Rock Head", "Clear Body"],
+    "genderless": true,
     "learnset": [
       [1, "Take Down"],
       [1, "Zen Headbutt"],
@@ -12104,6 +12131,7 @@
       "Speed": 50
     },
     "abilities": ["Iron Fist", "Clear Body"],
+    "genderless": true,
     "learnset": [
       [1, "Magnet Rise"],
       [1, "Take Down"],
@@ -12136,6 +12164,7 @@
       "Speed": 70
     },
     "abilities": ["Iron Fist", "Clear Body"],
+    "genderless": true,
     "learnset": [
       [1, "Magnet Rise"],
       [1, "Ice Punch"],
@@ -12171,6 +12200,7 @@
       "Speed": 50
     },
     "abilities": ["Clear Body", "Clear Body"],
+    "genderless": true,
     "learnset": [
       [1, "Explosion"],
       [1, "Stomp"],
@@ -12202,6 +12232,7 @@
       "Speed": 50
     },
     "abilities": ["Clear Body", "Clear Body"],
+    "genderless": true,
     "learnset": [
       [1, "Explosion"],
       [1, "Stomp"],
@@ -12233,6 +12264,7 @@
       "Speed": 50
     },
     "abilities": ["Clear Body", "Clear Body"],
+    "genderless": true,
     "learnset": [
       [1, "Explosion"],
       [1, "Stomp"],
@@ -12328,6 +12360,7 @@
       "Speed": 90
     },
     "abilities": ["Drizzle", "Drizzle"],
+    "genderless": true,
     "learnset": [
       [1, "Ancient Power"],
       [1, "Water Pulse"],
@@ -12357,6 +12390,7 @@
       "Speed": 90
     },
     "abilities": ["Drought", "Drought"],
+    "genderless": true,
     "learnset": [
       [1, "Ancient Power"],
       [1, "Mud Shot"],
@@ -12386,6 +12420,7 @@
       "Speed": 95
     },
     "abilities": ["Air Lock", "Air Lock"],
+    "genderless": true,
     "learnset": [
       [1, "Dragon Breath"],
       [6, "Scary Face"],
@@ -12414,6 +12449,7 @@
       "Speed": 100
     },
     "abilities": ["Serene Grace", "Serene Grace"],
+    "genderless": true,
     "learnset": [
       [1, "Draco Meteor"],
       [1, "Healing Wish"],
@@ -12447,6 +12483,7 @@
       "Speed": 150
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Leer"],
       [1, "Wrap"],
@@ -12476,6 +12513,7 @@
       "Speed": 150
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Leer"],
       [1, "Wrap"],
@@ -12505,6 +12543,7 @@
       "Speed": 90
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Leer"],
       [1, "Wrap"],
@@ -12536,6 +12575,7 @@
       "Speed": 180
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Leer"],
       [1, "Wrap"],
@@ -14146,6 +14186,7 @@
       "Speed": 23
     },
     "abilities": ["Levitate", "Heatproof"],
+    "genderless": true,
     "learnset": [
       [1, "Tackle"],
       [1, "Confusion"],
@@ -14178,6 +14219,7 @@
       "Speed": 33
     },
     "abilities": ["Levitate", "Heatproof"],
+    "genderless": true,
     "learnset": [
       [1, "Sunny Day"],
       [1, "Rain Dance"],
@@ -15002,6 +15044,7 @@
       "Speed": 60
     },
     "abilities": ["Magnet Pull", "Sturdy"],
+    "genderless": true,
     "learnset": [
       [1, "Mirror Coat"],
       [1, "Barrier"],
@@ -15415,6 +15458,7 @@
       "Speed": 90
     },
     "abilities": ["Adaptability", "Download"],
+    "genderless": true,
     "learnset": [
       [1, "Conversion 2"],
       [1, "Conversion"],
@@ -15591,6 +15635,7 @@
       "Speed": 101
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Trick"],
       [1, "Snatch"],
@@ -15626,6 +15671,7 @@
       "Speed": 86
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Trick"],
       [1, "Snatch"],
@@ -15661,6 +15707,7 @@
       "Speed": 86
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Trick"],
       [1, "Snatch"],
@@ -15696,6 +15743,7 @@
       "Speed": 86
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Trick"],
       [1, "Snatch"],
@@ -15731,6 +15779,7 @@
       "Speed": 86
     },
     "abilities": ["Motor Drive", "Motor Drive"],
+    "genderless": true,
     "learnset": [
       [1, "Trick"],
       [1, "Snatch"],
@@ -15766,6 +15815,7 @@
       "Speed": 86
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Trick"],
       [1, "Snatch"],
@@ -15801,6 +15851,7 @@
       "Speed": 95
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Moonblast"],
       [1, "Memento"],
@@ -15831,6 +15882,7 @@
       "Speed": 80
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Moonblast"],
       [1, "Healing Wish"],
@@ -15861,6 +15913,7 @@
       "Speed": 115
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Moonblast"],
       [1, "Explosion"],
@@ -15891,6 +15944,7 @@
       "Speed": 90
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Dragon Breath"],
       [1, "Scary Face"],
@@ -15920,6 +15974,7 @@
       "Speed": 100
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Dragon Breath"],
       [1, "Scary Face"],
@@ -15978,6 +16033,7 @@
       "Speed": 100
     },
     "abilities": ["Slow Start", "Slow Start"],
+    "genderless": true,
     "learnset": [
       [1, "Fire Punch"],
       [1, "Ice Punch"],
@@ -16009,6 +16065,7 @@
       "Speed": 90
     },
     "abilities": ["Pressure", "Pressure"],
+    "genderless": true,
     "learnset": [
       [1, "Dragon Breath"],
       [1, "Scary Face"],
@@ -16038,6 +16095,7 @@
       "Speed": 90
     },
     "abilities": ["Levitate", "Levitate"],
+    "genderless": true,
     "learnset": [
       [1, "Dragon Breath"],
       [1, "Scary Face"],
@@ -16097,6 +16155,7 @@
       "Speed": 80
     },
     "abilities": ["Hydration", "Hydration"],
+    "genderless": true,
     "learnset": [
       [1, "Bubble"],
       [1, "Water Sport"],
@@ -16126,6 +16185,7 @@
       "Speed": 100
     },
     "abilities": ["Hydration", "Hydration"],
+    "genderless": true,
     "learnset": [
       [1, "Heart Swap"],
       [1, "Tail Glow"],
@@ -16157,6 +16217,7 @@
       "Speed": 125
     },
     "abilities": ["Bad Dreams", "Bad Dreams"],
+    "genderless": true,
     "learnset": [
       [1, "Roar of Time"],
       [1, "Spacial Rend"],
@@ -16189,6 +16250,7 @@
       "Speed": 100
     },
     "abilities": ["Natural Cure", "Natural Cure"],
+    "genderless": true,
     "learnset": [
       [1, "Healing Wish"],
       [1, "Growth"],
@@ -16218,6 +16280,7 @@
       "Speed": 127
     },
     "abilities": ["Serene Grace", "Serene Grace"],
+    "genderless": true,
     "learnset": [
       [1, "Healing Wish"],
       [1, "Growth"],
@@ -16247,6 +16310,7 @@
       "Speed": 120
     },
     "abilities": ["Multitype", "Multitype"],
+    "genderless": true,
     "learnset": [
       [1, "Roar of Time"],
       [1, "Spacial Rend"],

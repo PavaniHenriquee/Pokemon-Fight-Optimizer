@@ -44,7 +44,7 @@ export function useBox(enabled: boolean) {
       setError(null);
       setLoads((n) => n + 1);
     },
-    // An edit waits for the Save button
+    // An edit waits for the Save button, or for a search to start
     edit(entries: BoxEntry[]) {
       setBox(entries);
       setDirty(true);
