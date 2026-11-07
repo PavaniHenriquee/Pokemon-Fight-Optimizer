@@ -135,7 +135,10 @@ function createWindow(apiUrl) {
       nodeIntegration: false,
     },
   });
-  win.once("ready-to-show", () => win.show());
+  win.once("ready-to-show", () => {
+    win.maximize(); // the size above is what it goes back to when un-maximized
+    win.show();
+  });
 
   // Links open in the normal browser, never inside the app
   win.webContents.setWindowOpenHandler(({ url }) => {

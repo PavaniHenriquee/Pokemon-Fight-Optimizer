@@ -79,7 +79,7 @@ from Models.constants import (
     _MOVE_OH_KO, _ABILITYNAMES_ANGER_POINT, _ABILITYNAMES_SKILL_LINK, _ABILITYNAMES_HYDRATION,
     _HOLDEFFECT_HP_RESTORE_GRADUAL, _HOLDEFFECT_HP_RESTORE_PSN_TYPE, _TYPES_POISON,
     _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_HEATPROOF, _ABILITYNAMES_BAD_DREAMS,
-    _ABILITYNAMES_LIQUID_OOZE,
+    _ABILITYNAMES_LIQUID_OOZE, _FIELD_OPP_MOVE_RAN,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 
@@ -138,6 +138,8 @@ BATON_PASS_VOLS = (
 )
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
+# Field.OPP_MOVE_RAN: the foe's move slot + 1, plus this for every PP the move paid
+OPP_RAN_PP_STEP = 16
 HEAL_MOVES = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
 RECOIL_IMMUNE_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 
@@ -312,6 +314,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
     mv = atk[OFFSET_MOVE + slot * MOVE_STRIDE : OFFSET_MOVE + (slot + 1) * MOVE_STRIDE]
     if mv[_MOVE_ID] != _MOVENAME_PURSUIT or mv[_MOVE_PP] <= 0:
         return False
+    pp_before = mv[_MOVE_PP]
     mv[_MOVE_PP] -= 1
     # The switching Pressure holder costs one more (pokeplatinum, Pursuit before a switch)
     pressure_pp(mv, defn)
@@ -320,6 +323,8 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
     if is_mine:
         battle_array[_FIELD_MY_LAST_MOVE] = mv[_MOVE_ID]
         battle_array[_FIELD_AI_KNOWS] |= AI_KNOWS_MOVES[slot]
+    else:
+        battle_array[_FIELD_OPP_MOVE_RAN] = slot + 1 + OPP_RAN_PP_STEP * (pp_before - mv[_MOVE_PP])
     doubled = mv.copy()
     doubled[_MOVE_POWER] *= 2
     weather = effective_weather(battle_array)
@@ -692,6 +697,7 @@ def _execute_move_slot(
     if counted:
         metronome_count(atk, outer_id)
 
+    pp_before = mv[_MOVE_PP]
     if mv[_MOVE_ID] != _MOVENAME_STRUGGLE:
         if atk[_POK_LOCKED_MOVE] == -1:
             mv[_MOVE_PP] -= 1
@@ -701,6 +707,8 @@ def _execute_move_slot(
             battle_array[_FIELD_AI_KNOWS] |= AI_KNOWS_MOVES[current_move]
     elif is_mine:
         battle_array[_FIELD_MY_LAST_MOVE] = -1  #-1 Means Struggle
+    if not is_mine:
+        battle_array[_FIELD_OPP_MOVE_RAN] = opp_move + 1 + OPP_RAN_PP_STEP * (pp_before - mv[_MOVE_PP])
 
     # The called move runs in the caller's turn, the caller is the last move for everything else
     if is_caller and atk[_POK_CALLED_MOVE] == 0:
@@ -1430,6 +1438,7 @@ def _rage_glitch(pok, move_id):
 @njit
 def turn_sim(opp_move, current_action, battle_array):
     """One turn"""
+    battle_array[_FIELD_OPP_MOVE_RAN] = 0
     if current_action[0] == _ACTIONTYPE_MOVE:
         switch_idx = -1
         current_move = current_action[1]
@@ -1596,6 +1605,7 @@ def baton_pass_action(battle_array, switch_idx: int):
     My pick for Baton Pass: switch with the stages and volatiles, run the opponent's move if it
     was slower, then the rest of the turn. Returns the phase, also stored in Field.PHASE
     """
+    battle_array[_FIELD_OPP_MOVE_RAN] = 0
     current_pokemon = battle_array[
         (battle_array[_FIELD_MY_POK] * POK_LEN):((battle_array[_FIELD_MY_POK]+1) * POK_LEN)
     ]

@@ -28,7 +28,6 @@ export interface SnapshotData {
   phase: "TURN_START" | "DEATH" | "BATON_PASS";
   opp_active: number;
   terminal: boolean;
-  opp_move: string | null;
   my: PokemonState | null; // null when phase === "DEATH"
   opp: PokemonState | null;
   my_bench: BenchEntry[];
@@ -53,6 +52,13 @@ export interface FieldState {
   opp_side: SideEffect[];
 }
 
+// One thing the foe did after an action, a dropdown in the outcome pane
+export interface OppMoveRow {
+  label: string; // "Pound", "Didn't move", "Pound, then Leer" over forced turns
+  visits: number;
+  win_chance: number; // 0–1
+}
+
 export interface ActionData {
   action_type: number; // 1 = MOVE, 2 = SWITCH
   action_idx: number;
@@ -66,6 +72,7 @@ export interface ActionData {
   move_type?: string | null; // null for switches and Struggle
   category?: string | null;
   power?: number | null;
+  opp_moves: OppMoveRow[]; // most often first, empty when the foe had no turn (I picked a replacement)
   nodes: TreeNode[]; // the multiple possible outcomes after this action
 }
 
@@ -76,6 +83,7 @@ export interface TreeNode {
   win_chance: number;
   dead_avg: number;
   snapshot: SnapshotData;
+  opp_moves: Record<string, number>; // visits that got here per OppMoveRow label
   actions: Record<string, ActionData>; // key = "1_0", "2_3", etc.
 }
 
@@ -167,6 +175,12 @@ export interface NodeInfoData {
   my_active: PokemonEntry | null; // null in DEATH phase
   opp_active: PokemonEntry;
   my_bench: PokemonEntry[]; // alive bench only
+}
+
+// One click on the way to a node, what ContinueConfig.path takes
+export interface PathClick {
+  node_id: string;
+  opp_move: string | null; // the OppMoveRow label it was picked under
 }
 
 export interface TrainerEntry {

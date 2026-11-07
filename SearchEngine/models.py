@@ -1,6 +1,7 @@
 """Models for GameState and Nodes, and such, for MCTS to use"""
 import math
 import random
+import time
 from dataclasses import dataclass
 from typing import List, Tuple
 import numpy as np
@@ -14,11 +15,11 @@ from Models.constants import (
     _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _FIELD_WEATHER, _FIELD_MY_SIDE_COND,
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
     _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID, _POK_AB_ID,
-    _POK_METRONOME_COUNT, _POK_BASE_AB_ID
+    _POK_METRONOME_COUNT, _POK_BASE_AB_ID, _FIELD_OPP_MOVE_RAN, _FIELD_PENDING_OPP_MOVE
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
-from Engine.battle import turn_sim, switch_in_action, baton_pass_action
+from Engine.battle import turn_sim, switch_in_action, baton_pass_action, OPP_RAN_PP_STEP
 from Engine.engine_helper import move_blocked, truant_loafs, is_trapped
 from Engine.speed import slow_start_active
 from Utils.jit import njit
@@ -49,6 +50,43 @@ STATS_COLS = 2
 ROOT_C = 1.2
 _SLOT_TYPE = tuple(a[0] for a in ACTION_ORDER)
 _SLOT_IDX = tuple(a[1] for a in ACTION_ORDER)
+
+
+# step_arr's answer: what the foe did in each turn of a step, OPP_TURN_BITS a turn and the oldest highest.
+# 0 is a step with no foe turn (I only picked who comes in). opp_turns unpacks it. What it did is one of
+# these, or a move slot + 1
+OPP_DIDNT_MOVE = 0
+OPP_STRUGGLED = 5
+OPP_SWITCHED = 6
+OPP_USED_ITEM = 7
+OPP_TURN_BITS = 8
+# 7 turns stay below the sign bit, no forced chain is that long (Uproar is the longest with 6)
+OPP_TURNS_KEPT = (1 << 7 * OPP_TURN_BITS) - 1
+
+
+@njit
+def _foe_turn(battle_array, foe, pick):
+    """What foe (its party slot) did in the turn that just ran, one packed turn of step_arr's answer"""
+    if pick < 0:  # A switch or an item always happens, at the start of the turn
+        what = OPP_SWITCHED if pick >= -6 else OPP_USED_ITEM
+        paid = 0
+    else:
+        ran = battle_array[_FIELD_OPP_MOVE_RAN]
+        slot_plus_one = ran % OPP_RAN_PP_STEP
+        what = OPP_STRUGGLED if slot_plus_one > 4 else slot_plus_one
+        paid = ran // OPP_RAN_PP_STEP
+    return (np.int64(foe) << 5 | what << 2 | paid) + 1
+
+
+def opp_turns(did: int) -> list[tuple[int, int, int]]:
+    """step_arr's answer as (foe's party slot, what it did, PP it paid) per turn, oldest first"""
+    turns = []
+    while did:
+        value = (did & (1 << OPP_TURN_BITS) - 1) - 1
+        turns.append((value >> 5, value >> 2 & 7, value & 3))
+        did >>= OPP_TURN_BITS
+    turns.reverse()
+    return turns
 
 
 @njit
@@ -88,6 +126,26 @@ def valid_action_mask(battle_array):
 
 
 @njit
+def random_untried_slot(untried):
+    """
+    Uniform pick among a valid_action_mask's set bits. On Numba's RNG, thread-local: Python's global
+    one is also drawn from by the websocket's keepalive pings (websockets ping()), so with the app
+    connected they'd shift the search
+    """
+    n = 0
+    for s in range(N_SLOTS):
+        if untried >> s & 1:
+            n += 1
+    pick = random.randrange(n)
+    for s in range(N_SLOTS):
+        if untried >> s & 1:
+            if pick == 0:
+                return s
+            pick -= 1
+    return -1
+
+
+@njit
 def valid_actions_array(battle_array):
     """Valid actions as an (n, 2) int16 array of (action_type, idx), the format rollout_pref takes"""
     mask = valid_action_mask(battle_array)
@@ -121,21 +179,28 @@ def step_arr(battle_array, action_type, action_idx, opp_move):
     turns forced by locked/charging moves. opp_move is the trainer AI move already chosen
     (unused in the death and Baton Pass phases, where only my replacement is picked, the Baton
     Pass one finishing the paused turn).
-    Returns the last opponent move used.
+    Returns what the foe did, see OPP_TURN_BITS.
     """
     if battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN:
         switch_in_action(battle_array, action_idx)
-        return opp_move
+        return 0
     if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
+        pending = battle_array[_FIELD_PENDING_OPP_MOVE]
+        foe = battle_array[_FIELD_OPP_POK]
         baton_pass_action(battle_array, action_idx)
-        return opp_move
+        return _foe_turn(battle_array, foe, 0) if pending else 0
 
     a_type = action_type
     a_idx = action_idx
+    did = np.int64(0)
     # Bounded on purpose, an infinite loop inside njit can't be interrupted
     for _ in range(16):
+        foe = battle_array[_FIELD_OPP_POK]
         phase, _opp_idx = turn_sim(opp_move, (a_type, a_idx), battle_array)
         battle_array[_FIELD_PHASE] = phase
+        # My Baton Pass paused the turn, a slower foe's move comes with my pick
+        if phase != _BATTLEPHASE_BATON_PASS or not battle_array[_FIELD_PENDING_OPP_MOVE]:
+            did = (did << OPP_TURN_BITS & OPP_TURNS_KEPT) | _foe_turn(battle_array, foe, opp_move)
         if phase != _BATTLEPHASE_TURN_START or is_terminal_arr(battle_array):
             break
         my_idx = battle_array[_FIELD_MY_POK]
@@ -145,7 +210,7 @@ def step_arr(battle_array, action_type, action_idx, opp_move):
         a_type = _ACTIONTYPE_MOVE
         a_idx = int(active[_POK_LOCKED_MOVE])
         opp_move = return_idx(battle_array)
-    return opp_move
+    return did
 
 
 @njit
@@ -321,12 +386,12 @@ class GameState():
     def step(self, my_move_idx):
         """Simulate the entire turn"""
         if self.phase != BattlePhase.TURN_START:
-            step_arr(self.battle_array, my_move_idx[0], my_move_idx[1], -50)
-            self.opp_move_last = None
+            # Only a Baton Pass pick has a foe turn in it, the foe's slower move
+            self.opp_move_last = int(step_arr(self.battle_array, my_move_idx[0], my_move_idx[1], -50)) or None
         else:
             self.opp_move_last = int(step_arr(
                 self.battle_array, my_move_idx[0], my_move_idx[1], int(self.opp_move)
-            ))
+            )) or None
         self.opp_move_cache = None  # Needs to clear the cache so it picks a new one next time
         battle = self.battle_array
         self.phase = int(battle[Field.PHASE])
@@ -446,6 +511,90 @@ def reconstruct_battle_array(snap: NodeSnapshot, initial: np.ndarray) -> np.ndar
     return out
 
 
+def foe_pp_along_path(out: np.ndarray, initial: np.ndarray, moves: list[int | None]) -> None:
+    """
+    The foe's PP after a path: the root's minus what each move it really used paid. A node's own PP
+    comes from the visit that created it, which may have gone through other moves. moves is
+    step_arr's answer for each step of the path, None for a step with no foe turn
+    """
+    for i in range(6):
+        base = (i + 6) * POK_LEN
+        for idx in _MOVE_PP_IDXS:
+            out[base + idx] = initial[base + idx]
+    for did in moves:
+        for foe, what, paid in opp_turns(did or 0):
+            if 1 <= what <= 4:
+                idx = (foe + 6) * POK_LEN + _MOVE_PP_IDXS[what - 1]
+                out[idx] = max(0, out[idx] - paid)
+
+
+# node_key's k1 bits with both HP brackets
+KEY_HP_BITS = (7 << 7) | (7 << 29)
+# Re-running a path's last step gives up after this long, in seconds. The snapshot is the answer then
+LAST_STEP_BUDGET = 0.1
+_HP_IDXS = np.arange(12) * POK_LEN + Pok.CURRENT_HP
+
+
+@njit
+def _retry_step(start, a_type, a_idx, pick, did, k1, k2, k3, k4, tries):
+    """
+    Tries one step from start until the foe does exactly did and it lands on the node's key, whatever
+    the HP bracket since the HP comes from elsewhere. pick >= 0 is the foe's first move, else the AI
+    picks. Returns the new state and whether it got there
+    """
+    for _ in range(tries):
+        arr = start.copy()
+        if arr[_FIELD_PHASE] != _BATTLEPHASE_TURN_START:
+            opp_move = -50
+        elif pick >= 0:
+            opp_move = pick
+        else:
+            opp_move = int(return_idx(arr))
+        if step_arr(arr, a_type, a_idx, opp_move) != did:
+            continue
+        key = node_key(arr)
+        if (
+            (key[0] & ~KEY_HP_BITS) == (k1 & ~KEY_HP_BITS)
+            and key[1] == k2 and key[2] == k3 and key[3] == k4
+        ):
+            return arr, True
+    return start, False
+
+
+def _rerun_last_step(start: np.ndarray, action: tuple, key: tuple, did: int) -> np.ndarray | None:
+    """The state after one step from start where the foe does did, None if it isn't found in time"""
+    what = opp_turns(did)[0][1]
+    pick = what - 1 if 1 <= what <= 4 else 10 if what == OPP_STRUGGLED else -1
+    k1, k2, k3, k4 = (int(k) for k in key)
+    t0 = time.perf_counter()
+    while time.perf_counter() - t0 < LAST_STEP_BUDGET:
+        out, found = _retry_step(start, int(action[0]), int(action[1]), pick, did, k1, k2, k3, k4, 200)
+        if found:
+            return out
+    return None
+
+
+def real_position(initial: np.ndarray, path: list[tuple]) -> np.ndarray:
+    """
+    The battle at the end of a clicked path, for Continue from here. path is (parent, action, node,
+    what the foe really did) per step. The node's snapshot is the base: it always exists and it's
+    instant however rare the node. Replaying the whole path to get its history right isn't an option,
+    rare steps that need a rare state before them don't come back even in 30 s.
+    Only when the foe really did something else than the visit that made the snapshot, its last step
+    runs again from its parent's snapshot, for what follows from the move (a Rollout lock, the last
+    move, Mirror Move). The foe's PP comes from the whole path, see foe_pp_along_path
+    """
+    parent, action, node, did = path[-1]
+    out = reconstruct_battle_array(node.snapshot, initial)
+    if did is not None and did != node.snapshot.opp_move_idx:
+        rerun = _rerun_last_step(reconstruct_battle_array(parent.snapshot, initial), action, node.key, did)
+        if rerun is not None:
+            rerun[_HP_IDXS] = out[_HP_IDXS]
+            out = rerun
+    foe_pp_along_path(out, initial, [step[3] for step in path])
+    return out
+
+
 @njit
 def best_slot(stats, parent_visits, c):
     """UCB over the per-action stats rows, returns the winning slot"""
@@ -469,7 +618,7 @@ class Node():
     """Tree node, stats holds one row per action: visits, total value"""
     __slots__ = (
         'snapshot', 'children', 'visits', 'total_value', 'key',
-        'wins', 'dead', 'win_chance', 'dead_avg', 'stats', 'expanded'
+        'wins', 'dead', 'win_chance', 'dead_avg', 'stats', 'expanded', 'opp_moves'
     )
     def __init__(self, state, key=None):
         self.snapshot = NodeSnapshot.from_state(state)
@@ -483,6 +632,13 @@ class Node():
         self.win_chance = 0.0
         self.dead_avg = 0
         self.stats = None
+        self.opp_moves = {}
+
+    def count_opp_move(self, move):
+        """A visit got here with the foe doing this (step_arr's answer, None: it had no turn). node_key
+        doesn't see the move, so every move that leaves the same state merges into one node"""
+        if move is not None:
+            self.opp_moves[move] = self.opp_moves.get(move, 0) + 1
 
     def best_action(self, c=0.3):
         """

@@ -5,10 +5,12 @@ import numpy as np
 import pytest
 from SearchEngine.models import (
     valid_action_mask, valid_actions_array, is_terminal_arr, step_arr, node_key, _hp_bracket,
-    best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array,
-    ACTION_ORDER, ACTION_SLOT, N_SLOTS, ROOT_C, STATS_COLS, VOL2_KEY_BITS, AB_KEY_BITS,
-    AB_KEY_SHIFT, TURN_AB_KEY_BIT,
+    best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array, random_untried_slot,
+    opp_turns, foe_pp_along_path, real_position, ACTION_ORDER, ACTION_SLOT, N_SLOTS, ROOT_C,
+    STATS_COLS, VOL2_KEY_BITS, AB_KEY_BITS, AB_KEY_SHIFT, TURN_AB_KEY_BIT, OPP_DIDNT_MOVE,
+    OPP_STRUGGLED, OPP_SWITCHED, OPP_USED_ITEM, OPP_TURN_BITS,
 )
+from SearchEngine import models as search_models
 from SearchEngine.mcts_eval import (
     evaluate_terminal, rollout_arr, rollout_pref, field_move_fails
 )
@@ -18,7 +20,8 @@ from SearchEngine.my_mcts import (
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
 from Models.idx_const import Pok, Move, Field, Item, ITEM_LEN
 from Models.item import ITEM_TABLE
-from Models.helper import ActionType, BattlePhase, VolStatus, VolStatus2, SideCondition
+from Models.helper import ActionType, BattlePhase, Status, VolStatus, VolStatus2, SideCondition
+from Models.constants import _POTIONS_POTION
 from Models.trainer_ai import return_idx
 from DataBase.ItemDB import ItemNames
 from DataBase.AbilitiesDB import AbilityNames
@@ -419,6 +422,315 @@ def test_snapshot_restores_bench_items():
     out = reconstruct_battle_array(NodeSnapshot.from_state(GameState(arr)), initial)
     for i in (1, 2):
         assert (pok_slice(out, i, False) == pok_slice(arr, i, False)).all()
+
+
+# ── What the foe really did ──────────────────────────────────────────────────
+
+SCRATCH, GROWL = (MOVE, 0), (MOVE, 1)
+
+
+def _foe_battle(make_pokemon, make_battle, foe_moves, my_ability="Guts", my_moves=("Scratch", "Growl")):
+    """My level 50 Machop is faster: its Scratch knocks the foe out, its Growl leaves it alive"""
+    mine = [make_pokemon("Machop", 50, my_ability, list(my_moves))]
+    foes = [make_pokemon("Rattata", 5, "Run Away", foe_moves),
+            make_pokemon("Geodude", 30, "Sturdy", ["Tackle"])]
+    return make_battle(mine, foes)
+
+
+def _pack(*turns):
+    """step_arr's answer for these (foe's party slot, what it did, PP paid), oldest first"""
+    did = 0
+    for foe, what, paid in turns:
+        did = did << OPP_TURN_BITS | ((foe << 5 | what << 2 | paid) + 1)
+    return did
+
+
+def test_foe_that_fainted_first_didnt_move(make_pokemon, make_battle):
+    """Knocked out before its turn: no PP paid, the Pokemon in now is the replacement"""
+    arr = _foe_battle(make_pokemon, make_battle, ["Scratch"])
+    pp = move_slice(pok_slice(arr, 0, True), 0)[Move.PP]
+    assert opp_turns(step_arr(arr, *SCRATCH, 0)) == [(0, OPP_DIDNT_MOVE, 0)]
+    assert move_slice(pok_slice(arr, 0, True), 0)[Move.PP] == pp
+    assert arr[Field.OPP_POK] == 1
+
+
+def test_foe_that_moved_and_then_fainted_did_move(make_pokemon, make_battle):
+    """Quick Attack goes first, the same knockout comes after it"""
+    arr = _foe_battle(make_pokemon, make_battle, ["Quick Attack"])
+    assert opp_turns(step_arr(arr, *SCRATCH, 0)) == [(0, 1, 1)]
+    assert arr[Field.OPP_POK] == 1
+
+
+def test_foe_blocked_by_sleep_didnt_move(make_pokemon, make_battle):
+    """A flinch, full paralysis and the rest stop at the same early return"""
+    arr = _foe_battle(make_pokemon, make_battle, ["Scratch"])
+    opp_active(arr)[Pok.STATUS] = Status.SLEEP
+    opp_active(arr)[Pok.SLEEP_COUNTER] = 5
+    assert opp_turns(step_arr(arr, *GROWL, 0)) == [(0, OPP_DIDNT_MOVE, 0)]
+
+
+def test_locked_move_ran_without_paying_pp(make_pokemon, make_battle):
+    """Uproar pays PP on its first turn only, the locked turns still ran unless the foe faints first"""
+    arr = _foe_battle(make_pokemon, make_battle, ["Uproar"])
+    assert opp_turns(step_arr(arr, *GROWL, 0)) == [(0, 1, 1)]
+    assert opp_active(arr)[Pok.LOCKED_MOVE] == 0
+    assert opp_turns(step_arr(arr, *GROWL, 0)) == [(0, 1, 0)]
+    assert opp_turns(step_arr(arr, *SCRATCH, 0)) == [(0, OPP_DIDNT_MOVE, 0)]
+
+
+def test_locked_move_that_ran_before_the_foe_fainted_counts(make_pokemon, make_battle):
+    """Its last move can't tell this from fainting first, the engine's note can"""
+    mine = [make_pokemon("Slowpoke", 50, "Oblivious", ["Scratch", "Growl"])]
+    foes = [make_pokemon("Rattata", 30, "Run Away", ["Uproar"]),
+            make_pokemon("Geodude", 30, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, foes)
+    assert opp_turns(step_arr(arr, *GROWL, 0)) == [(0, 1, 1)]
+    opp_active(arr)[Pok.CURRENT_HP] = 1
+    assert opp_turns(step_arr(arr, *SCRATCH, 0)) == [(0, 1, 0)]
+    assert arr[Field.OPP_POK] == 1
+
+
+def test_struggle_counts_unless_the_foe_fainted_first(make_pokemon, make_battle):
+    """Struggle pays no PP, its slot is 10"""
+    arr = _foe_battle(make_pokemon, make_battle, ["Scratch"])
+    move_slice(opp_active(arr), 0)[Move.PP] = 0
+    assert opp_turns(step_arr(arr, *GROWL, 10)) == [(0, OPP_STRUGGLED, 0)]
+    assert opp_turns(step_arr(arr, *SCRATCH, 10)) == [(0, OPP_DIDNT_MOVE, 0)]
+
+
+def test_encore_landing_first_is_the_move_that_ran(make_pokemon, make_battle):
+    """The foe picked Scratch, my faster Encore makes it use its last move Tackle instead"""
+    arr = _foe_battle(make_pokemon, make_battle, ["Scratch", "Tackle"], my_moves=("Encore", "Growl"))
+    assert opp_turns(step_arr(arr, *GROWL, 1)) == [(0, 2, 1)]
+    assert opp_turns(step_arr(arr, MOVE, 0, 0)) == [(0, 2, 1)]
+
+
+def test_foe_move_after_my_baton_pass_pick(make_pokemon, make_battle):
+    """A slower foe's move runs with my pick, the paused turn itself has no foe turn yet"""
+    mine = [make_pokemon("Rattata", 30, "Run Away", ["Baton Pass", "Tackle"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Machop", 10, "Guts", ["Tackle"])])
+    state = GameState(arr)
+    state.opp_move_cache = 0
+    state.step((MOVE, 0))
+    assert state.phase == BattlePhase.BATON_PASS and state.opp_move_last is None
+    state.step((SWITCH, 1))
+    assert opp_turns(state.opp_move_last) == [(0, 1, 1)]
+
+
+def test_faster_foe_before_my_baton_pass_pick(make_pokemon, make_battle):
+    """It already moved in the paused turn, my pick has no foe turn"""
+    mine = [make_pokemon("Rattata", 5, "Run Away", ["Baton Pass", "Tackle"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Machop", 50, "Guts", ["Growl"])])
+    state = GameState(arr)
+    state.opp_move_cache = 0
+    state.step((MOVE, 0))
+    assert state.phase == BattlePhase.BATON_PASS
+    assert opp_turns(state.opp_move_last) == [(0, 1, 1)]
+    state.step((SWITCH, 1))
+    assert state.opp_move_last is None
+
+
+@pytest.mark.parametrize("ability, move, paid", [
+    ("Guts", "Scratch", 1),
+    ("Pressure", "Scratch", 2),
+    ("Pressure", "Harden", 1),
+])
+def test_foe_move_notes_the_pp_it_paid(make_pokemon, make_battle, ability, move, paid):
+    """One more into my Pressure, not for a move on itself"""
+    arr = _foe_battle(make_pokemon, make_battle, [move], my_ability=ability)
+    assert opp_turns(step_arr(arr, *GROWL, 0)) == [(0, 1, paid)]
+
+
+def test_foe_pursuit_counts(make_pokemon, make_battle):
+    """It runs before my switch, in start_of_turn"""
+    mine = [make_pokemon("Machop", 50, "Guts", ["Scratch"]),
+            make_pokemon("Geodude", 50, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Rattata", 5, "Run Away", ["Pursuit"])])
+    assert opp_turns(step_arr(arr, SWITCH, 1, 0)) == [(0, 1, 1)]
+
+
+def test_foe_switch_and_item_always_happen(make_pokemon, make_battle):
+    """Those run at the start of the turn, before anything can stop them"""
+    arr = _foe_battle(make_pokemon, make_battle, ["Scratch"])
+    arr[Field.AI_ITEM1] = _POTIONS_POTION
+    assert opp_turns(step_arr(arr, *GROWL, -10)) == [(0, OPP_USED_ITEM, 0)]
+    assert opp_turns(step_arr(arr, *GROWL, -5)) == [(0, OPP_SWITCHED, 0)]
+    assert arr[Field.OPP_POK] == 1
+
+
+def test_forced_turns_keep_every_turn_and_its_foe(make_pokemon, make_battle):
+    """My Uproar locks me in for the whole step: its first turn knocks Rattata out before it moves,
+    Geodude comes in and moves in the next one"""
+    arr = _foe_battle(make_pokemon, make_battle, ["Scratch"], my_moves=("Uproar",))
+    turns = opp_turns(step_arr(arr, MOVE, 0, 0))
+    assert turns[0] == (0, OPP_DIDNT_MOVE, 0)
+    assert turns[1] == (1, 1, 1)
+
+
+def test_game_state_has_no_foe_turn_when_i_only_pick_a_replacement(make_pokemon, make_battle):
+    """opp_move_last and the node snapshot follow step_arr, also when the foe didn't get to move"""
+    state = GameState(_foe_battle(make_pokemon, make_battle, ["Scratch"]))
+    state.step(SCRATCH)
+    assert state.opp_move_last == _pack((0, OPP_DIDNT_MOVE, 0))
+    assert NodeSnapshot.from_state(state).opp_move_idx == state.opp_move_last
+
+    team = [make_pokemon("Rattata", 10, "Run Away", ["Tackle"]) for _ in range(2)]
+    arr = make_battle(team, [make_pokemon("Rattata", 10, "Run Away", ["Tackle"])])
+    my_active(arr)[Pok.CURRENT_HP] = 0
+    arr[Field.PHASE] = BattlePhase.DEATH_END_OF_TURN
+    state = GameState(arr)
+    state.step((SWITCH, 1))
+    assert state.opp_move_last is None
+    assert NodeSnapshot.from_state(state).opp_move_idx == -1
+
+
+def test_node_counts_every_move_merged_into_it(make_pokemon, make_battle):
+    """Pound and Quick Attack leave the same state, so they share a node: its count has both, and
+    every visit is counted"""
+    mine = [make_pokemon("Machop", 50, "Guts", ["Leer"])]
+    foes = [make_pokemon("Rattata", 5, "Run Away", ["Pound", "Quick Attack"])]
+    root_state = GameState(make_battle(mine, foes))
+    root = Node(root_state)
+    mcts_loop(root, root_state, max_iterations=120, terminal_iterations=10**9)
+    outcomes = root.children[(MOVE, 0)]
+    both = {_pack((0, 1, 1)), _pack((0, 2, 1))}
+    assert any(set(node.opp_moves) == both for node in outcomes)
+    for node in outcomes:
+        assert sum(node.opp_moves.values()) == node.visits
+    assert root.opp_moves == {}
+
+
+def test_random_untried_slot_only_picks_set_bits():
+    """All of them, nothing else"""
+    mask = 1 << 0 | 1 << 3 | 1 << 7
+    assert {random_untried_slot(mask) for _ in range(200)} == {0, 3, 7}
+    assert random_untried_slot(1 << 10) == 10
+
+
+# ── Continue from here ───────────────────────────────────────────────────────
+
+def _pp_battle(make_pokemon, make_battle):
+    """Foe moves: an attack, a status move at me, and one on itself"""
+    mine = [make_pokemon("Machop", 50, "Guts", ["Scratch", "Growl"])]
+    foes = [make_pokemon("Rattata", 5, "Run Away", ["Scratch", "Leer", "Harden"]),
+            make_pokemon("Geodude", 5, "Sturdy", ["Tackle", "Harden"])]
+    return make_battle(mine, foes)
+
+
+def _foe_pp(arr, slot=0):
+    pok = pok_slice(arr, slot, True)
+    return [int(move_slice(pok, m)[Move.PP]) for m in range(3)]
+
+
+def test_foe_pp_is_the_roots_minus_what_the_path_paid(make_pokemon, make_battle):
+    """Whatever the node's own PP says, a step with no foe turn and one that didn't move pay nothing"""
+    initial = _pp_battle(make_pokemon, make_battle)
+    start = _foe_pp(initial)
+    out = initial.copy()
+    move_slice(pok_slice(out, 0, True), 0)[Move.PP] = 3
+    foe_pp_along_path(out, initial, [
+        _pack((0, 1, 1)), None, _pack((0, OPP_DIDNT_MOVE, 0)), _pack((0, 2, 2)), _pack((0, 1, 1), (0, 1, 0)),
+    ])
+    assert _foe_pp(out) == [start[0] - 2, start[1] - 2, start[2]]
+
+
+def test_foe_pp_goes_to_the_foe_that_moved(make_pokemon, make_battle):
+    """It may be on the bench by now, and it stops at 0"""
+    initial = _pp_battle(make_pokemon, make_battle)
+    move_slice(pok_slice(initial, 1, True), 1)[Move.PP] = 1
+    active, bench = _foe_pp(initial, 0), _foe_pp(initial, 1)
+    out = initial.copy()
+    foe_pp_along_path(out, initial, [_pack((1, 1, 1)), _pack((1, 2, 2))])
+    assert _foe_pp(out, 0) == active
+    assert _foe_pp(out, 1) == [bench[0] - 1, 0, bench[2]]
+
+
+def _clicked(arr, picks, action=GROWL):
+    """A step of a path for each pick: (parent, action, node, what the foe did). The node keeps the
+    snapshot of the visit where the foe did that"""
+    path = []
+    state = GameState(arr)
+    for pick in picks:
+        parent = Node(state)
+        state = state.clone()
+        state.opp_move_cache = pick
+        state.step(action)
+        path.append((parent, action, Node(state), state.opp_move_last))
+    return path
+
+
+def test_real_position_is_the_snapshot_when_the_foe_did_what_its_visit_did(
+        monkeypatch, make_pokemon, make_battle):
+    """A rare node with its one visit is this case: nothing runs again, it's instant"""
+    def must_not_run(*_args):
+        raise AssertionError("the snapshot already has this move")
+    monkeypatch.setattr(search_models, "_retry_step", must_not_run)
+    initial = _pp_battle(make_pokemon, make_battle)
+    path = _clicked(initial, [1])
+    out = real_position(initial, path)
+    assert (out == reconstruct_battle_array(path[-1][2].snapshot, initial)).all()
+
+
+def test_real_position_runs_the_last_step_for_another_move(make_pokemon, make_battle):
+    """The snapshot's visit used Scratch, the foe really used Pound, which leaves the same state: PP,
+    its last move and what my Mirror Move copies all follow, the HP stays the snapshot's"""
+    mine = [make_pokemon("Machop", 50, "Guts", ["Scratch", "Growl"])]
+    foes = [make_pokemon("Rattata", 5, "Run Away", ["Scratch", "Pound"]),
+            make_pokemon("Geodude", 5, "Sturdy", ["Tackle"])]
+    initial = make_battle(mine, foes)
+    start = _foe_pp(initial)
+    parent, action, node, _ = _clicked(initial, [0])[0]
+    out = real_position(initial, [(parent, action, node, _pack((0, 2, 1)))])
+    foe = pok_slice(out, 0, True)
+    pound = move_slice(foe, 1)[Move.ID]
+    assert _foe_pp(out) == [start[0], start[1] - 1, start[2]]
+    assert foe[Pok.LAST_MOVE_ID] == pound
+    assert out[Field.LAST_MOVE] == pound
+    assert my_active(out)[Pok.MIRROR_MOVE] == pound
+    snap = reconstruct_battle_array(node.snapshot, initial)
+    for i in range(12):
+        side = i >= 6
+        slot = i - 6 if side else i
+        assert pok_slice(out, slot, side)[Pok.CURRENT_HP] == pok_slice(snap, slot, side)[Pok.CURRENT_HP]
+
+
+@pytest.mark.parametrize("created, real, locked", [(0, 1, 1), (1, 0, -1)])
+def test_real_position_gets_the_rollout_lock_right(make_pokemon, make_battle, created, real, locked):
+    """Rollout and Tackle can merge, node_key doesn't see the lock. It follows the real move"""
+    mine = [make_pokemon("Machop", 50, "Guts", ["Scratch", "Growl"])]
+    foes = [make_pokemon("Geodude", 20, "Sturdy", ["Tackle", "Rollout"])]
+    initial = make_battle(mine, foes)
+    parent, action, node, _ = _clicked(initial, [created])[0]
+    out = real_position(initial, [(parent, action, node, _pack((0, real + 1, 1)))])
+    assert pok_slice(out, 0, True)[Pok.LOCKED_MOVE] == locked
+
+
+def test_real_position_keeps_the_snapshot_when_the_last_step_cant_be_found(
+        monkeypatch, make_pokemon, make_battle):
+    """Asleep the foe can't really use that move, it gives up in time. PP still follows the path"""
+    monkeypatch.setattr(search_models, "LAST_STEP_BUDGET", 0.01)
+    initial = _pp_battle(make_pokemon, make_battle)
+    start = _foe_pp(initial)
+    opp_active(initial)[Pok.STATUS] = Status.SLEEP
+    opp_active(initial)[Pok.SLEEP_COUNTER] = 5
+    parent, action, node, did = _clicked(initial, [0])[0]
+    assert did == _pack((0, OPP_DIDNT_MOVE, 0))
+    out = real_position(initial, [(parent, action, node, _pack((0, 2, 1)))])
+    snap = reconstruct_battle_array(node.snapshot, initial)
+    move_slice(pok_slice(snap, 0, True), 1)[Move.PP] = start[1] - 1
+    assert (out == snap).all()
+
+
+def test_real_position_pays_for_the_whole_path(make_pokemon, make_battle):
+    """Each step's move counts, not only the last one, and not the moves of the snapshot's history"""
+    initial = _pp_battle(make_pokemon, make_battle)
+    start = _foe_pp(initial)
+    path = _clicked(initial, [0, 0, 1])
+    first = (path[0][0], path[0][1], path[0][2], _pack((0, 3, 1)))
+    out = real_position(initial, [first, path[1], path[2]])
+    assert _foe_pp(out) == [start[0] - 1, start[1] - 1, start[2] - 1]
 
 
 # ── Small end-to-end search ──────────────────────────────────────────────────

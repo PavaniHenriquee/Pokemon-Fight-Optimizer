@@ -1,7 +1,7 @@
 import { CircleDot, Sparkles, Swords } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STATUS_NAMES, statusColor, typeColor } from "@/lib/format";
-import { typeSprite } from "@/lib/sprites";
+import { typeIcon, typeSprite } from "@/lib/sprites";
 import { Sprite } from "./Sprite";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SideEffect } from "../../types";
@@ -106,6 +106,38 @@ export function TypeDot({ type, className }: { type?: string | null; className?:
       className={cn("inline-block size-2 shrink-0 rounded-full", className)}
       style={{ background: typeColor(type) }}
       title={type}
+    />
+  );
+}
+
+// The type's round symbol; the colored dot, in the same space, when there's no sprite (Typeless, offline)
+export function TypeIcon({
+  type,
+  size = 16,
+  className,
+}: {
+  type?: string | null;
+  size?: number;
+  className?: string;
+}) {
+  if (!type) return null;
+  return (
+    <Sprite
+      srcs={typeIcon(type)}
+      alt={type}
+      title={type}
+      pixelated={false}
+      width={size}
+      height={size}
+      className={cn("shrink-0", className)}
+      fallback={
+        <span
+          className={cn("flex shrink-0 items-center justify-center", className)}
+          style={{ width: size, height: size }}
+        >
+          <TypeDot type={type} />
+        </span>
+      }
     />
   );
 }

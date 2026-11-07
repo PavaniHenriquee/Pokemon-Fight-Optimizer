@@ -30,7 +30,7 @@ from Models.constants import (
 from Models.helper import Terrain
 from Models.pokemon import Pokemon
 from Engine.engine_helper import start_of_battle
-from SearchEngine.models import GameState, Node, reconstruct_battle_array
+from SearchEngine.models import GameState, Node, reconstruct_battle_array, real_position
 from SearchEngine.my_mcts import _select_expand, _rollout, _backprop, find_best_terminal_node
 from SearchEngine.helper import prune_dominated
 from Utils.jit import njit
@@ -38,7 +38,7 @@ from Utils.helper import to_battle_array
 from Utils.loader import natures
 from DataBase.loader import pkDB, moveDB, abDB, itemDB
 from DataBase.PkDB import PokemonName, PokIdToName, sprite_id
-from .serializer import serialize_node   # relative import within the backend package
+from .serializer import serialize_node, opp_move_label   # relative import within the backend package
 
 # Put project root on path so Models/Engine/etc. are importable
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -206,6 +206,38 @@ def _find_node(root: Node, target_id: str) -> Node | None:
     return None
 
 
+class PathStep(BaseModel):
+    """One click on the way to the node Continue starts from"""
+    node_id:  str
+    opp_move: Optional[str] = None     # the label of the row it was picked under
+
+
+def _clicked_path(root: Node, steps: list[PathStep], battle_array: np.ndarray) -> list[tuple] | None:
+    """
+    The clicks as real_position wants them: (parent, action, node, what the foe did). A row can be
+    several packed values when the PP paid differs, the most seen one counts. None if a node isn't in
+    the tree anymore
+    """
+    path = []
+    parent = root
+    for step in steps:
+        found = next(
+            ((action, child) for action, children in parent.children.items() for child in children
+             if str(id(child)) == step.node_id),
+            None,
+        )
+        if found is None:
+            return None
+        action, node = found
+        seen = node.opp_moves.copy()
+        picked = {
+            did: n for did, n in seen.items() if opp_move_label(did, battle_array) == step.opp_move
+        } or seen
+        path.append((parent, action, node, max(picked, key=picked.get) if picked else None))
+        parent = node
+    return path
+
+
 class ContinueConfig(BaseModel):
     """
     Continue config
@@ -215,6 +247,7 @@ class ContinueConfig(BaseModel):
     my_active_hp:  Optional[int] = None   # None when phase == DEATH
     opp_active_hp: int
     bench_hps:     dict[int, int]          # slot_index → hp
+    path:          list[PathStep] = Field(default_factory=list)  # root → node, what the foe really did
 
 
 @app.get("/pokemon-data")
@@ -239,9 +272,12 @@ async def get_pokemon_data() -> dict:
             name_to_id[pk_name] = sprite_id(pk_id)
         base_stats[pk_name] = pkDB[pk_name].get("base stats", {})
 
+    # Struggle is the engine's fallback at 0 PP, nothing can learn it
+    pickable = {name: m for name, m in moveDB.items() if name != "Struggle"}
+
     return {
         "pokemon":   sorted(pkDB.keys()),
-        "moves":     sorted(moveDB.keys()),
+        "moves":     sorted(pickable.keys()),
         "natures":   sorted(natures.keys()),
         "abilities": sorted(abDB.keys()),
         "items":     sorted(itemDB.keys()),
@@ -256,7 +292,7 @@ async def get_pokemon_data() -> dict:
                 "accuracy": m.get("accuracy"),
                 "pp":       m.get("pp"),
             }
-            for name, m in moveDB.items()
+            for name, m in pickable.items()
         },
         "pokemonTypes": {name: list(pkDB[name].get("type", [])) for name in pkDB},
         # PkDB lists a species with one ability twice
@@ -533,7 +569,12 @@ async def continue_from_node(config: ContinueConfig) -> dict:
         return {"error": "node not found"}
 
     snap   = node.snapshot
-    battle = reconstruct_battle_array(snap, sess.battle_array)
+    path   = _clicked_path(sess.root, config.path, sess.battle_array)
+    if path and path[-1][2] is node:
+        _seed_numba(37)
+        battle = real_position(sess.battle_array, path)
+    else:
+        battle = reconstruct_battle_array(snap, sess.battle_array)
 
     if config.my_active_hp is not None and snap.my_active >= 0:
         battle[snap.my_active * POK_LEN + Pok.CURRENT_HP] = config.my_active_hp

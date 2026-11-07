@@ -5,12 +5,15 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 from backend import main
-from backend.serializer import serialize_node
-from SearchEngine.models import GameState, Node
+from backend.serializer import serialize_node, opp_move_label
+from SearchEngine.models import (
+    GameState, Node, reconstruct_battle_array, OPP_DIDNT_MOVE, OPP_STRUGGLED, OPP_SWITCHED,
+    OPP_USED_ITEM, OPP_TURN_BITS,
+)
 from SearchEngine.my_mcts import mcts_loop
 from Models.helper import Gender
-from Models.idx_const import Pok, POK_LEN
-from battle_driver import build_scenario
+from Models.idx_const import Pok, POK_LEN, Move
+from battle_driver import build_scenario, pok_slice, move_slice
 
 TEAM_MEMBER = {
     "name": "Charmander", "gender": "Male", "level": 5, "ability": "Blaze",
@@ -53,6 +56,7 @@ def test_pokemon_data(client):
     assert set(data["nameToId"]) <= set(data["pokemon"])
     assert data["baseStats"]["Charmander"]["HP"] == 39
     assert set(data["moveInfo"]) == set(data["moves"])
+    assert "Struggle" not in data["moves"]
     assert data["moveInfo"]["Ember"] == {"type": "Fire", "category": "Special", "power": 40,
                                          "accuracy": 100, "pp": 25}
     assert set(data["pokemonTypes"]) == set(data["pokemon"])
@@ -234,6 +238,144 @@ def test_start_node_info_and_continue(client):
     assert new_sess is not sess
     _wait(new_sess)
     assert new_sess.root.snapshot.my_slice[Pok.CURRENT_HP] == 5
+
+
+def _pack(*turns):
+    """step_arr's answer for these (foe's party slot, what it did, PP paid), oldest first"""
+    did = 0
+    for foe, what, paid in turns:
+        did = did << OPP_TURN_BITS | ((foe << 5 | what << 2 | paid) + 1)
+    return did
+
+
+TACKLE = _pack((0, 1, 1))
+TAIL_WHIP = _pack((0, 2, 1))
+
+
+def _merged_node(client):
+    """A finished tiny search and one of its outcome nodes, made to look like Tackle and Tail Whip
+    merged into it, its snapshot coming from a visit that used Tackle"""
+    client.post("/start", json={
+        "my_team": [TEAM_MEMBER], "opp_team": [OPP_MEMBER], "iterations": 60,
+    })
+    sess = main._session  # pylint: disable=protected-access
+    _wait(sess)
+    node = next(iter(sess.root.children.values()))[0]
+    node.opp_moves = {TACKLE: 3, TAIL_WHIP: 1}
+    node.snapshot.opp_move_idx = TACKLE
+    return sess, node
+
+
+def _foe_pp(battle):
+    foe = pok_slice(battle, 0, True)
+    return [int(move_slice(foe, m)[Move.PP]) for m in (0, 1)]
+
+
+def _continue_foe_pp(client, sess, node, **extra):
+    """Foe's PP in the search that starts from the node"""
+    res = client.post("/continue_from_node", json={
+        "node_id": str(id(node)), "iterations": 5, "my_active_hp": 5, "opp_active_hp": 7,
+        "bench_hps": {}, **extra,
+    }).json()
+    assert res == {"status": "started"}
+    new_sess = main._session  # pylint: disable=protected-access
+    assert new_sess is not sess
+    _wait(new_sess)
+    return _foe_pp(new_sess.battle_array)
+
+
+def test_continue_charges_the_move_picked_on_the_path(client):
+    """The root's PP minus the move the path says, not the visit that made the node"""
+    sess, node = _merged_node(client)
+    tackle, tail_whip = _foe_pp(sess.battle_array)
+    path = [{"node_id": str(id(node)), "opp_move": "Tail Whip"}]
+    assert _continue_foe_pp(client, sess, node, path=path) == [tackle, tail_whip - 1]
+
+
+def test_continue_with_a_label_it_doesnt_know_takes_the_most_seen_move(client):
+    """A step always has a move when the node saw one"""
+    sess, node = _merged_node(client)
+    tackle, tail_whip = _foe_pp(sess.battle_array)
+    path = [{"node_id": str(id(node)), "opp_move": "Nope"}]
+    assert _continue_foe_pp(client, sess, node, path=path) == [tackle - 1, tail_whip]
+
+
+@pytest.mark.parametrize("stale_path", [False, True])
+def test_continue_without_the_path_is_the_snapshot(client, stale_path):
+    """No clicks to go by, or a node that isn't where they say"""
+    sess, node = _merged_node(client)
+    expected = _foe_pp(reconstruct_battle_array(node.snapshot, sess.battle_array))
+    extra = {"path": [{"node_id": "gone", "opp_move": "Tackle"}]} if stale_path else {}
+    assert _continue_foe_pp(client, sess, node, **extra) == expected
+
+
+@pytest.mark.parametrize("did, label", [
+    (_pack((0, OPP_DIDNT_MOVE, 0)), "Didn't move"),
+    (_pack((0, 2, 1)), "Tail Whip"),
+    (_pack((0, OPP_STRUGGLED, 0)), "Struggle"),
+    (_pack((0, OPP_SWITCHED, 0)), "Switched"),
+    (_pack((0, OPP_USED_ITEM, 0)), "Used item"),
+    (_pack((0, 1, 1), (0, 2, 0)), "Tackle, then Tail Whip"),
+    (_pack((0, 1, 1), (0, OPP_DIDNT_MOVE, 0)), "Tackle, then didn't move"),
+    (_pack((0, OPP_DIDNT_MOVE, 0), (1, 1, 1)), "Didn't move, then Bulbasaur: Tackle"),
+])
+def test_opp_move_label(did, label):
+    """Named from the foe that moved in that turn, also when another one is in by the end"""
+    battle = main._build_battle(main.BattleConfig(  # pylint: disable=protected-access
+        my_team=[TEAM_MEMBER],
+        opp_team=[OPP_MEMBER, {**OPP_MEMBER, "name": "Bulbasaur", "ability": "Overgrow"}],
+    ))
+    assert opp_move_label(did, battle) == label
+
+
+def _tree_with(counts_per_child):
+    """The serialized root of a tree whose only action has these outcomes, (opp_moves, win_chance)"""
+    battle = main._build_battle(main.BattleConfig(  # pylint: disable=protected-access
+        my_team=[TEAM_MEMBER], opp_team=[OPP_MEMBER]
+    ))
+    state = GameState(battle)
+    root = Node(state)
+    children = []
+    for counts, win in counts_per_child:
+        child = Node(state.clone().step((1, 0)))
+        child.opp_moves = counts
+        child.win_chance = win
+        child.visits = sum(counts.values())
+        children.append(child)
+    root.children[(1, 0)] = children
+    tree = serialize_node(root, battle)
+    json.dumps(tree)
+    return tree
+
+
+def test_outcome_rows_add_up_what_the_foe_did_over_the_outcomes():
+    """A move on two outcomes is one row, with its visits and the win chance weighted by them, most
+    often first. Every node also says how often each row got to it"""
+    tree = _tree_with([({TACKLE: 6, TAIL_WHIP: 2}, 0.5), ({TACKLE: 2}, 1.0)])
+    assert tree["opp_moves"] == {}
+    action = tree["actions"]["1_0"]
+    assert action["opp_moves"] == [
+        {"label": "Tackle", "visits": 8, "win_chance": 0.625},
+        {"label": "Tail Whip", "visits": 2, "win_chance": 0.5},
+    ]
+    assert [n["opp_moves"] for n in action["nodes"]] == [{"Tackle": 6, "Tail Whip": 2}, {"Tackle": 2}]
+
+
+def test_outcome_rows_keep_two_equal_moves_in_place():
+    """First seen first, so they don't swap on every update"""
+    rows = _tree_with([({TAIL_WHIP: 2, TACKLE: 2}, 0.5)])["actions"]["1_0"]["opp_moves"]
+    assert [r["label"] for r in rows] == ["Tail Whip", "Tackle"]
+
+
+def test_outcome_rows_join_the_same_move_paying_different_pp():
+    """Locked in some visits and not in others: it's still one thing the foe did"""
+    rows = _tree_with([({TACKLE: 2, _pack((0, 1, 0)): 3}, 0.5)])["actions"]["1_0"]["opp_moves"]
+    assert rows == [{"label": "Tackle", "visits": 5, "win_chance": 0.5}]
+
+
+def test_no_outcome_rows_without_a_foe_turn():
+    """I only picked a replacement"""
+    assert _tree_with([({}, 0.5)])["actions"]["1_0"]["opp_moves"] == []
 
 
 def test_max_pp_covers_every_move():

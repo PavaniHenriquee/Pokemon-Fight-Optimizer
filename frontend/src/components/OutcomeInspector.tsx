@@ -1,4 +1,5 @@
-import { ArrowRight, CornerDownRight, MousePointerClick, Skull, X } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, ChevronRight, MousePointerClick, Skull, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pokIcon } from "@/lib/sprites";
 import {
@@ -10,7 +11,7 @@ import {
   winTier,
 } from "@/lib/format";
 import { Button } from "./ui/button";
-import type { ActionData, PokemonState, TreeNode } from "../types";
+import type { ActionData, OppMoveRow, PokemonState, TreeNode } from "../types";
 import { Sprite } from "./common/Sprite";
 import { HpBar } from "./common/HpBar";
 import { WinRing } from "./common/WinRing";
@@ -50,16 +51,17 @@ function PokRow({ pok, label }: { pok: PokemonState; label: string }) {
 
 function OutcomeCard({
   node,
-  action,
+  share,
+  shareLabel,
   onSelect,
 }: {
   node: TreeNode;
-  action: ActionData;
+  share: number;
+  shareLabel: string;
   onSelect: (id: string) => void;
 }) {
-  const { opp, my, opp_move } = node.snapshot;
+  const { opp, my } = node.snapshot;
   const isDeath = node.snapshot.phase === "DEATH";
-  const share = node.visits / Math.max(action.total_visits, 1);
 
   return (
     <button
@@ -71,7 +73,7 @@ function OutcomeCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-1.5">
             <span className="num text-base font-semibold">{fmtPct(share, 1)}</span>
-            <span className="text-[11px] text-subtle-foreground">of rollouts</span>
+            <span className="text-[11px] text-subtle-foreground">{shareLabel}</span>
           </div>
           <div className="mt-1 h-1 overflow-hidden rounded-full bg-foreground/8">
             <div className="h-full rounded-full bg-primary/70" style={{ width: `${share * 100}%` }} />
@@ -79,13 +81,6 @@ function OutcomeCard({
         </div>
         <WinRing win={node.win_chance} size={40} />
       </div>
-
-      {opp_move && (
-        <div className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <CornerDownRight className="size-3" />
-          Opp used <span className="font-medium text-foreground">{opp_move}</span>
-        </div>
-      )}
 
       <div className="mt-2.5 space-y-2 rounded-lg bg-background/50 p-2 ring-1 ring-foreground/5">
         {opp ? (
@@ -117,13 +112,121 @@ function OutcomeCard({
   );
 }
 
+// A dropdown for one thing the foe did, holding the states it led to. The search merges moves that
+// leave the same state, so a state shows under each move that can reach it
+function MoveRow({
+  row,
+  chance,
+  nodes,
+  open,
+  onToggle,
+  onSelect,
+}: {
+  row: OppMoveRow;
+  chance: number;
+  nodes: TreeNode[];
+  open: boolean;
+  onToggle: () => void;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-xl border bg-card/60">
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left transition-colors hover:bg-elevated"
+      >
+        <ChevronRight
+          className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
+        />
+        <span className="min-w-0 flex-1 text-sm font-medium">{row.label}</span>
+        <span className="num text-sm font-semibold">{fmtPct(chance, 1)}</span>
+        <WinRing win={row.win_chance} size={36} />
+      </button>
+      {open && (
+        <div className="space-y-2 px-2 pb-2">
+          {nodes.length === 0 ? (
+            <p className="py-3 text-center text-xs text-muted-foreground italic">
+              No outcomes above the visit threshold yet.
+            </p>
+          ) : (
+            nodes.map((node) => (
+              <OutcomeCard
+                key={node.id}
+                node={node}
+                share={node.opp_moves[row.label] / Math.max(row.visits, 1)}
+                shareLabel="after this move"
+                onSelect={onSelect}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One dropdown per thing the foe did. No foe turn in this step (I picked a replacement): just the states
+function OutcomeList({
+  action,
+  onSelect,
+}: {
+  action: ActionData;
+  onSelect: (nodeId: string, oppMove: string | null) => void;
+}) {
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const rows = action.opp_moves;
+
+  if (rows.length === 0) {
+    if (action.nodes.length === 0) {
+      return (
+        <p className="py-8 text-center text-sm text-muted-foreground italic">
+          No outcomes above the visit threshold yet.
+        </p>
+      );
+    }
+    return [...action.nodes]
+      .sort((a, b) => b.visits - a.visits)
+      .map((node) => (
+        <OutcomeCard
+          key={node.id}
+          node={node}
+          share={node.visits / Math.max(action.total_visits, 1)}
+          shareLabel="of rollouts"
+          onSelect={(id) => onSelect(id, null)}
+        />
+      ));
+  }
+
+  const total = rows.reduce((sum, row) => sum + row.visits, 0);
+  return rows.map((row) => (
+    <MoveRow
+      key={row.label}
+      row={row}
+      chance={row.visits / Math.max(total, 1)}
+      nodes={action.nodes
+        .filter((node) => node.opp_moves[row.label])
+        .sort((a, b) => b.opp_moves[row.label] - a.opp_moves[row.label])}
+      open={rows.length === 1 || open.has(row.label)}
+      onToggle={() =>
+        setOpen((prev) => {
+          const next = new Set(prev);
+          if (!next.delete(row.label)) next.add(row.label);
+          return next;
+        })
+      }
+      onSelect={(id) => onSelect(id, row.label)}
+    />
+  ));
+}
+
 interface Props {
   action: ActionData | null;
-  onSelect: (nodeId: string) => void;
+  onSelect: (nodeId: string, oppMove: string | null) => void;
   onClose: () => void;
 }
 
-// Right pane: the outcomes of the selected action, most visited first
+// Right pane: the outcomes of the selected action, by what the foe did
 export default function OutcomeInspector({ action, onSelect, onClose }: Props) {
   return (
     <aside className="flex min-h-0 flex-col border-l bg-card/40">
@@ -190,17 +293,11 @@ export default function OutcomeInspector({ action, onSelect, onClose }: Props) {
           </div>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-            {action.nodes.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground italic">
-                No outcomes above the visit threshold yet.
-              </p>
-            ) : (
-              [...action.nodes]
-                .sort((a, b) => b.visits - a.visits)
-                .map((node) => (
-                  <OutcomeCard key={node.id} node={node} action={action} onSelect={onSelect} />
-                ))
-            )}
+            <OutcomeList
+              key={`${action.action_type}_${action.action_idx}`}
+              action={action}
+              onSelect={onSelect}
+            />
           </div>
         </>
       )}

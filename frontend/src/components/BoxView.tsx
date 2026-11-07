@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { Check, ChevronLeft, ChevronRight, HeartPulse, Pencil, Plus, Save, Search, Skull, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, HeartPulse, Pencil, Plus, Save, Search, Skull, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { battleSprite, pokIcon } from "@/lib/sprites";
 import { displayName } from "@/lib/format";
+import { moveInfoFor } from "@/lib/hiddenPower";
 import { makeBlank } from "@/lib/nuzlocke";
 import type { BoxEntry, PokemonConfig, PokemonData } from "../types";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Sprite } from "./common/Sprite";
-import { GenderMark, PokeballIcon, TypeBadges, TypeDot } from "./common/Badges";
+import { GenderMark, PokeballIcon, TypeBadges, TypeIcon } from "./common/Badges";
 import BoxEditor from "./BoxEditor";
+import { StatBars } from "./PokemonSlots";
 
 const SLOTS = 30; // a PC box: 6 × 5
 const WALLPAPER_HUES = [250, 155, 25, 300, 65, 200];
@@ -22,7 +24,7 @@ function Summary({
   pokemonData,
   inTeam,
   teamFull,
-  onAdd,
+  onToggle,
   onEdit,
   onSetDead,
   onDelete,
@@ -31,7 +33,7 @@ function Summary({
   pokemonData: PokemonData;
   inTeam: boolean;
   teamFull: boolean;
-  onAdd: () => void;
+  onToggle: () => void;
   onEdit: () => void;
   onSetDead: (dead: boolean) => void;
   onDelete: () => void;
@@ -49,7 +51,8 @@ function Summary({
       <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-4 text-center">
         <PokeballIcon className="size-6 opacity-40 grayscale" />
         <p className="text-xs text-subtle-foreground">
-          Hover a Pokémon to see its summary. Click to select, double-click to add it to your party.
+          Hover a Pokémon to see its summary. Click to add it to your party or take it out, right-click
+          to edit it.
         </p>
       </div>
     );
@@ -59,49 +62,63 @@ function Summary({
   const moveInfo = pokemonData.moveInfo;
   return (
     <div className="flex h-full flex-col rounded-xl border bg-card p-3">
-      <div className="flex gap-3">
-        <div className="relative flex size-[84px] shrink-0 items-end justify-center pb-1.5">
-          <div
-            className="absolute bottom-0.5 left-1/2 h-5 w-20 -translate-x-1/2 rounded-[50%]"
-            style={{ background: "radial-gradient(closest-side, oklch(1 0 0 / 12%), transparent)" }}
-          />
-          {id && (
-            <Sprite
-              key={id}
-              srcs={battleSprite(id, "front")}
-              alt={entry.name}
-              className={cn("relative max-h-[84px] max-w-[96px]", entry.dead && "grayscale")}
+      {/* the negative margin: a tall sprite at 2× may reach into the card's padding */}
+      <div className="min-h-0 flex-1 overflow-y-auto roomy:-mt-3 roomy:pt-3">
+        <div className="flex gap-3 roomy:flex-col roomy:gap-1">
+          <div className="relative flex size-[84px] shrink-0 items-end justify-center pb-1.5 roomy:h-[152px] roomy:w-full">
+            <div
+              className="absolute bottom-0.5 left-1/2 h-5 w-20 -translate-x-1/2 rounded-[50%] roomy:h-8 roomy:w-44"
+              style={{ background: "radial-gradient(closest-side, oklch(1 0 0 / 12%), transparent)" }}
             />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-[15px] font-semibold tracking-tight">
-              {displayName(entry.name)}
-            </span>
-            <GenderMark gender={entry.gender} />
-          </div>
-          <div className="num text-xs text-subtle-foreground">Lv {entry.level}</div>
-          <TypeBadges types={pokemonData.pokemonTypes?.[entry.name]} height={14} className="mt-1" />
-          <div className="mt-1 truncate text-[11px] text-muted-foreground">
-            {entry.ability} · {entry.nature}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-2.5 grid grid-cols-2 gap-1">
-        {entry.moves.map((m, i) => (
-          <span
-            key={i}
-            className={cn(
-              "flex items-center gap-1.5 truncate rounded-md px-2 py-1 text-[11px]",
-              m ? "bg-foreground/5" : "text-subtle-foreground italic",
+            {id && (
+              <Sprite
+                key={id}
+                srcs={battleSprite(id, "front")}
+                alt={entry.name}
+                className={cn(
+                  "relative max-h-[84px] max-w-[96px] roomy:origin-bottom roomy:scale-200",
+                  entry.dead && "grayscale",
+                )}
+              />
             )}
-          >
-            {m && <TypeDot type={moveInfo?.[m]?.type} />}
-            <span className="truncate">{m || "—"}</span>
-          </span>
-        ))}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="roomy:flex roomy:items-baseline roomy:gap-2">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate text-[15px] font-semibold tracking-tight roomy:text-xl">
+                  {displayName(entry.name)}
+                </span>
+                <GenderMark gender={entry.gender} className="roomy:text-lg" />
+              </div>
+              <div className="num text-xs text-subtle-foreground roomy:text-sm">Lv {entry.level}</div>
+            </div>
+            <TypeBadges
+              types={pokemonData.pokemonTypes?.[entry.name]}
+              height={14}
+              className="mt-1 roomy:[&_img]:h-[18px]!"
+            />
+            <div className="mt-1 truncate text-[11px] text-muted-foreground roomy:text-sm">
+              {entry.ability} · {entry.nature}
+            </div>
+          </div>
+        </div>
+
+        <StatBars pokemon={entry} pokemonData={pokemonData} className="mt-2 hidden roomy-tall:block" />
+
+        <div className="mt-2.5 grid grid-cols-2 gap-1 roomy:mt-2">
+          {entry.moves.map((m, i) => (
+            <span
+              key={i}
+              className={cn(
+                "flex items-center gap-1.5 truncate rounded-md px-2 py-1 text-[11px] roomy:text-[13px] roomy:leading-4",
+                m ? "bg-foreground/5" : "text-subtle-foreground italic",
+              )}
+            >
+              {m && <TypeIcon type={moveInfoFor(moveInfo, m, entry.ivs)?.type} />}
+              <span className="truncate">{m || "—"}</span>
+            </span>
+          ))}
+        </div>
       </div>
 
       {entry.dead ? (
@@ -136,12 +153,13 @@ function Summary({
         <div className="mt-auto flex gap-1.5 pt-3">
           <Button
             size="sm"
+            variant={inTeam ? "outline" : "default"}
             className="flex-1"
-            onClick={onAdd}
-            disabled={inTeam || teamFull}
+            onClick={onToggle}
+            disabled={!inTeam && teamFull}
           >
-            {inTeam ? <Check /> : <PokeballIcon />}
-            {inTeam ? "In party" : teamFull ? "Party full" : "Add to party"}
+            {inTeam ? <X /> : <PokeballIcon />}
+            {inTeam ? "Remove from party" : teamFull ? "Party full" : "Add to party"}
           </Button>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -190,7 +208,7 @@ export default function BoxView({
   dirty,
   saved,
   team,
-  onAdd,
+  onToggle,
 }: {
   box: BoxEntry[];
   pokemonData: PokemonData;
@@ -203,7 +221,7 @@ export default function BoxView({
   dirty: boolean;
   saved: boolean;
   team: PokemonConfig[];
-  onAdd: (entry: BoxEntry) => void;
+  onToggle: (entry: BoxEntry) => void; // in or out of the party
 }) {
   const [editEntry, setEditEntry] = useState<BoxEntry | "new" | null>(null);
   const [query, setQuery] = useState("");
@@ -391,12 +409,23 @@ export default function BoxView({
                 <button
                   key={entry.id}
                   onMouseEnter={() => setHovered(entry)}
-                  onClick={() => setSelectedId(entry.id)}
-                  onDoubleClick={() => onAdd(entry)}
+                  onClick={() => {
+                    setSelectedId(entry.id);
+                    onToggle(entry);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setSelectedId(entry.id);
+                    if (!entry.dead) setEditEntry(entry);
+                  }}
                   title={displayName(entry.name)}
                   className={cn(
                     "group relative flex aspect-square items-center justify-center rounded-md transition-colors cursor-pointer",
-                    isSelected ? "bg-white/20 ring-2 ring-white/70" : "bg-black/10 hover:bg-white/12",
+                    isSelected
+                      ? "bg-white/20 ring-2 ring-white/70"
+                      : member
+                        ? "bg-primary/30 ring-1 ring-primary/80 hover:bg-primary/40"
+                        : "bg-black/10 hover:bg-white/12",
                   )}
                 >
                   {id && (
@@ -406,14 +435,15 @@ export default function BoxView({
                       width={40}
                       height={30}
                       className={cn(
-                        "max-w-none",
+                        "pointer-events-none max-w-none shrink-0 roomy:h-[60px] roomy:w-20",
                         entry.dead ? "opacity-70 grayscale" : "group-hover:animate-hop",
-                        member && "opacity-55",
                         isSelected && !entry.dead && "animate-hop",
                       )}
                     />
                   )}
-                  {member && <PokeballIcon className="absolute right-0 bottom-0 size-2.5" />}
+                  {member && (
+                    <PokeballIcon className="absolute right-0 bottom-0 size-2.5 roomy:size-3.5" />
+                  )}
                 </button>
               );
             })}
@@ -434,7 +464,7 @@ export default function BoxView({
             pokemonData={pokemonData}
             inTeam={focus ? inTeam(focus) : false}
             teamFull={teamFull}
-            onAdd={() => focus && onAdd(focus)}
+            onToggle={() => focus && onToggle(focus)}
             onEdit={() => focus && setEditEntry(focus)}
             onSetDead={(toDead) => {
               if (!focus) return;

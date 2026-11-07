@@ -1,22 +1,24 @@
 import { ChevronLeft, Flag, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TIER_TEXT, fmtCompact, fmtPct, switchTarget, winTier } from "@/lib/format";
+import { OPP_DID, TIER_TEXT, fmtCompact, fmtPct, switchTarget, winTier } from "@/lib/format";
 import { pathSteps } from "@/lib/tree";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TreeNode } from "../types";
-import { Kbd, TypeDot } from "./common/Badges";
+import { Kbd, TypeIcon } from "./common/Badges";
 
 // Decision path from root to the node on screen; click a step to jump back to it
 export default function PathRail({
   tree,
   pathIds,
+  pathMoves,
   nodeMap,
   onJump,
   onBack,
 }: {
   tree: TreeNode;
   pathIds: string[];
+  pathMoves: (string | null)[];
   nodeMap: Map<string, TreeNode>;
   onJump: (depth: number) => void;
   onBack: () => void;
@@ -62,6 +64,7 @@ export default function PathRail({
                 ? `Switch to ${switchTarget(step.action.label)}`
                 : step.action.label;
           const win = step.node.win_chance;
+          const oppMove = i > 0 ? pathMoves[i - 1] : null;
           return (
             <li key={step.node.id} className="relative">
               {/* timeline line */}
@@ -87,7 +90,7 @@ export default function PathRail({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    {step.action?.move_type && <TypeDot type={step.action.move_type} />}
+                    {step.action?.move_type && <TypeIcon type={step.action.move_type} size={14} />}
                     <span
                       className={cn(
                         "truncate text-[13px]",
@@ -99,10 +102,12 @@ export default function PathRail({
                   </span>
                   <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-subtle-foreground">
                     <span className="num">T{snap.turn}</span>
-                    {snap.opp_move && (
+                    {oppMove && (
                       <>
                         <span>·</span>
-                        <span className="truncate">Opp {snap.opp_move}</span>
+                        <span className="truncate" title={oppMove}>
+                          Opp {OPP_DID[oppMove] ?? oppMove}
+                        </span>
                       </>
                     )}
                     {snap.phase === "DEATH" && (

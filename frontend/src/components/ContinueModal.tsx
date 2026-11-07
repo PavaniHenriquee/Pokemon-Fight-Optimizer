@@ -5,7 +5,7 @@ import { getJSON, postJSON } from "@/lib/api";
 import { pokIcon } from "@/lib/sprites";
 import { TIER_TEXT, displayName, hpTier } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { PokemonEntry, NodeInfoData } from "../types";
+import type { PathClick, PokemonEntry, NodeInfoData } from "../types";
 import {
   Dialog,
   DialogContent,
@@ -70,11 +70,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 interface Props {
   nodeId: string;
+  path: PathClick[];
   onClose: () => void;
   onStarted: (iterations: number) => void;
 }
 
-export default function ContinueModal({ nodeId, onClose, onStarted }: Props) {
+export default function ContinueModal({ nodeId, path, onClose, onStarted }: Props) {
   const [nodeInfo, setNodeInfo] = useState<NodeInfoData | null>(null);
   const [myActiveHp, setMyActiveHp] = useState(0);
   const [oppActiveHp, setOppActiveHp] = useState(0);
@@ -110,6 +111,7 @@ export default function ContinueModal({ nodeId, onClose, onStarted }: Props) {
       my_active_hp: nodeInfo?.my_active ? myActiveHp : null,
       opp_active_hp: oppActiveHp,
       bench_hps: benchHps,
+      path,
     })
       .then(() => {
         onStarted(iterations);

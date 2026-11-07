@@ -28,7 +28,7 @@ import numpy as np
 import numba
 sys.path.insert(0, "tests")
 import battle_driver as bd
-from SearchEngine.models import GameState, Node
+from SearchEngine.models import GameState, Node, real_position
 from SearchEngine.my_mcts import mcts_loop
 from SearchEngine.mcts_eval import rollout_arr
 
@@ -63,6 +63,13 @@ try:
     root = Node(state)
     mcts_loop(root, state, max_iterations=600, terminal_iterations=10**9)
     assert root.visits == 600, root.visits
+    action, kids = next(iter(root.children.items()))
+    node = kids[0]
+    did = node.snapshot.opp_move_idx
+    # The move its snapshot has, then one it doesn't: that one runs the last step again
+    for really_did in (did, did + 4):
+        out = real_position(state.battle_array, [(root, action, node, really_did)])
+        assert out.shape == state.battle_array.shape
     results["mcts"] = "ok"
 except Exception as exc:
     results["mcts"] = f"{type(exc).__name__}: {exc}"

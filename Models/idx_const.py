@@ -256,9 +256,10 @@ class Field:
     AI_TOOK_DMG_LAST_TURN = MY_LAST_MOVE + 1
     AI_KNOWS           = AI_TOOK_DMG_LAST_TURN + 1
     PENDING_OPP_MOVE   = AI_KNOWS + 1  # Baton Pass phase: opp move slot + 1 still to run, 0 none
+    OPP_MOVE_RAN       = PENDING_OPP_MOVE + 1  # This turn: opp move slot + 1 + 16 * PP paid, 0 it didn't move
 
 # Last one minus first one +1 because idx 0
-FIELD_LEN = Field.PENDING_OPP_MOVE - Field.MY_POK + 1
+FIELD_LEN = Field.OPP_MOVE_RAN - Field.MY_POK + 1
 # Per-side slots relative to that side's SIDE_COND, both sides share the layout
 SIDE_REFLECT_TURNS      = Field.MY_REFLECT_TURNS - Field.MY_SIDE_COND
 SIDE_LIGHT_SCREEN_TURNS = Field.MY_LIGHT_SCREEN_TURNS - Field.MY_SIDE_COND

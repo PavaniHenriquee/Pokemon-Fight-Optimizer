@@ -185,6 +185,8 @@ export default function App() {
   // pathIds is our navigation: an array of node IDs from root → current.
   // [] = we're at the root.  ["42", "108"] = two levels deep.
   const [pathIds, setPathIds] = useState<string[]>([]);
+  // Same length as pathIds: what the foe did on each step, the outcome dropdown it was picked under
+  const [pathMoves, setPathMoves] = useState<(string | null)[]>([]);
 
   // Which action card is selected (drives the outcome inspector). null = nothing selected.
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -270,29 +272,33 @@ export default function App() {
   // useCallback memoises a function so child components don't re-render
   // unnecessarily just because App re-rendered.
 
-  const navigateTo = useCallback((nodeId: string) => {
+  const navigateTo = useCallback((nodeId: string, oppMove: string | null) => {
     setPathIds((prev) => [...prev, nodeId]);
+    setPathMoves((prev) => [...prev, oppMove]);
     setSelectedKey(null);
   }, []);
 
   const goBack = useCallback(() => {
     setPathIds((prev) => prev.slice(0, -1));
+    setPathMoves((prev) => prev.slice(0, -1));
     setSelectedKey(null);
   }, []);
 
   // Path rail: depth 0 = root, depth n = the n-th step
   const jumpTo = useCallback((depth: number) => {
     setPathIds((prev) => prev.slice(0, depth));
+    setPathMoves((prev) => prev.slice(0, depth));
     setSelectedKey(null);
   }, []);
 
   // ── action click handler ───────────────────────────────────────────────────
-  // If there's exactly 1 outcome we skip the inspector and navigate directly.
+  // If there's exactly 1 outcome and 1 thing the foe could have done, there's nothing to pick in the
+  // inspector and we navigate directly.
   const handleActionClick = (key: string) => {
     const action = currentNode?.actions[key];
     if (!action) return;
-    if (action.nodes.length === 1) {
-      navigateTo(action.nodes[0].id);
+    if (action.nodes.length === 1 && action.opp_moves.length <= 1) {
+      navigateTo(action.nodes[0].id, action.opp_moves[0]?.label ?? null);
     } else {
       setSelectedKey(key);
     }
@@ -370,6 +376,7 @@ export default function App() {
       setSessionActive(true);
       setTree(null);
       setPathIds([]);
+      setPathMoves([]);
       setSelectedKey(null);
       setStartTime(Date.now());
       setElapsed(0);
@@ -484,6 +491,7 @@ export default function App() {
                   <PathRail
                     tree={tree}
                     pathIds={pathIds}
+                    pathMoves={pathMoves}
                     nodeMap={nodeMap}
                     onJump={jumpTo}
                     onBack={goBack}
@@ -492,6 +500,11 @@ export default function App() {
                     <div className="mx-auto max-w-[1080px]">
                       <BattleView
                         node={currentNode}
+                        oppMove={
+                          currentNode.id === pathIds[pathIds.length - 1]
+                            ? pathMoves[pathMoves.length - 1]
+                            : null
+                        }
                         onContinue={setContinueNodeId}
                         onStartNew={() => start(myTeam, oppTeam)}
                         running={running}
@@ -517,11 +530,13 @@ export default function App() {
         {continueNodeId && (
           <ContinueModal
             nodeId={continueNodeId}
+            path={pathIds.map((id, i) => ({ node_id: id, opp_move: pathMoves[i] }))}
             onClose={() => setContinueNodeId(null)}
             onStarted={(n) => {
               setSessionActive(true);
               setTree(null);
               setPathIds([]);
+              setPathMoves([]);
               setSelectedKey(null);
               setStartTime(Date.now());
               setElapsed(0);

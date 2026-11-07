@@ -8,14 +8,13 @@ MCTS expands the tree by adding child nodes representing possible future actions
 estimating its potential value.
 4. Backpropagation: The results of the simulation are then propagated up the tree…"""
 import math
-import random
 from typing import List
 import numpy as np
 from SearchEngine.mcts_eval import rollout_arr
 from SearchEngine.helper import multiple_nodes, find_best_terminal_node, prune_dominated
 from SearchEngine.models import (
     GameState, Node, ActionType, ROOT_C, ACTION_SLOT, ACTION_ORDER, N_SLOTS, STATS_COLS,
-    node_key, valid_action_mask
+    node_key, valid_action_mask, random_untried_slot
 )
 from Models.helper import StatustoName, BattlePhase
 from Models.idx_const import Pok, POK_LEN, MOVE_STRIDE, Move, Field
@@ -218,6 +217,7 @@ def _select_expand(state: GameState, node: Node):
         if new_node is None:
             new_node = Node(new_state, key)
             child.append(new_node)
+        new_node.count_opp_move(new_state.opp_move_last)
         node = new_node
         state = new_state
         path.append(node)
@@ -225,10 +225,10 @@ def _select_expand(state: GameState, node: Node):
 
     # 2) Expansion (if not terminal)
     if untried:
-        slots = [s for s in range(N_SLOTS) if untried >> s & 1]
-        action = ACTION_ORDER[random.choice(slots)]
+        action = ACTION_ORDER[random_untried_slot(untried)]
         state = state.step(action)
         child = Node(state)
+        child.count_opp_move(state.opp_move_last)
         node.children[action] = [child]
         node.expanded |= 1 << ACTION_SLOT[action]
         path.append(child)

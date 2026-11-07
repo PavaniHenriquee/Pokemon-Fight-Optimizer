@@ -64,6 +64,10 @@ def jobs() -> list[tuple[str, Path]]:
 
     for tid in range(1, TYPE_COUNT + 1):
         out.append((f"{POKEAPI}/types/generation-ix/scarlet-violet/{tid}.png", OUT / "types" / f"{tid}.png"))
+        out.append((
+            f"{POKEAPI}/types/generation-viii/legends-arceus/small/{tid}.png",
+            OUT / "types-small" / f"{tid}.png",
+        ))
     return out
 
 

@@ -128,6 +128,10 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - Search tuning (`c`, `ROOT_C`, `terminal_iterations`) lives in
   `SearchEngine/models.py` and `my_mcts.py`. The code is the source of truth; ask before
   changing values. Keep `terminal_iterations` low enough to be reachable at tree depth.
+- Continue from here starts from the node's snapshot on purpose, it exists for rare nodes with few visits. Replaying
+  the path to rebuild the history doesn't work there: a rare step that needs a rare state before it gave no hit in
+  30 s (Reporter Helen, depth 6, 24 visits). Only a last step whose move differs from the snapshot's visit runs again,
+  capped at 100 ms, and the foe's PP is arithmetic (the root's minus what each picked move paid).
 - The search has no risk term on purpose. A CVaR penalty was tested and removed (`README.md`,
   `NN_PLAN.md` Step 1a); risk comes from the price of a death in `evaluate_terminal`. `ROOT_C` is a
   larger `c` for the root only. `quality`'s CVaR15 column only reports battle results.
@@ -221,6 +225,9 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   (`BattlePhase.BATON_PASS`, `Field.PENDING_OPP_MOVE`); my slot is in `node_key` so Roar's
   random drag-out splits nodes. The AI learns my moves through the `AI_KNOWS` bits. Nature
   Power reads an optional `"terrain"` in `TrainerDB.json`.
+- `Field.OPP_MOVE_RAN` is the foe's slot + 1 + 16 × PP paid in the turn, written once its move passes the can't-move
+  checks (0: it didn't move). Nothing in the battle reads it. `step_arr` packs it per turn and returns it, also for the
+  forced turns of a step, for the outcome dropdowns and Continue's PP.
 - End of turn (Gen IV): side timers, weather, Gravity count down; weather damage for both
   actives; then per Pokemon Ingrain, Aqua Ring, Speed Boost, Leech Seed, poison/burn, Curse,
   bind, Uproar, Disable, Encore, Taunt, Yawn; then Perish Song. Speed order, a tie is a coin flip.
@@ -306,6 +313,10 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - Search: at the first turn of Roark weak and Barry 2-P the stop rule never fires within 350,000 iterations
   (29-42 s), so the app runs to its cap, 500,000 by default in the UI. Roark weak's top action has only 12% of
   the visits.
+- Continue from here: only the foe's PP follows every step of the path. Everything else comes from the node's
+  snapshot, or its parent's when the last step runs again, so it keeps that visit's history for the earlier steps: my
+  own PP (a flinch doesn't show in `node_key`) and hidden counters. If the last step's re-run misses its 100 ms, the
+  foe's lock, last move and my `MIRROR_MOVE` stay the snapshot's visit's too.
 - Benchmarks: `quality` and the `tuning` stages share seeds (`100_000 * iters + i`), so re-running `quality`
   isn't an independent check of values `tuning` chose. `tuning`'s fresh-seed stage is.
 - Benchmarks on the i5: at this repo's folder depth, `.numba_cache/benchmarks/...` reaches the 260
@@ -324,6 +335,16 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - Box: a held item is only set and shown in the party, the box editor and summary don't have it.
 - Box editor: manual add can still add any species, on purpose, for manual testing while the app only
   covers up to the 1st gym. To be removed once it covers the full game.
+- Setup: below 1800×900 (full HD at 125% Windows scaling is 1536×864) the side panels stay small and a party of
+  5-6 takes 3 rows and scrolls. At 1280×720 two-column moves cut off long names.
+- Setup: a party card's ✕ reflows the cards, so a sprite can land under the cursor and open its hover card.
+- Setup: at 3× a sprite that fills its frame (Gyarados) pokes a few pixels past its party card's edge.
+- Lint: the `calculateStats` export in `PokemonSlots.tsx` fails `react-refresh/only-export-components`.
+- Search: Struggle as a regular move crashes the search after 2 iterations with `IndexError: tuple index out of
+  range` in `rollout_arr`, cause not traced. The same party without it runs fine. `/pokemon-data` leaves it out, so
+  the move lists don't offer it, and only a box entry already saved with it can reach this.
+- Setup: Natural Gift shows MoveDB's Normal with no power, the engine takes both from the held berry
+  (Hidden Power follows the IVs, `lib/hiddenPower.ts`).
 
 ## Trainer AI constraints
 
@@ -397,6 +418,9 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   grouped by bracket.
 - Win probability is the primary metric. Visit counts are secondary and shouldn't compete
   visually with it.
+- The outcome pane has one dropdown per thing the foe did, so a real game's state is easy to find. Only the view splits
+  them: the search still merges moves that leave the same state, and a state shows under each move that can reach it.
+  The move picked stays on the path (`pathMoves`) and Continue uses it.
 - Types for backend payloads live in `frontend/src/types.ts`. Keep them in sync with
   `backend/serializer.py` and `backend/main.py`.
 

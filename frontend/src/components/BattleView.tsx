@@ -17,7 +17,7 @@ import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { cn } from "@/lib/utils";
 import { battleSprite, pokIcon } from "@/lib/sprites";
-import { displayName, fmtInt, statusColor, switchTarget } from "@/lib/format";
+import { OPP_DID, displayName, fmtInt, statusColor, switchTarget } from "@/lib/format";
 import { bestActionKey } from "@/lib/tree";
 import type { TreeNode, PokemonState, BenchEntry, SnapshotData, SideEffect } from "../types";
 import { Sprite } from "./common/Sprite";
@@ -31,7 +31,7 @@ import {
   StageChips,
   StatusBadge,
   TypeBadges,
-  TypeDot,
+  TypeIcon,
   VolatileChips,
 } from "./common/Badges";
 
@@ -84,9 +84,9 @@ function FieldStrip({ snapshot }: { snapshot: SnapshotData }) {
 }
 
 // ── What just happened ─────────────────────────────────────────────────────────
-function EventLines({ snapshot }: { snapshot: SnapshotData }) {
+function EventLines({ snapshot, oppMove }: { snapshot: SnapshotData; oppMove?: string | null }) {
   const isDeath = snapshot.phase === "DEATH";
-  if (!isDeath && snapshot.phase !== "BATON_PASS" && !snapshot.opp_move) return null;
+  if (!isDeath && snapshot.phase !== "BATON_PASS" && !oppMove) return null;
   return (
     <div className="flex flex-wrap items-center gap-2">
       {isDeath && (
@@ -101,10 +101,11 @@ function EventLines({ snapshot }: { snapshot: SnapshotData }) {
           Baton Pass: choose who receives it below.
         </div>
       )}
-      {snapshot.opp_move && (
+      {oppMove && (
         <div className="flex items-center gap-2 rounded-lg bg-foreground/5 px-3 py-1.5 text-xs text-muted-foreground ring-1 ring-foreground/10 ring-inset">
           <CornerDownRight className="size-3.5" />
-          Opponent used <span className="font-semibold text-foreground">{snapshot.opp_move}</span>
+          Opponent {!OPP_DID[oppMove] && "used "}
+          <span className="font-semibold text-foreground">{OPP_DID[oppMove] ?? oppMove}</span>
         </div>
       )}
     </div>
@@ -322,7 +323,7 @@ function Recommendation({
               Recommended
             </div>
             <div className="flex items-center gap-2">
-              <TypeDot type={best.move_type} className="size-2.5" />
+              <TypeIcon type={best.move_type} size={20} />
               <span className="truncate text-lg font-semibold tracking-tight">
                 {best.action_type === 2 ? `Switch to ${switchTarget(best.label)}` : best.label}
               </span>
@@ -373,12 +374,14 @@ function Recommendation({
 // ── Main component ────────────────────────────────────────────────────────────
 export default function BattleView({
   node,
+  oppMove,
   onContinue,
   onStartNew,
   running,
   starting,
 }: {
   node: TreeNode;
+  oppMove?: string | null;
   onContinue: (id: string) => void;
   onStartNew?: () => void;
   running?: boolean;
@@ -390,7 +393,7 @@ export default function BattleView({
   return (
     <section className="space-y-3 p-4 pb-3">
       <FieldStrip snapshot={snapshot} />
-      <EventLines snapshot={snapshot} />
+      <EventLines snapshot={snapshot} oppMove={oppMove} />
 
       {/* Stage */}
       <div

@@ -14,7 +14,9 @@ from DataBase.PkDB import PokIdToName, sprite_id
 from DataBase.MoveDB import MoveIdToName, MoveName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
 from DataBase.loader import moveDB as _moveDB
-from SearchEngine.models import BENCH_ITEM
+from SearchEngine.models import (
+    BENCH_ITEM, OPP_DIDNT_MOVE, OPP_STRUGGLED, OPP_SWITCHED, OPP_USED_ITEM, opp_turns,
+)
 
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -215,33 +217,68 @@ def _field(field_block) -> dict:
     }
 
 
-def _opp_move_label(opp_move_idx: int, parent_opp_slice) -> str | None:
+_OPP_DID = {
+    OPP_DIDNT_MOVE: "Didn't move",
+    OPP_STRUGGLED:  "Struggle",
+    OPP_SWITCHED:   "Switched",
+    OPP_USED_ITEM:  "Used item",
+}
+
+
+def opp_move_label(did: int, battle_array) -> str:
     """
-    Turn the raw opp_move_idx into a readable string.
-    Needs parent_opp_slice because the move name lives in the opp's Pokemon
-    array from BEFORE the turn, not after.
+    step_arr's answer as text: "Pound", or "Pound, then Torchic: Ember" for a step with forced turns,
+    the foe's name once it changes. The names come from the battle_array since a foe's moves don't
+    change and it may be gone by the end of the step
     """
-    if opp_move_idx < 0:
-        if opp_move_idx >= -6:
-            return "Switched"         # -1 to -6 are switch indices
-        return "Used item"            # -10, -20, -30, -40
-    if opp_move_idx == 10:
-        return "Struggle"
-    # Normal move: look up the name from the parent's opp Pokemon array
-    if parent_opp_slice is not None and len(parent_opp_slice) > 0:
-        move_id = int(parent_opp_slice[Pok.MOVE1_ID + opp_move_idx * MOVE_STRIDE + Move.ID])
-        return MoveIdToName.get(move_id, f"Move#{move_id}").replace("_", " ").title()
-    return f"Move {opp_move_idx}"
+    parts = []
+    last_foe = None
+    for foe, what, _paid in opp_turns(did):
+        base = (foe + 6) * POK_LEN
+        if what in _OPP_DID:
+            name = _OPP_DID[what] if not parts else _OPP_DID[what].lower()
+        else:
+            move_id = int(battle_array[base + Pok.MOVE1_ID + (what - 1) * MOVE_STRIDE + Move.ID])
+            name = MoveIdToName.get(move_id, f"Move#{move_id}").replace("_", " ").title()
+        if last_foe is not None and foe != last_foe:
+            name = f"{PokIdToName.get(int(battle_array[base + Pok.ID]), '?').capitalize()}: {name}"
+        parts.append(name)
+        last_foe = foe
+    return ", then ".join(parts)
+
+
+def _opp_move_counts(node, battle_array) -> dict[str, int]:
+    """Visits that got to this node per thing the foe did"""
+    counts: dict[str, int] = {}
+    # .copy() so MCTS adding a key mid-loop doesn't raise RuntimeError
+    for did, n in node.opp_moves.copy().items():
+        label = opp_move_label(did, battle_array)
+        counts[label] = counts.get(label, 0) + n
+    return counts
+
+
+def _opp_move_rows(children, battle_array) -> list[dict]:
+    """The outcome pane's rows for an action: what the foe did over its outcomes, most often first"""
+    rows: dict[str, list] = {}
+    for child in children:
+        for label, n in _opp_move_counts(child, battle_array).items():
+            row = rows.setdefault(label, [0, 0.0])
+            row[0] += n
+            row[1] += child.win_chance * n
+    total = sum(row[0] for row in rows.values())
+    # By the rounded share, so two equal moves don't swap places on every update
+    ordered = sorted(rows.items(), key=lambda item: -round(item[1][0] * 100 / total))
+    return [
+        {"label": label, "visits": visits, "win_chance": round(float(wins / visits), 4)}
+        for label, (visits, wins) in ordered
+    ]
 
 
 _PHASE_NAMES = {BattlePhase.TURN_START: "TURN_START", BattlePhase.BATON_PASS: "BATON_PASS"}
 
 
-def _snapshot(snap, parent_opp_slice=None, battle_array=None) -> dict:
+def _snapshot(snap, battle_array=None) -> dict:
     is_death = snap.phase == BattlePhase.DEATH_END_OF_TURN
-    opp_move = None
-    if parent_opp_slice is not None and snap.opp_move_idx != -1:
-        opp_move = _opp_move_label(snap.opp_move_idx, parent_opp_slice)
     my_bench, opp_bench = [], []
     if battle_array is not None:
         for i in range(6):
@@ -257,7 +294,6 @@ def _snapshot(snap, parent_opp_slice=None, battle_array=None) -> dict:
         "phase":         "DEATH" if is_death else _PHASE_NAMES.get(int(snap.phase), "TURN_START"),
         "opp_active":    int(snap.opp_active),
         "terminal":      bool(snap.terminal),
-        "opp_move":      opp_move,
         "my":            _pok(snap.my_slice if not is_death else None),
         "opp":           _pok(snap.opp_slice),
         "my_bench":      my_bench,
@@ -297,7 +333,6 @@ def serialize_node(
     min_visits: int = 100,
     max_depth: int = 12,
     _depth: int = 0,
-    _parent_opp_slice=None,
 ) -> dict:
     """
     Transform the node in a type that is ready for the webapp
@@ -308,7 +343,8 @@ def serialize_node(
         "wins":       node.wins,
         "win_chance": round(float(node.win_chance), 4),
         "dead_avg":   round(float(node.dead_avg), 4),
-        "snapshot":   _snapshot(node.snapshot, _parent_opp_slice, battle_array),
+        "snapshot":   _snapshot(node.snapshot, battle_array),
+        "opp_moves":  _opp_move_counts(node, battle_array),
         "actions":    {},
     }
 
@@ -363,12 +399,10 @@ def serialize_node(
             "move_type":    move_info["type"],
             "category":     move_info["category"],
             "power":        move_info["power"],
+            "opp_moves":    _opp_move_rows(children, battle_array),
             # Child nodes: only serialize if above threshold (or at root level)
             "nodes": [
-                serialize_node(
-                    c, battle_array, min_visits, max_depth, _depth + 1,
-                    _parent_opp_slice=node.snapshot.opp_slice,
-                )
+                serialize_node(c, battle_array, min_visits, max_depth, _depth + 1)
                 for c in children
                 if c.visits >= min_visits or _depth == 0
             ],

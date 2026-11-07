@@ -1,4 +1,4 @@
-import { Minus, Plus, X } from "lucide-react";
+import { Crown, Minus, Plus, X } from "lucide-react";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "./ui/hover-card";
 import {
   Combobox,
@@ -17,12 +17,14 @@ import {
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { cn } from "@/lib/utils";
+import { spriteBox, type CardFit, type CardSize } from "@/lib/cardFit";
 import { frontStatic, itemIcon, pokIcon } from "@/lib/sprites";
 import { displayName } from "@/lib/format";
+import { moveInfoFor } from "@/lib/hiddenPower";
 import type { PokemonConfig, IVs, PokemonData, MoveInfo, BaseStats } from "../types";
 import { Sprite } from "./common/Sprite";
 import { ItemIcon } from "./common/ItemIcon";
-import { TypeBadges, TypeDot } from "./common/Badges";
+import { Chip, TypeBadges, TypeIcon } from "./common/Badges";
 
 const IV_KEYS: (keyof IVs)[] = [
   "HP",
@@ -124,41 +126,58 @@ export function NameSelect({
 function MoveOption({ name, info }: { name: string; info?: MoveInfo }) {
   return (
     <span className="flex w-full items-center gap-2">
-      <TypeDot type={info?.type} />
+      <TypeIcon type={info?.type} />
       <span className="flex-1 truncate">{name}</span>
       {!!info?.power && <span className="num text-[10px] text-subtle-foreground">{info.power}</span>}
     </span>
   );
 }
 
-// Move picker: type dot in front of the field, type + power in the list
+const INPUT_SIZE: Record<CardSize, string> = {
+  sm: "h-8",
+  md: "h-9",
+  lg: "h-11 [&_input]:text-base",
+};
+
+// Move picker: type symbol in front of the field, type + power in the list
 export function MoveSelect({
   value,
   onChange,
+  ivs,
   pokemonData,
   clearable = true,
+  size = "sm",
 }: {
   value: string;
   onChange: (v: string) => void;
+  ivs?: IVs;
   pokemonData?: PokemonData;
   clearable?: boolean;
+  size?: CardSize;
 }) {
   const moveInfo = pokemonData?.moveInfo;
-  const type = value ? moveInfo?.[value]?.type : undefined;
+  const type = value ? moveInfoFor(moveInfo, value, ivs)?.type : undefined;
   return (
     <div className="flex min-w-0 items-center gap-1.5">
-      <span
-        className="size-2 shrink-0 rounded-full ring-1 ring-foreground/10"
-        style={type ? { background: `var(--type-${type.toLowerCase()})` } : undefined}
-        title={type}
-      />
+      {type ? (
+        <TypeIcon type={type} size={size === "lg" ? 20 : 16} />
+      ) : (
+        // an empty slot keeps the space, so the fields stay lined up
+        <span
+          className={cn(
+            "shrink-0 rounded-full ring-1 ring-foreground/10",
+            size === "lg" ? "size-5" : "size-4",
+          )}
+        />
+      )}
       <NameSelect
         value={value}
         onChange={onChange}
         items={pokemonData?.moves ?? []}
         placeholder="Empty"
         clearable={clearable && !!value}
-        renderItem={(m) => <MoveOption name={m} info={moveInfo?.[m]} />}
+        renderItem={(m) => <MoveOption name={m} info={moveInfoFor(moveInfo, m, ivs)} />}
+        className={INPUT_SIZE[size]}
       />
     </div>
   );
@@ -168,14 +187,21 @@ export function ItemSelect({
   value,
   onChange,
   items,
+  size = "sm",
 }: {
   value: string;
   onChange: (v: string) => void;
   items: string[];
+  size?: CardSize;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-1.5">
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-foreground/5">
+      <span
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-md bg-foreground/5",
+          size === "sm" ? "size-6" : "size-8",
+        )}
+      >
         {value && <Sprite srcs={itemIcon(value)} alt="" width={20} height={20} />}
       </span>
       <NameSelect
@@ -184,6 +210,7 @@ export function ItemSelect({
         items={items}
         placeholder="No item"
         clearable={!!value}
+        className={INPUT_SIZE[size]}
         renderItem={(it) => (
           <span className="flex items-center gap-2">
             <Sprite srcs={itemIcon(it)} alt="" width={18} height={18} />
@@ -252,6 +279,74 @@ export function calculateStats(
   return stats;
 }
 
+// ─── Stat bars: hover card, roomy cards, the box's summary ────────────────────
+
+export function StatBars({
+  pokemon,
+  pokemonData,
+  heading,
+  large,
+  className,
+}: {
+  pokemon: Pick<PokemonConfig, "name" | "level" | "nature" | "ivs">;
+  pokemonData?: PokemonData;
+  heading?: boolean;
+  large?: boolean;
+  className?: string;
+}) {
+  const natureMults = pokemonData?.natureMultipliers?.[pokemon.nature] ?? {};
+  const stats = calculateStats(
+    pokemon.name,
+    pokemon.level,
+    pokemon.nature,
+    pokemon.ivs,
+    pokemonData?.baseStats,
+    pokemonData?.natureMultipliers,
+  );
+  if (!stats) return null;
+
+  return (
+    <div className={className}>
+      {heading && (
+        <p className="mb-1.5 text-[10px] font-medium tracking-wider text-subtle-foreground uppercase">
+          Stats
+        </p>
+      )}
+      <div className={large ? "space-y-1.5" : "space-y-1"}>
+        {IV_KEYS.map((k, i) => {
+          const mult = natureMults[k] ?? 1;
+          return (
+            <div key={k} className={cn("flex items-center gap-2", large ? "text-sm" : "text-xs")}>
+              <span
+                className={cn(
+                  large ? "w-8" : "w-7",
+                  "text-subtle-foreground",
+                  mult > 1 && "text-good",
+                  mult < 1 && "text-bad",
+                )}
+              >
+                {IV_SHORT[i]}
+              </span>
+              <span className={cn("num text-right font-medium", large ? "w-9" : "w-8")}>{stats[k]}</span>
+              <div
+                className={cn(
+                  "flex-1 overflow-hidden rounded-full bg-foreground/8",
+                  large ? "h-1.5" : "h-1",
+                )}
+              >
+                <div
+                  className="h-full rounded-full bg-primary/70"
+                  style={{ width: `${(stats[k] / Math.max(...Object.values(stats), 1)) * 100}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Hover card content ───────────────────────────────────────────────────────
 
 function SlotDetails({
@@ -264,16 +359,6 @@ function SlotDetails({
   const ivs = config.ivs;
   // Only show IVs section when at least one is below 31
   const hasCustomIvs = ivs && IV_KEYS.some((k) => (ivs[k] ?? 31) < 31);
-  const natureMults = pokemonData?.natureMultipliers?.[config.nature] ?? {};
-
-  const stats = calculateStats(
-    config.name,
-    config.level,
-    config.nature,
-    ivs,
-    pokemonData?.baseStats,
-    pokemonData?.natureMultipliers,
-  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -290,38 +375,7 @@ function SlotDetails({
         </div>
       </div>
 
-      {stats && (
-        <div>
-          <p className="mb-1.5 text-[10px] font-medium tracking-wider text-subtle-foreground uppercase">
-            Stats
-          </p>
-          <div className="space-y-1">
-            {IV_KEYS.map((k, i) => {
-              const mult = natureMults[k] ?? 1;
-              return (
-                <div key={k} className="flex items-center gap-2 text-xs">
-                  <span
-                    className={cn(
-                      "w-7 text-subtle-foreground",
-                      mult > 1 && "text-good",
-                      mult < 1 && "text-bad",
-                    )}
-                  >
-                    {IV_SHORT[i]}
-                  </span>
-                  <span className="num w-8 text-right font-medium">{stats[k]}</span>
-                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-foreground/8">
-                    <div
-                      className="h-full rounded-full bg-primary/70"
-                      style={{ width: `${(stats[k] / Math.max(...Object.values(stats), 1)) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <StatBars pokemon={config} pokemonData={pokemonData} heading />
 
       {/* IVs — only when something is non-31 */}
       {hasCustomIvs && (
@@ -353,11 +407,15 @@ function SpriteWithHover({
   nameToId,
   pokemonData,
   size = 100,
+  scale = 2,
+  side = "right",
 }: {
   config: PokemonConfig;
   nameToId: Record<string, number>;
   pokemonData?: PokemonData;
   size?: number;
+  scale?: number; // the sprite is this × its 96px art
+  side?: "left" | "right";
 }) {
   const id = nameToId[config.name];
   return (
@@ -373,25 +431,36 @@ function SpriteWithHover({
           }}
         >
           {id ? (
-            // 2× of the 96px sprite; its transparent padding may spill out of the box
+            // its transparent padding may spill out of the box
             <Sprite
               srcs={frontStatic(id)}
               alt={config.name}
-              width={192}
-              height={192}
-              className="pointer-events-none max-w-none"
+              width={96 * scale}
+              height={96 * scale}
+              className="pointer-events-none max-w-none shrink-0"
             />
           ) : (
             <span className="text-xs text-subtle-foreground">?</span>
           )}
         </div>
       </HoverCardTrigger>
-      <HoverCardContent side="right" align="start" className="w-64">
+      <HoverCardContent side={side} align="start" className="w-64">
         <SlotDetails config={config} pokemonData={pokemonData} />
       </HoverCardContent>
     </HoverCard>
   );
 }
+
+// ─── Text sizes of a party card ───────────────────────────────────────────────
+
+const NAME_TEXT: Record<CardSize, string> = { sm: "text-[15px]", md: "text-xl", lg: "text-3xl" };
+const INFO_TEXT: Record<CardSize, string> = { sm: "text-xs", md: "text-sm", lg: "text-base" };
+const BADGE_HEIGHT: Record<CardSize, number> = { sm: 16, md: 16, lg: 24 };
+const LEVEL_SIZE: Record<CardSize, string | undefined> = {
+  sm: undefined,
+  md: "h-8 w-[100px]",
+  lg: "h-10 w-[124px]",
+};
 
 // ─── My Team slot: editable level, moves and item; remove ─────────────────────
 
@@ -400,12 +469,18 @@ export function MyTeamSlot({
   nameToId,
   onChange,
   onRemove,
+  onMakeLead,
+  isLead,
+  fit,
   pokemonData,
 }: {
   config: PokemonConfig;
   nameToId: Record<string, number>;
   onChange: (updated: PokemonConfig) => void;
   onRemove: () => void;
+  onMakeLead: () => void;
+  isLead: boolean;
+  fit: CardFit;
   pokemonData?: PokemonData;
 }) {
   function setMove(idx: number, value: string) {
@@ -414,8 +489,86 @@ export function MyTeamSlot({
     onChange({ ...config, moves });
   }
 
+  const { size } = fit;
+  const sprite = (
+    <SpriteWithHover
+      config={config}
+      nameToId={nameToId}
+      pokemonData={pokemonData}
+      size={fit.box}
+      scale={fit.scale}
+    />
+  );
+  const info = (
+    <div className="min-w-0">
+      {/* room for the remove button */}
+      <div className={cn("truncate pr-6 font-semibold tracking-tight", NAME_TEXT[size])}>
+        {displayName(config.name) || "—"}
+      </div>
+      <TypeBadges
+        types={pokemonData?.pokemonTypes?.[config.name]}
+        height={BADGE_HEIGHT[size]}
+        className="mt-1 flex-wrap"
+      />
+      <div className={cn("mt-1 truncate text-muted-foreground", INFO_TEXT[size])}>
+        {config.ability || "No ability"} · {config.nature}
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <span className={cn("text-subtle-foreground", size === "sm" ? "text-[11px]" : "text-xs")}>
+          Level
+        </span>
+        <LevelStepper
+          value={config.level}
+          onChange={(v) => onChange({ ...config, level: v })}
+          className={LEVEL_SIZE[size]}
+        />
+      </div>
+    </div>
+  );
+  const stats = fit.stats && (
+    <StatBars pokemon={config} pokemonData={pokemonData} large={size === "lg"} />
+  );
+  const inputs = (
+    <div className="flex flex-col gap-2">
+      <div className={cn("grid gap-x-2 gap-y-1.5", fit.moveColumns === 2 && "grid-cols-2")}>
+        {config.moves.map((move, i) => (
+          <MoveSelect
+            key={i}
+            value={move}
+            onChange={(v) => setMove(i, v)}
+            ivs={config.ivs}
+            pokemonData={pokemonData}
+            size={size}
+          />
+        ))}
+      </div>
+      <ItemSelect
+        value={config.item ?? ""}
+        onChange={(v) => onChange({ ...config, item: v || undefined })}
+        items={pokemonData?.items ?? []}
+        size={size}
+      />
+    </div>
+  );
+
   return (
-    <div className="group relative rounded-xl border bg-card p-3 transition-colors hover:border-foreground/15">
+    <div className="group relative h-full rounded-xl border bg-card p-3 transition-colors hover:border-foreground/15">
+      {isLead ? (
+        <Chip tone="primary" className="absolute top-2 left-2 z-10">
+          <Crown className="size-3" />
+          Lead
+        </Chip>
+      ) : (
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={onMakeLead}
+          className="absolute top-2 left-2 z-10 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+        >
+          <Crown />
+          Make lead
+        </Button>
+      )}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -431,96 +584,219 @@ export function MyTeamSlot({
         <TooltipContent>Remove from team</TooltipContent>
       </Tooltip>
 
-      <div className="flex gap-3">
-        <SpriteWithHover config={config} nameToId={nameToId} pokemonData={pokemonData} />
-        <div className="min-w-0 flex-1 pr-6">
-          <div className="truncate text-[15px] font-semibold tracking-tight">
-            {displayName(config.name) || "—"}
-          </div>
-          <TypeBadges types={pokemonData?.pokemonTypes?.[config.name]} className="mt-1" />
-          <div className="mt-1 truncate text-xs text-muted-foreground">
-            {config.ability || "No ability"} · {config.nature}
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-[11px] text-subtle-foreground">Level</span>
-            <LevelStepper value={config.level} onChange={(v) => onChange({ ...config, level: v })} />
+      {fit.layout === "wide" ? (
+        <div className="flex h-full items-center gap-10 px-6">
+          {sprite}
+          <div className="flex min-w-0 flex-1 flex-col gap-8">
+            {info}
+            {stats}
+            {inputs}
           </div>
         </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1.5">
-        {config.moves.map((move, i) => (
-          <MoveSelect key={i} value={move} onChange={(v) => setMove(i, v)} pokemonData={pokemonData} />
-        ))}
-      </div>
-      <div className="mt-2">
-        <ItemSelect
-          value={config.item ?? ""}
-          onChange={(v) => onChange({ ...config, item: v || undefined })}
-          items={pokemonData?.items ?? []}
-        />
-      </div>
+      ) : fit.layout === "tall" ? (
+        <div className="flex h-full flex-col gap-4">
+          <div className="flex min-h-0 flex-1 items-center justify-center">{sprite}</div>
+          {info}
+          {stats}
+          {inputs}
+        </div>
+      ) : (
+        <div className="flex h-full flex-col gap-3">
+          <div className="flex flex-1 items-center gap-3">
+            {sprite}
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              {info}
+              {stats}
+            </div>
+          </div>
+          {inputs}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Opponent slot: compact read-only row ──────────────────────────────────────
+// ─── Opponent slot: read-only, by how much height it gets ──────────────────────
 
 export function OpponentSlot({
   config,
   nameToId,
   pokemonData,
+  height,
 }: {
   config: PokemonConfig;
   nameToId: Record<string, number>;
   pokemonData?: PokemonData;
+  height: number;
 }) {
   const id = nameToId[config.name];
   const moveInfo = pokemonData?.moveInfo;
-  return (
-    <div className="flex gap-3 rounded-xl border bg-card p-2.5">
-      <HoverCard openDelay={200} closeDelay={80}>
-        <HoverCardTrigger asChild>
-          <div className="relative flex size-12 shrink-0 cursor-help items-center justify-center rounded-lg bg-foreground/4 ring-1 ring-foreground/8">
-            {id ? <Sprite srcs={pokIcon(id)} alt={config.name} width={40} height={30} /> : "?"}
-            {/* held item on the tile's corner, like the games mark it */}
-            {config.item && (
-              <span className="absolute -right-1.5 -bottom-1.5 flex size-5 items-center justify-center rounded-full bg-elevated ring-1 ring-foreground/15">
-                <ItemIcon name={config.item} size={16} />
-              </span>
-            )}
+  const types = pokemonData?.pokemonTypes?.[config.name];
+  const large = height >= 114; // room for the bigger tile with the item's name under it
+
+  const moves = (
+    <div className={cn("grid gap-1", height < 620 && "grid-cols-2")}>
+      {config.moves.map((move, i) => (
+        <span
+          key={i}
+          className={cn(
+            "flex items-center gap-1.5 truncate rounded-md px-2",
+            large ? "py-1 text-sm" : "py-0.5 text-xs",
+            move ? "bg-foreground/5 text-foreground/90" : "text-subtle-foreground italic",
+          )}
+        >
+          {move && (
+            <TypeIcon type={moveInfoFor(moveInfo, move, config.ivs)?.type} size={large ? 16 : 14} />
+          )}
+          <span className="truncate">{move || "—"}</span>
+        </span>
+      ))}
+    </div>
+  );
+
+  const itemChip = config.item && (
+    <Chip className="bg-elevated">
+      <ItemIcon name={config.item} size={16} />
+      {config.item}
+    </Chip>
+  );
+
+  // Name, level and types, then ability and nature, for a card with a real sprite
+  const heading = (
+    <div>
+      <div className="flex items-baseline gap-2">
+        <span className="min-w-0 truncate text-lg font-semibold tracking-tight">
+          {displayName(config.name) || "—"}
+        </span>
+        <span className="num shrink-0 text-sm whitespace-nowrap text-subtle-foreground">
+          Lv {config.level}
+        </span>
+      </div>
+      <TypeBadges types={types} height={18} className="mt-1" />
+      <div className="mt-1 truncate text-sm text-muted-foreground">
+        {config.ability || "No ability"} · {config.nature}
+      </div>
+    </div>
+  );
+
+  // Only one Pokémon: sprite on top, everything below it
+  if (height >= 620) {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden rounded-xl border bg-card p-3">
+        <div className="flex min-h-0 flex-1 items-center justify-center">
+          <SpriteWithHover
+            config={config}
+            nameToId={nameToId}
+            pokemonData={pokemonData}
+            size={spriteBox(3)}
+            scale={3}
+            side="left"
+          />
+        </div>
+        <div>
+          {heading}
+          {itemChip && <div className="mt-1.5">{itemChip}</div>}
+        </div>
+        <StatBars pokemon={config} pokemonData={pokemonData} />
+        {moves}
+      </div>
+    );
+  }
+
+  // Two or three: sprite beside the info, moves below
+  if (height >= 220) {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden rounded-xl border bg-card p-3">
+        <div className="flex min-h-0 flex-1 items-center">
+          <div className="flex w-full items-stretch gap-3">
+            <div className="relative flex shrink-0 items-center">
+              <SpriteWithHover
+                config={config}
+                nameToId={nameToId}
+                pokemonData={pokemonData}
+                size={spriteBox(2)}
+                side="left"
+              />
+              {/* level with the last line beside it, and it doesn't push the sprite up */}
+              {itemChip && (
+                <div className="pointer-events-none absolute inset-x-0 -bottom-0.5 flex justify-center">
+                  {itemChip}
+                </div>
+              )}
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+              {heading}
+              {height >= 340 && <StatBars pokemon={config} pokemonData={pokemonData} />}
+            </div>
           </div>
-        </HoverCardTrigger>
-        <HoverCardContent side="left" align="start" className="w-64">
-          <SlotDetails config={config} pokemonData={pokemonData} />
-        </HoverCardContent>
-      </HoverCard>
+        </div>
+        {moves}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-0 items-center gap-3 overflow-hidden rounded-xl border bg-card p-2.5">
+      <div
+        className={cn(
+          "flex shrink-0 flex-col items-center gap-1.5",
+          large ? "w-[72px] roomy:w-20" : "w-16",
+        )}
+      >
+        <HoverCard openDelay={200} closeDelay={80}>
+          <HoverCardTrigger asChild>
+            <div
+              className={cn(
+                "relative flex shrink-0 cursor-help items-center justify-center rounded-lg bg-foreground/4 ring-1 ring-foreground/8",
+                large ? "size-[72px]" : "size-12",
+              )}
+            >
+              {id ? (
+                <Sprite
+                  srcs={pokIcon(id)}
+                  alt={config.name}
+                  width={large ? 80 : 40}
+                  height={large ? 60 : 30}
+                  className="max-w-none shrink-0"
+                />
+              ) : (
+                "?"
+              )}
+              {/* held item on the tile's corner, like the games mark it */}
+              {config.item && (
+                <span className="absolute -right-1.5 -bottom-1.5 flex size-5 items-center justify-center rounded-full bg-elevated ring-1 ring-foreground/15">
+                  <ItemIcon name={config.item} size={16} />
+                </span>
+              )}
+            </div>
+          </HoverCardTrigger>
+          <HoverCardContent side="left" align="start" className="w-64">
+            <SlotDetails config={config} pokemonData={pokemonData} />
+          </HoverCardContent>
+        </HoverCard>
+        {config.item && (
+          <Chip
+            title={config.item}
+            className={cn(
+              "h-4 w-full justify-center px-0.5 roomy:px-1",
+              !large && "px-0 text-[10px] font-normal",
+            )}
+          >
+            <span className="min-w-0 truncate">{config.item}</span>
+          </Chip>
+        )}
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="min-w-0 truncate text-sm font-semibold">{displayName(config.name) || "—"}</span>
+          <span className={cn("min-w-0 truncate font-semibold", large ? "text-base" : "text-sm")}>
+            {displayName(config.name) || "—"}
+          </span>
           <span className="num shrink-0 text-xs whitespace-nowrap text-subtle-foreground">
             Lv {config.level}
           </span>
-          <TypeBadges
-            types={pokemonData?.pokemonTypes?.[config.name]}
-            height={14}
-            className="ml-auto shrink-0"
-          />
+          <TypeBadges types={types} height={large ? 16 : 14} className="ml-auto shrink-0" />
         </div>
-        <div className="mt-1.5 grid grid-cols-2 gap-1">
-          {config.moves.map((move, i) => (
-            <span
-              key={i}
-              className={cn(
-                "flex items-center gap-1.5 truncate rounded-md px-2 py-0.5 text-xs",
-                move ? "bg-foreground/5 text-foreground/90" : "text-subtle-foreground italic",
-              )}
-            >
-              {move && <TypeDot type={moveInfo?.[move]?.type} />}
-              <span className="truncate">{move || "—"}</span>
-            </span>
-          ))}
-        </div>
+        <div className="mt-1.5">{moves}</div>
       </div>
     </div>
   );

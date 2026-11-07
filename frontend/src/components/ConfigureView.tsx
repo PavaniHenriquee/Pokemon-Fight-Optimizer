@@ -1,9 +1,28 @@
-import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, MapPin, Plus, Users } from "lucide-react";
+import { useCallback, useState, useEffect } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Plus,
+  Undo2,
+  Users,
+} from "lucide-react";
 import BoxView from "./BoxView";
-import type { BoxEntry, NuzlockeRun, PokemonConfig, PokemonData, TrainerDB } from "../types";
+import type {
+  BoxEntry,
+  NuzlockeRun,
+  PokemonConfig,
+  PokemonData,
+  TrainerDB,
+} from "../types";
 import { MyTeamSlot, NameSelect, OpponentSlot } from "./PokemonSlots";
-import { boxAfterPartyEdit, partyAfterEdit, trainerVisible } from "@/lib/nuzlocke";
+import { OPPONENT_MIN_HEIGHT, teamCardFit } from "@/lib/cardFit";
+import {
+  boxAfterPartyEdit,
+  partyAfterEdit,
+  trainerVisible,
+} from "@/lib/nuzlocke";
+import { displayName } from "@/lib/format";
 import { trainerSprite } from "@/lib/sprites";
 import type { BoxState } from "@/lib/useBox";
 import { Sprite } from "./common/Sprite";
@@ -32,6 +51,115 @@ function PanelTitle({
   );
 }
 
+// An element's content size, kept up to date. Hidden (another tab) it reads 0 × 0.
+function useSize() {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const measure = useCallback((element: HTMLElement | null) => {
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSize((prev) =>
+        prev.width === width && prev.height === height
+          ? prev
+          : { width, height },
+      );
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [size, measure] as const;
+}
+
+// ─── Party layout: the fewer Pokémon, the bigger their cards ──────────────────
+
+const CARD_GAP = 12;
+const MIN_CARD_WIDTH = 280;
+const MIN_CARD_HEIGHT = 250;
+const PARTY_ROWS = [[], [1], [2], [3], [2, 2], [2, 3], [3, 3]]; // cards per row, by party size
+
+// A window too narrow for that shape gets as many per row as fit
+function partyRows(count: number, width: number): number[] {
+  const fit = Math.max(
+    1,
+    Math.floor((width + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP)),
+  );
+  const rows = PARTY_ROWS[count];
+  if (rows.every((perRow) => perRow <= fit)) return rows;
+  const wrapped: number[] = [];
+  for (let left = count; left > 0; left -= fit)
+    wrapped.push(Math.min(left, fit));
+  return wrapped;
+}
+
+function PartyGrid({
+  team,
+  pokemonData,
+  emptyHint,
+  onChange,
+  onRemove,
+  onMakeLead,
+}: {
+  team: PokemonConfig[];
+  pokemonData: PokemonData;
+  emptyHint: string;
+  onChange: (idx: number, updated: PokemonConfig) => void;
+  onRemove: (idx: number) => void;
+  onMakeLead: (idx: number) => void;
+}) {
+  const [size, measure] = useSize();
+  const rows = partyRows(team.length, size.width);
+  const cardHeight = Math.max(
+    MIN_CARD_HEIGHT,
+    (size.height - CARD_GAP * (rows.length - 1)) / rows.length,
+  );
+  const perRowOf = rows.flatMap((perRow) => Array<number>(perRow).fill(perRow)); // by party slot
+
+  return (
+    <div ref={measure} className="min-h-0 flex-1 overflow-y-auto p-4">
+      {team.length === 0 ? (
+        <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-6 text-center">
+          <div className="flex size-14 items-center justify-center rounded-full bg-foreground/5">
+            <Plus className="size-6 text-muted-foreground" />
+          </div>
+          <p className="text-lg text-muted-foreground">Build your team</p>
+          <p className="text-sm text-subtle-foreground">{emptyHint}</p>
+        </div>
+      ) : (
+        <div
+          className="grid min-h-full grid-cols-6"
+          style={{
+            gap: CARD_GAP,
+            gridTemplateRows: `repeat(${rows.length}, minmax(${MIN_CARD_HEIGHT}px, 1fr))`,
+          }}
+        >
+          {team.map((config, idx) => {
+            const perRow = perRowOf[idx];
+            const width = (size.width - CARD_GAP * (perRow - 1)) / perRow;
+            return (
+              <div
+                key={idx}
+                className="min-w-0"
+                style={{ gridColumn: `span ${6 / perRow}` }}
+              >
+                <MyTeamSlot
+                  config={config}
+                  nameToId={pokemonData.nameToId}
+                  onChange={(updated) => onChange(idx, updated)}
+                  onRemove={() => onRemove(idx)}
+                  onMakeLead={() => onMakeLead(idx)}
+                  isLead={idx === 0}
+                  fit={teamCardFit(width, cardHeight)}
+                  pokemonData={pokemonData}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── The box's place until the real box has loaded: nothing to edit or save ───
 
 function BoxUnavailable({
@@ -48,7 +176,9 @@ function BoxUnavailable({
       </div>
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
         <p className="text-xs break-words text-muted-foreground">
-          {error ? `Couldn't load the box, so saving is off: ${error}` : "Loading the box…"}
+          {error
+            ? `Couldn't load the box, so saving is off: ${error}`
+            : "Loading the box…"}
         </p>
         {error && (
           <Button variant="outline" size="sm" onClick={onRetry}>
@@ -85,10 +215,16 @@ function OpponentPanel({
   pokemonData: PokemonData;
   onAddSlot: () => void;
 }) {
-  const options = Object.keys(trainerDB).filter((t) => trainerVisible(trainerDB[t], run));
+  const options = Object.keys(trainerDB).filter((t) =>
+    trainerVisible(trainerDB[t], run),
+  );
   const position = options.indexOf(selectedTrainer); // -1 with none selected: › goes to the first
   const sprite = trainerDB[selectedTrainer]?.sprite;
   const items = trainerItems.filter(Boolean);
+  const [teamSize, measureTeam] = useSize();
+  const slotGap = 8;
+  const slotHeight =
+    (teamSize.height - slotGap * (team.length - 1)) / Math.max(1, team.length);
 
   return (
     <aside className="flex min-h-0 flex-col border-l bg-card/40">
@@ -96,23 +232,24 @@ function OpponentPanel({
         <PanelTitle count={`${team.length}/6`}>Opponent</PanelTitle>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
         {/* trainer card */}
         <div
-          className="relative overflow-hidden rounded-xl border p-3"
+          className="relative shrink-0 overflow-hidden rounded-xl border p-3"
           style={{
             background:
               "radial-gradient(ellipse 70% 90% at 85% 50%, oklch(0.32 0.06 250 / 45%), transparent 70%), var(--card)",
           }}
         >
           <div className="flex items-center gap-3">
-            <div className="flex size-16 shrink-0 items-center justify-center">
+            <div className="flex size-16 shrink-0 items-center justify-center roomy:size-20">
               {sprite ? (
                 <Sprite
                   srcs={trainerSprite(sprite)}
                   alt={selectedTrainer}
                   width={64}
                   height={64}
+                  className="roomy:size-20"
                 />
               ) : (
                 <Users className="size-6 text-subtle-foreground" />
@@ -174,14 +311,25 @@ function OpponentPanel({
             Pick a trainer to load their team.
           </p>
         ) : (
-          <div className="space-y-2">
+          <div
+            ref={measureTeam}
+            className="grid flex-1"
+            style={{
+              gap: slotGap,
+              minHeight:
+                OPPONENT_MIN_HEIGHT * team.length + slotGap * (team.length - 1),
+              gridTemplateRows: `repeat(${team.length}, minmax(0, 1fr))`,
+            }}
+          >
             {team.map((config, idx) => (
-              <OpponentSlot
-                key={idx}
-                config={config}
-                nameToId={pokemonData.nameToId}
-                pokemonData={pokemonData}
-              />
+              <div key={idx} className="min-h-0 min-w-0">
+                <OpponentSlot
+                  config={config}
+                  nameToId={pokemonData.nameToId}
+                  pokemonData={pokemonData}
+                  height={slotHeight}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -189,7 +337,7 @@ function OpponentPanel({
         {!locked && team.length < 6 && (
           <button
             onClick={onAddSlot}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground cursor-pointer"
+            className="flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground cursor-pointer"
           >
             <Plus className="size-4" /> Add Pokémon
           </button>
@@ -235,6 +383,11 @@ export default function ConfigureView({
   const { box } = boxState;
   const [oppLocked, setOppLocked] = useState(false);
   const [selectedTrainer, setSelectedTrainer] = useState("");
+  // Who just left the party and from which slot, so adding them straight back undoes it
+  const [lastRemoved, setLastRemoved] = useState<{
+    name: string;
+    index: number;
+  } | null>(null);
   const savedTrainer = run?.last_trainer; // undefined until the run has loaded
 
   // Helper: pad a trainer_items array to always have exactly 4 slots
@@ -245,9 +398,12 @@ export default function ConfigureView({
   // The run's trainer once both have loaded, or the first one it can meet. A new run empties it, so this
   // also goes back to the start. A pick made here is already selected when its save comes back.
   useEffect(() => {
-    if (savedTrainer === undefined || Object.keys(trainerDB).length === 0) return;
+    if (savedTrainer === undefined || Object.keys(trainerDB).length === 0)
+      return;
     if (savedTrainer && savedTrainer === selectedTrainer) return;
-    const first = Object.keys(trainerDB).find((t) => trainerVisible(trainerDB[t], run));
+    const first = Object.keys(trainerDB).find((t) =>
+      trainerVisible(trainerDB[t], run),
+    );
     loadTrainer(trainerDB[savedTrainer] ? savedTrainer : (first ?? null));
   }, [trainerDB, savedTrainer]);
 
@@ -255,7 +411,9 @@ export default function ConfigureView({
   useEffect(() => {
     const selected = trainerDB[selectedTrainer];
     if (selected && !trainerVisible(selected, run)) {
-      const first = Object.keys(trainerDB).find((t) => trainerVisible(trainerDB[t], run));
+      const first = Object.keys(trainerDB).find((t) =>
+        trainerVisible(trainerDB[t], run),
+      );
       handleSelectTrainer(first ?? null);
     }
   }, [trainerDB, selectedTrainer, run]);
@@ -303,7 +461,7 @@ export default function ConfigureView({
     );
   }
 
-  const { pokemon, nameToId } = pokemonData;
+  const { pokemon } = pokemonData;
 
   function update(idx: number, updated: PokemonConfig) {
     const next = [...myTeam];
@@ -315,9 +473,17 @@ export default function ConfigureView({
   }
 
   function addFromBox(entry: BoxEntry) {
-    if (entry.dead || myTeam.length >= 6 || myTeam.some((t) => t.name === entry.name)) return;
+    if (
+      entry.dead ||
+      myTeam.length >= 6 ||
+      myTeam.some((t) => t.name === entry.name)
+    )
+      return;
+    const slot =
+      lastRemoved?.name === entry.name ? lastRemoved.index : myTeam.length;
+    setLastRemoved(null);
     setMyTeam([
-      ...myTeam,
+      ...myTeam.slice(0, slot),
       {
         name: entry.name,
         gender: entry.gender,
@@ -328,8 +494,33 @@ export default function ConfigureView({
         ivs: { ...entry.ivs },
         item: entry.item ?? undefined,
       },
+      ...myTeam.slice(slot),
     ]);
   }
+
+  function removeFromParty(idx: number) {
+    setLastRemoved({ name: myTeam[idx].name, index: idx });
+    setMyTeam(myTeam.filter((_, i) => i !== idx));
+  }
+
+  // Clicking a box slot: in the party it leaves, otherwise it joins (dead or a full party: nothing)
+  function toggleFromBox(entry: BoxEntry) {
+    if (entry.dead) return;
+    const idx = myTeam.findIndex((t) => t.name === entry.name);
+    if (idx >= 0) removeFromParty(idx);
+    else addFromBox(entry);
+  }
+
+  function makeLead(idx: number) {
+    setLastRemoved(null);
+    setMyTeam([myTeam[idx], ...myTeam.filter((_, i) => i !== idx)]);
+  }
+
+  // Gone if it died or left the box in the meantime
+  const putBack =
+    lastRemoved && !myTeam.some((t) => t.name === lastRemoved.name)
+      ? box?.find((entry) => !entry.dead && entry.name === lastRemoved.name)
+      : undefined;
 
   function addOppSlot() {
     if (oppTeam.length >= 6) return;
@@ -347,7 +538,7 @@ export default function ConfigureView({
   }
 
   return (
-    <div className="grid h-full grid-cols-[292px_minmax(0,1fr)_360px] 2xl:grid-cols-[320px_minmax(0,1fr)_420px]">
+    <div className="grid h-full grid-cols-[292px_minmax(0,1fr)_360px] 2xl:grid-cols-[320px_minmax(0,1fr)_420px] roomy:grid-cols-[380px_minmax(0,1fr)_420px]">
       {box === null ? (
         <BoxUnavailable error={boxState.error} onRetry={boxState.retry} />
       ) : (
@@ -355,61 +546,57 @@ export default function ConfigureView({
           box={box}
           pokemonData={pokemonData}
           onBoxChange={boxState.edit}
-          onEdited={(before, after) => setMyTeam(partyAfterEdit(myTeam, before.name, after))}
+          onEdited={(before, after) =>
+            setMyTeam(partyAfterEdit(myTeam, before.name, after))
+          }
           onSave={() => boxState.save()}
           onClear={clearBox}
           onSetDead={onSetDead}
-          onDelete={(entry) => boxState.commit(box.filter((e) => e.id !== entry.id))}
+          onDelete={(entry) =>
+            boxState.commit(box.filter((e) => e.id !== entry.id))
+          }
           dirty={boxState.dirty}
           saved={boxState.saved}
           team={myTeam}
-          onAdd={addFromBox}
+          onToggle={toggleFromBox}
         />
       )}
 
       {/* My team */}
       <section className="flex min-h-0 flex-col">
-        <div className="flex h-11 shrink-0 items-center border-b px-4">
+        <div className="flex h-11 shrink-0 items-center gap-3 border-b px-4">
           <PanelTitle count={`${myTeam.length}/6`}>Your team</PanelTitle>
+          {putBack && (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => addFromBox(putBack)}
+            >
+              <Undo2 />
+              Put {displayName(putBack.name)} back
+            </Button>
+          )}
           {myTeam.length > 0 && (
-            <span className="ml-auto text-[11px] text-subtle-foreground">
-              Lead first · hover a sprite for stats
+            <span className="ml-auto truncate text-xs text-subtle-foreground">
+              Click a Pokémon in the box to add or remove it · hover a sprite
+              for stats
             </span>
           )}
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
-            {myTeam.map((config, idx) => (
-              <MyTeamSlot
-                key={idx}
-                config={config}
-                nameToId={nameToId}
-                onChange={(updated) => update(idx, updated)}
-                onRemove={() => setMyTeam(myTeam.filter((_, i) => i !== idx))}
-                pokemonData={pokemonData}
-              />
-            ))}
-            {myTeam.length < 6 && (
-              <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-center">
-                <div className="flex size-9 items-center justify-center rounded-full bg-foreground/5">
-                  <Plus className="size-4 text-muted-foreground" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {myTeam.length === 0
-                    ? "Build your team"
-                    : "Add another Pokémon"}
-                </p>
-                <p className="text-xs text-subtle-foreground">
-                  {box === null
-                    ? "Your PC box isn't loaded."
-                    : box.some((entry) => !entry.dead)
-                      ? "Double-click a Pokémon in your PC box, or use Add to party."
-                      : "Your box is empty: use + in the box to add one."}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        <PartyGrid
+          team={myTeam}
+          pokemonData={pokemonData}
+          emptyHint={
+            box === null
+              ? "Your PC box isn't loaded."
+              : box.some((entry) => !entry.dead)
+                ? "Click a Pokémon in your PC box to add it."
+                : "Your box is empty: use + in the box to add one."
+          }
+          onChange={update}
+          onRemove={removeFromParty}
+          onMakeLead={makeLead}
+        />
       </section>
 
       <OpponentPanel

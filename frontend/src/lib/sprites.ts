@@ -62,6 +62,16 @@ export function typeSprite(type: string): string[] {
   ];
 }
 
+// Legends Arceus round type symbols (60×60, no name on them)
+export function typeIcon(type: string): string[] {
+  const id = TYPE_IDS[type.toLowerCase()];
+  if (!id) return [];
+  return [
+    `${LOCAL}/types-small/${id}.png`,
+    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-viii/legends-arceus/small/${id}.png`,
+  ];
+}
+
 export function trainerSprite(sprite: string): string[] {
   return [`${LOCAL}/trainers/${sprite}.png`, `${SHOWDOWN}/trainers/${sprite}.png`];
 }

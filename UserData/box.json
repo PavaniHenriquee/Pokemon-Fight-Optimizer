@@ -1,11 +1,11 @@
 [
   {
-    "id": "c4aa7326-e1ba-4659-afae-7bd6a6a0ddee",
+    "id": "ce9a2b2c-c392-4e96-a457-e94ca0dfae4b",
     "name": "Chimchar",
     "gender": "Male",
     "nature": "Hardy",
-    "ability": "Iron Fist",
-    "level": 10,
+    "ability": "Blaze",
+    "level": 11,
     "moves": [
       "Scratch",
       "Leer",
@@ -24,12 +24,36 @@
     "dead": false
   },
   {
-    "id": "416c89e1-815d-455c-bd89-abb5b96543f8",
+    "id": "baa59214-ba90-4c7e-b30c-24775b999b9c",
+    "name": "Starly",
+    "gender": "Male",
+    "nature": "Hardy",
+    "ability": "Keen Eye",
+    "level": 11,
+    "moves": [
+      "Tackle",
+      "Growl",
+      "",
+      ""
+    ],
+    "ivs": {
+      "HP": 31,
+      "Attack": 31,
+      "Defense": 31,
+      "Special Attack": 31,
+      "Special Defense": 31,
+      "Speed": 31
+    },
+    "item": null,
+    "dead": false
+  },
+  {
+    "id": "6191ae35-1964-4955-81d0-a452e32f3380",
     "name": "Eevee",
     "gender": "Male",
     "nature": "Hardy",
     "ability": "Adaptability",
-    "level": 10,
+    "level": 11,
     "moves": [
       "Tackle",
       "Tail Whip",
@@ -48,17 +72,17 @@
     "dead": false
   },
   {
-    "id": "557752c5-ca57-43e4-be06-073afc3fdf34",
-    "name": "Starly",
+    "id": "243e0632-d3f4-4bb0-bdcf-f06f0933db3e",
+    "name": "Riolu",
     "gender": "Male",
     "nature": "Hardy",
-    "ability": "Reckless",
-    "level": 10,
+    "ability": "Inner Focus",
+    "level": 11,
     "moves": [
-      "Tackle",
-      "Growl",
-      "",
-      ""
+      "Endure",
+      "Low Kick",
+      "Bite",
+      "Counter"
     ],
     "ivs": {
       "HP": 31,

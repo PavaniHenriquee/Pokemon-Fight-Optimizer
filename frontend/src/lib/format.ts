@@ -39,6 +39,13 @@ export function hpRange(hp: number, max: number): string {
   return "1%–24%";
 }
 
+// An outcome row's label when it isn't a move, as a sentence about the opponent goes on
+export const OPP_DID: Record<string, string> = {
+  "Didn't move": "didn't move",
+  Switched: "switched",
+  "Used item": "used an item",
+};
+
 // m:ss
 export function formatTime(ms: number): string {
   const s = Math.floor(ms / 1000);

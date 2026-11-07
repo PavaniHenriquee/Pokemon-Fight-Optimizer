@@ -3,6 +3,9 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @custom-variant dark (&:where(.dark, .dark *));
+/* A full HD window: the side panels of Setup grow */
+@custom-variant roomy (@media (min-width: 1800px) and (min-height: 900px));
+@custom-variant roomy-tall (@media (min-width: 1800px) and (min-height: 1000px));
 
 /* ── Theme ──────────────────────────────────────────────────────────────────
    One dark theme. Names follow shadcn so every ui/* component picks them up. */

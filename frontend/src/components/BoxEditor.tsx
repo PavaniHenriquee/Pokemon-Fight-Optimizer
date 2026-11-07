@@ -3,6 +3,7 @@ import { Minus, Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { battleSprite, pokIcon } from "@/lib/sprites";
 import { displayName, typeColor } from "@/lib/format";
+import { hiddenPower, moveInfoFor } from "@/lib/hiddenPower";
 import { genderFor, startingMoves } from "@/lib/nuzlocke";
 import type { BoxEntry, IVs, PokemonData } from "../types";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
@@ -44,32 +45,6 @@ const NEUTRAL_NATURE: Record<string, string> = {
 // Game convention: raised stat in red, lowered in blue
 const UP = "text-[oklch(0.72_0.17_25)]";
 const DOWN = "text-[oklch(0.72_0.12_240)]";
-
-// Hidden Power, same rule as Models/pokemon.py hidden_power ([pp] CalcHiddenPowerParams)
-const HP_ORDER: (keyof IVs)[] = [
-  "HP",
-  "Attack",
-  "Defense",
-  "Speed",
-  "Special Attack",
-  "Special Defense",
-];
-const HP_TYPES = [
-  "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost", "Steel",
-  "Fire", "Water", "Grass", "Electric", "Psychic", "Ice", "Dragon", "Dark",
-];
-function hiddenPower(ivs: IVs): { type: string; power: number } {
-  let typeBits = 0;
-  let powerBits = 0;
-  HP_ORDER.forEach((s, i) => {
-    typeBits |= (ivs[s] & 1) << i;
-    powerBits |= ((ivs[s] >> 1) & 1) << i;
-  });
-  return {
-    type: HP_TYPES[Math.floor((typeBits * 15) / 63)],
-    power: Math.floor((powerBits * 40) / 63) + 30,
-  };
-}
 
 type Draft = Omit<BoxEntry, "id">;
 type Page = "info" | "moves" | "stats";
@@ -356,18 +331,20 @@ function InfoPage({
 
 function MoveSlotCard({
   move,
+  ivs,
   pokemonData,
   active,
   onClick,
   onClear,
 }: {
   move: string;
+  ivs: IVs;
   pokemonData: PokemonData;
   active: boolean;
   onClick: () => void;
   onClear: () => void;
 }) {
-  const info = move ? pokemonData.moveInfo?.[move] : undefined;
+  const info = move ? moveInfoFor(pokemonData.moveInfo, move, ivs) : undefined;
   if (!move) {
     return (
       <button
@@ -457,6 +434,7 @@ function MovesPage({
           <MoveSlotCard
             key={i}
             move={m}
+            ivs={draft.ivs}
             pokemonData={pokemonData}
             active={active === i}
             onClick={() => setActive(i)}
@@ -481,7 +459,7 @@ function MovesPage({
         </div>
         <div className="max-h-[208px] overflow-y-auto p-1">
           {list.map((m) => {
-            const info = moveInfo[m];
+            const info = moveInfoFor(moveInfo, m, draft.ivs);
             const known = draft.moves.includes(m);
             return (
               <button
