@@ -6,7 +6,8 @@ Updated only when asked.
 
 - Done: Phase 0 (this file and the CLAUDE.md pointers), 2026-11-08.
 - Done: 1.1 (trainer importer), 1.2 (trainer availability) and 1.3 (coverage report), 2026-11-08.
-- Next: 1.4, the MoveDB entry helper (ask first).
+- Done: 1.4 (MoveDB entry helper), 2.1 (state design note) and 2.2 (`node_key` capacity), 2026-11-08.
+- Next: Phase 3, Substitute.
 
 ## Goal
 
@@ -97,7 +98,7 @@ CSVs get exported by hand.
 
 This is architecture, so a note comes first and waits for OK.
 
-- [ ] 2.1 Design note. For each new piece of state: where it lives (VolStatus2 bits, new `Pok` slots, or
+- [x] 2.1 Design note. For each new piece of state: where it lives (VolStatus2 bits, new `Pok` slots, or
       per-side `Field` slots on the shared `SIDE_*` layout), what switch-out resets, what Baton Pass keeps, and
       how `node_key` sees it. Draft list to check:
   - Per Pokemon:
@@ -111,7 +112,51 @@ This is architecture, so a note comes first and waits for OK.
   - Per side: Spikes layers; Tailwind turns; Wish (turns, HP); Future Sight and Doom Desire (turns, damage).
   - Field: Trick Room (`Field.TRICKROOM` exists).
   - `node_key`: k1, k2 and k3 are full, and so is `VOL2_KEY_BITS` (3). It needs at least one more 64-bit word.
-- [ ] 2.2 Build the agreed capacity with `node_key` tests, but no mechanics yet: the new key word(s), more
+  - Agreed (2026-11-08). Sources: [pp] `battle_mon.h` `MoveEffectsData`, the `*_BATON_PASSED` masks in
+    `constants/battle/condition.h` and `moves.h`, `battle_lib.c` `BattleSystem_UpdateAfterSwitch`; [SD gen4]
+    Wish, Future Sight, Doom Desire.
+    - Patterns: a flag with a counter is a bit plus its own turns slot (like Taunt); one `Pok` slot per
+      counter, before `AB_ID`; per-side timers on the `SIDE_*` layout. Each slot comes with its batch.
+    - Per Pokemon (switch-out clears all of it unless noted; "BP" = Baton Pass keeps it, [pp]):
+      - Substitute: `VOL2.SUBSTITUTE` + `Pok.SUB_HP`. BP, with its HP. Keyed: only whether it's up.
+      - Choice lock: `Pok.CHOICE_LOCK` (slot + 1). Keyed: the slot (the foe's comes from the AI's tie-break).
+      - Stockpile: `Pok.STOCKPILE`, the count plus the Def / SpD stages it gave (Spit Up / Swallow take those
+        back). Keyed: the count.
+      - Magnet Rise, Embargo, Lock-On: `VOL2` bit + `*_TURNS` slot; Heal Block: its `VolStatus` bit +
+        `HEAL_BLOCK_TURNS`. BP, turns included. Lock-On also ends when its target switches out, and its timer
+        restarts when the target Baton Passes.
+      - Torment, Imprison, Miracle Eye, Grudge: `VOL2` bits.
+      - Mean Look / Block / Spider Web: `VOL2.MEAN_LOOK` on the trapped one. It also ends when the trapper
+        switches out other than by Baton Pass. BP (the receiver stays trapped).
+      - Power Trick: `VOL2` bit, Atk/Def swapped in place and swapped back on switch-out. BP, and the receiver's
+        Atk/Def get swapped.
+      - Gastro Acid: `AB_ID` cleared with the `BASE_AB_ID` backup (Worry Seed's) + `VOL2.GASTRO_ACID`. BP,
+        unlike Worry Seed.
+      - Roost, Magic Coat, Snatch: `VOL2` bits for the turn, like `PROTECT`.
+      - Thrash: `Pok.RAMPAGE_TURNS` beside `LOCKED_MOVE`, also cleared in `unlock_move`.
+      - Last Resort: `Pok.LAST_RESORT`, a mask of the slots used since switch-in. Keyed: one derived bit,
+        "knows it and it would work".
+      - Types: `Pok.BASE_TYPE1/2` from `to_np`, switch-out restores `TYPE1/2` from them. Keyed: `TYPE1/2`.
+      - Moves (Mimic, Transform): `Pok.ORIG_MOVE1..4`, 0 untouched, else `id * 128 + PP`, rebuilt from
+        `MOVE_TABLE` on switch-out. Not keyed.
+      - Items (Trick, Thief, Fling): no new slot, the item block is rebuilt from `ITEM_TABLE` and `bench_delta`
+        already has the bench's item id. Keyed: the item id.
+      - Transform's other backups (stats, weight, gender, species) are decided in its batch (12.2).
+    - Per side: `SIDE_SPIKES` (layers, keyed); `SideCondition.TAILWIND` + `SIDE_TAILWIND_TURNS`;
+      `SideCondition.WISH` + `SIDE_WISH_TURNS` (no HP slot: [SD gen4] heals half the recipient's max HP);
+      `SideCondition.FUTURE_SIGHT` on the target's side + `SIDE_FUTURE_TURNS`, `SIDE_FUTURE_DAMAGE` (fixed at
+      use, typeless) and `SIDE_FUTURE_MOVE` (the hit rolls 90 or 85 accuracy). Field: `Field.TRICKROOM`.
+    - `node_key`, opp in the low 32 bits of k5 and k6, mine in the high 32 (empty in the death phase):
+      - k1: unchanged, the side conditions masked to the 10 bits they use now.
+      - k2: `VOL_STATUS2` moves out; Gravity at bit 56, Trick Room at 57.
+      - k5: `VOL_STATUS2` 0-19 (`VOL2_KEY_BITS` 20), choice slot 20-22, Stockpile 23-24, Last Resort 25,
+        Encore slot 26-27, Disable slot 28-29 (each only while its bit is set).
+      - k6: side conditions from 1024 up 0-3, Spikes layers 4-5, item id 6-14, `TYPE1` 15-19, `TYPE2` 20-24,
+        `LOCKED_MOVE` + 1 25-28, charging 29, recharging 30.
+      - Locks are keyed because a Rollout hit with a small roll and a miss can land in the same HP bracket.
+      - Siblings have the same Pokemon in each slot, so keying the item id and types always only sees real
+        changes.
+- [x] 2.2 Build the agreed capacity with `node_key` tests, but no mechanics yet: the new key word(s), more
       VOL2 key bits, and keyed item and type changes. Each slot comes with its own batch, following the note. If
       a layout change breaks `NeuralNetwork/`, stop and ask.
 

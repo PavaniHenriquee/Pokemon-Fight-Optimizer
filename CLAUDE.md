@@ -234,7 +234,6 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - A new target-ability check in `basic_flag` goes into `_EXPLICIT_RELEVANT`. An ability-tagged message calls
   `reveal_ability`.
 - New RNG calls run only when the ability/item is present, so golden scenarios without it keep their RNG order.
-- `VOL2_KEY_BITS` (3) is full; a 4th `VolStatus2` bit needs room in `node_key` first.
 
 ## Engine decisions (settled, don't re-litigate)
 
@@ -360,7 +359,7 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - Continue from here: only the foe's PP follows every step of the path. Everything else comes from the node's
   snapshot, or its parent's when the last step runs again, so it keeps that visit's history for the earlier steps: my
   own PP (a flinch doesn't show in `node_key`) and hidden counters. If the last step's re-run misses its 100 ms, the
-  foe's lock, last move and my `MIRROR_MOVE` stay the snapshot's visit's too.
+  foe's last move and my `MIRROR_MOVE` stay the snapshot's visit's too.
 - Benchmarks: `quality` and the `tuning` stages share seeds (`100_000 * iters + i`), so re-running `quality`
   isn't an independent check of values `tuning` chose. `tuning`'s fresh-seed stage is.
 - Benchmarks on the i5: at this repo's folder depth, `.numba_cache/benchmarks/...` reaches the 260

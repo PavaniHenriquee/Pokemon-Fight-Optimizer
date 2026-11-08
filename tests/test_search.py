@@ -8,7 +8,11 @@ from SearchEngine.models import (
     best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array, random_untried_slot,
     opp_turns, foe_pp_along_path, real_position, ACTION_ORDER, ACTION_SLOT, N_SLOTS, ROOT_C,
     STATS_COLS, VOL2_KEY_BITS, AB_KEY_BITS, AB_KEY_SHIFT, TURN_AB_KEY_BIT, OPP_DIDNT_MOVE,
-    OPP_STRUGGLED, OPP_SWITCHED, OPP_USED_ITEM, OPP_TURN_BITS,
+    OPP_STRUGGLED, OPP_SWITCHED, OPP_USED_ITEM, OPP_TURN_BITS, SIDE_KEY_SHIFT, CHOICE_KEY_SHIFT,
+    STOCKPILE_KEY_SHIFT, LAST_RESORT_KEY_BIT, ENCORE_KEY_SHIFT, DISABLE_KEY_SHIFT, SIDE_COND_K1_BITS,
+    SIDE_COND_HI_BITS, SPIKES_KEY_SHIFT, ITEM_KEY_SHIFT, ITEM_KEY_BITS, TYPE_KEY_SHIFT, TYPE_KEY_BITS,
+    LOCK_KEY_SHIFT, LOCK_KEY_MASK, CHARGING_KEY_BIT, RECHARGING_KEY_BIT, GRAVITY_KEY_BIT,
+    TRICK_ROOM_KEY_BIT,
 )
 from SearchEngine import models as search_models
 from SearchEngine.mcts_eval import (
@@ -20,7 +24,9 @@ from SearchEngine.my_mcts import (
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
 from Models.idx_const import Pok, Move, Field, Item, ITEM_LEN
 from Models.item import ITEM_TABLE
-from Models.helper import ActionType, BattlePhase, Status, VolStatus, VolStatus2, SideCondition
+from Models.helper import (
+    ActionType, BattlePhase, Status, VolStatus, VolStatus2, SideCondition, Types
+)
 from Models.constants import _POTIONS_POTION
 from Models.trainer_ai import return_idx
 from DataBase.ItemDB import ItemNames
@@ -261,6 +267,147 @@ def test_vol_status_leaves_the_turn_ability_bit_free():
 def test_vol_status2_fits_node_key():
     """node_key packs each side's VOL_STATUS2 into VOL2_KEY_BITS bits, grow it with the bitmap"""
     assert sum(_int_attrs(VolStatus2)) < 2 ** VOL2_KEY_BITS
+
+
+def test_node_key_fields_fit():
+    """k5 and k6 fields follow each other without overlap and leave each half's top bit free,
+    and what they hold fits their bits"""
+    k5 = [(0, VOL2_KEY_BITS), (CHOICE_KEY_SHIFT, 3), (STOCKPILE_KEY_SHIFT, 2), (LAST_RESORT_KEY_BIT, 1),
+          (ENCORE_KEY_SHIFT, 2), (DISABLE_KEY_SHIFT, 2)]
+    k6 = [(0, SIDE_COND_HI_BITS), (SPIKES_KEY_SHIFT, 2), (ITEM_KEY_SHIFT, ITEM_KEY_BITS),
+          (TYPE_KEY_SHIFT, 2 * TYPE_KEY_BITS), (LOCK_KEY_SHIFT, LOCK_KEY_MASK.bit_length()),
+          (CHARGING_KEY_BIT, 1), (RECHARGING_KEY_BIT, 1)]
+    for fields in (k5, k6):
+        for (shift, bits), (next_shift, _) in zip(fields, fields[1:]):
+            assert shift + bits == next_shift
+        assert fields[-1][0] + fields[-1][1] < SIDE_KEY_SHIFT
+    assert sum(_int_attrs(SideCondition)) < 2 ** (SIDE_COND_K1_BITS + SIDE_COND_HI_BITS)
+    assert max(_int_attrs(ItemNames)) < 2 ** ITEM_KEY_BITS
+    assert max(_int_attrs(Types)) < 2 ** TYPE_KEY_BITS
+    assert TRICK_ROOM_KEY_BIT == GRAVITY_KEY_BIT + 1 < 63
+
+
+def _keys_after(one_v_one, change, mine):
+    """node_key before, after change(pok) on one active, and after the same change on the other"""
+    base = one_v_one()
+    keys = [node_key(base)]
+    for on_mine in (mine, not mine):
+        arr = one_v_one()
+        change(my_active(arr) if on_mine else opp_active(arr))
+        keys.append(node_key(arr))
+    return keys
+
+
+def _splits(one_v_one, change, mine):
+    """The change splits nodes on that side, and the two sides don't collide"""
+    base, changed, other_side = _keys_after(one_v_one, change, mine)
+    return changed != base and changed != other_side
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_item_id(one_v_one, mine):
+    """A swapped item (Trick, Thief) splits nodes even though both still hold one"""
+    def swap(pok):
+        pok[Item.ID] = ItemNames.CHARCOAL if pok[Item.ID] != ItemNames.CHARCOAL else ItemNames.LEFTOVERS
+    assert _splits(one_v_one, swap, mine)
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_types(one_v_one, mine):
+    """A changed type (Conversion, Color Change) splits nodes by which type"""
+    def change(pok):
+        pok[Pok.TYPE1] = Types.STEEL if pok[Pok.TYPE1] != Types.STEEL else Types.WATER
+    def change2(pok):
+        pok[Pok.TYPE2] = Types.GHOST if pok[Pok.TYPE2] != Types.GHOST else Types.DARK
+    assert _splits(one_v_one, change, mine)
+    assert _splits(one_v_one, change2, mine)
+
+
+@pytest.mark.parametrize("mine", [True, False])
+@pytest.mark.parametrize("vol, slot_idx", [
+    (VolStatus.ENCORE, Pok.ENCORE_TURNS), (VolStatus.DISABLE, Pok.DISABLE_TURNS),
+])
+def test_node_key_sees_encore_and_disable_slots(one_v_one, mine, vol, slot_idx):
+    """Encore and Disable split nodes by their slot while they hold, not by the turns left, and a
+    leftover slot after they end adds nothing"""
+    def held(slot, turns):
+        def change(pok):
+            pok[Pok.VOL_STATUS] |= vol
+            pok[slot_idx] = turns * 4 + slot
+        return change
+    _, slot1, _ = _keys_after(one_v_one, held(1, 3), mine)
+    _, slot1_later, _ = _keys_after(one_v_one, held(1, 5), mine)
+    _, slot2, _ = _keys_after(one_v_one, held(2, 3), mine)
+    assert slot1 == slot1_later
+    assert slot1 != slot2
+    assert _splits(one_v_one, held(1, 3), mine)
+    def ended(pok):
+        pok[slot_idx] = 2
+    base, after, _ = _keys_after(one_v_one, ended, mine)
+    assert after == base
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_locks(one_v_one, mine):
+    """A locked move (Rollout) splits nodes by its slot, and charging and recharging split too"""
+    def locked(slot):
+        def change(pok):
+            pok[Pok.LOCKED_MOVE] = slot
+        return change
+    def charge_recharge(value):
+        def change(pok):
+            pok[Pok.CHARGE_RECHARGE] = value
+        return change
+    keys = {_keys_after(one_v_one, locked(s), mine)[1] for s in range(4)}
+    assert len(keys) == 4
+    assert _splits(one_v_one, locked(0), mine)
+    assert _splits(one_v_one, charge_recharge(1), mine)
+    assert _splits(one_v_one, charge_recharge(-1), mine)
+    assert (_keys_after(one_v_one, charge_recharge(1), mine)[1]
+            != _keys_after(one_v_one, charge_recharge(-1), mine)[1])
+
+
+def test_node_key_sees_trick_room_but_not_its_turns(one_v_one):
+    """Trick Room splits nodes, the turns left don't, and it doesn't collide with Gravity"""
+    arr = one_v_one()
+    key = node_key(arr)
+    arr[Field.TRICKROOM] = 5
+    key_tr = node_key(arr)
+    assert key_tr != key
+    arr[Field.TRICKROOM] = 2
+    assert node_key(arr) == key_tr
+    gravity = one_v_one()
+    gravity[Field.GRAVITY_TURNS] = 5
+    assert node_key(gravity) != key_tr
+
+
+@pytest.mark.parametrize("side", [Field.MY_SIDE_COND, Field.OPP_SIDE_COND])
+def test_node_key_sees_new_side_conditions_in_k6(one_v_one, side):
+    """A side condition above k1's bits splits nodes through k6 and leaves k1 (and with it the
+    Toxic Spikes layers next to it) alone"""
+    arr = one_v_one()
+    key = node_key(arr)
+    arr[side] = 1 << SIDE_COND_K1_BITS
+    new = node_key(arr)
+    assert new[0] == key[0]
+    assert new != key
+    other = one_v_one()
+    other[Field.OPP_SIDE_COND if side == Field.MY_SIDE_COND else Field.MY_SIDE_COND] = (
+        1 << SIDE_COND_K1_BITS
+    )
+    assert node_key(other) != new
+
+
+def test_node_key_death_phase_ignores_my_side(one_v_one):
+    """In the death phase my fainted active's item, types and lock don't split nodes"""
+    arr = one_v_one()
+    arr[Field.PHASE] = BattlePhase.DEATH_END_OF_TURN
+    key = node_key(arr)
+    me = my_active(arr)
+    me[Item.ID] = ItemNames.CHARCOAL
+    me[Pok.TYPE1] = Types.STEEL
+    me[Pok.LOCKED_MOVE] = 2
+    assert node_key(arr) == key
 
 
 @pytest.mark.parametrize("move, field, fails", [
@@ -696,15 +843,36 @@ def test_real_position_runs_the_last_step_for_another_move(make_pokemon, make_ba
         assert pok_slice(out, slot, side)[Pok.CURRENT_HP] == pok_slice(snap, slot, side)[Pok.CURRENT_HP]
 
 
-@pytest.mark.parametrize("created, real, locked", [(0, 1, 1), (1, 0, -1)])
-def test_real_position_gets_the_rollout_lock_right(make_pokemon, make_battle, created, real, locked):
-    """Rollout and Tackle can merge, node_key doesn't see the lock. It follows the real move"""
+def _rollout_battle(make_pokemon, make_battle, ability):
     mine = [make_pokemon("Machop", 50, "Guts", ["Scratch", "Growl"])]
-    foes = [make_pokemon("Geodude", 20, "Sturdy", ["Tackle", "Rollout"])]
-    initial = make_battle(mine, foes)
-    parent, action, node, _ = _clicked(initial, [created])[0]
-    out = real_position(initial, [(parent, action, node, _pack((0, real + 1, 1)))])
-    assert pok_slice(out, 0, True)[Pok.LOCKED_MOVE] == locked
+    foes = [make_pokemon("Geodude", 20, ability, ["Tackle", "Rollout"])]
+    return make_battle(mine, foes)
+
+
+def test_rollout_lock_doesnt_merge_with_tackle(make_pokemon, make_battle):
+    """node_key sees the foe's Rollout lock (No Guard, it can't miss), so it and Tackle land in
+    different nodes"""
+    initial = _rollout_battle(make_pokemon, make_battle, "No Guard")
+    rollout = _clicked(initial, [1])[0][2]
+    tackle = _clicked(initial, [0])[0][2]
+    assert pok_slice(reconstruct_battle_array(rollout.snapshot, initial), 0, True)[Pok.LOCKED_MOVE] == 1
+    assert rollout.key != tackle.key
+
+
+def test_real_position_follows_tackle_on_a_missed_rollout(make_pokemon, make_battle):
+    """A missed Rollout leaves no lock, so outside the HP brackets it has Tackle's key. When the foe
+    really used Tackle the last step runs again with it"""
+    initial = _rollout_battle(make_pokemon, make_battle, "Sturdy")
+    parent, action, rollout, _ = _clicked(initial, [1])[0]
+    snap = reconstruct_battle_array(rollout.snapshot, initial)
+    assert pok_slice(snap, 0, True)[Pok.LOCKED_MOVE] == -1
+    tackle = _clicked(initial, [0])[0][2].key
+    assert rollout.key[0] & ~search_models.KEY_HP_BITS == tackle[0] & ~search_models.KEY_HP_BITS
+    assert rollout.key[1:] == tackle[1:]
+    out = real_position(initial, [(parent, action, rollout, _pack((0, 1, 1)))])
+    foe = pok_slice(out, 0, True)
+    assert foe[Pok.LOCKED_MOVE] == -1
+    assert foe[Pok.LAST_MOVE_ID] == MoveName.TACKLE
 
 
 def test_real_position_keeps_the_snapshot_when_the_last_step_cant_be_found(

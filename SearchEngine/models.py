@@ -15,13 +15,16 @@ from Models.constants import (
     _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _FIELD_WEATHER, _FIELD_MY_SIDE_COND,
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
     _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID, _POK_AB_ID,
-    _POK_METRONOME_COUNT, _POK_BASE_AB_ID, _FIELD_OPP_MOVE_RAN, _FIELD_PENDING_OPP_MOVE
+    _POK_METRONOME_COUNT, _POK_BASE_AB_ID, _FIELD_OPP_MOVE_RAN, _FIELD_PENDING_OPP_MOVE,
+    _POK_TYPE1, _POK_TYPE2, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _VOLSTATUS_ENCORE,
+    _VOLSTATUS_DISABLE, _FIELD_TRICKROOM
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action, baton_pass_action, OPP_RAN_PP_STEP
 from Engine.engine_helper import move_blocked, truant_loafs, is_trapped
 from Engine.speed import slow_start_active
+from Engine.status_calc import SLOT_MASK
 from Utils.jit import njit
 
 
@@ -229,8 +232,34 @@ def _hp_bracket(hp, max_hp):
     return 1
 
 
-# Bits node_key gives each active's VOL_STATUS2
-VOL2_KEY_BITS = 3
+# k5 and k6 hold one half per side, the opp's in the low 32 bits, mine above
+SIDE_KEY_SHIFT = 32
+# k5 per side: VOL_STATUS2 from bit 0, the choice-locked slot, the Stockpile count, Last Resort
+# working, then the Encore and Disable slots while they hold
+VOL2_KEY_BITS = 20
+CHOICE_KEY_SHIFT = 20
+STOCKPILE_KEY_SHIFT = 23
+LAST_RESORT_KEY_BIT = 25
+ENCORE_KEY_SHIFT = 26
+DISABLE_KEY_SHIFT = 28
+# k1 keeps each side's first SIDE_COND_K1_BITS side conditions, k6 gets the ones above
+SIDE_COND_K1_BITS = 10
+SIDE_COND_K1_MASK = (1 << SIDE_COND_K1_BITS) - 1
+SIDE_COND_HI_BITS = 4
+# k6 per side: those side conditions from bit 0, Spikes layers, the active's item id, both its
+# types, LOCKED_MOVE + 1, then charging or recharging
+SPIKES_KEY_SHIFT = 4
+ITEM_KEY_SHIFT = 6
+ITEM_KEY_BITS = 9
+TYPE_KEY_SHIFT = 15
+TYPE_KEY_BITS = 5
+LOCK_KEY_SHIFT = 25
+LOCK_KEY_MASK = 15
+CHARGING_KEY_BIT = 29
+RECHARGING_KEY_BIT = 30
+# k2 bits above the two 28-bit stage packs
+GRAVITY_KEY_BIT = 56
+TRICK_ROOM_KEY_BIT = 57
 # Bits node_key gives each active's changed ability id, from k1 bit 12 (opp) then mine
 AB_KEY_BITS = 7
 AB_KEY_SHIFT = 12
@@ -254,14 +283,41 @@ def _stages_key(pok):
 
 
 @njit
+def _vol_key(pok):
+    """One side's half of k5: VOL_STATUS2, then the Encore and Disable slots while they hold"""
+    packed = np.int64(pok[_POK_VOL_STATUS2])
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_ENCORE:
+        packed |= np.int64(pok[_POK_ENCORE_TURNS] & SLOT_MASK) << ENCORE_KEY_SHIFT
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_DISABLE:
+        packed |= np.int64(pok[_POK_DISABLE_TURNS] & SLOT_MASK) << DISABLE_KEY_SHIFT
+    return packed
+
+
+@njit
+def _hold_key(pok, side_cond):
+    """One side's half of k6: its side conditions above k1's, the active's item, types and lock"""
+    packed = np.int64(side_cond >> SIDE_COND_K1_BITS)
+    packed |= np.int64(pok[_ITEM_ID]) << ITEM_KEY_SHIFT
+    packed |= np.int64(pok[_POK_TYPE1]) << TYPE_KEY_SHIFT
+    packed |= np.int64(pok[_POK_TYPE2]) << TYPE_KEY_SHIFT + TYPE_KEY_BITS
+    packed |= np.int64((pok[_POK_LOCKED_MOVE] + 1) & LOCK_KEY_MASK) << LOCK_KEY_SHIFT
+    if pok[_POK_CHARGE_RECHARGE] > 0:
+        packed |= np.int64(1) << CHARGING_KEY_BIT
+    elif pok[_POK_CHARGE_RECHARGE] < 0:
+        packed |= np.int64(1) << RECHARGING_KEY_BIT
+    return packed
+
+
+@njit
 def node_key(battle_array):
     """Integer fingerprint of what decides whether two outcomes of an action share a node:
     phase, opp slot, status, every vol status bit (both bitmaps), HP bracket and stat stages of
     both actives, whether each active holds an item, an ability Trace or Worry Seed changed (it
     depends on the history), Truant's loaf turn or an active Slow Start, the weather, Gravity, each
     side's conditions and Toxic Spikes layers
-    (not the turns left), my active slot (Roar picks it at random), the Baton Pass phase and each
-    active's Metronome item move and count (k4, opp low 32 bits, mine high)"""
+    (not the turns left), my active slot (Roar picks it at random), the Baton Pass phase, each
+    active's Metronome item move and count (k4, opp low 32 bits, mine high), Trick Room, and per
+    side (k5, k6) the Encore and Disable slots, the active's item id, types and lock"""
     opp_idx = battle_array[_FIELD_OPP_POK]
     opp = battle_array[(opp_idx + 6) * POK_LEN:(opp_idx + 7) * POK_LEN]
     is_death = battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN
@@ -280,8 +336,10 @@ def node_key(battle_array):
     if _turn_ability_on(opp):
         k3 |= np.int64(1) << TURN_AB_KEY_BIT
     k1 |= np.int64(battle_array[_FIELD_WEATHER]) << 32
-    k1 |= np.int64(battle_array[_FIELD_OPP_SIDE_COND]) << 35
+    k1 |= (np.int64(battle_array[_FIELD_OPP_SIDE_COND]) & SIDE_COND_K1_MASK) << 35
     k1 |= np.int64(battle_array[_FIELD_OPP_TOXIC_SPIKES]) << 45
+    k5 = _vol_key(opp)
+    k6 = _hold_key(opp, battle_array[_FIELD_OPP_SIDE_COND])
 
     if not is_death:
         my_idx = battle_array[_FIELD_MY_POK]
@@ -297,20 +355,20 @@ def node_key(battle_array):
         k4 |= np.int64(me[_POK_METRONOME_COUNT]) << 32
         if _turn_ability_on(me):
             k3 |= np.int64(1) << TURN_AB_KEY_BIT + 32
-        k1 |= np.int64(battle_array[_FIELD_MY_SIDE_COND]) << 47
+        k1 |= (np.int64(battle_array[_FIELD_MY_SIDE_COND]) & SIDE_COND_K1_MASK) << 47
         k1 |= np.int64(battle_array[_FIELD_MY_TOXIC_SPIKES]) << 57
         k1 |= np.int64(my_idx) << 59
         if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
             k1 |= np.int64(1) << 62
+        k5 |= _vol_key(me) << SIDE_KEY_SHIFT
+        k6 |= _hold_key(me, battle_array[_FIELD_MY_SIDE_COND]) << SIDE_KEY_SHIFT
     else:
         k2 = k2 << 28
-    # Bits 56+ of k2 are free above the two 28-bit stage packs
-    k2 |= np.int64(opp[_POK_VOL_STATUS2]) << 56
-    if not is_death:
-        k2 |= np.int64(me[_POK_VOL_STATUS2]) << VOL2_KEY_BITS + 56
     if battle_array[_FIELD_GRAVITY_TURNS] > 0:
-        k2 |= np.int64(1) << 2 * VOL2_KEY_BITS + 56
-    return k1, k2, k3, k4
+        k2 |= np.int64(1) << GRAVITY_KEY_BIT
+    if battle_array[_FIELD_TRICKROOM] > 0:
+        k2 |= np.int64(1) << TRICK_ROOM_KEY_BIT
+    return k1, k2, k3, k4, k5, k6
 
 
 class GameState():
@@ -536,7 +594,7 @@ _HP_IDXS = np.arange(12) * POK_LEN + Pok.CURRENT_HP
 
 
 @njit
-def _retry_step(start, a_type, a_idx, pick, did, k1, k2, k3, k4, tries):
+def _retry_step(start, a_type, a_idx, pick, did, k1, k2, k3, k4, k5, k6, tries):
     """
     Tries one step from start until the foe does exactly did and it lands on the node's key, whatever
     the HP bracket since the HP comes from elsewhere. pick >= 0 is the foe's first move, else the AI
@@ -555,7 +613,7 @@ def _retry_step(start, a_type, a_idx, pick, did, k1, k2, k3, k4, tries):
         key = node_key(arr)
         if (
             (key[0] & ~KEY_HP_BITS) == (k1 & ~KEY_HP_BITS)
-            and key[1] == k2 and key[2] == k3 and key[3] == k4
+            and key[1] == k2 and key[2] == k3 and key[3] == k4 and key[4] == k5 and key[5] == k6
         ):
             return arr, True
     return start, False
@@ -565,10 +623,12 @@ def _rerun_last_step(start: np.ndarray, action: tuple, key: tuple, did: int) -> 
     """The state after one step from start where the foe does did, None if it isn't found in time"""
     what = opp_turns(did)[0][1]
     pick = what - 1 if 1 <= what <= 4 else 10 if what == OPP_STRUGGLED else -1
-    k1, k2, k3, k4 = (int(k) for k in key)
+    k1, k2, k3, k4, k5, k6 = (int(k) for k in key)
     t0 = time.perf_counter()
     while time.perf_counter() - t0 < LAST_STEP_BUDGET:
-        out, found = _retry_step(start, int(action[0]), int(action[1]), pick, did, k1, k2, k3, k4, 200)
+        out, found = _retry_step(
+            start, int(action[0]), int(action[1]), pick, did, k1, k2, k3, k4, k5, k6, 200
+        )
         if found:
             return out
     return None
