@@ -348,14 +348,26 @@ async def _launch(root_state: GameState, battle: np.ndarray, max_iterations: int
 
 # ─── REST endpoints ───────────────────────────────────────────────────────────
 
+def _giratina_form(name: str, item: str | None, ability: str) -> tuple[str, str]:
+    """Giratina's form follows its held item ([pp] BoxPokemon_SetGiratinaForm): Origin with a
+    Griseous Orb, Altered without, with that form's ability when the form changes"""
+    if name not in ("Giratina", "Giratina_origin"):
+        return name, ability
+    form = "Giratina_origin" if item == "Griseous Orb" else "Giratina"
+    if form != name:
+        ability = pkDB[form]["abilities"][0]
+    return form, ability
+
+
 def _build_battle(config: BattleConfig) -> np.ndarray:
     """Battle array for a config: both parties, start of battle, trainer items, terrain"""
     def make_pokemon(p: PokemonConfig) -> Pokemon:
         moves = [m for m in p.moves if m]
+        name, ability = _giratina_form(p.name, p.item, p.ability)
         # A box saved before PkDB knew it can still say Male
-        gender = None if pkDB[p.name].get("genderless") else p.gender
+        gender = None if pkDB[name].get("genderless") else p.gender
         return Pokemon(
-            p.name, gender, p.level, p.ability, p.nature, moves,
+            name, gender, p.level, ability, p.nature, moves,
             ivs=p.ivs,
             item=p.item if p.item else None,
         )

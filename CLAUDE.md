@@ -261,7 +261,9 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   bind, Uproar, Disable, Encore, Taunt, Yawn; then Perish Song. Speed order, a tie is a coin flip.
 - My calls (abilities/items): Simple doubles accuracy/evasion stages; Quick Claw / Stall follow [SD gen4] (one
   20% roll per holder per turn, within the same priority); the Metronome item follows [pp] (cap 10, keyed in
-  `node_key` k4); RP's AI does steal with Covet; the rollout counts a working opponent OHKO as a KO.
+  `node_key` k4); RP's AI does steal with Covet; the rollout counts a working opponent OHKO as a KO. King's Rock
+  / Razor Fang follow [SD gen4] (10% per hit, Serene Grace doubles it) on its move list plus RP's damaging moves
+  from after Gen IV (`kings_rock` in MoveDB, which `add_moves` sets).
 - Substitute: every damaging move hits it (Gen IV has no bypass for them, sound moves included). A multi-hit
   move's hits after it breaks reach the Pokemon with their effects ([SD]; [pp] blocks them for the rest of the
   turn). A status move into one still reveals the ability that would block it ([pp] order). Its HP cost isn't
@@ -306,8 +308,6 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   checks ([pp] `LOAD_MOVE_TYPE` reads the data type); [pp] Basic_Main skips the immunity check for
   Guillotine / Sheer Cold, so into Wonder Guard the engine gives -12, [pp] 0; [pp] always knows my
   Shadow Tag / Magnet Pull / Arena Trap (no script check reads them yet).
-- AI party type check (`party_effectiveness`, [pp] `BattleSystem_CalcEffectiveness`): no Iron Ball
-  (not in ItemDB).
 - AI: `sub_after_death` stage 2 doesn't copy [pp]'s stale-score quirk (a skipped or empty move slot
   still compares the previous `score`, at first the last stage 1 type score).
 - AI flags: the engine gives every trainer Basic + Evaluate Attack + Expert; vanilla [pp]
@@ -320,7 +320,7 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   (`early_returns` has no field state).
 - Drill Run (not in MoveDB): RP puts it in Horn Drill's slot, so [pp] Basic_Main's
   `IfMoveEqualTo MOVE_HORN_DRILL` would skip its damage scoring if RP kept that script.
-- Not in MoveDB yet: Spikes damage, Magnet Rise, Iron Ball, Rest, Snore, U-turn, Fly, Dive,
+- Not in MoveDB yet: Spikes damage, Magnet Rise, Rest, Snore, U-turn, Fly, Dive,
   Heal Block.
 - MoveDB flags from after Gen IV (`python -m DataBase.add_moves --check` lists them): Absorb and Mega
   Drain have `heal`; Stealth Rock, Foresight and Taunt are `reflectable`; Roar has no `protect`. They matter
@@ -330,8 +330,18 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   MoveDB.json. `add_moves` leaves existing lines alone, so a new move next to them can land a step off
   (Night Slash would go before Nightmare).
 - `test_trainer_lacks` (`test_database.py`) uses Crunch as its missing move: swap it once Crunch is added.
-- Not handled: Klutz and Embargo ([pp] `Battler_HeldItem` returns no item for them); Covet / Thief failing on a
-  defender whose Quick Claw activated ([pp] `BtlCmd_TryStealItem` wasn't found).
+- Not handled: Klutz and Embargo ([pp] `Battler_HeldItem` returns no item for them; the speed-halving items
+  must keep working under them, [pp] reads the raw item there). Covet / Thief, Knock Off and Trick failing on a
+  defender whose Quick Claw or Custap activated this turn ([pp] `BtlCmd_TryStealItem`, `subscript_knock_off`,
+  `subscript_exchange_items`).
+- Knock Off's Sticky Hold check reads the attacker's Mold Breaker directly, not through `ignorable_ability`.
+- Species items read `Pok.ID`: once Transform is in they must read the transformed species, and [pp] skips the
+  Griseous Orb boost for a transformed Giratina. [pp] also skips Trace for a Griseous Orb holder (unreachable,
+  only Giratina can hold it).
+- Two actives both holding Lagging Tail / Full Incense: [pp] lets the slower go first, the engine goes by speed
+  (Showdown). Unreachable, only my side can have them. Iron Ball ending Magnet Rise waits for Magnet Rise.
+- Search: the rollout's quick type check (`rollout_pref`) uses `gravity_types`, so it misses Ingrain grounding a
+  Flying type (Iron Ball and Gravity reach it).
 - Metronome can call moves whose mechanics aren't in yet; they run as their data says.
 - Substitute: Dream Eater failing against one waits for Dream Eater's batch (8.2, no sleep check yet either).
   Focus Punch: Expert's +5 behind a Substitute and losing focus when hit aren't in; a hit on the Substitute

@@ -8,7 +8,8 @@ Updated only when asked.
 - Done: 1.1 (trainer importer), 1.2 (trainer availability) and 1.3 (coverage report), 2026-11-08.
 - Done: 1.4 (MoveDB entry helper), 2.1 (state design note) and 2.2 (`node_key` capacity), 2026-11-08.
 - Done: Phase 3 (Substitute and its audit), 2026-11-08.
-- Next: Phase 4, items.
+- Done: 4.1 (simple held items), 2026-11-08.
+- Next: 4.2, items with their own rules.
 
 ## Goal
 
@@ -175,56 +176,56 @@ It's cross-cutting, so it goes first: every later batch checks its moves against
 
 Type boosters:
 
-- [ ] BlackGlasses \*
-- [ ] Dragon Fang \*
-- [ ] Magnet \*
-- [ ] Spell Tag
-- [ ] Odd Incense \*
-- [ ] Rock Incense \*
-- [ ] Rose Incense \*
-- [ ] Wave Incense \*
-- [ ] Wise Glasses
+- [x] BlackGlasses \*
+- [x] Dragon Fang \*
+- [x] Magnet \*
+- [x] Spell Tag
+- [x] Odd Incense \*
+- [x] Rock Incense \*
+- [x] Rose Incense \*
+- [x] Wave Incense \*
+- [x] Wise Glasses
 
 Species items:
 
-- [ ] DeepSeaTooth \*
-- [ ] DeepSeaScale \*
-- [ ] Soul Dew \*
-- [ ] Adamant Orb \*
-- [ ] Lustrous Orb \*
-- [ ] Griseous Orb \* !
-- [ ] Lucky Punch \*
-- [ ] Stick \*
-- [ ] Metal Powder \*
-- [ ] Quick Powder \*
+- [x] DeepSeaTooth \*
+- [x] DeepSeaScale \*
+- [x] Soul Dew \*
+- [x] Adamant Orb \*
+- [x] Lustrous Orb \*
+- [x] Griseous Orb \* !
+- [x] Lucky Punch \*
+- [x] Stick \*
+- [x] Metal Powder \*
+- [x] Quick Powder \*
 
 Crit, accuracy and flinch:
 
-- [ ] Razor Claw \*
-- [ ] Zoom Lens !
-- [ ] Wide Lens
-- [ ] King's Rock !
-- [ ] Razor Fang \* (not on the iTEMS/TMs tab: [pp] hides one on Route 214)
+- [x] Razor Claw \*
+- [x] Zoom Lens !
+- [x] Wide Lens
+- [x] King's Rock !
+- [x] Razor Fang \* (not on the iTEMS/TMs tab: [pp] hides one on Route 214)
 
 Speed and order:
 
-- [ ] Macho Brace \*
-- [ ] Power Anklet \*
-- [ ] Power Band \*
-- [ ] Power Belt \*
-- [ ] Power Bracer \*
-- [ ] Power Lens \*
-- [ ] Power Weight \*
-- [ ] Lagging Tail \* !
-- [ ] Full Incense \* !
-- [ ] Iron Ball \* !
+- [x] Macho Brace \*
+- [x] Power Anklet \*
+- [x] Power Band \*
+- [x] Power Belt \*
+- [x] Power Bracer \*
+- [x] Power Lens \*
+- [x] Power Weight \*
+- [x] Lagging Tail \* !
+- [x] Full Incense \* !
+- [x] Iron Ball \* !
 
 No battle effect:
 
-- [ ] No-effect items, only the ones a trainer or my box holds, so Fling, Trick, Thief and Knock Off see
+- [x] No-effect items, only the ones a trainer or my box holds, so Fling, Trick, Thief and Knock Off see
       them: Amulet Coin, Cleanse Tag, Everstone, Exp. Share, Luck Incense, Lucky Egg, Pure Incense, Smoke Ball,
       Soothe Bell, evolution items and stones, scarves, flutes
-- [ ] Rare Candy (Lady Celeste's and Rich Boy Liam's Blissey)
+- [x] Rare Candy (Lady Celeste's and Rich Boy Liam's Blissey)
 
 ### 4.2 Items with their own rules
 

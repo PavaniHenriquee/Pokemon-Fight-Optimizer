@@ -53,6 +53,34 @@ def test_check_speed_stages_then_paralysis(poke):
     assert check_speed(a, b, 0)[0] == (base * 2) // 4
 
 
+@pytest.mark.parametrize("species, doubled", [("Ditto", True), ("Rattata", False)])
+def test_quick_powder_doubles_ditto_speed_before_paralysis(poke, species, doubled):
+    """Quick Powder doubles Ditto's Speed, then paralysis quarters it (pokeplatinum
+    BattleSystem_CompareBattlerSpeed)"""
+    a = poke(species, 50, "Run Away", ["Tackle"], item="Quick Powder")
+    b = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.SPEED] = 101
+    speed = 202 if doubled else 101
+    assert check_speed(a, b, 0)[0] == speed
+    a[Pok.STATUS] = Status.PARALYSIS
+    assert check_speed(a, b, 0)[0] == speed // 4
+
+
+@pytest.mark.parametrize("item", [
+    "Macho Brace", "Power Anklet", "Power Band", "Power Belt", "Power Bracer", "Power Lens",
+    "Power Weight", "Iron Ball",
+])
+def test_speed_halving_items(poke, item):
+    """Macho Brace, the Power items and Iron Ball halve Speed after Swift Swim and before paralysis
+    (pokeplatinum sSpeedHalvingItemEffects): 101 -> 202 -> 101 (halving first would give 100)"""
+    a = poke("Magikarp", 50, "Swift Swim", ["Tackle"], item=item)
+    b = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.SPEED] = 101
+    assert check_speed(a, b, Weather.RAIN)[0] == 101
+    a[Pok.STATUS] = Status.PARALYSIS
+    assert check_speed(a, b, Weather.RAIN)[0] == 25
+
+
 @pytest.mark.parametrize("ability, weather", [
     ("Chlorophyll", Weather.SUN), ("Swift Swim", Weather.RAIN),
 ])
@@ -240,6 +268,30 @@ def test_two_stalls_and_quick_claw_over_stall(monkeypatch, poke):
     assert move_order(claw, 0, plain, 0, False, False, 0)[3] is True
 
 
+@pytest.mark.parametrize("item", ["Lagging Tail", "Full Incense"])
+def test_lagging_tail_moves_last_in_its_bracket(poke, item):
+    """The holder moves after a slower foe at any priority, after a Stall holder too, but a
+    higher-priority move still goes first (pokeplatinum CompareBattlerSpeed)"""
+    lag = poke("Rattata", 50, "Run Away", ["Tackle", "Quick Attack", "Counter"], item=item)
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle", "Counter"])
+    assert move_order(lag, 0, slow, 0, False, False, 0)[3] is False
+    assert move_order(slow, 0, lag, 0, False, False, 0)[3] is True
+    assert move_order(lag, 2, slow, 1, False, False, 0)[3] is False
+    assert move_order(lag, 1, slow, 0, False, False, 0)[3] is True
+    stall = poke("Geodude", 50, "Stall", ["Tackle"])
+    assert move_order(lag, 0, stall, 0, False, False, 0)[3] is False
+
+
+def test_two_lagging_tails_and_quick_claw(monkeypatch, poke):
+    """Both hold one: speed (Showdown). An activated Quick Claw goes before a Lagging Tail holder"""
+    fast = poke("Rattata", 50, "Run Away", ["Tackle"], item="Lagging Tail")
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Full Incense")
+    assert move_order(fast, 0, slow, 0, False, False, 0)[3] is True
+    claw = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Quick Claw")
+    _claw(monkeypatch, True)
+    assert move_order(fast, 0, claw, 0, False, False, 0)[3] is False
+
+
 @pytest.mark.parametrize("turns_active, loafs", [(1, False), (2, True), (3, False), (4, True)])
 def test_truant_loafs_every_other_turn(poke, turns_active, loafs):
     """Acts on its first full turn, then loafs by turn parity; loafing unlocks the move"""
@@ -353,6 +405,33 @@ def test_crit_rates(poke, focus, crit_ratio, expected):
     assert rate == pytest.approx(expected, abs=0.015)
 
 
+@pytest.mark.parametrize("species, item, expected", [
+    ("Chansey", "Lucky Punch", 1 / 4), ("Farfetchd", "Stick", 1 / 4),
+    ("Rattata", "Lucky Punch", 1 / 16), ("Chansey", "Stick", 1 / 16),
+])
+def test_species_crit_items(poke, species, item, expected):
+    """Lucky Punch (Chansey) and Stick (Farfetch'd) add 2 crit stages (statistical, seeded)"""
+    a = poke(species, 50, "Run Away", ["Tackle"], item=item)
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0)
+    random.seed(11)
+    n = 20_000
+    rate = sum(bool(calculate_crit(a, d, mv)) for _ in range(n)) / n
+    assert rate == pytest.approx(expected, abs=0.015)
+
+
+@pytest.mark.parametrize("item", ["Scope Lens", "Razor Claw"])
+def test_razor_claw_adds_a_crit_stage(poke, item):
+    """Razor Claw is Scope Lens's effect: +1 stage, 1/8 (statistical, seeded)"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"], item=item)
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0)
+    random.seed(11)
+    n = 20_000
+    rate = sum(bool(calculate_crit(a, d, mv)) for _ in range(n)) / n
+    assert rate == pytest.approx(1 / 8, abs=0.015)
+
+
 # ── Accuracy, crit and flinch abilities ──────────────────────────────────────
 
 def _acc(a, d, weather=0, slot=0):
@@ -414,6 +493,29 @@ def test_accuracy_reducing_items(poke, item):
     a = poke("Rattata", 50, "Run Away", ["Tackle"])
     d = poke("Rattata", 50, "Run Away", ["Tackle"], item=item)
     assert _acc(a, d) == 90
+
+
+@pytest.mark.parametrize("item, target_moved, expected", [
+    ("Wide Lens", False, 99), ("Wide Lens", True, 99),
+    ("Zoom Lens", False, 90), ("Zoom Lens", True, 108),
+])
+def test_accuracy_lenses(poke, item, target_moved, expected):
+    """pokeplatinum CheckMoveHitAccuracy: Rock Throw's 90 x110/100 with Wide Lens, x120/100 with Zoom
+    Lens only once the target has acted this turn"""
+    a = poke("Geodude", 50, "Rock Head", ["Rock Throw"], item=item)
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0)
+    assert move_accuracy(mv, a, d, mv[Move.ACCURACY], 0, False, target_moved) == expected
+
+
+def test_lenses_come_after_bright_powder_and_before_gravity(poke):
+    """90 -> Bright Powder 81 -> Zoom Lens 97 -> Gravity x6840/4096"""
+    a = poke("Geodude", 50, "Rock Head", ["Rock Throw"], item="Zoom Lens")
+    d = poke("Rattata", 50, "Run Away", ["Tackle"], item="Bright Powder")
+    mv = move_slice(a, 0)
+    assert move_accuracy(mv, a, d, mv[Move.ACCURACY], 0, False, True) == 97
+    gravity = move_accuracy(mv, a, d, mv[Move.ACCURACY], 0, True, True)
+    assert gravity == pytest.approx(97 * 6840 / 4096)
 
 
 @pytest.mark.parametrize("atk_ab, def_ab, acc, eva, expected", [
@@ -1627,6 +1729,13 @@ def test_toxic_spikes_immunities(poke, species, ability, cond):
     assert p[Pok.STATUS] == 0 and arr[MY_SIDE] & TSPIKES
 
 
+def test_toxic_spikes_poison_a_flying_iron_ball_holder(poke):
+    """Iron Ball grounds the holder, so the spikes reach a Flying type"""
+    p = poke("Pidgey", 20, "Keen Eye", ["Tackle"], item="Iron Ball")
+    apply_hazards(p, _field(TSPIKES, 1), MY_SIDE)
+    assert p[Pok.STATUS] == Status.POISON
+
+
 def test_stealth_rock_hits_flying_types(poke):
     """Stealth Rock doesn't need the Pokemon grounded"""
     p = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
@@ -1759,6 +1868,15 @@ def test_knock_off(poke, def_ab, atk_ab, removed):
     assert (d[Item.ID] == 0) == removed
     assert d[Pok.ITEM_KNOCKED_OFF] == int(removed)
     assert d[Pok.CONSUMED_ITEM] == 0
+
+
+def test_knock_off_leaves_a_griseous_orb(poke):
+    """pokeplatinum subscript_knock_off fails on a Griseous Orb: no item lost, no mark"""
+    a = poke("Murkrow", 20, "Insomnia", ["Knock Off"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item="Griseous Orb")
+    knock_off(a, d)
+    assert d[Item.ID] == ItemNames.GRISEOUS_ORB
+    assert d[Pok.ITEM_KNOCKED_OFF] == 0
 
 
 def test_knock_off_without_an_item_does_nothing(poke):
@@ -2385,6 +2503,20 @@ def test_ingrain_grounds_levitate_not_flying(poke, species, ability, grounded):
     p = poke(species, 50, ability, ["Tackle"])
     p[Pok.VOL_STATUS] |= VolStatus.INGRAIN
     assert is_grounded(p) == grounded
+
+
+@pytest.mark.parametrize("species, ability", [("Misdreavus", "Levitate"), ("Pidgey", "Keen Eye")])
+def test_iron_ball_grounds_levitate_and_flying(monkeypatch, poke, species, ability):
+    """pokeplatinum ApplyTypeChart and BattlerIsGrounded: Ground moves reach an Iron Ball holder
+    through Levitate and the Flying type, and so do the spikes"""
+    _always_hit(monkeypatch)
+    a = poke("Rattata", 50, "Run Away", ["Mud-Slap"])
+    d = poke(species, 50, ability, ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.INVULNERABLE
+    assert not is_grounded(d)
+    d = poke(species, 50, ability, ["Tackle"], item="Iron Ball")
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.HIT
+    assert is_grounded(d)
 
 
 @pytest.mark.parametrize("atk_ab, outcome", [

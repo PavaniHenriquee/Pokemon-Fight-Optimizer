@@ -99,13 +99,16 @@ def test_item_converts():
 
 
 def test_item_hold_effects():
-    """Every ItemDB entry has a hold effect, and the per-type ones (type items, resist berries)
-    carry their type"""
+    """Every ItemDB entry has a hold effect, or "none" for the ones with no battle effect (those have a
+    Fling power and no `when`), and the per-type ones (type items, resist berries) carry their type"""
     typed = (HoldEffect.TYPE_BOOST, HoldEffect.WEAKEN_SE, HoldEffect.WEAKEN_NORMAL)
     def check(entry):
         arr = item_to_np(entry)
         effect, effect_type = arr[Item.HOLD_EFFECT - Item.ID], arr[Item.EFFECT_TYPE - Item.ID]
-        assert effect != 0
+        if entry["hold_effect"] == "none":
+            assert effect == HoldEffect.NONE and "when" not in entry and entry["fling_power"] > 0
+        else:
+            assert effect != 0
         assert (effect_type != 0) == (effect in typed), (effect, effect_type)
     items = [(n, itemDB[n]) for n in sorted(itemDB)]
     assert not _failures(items, check)

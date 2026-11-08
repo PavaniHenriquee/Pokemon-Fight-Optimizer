@@ -8,7 +8,7 @@ from Engine.damage_calc import (
     technician_power, rivalry_power, filter_damage, crit_multiplier, MULTIPLIERS,
     METRONOME_MOVE_SHIFT,
 )
-from Engine.engine_helper import struggle
+from Engine.engine_helper import struggle, struggle_damage
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
 from Models.idx_const import Pok, Move
 from Models.move import STRUGGLE
@@ -487,6 +487,20 @@ def test_gravity_drops_flying_type_against_ground(poke):
     assert calculate_damage(a, d, move_slice(a, 0), 0, False, 100, 0, True) > 0
 
 
+def test_iron_ball_drops_flying_type_against_ground(poke):
+    """pokeplatinum BasicTypeMulApplies: an Iron Ball holder's Flying type is neutral to Ground, so
+    Earthquake hits Skarmory x2 through Steel, as under Gravity"""
+    d = poke("Skarmory", 20, "Keen Eye", ["Tackle"], item="Iron Ball")
+    assert matchup_types(Types.GROUND, d) == (Types.STEEL, 0)
+    assert matchup_types(Types.ROCK, d) == (Types.STEEL, Types.FLYING)
+    plain = poke("Skarmory", 20, "Keen Eye", ["Tackle"])
+    a = poke("Geodude", 20, "Sturdy", ["Earthquake"])
+    assert (
+        calculate_damage(a, d, move_slice(a, 0), 0, False, 100)
+        == calculate_damage(a, plain, move_slice(a, 0), 0, False, 100, 0, True) > 0
+    )
+
+
 
 # ── Base formula rounding ────────────────────────────────────────────────────
 
@@ -518,9 +532,21 @@ def test_ai_damage_burn_spares_guts(poke):
     ("Charcoal", Types.WATER, MoveCategory.SPECIAL, 100),
     ("Silk Scarf", Types.NORMAL, MoveCategory.PHYSICAL, 120),
     ("Expert Belt", Types.NORMAL, MoveCategory.PHYSICAL, 100),
+    ("Wise Glasses", Types.NORMAL, MoveCategory.SPECIAL, 110),
+    ("Wise Glasses", Types.NORMAL, MoveCategory.PHYSICAL, 100),
+    ("Black Glasses", Types.DARK, MoveCategory.PHYSICAL, 120),
+    ("Dragon Fang", Types.DRAGON, MoveCategory.SPECIAL, 120),
+    ("Magnet", Types.ELECTRIC, MoveCategory.SPECIAL, 120),
+    ("Spell Tag", Types.GHOST, MoveCategory.PHYSICAL, 120),
+    ("Spell Tag", Types.DARK, MoveCategory.PHYSICAL, 100),
+    ("Odd Incense", Types.PSYCHIC, MoveCategory.SPECIAL, 120),
+    ("Rock Incense", Types.ROCK, MoveCategory.PHYSICAL, 120),
+    ("Rose Incense", Types.GRASS, MoveCategory.SPECIAL, 120),
+    ("Wave Incense", Types.WATER, MoveCategory.SPECIAL, 120),
 ])
 def test_item_power(poke, item, move_type, category, power):
-    """Type items x(100+20)/100 on their type, Muscle Band x(100+10)/100 on physical moves"""
+    """Type items x(100+20)/100 on their type, Muscle Band x(100+10)/100 on physical moves, Wise Glasses
+    x(100+10)/100 on special ones"""
     a = poke("Rattata", 50, "Run Away", ["Tackle"], item=item)
     assert item_power(a, move_type, category, 100) == power
 
@@ -549,6 +575,85 @@ def test_thick_club_before_guts(poke):
     a[Pok.ATTACK] = 101
     a[Pok.STATUS] = Status.POISON
     assert raw_atk_def(move_slice(a, 0), a, d)[0] == 303
+
+
+@pytest.mark.parametrize("species, item, move_type, power", [
+    ("Dialga", "Adamant Orb", Types.STEEL, 120),
+    ("Dialga", "Adamant Orb", Types.DRAGON, 120),
+    ("Dialga", "Adamant Orb", Types.WATER, 100),
+    ("Palkia", "Lustrous Orb", Types.WATER, 120),
+    ("Palkia", "Lustrous Orb", Types.STEEL, 100),
+    ("Giratina", "Griseous Orb", Types.GHOST, 120),
+    ("Giratina_origin", "Griseous Orb", Types.DRAGON, 120),
+    ("Dialga", "Griseous Orb", Types.DRAGON, 100),
+    ("Rattata", "Adamant Orb", Types.STEEL, 100),
+])
+def test_orbs(poke, species, item, move_type, power):
+    """Adamant / Lustrous / Griseous Orb x(100+20)/100 on their species' Dragon moves and its other
+    type. Both Giratina forms count"""
+    a = poke(species, 50, "Pressure", ["Tackle"], item=item)
+    assert item_power(a, move_type, MoveCategory.SPECIAL, 100) == power
+    assert item_power(a, move_type, MoveCategory.PHYSICAL, 100) == power
+
+
+@pytest.mark.parametrize("species, item, spa, spd", [
+    ("Clamperl", "Deep Sea Tooth", 2.0, 1.0),
+    ("Clamperl", "Deep Sea Scale", 1.0, 2.0),
+    ("Latias", "Soul Dew", 1.5, 1.5),
+    ("Latios", "Soul Dew", 1.5, 1.5),
+    ("Rattata", "Soul Dew", 1.0, 1.0),
+    ("Rattata", "Deep Sea Tooth", 1.0, 1.0),
+])
+def test_special_stat_items(poke, species, item, spa, spd):
+    """DeepSeaTooth / DeepSeaScale double Clamperl's Sp. Atk / Sp. Def, Soul Dew gives Latias and
+    Latios x150/100 on both. The physical stats stay"""
+    holder = poke(species, 50, "Run Away", ["Tackle", "Ember"], item=item)
+    other = poke("Rattata", 50, "Run Away", ["Tackle", "Ember"])
+    holder[Pok.SPECIAL_ATTACK] = 101
+    holder[Pok.SPECIAL_DEFENSE] = 101
+    assert raw_atk_def(move_slice(holder, 1), holder, other)[0] == int(101 * spa)
+    assert raw_atk_def(move_slice(other, 1), other, holder)[1] == int(101 * spd)
+    assert raw_atk_def(move_slice(holder, 0), holder, other)[0] == holder[Pok.ATTACK]
+    assert raw_atk_def(move_slice(other, 0), other, holder)[1] == holder[Pok.DEFENSE]
+
+
+def test_soul_dew_before_sandstorm(poke):
+    """pokeplatinum applies Soul Dew to the raw Sp. Def before Sandstorm's x15/10"""
+    d = poke("Latias", 50, "Run Away", ["Tackle"], item="Soul Dew")
+    d[Pok.TYPE2] = Types.ROCK
+    d[Pok.SPECIAL_DEFENSE] = 101
+    a = poke("Rattata", 50, "Run Away", ["Ember"])
+    assert raw_atk_def(move_slice(a, 0), a, d, Weather.SANDSTORM)[1] == 151 * 3 // 2
+
+
+@pytest.mark.parametrize("species, doubled", [("Ditto", True), ("Rattata", False)])
+def test_metal_powder(poke, species, doubled):
+    """Metal Powder doubles Ditto's Defense against physical moves only"""
+    d = poke(species, 50, "Run Away", ["Tackle"], item="Metal Powder")
+    a = poke("Rattata", 50, "Run Away", ["Tackle", "Ember"])
+    d[Pok.DEFENSE] = 101
+    assert raw_atk_def(move_slice(a, 0), a, d)[1] == (202 if doubled else 101)
+    assert raw_atk_def(move_slice(a, 1), a, d)[1] == d[Pok.SPECIAL_DEFENSE]
+
+
+@pytest.mark.parametrize("species, doubled", [("Ditto", True), ("Rattata", False)])
+def test_metal_powder_reaches_struggle_and_the_confusion_hit(poke, species, doubled):
+    """Struggle and the confusion self-hit (pokeplatinum CALC_SELF_HIT: the user is the defender)
+    see Metal Powder too"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    plain = poke(species, 50, "Run Away", ["Tackle"])
+    powder = poke(species, 50, "Run Away", ["Tackle"], item="Metal Powder")
+    for pok in (plain, powder):
+        pok[Pok.DEFENSE] = 60
+        pok[Pok.ATTACK] = 120
+    results = []
+    for pok in (plain, powder):
+        random.seed(3)
+        results.append((struggle_damage(a, pok, False), calculate_damage_confusion(pok)))
+    if doubled:
+        assert results[1][0] < results[0][0] and results[1][1] < results[0][1]
+    else:
+        assert results[1] == results[0]
 
 
 @pytest.mark.parametrize("defender, boosted", [("Bulbasaur", True), ("Rattata", False)])

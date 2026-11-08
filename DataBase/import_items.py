@@ -90,6 +90,9 @@ ITEM_ALIAS = {
     "SilverPowder": "Silver Powder",
     "NeverMeltIce": "Never-Melt Ice",
     "TwistedSpoon": "Twisted Spoon",
+    "BlackGlasses": "Black Glasses",
+    "DeepSeaTooth": "Deep Sea Tooth",
+    "DeepSeaScale": "Deep Sea Scale",
 }
 
 

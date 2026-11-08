@@ -1,4 +1,19 @@
 {
+  "Adamant Orb": {
+    "effect_param": 20,
+    "fling_power": 60,
+    "hold_effect": "dialga_boost",
+    "name": "adamant_orb",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Amulet Coin": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "amulet_coin",
+    "type": "held"
+  },
   "Babiri Berry": {
     "effect_param": 0,
     "effect_type": "Steel",
@@ -35,6 +50,22 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Black Flute": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "black_flute",
+    "type": "held"
+  },
+  "Black Glasses": {
+    "effect_param": 20,
+    "effect_type": "Dark",
+    "fling_power": 30,
+    "hold_effect": "type_boost",
+    "name": "black_glasses",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
   "Black Sludge": {
     "effect_param": 16,
     "fling_power": 30,
@@ -42,6 +73,20 @@
     "name": "black_sludge",
     "type": "held",
     "when": "on_end"
+  },
+  "Blue Flute": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "blue_flute",
+    "type": "held"
+  },
+  "Blue Scarf": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "none",
+    "name": "blue_scarf",
+    "type": "held"
   },
   "Bright Powder": {
     "effect_param": 10,
@@ -103,6 +148,13 @@
     "type": "berry",
     "when": "on_receive_damage"
   },
+  "Cleanse Tag": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "cleanse_tag",
+    "type": "held"
+  },
   "Coba Berry": {
     "effect_param": 0,
     "effect_type": "Flying",
@@ -133,6 +185,80 @@
     "type": "held",
     "when": "on_weather_change"
   },
+  "Dawn Stone": {
+    "effect_param": 0,
+    "fling_power": 80,
+    "hold_effect": "none",
+    "name": "dawn_stone",
+    "type": "held"
+  },
+  "Deep Sea Scale": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "clamperl_spdef",
+    "name": "deep_sea_scale",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Deep Sea Tooth": {
+    "effect_param": 0,
+    "fling_power": 90,
+    "hold_effect": "clamperl_spatk",
+    "name": "deep_sea_tooth",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Dragon Fang": {
+    "effect_param": 20,
+    "effect_type": "Dragon",
+    "fling_power": 70,
+    "hold_effect": "type_boost",
+    "name": "dragon_fang",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Dragon Scale": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "dragon_scale",
+    "type": "held"
+  },
+  "Dubious Disc": {
+    "effect_param": 0,
+    "fling_power": 50,
+    "hold_effect": "none",
+    "name": "dubious_disc",
+    "type": "held"
+  },
+  "Dusk Stone": {
+    "effect_param": 0,
+    "fling_power": 80,
+    "hold_effect": "none",
+    "name": "dusk_stone",
+    "type": "held"
+  },
+  "Electirizer": {
+    "effect_param": 0,
+    "fling_power": 80,
+    "hold_effect": "none",
+    "name": "electirizer",
+    "type": "held"
+  },
+  "Everstone": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "everstone",
+    "type": "held"
+  },
+  "Exp. Share": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "exp_share",
+    "type": "held"
+  },
   "Expert Belt": {
     "effect_param": 20,
     "fling_power": 10,
@@ -140,6 +266,13 @@
     "name": "expert_belt",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Fire Stone": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "fire_stone",
+    "type": "held"
   },
   "Flame Orb": {
     "effect_param": 0,
@@ -157,6 +290,21 @@
     "type": "held",
     "when": "on_damage"
   },
+  "Full Incense": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "priority_down",
+    "name": "full_incense",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Green Scarf": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "none",
+    "name": "green_scarf",
+    "type": "held"
+  },
   "Grip Claw": {
     "effect_param": 0,
     "fling_power": 90,
@@ -164,6 +312,14 @@
     "name": "grip_claw",
     "type": "held",
     "when": "on_damage"
+  },
+  "Griseous Orb": {
+    "effect_param": 20,
+    "fling_power": 60,
+    "hold_effect": "giratina_boost",
+    "name": "griseous_orb",
+    "type": "held",
+    "when": "on_prepare_hit"
   },
   "Haban Berry": {
     "effect_param": 0,
@@ -184,6 +340,21 @@
     "name": "hard_stone",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Ice Stone": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "ice_stone",
+    "type": "held"
+  },
+  "Iron Ball": {
+    "effect_param": 0,
+    "fling_power": 130,
+    "hold_effect": "speed_down_grounded",
+    "name": "iron_ball",
+    "type": "held",
+    "when": "on_selection"
   },
   "Kasib Berry": {
     "effect_param": 0,
@@ -207,6 +378,22 @@
     "type": "berry",
     "when": "on_receive_damage"
   },
+  "King's Rock": {
+    "effect_param": 10,
+    "fling_power": 30,
+    "hold_effect": "sometimes_flinch",
+    "name": "kings_rock",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Lagging Tail": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "priority_down",
+    "name": "lagging_tail",
+    "type": "held",
+    "when": "on_selection"
+  },
   "Lax Incense": {
     "effect_param": 10,
     "fling_power": 10,
@@ -214,6 +401,13 @@
     "name": "lax_incense",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Leaf Stone": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "leaf_stone",
+    "type": "held"
   },
   "Leftovers": {
     "effect_param": 10,
@@ -240,6 +434,28 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Luck Incense": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "none",
+    "name": "luck_incense",
+    "type": "held"
+  },
+  "Lucky Egg": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "lucky_egg",
+    "type": "held"
+  },
+  "Lucky Punch": {
+    "effect_param": 0,
+    "fling_power": 40,
+    "hold_effect": "chansey_critrate_up",
+    "name": "lucky_punch",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
   "Lum Berry": {
     "effect_param": 0,
     "fling_power": 10,
@@ -249,6 +465,38 @@
     "natural_gift_type": "Flying",
     "type": "berry",
     "when": "on_end"
+  },
+  "Lustrous Orb": {
+    "effect_param": 20,
+    "fling_power": 60,
+    "hold_effect": "palkia_boost",
+    "name": "lustrous_orb",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Macho Brace": {
+    "effect_param": 0,
+    "fling_power": 60,
+    "hold_effect": "evs_up_speed_down",
+    "name": "macho_brace",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Magmarizer": {
+    "effect_param": 0,
+    "fling_power": 80,
+    "hold_effect": "none",
+    "name": "magmarizer",
+    "type": "held"
+  },
+  "Magnet": {
+    "effect_param": 20,
+    "effect_type": "Electric",
+    "fling_power": 30,
+    "hold_effect": "type_boost",
+    "name": "magnet",
+    "type": "held",
+    "when": "on_prepare_hit"
   },
   "Mental Herb": {
     "effect_param": 0,
@@ -264,6 +512,14 @@
     "fling_power": 30,
     "hold_effect": "type_boost",
     "name": "metal_coat",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Metal Powder": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "ditto_def_up",
+    "name": "metal_powder",
     "type": "held",
     "when": "on_prepare_hit"
   },
@@ -283,6 +539,13 @@
     "name": "miracle_seed",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Moon Stone": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "moon_stone",
+    "type": "held"
   },
   "Muscle Band": {
     "effect_param": 10,
@@ -321,6 +584,15 @@
     "type": "berry",
     "when": "on_receive_damage"
   },
+  "Odd Incense": {
+    "effect_param": 20,
+    "effect_type": "Psychic",
+    "fling_power": 10,
+    "hold_effect": "type_boost",
+    "name": "odd_incense",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
   "Oran Berry": {
     "name": "oran_berry",
     "when": "on_receive_damage",
@@ -330,6 +602,13 @@
     "hold_effect": "hp_restore",
     "effect_param": 10,
     "fling_power": 10
+  },
+  "Oval Stone": {
+    "effect_param": 0,
+    "fling_power": 80,
+    "hold_effect": "none",
+    "name": "oval_stone",
+    "type": "held"
   },
   "Passho Berry": {
     "effect_param": 0,
@@ -363,6 +642,13 @@
     "type": "berry",
     "when": "on_end"
   },
+  "Pink Scarf": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "none",
+    "name": "pink_scarf",
+    "type": "held"
+  },
   "Poison Barb": {
     "effect_param": 20,
     "effect_type": "Poison",
@@ -372,6 +658,38 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Power Anklet": {
+    "effect_param": 4,
+    "fling_power": 70,
+    "hold_effect": "lvlup_ev_up",
+    "name": "power_anklet",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Power Band": {
+    "effect_param": 4,
+    "fling_power": 70,
+    "hold_effect": "lvlup_ev_up",
+    "name": "power_band",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Power Belt": {
+    "effect_param": 4,
+    "fling_power": 70,
+    "hold_effect": "lvlup_ev_up",
+    "name": "power_belt",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Power Bracer": {
+    "effect_param": 4,
+    "fling_power": 70,
+    "hold_effect": "lvlup_ev_up",
+    "name": "power_bracer",
+    "type": "held",
+    "when": "on_selection"
+  },
   "Power Herb": {
     "effect_param": 0,
     "fling_power": 10,
@@ -380,6 +698,43 @@
     "type": "consumable",
     "when": "on_prepare_hit"
   },
+  "Power Lens": {
+    "effect_param": 4,
+    "fling_power": 70,
+    "hold_effect": "lvlup_ev_up",
+    "name": "power_lens",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Power Weight": {
+    "effect_param": 4,
+    "fling_power": 70,
+    "hold_effect": "lvlup_ev_up",
+    "name": "power_weight",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Prism Scale": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "prism_scale",
+    "type": "held"
+  },
+  "Protector": {
+    "effect_param": 0,
+    "fling_power": 80,
+    "hold_effect": "none",
+    "name": "protector",
+    "type": "held"
+  },
+  "Pure Incense": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "none",
+    "name": "pure_incense",
+    "type": "held"
+  },
   "Quick Claw": {
     "effect_param": 20,
     "fling_power": 80,
@@ -387,6 +742,58 @@
     "name": "quick_claw",
     "type": "held",
     "when": "on_selection"
+  },
+  "Quick Powder": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "ditto_speed_up",
+    "name": "quick_powder",
+    "type": "held",
+    "when": "on_selection"
+  },
+  "Rare Candy": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "rare_candy",
+    "type": "held"
+  },
+  "Razor Claw": {
+    "effect_param": 0,
+    "fling_power": 80,
+    "hold_effect": "critrate_up",
+    "name": "razor_claw",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Razor Fang": {
+    "effect_param": 10,
+    "fling_power": 30,
+    "hold_effect": "sometimes_flinch",
+    "name": "razor_fang",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Reaper Cloth": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "none",
+    "name": "reaper_cloth",
+    "type": "held"
+  },
+  "Red Flute": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "red_flute",
+    "type": "held"
+  },
+  "Red Scarf": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "none",
+    "name": "red_scarf",
+    "type": "held"
   },
   "Rindo Berry": {
     "effect_param": 0,
@@ -398,6 +805,24 @@
     "natural_gift_type": "Grass",
     "type": "berry",
     "when": "on_receive_damage"
+  },
+  "Rock Incense": {
+    "effect_param": 20,
+    "effect_type": "Rock",
+    "fling_power": 10,
+    "hold_effect": "type_boost",
+    "name": "rock_incense",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Rose Incense": {
+    "effect_param": 20,
+    "effect_type": "Grass",
+    "fling_power": 10,
+    "hold_effect": "type_boost",
+    "name": "rose_incense",
+    "type": "held",
+    "when": "on_prepare_hit"
   },
   "Scope Lens": {
     "effect_param": 0,
@@ -432,6 +857,13 @@
     "name": "shed_shell",
     "type": "held",
     "when": "on_selection"
+  },
+  "Shiny Stone": {
+    "effect_param": 0,
+    "fling_power": 80,
+    "hold_effect": "none",
+    "name": "shiny_stone",
+    "type": "held"
   },
   "Shuca Berry": {
     "effect_param": 0,
@@ -472,6 +904,13 @@
     "effect_param": 25,
     "fling_power": 10
   },
+  "Smoke Ball": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "smoke_ball",
+    "type": "held"
+  },
   "Smooth Rock": {
     "effect_param": 3,
     "fling_power": 10,
@@ -488,6 +927,45 @@
     "name": "soft_sand",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Soothe Bell": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "none",
+    "name": "soothe_bell",
+    "type": "held"
+  },
+  "Soul Dew": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "lati_special",
+    "name": "soul_dew",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Spell Tag": {
+    "effect_param": 20,
+    "effect_type": "Ghost",
+    "fling_power": 30,
+    "hold_effect": "type_boost",
+    "name": "spell_tag",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Stick": {
+    "effect_param": 0,
+    "fling_power": 60,
+    "hold_effect": "farfetchd_critrate_up",
+    "name": "stick",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Sun Stone": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "sun_stone",
+    "type": "held"
   },
   "Tanga Berry": {
     "effect_param": 0,
@@ -509,6 +987,13 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Thunder Stone": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "thunder_stone",
+    "type": "held"
+  },
   "Twisted Spoon": {
     "effect_param": 20,
     "effect_type": "Psychic",
@@ -517,6 +1002,13 @@
     "name": "twisted_spoon",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Up-Grade": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "up_grade",
+    "type": "held"
   },
   "Wacan Berry": {
     "effect_param": 0,
@@ -529,6 +1021,45 @@
     "type": "berry",
     "when": "on_receive_damage"
   },
+  "Water Stone": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "water_stone",
+    "type": "held"
+  },
+  "Wave Incense": {
+    "effect_param": 20,
+    "effect_type": "Water",
+    "fling_power": 10,
+    "hold_effect": "type_boost",
+    "name": "wave_incense",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "White Flute": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "white_flute",
+    "type": "held"
+  },
+  "Wide Lens": {
+    "effect_param": 10,
+    "fling_power": 10,
+    "hold_effect": "accuracy_up",
+    "name": "wide_lens",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
+  "Wise Glasses": {
+    "effect_param": 10,
+    "fling_power": 10,
+    "hold_effect": "power_up_spec",
+    "name": "wise_glasses",
+    "type": "held",
+    "when": "on_prepare_hit"
+  },
   "Yache Berry": {
     "effect_param": 0,
     "effect_type": "Ice",
@@ -539,5 +1070,27 @@
     "natural_gift_type": "Ice",
     "type": "berry",
     "when": "on_receive_damage"
+  },
+  "Yellow Flute": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "none",
+    "name": "yellow_flute",
+    "type": "held"
+  },
+  "Yellow Scarf": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "none",
+    "name": "yellow_scarf",
+    "type": "held"
+  },
+  "Zoom Lens": {
+    "effect_param": 20,
+    "fling_power": 10,
+    "hold_effect": "accuracy_up_slower",
+    "name": "zoom_lens",
+    "type": "held",
+    "when": "on_prepare_hit"
   }
 }

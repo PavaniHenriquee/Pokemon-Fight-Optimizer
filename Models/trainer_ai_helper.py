@@ -77,12 +77,13 @@ from Models.constants import (
     _MOVENAME_NATURE_POWER, _TYPES_TYPELESS, _MOVENAME_BLIZZARD, _MOVE_OH_KO, _POK_LEVEL,
     _MOVENAME_FIRE_FANG, _MOVENAME_SUBSTITUTE, _POK_VOL_STATUS2, _VOLSTATUS2_SUBSTITUTE,
     _MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS, _MOVENAME_LEECH_SEED,
+    _ITEM_HOLD_EFFECT, _HOLDEFFECT_PRIORITY_DOWN,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
     FORESIGHT_TYPES
 )
-from Engine.ability_helper import ignorable_ability, levitates, normalized_type
+from Engine.ability_helper import ignorable_ability, levitates, normalized_type, grounded_by_item
 
 COUNTER_EX_TYPES = (
     _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
@@ -1887,14 +1888,21 @@ def ai_speed_order(ai_pok, u_pok, weather, claw_guess):
     """
     1 if the AI moves first, -1 if the target does, 0 on a speed tie. pokeplatinum
     BattleSystem_CompareBattlerSpeed as the AI calls it (move priority ignored): a lone guessed
-    Quick Claw goes first, then a lone Stall holder last, both Stalls the slower first, then speed
+    Quick Claw goes first, then a lone Lagging Tail / Full Incense holder last (both: the slower
+    first), then a lone Stall holder last, both Stalls the slower first, then speed
     """
     ai_s, u_s = check_speed(ai_pok, u_pok, weather)
     ai_claw = (claw_guess & 1) != 0
     u_claw = (claw_guess & 2) != 0
     if ai_claw != u_claw:
         return 1 if ai_claw else -1
-    if not ai_claw:
+    ai_lag = ai_pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_PRIORITY_DOWN
+    u_lag = u_pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_PRIORITY_DOWN
+    if not ai_claw and ai_lag != u_lag:
+        return -1 if ai_lag else 1
+    if not ai_claw and ai_lag:
+        ai_s, u_s = u_s, ai_s
+    elif not ai_claw:
         ai_stall = ai_pok[_POK_AB_ID] == _ABILITYNAMES_STALL
         u_stall = u_pok[_POK_AB_ID] == _ABILITYNAMES_STALL
         if ai_stall != u_stall:
@@ -2205,17 +2213,18 @@ def party_effectiveness(move_type, attacker, defender, gravity=False, damaging_t
     pokeplatinum BattleSystem_CalcEffectiveness, the type check the AI uses for its bench: Levitate
     takes Ground moves unless the attacker has Mold Breaker or Gravity is up, Gravity grounds Flying
     types, Scrappy hits Ghosts and Wonder Guard (unless Mold Breaker) takes every move that isn't
-    super effective unless damaging_turn is False (on_damaging_turn). No Foresight or Ingrain.
-    Returns (eff, den) like get_type_effectiveness
+    super effective unless damaging_turn is False (on_damaging_turn). Iron Ball works like Gravity
+    for its holder. No Foresight or Ingrain. Returns (eff, den) like get_type_effectiveness
     """
     mold_breaker = attacker[_POK_AB_ID] == _ABILITYNAMES_MOLD_BREAKER
     def_ab = defender[_POK_AB_ID]
+    grounded = gravity or grounded_by_item(defender)
     if (
         move_type == _TYPES_GROUND and def_ab == _ABILITYNAMES_LEVITATE
-        and not mold_breaker and not gravity
+        and not mold_breaker and not grounded
     ):
         return 0, 1
-    t1, t2 = gravity_types(move_type, defender[_POK_TYPE1], defender[_POK_TYPE2], gravity)
+    t1, t2 = gravity_types(move_type, defender[_POK_TYPE1], defender[_POK_TYPE2], grounded)
     if is_scrappy(attacker) and move_type in FORESIGHT_TYPES:
         if t1 == _TYPES_GHOST:
             t1 = 0
@@ -2255,6 +2264,7 @@ def party_super_effective(move_type, attacker, defender, gravity=False, damaging
     if (
         move_type == _TYPES_GROUND and defender[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
         and attacker[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and not gravity
+        and not grounded_by_item(defender)
     ):
         return False
     t1 = defender[_POK_TYPE1]

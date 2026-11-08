@@ -24,7 +24,7 @@ from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import (
     calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails
 )
-from Engine.ability_helper import levitates, effective_weather, normalized_type
+from Engine.ability_helper import levitates, effective_weather, normalized_type, grounded_by_item
 from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
 from Engine.status_calc import ability_blocks_status, stat_drop_blocked, STAT_MAPPING
 from Engine.speed import check_speed
@@ -246,7 +246,9 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                 # Cheap type effectiveness first — no damage calc. eff_ratio is in quarters:
                 # 0 immune, 1 = 0.25x, 2 = 0.5x, 4 neutral, 8 = 2x, 16 = 4x
                 move_type = normalized_type(c_pok, move)
-                o_t1, o_t2 = gravity_types(move_type, o_pok[_POK_TYPE1], o_pok[_POK_TYPE2], gravity)
+                o_t1, o_t2 = gravity_types(
+                    move_type, o_pok[_POK_TYPE1], o_pok[_POK_TYPE2], gravity or grounded_by_item(o_pok)
+                )
                 eff, den = get_type_effectiveness(move_type, o_t1, o_t2)
                 eff_ratio = eff * 4 // den
 

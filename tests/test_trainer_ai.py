@@ -1391,6 +1391,21 @@ def test_party_checks_see_gravity(poke, gravity):
     assert (2 in ai.check_super_ef_move_pty(party, moltres, 0, gravity)) == gravity
 
 
+def test_party_checks_see_iron_ball(poke):
+    """pokeplatinum CalcEffectiveness reads the defender's item: Iron Ball switches off Levitate
+    and the Flying immunity to Ground, so the bench's Earthquake hits my Moltres and Gastly x2"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Karate Chop"])
+    party[POK_LEN:2 * POK_LEN] = poke("Geodude", 20, "Sturdy", ["Earthquake"])
+    moltres = poke("Moltres", 40, "Pressure", ["Ember"], item="Iron Ball")
+    assert 1 in ai.check_super_ef_move_pty(party, moltres, 0)
+    attacker = poke("Geodude", 20, "Sturdy", ["Earthquake"])
+    gastly = poke("Gastly", 20, "Levitate", ["Lick"], item="Iron Ball")
+    eff, den = ai.party_effectiveness(Types.GROUND, attacker, gastly)
+    assert eff // den == 2
+    assert ai.party_super_effective(Types.GROUND, attacker, gastly)
+
+
 @pytest.mark.parametrize("move_type, target, weak", [
     (Types.ELECTRIC, "Gligar", True),
     (Types.GROUND, "Aerodactyl", True),
@@ -1644,6 +1659,21 @@ def test_ai_speed_order(poke, ai_ab, u_ab, claw_guess, expected):
     ai_pok = poke("Geodude", 20, ai_ab, ["Tackle"])
     user = poke("Rattata", 20, u_ab, ["Tackle"])
     assert ai.ai_speed_order(ai_pok, user, 0, claw_guess) == expected
+
+
+@pytest.mark.parametrize("ai_item, u_item, u_ab, expected", [
+    (None, "Lagging Tail", "Sturdy", 1),            # the faster target holds one: the AI first
+    ("Full Incense", None, "Sturdy", -1),           # the faster AI holds one: it goes second
+    ("Lagging Tail", "Full Incense", "Sturdy", -1),  # both: the slower first (pokeplatinum)
+    ("Lagging Tail", None, "Stall", -1),            # checked before Stall
+    ("Macho Brace", None, "Sturdy", -1),            # halved: 30 -> 15, under Geodude's 19
+])
+def test_ai_speed_order_sees_speed_items(poke, ai_item, u_item, u_ab, expected):
+    """pokeplatinum CompareBattlerSpeed as the AI calls it, with the order and speed items"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Tackle"], item=ai_item)
+    ai_pok[Pok.SPEED] = 30
+    user = poke("Geodude", 20, u_ab, ["Tackle"], item=u_item)
+    assert ai.ai_speed_order(ai_pok, user, 0, 0) == expected
 
 
 def test_ai_speed_order_sees_quick_feet(poke):

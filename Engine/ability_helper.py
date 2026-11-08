@@ -6,6 +6,7 @@ from Models.constants import (
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _POK_AB_KNOWN, _POK_CURRENT_HP, _FIELD_MY_POK,
     _FIELD_OPP_POK, _FIELD_WEATHER, _ABILITYNAMES_CLOUD_NINE, _ABILITYNAMES_AIR_LOCK,
     _ABILITYNAMES_NORMALIZE, _MOVE_ID, _MOVE_TYPE, _MOVENAME_STRUGGLE, _TYPES_NORMAL,
+    _ITEM_HOLD_EFFECT, _HOLDEFFECT_SPEED_DOWN_GROUNDED,
 )
 
 # Abilities that switch the weather's effects off while their holder is out
@@ -33,15 +34,25 @@ def normalized_type(attacker, move):
 
 
 @njit
+def grounded_by_item(pok):
+    """
+    Iron Ball grounds its holder: Ground moves reach it through the Flying type and Levitate
+    (pokeplatinum HOLD_EFFECT_SPEED_DOWN_GROUNDED)
+    """
+    return pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_SPEED_DOWN_GROUNDED
+
+
+@njit
 def levitates(pok, attacker, gravity=False):
     """
-    Levitate keeps Ground moves off unless the attacker has Mold Breaker. Gravity and Ingrain
-    switch it off
+    Levitate keeps Ground moves off unless the attacker has Mold Breaker. Gravity, Ingrain and
+    Iron Ball switch it off
     """
     return (
         pok[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
         and not gravity
         and not pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN
+        and not grounded_by_item(pok)
         and ignorable_ability(pok, attacker)
     )
 

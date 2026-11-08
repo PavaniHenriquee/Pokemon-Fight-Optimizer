@@ -256,3 +256,46 @@ METRONOME_POOL = np.array(
            if getattr(MoveName, m['name'].upper()) not in METRONOME_FORBIDDEN),
     dtype=np.int32
 )
+
+# The moves King's Rock and Razor Fang can make flinch: Showdown gen4 items.ts affectedByKingsRock
+# (pokeplatinum MOVE_FLAG_TRIGGERS_KINGS_ROCK), by Showdown id, and RP's damaging moves from later
+# generations (MoveDB's kings_rock, set by add_moves). Moves not in MoveDB yet are skipped
+_KINGS_ROCK_IDS = (
+    'aerialace', 'aeroblast', 'aircutter', 'airslash', 'aquajet', 'aquatail', 'armthrust', 'assurance',
+    'attackorder', 'aurasphere', 'avalanche', 'barrage', 'beatup', 'bide', 'bind', 'blastburn',
+    'bonerush', 'bonemerang', 'bounce', 'bravebird', 'brickbreak', 'brine', 'bugbite', 'bulletpunch',
+    'bulletseed', 'chargebeam', 'clamp', 'closecombat', 'cometpunch', 'crabhammer', 'crosschop',
+    'crosspoison', 'crushgrip', 'cut', 'darkpulse', 'dig', 'discharge', 'dive', 'doublehit',
+    'doublekick', 'doubleslap', 'doubleedge', 'dracometeor', 'dragonbreath', 'dragonclaw',
+    'dragonpulse', 'dragonrage', 'dragonrush', 'drainpunch', 'drillpeck', 'earthpower', 'earthquake',
+    'eggbomb', 'endeavor', 'eruption', 'explosion', 'extremespeed', 'falseswipe', 'feintattack',
+    'firefang', 'firespin', 'flail', 'flashcannon', 'fly', 'forcepalm', 'frenzyplant', 'frustration',
+    'furyattack', 'furycutter', 'furyswipes', 'gigaimpact', 'grassknot', 'gunkshot', 'gust', 'gyroball',
+    'hammerarm', 'headsmash', 'hiddenpower', 'highjumpkick', 'hornattack', 'hydrocannon', 'hydropump',
+    'hyperbeam', 'iceball', 'icefang', 'iceshard', 'iciclespear', 'ironhead', 'judgment', 'jumpkick',
+    'karatechop', 'lastresort', 'lavaplume', 'leafblade', 'leafstorm', 'lowkick', 'machpunch',
+    'magicalleaf', 'magmastorm', 'magnetbomb', 'magnitude', 'megakick', 'megapunch', 'megahorn',
+    'meteormash', 'mirrorshot', 'mudbomb', 'mudshot', 'muddywater', 'nightshade', 'nightslash',
+    'ominouswind', 'outrage', 'overheat', 'payday', 'payback', 'peck', 'petaldance', 'pinmissile',
+    'pluck', 'poisonjab', 'poisontail', 'pound', 'powergem', 'powerwhip', 'psychoboost', 'psychocut',
+    'psywave', 'punishment', 'quickattack', 'rage', 'rapidspin', 'razorleaf', 'razorwind', 'return',
+    'revenge', 'reversal', 'roaroftime', 'rockblast', 'rockclimb', 'rockthrow', 'rockwrecker',
+    'rollingkick', 'rollout', 'sandtomb', 'scratch', 'seedbomb', 'seedflare', 'seismictoss',
+    'selfdestruct', 'shadowclaw', 'shadowforce', 'shadowpunch', 'shadowsneak', 'shockwave',
+    'signalbeam', 'silverwind', 'skullbash', 'skyattack', 'skyuppercut', 'slam', 'slash', 'snore',
+    'solarbeam', 'sonicboom', 'spacialrend', 'spikecannon', 'spitup', 'steelwing', 'stoneedge',
+    'strength', 'struggle', 'submission', 'suckerpunch', 'surf', 'swift', 'tackle', 'takedown',
+    'thrash', 'thunderfang', 'triplekick', 'trumpcard', 'twister', 'uturn', 'uproar', 'vacuumwave',
+    'visegrip', 'vinewhip', 'vitalthrow', 'volttackle', 'wakeupslap', 'watergun', 'waterpulse',
+    'waterfall', 'weatherball', 'whirlpool', 'wingattack', 'woodhammer', 'wrap', 'wringout', 'xscissor',
+    'zenheadbutt',
+)
+KINGS_ROCK_MOVES = np.zeros(max(v for k, v in vars(MoveName).items() if k.isupper()) + 1, dtype=np.bool_)
+# MoveName -> Showdown id where Showdown renamed the move
+_SHOWDOWN_ID = {'VICE_GRIP': 'visegrip'}
+for _name, _idx in vars(MoveName).items():
+    if _name.isupper() and _SHOWDOWN_ID.get(_name, _name.replace('_', '').lower()) in _KINGS_ROCK_IDS:
+        KINGS_ROCK_MOVES[_idx] = True
+for _move in moveDB.values():
+    if _move.get('kings_rock'):
+        KINGS_ROCK_MOVES[getattr(MoveName, _move['name'].upper())] = True

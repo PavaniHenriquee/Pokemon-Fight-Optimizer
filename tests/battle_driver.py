@@ -62,7 +62,7 @@ def _blocked(active, i, mv):
 
 def _trapped(arr, active):
     """Shed Shell frees, bind and Ingrain trap, then the living foe's Shadow Tag, Magnet Pull
-    (Steel) and Arena Trap (not Flying or Levitate, unless Gravity)"""
+    (Steel) and Arena Trap (not Flying or Levitate, unless Gravity or Iron Ball)"""
     if active[Item.HOLD_EFFECT] == HoldEffect.SWITCH:
         return False
     if active[Pok.VOL_STATUS] & (VolStatus.INGRAIN | VolStatus.PARTIALLY_TRAPPED):
@@ -77,7 +77,8 @@ def _trapped(arr, active):
         return Types.STEEL in types
     if foe[Pok.AB_ID] == AbilityNames.ARENA_TRAP:
         airborne = Types.FLYING in types or active[Pok.AB_ID] == AbilityNames.LEVITATE
-        return arr[Field.GRAVITY_TURNS] > 0 or not airborne
+        iron_ball = active[Item.HOLD_EFFECT] == HoldEffect.SPEED_DOWN_GROUNDED
+        return arr[Field.GRAVITY_TURNS] > 0 or iron_ball or not airborne
     return False
 
 

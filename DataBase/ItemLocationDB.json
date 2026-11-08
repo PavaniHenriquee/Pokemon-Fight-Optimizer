@@ -68,8 +68,8 @@
     ],
     "Floaroma Town": [
       {"id": "Floaroma Town||Charcoal|Held by the gift Cyndaquil", "item": "Charcoal", "kind": "item", "area": "", "how": "Held by the gift Cyndaquil"},
-      {"id": "Floaroma Town||DeepSeaScale|", "item": "DeepSeaScale", "kind": "item", "area": "", "how": ""},
-      {"id": "Floaroma Town||DeepSeaTooth|", "item": "DeepSeaTooth", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||Deep Sea Scale|", "item": "Deep Sea Scale", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||Deep Sea Tooth|", "item": "Deep Sea Tooth", "kind": "item", "area": "", "how": ""},
       {"id": "Floaroma Town||Light Ball|", "item": "Light Ball", "kind": "item", "area": "", "how": ""},
       {"id": "Floaroma Town||Lucky Punch|", "item": "Lucky Punch", "kind": "item", "area": "", "how": ""},
       {"id": "Floaroma Town||Metal Powder|", "item": "Metal Powder", "kind": "item", "area": "", "how": ""},
@@ -235,15 +235,15 @@
       {"id": "Route 210|North|TM88|Item on ground", "item": "TM88", "kind": "tm", "area": "North", "how": "Item on ground", "move": "Hurricane", "type": "Flying"}
     ],
     "Route 215": [
-      {"id": "Route 215||BlackGlasses|", "item": "BlackGlasses", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 215||Black Glasses|", "item": "Black Glasses", "kind": "item", "area": "", "how": ""},
       {"id": "Route 215||Razor Claw|", "item": "Razor Claw", "kind": "item", "area": "", "how": ""},
       {"id": "Route 215||TM66|Item on ground", "item": "TM66", "kind": "tm", "area": "", "how": "Item on ground", "move": "Payback", "type": "Dark"},
       {"id": "Route 215||TM83|Item on ground", "item": "TM83", "kind": "tm", "area": "", "how": "Item on ground", "move": "Hyper Voice", "type": "Normal"}
     ],
     "Veilstone City": [
       {"id": "Veilstone City|Dept. Store|Dawn Stone|Buyable", "item": "Dawn Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
-      {"id": "Veilstone City|Game Corner|DeepSeaScale|Prize \u00b7 Buyable", "item": "DeepSeaScale", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
-      {"id": "Veilstone City|Game Corner|DeepSeaTooth|Prize \u00b7 Buyable", "item": "DeepSeaTooth", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Deep Sea Scale|Prize \u00b7 Buyable", "item": "Deep Sea Scale", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Deep Sea Tooth|Prize \u00b7 Buyable", "item": "Deep Sea Tooth", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
       {"id": "Veilstone City||Dragon Scale|From an NPC in the Pok\u00e9mon Center", "item": "Dragon Scale", "kind": "item", "area": "", "how": "From an NPC in the Pok\u00e9mon Center"},
       {"id": "Veilstone City||Dubious Disc|", "item": "Dubious Disc", "kind": "item", "area": "", "how": ""},
       {"id": "Veilstone City|Galactic Warehouse|Dusk Stone|", "item": "Dusk Stone", "kind": "item", "area": "Galactic Warehouse", "how": ""},
@@ -328,7 +328,7 @@
       {"id": "Great Marsh||TM36|Item on ground", "item": "TM36", "kind": "tm", "area": "", "how": "Item on ground", "move": "Sludge Bomb", "type": "Poison"}
     ],
     "Celestic Town": [
-      {"id": "Celestic Town||BlackGlasses|", "item": "BlackGlasses", "kind": "item", "area": "", "how": ""},
+      {"id": "Celestic Town||Black Glasses|", "item": "Black Glasses", "kind": "item", "area": "", "how": ""},
       {"id": "Celestic Town||Choice Specs|From an NPC in the morning", "item": "Choice Specs", "kind": "item", "area": "", "how": "From an NPC in the morning"},
       {"id": "Celestic Town||Dragon Fang|", "item": "Dragon Fang", "kind": "item", "area": "", "how": ""},
       {"id": "Celestic Town||King's Rock|Hidden", "item": "King's Rock", "kind": "item", "area": "", "how": "Hidden"},

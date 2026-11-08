@@ -68,6 +68,9 @@ SECONDARY_BOOST = {"atk": "atk", "def": "def", "spa": "spa", "spd": "spd", "spe"
 STATUS = {"slp": "sleep", "frz": "freeze", "par": "paralysis", "brn": "burn", "psn": "poison", "tox": "toxic"}
 STAT = {"atk": "attack", "def": "defense", "spa": "special_attack", "spd": "special_defense", "spe": "speed"}
 DAMAGE = ("level",)  # the [SD] damage strings Models/move.py reads; a number copies over
+# Shadow Force, the last Gen IV move by [SD] num. RP's damaging moves from later generations trigger King's
+# Rock (Models/move.py KINGS_ROCK_MOVES), the Gen IV ones only when [SD] gen4's list has them
+LAST_GEN4_MOVE = 467
 FLAG = {  # [SD] flag -> MoveDB's spelling, where it isn't the same
     "bypasssub": "bypass_sub", "cantusetwice": "cant_use_twice", "failcopycat": "fail_copycat",
     "failencore": "fail_encore", "failinstruct": "fail_instruct", "failmefirst": "fail_me_first",
@@ -373,12 +376,15 @@ def _secondaries(sd: dict, entry: dict, notes: list) -> None:
 
 
 def build_entry(key: str, sd: dict, row) -> tuple:
-    """(MoveDB entry, notes) for one move: [SD]'s data with the tab's row's numbers (row None: [SD]'s)"""
+    """(MoveDB entry, notes) for one move: [SD]'s data with the tab's row's numbers (row None: [SD]'s). A
+    damaging move from after Gen IV gets kings_rock"""
     notes = []
     entry = _numbers(sd, row, notes)
     entry["name"] = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
     for part in (_basics, _special_values, _effects, _secondaries):
         part(sd, entry, notes)
+    if sd.get("num", 0) > LAST_GEN4_MOVE and entry["category"] != "Status":
+        entry["kings_rock"] = True
     handlers = sorted(k for k, v in sd.items() if k not in SKIPPED and v is not None and v is not False)
     if handlers:
         notes.append("engine work: " + ", ".join(handlers))

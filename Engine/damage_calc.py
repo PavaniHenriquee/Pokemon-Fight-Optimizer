@@ -35,8 +35,11 @@ from Models.constants import (
     _ABILITYNAMES_SOLID_ROCK, _ABILITYNAMES_SNIPER, _ABILITYNAMES_UNAWARE, _ABILITYNAMES_PURE_POWER,
     _ABILITYNAMES_MARVEL_SCALE, _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SCRAPPY,
     _VOLSTATUS2_FLASH_FIRE, _HOLDEFFECT_BOOST_REPEATED, _POK_METRONOME_COUNT,
+    _HOLDEFFECT_POWER_UP_SPEC, _HOLDEFFECT_CLAMPERL_SPATK, _HOLDEFFECT_CLAMPERL_SPDEF,
+    _HOLDEFFECT_LATI_SPECIAL, _HOLDEFFECT_DIALGA_BOOST, _HOLDEFFECT_PALKIA_BOOST,
+    _HOLDEFFECT_GIRATINA_BOOST, _HOLDEFFECT_DITTO_DEF_UP, _TYPES_DRAGON, _TYPES_STEEL, _TYPES_WATER,
 )
-from Engine.ability_helper import ignorable_ability, normalized_type
+from Engine.ability_helper import ignorable_ability, normalized_type, grounded_by_item
 
 # ==========================================
 # 1. CONSTANTS & LOOKUPS
@@ -72,6 +75,13 @@ EXPLODE_MOVES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 PIKACHU = PokemonName.PIKACHU
 # Thick Club works for both, Item.ITEM_USER only holds one
 THICK_CLUB_USERS = (PokemonName.CUBONE, PokemonName.MAROWAK)
+SOUL_DEW_USERS = (PokemonName.LATIAS, PokemonName.LATIOS)
+CLAMPERL = PokemonName.CLAMPERL
+DITTO = PokemonName.DITTO
+DIALGA = PokemonName.DIALGA
+PALKIA = PokemonName.PALKIA
+# pokeplatinum checks the species, so both forms get the Griseous Orb boost
+GIRATINA_FORMS = (PokemonName.GIRATINA, PokemonName.GIRATINA_ORIGIN)
 
 
 # ==========================================
@@ -94,8 +104,8 @@ def apply_stat_stage(raw_stat: int, stage: int, is_simple: bool) -> int:
 def matchup_types(move_type, defender, gravity=False, scrappy=False):
     """
     Defender types the type chart reads. Foresight or the attacker's Scrappy drop the Ghost type
-    against Normal and Fighting, Ingrain and Gravity drop the Flying type against Ground, a dropped
-    type is 0 (neutral)
+    against Normal and Fighting, Ingrain, Gravity and Iron Ball drop the Flying type against Ground, a
+    dropped type is 0 (neutral)
     """
     t1 = defender[_POK_TYPE1]
     t2 = defender[_POK_TYPE2]
@@ -105,7 +115,7 @@ def matchup_types(move_type, defender, gravity=False, scrappy=False):
             t1 = 0
         if t2 == _TYPES_GHOST:
             t2 = 0
-    if (vol & _VOLSTATUS_INGRAIN or gravity) and move_type == _TYPES_GROUND:
+    if (vol & _VOLSTATUS_INGRAIN or gravity or grounded_by_item(defender)) and move_type == _TYPES_GROUND:
         if t1 == _TYPES_FLYING:
             t1 = 0
         if t2 == _TYPES_FLYING:
@@ -210,12 +220,12 @@ def raw_atk_def(move, attacker, defender, weather=0, crit=False):
     )
     if physical:
         raw_attack = item_attack(attacker, attacker[_POK_ATTACK])
-        raw_defense = defender[_POK_DEFENSE]
+        raw_defense = item_defense(defender, defender[_POK_DEFENSE])
         atk_stage = attacker[_POK_ATTACK_STAT_STAGE]
         def_stage = defender[_POK_DEFENSE_STAT_STAGE]
     else:
-        raw_attack = attacker[_POK_SPECIAL_ATTACK]
-        raw_defense = defender[_POK_SPECIAL_DEFENSE]
+        raw_attack = item_sp_attack(attacker, attacker[_POK_SPECIAL_ATTACK])
+        raw_defense = item_sp_defense(defender, defender[_POK_SPECIAL_DEFENSE])
         atk_stage = attacker[_POK_SPECIAL_ATTACK_STAT_STAGE]
         def_stage = defender[_POK_SPECIAL_DEFENSE_STAT_STAGE]
         # Sandstorm Sp.Def boost for Rock types
@@ -327,17 +337,33 @@ def base_power_ability(attacker, defender, move, power):
 
 
 @njit
+def orb_boosts(effect, species, move_type):
+    """Adamant / Lustrous / Griseous Orb: their species' Dragon moves and its other type"""
+    if effect == _HOLDEFFECT_DIALGA_BOOST:
+        return species == DIALGA and move_type in (_TYPES_DRAGON, _TYPES_STEEL)
+    if effect == _HOLDEFFECT_PALKIA_BOOST:
+        return species == PALKIA and move_type in (_TYPES_DRAGON, _TYPES_WATER)
+    if effect == _HOLDEFFECT_GIRATINA_BOOST:
+        return species in GIRATINA_FORMS and move_type in (_TYPES_DRAGON, _TYPES_GHOST)
+    return False
+
+
+@njit
 def item_power(attacker, move_type, category, power):
     """
     Held item power boosts in pokeplatinum BattleSystem_CalcMoveDamage order: type item, Light Ball,
-    Muscle Band. The boost is effect_param percent
+    the Dialga / Palkia / Giratina orbs, Muscle Band, Wise Glasses. The boost is effect_param percent
     """
     effect = attacker[_ITEM_HOLD_EFFECT]
     if effect == _HOLDEFFECT_TYPE_BOOST and move_type == attacker[_ITEM_EFFECT_TYPE]:
         return power * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
     if effect == _HOLDEFFECT_PIKA_SPATK_UP and attacker[_POK_ID] == PIKACHU:
         return power * 2
+    if orb_boosts(effect, attacker[_POK_ID], move_type):
+        return power * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
     if effect == _HOLDEFFECT_POWER_UP_PHYS and category == _MOVECATEGORY_PHYSICAL:
+        return power * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
+    if effect == _HOLDEFFECT_POWER_UP_SPEC and category == _MOVECATEGORY_SPECIAL:
         return power * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
     return power
 
@@ -351,6 +377,36 @@ def item_attack(attacker, attack):
     ):
         return attack * 2
     return attack
+
+
+@njit
+def item_defense(defender, defense):
+    """Metal Powder doubles Ditto's Defense (pokeplatinum BattleSystem_CalcMoveDamage)"""
+    if defender[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_DITTO_DEF_UP and defender[_POK_ID] == DITTO:
+        return defense * 2
+    return defense
+
+
+@njit
+def item_sp_attack(attacker, sp_attack):
+    """Soul Dew x150/100 for Latias and Latios, DeepSeaTooth x2 for Clamperl"""
+    effect = attacker[_ITEM_HOLD_EFFECT]
+    if effect == _HOLDEFFECT_LATI_SPECIAL and attacker[_POK_ID] in SOUL_DEW_USERS:
+        return sp_attack * 150 // 100
+    if effect == _HOLDEFFECT_CLAMPERL_SPATK and attacker[_POK_ID] == CLAMPERL:
+        return sp_attack * 2
+    return sp_attack
+
+
+@njit
+def item_sp_defense(defender, sp_defense):
+    """Soul Dew x150/100 for Latias and Latios, DeepSeaScale x2 for Clamperl"""
+    effect = defender[_ITEM_HOLD_EFFECT]
+    if effect == _HOLDEFFECT_LATI_SPECIAL and defender[_POK_ID] in SOUL_DEW_USERS:
+        return sp_defense * 150 // 100
+    if effect == _HOLDEFFECT_CLAMPERL_SPDEF and defender[_POK_ID] == CLAMPERL:
+        return sp_defense * 2
+    return sp_defense
 
 
 @njit
@@ -642,7 +698,9 @@ def calculate_damage_confusion(pok):
         attack = (attack*3)//2
 
     attack = apply_stat_stage(attack, pok[_POK_ATTACK_STAT_STAGE], is_simple)
-    defense = apply_stat_stage(pok[_POK_DEFENSE], pok[_POK_DEFENSE_STAT_STAGE], is_simple)
+    defense = apply_stat_stage(
+        item_defense(pok, pok[_POK_DEFENSE]), pok[_POK_DEFENSE_STAT_STAGE], is_simple
+    )
 
     # Confusion counts as a 40 power Normal move: Silk Scarf and Light Ball boost it, Muscle Band doesn't
     power = 40

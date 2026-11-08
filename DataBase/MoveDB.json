@@ -450,6 +450,7 @@
   "Bulldoze": {
     "accuracy": 100,
     "category": "Physical",
+    "kings_rock": true,
     "name": "bulldoze",
     "power": 60,
     "pp": 20,
@@ -702,6 +703,7 @@
       "protect": true,
       "sound": true
     },
+    "kings_rock": true,
     "name": "disarming_voice",
     "power": 50,
     "pp": 15,
@@ -811,6 +813,7 @@
       "mirror": true,
       "protect": true
     },
+    "kings_rock": true,
     "name": "draining_kiss",
     "power": 75,
     "pp": 10,

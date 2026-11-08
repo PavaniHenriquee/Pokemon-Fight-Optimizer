@@ -983,6 +983,15 @@ def test_trapping_abilities_block_switching(make_pokemon, make_battle, mine, my_
     assert mask_actions(arr) == expected == legal_actions(arr)
 
 
+@pytest.mark.parametrize("mine, my_ability", [("Pidgey", "Keen Eye"), ("Gastly", "Levitate")])
+def test_arena_trap_traps_an_iron_ball_holder(make_pokemon, make_battle, mine, my_ability):
+    """pokeplatinum BattlerIsGrounded: Iron Ball grounds a Flying or Levitate holder"""
+    team = [make_pokemon(mine, 10, my_ability, ["Tackle"], item="Iron Ball"),
+            make_pokemon("Rattata", 10, "Run Away", ["Tackle"])]
+    arr = make_battle(team, [make_pokemon("Diglett", 10, "Arena Trap", ["Scratch"])])
+    assert mask_actions(arr) == [(MOVE, 0)] == legal_actions(arr)
+
+
 def test_fainted_trapper_does_not_trap(make_pokemon, make_battle):
     """The trapping abilities only count a living foe"""
     team = [make_pokemon(n, 10, "Run Away", ["Tackle"]) for n in ("Rattata", "Pidgey")]

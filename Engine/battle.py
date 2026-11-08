@@ -5,7 +5,7 @@ from Utils.jit import njit
 from Engine.speed import check_speed
 from Engine.engine_helper import (
     move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
-    flinch_checker, thaw, early_returns, switch_in, SIDE_OR_FIELD_TARGETS,
+    flinch_checker, kings_rock, thaw, early_returns, switch_in, SIDE_OR_FIELD_TARGETS,
     on_hit_abilities, heal_weather, on_residual, trainer_ai_items, drain,
     item_on_rdmg, eat_berry_bug_bite, struggle_damage, switch_items,
     RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
@@ -14,7 +14,7 @@ from Engine.engine_helper import (
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
     damp_blocks, status_item, pressure_pp, truant_loafs, metronome_count, metronome_fail,
     power_herb, sticky_hold, big_root, recover_status_by_ability, counter_fails,
-    has_substitute, hit_substitute, make_substitute, sub_blocks_status_move,
+    has_substitute, hit_substitute, make_substitute, sub_blocks_status_move, takeable_item,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -335,7 +335,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
     doubled[_MOVE_POWER] *= 2
     weather = effective_weather(battle_array)
     gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
-    if calculate_hit_miss(doubled, atk, defn, weather, gravity) == _MOVEOUTCOME_HIT:
+    if calculate_hit_miss(doubled, atk, defn, weather, gravity, True) == _MOVEOUTCOME_HIT:
         _, hit_pok = ps_moves(
             atk, defn, doubled, weather, False, False, battle_array[side_base(not is_mine)], gravity
         )
@@ -409,6 +409,8 @@ def _apply_move_damage(attacker, defender, move, damage, crit=False):
             flinch = flinch_checker(move, attacker, defender)
         elif move[_SEC_VOL_STATUS2] & _VOLSTATUS_FLINCH:
             flinch = flinch_checker(move, attacker, defender, True)
+        elif kings_rock(move, attacker):
+            flinch = flinch_checker(move, attacker, defender, False, attacker[_ITEM_EFFECT_PARAM])
         if defender[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
             item_on_rdmg(defender)
         return flinch
@@ -548,10 +550,10 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
     ):
         eat_berry_bug_bite(attacker, defender)
     # The AI's Covet steals too: correct for RP despite pokeplatinum BtlCmd_TryStealItem failing for
-    # side-1 attackers outside the Frontier (a decomp oversight)
+    # side-1 attackers outside the Frontier (a decomp oversight). It can't take a Griseous Orb
     elif (
         move[_MOVE_ID] == _MOVENAME_COVET
-        and defender[_ITEM_ITEM_TYPE]
+        and takeable_item(defender)
         and not sticky_hold(defender, attacker)
         and not attacker[_ITEM_ITEM_TYPE]
         and not attacker[_POK_ITEM_KNOCKED_OFF]
@@ -816,7 +818,7 @@ def _execute_move_slot(
     # immune target still costs it. Damp stops the whole move (Showdown gen4 useMoveInner)
     if mv[_MOVE_ID] in EXPLODE_MOVES and not damp_blocks(atk, defn):
         atk[_POK_CURRENT_HP] = 0
-    move_hit = calculate_hit_miss(mv, atk, defn, weather, gravity)
+    move_hit = calculate_hit_miss(mv, atk, defn, weather, gravity, is_last)
     if move_hit != _MOVEOUTCOME_HIT:
         if not (atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and move_hit in UPROAR_KEEPS_ON):
             unlock_move(atk)

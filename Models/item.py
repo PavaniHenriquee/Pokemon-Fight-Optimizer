@@ -15,7 +15,7 @@ def item_to_np(item):
         return array
 
     array[ItemIdx.ID-off] = getattr(ItemNames, item['name'].upper())
-    array[ItemIdx.WHEN-off] = getattr(ItemActivation, item['when'].upper())
+    array[ItemIdx.WHEN-off] = getattr(ItemActivation, item['when'].upper()) if 'when' in item else 0
     array[ItemIdx.ITEM_TYPE-off] = getattr(ItemType, item['type'].upper())
     array[ItemIdx.ITEM_USER-off] = getattr(PokemonName, item['item_user'].upper()) if 'item_user' in item else 0
     array[ItemIdx.FLING_POWER-off] = item.get('fling_power', 0)

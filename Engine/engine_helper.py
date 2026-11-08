@@ -11,18 +11,19 @@ from Engine.status_calc import (
 )
 from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
-    item_power, item_attack, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
+    item_power, item_attack, item_defense, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
     AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB, is_scrappy,
     METRONOME_MOVE_SHIFT, METRONOME_COUNT_MASK
 )
 from Engine.ability_helper import (
     ignorable_ability, levitates, reveal_ability, effective_weather, normalized_type,
+    grounded_by_item,
 )
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, Target
 from Models.item import ITEM_TABLE
 from Models.ability import ABILITY_TABLE
-from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN
+from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES
 from Models.constants import (
     _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
     _WEATHER_SUN, _MOVENAME_FAKE_OUT,
@@ -94,10 +95,16 @@ from Models.constants import (
     _POK_METRONOME_COUNT, _ABILITYNAMES_LIQUID_OOZE, _HOLDEFFECT_CHARGE_SKIP,
     _POK_SUB_HP, _VOLSTATUS2_SUBSTITUTE, _FLAGS_BYPASS_SUB, _MOVENAME_CURSE, _TYPES_GHOST,
     _MOVENAME_SWAGGER, _MOVENAME_FLATTER, _VOLSTATUS_YAWN, _MOVE_STATUS, _MOVE_VOL_STATUS,
+    _HOLDEFFECT_CHANSEY_CRITRATE_UP, _HOLDEFFECT_FARFETCHD_CRITRATE_UP, _ITEMNAMES_GRISEOUS_ORB,
+    _POK_ID, _HOLDEFFECT_PRIORITY_DOWN, _HOLDEFFECT_ACCURACY_UP, _HOLDEFFECT_ACCURACY_UP_SLOWER,
+    _HOLDEFFECT_SOMETIMES_FLINCH, _ITEM_EFFECT_PARAM,
 )
+from DataBase.PkDB import PokemonName
 
 
 SANDSTORM_IM = (_TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL)
+CHANSEY = PokemonName.CHANSEY
+FARFETCHD = PokemonName.FARFETCHD
 DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 HP_RESTORE_EFFECTS = (_HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE)
@@ -507,13 +514,20 @@ def sticky_hold(defender, attacker):
 
 
 @njit
+def takeable_item(pok):
+    """pok holds an item another Pokemon can take: anything but a Griseous Orb (pokeplatinum
+    BtlCmd_TryStealItem, subscript_knock_off, subscript_exchange_items)"""
+    return pok[_ITEM_ID] != 0 and pok[_ITEM_ID] != _ITEMNAMES_GRISEOUS_ORB
+
+
+@njit
 def knock_off(attacker, defender):
     """
     Knock Off removes the target's item. Gen IV marks the Pokemon for the rest of the battle: it
     can't get a new item and the knocked off one isn't recyclable. Sticky Hold keeps the item
     unless the user has Mold Breaker
     """
-    if not defender[_ITEM_ID]:
+    if not takeable_item(defender):
         return
     if (
         defender[_POK_AB_ID] == _ABILITYNAMES_STICKY_HOLD
@@ -597,12 +611,19 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
         if move1_prio > move2_prio:
             return my_move, opp_move, 2, True
         return opp_move, my_move, 2, False
-    # Same bracket (Showdown gen4): an activated Quick Claw goes first, a lone Stall holder last at
-    # priority >= 0, both Quick Claws or both Stalls fall back to speed
+    # Same bracket (Showdown gen4): an activated Quick Claw goes first, then a lone Lagging Tail /
+    # Full Incense holder last, then a lone Stall holder last at priority >= 0. Both Quick Claws,
+    # both items or both Stalls fall back to speed
     claw1 = quick_claw(p1)
     claw2 = quick_claw(p2)
     if claw1 != claw2:
         if claw1:
+            return my_move, opp_move, 2, True
+        return opp_move, my_move, 2, False
+    lag1 = p1[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_PRIORITY_DOWN
+    lag2 = p2[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_PRIORITY_DOWN
+    if lag1 != lag2:
+        if lag2:
             return my_move, opp_move, 2, True
         return opp_move, my_move, 2, False
     stall1 = p1[_POK_AB_ID] == _ABILITYNAMES_STALL
@@ -765,11 +786,12 @@ def no_guard(attacker, defender):
 
 
 @njit
-def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False):
+def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False, target_moved=False):
     """
     Hit rate out of 100 in pokeplatinum BattleControllerPlayer_CheckMoveHitAccuracy order: stages
     (Simple doubles them, Unaware ignores the foe's), Compound Eyes, Sand Veil, Snow Cloak, Hustle,
-    Tangled Feet, Bright Powder / Lax Incense, Gravity. Mold Breaker ignores the defender's abilities
+    Tangled Feet, Bright Powder / Lax Incense, Wide Lens, Zoom Lens (the target already acted this
+    turn), Gravity. Mold Breaker ignores the defender's abilities
     """
     atk_ab = attacker[_POK_AB_ID]
     def_ab = defender[_POK_AB_ID] if ignorable_ability(defender, attacker) else 0
@@ -807,6 +829,11 @@ def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False):
         accuracy = accuracy * 50 // 100
     if defender[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_ACC_REDUCE:
         accuracy = accuracy * (100 - defender[_ITEM_EFFECT_PARAM]) // 100
+    atk_item = attacker[_ITEM_HOLD_EFFECT]
+    if atk_item == _HOLDEFFECT_ACCURACY_UP or (
+        atk_item == _HOLDEFFECT_ACCURACY_UP_SLOWER and target_moved
+    ):
+        accuracy = accuracy * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
 
     if gravity:
         return accuracy * GRAVITY_ACC_NUM / GRAVITY_ACC_DEN
@@ -814,13 +841,14 @@ def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False):
 
 
 @njit
-def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
+def calculate_hit_miss(move, attacker, defender, weather, gravity=False, target_moved=False):
     '''
     The move's outcome. A move that hit can still be taken by the target's ability (Volt Absorb,
     Flash Fire, Wonder Guard...), which makes it INVULNERABLE (pokeplatinum and Showdown gen4 check
-    them after the type chart and the accuracy roll)
+    them after the type chart and the accuracy roll). target_moved: the target already acted this
+    turn (Zoom Lens)
     '''
-    outcome = _hit_outcome(move, attacker, defender, weather, gravity)
+    outcome = _hit_outcome(move, attacker, defender, weather, gravity, target_moved)
     if outcome == _MOVEOUTCOME_HIT and absorb_move(move, attacker, defender, gravity):
         reveal_ability(defender)
         return _MOVEOUTCOME_INVULNERABLE
@@ -828,7 +856,7 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False):
 
 
 @njit
-def _hit_outcome(move, attacker, defender, weather, gravity=False):
+def _hit_outcome(move, attacker, defender, weather, gravity=False, target_moved=False):
     '''Protect, semi-invulnerability, type immunities and the accuracy roll'''
     guard = no_guard(attacker, defender)
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT and move[_FLAGS_PROTECT]:
@@ -894,7 +922,7 @@ def _hit_outcome(move, attacker, defender, weather, gravity=False):
     if guard:
         return _MOVEOUTCOME_HIT
 
-    accuracy = move_accuracy(move, attacker, defender, move_acc, weather, gravity)
+    accuracy = move_accuracy(move, attacker, defender, move_acc, weather, gravity, target_moved)
 
     if accuracy == 100 or random.randint(1,100) <= accuracy:
         return _MOVEOUTCOME_HIT
@@ -906,7 +934,8 @@ def calculate_crit(attacker, defender, move=None, def_side=0):
     """Returns a boolean if the move passed the crit check based on Gen IV mechanics.
     def_side is the defender's Field.SIDE_COND, Lucky Chant there blocks crits. Battle Armor and
     Shell Armor block them unless the attacker has Mold Breaker. Focus Energy +2, the move's ratio,
-    Scope Lens +1, Super Luck +1 (pokeplatinum BattleSystem_CalcCriticalMulti)"""
+    Scope Lens +1, Super Luck +1, Lucky Punch (Chansey) / Stick (Farfetch'd) +2 (pokeplatinum
+    BattleSystem_CalcCriticalMulti)"""
     if (
         defender[_POK_AB_WHEN] & _ABILITYACTIVATION_ON_CRITICAL
         and ignorable_ability(defender, attacker)
@@ -926,8 +955,13 @@ def calculate_crit(attacker, defender, move=None, def_side=0):
         crit_ratio = move[_MOVE_CRIT_RATIO]
         if crit_ratio > 1:
             stage += (crit_ratio - 1)
-    if attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_CRITRATE_UP:
+    effect = attacker[_ITEM_HOLD_EFFECT]
+    if effect == _HOLDEFFECT_CRITRATE_UP:
         stage += 1
+    elif effect == _HOLDEFFECT_CHANSEY_CRITRATE_UP and attacker[_POK_ID] == CHANSEY:
+        stage += 2
+    elif effect == _HOLDEFFECT_FARFETCHD_CRITRATE_UP and attacker[_POK_ID] == FARFETCHD:
+        stage += 2
     if attacker[_POK_AB_ID] == _ABILITYNAMES_SUPER_LUCK:
         stage += 1
 
@@ -1010,8 +1044,8 @@ def pressure_pp(mv, defender):
 @njit
 def is_grounded(pok, gravity=False):
     """Spikes and Toxic Spikes only reach a grounded Pokemon, Ingrain switches Levitate off (not the
-    Flying type, pokeplatinum BattlerIsGrounded). TODO: Magnet Rise, Iron Ball"""
-    if gravity:
+    Flying type, pokeplatinum BattlerIsGrounded). TODO: Magnet Rise"""
+    if gravity or grounded_by_item(pok):
         return True
     return not (
         pok[_POK_TYPE1] == _TYPES_FLYING
@@ -1289,11 +1323,12 @@ def switch_in(attacker, defender, battle_array, is_mine, foe_entering=False):
 # ── In-battle status / contact effects ────────────────────────────────────────────
 
 @njit
-def flinch_checker(move, attacker, defender, second=False):
+def flinch_checker(move, attacker, defender, second=False, chance=-1):
     """
     Returns true or false if move has a flinch percent and it should flinch. Inner Focus and Shield
     Dust stop it unless the attacker has Mold Breaker, Serene Grace doubles the chance
-    (pokeplatinum subscript_flinch_mon, BtlCmd_CheckEffectActivation)
+    (pokeplatinum subscript_flinch_mon, BtlCmd_CheckEffectActivation). chance: King's Rock's, in
+    place of the move's
     """
     if ignorable_ability(defender, attacker) and (
         defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS
@@ -1303,12 +1338,25 @@ def flinch_checker(move, attacker, defender, second=False):
         if defender[_POK_AB_ID] == _ABILITYNAMES_INNER_FOCUS and move[_MOVE_ID] == _MOVENAME_FAKE_OUT:
             reveal_ability(defender)
         return False
-    chance = move[_SEC_CHANCE2] if second else move[_SEC_CHANCE]
+    if chance < 0:
+        chance = move[_SEC_CHANCE2] if second else move[_SEC_CHANCE]
     if attacker[_POK_AB_ID] == _ABILITYNAMES_SERENE_GRACE:
         chance *= 2
     if random.randint(1,100) <= chance:
         return True
     return False
+
+
+@njit
+def kings_rock(move, attacker):
+    """
+    King's Rock and Razor Fang give the moves on Showdown gen4's list a flinch chance (the item's
+    param), rolled per hit like a secondary effect, so Serene Grace doubles it
+    """
+    return (
+        attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_SOMETIMES_FLINCH
+        and KINGS_ROCK_MOVES[move[_MOVE_ID]]
+    )
 
 
 @njit
@@ -1760,7 +1808,9 @@ def struggle_damage(attacker, defender, crit, def_side=0, weather=0):
         raw_attack = (raw_attack * 3) // 2
 
     attack = apply_stat_stage(raw_attack, atk_stage, atk_is_simple)
-    raw_defense = ab_modify_def(attacker, defender, defender[_POK_DEFENSE], True, weather)
+    raw_defense = ab_modify_def(
+        attacker, defender, item_defense(defender, defender[_POK_DEFENSE]), True, weather
+    )
     defense = apply_stat_stage(raw_defense, def_stage, def_is_simple)
 
     # Base damage formula for Struggle with power 50. It's typeless, so no type item

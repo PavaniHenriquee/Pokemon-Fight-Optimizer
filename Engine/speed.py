@@ -8,8 +8,14 @@ from Models.constants import (
     _ABILITYNAMES_SWIFT_SWIM, _POK_AB_ID, _ABILITYNAMES_SIMPLE, _ABILITYNAMES_QUICK_FEET,
     _ABILITYNAMES_SLOW_START, _POK_TURNS_ACTIVE, _ABILITYNAMES_UNBURDEN, _POK_VOL_STATUS2,
     _VOLSTATUS2_CAN_UNBURDEN, _ITEM_ID, _ITEM_HOLD_EFFECT, _ITEM_EFFECT_PARAM,
-    _HOLDEFFECT_SOMETIMES_PRIORITY
+    _HOLDEFFECT_SOMETIMES_PRIORITY, _HOLDEFFECT_DITTO_SPEED_UP, _POK_ID,
+    _HOLDEFFECT_EVS_UP_SPEED_DOWN, _HOLDEFFECT_LVLUP_EV_UP, _HOLDEFFECT_SPEED_DOWN_GROUNDED,
 )
+from DataBase.PkDB import PokemonName
+
+DITTO = PokemonName.DITTO
+# Macho Brace, the Power items and Iron Ball (pokeplatinum sSpeedHalvingItemEffects)
+SPEED_HALVING = (_HOLDEFFECT_EVS_UP_SPEED_DOWN, _HOLDEFFECT_LVLUP_EV_UP, _HOLDEFFECT_SPEED_DOWN_GROUNDED)
 
 
 @njit
@@ -52,8 +58,11 @@ def _speed(pok, weather):
             speed *= 2
         elif weather == _WEATHER_RAIN and ab == _ABILITYNAMES_SWIFT_SWIM:
             speed *= 2
-    # TODO: item modifiers (Choice Scarf ×1.5, Iron Ball/Macho Brace/Power items ×0.5,
-    # Quick Powder ×2) go here once items are wired into the speed calc — before paralysis.
+    # TODO: Choice Scarf ×1.5 goes after the halving items, before Quick Powder.
+    if pok[_ITEM_HOLD_EFFECT] in SPEED_HALVING:
+        speed //= 2
+    elif pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_DITTO_SPEED_UP and pok[_POK_ID] == DITTO:
+        speed *= 2
     if speed_ab and ab == _ABILITYNAMES_QUICK_FEET and pok[_POK_STATUS] != 0:
         speed = speed * 15 // 10
     elif pok[_POK_STATUS] == _STATUS_PARALYSIS:
@@ -74,7 +83,7 @@ def _speed(pok, weather):
 @njit
 def check_speed(p1, p2, weather):
     """Gives speed after modifications of stages, abilities, and paralysis (Showdown/Smogon-DP
-    confirmed order: stat stage -> ability modifier -> item modifier (not yet implemented) ->
+    confirmed order: stat stage -> ability modifier -> item modifiers ->
     paralysis -> tailwind (not yet implemented). Paralysis is applied last, to the already-
     truncated result of the earlier steps, not multiplied in alongside them.)"""
     return _speed(p1, weather), _speed(p2, weather)

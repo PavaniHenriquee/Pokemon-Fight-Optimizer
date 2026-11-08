@@ -12,6 +12,7 @@ from SearchEngine.models import (
 )
 from SearchEngine.my_mcts import mcts_loop
 from DataBase.AbilitiesDB import AbilityNames
+from DataBase.PkDB import PokemonName
 from Models.helper import Gender
 from Models.idx_const import Pok, POK_LEN, Move
 from battle_driver import build_scenario, pok_slice, move_slice
@@ -113,6 +114,24 @@ def test_build_battle_ignores_a_gender_on_a_genderless_species():
     ))
     assert battle[Pok.GENDER] == Gender.GENDERLESS
     assert battle[POK_LEN + Pok.GENDER] == Gender.MALE
+
+
+@pytest.mark.parametrize("name, item, ability, form, form_ability", [
+    ("Giratina", "Griseous Orb", "Pressure", "Giratina_origin", "Levitate"),
+    ("Giratina_origin", None, "Levitate", "Giratina", "Pressure"),
+    ("Giratina", None, "Pressure", "Giratina", "Pressure"),
+    ("Giratina_origin", "Griseous Orb", "Levitate", "Giratina_origin", "Levitate"),
+])
+def test_build_battle_sets_giratina_form_by_its_item(name, item, ability, form, form_ability):
+    """[pp] BoxPokemon_SetGiratinaForm: Origin (Levitate) with a Griseous Orb, Altered (Pressure)
+    without, whatever the box says"""
+    mon = main.PokemonConfig(name=name, ability=ability, moves=["Tackle"], item=item)
+    foe = main.PokemonConfig(name="Geodude", ability="Sturdy", moves=["Tackle"])
+    battle = main._build_battle(main.BattleConfig(  # pylint: disable=protected-access
+        my_team=[mon], opp_team=[foe],
+    ))
+    assert battle[Pok.ID] == getattr(PokemonName, form.upper())
+    assert battle[Pok.AB_ID] == getattr(AbilityNames, form_ability.upper())
 
 
 def test_box_keeps_the_death_box(client):

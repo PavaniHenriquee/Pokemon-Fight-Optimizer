@@ -252,6 +252,16 @@ def test_build_entry_notes():
     assert notes == ["volatileStatus: substitute (no VolStatus member)"]
 
 
+def test_build_entry_kings_rock():
+    """A damaging move from after Gen IV ([SD] num above Shadow Force's 467) gets kings_rock, a Gen IV
+    or status one doesn't"""
+    moves = _showdown()
+    later, _ = am.build_entry("Acid", {**moves["acid"], "num": 574}, ROWS["acid"])
+    gen4, _ = am.build_entry("Acid", moves["acid"], ROWS["acid"])
+    status, _ = am.build_entry("Baton Pass", {**moves["batonpass"], "num": 574}, None)
+    assert later["kings_rock"] is True and "kings_rock" not in gen4 and "kings_rock" not in status
+
+
 def test_sheet_numbers():
     """The tab's spellings: -- is always-hit or [SD]'s power, % or a fraction, - type is [SD]'s, OTHER is
     Status"""

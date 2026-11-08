@@ -1570,6 +1570,128 @@ def test_covet_fails_with_a_knocked_off_pokemon(make_pokemon, make_battle, knock
     assert (me[Item.ID] == ItemNames.ORAN_BERRY) == (knocked is None)
 
 
+def test_covet_cant_take_a_griseous_orb(make_pokemon, make_battle):
+    """pokeplatinum BtlCmd_TryStealItem fails on a defender holding a Griseous Orb"""
+    arr = make_battle([make_pokemon("Machop", 20, "Guts", ["Covet"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Leer"], item="Griseous Orb")])
+    me, foe = my_active(arr), opp_active(arr)
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert me[Item.ID] == 0
+    assert foe[Item.ID] == ItemNames.GRISEOUS_ORB
+
+
+@pytest.mark.parametrize("item", ["Everstone", "Rare Candy"])
+def test_covet_takes_an_item_with_no_battle_effect(make_pokemon, make_battle, item):
+    """A no-effect item is still an item: Covet takes it"""
+    arr = make_battle([make_pokemon("Machop", 20, "Guts", ["Covet"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Leer"], item=item)])
+    me, foe = my_active(arr), opp_active(arr)
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert me[Item.ID] == getattr(ItemNames, item.upper().replace(" ", "_"))
+    assert foe[Item.ID] == 0
+
+
+# ── King's Rock / Razor Fang ─────────────────────────────────────────────────
+
+def _flinch_roll(monkeypatch, roll):
+    """Every randint(1, 100) (the flinch roll) gives roll; returns the list of those calls"""
+    calls = []
+    def fake(lo, hi):
+        if (lo, hi) == (1, 100):
+            calls.append(roll)
+            return roll
+        return lo
+    monkeypatch.setattr(engine_helper.random, "randint", fake)
+    return calls
+
+
+@pytest.mark.parametrize("item, move, ability, roll, flinches", [
+    ("King's Rock", "Tackle", "Run Away", 10, True),
+    ("King's Rock", "Tackle", "Run Away", 11, False),
+    ("Razor Fang", "Tackle", "Run Away", 10, True),
+    ("King's Rock", "Tackle", "Serene Grace", 20, True),      # Showdown: a secondary, doubled
+    ("King's Rock", "Bite", "Run Away", 31, False),           # Bite keeps its own 30%
+    ("King's Rock", "Bite", "Run Away", 30, True),
+    ("King's Rock", "Disarming Voice", "Run Away", 10, True),  # RP's moves from after Gen IV
+    ("King's Rock", "Bulldoze", "Run Away", 10, True),
+])
+def test_kings_rock_flinch(monkeypatch, poke, item, move, ability, roll, flinches):
+    """Showdown gen4 kingsrock / razorfang: a 10% flinch on the moves of its list that have none, and
+    on RP's damaging moves from later generations"""
+    _flinch_roll(monkeypatch, roll)
+    a = poke("Rattata", 20, ability, [move], item=item)
+    d = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert battle._apply_move_damage(a, d, move_slice(a, 0), 1) == flinches
+
+
+@pytest.mark.parametrize("move, item, def_ab", [
+    ("Ember", "King's Rock", "Sturdy"),             # a Gen IV move not on Showdown gen4's list
+    ("Tackle", "King's Rock", "Shield Dust"),
+    ("Tackle", "King's Rock", "Inner Focus"),
+    ("Tackle", None, "Sturdy"),
+])
+def test_kings_rock_doesnt_flinch(monkeypatch, poke, move, item, def_ab):
+    """Off the list, Shield Dust, Inner Focus or no item: no flinch, even on a roll of 1"""
+    _flinch_roll(monkeypatch, 1)
+    a = poke("Rattata", 20, "Run Away", [move], item=item)
+    d = poke("Geodude", 20, def_ab, ["Tackle"])
+    assert not battle._apply_move_damage(a, d, move_slice(a, 0), 1)
+
+
+def test_kings_rock_rolls_per_hit_and_not_through_a_substitute(monkeypatch, poke):
+    """Double Kick rolls once per hit (Showdown secondaries); a hit on the Substitute doesn't flinch"""
+    calls = _flinch_roll(monkeypatch, 100)
+    a = poke("Machop", 50, "Guts", ["Double Kick"], item="King's Rock")
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+    assert len(calls) == 2
+    calls.clear()
+    d[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    d[Pok.SUB_HP] = 200
+    flinch, _, _, sub_hit = battle._ps_moves_core(a, d, move_slice(a, 0), 0)
+    assert sub_hit and not flinch and not calls
+
+
+def test_kings_rock_needs_no_rng_without_the_item(poke):
+    """No King's Rock: Tackle's hit makes no flinch roll"""
+    a = poke("Rattata", 20, "Run Away", ["Tackle"])
+    d = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    state = engine_helper.random.getstate()
+    battle._apply_move_damage(a, d, move_slice(a, 0), 1)
+    assert engine_helper.random.getstate() == state
+
+
+# ── Zoom Lens: who acted first ───────────────────────────────────────────────
+
+def _spy_target_moved(monkeypatch):
+    """Records (attacker species, target_moved) for every accuracy check"""
+    seen = []
+    real = engine_helper.move_accuracy
+    def spy(move, attacker, defender, move_acc, weather, gravity=False, target_moved=False):
+        seen.append((int(attacker[Pok.ID]), target_moved))
+        return real(move, attacker, defender, move_acc, weather, gravity, target_moved)
+    monkeypatch.setattr(engine_helper, "move_accuracy", spy)
+    return seen
+
+
+def test_target_moved_follows_the_turn_order(monkeypatch, make_pokemon, make_battle):
+    """The faster mover's target hasn't acted yet, the slower one's has"""
+    seen = _spy_target_moved(monkeypatch)
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Tackle"])],
+                      [make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])])
+    turn_sim(0, (MOVE, 0), arr)
+    rattata, geodude = my_active(arr)[Pok.ID], opp_active(arr)[Pok.ID]
+    assert seen == [(rattata, False), (geodude, True)]
+
+
+def test_a_switch_counts_as_acting(monkeypatch, two_v_two):
+    """My switch comes first, so the foe's move into the Pokemon coming in has target_moved"""
+    seen = _spy_target_moved(monkeypatch)
+    arr = two_v_two()
+    turn_sim(0, (SWITCH, 1), arr)
+    assert seen == [(opp_active(arr)[Pok.ID], True)]
+
+
 def test_recyclable_item_stays_with_the_slot(two_v_two):
     """Gen IV: after a switch the Pokemon coming in can Recycle what the other one ate"""
     arr = two_v_two()

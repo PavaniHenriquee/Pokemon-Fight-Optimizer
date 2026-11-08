@@ -205,7 +205,8 @@ class ItemActivation:
 @dataclass(slots=True)
 class HoldEffect:
     """Held item effects, named after pokeplatinum's holdEffect. The per-type ones are merged and
-    keep their type in Item.EFFECT_TYPE"""
+    keep their type in Item.EFFECT_TYPE. NONE: an item with no battle effect (or no item)"""
+    NONE                = 0
     TYPE_BOOST          = 1
     POWER_UP_PHYS       = 2
     POWER_UP_SE         = 3
@@ -234,6 +235,24 @@ class HoldEffect:
     EXTEND_RAIN         = 26
     LEECH_BOOST         = 27
     EXTEND_TRAPPING     = 28
+    POWER_UP_SPEC       = 29
+    CLAMPERL_SPATK      = 30
+    CLAMPERL_SPDEF      = 31
+    LATI_SPECIAL        = 32
+    DIALGA_BOOST        = 33
+    PALKIA_BOOST        = 34
+    GIRATINA_BOOST      = 35
+    CHANSEY_CRITRATE_UP = 36
+    FARFETCHD_CRITRATE_UP = 37
+    DITTO_DEF_UP        = 38
+    DITTO_SPEED_UP      = 39
+    EVS_UP_SPEED_DOWN   = 40
+    LVLUP_EV_UP         = 41
+    SPEED_DOWN_GROUNDED = 42
+    PRIORITY_DOWN       = 43
+    ACCURACY_UP         = 44
+    ACCURACY_UP_SLOWER  = 45
+    SOMETIMES_FLINCH    = 46
 
 
 _HP_RAW = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))
