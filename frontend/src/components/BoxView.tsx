@@ -5,7 +5,7 @@ import { battleSprite, pokIcon } from "@/lib/sprites";
 import { displayName } from "@/lib/format";
 import { moveInfoFor } from "@/lib/hiddenPower";
 import { makeBlank } from "@/lib/nuzlocke";
-import type { BoxEntry, PokemonConfig, PokemonData } from "../types";
+import type { BoxEntry, Evolution, PokemonConfig, PokemonData } from "../types";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Sprite } from "./common/Sprite";
@@ -209,6 +209,7 @@ export default function BoxView({
   saved,
   team,
   onToggle,
+  evolutions,
 }: {
   box: BoxEntry[];
   pokemonData: PokemonData;
@@ -222,6 +223,7 @@ export default function BoxView({
   saved: boolean;
   team: PokemonConfig[];
   onToggle: (entry: BoxEntry) => void; // in or out of the party
+  evolutions?: Record<string, Evolution[]>;
 }) {
   const [editEntry, setEditEntry] = useState<BoxEntry | "new" | null>(null);
   const [query, setQuery] = useState("");
@@ -491,6 +493,7 @@ export default function BoxView({
               : { ...editEntry, moves: [...editEntry.moves], ivs: { ...editEntry.ivs } }
           }
           pokemonData={pokemonData}
+          evolutions={evolutions}
           onSave={(entry) => {
             onBoxChange(
               editEntry === "new"

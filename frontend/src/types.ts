@@ -199,14 +199,22 @@ export type TrainerDB = Record<string, TrainerEntry>;
 // DataBase/EncounterDB.json: what can be met at each location, in the sheet's story order
 export interface EncounterTable {
   area: string; // part of the location the sheet's block covers ("South", "B1F"), can be empty
-  method: string; // "Grass (6-7)", "Gift from Mom", ...
-  mons: { name: string; level: string }[];
+  method: string; // "Grass (6-7)", "Old Rod (10)", "Gift from Mom", ...
+  // rates: the sheet's percentages, [morning, day, night] or a single one (surf, a rod, Poké Radar).
+  // Missing for a gift, a trade or a static encounter.
+  mons: { name: string; level: string; rates?: number[] }[];
+}
+
+export interface Evolution {
+  name: string;
+  how: string; // the sheet's words: "Lv. 16", "Use Water Stone", "Male Use Dawn Stone"
 }
 
 export interface EncounterDB {
   starters: string[];
   locations: Record<string, EncounterTable[]>;
   evolution_lines: string[][]; // for the species clause
+  evolutions: Record<string, Evolution[]>; // what a species evolves into, only the ones that evolve
 }
 
 export type EncounterStatus = "caught" | "missed" | "dead";
@@ -221,6 +229,24 @@ export interface NuzlockeRun {
   starter: NuzlockeEncounter; // species is empty until chosen
   encounters: Record<string, NuzlockeEncounter>; // by location, a missing one is still open
   last_trainer: string; // the trainer picked last in Setup, empty until one is
+  items: string[]; // ItemPickup ids picked up, on the Tracker's Items tab
+}
+
+// DataBase/ItemLocationDB.json: what can be picked up at each location, in story order
+export type PickupKind = "item" | "key" | "tm"; // key: only the rods
+
+export interface ItemPickup {
+  id: string; // what the run keeps
+  item: string; // "Quick Claw", "TM76", "Good Rod"
+  kind: PickupKind;
+  area: string; // part of the location ("North", "Game Corner"), can be empty
+  how: string; // "Hidden", "Gift from Roark", "Held by the gift Bulbasaur", can be empty
+  move?: string; // a TM or HM's move and its type
+  type?: string;
+}
+
+export interface ItemLocationDB {
+  locations: Record<string, ItemPickup[]>;
 }
 
 export interface BenchEntry {

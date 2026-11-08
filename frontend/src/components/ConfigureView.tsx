@@ -10,6 +10,7 @@ import {
 import BoxView from "./BoxView";
 import type {
   BoxEntry,
+  Evolution,
   NuzlockeRun,
   PokemonConfig,
   PokemonData,
@@ -362,6 +363,7 @@ interface Props {
   onRunChange: (run: NuzlockeRun) => void;
   boxState: BoxState;
   onSetDead: (entry: BoxEntry, dead: boolean) => void;
+  evolutions?: Record<string, Evolution[]>;
 }
 
 export default function ConfigureView({
@@ -379,6 +381,7 @@ export default function ConfigureView({
   onRunChange,
   boxState,
   onSetDead,
+  evolutions,
 }: Props) {
   const { box } = boxState;
   const [oppLocked, setOppLocked] = useState(false);
@@ -559,6 +562,7 @@ export default function ConfigureView({
           saved={boxState.saved}
           team={myTeam}
           onToggle={toggleFromBox}
+          evolutions={evolutions}
         />
       )}
 

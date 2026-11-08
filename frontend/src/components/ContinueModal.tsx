@@ -73,14 +73,15 @@ interface Props {
   path: PathClick[];
   onClose: () => void;
   onStarted: (iterations: number) => void;
+  defaultIterations: number; // the top bar's
 }
 
-export default function ContinueModal({ nodeId, path, onClose, onStarted }: Props) {
+export default function ContinueModal({ nodeId, path, onClose, onStarted, defaultIterations }: Props) {
   const [nodeInfo, setNodeInfo] = useState<NodeInfoData | null>(null);
   const [myActiveHp, setMyActiveHp] = useState(0);
   const [oppActiveHp, setOppActiveHp] = useState(0);
   const [benchHps, setBenchHps] = useState<Record<number, number>>({});
-  const [iterations, setIterations] = useState(100_000);
+  const [iterations, setIterations] = useState(defaultIterations);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [starting, setStarting] = useState(false);

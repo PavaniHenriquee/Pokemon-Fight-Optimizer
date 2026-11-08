@@ -5,7 +5,7 @@ import { battleSprite, pokIcon } from "@/lib/sprites";
 import { displayName, typeColor } from "@/lib/format";
 import { hiddenPower, moveInfoFor } from "@/lib/hiddenPower";
 import { genderFor, startingMoves } from "@/lib/nuzlocke";
-import type { BoxEntry, IVs, PokemonData } from "../types";
+import type { BoxEntry, Evolution, IVs, PokemonData } from "../types";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { ComboboxPortalContainer } from "./ui/combobox";
@@ -193,18 +193,75 @@ function ProfilePanel({
 
 // ─── INFO page: species, ability, nature ───────────────────────────────────────
 
+// A box Pokémon being edited changes species only by evolving
+function EvolveButtons({
+  draft,
+  patch,
+  pokemonData,
+  evolutions,
+}: {
+  draft: Draft;
+  patch: (p: Partial<Draft>) => void;
+  pokemonData: PokemonData;
+  evolutions: Evolution[];
+}) {
+  function evolve(name: string) {
+    const now = pokemonData.pokemonAbilities?.[draft.name] ?? [];
+    const next = pokemonData.pokemonAbilities?.[name] ?? [];
+    const slot = now.indexOf(draft.ability);
+    patch({
+      name,
+      gender: genderFor(pokemonData, name, draft.gender),
+      // It keeps its ability slot, like in the game: the slot comes from the personality
+      ability: next[slot] ?? (next.length === 1 ? next[0] : ""),
+    });
+  }
+
+  return (
+    <div>
+      <SectionLabel>Evolve into</SectionLabel>
+      {evolutions.length === 0 ? (
+        <p className="text-xs text-subtle-foreground">No evolution left.</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {evolutions.map((evo) => {
+            const id = pokemonData.nameToId[evo.name];
+            return (
+              <button
+                key={evo.name}
+                type="button"
+                onClick={() => evolve(evo.name)}
+                title={`Evolve into ${displayName(evo.name)}: ${evo.how}`}
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-foreground/5 py-1 pr-3 pl-1 text-left ring-1 ring-foreground/10 transition-colors hover:bg-foreground/10"
+              >
+                {id ? <Sprite srcs={pokIcon(id)} alt="" width={40} height={30} /> : <span className="w-10" />}
+                <span className="flex flex-col">
+                  <span className="text-sm font-medium">{displayName(evo.name)}</span>
+                  <span className="text-[11px] text-subtle-foreground">{evo.how}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InfoPage({
   draft,
   patch,
   pokemonData,
   catching,
-  speciesChoices,
+  editing,
+  evolutions,
 }: {
   draft: Draft;
   patch: (p: Partial<Draft>) => void;
   pokemonData: PokemonData;
   catching: boolean;
-  speciesChoices?: string[];
+  editing: boolean;
+  evolutions?: Record<string, Evolution[]>;
 }) {
   const { pokemon, nameToId, natureMultipliers, abilities } = pokemonData;
   const speciesAbilities = pokemonData.pokemonAbilities?.[draft.name] ?? [];
@@ -222,7 +279,15 @@ function InfoPage({
 
   return (
     <div className="space-y-5">
-      {!catching && (
+      {editing && (
+        <EvolveButtons
+          draft={draft}
+          patch={patch}
+          pokemonData={pokemonData}
+          evolutions={evolutions?.[draft.name] ?? []}
+        />
+      )}
+      {!catching && !editing && (
         <div>
           <SectionLabel>Species</SectionLabel>
           <NameSelect
@@ -236,7 +301,7 @@ function InfoPage({
                 ability: next.includes(draft.ability) ? draft.ability : (next[0] ?? ""),
               });
             }}
-            items={speciesChoices ?? pokemon}
+            items={pokemon}
             itemLabel={displayName}
             placeholder="Search a Pokémon"
             clearable={!!draft.name}
@@ -601,7 +666,7 @@ export default function BoxEditor({
   draft: initial,
   pokemonData,
   catching = false,
-  speciesChoices,
+  evolutions,
   onSave,
   onCancel,
 }: {
@@ -609,7 +674,7 @@ export default function BoxEditor({
   draft: Draft;
   pokemonData: PokemonData;
   catching?: boolean; // a new catch from the Tracker: the species is set, the moves follow the level
-  speciesChoices?: string[]; // what the species can change to, any by default
+  evolutions?: Record<string, Evolution[]>; // editing a box entry: it changes species by evolving
   onSave: (entry: BoxEntry) => void;
   onCancel: () => void;
 }) {
@@ -690,7 +755,8 @@ export default function BoxEditor({
                     patch={patch}
                     pokemonData={pokemonData}
                     catching={catching}
-                    speciesChoices={speciesChoices}
+                    editing={entry !== null}
+                    evolutions={evolutions}
                   />
                 )}
                 {page === "moves" && <MovesPage draft={draft} patch={patch} pokemonData={pokemonData} />}

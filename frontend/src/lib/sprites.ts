@@ -3,18 +3,29 @@
 const LOCAL = `${import.meta.env.BASE_URL}sprites`;
 const POKEAPI = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
 const SHOWDOWN = "https://play.pokemonshowdown.com/sprites";
+// Item icons Showdown doesn't have (Ice Stone, the Fairy TM), under the hyphenated name
+const POKEAPI_ITEMS = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items";
 
 // Showdown names these icons without hyphens
 const ITEM_SLUG_OVERRIDES: Record<string, string> = {
   "bright-powder": "brightpowder",
   "never-melt-ice": "nevermeltice",
   "silver-powder": "silverpowder",
+  "thunder-stone": "thunderstone",
   "twisted-spoon": "twistedspoon",
 };
 
+// "King's Rock" -> "kings-rock", "Exp. Share" -> "exp-share"
+const hyphenated = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s_-]/g, "")
+    .trim()
+    .replace(/[\s_]+/g, "-");
+
 // Same rule fetch_sprites.py uses for the local file names
 export const itemSlug = (name: string) => {
-  const slug = name.toLowerCase().replace(/[\s_]+/g, "-");
+  const slug = hyphenated(name);
   return ITEM_SLUG_OVERRIDES[slug] ?? slug;
 };
 
@@ -42,8 +53,15 @@ export function pokIcon(id: number): string[] {
 
 export function itemIcon(name: string): string[] {
   const slug = itemSlug(name);
-  return [`${LOCAL}/items/${slug}.png`, `${SHOWDOWN}/itemicons/${slug}.png`];
+  return [
+    `${LOCAL}/items/${slug}.png`,
+    `${SHOWDOWN}/itemicons/${slug}.png`,
+    `${POKEAPI_ITEMS}/${hyphenated(name)}.png`,
+  ];
 }
+
+// A TM or HM's disc in its move's type ("TM", "Fire" -> tm-fire)
+export const tmIcon = (kind: "TM" | "HM", type: string) => itemIcon(`${kind} ${type}`);
 
 // PokeAPI type ids (same numbering as Types in Models/helper.py); Typeless has no sprite
 const TYPE_IDS: Record<string, number> = {

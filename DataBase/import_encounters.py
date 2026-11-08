@@ -96,6 +96,12 @@ STATS_EVOLUTION_TITLE = "EVOLUTION METHODS"
 # comes "from #186" (Politoed) and Jumpluff "from #187". Taken as written that puts Skiploom in Poliwag's
 # line. Showdown has Hoppip -> Skiploom -> Jumpluff, and agrees with the sheet on all the other lines
 EVOLUTION_FIXES = {187: (188,), 188: (187, 189), 189: (188,)}
+# The same typo in what a species evolves into: Hoppip "evolves into #187", Skiploom "into #188"
+EVOLVES_INTO_FIXES = {187: (188,), 188: (189,)}
+EVOLVES_INTO = "Can evolve into"
+
+# A Rods table's rods, by the letter its method line gives them: "Rods (O-10, G-25, S-50)"
+ROD_NAMES = {"O": "Old Rod", "G": "Good Rod", "S": "Super Rod"}
 
 
 def _heading(text: str):
@@ -148,15 +154,48 @@ def _table_for_row(tables: list, place: tuple, own_heading: bool) -> dict:
 
 def _add_mon(tables: list, table: dict, cells: list, col: int, is_list: bool) -> None:
     """Add the row's Pokemon to the table. A trade's 'you give' row isn't an encounter. A Pokemon only
-    counts once per table, and once per location in a list of legendaries"""
+    counts once per table, and once per location in a list of legendaries. Its rates are the percentages
+    after the level: morning, day and night, one per rod, or a single one. A repeat with more of them
+    replaces them (Route 218's Old Rod preview, then its full Rods table)"""
     if "you give" in (clean_text(cell) for cell in cells):
         return
     name = species_name(cells[col])
     name = ENCOUNTER_SPECIES_ALIAS.get(name, name)
+    rates = [int(cell) for cell in map(clean_text, cells[col + 2:col + 5]) if cell.isdigit()]
     seen = [mon for other in tables for mon in other["mons"]] if is_list else table["mons"]
-    if all(mon["name"] != name for mon in seen):
+    same = next((mon for mon in seen if mon["name"] == name), None)
+    if same is None:
         level = clean_text(cells[col + 1])
-        table["mons"].append({"name": name, "level": level if level[:1].isdigit() else ""})
+        mon = {"name": name, "level": level if level[:1].isdigit() else ""}
+        if rates:
+            mon["rates"] = rates
+        table["mons"].append(mon)
+    elif len(rates) > len(same.get("rates", [])):
+        same["rates"] = rates
+
+
+def _split_rods(tables: list) -> list:
+    """A Rods table as one table per rod, each with what that rod can hook: 'Rods (O-10, G-25, S-50)'
+    becomes Old Rod (10), Good Rod (25) and Super Rod (50)"""
+    out = []
+    for table in tables:
+        rods = re.findall(r"\b([OGS])-(\d+)", table["method"]) if table["method"].startswith("Rods") else []
+        if not rods:
+            out.append(table)
+            continue
+        for i, (rod, level) in enumerate(rods):
+            mons = []
+            for mon in table["mons"]:
+                rates = mon.get("rates", [])
+                if len(rates) != len(rods):
+                    raise ValueError(
+                        f"{mon['name']} has {len(rates)} rates for {len(rods)} rods: {table['method']!r}"
+                    )
+                if rates[i]:
+                    mons.append({"name": mon["name"], "level": mon["level"], "rates": [rates[i]]})
+            if mons:
+                out.append({"area": table["area"], "method": f"{ROD_NAMES[rod]} ({level})", "mons": mons})
+    return out
 
 
 def _read_group(rows: list, start: int, left: dict, locations: dict, is_list: bool) -> dict:
@@ -217,7 +256,7 @@ def parse_encounters(text: str, known_species) -> dict:
         left = _read_group(rows, start, left, locations, start in lists)
 
     locations = {
-        name: [table for table in tables if table["mons"]]
+        name: _split_rods([table for table in tables if table["mons"]])
         for name, tables in locations.items()
         if any(table["mons"] for table in tables)
     }
@@ -274,6 +313,28 @@ def parse_evolution_lines(text: str, known_species) -> list:
     return list(lines.values())
 
 
+def parse_evolutions(text: str) -> dict:
+    """{species: [{"name", "how"}, ...]}: what each species evolves into, from the STATS tab's CSV (run
+    parse_evolution_lines first, it checks the layout). A target's "how" is its own cell without the
+    dex number it comes from: "#001 Lv. 16 - Can evolve into #003" gives Ivysaur "Lv. 16". Every form
+    of a target is one (Burmy's three Wormadam). A form change (Rotom, Shaymin) isn't an evolution"""
+    forms, into, how = {}, {}, {}
+    for row in csv.reader(io.StringIO(text)):
+        dex = re.match(r"#(\d+)", clean_text(row[STATS_NAME_COL]))
+        if not dex:
+            continue
+        name = species_name(row[STATS_NAME_COL])
+        forms.setdefault(int(dex[1]), []).append(name)
+        before, _, after = clean_text(row[STATS_EVOLUTION_COL]).partition(EVOLVES_INTO)
+        into[name] = EVOLVES_INTO_FIXES.get(int(dex[1]), tuple(map(int, re.findall(r"#(\d+)", after))))
+        how[name] = re.sub(r"^#\d+\s*", "", before).rstrip(" -")
+    return {
+        name: [{"name": target, "how": how[target]} for number in numbers for target in forms[number]]
+        for name, numbers in into.items()
+        if numbers
+    }
+
+
 def db_text(database: dict) -> str:
     """The file's text, one table or evolution line per row so a new import's diff shows what changed"""
     blocks = []
@@ -282,10 +343,14 @@ def db_text(database: dict) -> str:
         blocks.append(f"    {json.dumps(name)}: [\n{rows}\n    ]")
     locations = ",\n".join(blocks)
     lines = ",\n".join(f"    {json.dumps(line)}" for line in database["evolution_lines"])
+    evolutions = ",\n".join(
+        f"    {json.dumps(name)}: {json.dumps(targets)}" for name, targets in database["evolutions"].items()
+    )
     return (
         f'{{\n  "starters": {json.dumps(database["starters"])},\n'
         f'  "locations": {{\n{locations}\n  }},\n'
-        f'  "evolution_lines": [\n{lines}\n  ]\n}}\n'
+        f'  "evolution_lines": [\n{lines}\n  ],\n'
+        f'  "evolutions": {{\n{evolutions}\n  }}\n}}\n'
     )
 
 
@@ -309,9 +374,10 @@ def main() -> None:
     known_species = json.loads((HERE / "PkDB.json").read_text(encoding="utf-8"))
     database = parse_encounters(encounters, known_species)
     database["evolution_lines"] = parse_evolution_lines(stats, known_species)
+    database["evolutions"] = parse_evolutions(stats)
     ENCOUNTER_DB.write_text(db_text(database), encoding="ascii")
     print(f"{len(database['locations'])} locations: {', '.join(database['locations'])}")
-    print(f"{len(database['evolution_lines'])} evolution lines")
+    print(f"{len(database['evolution_lines'])} evolution lines, {len(database['evolutions'])} species evolve")
 
 
 if __name__ == "__main__":

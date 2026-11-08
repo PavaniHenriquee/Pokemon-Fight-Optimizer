@@ -2,27 +2,31 @@
   "starters": ["Turtwig", "Chimchar", "Piplup"],
   "locations": {
     "Route 201": [
-      {"area": "", "method": "Grass (4-5)", "mons": [{"name": "Starly", "level": "4-5"}, {"name": "Bidoof", "level": "4-5"}, {"name": "Pidgey", "level": "4-4"}, {"name": "Kricketot", "level": "4-4"}, {"name": "Nidoran_m", "level": "4-5"}, {"name": "Nidoran_f", "level": "4-5"}, {"name": "Hoothoot", "level": "4-4"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Doduo", "level": "5-5"}]},
+      {"area": "", "method": "Grass (4-5)", "mons": [{"name": "Starly", "level": "4-5", "rates": [30, 30, 30]}, {"name": "Bidoof", "level": "4-5", "rates": [30, 30, 30]}, {"name": "Pidgey", "level": "4-4", "rates": [10, 20, 0]}, {"name": "Kricketot", "level": "4-4", "rates": [10, 0, 10]}, {"name": "Nidoran_m", "level": "4-5", "rates": [10, 10, 10]}, {"name": "Nidoran_f", "level": "4-5", "rates": [10, 10, 10]}, {"name": "Hoothoot", "level": "4-4", "rates": [0, 0, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Doduo", "level": "5-5", "rates": [22]}]},
       {"area": "", "method": "Static Encounter (Post Celestic Town)", "mons": [{"name": "Mew", "level": "40"}]}
     ],
     "Twinleaf Town": [
       {"area": "", "method": "Gift from Mom", "mons": [{"name": "Eevee", "level": "5"}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-40"}, {"name": "Golduck", "level": "30-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Poliwag", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Poliwhirl", "level": ""}]}
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-40", "rates": [90]}, {"name": "Golduck", "level": "30-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [65]}, {"name": "Poliwag", "level": "", "rates": [35]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Poliwag", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Poliwhirl", "level": "", "rates": [45]}]}
     ],
     "Sandgem Town": [
       {"area": "", "method": "Inside Rowan's briefcase", "mons": [{"name": "Turtwig", "level": "5"}, {"name": "Chimchar", "level": "5"}, {"name": "Piplup", "level": "5"}]}
     ],
     "Lake Verity": [
-      {"area": "", "method": "Grass (4-5)", "mons": [{"name": "Starly", "level": "4-5"}, {"name": "Bidoof", "level": "4-4"}, {"name": "Surskit", "level": "4-5"}, {"name": "Azurill", "level": "5-5"}, {"name": "Psyduck", "level": "5-5"}, {"name": "Wingull", "level": "4-5"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Wynaut", "level": "5-5"}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Surskit", "level": "20-40"}, {"name": "Masquerain", "level": "30-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Feebas", "level": ""}, {"name": "Gyarados", "level": ""}]}
+      {"area": "", "method": "Grass (4-5)", "mons": [{"name": "Starly", "level": "4-5", "rates": [30, 30, 30]}, {"name": "Bidoof", "level": "4-4", "rates": [20, 20, 20]}, {"name": "Surskit", "level": "4-5", "rates": [20, 20, 20]}, {"name": "Azurill", "level": "5-5", "rates": [10, 10, 10]}, {"name": "Psyduck", "level": "5-5", "rates": [10, 10, 10]}, {"name": "Wingull", "level": "4-5", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Wynaut", "level": "5-5", "rates": [22]}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Surskit", "level": "20-40", "rates": [90]}, {"name": "Masquerain", "level": "30-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [95]}, {"name": "Feebas", "level": "", "rates": [5]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [100]}]}
     ],
     "Route 202": [
-      {"area": "", "method": "Grass (5-6)", "mons": [{"name": "Shinx", "level": "5-5"}, {"name": "Zigzagoon", "level": "5-5"}, {"name": "Sentret", "level": "5-5"}, {"name": "Rattata", "level": "5-5"}, {"name": "Poochyena", "level": "5-6"}, {"name": "Growlithe", "level": "5-6"}, {"name": "Burmy", "level": "5-5"}, {"name": "Hoothoot", "level": "5-5"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Houndour", "level": "5-6"}]}
+      {"area": "", "method": "Grass (5-6)", "mons": [{"name": "Shinx", "level": "5-5", "rates": [20, 20, 20]}, {"name": "Zigzagoon", "level": "5-5", "rates": [20, 20, 20]}, {"name": "Sentret", "level": "5-5", "rates": [20, 20, 0]}, {"name": "Rattata", "level": "5-5", "rates": [10, 10, 10]}, {"name": "Poochyena", "level": "5-6", "rates": [10, 10, 10]}, {"name": "Growlithe", "level": "5-6", "rates": [10, 10, 10]}, {"name": "Burmy", "level": "5-5", "rates": [10, 10, 10]}, {"name": "Hoothoot", "level": "5-5", "rates": [0, 0, 20]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Houndour", "level": "5-6", "rates": [22]}]}
     ],
     "Jubilife City": [
       {"area": "", "method": "Gift from the Interviewer in the PKMN Center", "mons": [{"name": "Bulbasaur", "level": "5"}, {"name": "Charmander", "level": "5"}, {"name": "Squirtle", "level": "5"}]}
@@ -31,40 +35,52 @@
       {"area": "", "method": "Egg gifted by Cowgirl", "mons": [{"name": "Pichu", "level": "1"}, {"name": "Cleffa", "level": "1"}, {"name": "Igglybuff", "level": "1"}, {"name": "Togepi", "level": "1"}, {"name": "Tyrogue", "level": "1"}, {"name": "Smoochum", "level": "1"}, {"name": "Elekid", "level": "1"}, {"name": "Magby", "level": "1"}, {"name": "Azurill", "level": "1"}, {"name": "Wynaut", "level": "1"}, {"name": "Budew", "level": "1"}, {"name": "Chingling", "level": "1"}, {"name": "Bonsly", "level": "1"}, {"name": "Mime_jr", "level": "1"}, {"name": "Happiny", "level": "1"}, {"name": "Munchlax", "level": "1"}, {"name": "Riolu", "level": "1"}, {"name": "Mantyke", "level": "1"}]}
     ],
     "Route 218": [
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Finneon", "level": ""}, {"name": "Staryu", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Lumineon", "level": ""}, {"name": "Starmie", "level": ""}]},
-      {"area": "", "method": "Grass (38-39)", "mons": [{"name": "Floatzel", "level": "39-39"}, {"name": "Gastrodon", "level": "39-39"}, {"name": "Purugly", "level": "39-39"}, {"name": "Mr_mime", "level": "39-39"}, {"name": "Electrode", "level": "39-39"}, {"name": "Ditto", "level": "38-39"}, {"name": "Electabuzz", "level": "38-39"}, {"name": "Chatot", "level": "38-38"}]},
-      {"area": "", "method": "Surf (20-45)", "mons": [{"name": "Tentacool", "level": "20-35"}, {"name": "Shellos", "level": "20-35"}, {"name": "Tentacruel", "level": "20-35"}, {"name": "Gastrodon", "level": "30-45"}]},
-      {"area": "", "method": "Honey Tree (39)", "mons": [{"name": "Combee", "level": ""}, {"name": "Forretress", "level": ""}, {"name": "Wormadam", "level": ""}, {"name": "Mothim", "level": ""}, {"name": "Beautifly", "level": ""}, {"name": "Dustox", "level": ""}, {"name": "Heracross", "level": ""}, {"name": "Vespiquen", "level": ""}]}
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [60]}, {"name": "Finneon", "level": "", "rates": [30]}, {"name": "Staryu", "level": "", "rates": [10]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Finneon", "level": "", "rates": [40]}, {"name": "Staryu", "level": "", "rates": [20]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Lumineon", "level": "", "rates": [30]}, {"name": "Starmie", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Grass (38-39)", "mons": [{"name": "Floatzel", "level": "39-39", "rates": [20, 20, 20]}, {"name": "Gastrodon", "level": "39-39", "rates": [20, 20, 20]}, {"name": "Purugly", "level": "39-39", "rates": [10, 10, 20]}, {"name": "Mr_mime", "level": "39-39", "rates": [10, 10, 10]}, {"name": "Electrode", "level": "39-39", "rates": [10, 10, 10]}, {"name": "Ditto", "level": "38-39", "rates": [10, 10, 10]}, {"name": "Electabuzz", "level": "38-39", "rates": [10, 10, 10]}, {"name": "Chatot", "level": "38-38", "rates": [10, 10, 0]}]},
+      {"area": "", "method": "Surf (20-45)", "mons": [{"name": "Tentacool", "level": "20-35", "rates": [60]}, {"name": "Shellos", "level": "20-35", "rates": [30]}, {"name": "Tentacruel", "level": "20-35", "rates": [5]}, {"name": "Gastrodon", "level": "30-45", "rates": [5]}]},
+      {"area": "", "method": "Honey Tree (39)", "mons": [{"name": "Combee", "level": "", "rates": [30]}, {"name": "Forretress", "level": "", "rates": [10]}, {"name": "Wormadam", "level": "", "rates": [10]}, {"name": "Mothim", "level": "", "rates": [10]}, {"name": "Beautifly", "level": "", "rates": [10]}, {"name": "Dustox", "level": "", "rates": [10]}, {"name": "Heracross", "level": "", "rates": [10]}, {"name": "Vespiquen", "level": "", "rates": [10]}]}
     ],
     "Route 219": [
-      {"area": "", "method": "Rods (O-10)", "mons": [{"name": "Krabby", "level": ""}, {"name": "Horsea", "level": ""}, {"name": "Clamperl", "level": ""}]},
-      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Wingull", "level": "30-40"}, {"name": "Tentacool", "level": "30-40"}, {"name": "Pelipper", "level": "35-45"}, {"name": "Tentacruel", "level": "35-45"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Krabby", "level": ""}, {"name": "Horsea", "level": ""}, {"name": "Clamperl", "level": ""}, {"name": "Kingler", "level": ""}, {"name": "Seadra", "level": ""}, {"name": "Huntail", "level": ""}, {"name": "Gorebyss", "level": ""}]}
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Krabby", "level": "", "rates": [60]}, {"name": "Horsea", "level": "", "rates": [30]}, {"name": "Clamperl", "level": "", "rates": [10]}]},
+      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Wingull", "level": "30-40", "rates": [60]}, {"name": "Tentacool", "level": "30-40", "rates": [30]}, {"name": "Pelipper", "level": "35-45", "rates": [5]}, {"name": "Tentacruel", "level": "35-45", "rates": [5]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Krabby", "level": "", "rates": [60]}, {"name": "Horsea", "level": "", "rates": [30]}, {"name": "Clamperl", "level": "", "rates": [10]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Krabby", "level": "", "rates": [40]}, {"name": "Horsea", "level": "", "rates": [40]}, {"name": "Clamperl", "level": "", "rates": [20]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Kingler", "level": "", "rates": [40]}, {"name": "Seadra", "level": "", "rates": [40]}, {"name": "Huntail", "level": "", "rates": [15]}, {"name": "Gorebyss", "level": "", "rates": [5]}]}
     ],
     "Route 204": [
-      {"area": "South", "method": "Grass (6-7)", "mons": [{"name": "Starly", "level": "6-6"}, {"name": "Budew", "level": "6-6"}, {"name": "Bellsprout", "level": "6-7"}, {"name": "Ralts", "level": "6-7"}, {"name": "Caterpie", "level": "6-6"}, {"name": "Weedle", "level": "6-6"}, {"name": "Wurmple", "level": "6-6"}, {"name": "Ledyba", "level": "6-6"}, {"name": "Sunkern", "level": "6-6"}, {"name": "Oddish", "level": "6-6"}, {"name": "Spinarak", "level": "6-6"}]},
-      {"area": "South", "method": "Pok\u00e9 Radar", "mons": [{"name": "Roselia", "level": "6-7"}]},
-      {"area": "South", "method": "Surf (20-40)", "mons": [{"name": "Marill", "level": "20-30"}, {"name": "Azumarill", "level": "20-40"}]},
-      {"area": "South", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Goldeen", "level": ""}, {"name": "Corphish", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Seaking", "level": ""}, {"name": "Crawdaunt", "level": ""}]},
-      {"area": "North", "method": "Grass (11-12)", "mons": [{"name": "Starly", "level": "11-11"}, {"name": "Budew", "level": "11-11"}, {"name": "Bellsprout", "level": "11-12"}, {"name": "Ralts", "level": "11-12"}, {"name": "Caterpie", "level": "11-11"}, {"name": "Weedle", "level": "11-11"}, {"name": "Wurmple", "level": "11-11"}, {"name": "Ledyba", "level": "11-11"}, {"name": "Sunkern", "level": "11-11"}, {"name": "Oddish", "level": "11-11"}, {"name": "Spinarak", "level": "11-11"}]},
-      {"area": "North", "method": "Pok\u00e9 Radar", "mons": [{"name": "Roselia", "level": "11-12"}]}
+      {"area": "South", "method": "Grass (6-7)", "mons": [{"name": "Starly", "level": "6-6", "rates": [20, 20, 20]}, {"name": "Budew", "level": "6-6", "rates": [20, 20, 20]}, {"name": "Bellsprout", "level": "6-7", "rates": [10, 10, 10]}, {"name": "Ralts", "level": "6-7", "rates": [10, 10, 10]}, {"name": "Caterpie", "level": "6-6", "rates": [10, 10, 10]}, {"name": "Weedle", "level": "6-6", "rates": [10, 10, 10]}, {"name": "Wurmple", "level": "6-6", "rates": [10, 10, 0]}, {"name": "Ledyba", "level": "6-6", "rates": [10, 0, 0]}, {"name": "Sunkern", "level": "6-6", "rates": [0, 10, 0]}, {"name": "Oddish", "level": "6-6", "rates": [0, 0, 10]}, {"name": "Spinarak", "level": "6-6", "rates": [0, 0, 10]}]},
+      {"area": "South", "method": "Pok\u00e9 Radar", "mons": [{"name": "Roselia", "level": "6-7", "rates": [22]}]},
+      {"area": "South", "method": "Surf (20-40)", "mons": [{"name": "Marill", "level": "20-30", "rates": [90]}, {"name": "Azumarill", "level": "20-40", "rates": [10]}]},
+      {"area": "South", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [60]}, {"name": "Goldeen", "level": "", "rates": [30]}, {"name": "Corphish", "level": "", "rates": [10]}]},
+      {"area": "South", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Goldeen", "level": "", "rates": [40]}, {"name": "Corphish", "level": "", "rates": [20]}]},
+      {"area": "South", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Seaking", "level": "", "rates": [40]}, {"name": "Crawdaunt", "level": "", "rates": [20]}]},
+      {"area": "North", "method": "Grass (11-12)", "mons": [{"name": "Starly", "level": "11-11", "rates": [20, 20, 20]}, {"name": "Budew", "level": "11-11", "rates": [20, 20, 20]}, {"name": "Bellsprout", "level": "11-12", "rates": [10, 10, 10]}, {"name": "Ralts", "level": "11-12", "rates": [10, 10, 10]}, {"name": "Caterpie", "level": "11-11", "rates": [10, 10, 10]}, {"name": "Weedle", "level": "11-11", "rates": [10, 10, 10]}, {"name": "Wurmple", "level": "11-11", "rates": [10, 10, 0]}, {"name": "Ledyba", "level": "11-11", "rates": [10, 0, 0]}, {"name": "Sunkern", "level": "11-11", "rates": [0, 10, 0]}, {"name": "Oddish", "level": "11-11", "rates": [0, 0, 10]}, {"name": "Spinarak", "level": "11-11", "rates": [0, 0, 10]}]},
+      {"area": "North", "method": "Pok\u00e9 Radar", "mons": [{"name": "Roselia", "level": "11-12", "rates": [22]}]}
     ],
     "Ravaged Path": [
-      {"area": "", "method": "Cave (6-8)", "mons": [{"name": "Zubat", "level": "6-8"}, {"name": "Geodude", "level": "6-8"}, {"name": "Wooper", "level": "6-6"}, {"name": "Psyduck", "level": "6-6"}, {"name": "Sandshrew", "level": "6-6"}, {"name": "Makuhita", "level": "6-6"}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Wooper", "level": "20-30"}, {"name": "Quagsire", "level": "20-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Barboach", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Whiscash", "level": ""}]}
+      {"area": "", "method": "Cave (6-8)", "mons": [{"name": "Zubat", "level": "6-8", "rates": [30, 30, 30]}, {"name": "Geodude", "level": "6-8", "rates": [20, 20, 20]}, {"name": "Wooper", "level": "6-6", "rates": [20, 20, 20]}, {"name": "Psyduck", "level": "6-6", "rates": [10, 10, 10]}, {"name": "Sandshrew", "level": "6-6", "rates": [10, 10, 10]}, {"name": "Makuhita", "level": "6-6", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Wooper", "level": "20-30", "rates": [90]}, {"name": "Quagsire", "level": "20-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [70]}, {"name": "Barboach", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [70]}, {"name": "Barboach", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Whiscash", "level": "", "rates": [45]}]}
     ],
     "Route 203": [
-      {"area": "", "method": "Grass (7-8)", "mons": [{"name": "Starly", "level": "7-8"}, {"name": "Bidoof", "level": "7-7"}, {"name": "Spearow", "level": "7-8"}, {"name": "Seedot", "level": "7-7"}, {"name": "Lotad", "level": "7-7"}, {"name": "Cubone", "level": "7-7"}, {"name": "Abra", "level": "7-8"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Pineco", "level": "7-8"}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30"}, {"name": "Golduck", "level": "20-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Corphish", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Crawdaunt", "level": ""}]}
+      {"area": "", "method": "Grass (7-8)", "mons": [{"name": "Starly", "level": "7-8", "rates": [25, 25, 25]}, {"name": "Bidoof", "level": "7-7", "rates": [20, 20, 20]}, {"name": "Spearow", "level": "7-8", "rates": [15, 15, 15]}, {"name": "Seedot", "level": "7-7", "rates": [10, 10, 10]}, {"name": "Lotad", "level": "7-7", "rates": [10, 10, 10]}, {"name": "Cubone", "level": "7-7", "rates": [10, 10, 10]}, {"name": "Abra", "level": "7-8", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Pineco", "level": "7-8", "rates": [22]}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30", "rates": [90]}, {"name": "Golduck", "level": "20-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Corphish", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Corphish", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Crawdaunt", "level": "", "rates": [45]}]}
     ],
     "Oreburgh Gate": [
-      {"area": "1F", "method": "Cave (7-9)", "mons": [{"name": "Zubat", "level": "7-9"}, {"name": "Geodude", "level": "7-9"}, {"name": "Diglett", "level": "7-9"}, {"name": "Riolu", "level": "8-8"}]},
-      {"area": "B1F", "method": "Cave (8-10)", "mons": [{"name": "Zubat", "level": "8-10"}, {"name": "Geodude", "level": "8-10"}, {"name": "Diglett", "level": "8-10"}, {"name": "Riolu", "level": "9-9"}]},
-      {"area": "B1F", "method": "Surf (20-40)", "mons": [{"name": "Zubat", "level": "20-30"}, {"name": "Golbat", "level": "20-40"}]},
-      {"area": "B1F", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Barboach", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Whiscash", "level": ""}]},
+      {"area": "1F", "method": "Cave (7-9)", "mons": [{"name": "Zubat", "level": "7-9", "rates": [35, 35, 35]}, {"name": "Geodude", "level": "7-9", "rates": [35, 35, 35]}, {"name": "Diglett", "level": "7-9", "rates": [20, 20, 20]}, {"name": "Riolu", "level": "8-8", "rates": [10, 10, 10]}]},
+      {"area": "B1F", "method": "Cave (8-10)", "mons": [{"name": "Zubat", "level": "8-10", "rates": [35, 35, 35]}, {"name": "Geodude", "level": "8-10", "rates": [35, 35, 35]}, {"name": "Diglett", "level": "8-10", "rates": [20, 20, 20]}, {"name": "Riolu", "level": "9-9", "rates": [10, 10, 10]}]},
+      {"area": "B1F", "method": "Surf (20-40)", "mons": [{"name": "Zubat", "level": "20-30", "rates": [90]}, {"name": "Golbat", "level": "20-40", "rates": [10]}]},
+      {"area": "B1F", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Barboach", "level": "", "rates": [45]}]},
+      {"area": "B1F", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Barboach", "level": "", "rates": [60]}]},
+      {"area": "B1F", "method": "Super Rod (50)", "mons": [{"name": "Barboach", "level": "", "rates": [15]}, {"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Whiscash", "level": "", "rates": [45]}]},
       {"area": "B1F", "method": "Static Encounter", "mons": [{"name": "Mewtwo", "level": "70"}]}
     ],
     "Oreburgh City": [
@@ -73,91 +89,105 @@
       {"area": "", "method": "Trade with a Schoolgirl", "mons": [{"name": "Spheal", "level": ""}]}
     ],
     "Route 207": [
-      {"area": "", "method": "Grass (9-10)", "mons": [{"name": "Machop", "level": "9-10"}, {"name": "Rhyhorn", "level": "9-10"}, {"name": "Ponyta", "level": "9-10"}, {"name": "Phanpy", "level": "9-9"}, {"name": "Larvitar", "level": "9-9"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Stantler", "level": "9-10"}]},
-      {"area": "", "method": "Honey Tree (21)", "mons": [{"name": "Aipom", "level": ""}, {"name": "Slakoth", "level": ""}, {"name": "Metapod", "level": ""}, {"name": "Kakuna", "level": ""}, {"name": "Munchlax", "level": ""}]}
+      {"area": "", "method": "Grass (9-10)", "mons": [{"name": "Machop", "level": "9-10", "rates": [30, 30, 30]}, {"name": "Rhyhorn", "level": "9-10", "rates": [20, 20, 20]}, {"name": "Ponyta", "level": "9-10", "rates": [20, 20, 20]}, {"name": "Phanpy", "level": "9-9", "rates": [20, 20, 20]}, {"name": "Larvitar", "level": "9-9", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Stantler", "level": "9-10", "rates": [22]}]},
+      {"area": "", "method": "Honey Tree (21)", "mons": [{"name": "Aipom", "level": "", "rates": [30]}, {"name": "Slakoth", "level": "", "rates": [20]}, {"name": "Metapod", "level": "", "rates": [20]}, {"name": "Kakuna", "level": "", "rates": [20]}, {"name": "Munchlax", "level": "", "rates": [10]}]}
     ],
     "Oreburgh Mine": [
-      {"area": "1F", "method": "Cave (9-10)", "mons": [{"name": "Geodude", "level": "9-10"}, {"name": "Zubat", "level": "9-10"}, {"name": "Whismur", "level": "9-10"}, {"name": "Aron", "level": "9-9"}, {"name": "Onix", "level": "10-10"}, {"name": "Trapinch", "level": "9-9"}]},
-      {"area": "B1F", "method": "Cave (10-11)", "mons": [{"name": "Geodude", "level": "10-11"}, {"name": "Zubat", "level": "10-11"}, {"name": "Whismur", "level": "10-11"}, {"name": "Aron", "level": "10-10"}, {"name": "Onix", "level": "11-11"}, {"name": "Trapinch", "level": "11-11"}]}
+      {"area": "1F", "method": "Cave (9-10)", "mons": [{"name": "Geodude", "level": "9-10", "rates": [25, 25, 25]}, {"name": "Zubat", "level": "9-10", "rates": [25, 25, 25]}, {"name": "Whismur", "level": "9-10", "rates": [20, 20, 20]}, {"name": "Aron", "level": "9-9", "rates": [10, 10, 10]}, {"name": "Onix", "level": "10-10", "rates": [10, 10, 10]}, {"name": "Trapinch", "level": "9-9", "rates": [10, 10, 10]}]},
+      {"area": "B1F", "method": "Cave (10-11)", "mons": [{"name": "Geodude", "level": "10-11", "rates": [25, 25, 25]}, {"name": "Zubat", "level": "10-11", "rates": [25, 25, 25]}, {"name": "Whismur", "level": "10-11", "rates": [20, 20, 20]}, {"name": "Aron", "level": "10-10", "rates": [10, 10, 10]}, {"name": "Onix", "level": "11-11", "rates": [10, 10, 10]}, {"name": "Trapinch", "level": "11-11", "rates": [10, 10, 10]}]}
     ],
     "Floaroma Town": [
       {"area": "", "method": "Gift from the Interviewer in the PKMN Center", "mons": [{"name": "Chikorita", "level": "15"}, {"name": "Cyndaquil", "level": "15"}, {"name": "Totodile", "level": "15"}]},
       {"area": "", "method": "Trade with a Beauty", "mons": [{"name": "Skorupi", "level": ""}]}
     ],
     "Floaroma Meadow": [
-      {"area": "", "method": "Honey Tree (12)", "mons": [{"name": "Cherubi", "level": ""}, {"name": "Shroomish", "level": ""}, {"name": "Exeggcute", "level": ""}, {"name": "Seedot", "level": ""}, {"name": "Tangela", "level": ""}]}
+      {"area": "", "method": "Honey Tree (12)", "mons": [{"name": "Cherubi", "level": "", "rates": [30]}, {"name": "Shroomish", "level": "", "rates": [20]}, {"name": "Exeggcute", "level": "", "rates": [20]}, {"name": "Seedot", "level": "", "rates": [20]}, {"name": "Tangela", "level": "", "rates": [10]}]}
     ],
     "Valley Windworks": [
-      {"area": "", "method": "Grass (11-13)", "mons": [{"name": "Magnemite", "level": "11-11"}, {"name": "Elekid", "level": "11-11"}, {"name": "Electrike", "level": "11-12"}, {"name": "Voltorb", "level": "11-12"}, {"name": "Drifloon", "level": "11-13"}, {"name": "Pachirisu", "level": "11-13"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Plusle", "level": "12-13"}, {"name": "Minun", "level": "12-13"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Shellder", "level": ""}, {"name": "Chinchou", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Cloyster", "level": ""}, {"name": "Lanturn", "level": ""}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Shellos", "level": "20-30"}, {"name": "Tentacool", "level": "20-30"}, {"name": "Gastrodon", "level": "20-40"}, {"name": "Tentacruel", "level": "20-40"}]},
-      {"area": "", "method": "Honey Tree (12)", "mons": [{"name": "Aipom", "level": ""}, {"name": "Slakoth", "level": ""}, {"name": "Caterpie", "level": ""}, {"name": "Weedle", "level": ""}, {"name": "Munchlax", "level": ""}]},
+      {"area": "", "method": "Grass (11-13)", "mons": [{"name": "Magnemite", "level": "11-11", "rates": [20, 20, 20]}, {"name": "Elekid", "level": "11-11", "rates": [20, 20, 20]}, {"name": "Electrike", "level": "11-12", "rates": [20, 20, 20]}, {"name": "Voltorb", "level": "11-12", "rates": [20, 20, 20]}, {"name": "Drifloon", "level": "11-13", "rates": [10, 10, 10]}, {"name": "Pachirisu", "level": "11-13", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Plusle", "level": "12-13", "rates": [11]}, {"name": "Minun", "level": "12-13", "rates": [11]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Shellder", "level": "", "rates": [30]}, {"name": "Chinchou", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Shellder", "level": "", "rates": [30]}, {"name": "Chinchou", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Cloyster", "level": "", "rates": [30]}, {"name": "Lanturn", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Shellos", "level": "20-30", "rates": [60]}, {"name": "Tentacool", "level": "20-30", "rates": [30]}, {"name": "Gastrodon", "level": "20-40", "rates": [9]}, {"name": "Tentacruel", "level": "20-40", "rates": [1]}]},
+      {"area": "", "method": "Honey Tree (12)", "mons": [{"name": "Aipom", "level": "", "rates": [30]}, {"name": "Slakoth", "level": "", "rates": [20]}, {"name": "Caterpie", "level": "", "rates": [20]}, {"name": "Weedle", "level": "", "rates": [20]}, {"name": "Munchlax", "level": "", "rates": [10]}]},
       {"area": "", "method": "Static Encounter", "mons": [{"name": "Drifloon", "level": "15"}]},
       {"area": "", "method": "Static Encounter (After Distortion World)", "mons": [{"name": "Zapdos", "level": "60"}]}
     ],
     "Route 205": [
-      {"area": "South", "method": "Grass (11-13)", "mons": [{"name": "Shellos", "level": "11-13"}, {"name": "Mareep", "level": "11-13"}, {"name": "Buizel", "level": "12-12"}, {"name": "Hoppip", "level": "11-13"}, {"name": "Pachirisu", "level": "11-13"}, {"name": "Venonat", "level": "11-13"}]},
-      {"area": "South", "method": "Pok\u00e9 Radar", "mons": [{"name": "Plusle", "level": "13-13"}, {"name": "Minun", "level": "11-13"}]},
-      {"area": "South", "method": "Surf (20-40)", "mons": [{"name": "Shellos", "level": "20-30"}, {"name": "Tentacool", "level": "20-30"}, {"name": "Gastrodon", "level": "20-40"}, {"name": "Tentacruel", "level": "20-40"}]},
-      {"area": "South", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Shellder", "level": ""}, {"name": "Chinchou", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Cloyster", "level": ""}, {"name": "Lanturn", "level": ""}]},
-      {"area": "South", "method": "Honey Tree (12)", "mons": [{"name": "Combee", "level": ""}, {"name": "Burmy", "level": ""}, {"name": "Pineco", "level": ""}, {"name": "Wurmple", "level": ""}, {"name": "Heracross", "level": ""}]},
-      {"area": "North", "method": "Grass (15-17)", "mons": [{"name": "Bidoof", "level": "15-15"}, {"name": "Slowpoke", "level": "16-16"}, {"name": "Marill", "level": "15-16"}, {"name": "Croagunk", "level": "16-16"}, {"name": "Exeggcute", "level": "16-16"}, {"name": "Volbeat", "level": "15-17"}, {"name": "Illumise", "level": "15-17"}]},
-      {"area": "North", "method": "Pok\u00e9 Radar", "mons": [{"name": "Yanma", "level": "16-17"}]},
-      {"area": "North", "method": "Surf (20-40)", "mons": [{"name": "Marill", "level": "20-30"}, {"name": "Azumarill", "level": "20-40"}]},
-      {"area": "North", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Corphish", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Crawdaunt", "level": ""}]},
-      {"area": "North", "method": "Honey Tree (16)", "mons": [{"name": "Starly", "level": ""}, {"name": "Pidgey", "level": ""}, {"name": "Hoothoot", "level": ""}, {"name": "Taillow", "level": ""}, {"name": "Farfetchd", "level": ""}]}
+      {"area": "South", "method": "Grass (11-13)", "mons": [{"name": "Shellos", "level": "11-13", "rates": [30, 30, 30]}, {"name": "Mareep", "level": "11-13", "rates": [20, 20, 20]}, {"name": "Buizel", "level": "12-12", "rates": [20, 20, 20]}, {"name": "Hoppip", "level": "11-13", "rates": [20, 20, 0]}, {"name": "Pachirisu", "level": "11-13", "rates": [10, 10, 10]}, {"name": "Venonat", "level": "11-13", "rates": [0, 0, 20]}]},
+      {"area": "South", "method": "Pok\u00e9 Radar", "mons": [{"name": "Plusle", "level": "13-13", "rates": [11]}, {"name": "Minun", "level": "11-13", "rates": [11]}]},
+      {"area": "South", "method": "Surf (20-40)", "mons": [{"name": "Shellos", "level": "20-30", "rates": [60]}, {"name": "Tentacool", "level": "20-30", "rates": [30]}, {"name": "Gastrodon", "level": "20-40", "rates": [9]}, {"name": "Tentacruel", "level": "20-40", "rates": [1]}]},
+      {"area": "South", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Shellder", "level": "", "rates": [30]}, {"name": "Chinchou", "level": "", "rates": [30]}]},
+      {"area": "South", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Shellder", "level": "", "rates": [30]}, {"name": "Chinchou", "level": "", "rates": [30]}]},
+      {"area": "South", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Cloyster", "level": "", "rates": [30]}, {"name": "Lanturn", "level": "", "rates": [30]}]},
+      {"area": "South", "method": "Honey Tree (12)", "mons": [{"name": "Combee", "level": "", "rates": [30]}, {"name": "Burmy", "level": "", "rates": [20]}, {"name": "Pineco", "level": "", "rates": [20]}, {"name": "Wurmple", "level": "", "rates": [20]}, {"name": "Heracross", "level": "", "rates": [10]}]},
+      {"area": "North", "method": "Grass (15-17)", "mons": [{"name": "Bidoof", "level": "15-15", "rates": [20, 20, 20]}, {"name": "Slowpoke", "level": "16-16", "rates": [20, 20, 20]}, {"name": "Marill", "level": "15-16", "rates": [20, 20, 20]}, {"name": "Croagunk", "level": "16-16", "rates": [10, 10, 10]}, {"name": "Exeggcute", "level": "16-16", "rates": [10, 10, 10]}, {"name": "Volbeat", "level": "15-17", "rates": [10, 10, 10]}, {"name": "Illumise", "level": "15-17", "rates": [10, 10, 10]}]},
+      {"area": "North", "method": "Pok\u00e9 Radar", "mons": [{"name": "Yanma", "level": "16-17", "rates": [22]}]},
+      {"area": "North", "method": "Surf (20-40)", "mons": [{"name": "Marill", "level": "20-30", "rates": [90]}, {"name": "Azumarill", "level": "20-40", "rates": [10]}]},
+      {"area": "North", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Corphish", "level": "", "rates": [45]}]},
+      {"area": "North", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Corphish", "level": "", "rates": [45]}]},
+      {"area": "North", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Crawdaunt", "level": "", "rates": [45]}]},
+      {"area": "North", "method": "Honey Tree (16)", "mons": [{"name": "Starly", "level": "", "rates": [30]}, {"name": "Pidgey", "level": "", "rates": [20]}, {"name": "Hoothoot", "level": "", "rates": [20]}, {"name": "Taillow", "level": "", "rates": [20]}, {"name": "Farfetchd", "level": "", "rates": [10]}]}
     ],
     "Eterna Forest": [
-      {"area": "", "method": "Grass (14-16)", "mons": [{"name": "Buneary", "level": "14-16"}, {"name": "Shroomish", "level": "15-15"}, {"name": "Paras", "level": "15-16"}, {"name": "Slakoth", "level": "15-15"}, {"name": "Nincada", "level": "15-15"}, {"name": "Taillow", "level": "14-16"}, {"name": "Murkrow", "level": "15-15"}, {"name": "Misdreavus", "level": "16-16"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Beautifly", "level": "15-16"}, {"name": "Dustox", "level": "15-16"}]},
+      {"area": "", "method": "Grass (14-16)", "mons": [{"name": "Buneary", "level": "14-16", "rates": [30, 30, 30]}, {"name": "Shroomish", "level": "15-15", "rates": [20, 20, 20]}, {"name": "Paras", "level": "15-16", "rates": [20, 20, 0]}, {"name": "Slakoth", "level": "15-15", "rates": [10, 10, 10]}, {"name": "Nincada", "level": "15-15", "rates": [10, 10, 10]}, {"name": "Taillow", "level": "14-16", "rates": [10, 10, 10]}, {"name": "Murkrow", "level": "15-15", "rates": [0, 0, 10]}, {"name": "Misdreavus", "level": "16-16", "rates": [0, 0, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Beautifly", "level": "15-16", "rates": [11]}, {"name": "Dustox", "level": "15-16", "rates": [11]}]},
       {"area": "", "method": "Static Encounter (After Celestic Town)", "mons": [{"name": "Celebi", "level": "40"}]},
-      {"area": "", "method": "Honey Tree (15) (Outside the forest)", "mons": [{"name": "Beedrill", "level": ""}]}
+      {"area": "", "method": "Honey Tree (15) (Outside the forest)", "mons": [{"name": "Beedrill", "level": "", "rates": [100]}]}
     ],
     "Old Chateau": [
-      {"area": "", "method": "Ground (15-18)", "mons": [{"name": "Gastly", "level": "15-17"}, {"name": "Rattata", "level": "15-17"}, {"name": "Duskull", "level": "16-16"}, {"name": "Shuppet", "level": "16-16"}, {"name": "Raticate", "level": "18-18"}, {"name": "Haunter", "level": "18-18"}]},
+      {"area": "", "method": "Ground (15-18)", "mons": [{"name": "Gastly", "level": "15-17", "rates": [40, 40, 40]}, {"name": "Rattata", "level": "15-17", "rates": [30, 30, 30]}, {"name": "Duskull", "level": "16-16", "rates": [10, 10, 10]}, {"name": "Shuppet", "level": "16-16", "rates": [10, 10, 10]}, {"name": "Raticate", "level": "18-18", "rates": [5, 5, 5]}, {"name": "Haunter", "level": "18-18", "rates": [5, 5, 5]}]},
       {"area": "", "method": "Static (haha) Encounter (In the TV Room)", "mons": [{"name": "Rotom", "level": "20"}]},
       {"area": "", "method": "Static Encounter (In the Painting Room)", "mons": [{"name": "Gengar", "level": "20"}]}
     ],
     "Eterna City": [
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30"}, {"name": "Golduck", "level": "20-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Poliwag", "level": ""}, {"name": "Dratini", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Poliwhirl", "level": ""}, {"name": "Dragonair", "level": ""}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30", "rates": [90]}, {"name": "Golduck", "level": "20-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Poliwag", "level": "", "rates": [30]}, {"name": "Dratini", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Poliwag", "level": "", "rates": [30]}, {"name": "Dratini", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Poliwhirl", "level": "", "rates": [30]}, {"name": "Dragonair", "level": "", "rates": [30]}]},
       {"area": "", "method": "Trade with a Ninja Boy", "mons": [{"name": "Chatot", "level": ""}]},
       {"area": "", "method": "Gift from Cynthia (After beating Jupiter)", "mons": [{"name": "Togepi", "level": "1"}]}
     ],
     "Route 211": [
-      {"area": "West", "method": "Grass (16-18)", "mons": [{"name": "Meditite", "level": "16-18"}, {"name": "Machop", "level": "17-17"}, {"name": "Swablu", "level": "16-18"}, {"name": "Teddiursa", "level": "17-17"}, {"name": "Natu", "level": "17-17"}, {"name": "Chingling", "level": "16-16"}]},
-      {"area": "West", "method": "Pok\u00e9 Radar", "mons": [{"name": "Tyrogue", "level": "16-18"}]},
-      {"area": "East", "method": "Grass (18-19)", "mons": [{"name": "Meditite", "level": "18-19"}, {"name": "Machop", "level": "18-18"}, {"name": "Swablu", "level": "18-18"}, {"name": "Teddiursa", "level": "18-18"}, {"name": "Natu", "level": "18-18"}, {"name": "Bagon", "level": "18-18"}]},
-      {"area": "East", "method": "Pok\u00e9 Radar", "mons": [{"name": "Tyrogue", "level": "18-19"}]},
-      {"area": "East", "method": "Honey Tree (18)", "mons": [{"name": "Aipom", "level": ""}, {"name": "Slakoth", "level": ""}, {"name": "Metapod", "level": ""}, {"name": "Kakuna", "level": ""}, {"name": "Munchlax", "level": ""}]},
+      {"area": "West", "method": "Grass (16-18)", "mons": [{"name": "Meditite", "level": "16-18", "rates": [30, 30, 30]}, {"name": "Machop", "level": "17-17", "rates": [20, 20, 20]}, {"name": "Swablu", "level": "16-18", "rates": [20, 20, 20]}, {"name": "Teddiursa", "level": "17-17", "rates": [10, 10, 10]}, {"name": "Natu", "level": "17-17", "rates": [10, 10, 10]}, {"name": "Chingling", "level": "16-16", "rates": [10, 10, 10]}]},
+      {"area": "West", "method": "Pok\u00e9 Radar", "mons": [{"name": "Tyrogue", "level": "16-18", "rates": [22]}]},
+      {"area": "East", "method": "Grass (18-19)", "mons": [{"name": "Meditite", "level": "18-19", "rates": [30, 30, 30]}, {"name": "Machop", "level": "18-18", "rates": [20, 20, 20]}, {"name": "Swablu", "level": "18-18", "rates": [20, 20, 20]}, {"name": "Teddiursa", "level": "18-18", "rates": [10, 10, 10]}, {"name": "Natu", "level": "18-18", "rates": [10, 10, 10]}, {"name": "Bagon", "level": "18-18", "rates": [10, 10, 10]}]},
+      {"area": "East", "method": "Pok\u00e9 Radar", "mons": [{"name": "Tyrogue", "level": "18-19", "rates": [22]}]},
+      {"area": "East", "method": "Honey Tree (18)", "mons": [{"name": "Aipom", "level": "", "rates": [30]}, {"name": "Slakoth", "level": "", "rates": [20]}, {"name": "Metapod", "level": "", "rates": [20]}, {"name": "Kakuna", "level": "", "rates": [20]}, {"name": "Munchlax", "level": "", "rates": [10]}]},
       {"area": "East", "method": "Static Encounter (After Distortion World)", "mons": [{"name": "Entei", "level": "60"}]}
     ],
     "Mt. Coronet": [
-      {"area": "R211 Entry", "method": "Cave (16-18)", "mons": [{"name": "Geodude", "level": "17-17"}, {"name": "Bronzor", "level": "17-17"}, {"name": "Cleffa", "level": "16-16"}, {"name": "Nosepass", "level": "17-18"}, {"name": "Chingling", "level": "16-16"}, {"name": "Zubat", "level": "17-17"}, {"name": "Beldum", "level": "17-17"}, {"name": "Solrock", "level": "18-18"}, {"name": "Lunatone", "level": "18-18"}]},
-      {"area": "B1F", "method": "Cave (18-20)", "mons": [{"name": "Geodude", "level": "19-19"}, {"name": "Bronzor", "level": "19-19"}, {"name": "Clefairy", "level": "19-19"}, {"name": "Nosepass", "level": "19-19"}, {"name": "Chimecho", "level": "20-20"}, {"name": "Zubat", "level": "19-19"}, {"name": "Metang", "level": "20-20"}, {"name": "Solrock", "level": "20-20"}, {"name": "Lunatone", "level": "20-20"}]},
-      {"area": "B1F", "method": "Surf (30-45)", "mons": [{"name": "Spheal", "level": "30-45"}, {"name": "Seel", "level": "30-45"}, {"name": "Sealeo", "level": "30-45"}]},
-      {"area": "B1F", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Feebas", "level": ""}]},
-      {"area": "R216 Entry", "method": "Cave (18-19)", "mons": [{"name": "Geodude", "level": "18-18"}, {"name": "Bronzor", "level": "18-18"}, {"name": "Clefairy", "level": "18-18"}, {"name": "Nosepass", "level": "18-18"}, {"name": "Chimecho", "level": "18-19"}, {"name": "Zubat", "level": "18-18"}, {"name": "Beldum", "level": "18-18"}, {"name": "Solrock", "level": "19-19"}, {"name": "Lunatone", "level": "19-19"}]},
-      {"area": "R207 Entry", "method": "Cave (22-23)", "mons": [{"name": "Geodude", "level": "22-22"}, {"name": "Bronzor", "level": "22-22"}, {"name": "Clefairy", "level": "22-22"}, {"name": "Nosepass", "level": "22-22"}, {"name": "Chimecho", "level": "22-22"}, {"name": "Golbat", "level": "22-23"}, {"name": "Metang", "level": "22-22"}, {"name": "Solrock", "level": "22-23"}, {"name": "Lunatone", "level": "22-23"}]},
-      {"area": "R207 Entry", "method": "Surf (20-40)", "mons": [{"name": "Zubat", "level": "20-30"}, {"name": "Golbat", "level": "20-40"}]},
-      {"area": "R207 Entry", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Barboach", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Whiscash", "level": ""}]},
-      {"area": "2F, 3F", "method": "Cave (49-51)", "mons": [{"name": "Graveler", "level": "50-50"}, {"name": "Bronzong", "level": "51-51"}, {"name": "Clefairy", "level": "49-49"}, {"name": "Nosepass", "level": "49-49"}, {"name": "Chimecho", "level": "50-50"}, {"name": "Golbat", "level": "50-50"}, {"name": "Metang", "level": "50-51"}, {"name": "Solrock", "level": "50-51"}, {"name": "Lunatone", "level": "50-51"}]},
-      {"area": "4F", "method": "Cave (50-52)", "mons": [{"name": "Graveler", "level": "51-51"}, {"name": "Bronzong", "level": "52-52"}, {"name": "Clefairy", "level": "50-50"}, {"name": "Nosepass", "level": "50-50"}, {"name": "Chimecho", "level": "51-51"}, {"name": "Golbat", "level": "51-51"}, {"name": "Metang", "level": "51-52"}, {"name": "Solrock", "level": "51-52"}, {"name": "Lunatone", "level": "51-52"}]},
-      {"area": "4F", "method": "Surf (35-55)", "mons": [{"name": "Zubat", "level": "35-45"}, {"name": "Golbat", "level": "45-55"}]},
-      {"area": "4F", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Horsea", "level": ""}, {"name": "Dratini", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Seadra", "level": ""}, {"name": "Dragonair", "level": ""}]},
-      {"area": "Snow Area", "method": "Grass (50-52)", "mons": [{"name": "Abomasnow", "level": "51-52"}, {"name": "Medicham", "level": "52-52"}, {"name": "Loudred", "level": "50-51"}, {"name": "Absol", "level": "51-51"}, {"name": "Donphan", "level": "51-52"}, {"name": "Ursaring", "level": "51-52"}]},
-      {"area": "Snow Area", "method": "Pok\u00e9 Radar", "mons": [{"name": "Clefable", "level": "51-52"}]},
-      {"area": "Summit", "method": "Grass (51-53)", "mons": [{"name": "Abomasnow", "level": "52-53"}, {"name": "Medicham", "level": "53-53"}, {"name": "Loudred", "level": "51-52"}, {"name": "Absol", "level": "52-52"}, {"name": "Donphan", "level": "52-53"}, {"name": "Ursaring", "level": "52-53"}]},
-      {"area": "Summit", "method": "Pok\u00e9 Radar", "mons": [{"name": "Clefable", "level": "52-53"}]},
+      {"area": "R211 Entry", "method": "Cave (16-18)", "mons": [{"name": "Geodude", "level": "17-17", "rates": [20, 20, 20]}, {"name": "Bronzor", "level": "17-17", "rates": [20, 20, 20]}, {"name": "Cleffa", "level": "16-16", "rates": [10, 10, 10]}, {"name": "Nosepass", "level": "17-18", "rates": [10, 10, 10]}, {"name": "Chingling", "level": "16-16", "rates": [10, 10, 10]}, {"name": "Zubat", "level": "17-17", "rates": [10, 10, 10]}, {"name": "Beldum", "level": "17-17", "rates": [10, 10, 10]}, {"name": "Solrock", "level": "18-18", "rates": [5, 5, 5]}, {"name": "Lunatone", "level": "18-18", "rates": [5, 5, 5]}]},
+      {"area": "B1F", "method": "Cave (18-20)", "mons": [{"name": "Geodude", "level": "19-19", "rates": [20, 20, 20]}, {"name": "Bronzor", "level": "19-19", "rates": [20, 20, 20]}, {"name": "Clefairy", "level": "19-19", "rates": [10, 10, 10]}, {"name": "Nosepass", "level": "19-19", "rates": [10, 10, 10]}, {"name": "Chimecho", "level": "20-20", "rates": [10, 10, 10]}, {"name": "Zubat", "level": "19-19", "rates": [10, 10, 10]}, {"name": "Metang", "level": "20-20", "rates": [10, 10, 10]}, {"name": "Solrock", "level": "20-20", "rates": [5, 5, 5]}, {"name": "Lunatone", "level": "20-20", "rates": [5, 5, 5]}]},
+      {"area": "B1F", "method": "Surf (30-45)", "mons": [{"name": "Spheal", "level": "30-45", "rates": [60]}, {"name": "Seel", "level": "30-45", "rates": [30]}, {"name": "Sealeo", "level": "30-45", "rates": [10]}]},
+      {"area": "B1F", "method": "Old Rod (10)", "mons": [{"name": "Feebas", "level": "", "rates": [100]}]},
+      {"area": "B1F", "method": "Good Rod (25)", "mons": [{"name": "Feebas", "level": "", "rates": [100]}]},
+      {"area": "B1F", "method": "Super Rod (50)", "mons": [{"name": "Feebas", "level": "", "rates": [100]}]},
+      {"area": "R216 Entry", "method": "Cave (18-19)", "mons": [{"name": "Geodude", "level": "18-18", "rates": [20, 20, 20]}, {"name": "Bronzor", "level": "18-18", "rates": [20, 20, 20]}, {"name": "Clefairy", "level": "18-18", "rates": [10, 10, 10]}, {"name": "Nosepass", "level": "18-18", "rates": [10, 10, 10]}, {"name": "Chimecho", "level": "18-19", "rates": [10, 10, 10]}, {"name": "Zubat", "level": "18-18", "rates": [10, 10, 10]}, {"name": "Beldum", "level": "18-18", "rates": [10, 10, 10]}, {"name": "Solrock", "level": "19-19", "rates": [5, 5, 5]}, {"name": "Lunatone", "level": "19-19", "rates": [5, 5, 5]}]},
+      {"area": "R207 Entry", "method": "Cave (22-23)", "mons": [{"name": "Geodude", "level": "22-22", "rates": [20, 20, 20]}, {"name": "Bronzor", "level": "22-22", "rates": [20, 20, 20]}, {"name": "Clefairy", "level": "22-22", "rates": [10, 10, 10]}, {"name": "Nosepass", "level": "22-22", "rates": [10, 10, 10]}, {"name": "Chimecho", "level": "22-22", "rates": [10, 10, 10]}, {"name": "Golbat", "level": "22-23", "rates": [10, 10, 10]}, {"name": "Metang", "level": "22-22", "rates": [10, 10, 10]}, {"name": "Solrock", "level": "22-23", "rates": [5, 5, 5]}, {"name": "Lunatone", "level": "22-23", "rates": [5, 5, 5]}]},
+      {"area": "R207 Entry", "method": "Surf (20-40)", "mons": [{"name": "Zubat", "level": "20-30", "rates": [90]}, {"name": "Golbat", "level": "20-40", "rates": [10]}]},
+      {"area": "R207 Entry", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "R207 Entry", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Barboach", "level": "", "rates": [45]}]},
+      {"area": "R207 Entry", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Whiscash", "level": "", "rates": [45]}]},
+      {"area": "2F, 3F", "method": "Cave (49-51)", "mons": [{"name": "Graveler", "level": "50-50", "rates": [20, 20, 20]}, {"name": "Bronzong", "level": "51-51", "rates": [20, 20, 20]}, {"name": "Clefairy", "level": "49-49", "rates": [10, 10, 10]}, {"name": "Nosepass", "level": "49-49", "rates": [10, 10, 10]}, {"name": "Chimecho", "level": "50-50", "rates": [10, 10, 10]}, {"name": "Golbat", "level": "50-50", "rates": [10, 10, 10]}, {"name": "Metang", "level": "50-51", "rates": [10, 10, 10]}, {"name": "Solrock", "level": "50-51", "rates": [5, 5, 5]}, {"name": "Lunatone", "level": "50-51", "rates": [5, 5, 5]}]},
+      {"area": "4F", "method": "Cave (50-52)", "mons": [{"name": "Graveler", "level": "51-51", "rates": [20, 20, 20]}, {"name": "Bronzong", "level": "52-52", "rates": [20, 20, 20]}, {"name": "Clefairy", "level": "50-50", "rates": [10, 10, 10]}, {"name": "Nosepass", "level": "50-50", "rates": [10, 10, 10]}, {"name": "Chimecho", "level": "51-51", "rates": [10, 10, 10]}, {"name": "Golbat", "level": "51-51", "rates": [10, 10, 10]}, {"name": "Metang", "level": "51-52", "rates": [10, 10, 10]}, {"name": "Solrock", "level": "51-52", "rates": [5, 5, 5]}, {"name": "Lunatone", "level": "51-52", "rates": [5, 5, 5]}]},
+      {"area": "4F", "method": "Surf (35-55)", "mons": [{"name": "Zubat", "level": "35-45", "rates": [90]}, {"name": "Golbat", "level": "45-55", "rates": [10]}]},
+      {"area": "4F", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Horsea", "level": "", "rates": [30]}, {"name": "Dratini", "level": "", "rates": [30]}]},
+      {"area": "4F", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Horsea", "level": "", "rates": [30]}, {"name": "Dratini", "level": "", "rates": [30]}]},
+      {"area": "4F", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Seadra", "level": "", "rates": [30]}, {"name": "Dragonair", "level": "", "rates": [30]}]},
+      {"area": "Snow Area", "method": "Grass (50-52)", "mons": [{"name": "Abomasnow", "level": "51-52", "rates": [30, 30, 30]}, {"name": "Medicham", "level": "52-52", "rates": [20, 20, 20]}, {"name": "Loudred", "level": "50-51", "rates": [20, 20, 20]}, {"name": "Absol", "level": "51-51", "rates": [10, 10, 10]}, {"name": "Donphan", "level": "51-52", "rates": [10, 10, 10]}, {"name": "Ursaring", "level": "51-52", "rates": [10, 10, 10]}]},
+      {"area": "Snow Area", "method": "Pok\u00e9 Radar", "mons": [{"name": "Clefable", "level": "51-52", "rates": [22]}]},
+      {"area": "Summit", "method": "Grass (51-53)", "mons": [{"name": "Abomasnow", "level": "52-53", "rates": [30, 30, 30]}, {"name": "Medicham", "level": "53-53", "rates": [20, 20, 20]}, {"name": "Loudred", "level": "51-52", "rates": [20, 20, 20]}, {"name": "Absol", "level": "52-52", "rates": [10, 10, 10]}, {"name": "Donphan", "level": "52-53", "rates": [10, 10, 10]}, {"name": "Ursaring", "level": "52-53", "rates": [10, 10, 10]}]},
+      {"area": "Summit", "method": "Pok\u00e9 Radar", "mons": [{"name": "Clefable", "level": "52-53", "rates": [22]}]},
       {"area": "Summit", "method": "Static Encounter (After Distortion World)", "mons": [{"name": "Articuno", "level": "60"}]},
-      {"area": "5F, 6F, 7F", "method": "Cave (51-53)", "mons": [{"name": "Graveler", "level": "52-52"}, {"name": "Bronzong", "level": "53-53"}, {"name": "Clefairy", "level": "51-51"}, {"name": "Nosepass", "level": "51-51"}, {"name": "Chimecho", "level": "52-52"}, {"name": "Golbat", "level": "52-52"}, {"name": "Metang", "level": "52-53"}, {"name": "Solrock", "level": "52-53"}, {"name": "Lunatone", "level": "52-53"}]},
+      {"area": "5F, 6F, 7F", "method": "Cave (51-53)", "mons": [{"name": "Graveler", "level": "52-52", "rates": [20, 20, 20]}, {"name": "Bronzong", "level": "53-53", "rates": [20, 20, 20]}, {"name": "Clefairy", "level": "51-51", "rates": [10, 10, 10]}, {"name": "Nosepass", "level": "51-51", "rates": [10, 10, 10]}, {"name": "Chimecho", "level": "52-52", "rates": [10, 10, 10]}, {"name": "Golbat", "level": "52-52", "rates": [10, 10, 10]}, {"name": "Metang", "level": "52-53", "rates": [10, 10, 10]}, {"name": "Solrock", "level": "52-53", "rates": [5, 5, 5]}, {"name": "Lunatone", "level": "52-53", "rates": [5, 5, 5]}]},
       {"area": "B1F", "method": "Static Encounter", "mons": [{"name": "Kyogre", "level": "70"}]}
     ],
     "Route 216": [
-      {"area": "", "method": "Grass (18-20)", "mons": [{"name": "Snover", "level": "18-19"}, {"name": "Swinub", "level": "18-19"}, {"name": "Smoochum", "level": "18-19"}, {"name": "Snorunt", "level": "18-19"}, {"name": "Sneasel", "level": "18-20"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Delibird", "level": "19-20"}]}
+      {"area": "", "method": "Grass (18-20)", "mons": [{"name": "Snover", "level": "18-19", "rates": [30, 30, 30]}, {"name": "Swinub", "level": "18-19", "rates": [25, 25, 25]}, {"name": "Smoochum", "level": "18-19", "rates": [20, 20, 20]}, {"name": "Snorunt", "level": "18-19", "rates": [15, 15, 15]}, {"name": "Sneasel", "level": "18-20", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Delibird", "level": "19-20", "rates": [22]}]}
     ],
     "T.G. Eterna Bldg": [
       {"area": "", "method": "Gift after beating Jupiter", "mons": [{"name": "Porygon", "level": "22"}]}
@@ -166,254 +196,316 @@
       {"area": "", "method": "Revive Fossils", "mons": [{"name": "Omanyte", "level": "20"}, {"name": "Kabuto", "level": "20"}, {"name": "Aerodactyl", "level": "20"}, {"name": "Lileep", "level": "20"}, {"name": "Anorith", "level": "20"}, {"name": "Cranidos", "level": "20"}, {"name": "Shieldon", "level": "20"}]}
     ],
     "Route 206": [
-      {"area": "", "method": "Grass (20-22)", "mons": [{"name": "Stunky", "level": "21-21"}, {"name": "Slugma", "level": "21-21"}, {"name": "Mankey", "level": "20-21"}, {"name": "Magby", "level": "20-20"}, {"name": "Spoink", "level": "21-21"}, {"name": "Numel", "level": "20-21"}, {"name": "Gligar", "level": "21-22"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Torkoal", "level": "20-22"}]},
-      {"area": "", "method": "Honey Tree (21)", "mons": [{"name": "Combee", "level": ""}, {"name": "Burmy", "level": ""}, {"name": "Pineco", "level": ""}, {"name": "Silcoon", "level": ""}, {"name": "Cascoon", "level": ""}, {"name": "Heracross", "level": ""}]}
+      {"area": "", "method": "Grass (20-22)", "mons": [{"name": "Stunky", "level": "21-21", "rates": [20, 20, 20]}, {"name": "Slugma", "level": "21-21", "rates": [20, 20, 20]}, {"name": "Mankey", "level": "20-21", "rates": [20, 20, 20]}, {"name": "Magby", "level": "20-20", "rates": [10, 10, 10]}, {"name": "Spoink", "level": "21-21", "rates": [10, 10, 10]}, {"name": "Numel", "level": "20-21", "rates": [10, 10, 10]}, {"name": "Gligar", "level": "21-22", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Torkoal", "level": "20-22", "rates": [22]}]},
+      {"area": "", "method": "Honey Tree (21)", "mons": [{"name": "Combee", "level": "", "rates": [30]}, {"name": "Burmy", "level": "", "rates": [20]}, {"name": "Pineco", "level": "", "rates": [20]}, {"name": "Silcoon", "level": "", "rates": [10]}, {"name": "Cascoon", "level": "", "rates": [10]}, {"name": "Heracross", "level": "", "rates": [10]}]}
     ],
     "Wayward Cave": [
-      {"area": "Both", "method": "Cave (20-22)", "mons": [{"name": "Zubat", "level": "21-21"}, {"name": "Geodude", "level": "21-21"}, {"name": "Gible", "level": "20-22"}, {"name": "Baltoy", "level": "21-21"}, {"name": "Sandshrew", "level": "21-21"}, {"name": "Onix", "level": "22-22"}, {"name": "Sableye", "level": "22-22"}, {"name": "Mawile", "level": "22-22"}]},
+      {"area": "Both", "method": "Cave (20-22)", "mons": [{"name": "Zubat", "level": "21-21", "rates": [20, 20, 20]}, {"name": "Geodude", "level": "21-21", "rates": [20, 20, 20]}, {"name": "Gible", "level": "20-22", "rates": [20, 20, 20]}, {"name": "Baltoy", "level": "21-21", "rates": [10, 10, 10]}, {"name": "Sandshrew", "level": "21-21", "rates": [10, 10, 10]}, {"name": "Onix", "level": "22-22", "rates": [10, 10, 10]}, {"name": "Sableye", "level": "22-22", "rates": [5, 5, 5]}, {"name": "Mawile", "level": "22-22", "rates": [5, 5, 5]}]},
       {"area": "Both", "method": "Static Encounter (In the deepest room)", "mons": [{"name": "Gabite", "level": "25"}]}
     ],
     "Route 208": [
-      {"area": "", "method": "Grass (23-24)", "mons": [{"name": "Bibarel", "level": "24-24"}, {"name": "Roselia", "level": "23-23"}, {"name": "Skitty", "level": "23-23"}, {"name": "Jigglypuff", "level": "23-23"}, {"name": "Kirlia", "level": "23-23"}, {"name": "Zangoose", "level": "23-24"}, {"name": "Seviper", "level": "23-24"}, {"name": "Smeargle", "level": "23-23"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Dunsparce", "level": "23-24"}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30"}, {"name": "Golduck", "level": "20-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Goldeen", "level": ""}, {"name": "Remoraid", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Seaking", "level": ""}, {"name": "Octillery", "level": ""}]},
-      {"area": "", "method": "Honey Tree (23)", "mons": [{"name": "Cherubi", "level": ""}, {"name": "Shroomish", "level": ""}, {"name": "Exeggcute", "level": ""}, {"name": "Seedot", "level": ""}, {"name": "Tangela", "level": ""}]},
+      {"area": "", "method": "Grass (23-24)", "mons": [{"name": "Bibarel", "level": "24-24", "rates": [20, 20, 20]}, {"name": "Roselia", "level": "23-23", "rates": [20, 20, 20]}, {"name": "Skitty", "level": "23-23", "rates": [10, 10, 10]}, {"name": "Jigglypuff", "level": "23-23", "rates": [10, 10, 10]}, {"name": "Kirlia", "level": "23-23", "rates": [10, 10, 10]}, {"name": "Zangoose", "level": "23-24", "rates": [10, 10, 10]}, {"name": "Seviper", "level": "23-24", "rates": [10, 10, 10]}, {"name": "Smeargle", "level": "23-23", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Dunsparce", "level": "23-24", "rates": [22]}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30", "rates": [90]}, {"name": "Golduck", "level": "20-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Goldeen", "level": "", "rates": [30]}, {"name": "Remoraid", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Goldeen", "level": "", "rates": [30]}, {"name": "Remoraid", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Seaking", "level": "", "rates": [30]}, {"name": "Octillery", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Honey Tree (23)", "mons": [{"name": "Cherubi", "level": "", "rates": [30]}, {"name": "Shroomish", "level": "", "rates": [20]}, {"name": "Exeggcute", "level": "", "rates": [20]}, {"name": "Seedot", "level": "", "rates": [20]}, {"name": "Tangela", "level": "", "rates": [10]}]},
       {"area": "", "method": "Static Encounter (After Distortion World)", "mons": [{"name": "Raikou", "level": "60"}]}
     ],
     "Route 212": [
-      {"area": "North", "method": "Grass (24-26)", "mons": [{"name": "Staravia", "level": "25-26"}, {"name": "Marill", "level": "24-24"}, {"name": "Roselia", "level": "25-25"}, {"name": "Weepinbell", "level": "26-26"}, {"name": "Gloom", "level": "26-26"}, {"name": "Kirlia", "level": "25-25"}, {"name": "Smeargle", "level": "24-25"}]},
-      {"area": "North", "method": "Pok\u00e9 Radar", "mons": [{"name": "Farfetchd", "level": "25-26"}]},
-      {"area": "North", "method": "Surf (20-40)", "mons": [{"name": "Marill", "level": "20-30"}, {"name": "Azumarill", "level": "30-40"}]},
-      {"area": "North", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Goldeen", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Seaking", "level": ""}]},
-      {"area": "North", "method": "Honey Tree (25)", "mons": [{"name": "Cherubi", "level": ""}, {"name": "Shroomish", "level": ""}, {"name": "Exeggcute", "level": ""}, {"name": "Nuzleaf", "level": ""}, {"name": "Tangela", "level": ""}]},
-      {"area": "South", "method": "Grass (33-36)", "mons": [{"name": "Croagunk", "level": "33-33"}, {"name": "Grimer", "level": "33-33"}, {"name": "Koffing", "level": "33-34"}, {"name": "Ekans", "level": "33-34"}, {"name": "Weepinbell", "level": "36-36"}, {"name": "Lombre", "level": "36-36"}, {"name": "Arbok", "level": "36-36"}, {"name": "Toxicroak", "level": "36-36"}]},
-      {"area": "South", "method": "Pok\u00e9 Radar", "mons": [{"name": "Muk", "level": "36-36"}, {"name": "Weezing", "level": "36-36"}]},
-      {"area": "South", "method": "Surf (20-40)", "mons": [{"name": "Shellos", "level": "20-30"}, {"name": "Wooper", "level": "20-30"}, {"name": "Gastrodon", "level": "20-40"}, {"name": "Quagsire", "level": "20-40"}]},
-      {"area": "South", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Barboach", "level": ""}, {"name": "Remoraid", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Whiscash", "level": ""}, {"name": "Octillery", "level": ""}]},
-      {"area": "South", "method": "Honey Tree (34)", "mons": [{"name": "Cherrim", "level": ""}, {"name": "Shroomish", "level": ""}, {"name": "Exeggcute", "level": ""}, {"name": "Nuzleaf", "level": ""}, {"name": "Tangela", "level": ""}]}
+      {"area": "North", "method": "Grass (24-26)", "mons": [{"name": "Staravia", "level": "25-26", "rates": [30, 30, 30]}, {"name": "Marill", "level": "24-24", "rates": [20, 20, 20]}, {"name": "Roselia", "level": "25-25", "rates": [10, 10, 10]}, {"name": "Weepinbell", "level": "26-26", "rates": [10, 10, 10]}, {"name": "Gloom", "level": "26-26", "rates": [10, 10, 10]}, {"name": "Kirlia", "level": "25-25", "rates": [10, 10, 10]}, {"name": "Smeargle", "level": "24-25", "rates": [10, 10, 10]}]},
+      {"area": "North", "method": "Pok\u00e9 Radar", "mons": [{"name": "Farfetchd", "level": "25-26", "rates": [22]}]},
+      {"area": "North", "method": "Surf (20-40)", "mons": [{"name": "Marill", "level": "20-30", "rates": [90]}, {"name": "Azumarill", "level": "30-40", "rates": [10]}]},
+      {"area": "North", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Goldeen", "level": "", "rates": [45]}]},
+      {"area": "North", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Goldeen", "level": "", "rates": [45]}]},
+      {"area": "North", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Seaking", "level": "", "rates": [45]}]},
+      {"area": "North", "method": "Honey Tree (25)", "mons": [{"name": "Cherubi", "level": "", "rates": [30]}, {"name": "Shroomish", "level": "", "rates": [20]}, {"name": "Exeggcute", "level": "", "rates": [20]}, {"name": "Nuzleaf", "level": "", "rates": [20]}, {"name": "Tangela", "level": "", "rates": [10]}]},
+      {"area": "South", "method": "Grass (33-36)", "mons": [{"name": "Croagunk", "level": "33-33", "rates": [20, 20, 20]}, {"name": "Grimer", "level": "33-33", "rates": [20, 20, 20]}, {"name": "Koffing", "level": "33-34", "rates": [15, 15, 15]}, {"name": "Ekans", "level": "33-34", "rates": [15, 15, 15]}, {"name": "Weepinbell", "level": "36-36", "rates": [10, 10, 10]}, {"name": "Lombre", "level": "36-36", "rates": [10, 10, 10]}, {"name": "Arbok", "level": "36-36", "rates": [5, 5, 5]}, {"name": "Toxicroak", "level": "36-36", "rates": [5, 5, 5]}]},
+      {"area": "South", "method": "Pok\u00e9 Radar", "mons": [{"name": "Muk", "level": "36-36", "rates": [11]}, {"name": "Weezing", "level": "36-36", "rates": [11]}]},
+      {"area": "South", "method": "Surf (20-40)", "mons": [{"name": "Shellos", "level": "20-30", "rates": [60]}, {"name": "Wooper", "level": "20-30", "rates": [30]}, {"name": "Gastrodon", "level": "20-40", "rates": [5]}, {"name": "Quagsire", "level": "20-40", "rates": [5]}]},
+      {"area": "South", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [60]}, {"name": "Barboach", "level": "", "rates": [30]}, {"name": "Remoraid", "level": "", "rates": [10]}]},
+      {"area": "South", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Barboach", "level": "", "rates": [40]}, {"name": "Remoraid", "level": "", "rates": [20]}]},
+      {"area": "South", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Whiscash", "level": "", "rates": [40]}, {"name": "Octillery", "level": "", "rates": [20]}]},
+      {"area": "South", "method": "Honey Tree (34)", "mons": [{"name": "Cherrim", "level": "", "rates": [30]}, {"name": "Shroomish", "level": "", "rates": [20]}, {"name": "Exeggcute", "level": "", "rates": [20]}, {"name": "Nuzleaf", "level": "", "rates": [20]}, {"name": "Tangela", "level": "", "rates": [10]}]}
     ],
     "Trophy Garden": [
-      {"area": "", "method": "Grass (24-26)", "mons": [{"name": "Pichu", "level": "24-24"}, {"name": "Pikachu", "level": "26-26"}, {"name": "Cleffa", "level": "24-24"}, {"name": "Igglybuff", "level": "24-24"}, {"name": "Togepi", "level": "24-24"}, {"name": "Porygon", "level": "26-26"}, {"name": "Happiny", "level": "24-24"}, {"name": "Eevee", "level": "25-26"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Castform", "level": "24-26"}]}
+      {"area": "", "method": "Grass (24-26)", "mons": [{"name": "Pichu", "level": "24-24", "rates": [20, 20, 20]}, {"name": "Pikachu", "level": "26-26", "rates": [20, 20, 20]}, {"name": "Cleffa", "level": "24-24", "rates": [10, 10, 10]}, {"name": "Igglybuff", "level": "24-24", "rates": [10, 10, 10]}, {"name": "Togepi", "level": "24-24", "rates": [10, 10, 10]}, {"name": "Porygon", "level": "26-26", "rates": [10, 10, 10]}, {"name": "Happiny", "level": "24-24", "rates": [10, 10, 10]}, {"name": "Eevee", "level": "25-26", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Castform", "level": "24-26", "rates": [22]}]}
     ],
     "Pok\u00e9mon Mansion": [
       {"area": "", "method": "Mr. Backlot gives you an egg", "mons": [{"name": "Manaphy", "level": "1"}]}
     ],
     "Route 209": [
-      {"area": "", "method": "Grass (24-26)", "mons": [{"name": "Staravia", "level": "26-26"}, {"name": "Glameow", "level": "25-25"}, {"name": "Vulpix", "level": "25-25"}, {"name": "Bonsly", "level": "25-25"}, {"name": "Mime_jr", "level": "24-24"}, {"name": "Snubbull", "level": "25-25"}, {"name": "Meowth", "level": "25-25"}, {"name": "Chansey", "level": "26-26"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Purugly", "level": "24-26"}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30"}, {"name": "Golduck", "level": "20-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Goldeen", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Seaking", "level": ""}]},
-      {"area": "", "method": "Honey Tree (27)", "mons": [{"name": "Staravia", "level": ""}, {"name": "Pidgeotto", "level": ""}, {"name": "Noctowl", "level": ""}, {"name": "Swellow", "level": ""}, {"name": "Farfetchd", "level": ""}]},
+      {"area": "", "method": "Grass (24-26)", "mons": [{"name": "Staravia", "level": "26-26", "rates": [20, 20, 20]}, {"name": "Glameow", "level": "25-25", "rates": [20, 20, 20]}, {"name": "Vulpix", "level": "25-25", "rates": [10, 10, 10]}, {"name": "Bonsly", "level": "25-25", "rates": [10, 10, 10]}, {"name": "Mime_jr", "level": "24-24", "rates": [10, 10, 10]}, {"name": "Snubbull", "level": "25-25", "rates": [10, 10, 10]}, {"name": "Meowth", "level": "25-25", "rates": [10, 10, 10]}, {"name": "Chansey", "level": "26-26", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Purugly", "level": "24-26", "rates": [22]}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30", "rates": [90]}, {"name": "Golduck", "level": "20-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Goldeen", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Goldeen", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Seaking", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Honey Tree (27)", "mons": [{"name": "Staravia", "level": "", "rates": [30]}, {"name": "Pidgeotto", "level": "", "rates": [20]}, {"name": "Noctowl", "level": "", "rates": [20]}, {"name": "Swellow", "level": "", "rates": [20]}, {"name": "Farfetchd", "level": "", "rates": [10]}]},
       {"area": "", "method": "Static Encounter", "mons": [{"name": "Spiritomb", "level": "30"}]},
-      {"area": "", "method": "Lost Tower (1F, 2F) Ground (26-29)", "mons": [{"name": "Shuppet", "level": "26-26"}, {"name": "Duskull", "level": "26-26"}, {"name": "Golbat", "level": "27-28"}, {"name": "Haunter", "level": "27-28"}, {"name": "Murkrow", "level": "27-27"}, {"name": "Misdreavus", "level": "27-27"}, {"name": "Dusclops", "level": "28-29"}, {"name": "Banette", "level": "28-29"}]},
-      {"area": "", "method": "Lost Tower (3F, 4F) Ground (26-30)", "mons": [{"name": "Shuppet", "level": "27-27"}, {"name": "Duskull", "level": "27-27"}, {"name": "Golbat", "level": "28-29"}, {"name": "Haunter", "level": "28-29"}, {"name": "Murkrow", "level": "28-28"}, {"name": "Misdreavus", "level": "28-28"}, {"name": "Dusclops", "level": "29-29"}, {"name": "Banette", "level": "29-29"}]},
-      {"area": "", "method": "Lost Tower (5F) Ground (26-30)", "mons": [{"name": "Shuppet", "level": "28-28"}, {"name": "Duskull", "level": "28-28"}, {"name": "Golbat", "level": "29-30"}, {"name": "Haunter", "level": "29-30"}, {"name": "Murkrow", "level": "29-29"}, {"name": "Misdreavus", "level": "29-29"}, {"name": "Dusclops", "level": "30-30"}, {"name": "Banette", "level": "30-30"}]},
+      {"area": "", "method": "Lost Tower (1F, 2F) Ground (26-29)", "mons": [{"name": "Shuppet", "level": "26-26", "rates": [20, 20, 20]}, {"name": "Duskull", "level": "26-26", "rates": [20, 20, 20]}, {"name": "Golbat", "level": "27-28", "rates": [15, 15, 15]}, {"name": "Haunter", "level": "27-28", "rates": [15, 15, 15]}, {"name": "Murkrow", "level": "27-27", "rates": [10, 10, 10]}, {"name": "Misdreavus", "level": "27-27", "rates": [10, 10, 10]}, {"name": "Dusclops", "level": "28-29", "rates": [5, 5, 5]}, {"name": "Banette", "level": "28-29", "rates": [5, 5, 5]}]},
+      {"area": "", "method": "Lost Tower (3F, 4F) Ground (26-30)", "mons": [{"name": "Shuppet", "level": "27-27", "rates": [20, 20, 20]}, {"name": "Duskull", "level": "27-27", "rates": [20, 20, 20]}, {"name": "Golbat", "level": "28-29", "rates": [15, 15, 15]}, {"name": "Haunter", "level": "28-29", "rates": [15, 15, 15]}, {"name": "Murkrow", "level": "28-28", "rates": [10, 10, 10]}, {"name": "Misdreavus", "level": "28-28", "rates": [10, 10, 10]}, {"name": "Dusclops", "level": "29-29", "rates": [5, 5, 5]}, {"name": "Banette", "level": "29-29", "rates": [5, 5, 5]}]},
+      {"area": "", "method": "Lost Tower (5F) Ground (26-30)", "mons": [{"name": "Shuppet", "level": "28-28", "rates": [20, 20, 20]}, {"name": "Duskull", "level": "28-28", "rates": [20, 20, 20]}, {"name": "Golbat", "level": "29-30", "rates": [15, 15, 15]}, {"name": "Haunter", "level": "29-30", "rates": [15, 15, 15]}, {"name": "Murkrow", "level": "29-29", "rates": [10, 10, 10]}, {"name": "Misdreavus", "level": "29-29", "rates": [10, 10, 10]}, {"name": "Dusclops", "level": "30-30", "rates": [5, 5, 5]}, {"name": "Banette", "level": "30-30", "rates": [5, 5, 5]}]},
       {"area": "Lost Tower", "method": "Static Encounter", "mons": [{"name": "Ho_oh", "level": "70"}]}
     ],
     "Solaceon Ruins": [
-      {"area": "", "method": "Cave Every Floor (20-30)", "mons": [{"name": "Unown", "level": "20-30"}]},
+      {"area": "", "method": "Cave Every Floor (20-30)", "mons": [{"name": "Unown", "level": "20-30", "rates": [100, 100, 100]}]},
       {"area": "", "method": "Static Encounter (After Pastoria City)", "mons": [{"name": "Jirachi", "level": "40"}]}
     ],
     "Route 210": [
-      {"area": "South", "method": "Grass (28-30)", "mons": [{"name": "Kricketune", "level": "28-28"}, {"name": "Nuzleaf", "level": "28-28"}, {"name": "Scyther", "level": "28-30"}, {"name": "Pinsir", "level": "29-29"}, {"name": "Miltank", "level": "29-29"}, {"name": "Tauros", "level": "29-29"}, {"name": "Pidgeotto", "level": "28-28"}, {"name": "Rapidash", "level": "30-30"}, {"name": "Noctowl", "level": "28-28"}]},
-      {"area": "South", "method": "Pok\u00e9 Radar", "mons": [{"name": "Kecleon", "level": "29-30"}]},
-      {"area": "South", "method": "Honey Tree (29)", "mons": [{"name": "Combee", "level": ""}, {"name": "Pineco", "level": ""}, {"name": "Silcoon", "level": ""}, {"name": "Cascoon", "level": ""}, {"name": "Wormadam", "level": ""}, {"name": "Mothim", "level": ""}, {"name": "Heracross", "level": ""}]},
-      {"area": "North", "method": "Grass (34-38)", "mons": [{"name": "Swablu", "level": "34-34"}, {"name": "Fearow", "level": "37-37"}, {"name": "Machoke", "level": "36-36"}, {"name": "Drifblim", "level": "38-38"}, {"name": "Zangoose", "level": "38-38"}, {"name": "Seviper", "level": "38-38"}, {"name": "Skarmory", "level": "37-38"}, {"name": "Shelgon", "level": "37-38"}]},
-      {"area": "North", "method": "Pok\u00e9 Radar", "mons": [{"name": "Altaria", "level": "38-38"}]},
-      {"area": "North", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30"}, {"name": "Golduck", "level": "20-40"}]},
-      {"area": "North", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Horsea", "level": ""}, {"name": "Dratini", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Seadra", "level": ""}, {"name": "Dragonair", "level": ""}]},
-      {"area": "North", "method": "Honey Tree (37)", "mons": [{"name": "Staravia", "level": ""}, {"name": "Pidgeotto", "level": ""}, {"name": "Noctowl", "level": ""}, {"name": "Swellow", "level": ""}, {"name": "Farfetchd", "level": ""}]}
+      {"area": "South", "method": "Grass (28-30)", "mons": [{"name": "Kricketune", "level": "28-28", "rates": [20, 20, 20]}, {"name": "Nuzleaf", "level": "28-28", "rates": [20, 20, 20]}, {"name": "Scyther", "level": "28-30", "rates": [15, 15, 15]}, {"name": "Pinsir", "level": "29-29", "rates": [10, 10, 10]}, {"name": "Miltank", "level": "29-29", "rates": [10, 10, 10]}, {"name": "Tauros", "level": "29-29", "rates": [10, 10, 10]}, {"name": "Pidgeotto", "level": "28-28", "rates": [10, 10, 0]}, {"name": "Rapidash", "level": "30-30", "rates": [5, 5, 5]}, {"name": "Noctowl", "level": "28-28", "rates": [0, 0, 10]}]},
+      {"area": "South", "method": "Pok\u00e9 Radar", "mons": [{"name": "Kecleon", "level": "29-30", "rates": [22]}]},
+      {"area": "South", "method": "Honey Tree (29)", "mons": [{"name": "Combee", "level": "", "rates": [30]}, {"name": "Pineco", "level": "", "rates": [20]}, {"name": "Silcoon", "level": "", "rates": [10]}, {"name": "Cascoon", "level": "", "rates": [10]}, {"name": "Wormadam", "level": "", "rates": [10]}, {"name": "Mothim", "level": "", "rates": [10]}, {"name": "Heracross", "level": "", "rates": [10]}]},
+      {"area": "North", "method": "Grass (34-38)", "mons": [{"name": "Swablu", "level": "34-34", "rates": [20, 20, 20]}, {"name": "Fearow", "level": "37-37", "rates": [20, 20, 20]}, {"name": "Machoke", "level": "36-36", "rates": [10, 10, 10]}, {"name": "Drifblim", "level": "38-38", "rates": [10, 10, 10]}, {"name": "Zangoose", "level": "38-38", "rates": [10, 10, 10]}, {"name": "Seviper", "level": "38-38", "rates": [10, 10, 10]}, {"name": "Skarmory", "level": "37-38", "rates": [10, 10, 10]}, {"name": "Shelgon", "level": "37-38", "rates": [10, 10, 10]}]},
+      {"area": "North", "method": "Pok\u00e9 Radar", "mons": [{"name": "Altaria", "level": "38-38", "rates": [22]}]},
+      {"area": "North", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30", "rates": [90]}, {"name": "Golduck", "level": "20-40", "rates": [10]}]},
+      {"area": "North", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [60]}, {"name": "Horsea", "level": "", "rates": [30]}, {"name": "Dratini", "level": "", "rates": [10]}]},
+      {"area": "North", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Horsea", "level": "", "rates": [40]}, {"name": "Dratini", "level": "", "rates": [20]}]},
+      {"area": "North", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Seadra", "level": "", "rates": [40]}, {"name": "Dragonair", "level": "", "rates": [20]}]},
+      {"area": "North", "method": "Honey Tree (37)", "mons": [{"name": "Staravia", "level": "", "rates": [30]}, {"name": "Pidgeotto", "level": "", "rates": [20]}, {"name": "Noctowl", "level": "", "rates": [20]}, {"name": "Swellow", "level": "", "rates": [20]}, {"name": "Farfetchd", "level": "", "rates": [10]}]}
     ],
     "Route 215": [
-      {"area": "", "method": "Grass (27-30)", "mons": [{"name": "Marill", "level": "27-28"}, {"name": "Drowzee", "level": "27-27"}, {"name": "Lickitung", "level": "28-30"}, {"name": "Kadabra", "level": "28-30"}, {"name": "Mightyena", "level": "29-29"}, {"name": "Linoone", "level": "29-29"}, {"name": "Hypno", "level": "30-30"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Absol", "level": "29-30"}]},
-      {"area": "", "method": "Honey Tree (28)", "mons": [{"name": "Aipom", "level": ""}, {"name": "Vigoroth", "level": ""}, {"name": "Metapod", "level": ""}, {"name": "Kakuna", "level": ""}, {"name": "Munchlax", "level": ""}]}
+      {"area": "", "method": "Grass (27-30)", "mons": [{"name": "Marill", "level": "27-28", "rates": [25, 25, 25]}, {"name": "Drowzee", "level": "27-27", "rates": [20, 20, 20]}, {"name": "Lickitung", "level": "28-30", "rates": [15, 15, 15]}, {"name": "Kadabra", "level": "28-30", "rates": [15, 15, 15]}, {"name": "Mightyena", "level": "29-29", "rates": [10, 10, 10]}, {"name": "Linoone", "level": "29-29", "rates": [10, 10, 10]}, {"name": "Hypno", "level": "30-30", "rates": [5, 5, 5]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Absol", "level": "29-30", "rates": [22]}]},
+      {"area": "", "method": "Honey Tree (28)", "mons": [{"name": "Aipom", "level": "", "rates": [30]}, {"name": "Vigoroth", "level": "", "rates": [20]}, {"name": "Metapod", "level": "", "rates": [20]}, {"name": "Kakuna", "level": "", "rates": [20]}, {"name": "Munchlax", "level": "", "rates": [10]}]}
     ],
     "Maniac Tunnel": [
-      {"area": "", "method": "Cave (28-32)", "mons": [{"name": "Diglett", "level": "28-29"}, {"name": "Whismur", "level": "28-28"}, {"name": "Hippopotas", "level": "29-30"}, {"name": "Trapinch", "level": "28-29"}, {"name": "Loudred", "level": "31-31"}, {"name": "Ditto", "level": "29-29"}, {"name": "Dugtrio", "level": "32-32"}]}
+      {"area": "", "method": "Cave (28-32)", "mons": [{"name": "Diglett", "level": "28-29", "rates": [25, 25, 25]}, {"name": "Whismur", "level": "28-28", "rates": [20, 20, 20]}, {"name": "Hippopotas", "level": "29-30", "rates": [15, 15, 15]}, {"name": "Trapinch", "level": "28-29", "rates": [15, 15, 15]}, {"name": "Loudred", "level": "31-31", "rates": [10, 10, 10]}, {"name": "Ditto", "level": "29-29", "rates": [10, 10, 10]}, {"name": "Dugtrio", "level": "32-32", "rates": [5, 5, 5]}]}
     ],
     "Route 214": [
-      {"area": "", "method": "Grass (28-32)", "mons": [{"name": "Graveler", "level": "30-32"}, {"name": "Houndour", "level": "28-28"}, {"name": "Rhyhorn", "level": "29-30"}, {"name": "Numel", "level": "28-29"}, {"name": "Spoink", "level": "28-28"}, {"name": "Cacnea", "level": "28-28"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Spinda", "level": "28-32"}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30"}, {"name": "Golduck", "level": "20-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Goldeen", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Seaking", "level": ""}]},
-      {"area": "", "method": "Honey Tree (30)", "mons": [{"name": "Aipom", "level": ""}, {"name": "Vigoroth", "level": ""}, {"name": "Butterfree", "level": ""}, {"name": "Beedrill", "level": ""}, {"name": "Munchlax", "level": ""}]}
+      {"area": "", "method": "Grass (28-32)", "mons": [{"name": "Graveler", "level": "30-32", "rates": [30, 30, 30]}, {"name": "Houndour", "level": "28-28", "rates": [20, 20, 20]}, {"name": "Rhyhorn", "level": "29-30", "rates": [15, 15, 15]}, {"name": "Numel", "level": "28-29", "rates": [15, 15, 15]}, {"name": "Spoink", "level": "28-28", "rates": [10, 10, 10]}, {"name": "Cacnea", "level": "28-28", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Spinda", "level": "28-32", "rates": [22]}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30", "rates": [90]}, {"name": "Golduck", "level": "20-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Goldeen", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Goldeen", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Seaking", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Honey Tree (30)", "mons": [{"name": "Aipom", "level": "", "rates": [30]}, {"name": "Vigoroth", "level": "", "rates": [20]}, {"name": "Butterfree", "level": "", "rates": [20]}, {"name": "Beedrill", "level": "", "rates": [20]}, {"name": "Munchlax", "level": "", "rates": [10]}]}
     ],
     "Valor Lakefront": [
-      {"area": "", "method": "Grass (31-33)", "mons": [{"name": "Girafarig", "level": "31-33"}, {"name": "Bibarel", "level": "33-33"}, {"name": "Nidorina", "level": "31-33"}, {"name": "Nidorino", "level": "31-33"}, {"name": "Kricketune", "level": "33-33"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Venomoth", "level": "33-33"}]}
+      {"area": "", "method": "Grass (31-33)", "mons": [{"name": "Girafarig", "level": "31-33", "rates": [30, 30, 30]}, {"name": "Bibarel", "level": "33-33", "rates": [20, 20, 20]}, {"name": "Nidorina", "level": "31-33", "rates": [20, 20, 20]}, {"name": "Nidorino", "level": "31-33", "rates": [20, 20, 20]}, {"name": "Kricketune", "level": "33-33", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Venomoth", "level": "33-33", "rates": [22]}]}
     ],
     "Lake Valor": [
-      {"area": "", "method": "Grass (53-54)", "mons": [{"name": "Staravia", "level": "53-54"}, {"name": "Bibarel", "level": "53-54"}, {"name": "Masquerain", "level": "53-54"}, {"name": "Lickitung", "level": "53-53"}, {"name": "Golduck", "level": "54-54"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Wobbuffet", "level": "53-54"}]},
-      {"area": "", "method": "Surf (35-55)", "mons": [{"name": "Surskit", "level": "35-45"}, {"name": "Masquerain", "level": "45-55"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Gyarados", "level": ""}]}
+      {"area": "", "method": "Grass (53-54)", "mons": [{"name": "Staravia", "level": "53-54", "rates": [30, 30, 30]}, {"name": "Bibarel", "level": "53-54", "rates": [30, 30, 30]}, {"name": "Masquerain", "level": "53-54", "rates": [20, 20, 20]}, {"name": "Lickitung", "level": "53-53", "rates": [10, 10, 10]}, {"name": "Golduck", "level": "54-54", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Wobbuffet", "level": "53-54", "rates": [22]}]},
+      {"area": "", "method": "Surf (35-55)", "mons": [{"name": "Surskit", "level": "35-45", "rates": [90]}, {"name": "Masquerain", "level": "45-55", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [100]}]}
     ],
     "Route 213": [
-      {"area": "", "method": "Grass (32-34)", "mons": [{"name": "Gastrodon", "level": "32-34"}, {"name": "Floatzel", "level": "33-33"}, {"name": "Pelipper", "level": "33-33"}, {"name": "Swellow", "level": "32-34"}, {"name": "Chatot", "level": "32-32"}, {"name": "Shuckle", "level": "32-32"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Absol", "level": "32-34"}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Tentacool", "level": "20-30"}, {"name": "Wingull", "level": "20-30"}, {"name": "Tentacruel", "level": "20-40"}, {"name": "Pelipper", "level": "20-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Remoraid", "level": ""}, {"name": "Wailmer", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Octillery", "level": ""}, {"name": "Wailord", "level": ""}]},
-      {"area": "", "method": "Honey Tree (33)", "mons": [{"name": "Staravia", "level": ""}, {"name": "Pidgeotto", "level": ""}, {"name": "Noctowl", "level": ""}, {"name": "Swellow", "level": ""}, {"name": "Farfetchd", "level": ""}]},
+      {"area": "", "method": "Grass (32-34)", "mons": [{"name": "Gastrodon", "level": "32-34", "rates": [25, 25, 35]}, {"name": "Floatzel", "level": "33-33", "rates": [20, 20, 20]}, {"name": "Pelipper", "level": "33-33", "rates": [20, 20, 20]}, {"name": "Swellow", "level": "32-34", "rates": [20, 20, 20]}, {"name": "Chatot", "level": "32-32", "rates": [10, 10, 0]}, {"name": "Shuckle", "level": "32-32", "rates": [5, 5, 5]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Absol", "level": "32-34", "rates": [22]}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Tentacool", "level": "20-30", "rates": [60]}, {"name": "Wingull", "level": "20-30", "rates": [30]}, {"name": "Tentacruel", "level": "20-40", "rates": [5]}, {"name": "Pelipper", "level": "20-40", "rates": [5]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Remoraid", "level": "", "rates": [30]}, {"name": "Wailmer", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Remoraid", "level": "", "rates": [30]}, {"name": "Wailmer", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Octillery", "level": "", "rates": [30]}, {"name": "Wailord", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Honey Tree (33)", "mons": [{"name": "Staravia", "level": "", "rates": [30]}, {"name": "Pidgeotto", "level": "", "rates": [20]}, {"name": "Noctowl", "level": "", "rates": [20]}, {"name": "Swellow", "level": "", "rates": [20]}, {"name": "Farfetchd", "level": "", "rates": [10]}]},
       {"area": "", "method": "Static Encounter (After Distortion World)", "mons": [{"name": "Suicune", "level": "60"}]}
     ],
     "Pastoria City": [
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Tentacool", "level": "20-30"}, {"name": "Shellos", "level": "20-30"}, {"name": "Tentacruel", "level": "20-40"}, {"name": "Gastrodon", "level": "20-40"}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Tentacool", "level": "20-30", "rates": [60]}, {"name": "Shellos", "level": "20-30", "rates": [30]}, {"name": "Tentacruel", "level": "20-40", "rates": [5]}, {"name": "Gastrodon", "level": "20-40", "rates": [5]}]},
       {"area": "", "method": "Gift from an Old Lady who tells you a story", "mons": [{"name": "Lapras", "level": "35"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Poliwag", "level": ""}, {"name": "Carvanha", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Poliwhirl", "level": ""}, {"name": "Sharpedo", "level": ""}]}
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Poliwag", "level": "", "rates": [30]}, {"name": "Carvanha", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Poliwag", "level": "", "rates": [30]}, {"name": "Carvanha", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Poliwhirl", "level": "", "rates": [30]}, {"name": "Sharpedo", "level": "", "rates": [30]}]}
     ],
     "Great Marsh": [
-      {"area": "Areas 1 and 2", "method": "Grass (33-36)", "mons": [{"name": "Bibarel", "level": "34-36"}, {"name": "Quagsire", "level": "34-34"}, {"name": "Tropius", "level": "35-36"}, {"name": "Tangela", "level": "33-35"}, {"name": "Carnivine", "level": "34-34"}]},
-      {"area": "Areas 3 and 4", "method": "Grass (33-36)", "mons": [{"name": "Parasect", "level": "34-36"}, {"name": "Exeggcute", "level": "33-33"}, {"name": "Croagunk", "level": "33-34"}, {"name": "Toxicroak", "level": "36-36"}, {"name": "Kangaskhan", "level": "35-36"}, {"name": "Yanma", "level": "34-36"}]},
-      {"area": "Areas 5 and 6", "method": "Grass (33-36)", "mons": [{"name": "Skorupi", "level": "33-34"}, {"name": "Gulpin", "level": "33-33"}, {"name": "Shroomish", "level": "33-34"}, {"name": "Swalot", "level": "35-36"}, {"name": "Breloom", "level": "35-36"}, {"name": "Drapion", "level": "36-36"}]},
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Wooper", "level": "20-30"}, {"name": "Quagsire", "level": "20-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Barboach", "level": ""}, {"name": "Carvanha", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Whiscash", "level": ""}, {"name": "Sharpedo", "level": ""}]},
-      {"area": "", "method": "Changing Pokemon", "mons": [{"name": "Skorupi", "level": ""}, {"name": "Croagunk", "level": ""}, {"name": "Carnivine", "level": ""}, {"name": "Paras", "level": ""}, {"name": "Exeggcute", "level": ""}, {"name": "Kangaskhan", "level": ""}, {"name": "Quagsire", "level": ""}, {"name": "Shroomish", "level": ""}, {"name": "Gulpin", "level": ""}, {"name": "Kecleon", "level": ""}, {"name": "Drapion", "level": ""}, {"name": "Tangela", "level": ""}, {"name": "Yanma", "level": ""}, {"name": "Tropius", "level": ""}, {"name": "Toxicroak", "level": ""}]}
+      {"area": "Areas 1 and 2", "method": "Grass (33-36)", "mons": [{"name": "Bibarel", "level": "34-36", "rates": [30, 30, 30]}, {"name": "Quagsire", "level": "34-34", "rates": [20, 20, 20]}, {"name": "Tropius", "level": "35-36", "rates": [20, 20, 20]}, {"name": "Tangela", "level": "33-35", "rates": [20, 20, 20]}, {"name": "Carnivine", "level": "34-34", "rates": [10, 10, 10]}]},
+      {"area": "Areas 3 and 4", "method": "Grass (33-36)", "mons": [{"name": "Parasect", "level": "34-36", "rates": [30, 30, 30]}, {"name": "Exeggcute", "level": "33-33", "rates": [20, 20, 20]}, {"name": "Croagunk", "level": "33-34", "rates": [20, 20, 20]}, {"name": "Toxicroak", "level": "36-36", "rates": [10, 10, 10]}, {"name": "Kangaskhan", "level": "35-36", "rates": [10, 10, 10]}, {"name": "Yanma", "level": "34-36", "rates": [10, 10, 10]}]},
+      {"area": "Areas 5 and 6", "method": "Grass (33-36)", "mons": [{"name": "Skorupi", "level": "33-34", "rates": [30, 30, 30]}, {"name": "Gulpin", "level": "33-33", "rates": [20, 20, 20]}, {"name": "Shroomish", "level": "33-34", "rates": [20, 20, 20]}, {"name": "Swalot", "level": "35-36", "rates": [10, 10, 10]}, {"name": "Breloom", "level": "35-36", "rates": [10, 10, 10]}, {"name": "Drapion", "level": "36-36", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Wooper", "level": "20-30", "rates": [90]}, {"name": "Quagsire", "level": "20-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Barboach", "level": "", "rates": [30]}, {"name": "Carvanha", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Barboach", "level": "", "rates": [30]}, {"name": "Carvanha", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Whiscash", "level": "", "rates": [30]}, {"name": "Sharpedo", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Changing Pokemon", "mons": [{"name": "Skorupi", "level": "", "rates": [16]}, {"name": "Croagunk", "level": "", "rates": [12]}, {"name": "Carnivine", "level": "", "rates": [9]}, {"name": "Paras", "level": "", "rates": [6]}, {"name": "Exeggcute", "level": "", "rates": [6]}, {"name": "Kangaskhan", "level": "", "rates": [6]}, {"name": "Quagsire", "level": "", "rates": [6]}, {"name": "Shroomish", "level": "", "rates": [6]}, {"name": "Gulpin", "level": "", "rates": [6]}, {"name": "Kecleon", "level": "", "rates": [6]}, {"name": "Drapion", "level": "", "rates": [6]}, {"name": "Tangela", "level": "", "rates": [3]}, {"name": "Yanma", "level": "", "rates": [3]}, {"name": "Tropius", "level": "", "rates": [3]}, {"name": "Toxicroak", "level": "", "rates": [3]}]}
     ],
     "Celestic Town": [
-      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30"}, {"name": "Golduck", "level": "20-40"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Relicanth", "level": ""}, {"name": "Gyarados", "level": ""}]}
+      {"area": "", "method": "Surf (20-40)", "mons": [{"name": "Psyduck", "level": "20-30", "rates": [90]}, {"name": "Golduck", "level": "20-40", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [90]}, {"name": "Relicanth", "level": "", "rates": [10]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [80]}, {"name": "Relicanth", "level": "", "rates": [20]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Relicanth", "level": "", "rates": [20]}, {"name": "Gyarados", "level": "", "rates": [80]}]}
     ],
     "Fuego Ironworks": [
-      {"area": "", "method": "Grass (36-40)", "mons": [{"name": "Magnemite", "level": "36-37"}, {"name": "Magmar", "level": "38-39"}, {"name": "Magneton", "level": "40-40"}, {"name": "Manectric", "level": "39-40"}, {"name": "Forretress", "level": "40-40"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Weezing", "level": "37-39"}]},
-      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Tentacool", "level": "30-40"}, {"name": "Shellos", "level": "30-40"}, {"name": "Tentacruel", "level": "35-45"}, {"name": "Gastrodon", "level": "35-45"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Finneon", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Lumineon", "level": ""}, {"name": "Shellder", "level": ""}]},
-      {"area": "", "method": "Honey Tree (40)", "mons": [{"name": "Combee", "level": ""}, {"name": "Forretress", "level": ""}, {"name": "Wormadam", "level": ""}, {"name": "Mothim", "level": ""}, {"name": "Beautifly", "level": ""}, {"name": "Dustox", "level": ""}, {"name": "Heracross", "level": ""}, {"name": "Vespiquen", "level": ""}]}
+      {"area": "", "method": "Grass (36-40)", "mons": [{"name": "Magnemite", "level": "36-37", "rates": [30, 30, 30]}, {"name": "Magmar", "level": "38-39", "rates": [20, 20, 20]}, {"name": "Magneton", "level": "40-40", "rates": [20, 20, 20]}, {"name": "Manectric", "level": "39-40", "rates": [15, 15, 15]}, {"name": "Forretress", "level": "40-40", "rates": [15, 15, 15]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Weezing", "level": "37-39", "rates": [22]}]},
+      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Tentacool", "level": "30-40", "rates": [60]}, {"name": "Shellos", "level": "30-40", "rates": [30]}, {"name": "Tentacruel", "level": "35-45", "rates": [9]}, {"name": "Gastrodon", "level": "35-45", "rates": [1]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Finneon", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Lumineon", "level": "", "rates": [45]}, {"name": "Shellder", "level": "", "rates": [15]}]},
+      {"area": "", "method": "Honey Tree (40)", "mons": [{"name": "Combee", "level": "", "rates": [30]}, {"name": "Forretress", "level": "", "rates": [10]}, {"name": "Wormadam", "level": "", "rates": [10]}, {"name": "Mothim", "level": "", "rates": [10]}, {"name": "Beautifly", "level": "", "rates": [10]}, {"name": "Dustox", "level": "", "rates": [10]}, {"name": "Heracross", "level": "", "rates": [10]}, {"name": "Vespiquen", "level": "", "rates": [10]}]}
     ],
     "Route 220": [
-      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Wingull", "level": "30-40"}, {"name": "Mantyke", "level": "30-40"}, {"name": "Pelipper", "level": "35-45"}, {"name": "Mantine", "level": "35-45"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Luvdisc", "level": ""}, {"name": "Horsea", "level": ""}, {"name": "Corsola", "level": ""}, {"name": "Seadra", "level": ""}]},
+      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Wingull", "level": "30-40", "rates": [60]}, {"name": "Mantyke", "level": "30-40", "rates": [30]}, {"name": "Pelipper", "level": "35-45", "rates": [5]}, {"name": "Mantine", "level": "35-45", "rates": [5]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Luvdisc", "level": "", "rates": [60]}, {"name": "Horsea", "level": "", "rates": [30]}, {"name": "Corsola", "level": "", "rates": [10]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Luvdisc", "level": "", "rates": [40]}, {"name": "Horsea", "level": "", "rates": [40]}, {"name": "Corsola", "level": "", "rates": [20]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Luvdisc", "level": "", "rates": [40]}, {"name": "Corsola", "level": "", "rates": [20]}, {"name": "Seadra", "level": "", "rates": [40]}]},
       {"area": "", "method": "Static Encounter", "mons": [{"name": "Lugia", "level": "70"}]}
     ],
     "Route 221": [
-      {"area": "", "method": "Grass (38-40)", "mons": [{"name": "Sudowoodo", "level": "39-39"}, {"name": "Skuntank", "level": "40-40"}, {"name": "Nidorina", "level": "37-39"}, {"name": "Nidorino", "level": "38-38"}, {"name": "Farfetchd", "level": "38-40"}, {"name": "Girafarig", "level": "39-39"}, {"name": "Dodrio", "level": "40-40"}]},
-      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Wingull", "level": "30-40"}, {"name": "Tentacool", "level": "30-40"}, {"name": "Pelipper", "level": "35-45"}, {"name": "Tentacruel", "level": "35-45"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Krabby", "level": ""}, {"name": "Horsea", "level": ""}, {"name": "Clamperl", "level": ""}, {"name": "Kingler", "level": ""}, {"name": "Seadra", "level": ""}, {"name": "Huntail", "level": ""}, {"name": "Gorebyss", "level": ""}]},
-      {"area": "", "method": "Honey Tree (39)", "mons": [{"name": "Cherrim", "level": ""}, {"name": "Shroomish", "level": ""}, {"name": "Exeggcute", "level": ""}, {"name": "Nuzleaf", "level": ""}, {"name": "Tangela", "level": ""}]}
+      {"area": "", "method": "Grass (38-40)", "mons": [{"name": "Sudowoodo", "level": "39-39", "rates": [20, 20, 20]}, {"name": "Skuntank", "level": "40-40", "rates": [20, 20, 20]}, {"name": "Nidorina", "level": "37-39", "rates": [15, 15, 15]}, {"name": "Nidorino", "level": "38-38", "rates": [15, 15, 15]}, {"name": "Farfetchd", "level": "38-40", "rates": [10, 10, 10]}, {"name": "Girafarig", "level": "39-39", "rates": [10, 10, 10]}, {"name": "Dodrio", "level": "40-40", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Wingull", "level": "30-40", "rates": [60]}, {"name": "Tentacool", "level": "30-40", "rates": [30]}, {"name": "Pelipper", "level": "35-45", "rates": [5]}, {"name": "Tentacruel", "level": "35-45", "rates": [5]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Krabby", "level": "", "rates": [60]}, {"name": "Horsea", "level": "", "rates": [30]}, {"name": "Clamperl", "level": "", "rates": [10]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Krabby", "level": "", "rates": [40]}, {"name": "Horsea", "level": "", "rates": [40]}, {"name": "Clamperl", "level": "", "rates": [20]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Kingler", "level": "", "rates": [40]}, {"name": "Seadra", "level": "", "rates": [40]}, {"name": "Huntail", "level": "", "rates": [15]}, {"name": "Gorebyss", "level": "", "rates": [5]}]},
+      {"area": "", "method": "Honey Tree (39)", "mons": [{"name": "Cherrim", "level": "", "rates": [30]}, {"name": "Shroomish", "level": "", "rates": [20]}, {"name": "Exeggcute", "level": "", "rates": [20]}, {"name": "Nuzleaf", "level": "", "rates": [20]}, {"name": "Tangela", "level": "", "rates": [10]}]}
     ],
     "Iron Island": [
-      {"area": "1F, B1F", "method": "Cave (41-43)", "mons": [{"name": "Graveler", "level": "41-42"}, {"name": "Golbat", "level": "42-42"}, {"name": "Lairon", "level": "41-42"}, {"name": "Mawile", "level": "42-42"}, {"name": "Sableye", "level": "42-42"}, {"name": "Nosepass", "level": "42-42"}, {"name": "Rhydon", "level": "43-43"}, {"name": "Steelix", "level": "43-43"}]},
-      {"area": "B2F, B3F", "method": "Cave (43-45)", "mons": [{"name": "Graveler", "level": "43-44"}, {"name": "Golbat", "level": "44-44"}, {"name": "Lairon", "level": "43-44"}, {"name": "Mawile", "level": "44-44"}, {"name": "Sableye", "level": "44-44"}, {"name": "Nosepass", "level": "44-44"}, {"name": "Rhydon", "level": "45-45"}, {"name": "Steelix", "level": "45-45"}]},
-      {"area": "Outside", "method": "Surf (20-45)", "mons": [{"name": "Wingull", "level": "30-40"}, {"name": "Tentacool", "level": "30-40"}, {"name": "Pelipper", "level": "35-45"}, {"name": "Tentacruel", "level": "35-45"}]},
-      {"area": "Outside", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Finneon", "level": ""}, {"name": "Qwilfish", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Lumineon", "level": ""}]}
+      {"area": "1F, B1F", "method": "Cave (41-43)", "mons": [{"name": "Graveler", "level": "41-42", "rates": [25, 25, 25]}, {"name": "Golbat", "level": "42-42", "rates": [20, 20, 20]}, {"name": "Lairon", "level": "41-42", "rates": [15, 15, 15]}, {"name": "Mawile", "level": "42-42", "rates": [10, 10, 10]}, {"name": "Sableye", "level": "42-42", "rates": [10, 10, 10]}, {"name": "Nosepass", "level": "42-42", "rates": [10, 10, 10]}, {"name": "Rhydon", "level": "43-43", "rates": [5, 5, 5]}, {"name": "Steelix", "level": "43-43", "rates": [5, 5, 5]}]},
+      {"area": "B2F, B3F", "method": "Cave (43-45)", "mons": [{"name": "Graveler", "level": "43-44", "rates": [25, 25, 25]}, {"name": "Golbat", "level": "44-44", "rates": [20, 20, 20]}, {"name": "Lairon", "level": "43-44", "rates": [15, 15, 15]}, {"name": "Mawile", "level": "44-44", "rates": [10, 10, 10]}, {"name": "Sableye", "level": "44-44", "rates": [10, 10, 10]}, {"name": "Nosepass", "level": "44-44", "rates": [10, 10, 10]}, {"name": "Rhydon", "level": "45-45", "rates": [5, 5, 5]}, {"name": "Steelix", "level": "45-45", "rates": [5, 5, 5]}]},
+      {"area": "Outside", "method": "Surf (20-45)", "mons": [{"name": "Wingull", "level": "30-40", "rates": [60]}, {"name": "Tentacool", "level": "30-40", "rates": [30]}, {"name": "Pelipper", "level": "35-45", "rates": [5]}, {"name": "Tentacruel", "level": "35-45", "rates": [5]}]},
+      {"area": "Outside", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Finneon", "level": "", "rates": [30]}, {"name": "Qwilfish", "level": "", "rates": [30]}]},
+      {"area": "Outside", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Finneon", "level": "", "rates": [30]}, {"name": "Qwilfish", "level": "", "rates": [30]}]},
+      {"area": "Outside", "method": "Super Rod (50)", "mons": [{"name": "Qwilfish", "level": "", "rates": [30]}, {"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Lumineon", "level": "", "rates": [30]}]}
     ],
     "Canalave City": [
-      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Tentacool", "level": "30-40"}, {"name": "Shellos", "level": "30-40"}, {"name": "Tentacruel", "level": "35-45"}, {"name": "Gastrodon", "level": "35-45"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Finneon", "level": ""}, {"name": "Staryu", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Lumineon", "level": ""}, {"name": "Starmie", "level": ""}]}
+      {"area": "", "method": "Surf (30-45)", "mons": [{"name": "Tentacool", "level": "30-40", "rates": [60]}, {"name": "Shellos", "level": "30-40", "rates": [30]}, {"name": "Tentacruel", "level": "35-45", "rates": [5]}, {"name": "Gastrodon", "level": "35-45", "rates": [5]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Finneon", "level": "", "rates": [30]}, {"name": "Staryu", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Finneon", "level": "", "rates": [30]}, {"name": "Staryu", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Lumineon", "level": "", "rates": [30]}, {"name": "Starmie", "level": "", "rates": [30]}]}
     ],
     "Route 217": [
-      {"area": "", "method": "Grass (44-48)", "mons": [{"name": "Piloswine", "level": "46-48"}, {"name": "Snorunt", "level": "44-44"}, {"name": "Sneasel", "level": "46-48"}, {"name": "Jynx", "level": "47-47"}, {"name": "Abomasnow", "level": "48-48"}, {"name": "Glalie", "level": "47-47"}, {"name": "Delibird", "level": "47-47"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Froslass", "level": "47-48"}]}
+      {"area": "", "method": "Grass (44-48)", "mons": [{"name": "Piloswine", "level": "46-48", "rates": [30, 30, 30]}, {"name": "Snorunt", "level": "44-44", "rates": [20, 20, 20]}, {"name": "Sneasel", "level": "46-48", "rates": [10, 10, 10]}, {"name": "Jynx", "level": "47-47", "rates": [10, 10, 10]}, {"name": "Abomasnow", "level": "48-48", "rates": [10, 10, 10]}, {"name": "Glalie", "level": "47-47", "rates": [10, 10, 10]}, {"name": "Delibird", "level": "47-47", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Froslass", "level": "47-48", "rates": [22]}]}
     ],
     "Acuity Lakefront": [
-      {"area": "", "method": "Grass (45-49)", "mons": [{"name": "Piloswine", "level": "47-49"}, {"name": "Snorunt", "level": "45-45"}, {"name": "Sneasel", "level": "47-49"}, {"name": "Jynx", "level": "48-48"}, {"name": "Abomasnow", "level": "49-49"}, {"name": "Glalie", "level": "48-48"}, {"name": "Delibird", "level": "48-48"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Froslass", "level": "48-49"}]}
+      {"area": "", "method": "Grass (45-49)", "mons": [{"name": "Piloswine", "level": "47-49", "rates": [30, 30, 30]}, {"name": "Snorunt", "level": "45-45", "rates": [20, 20, 20]}, {"name": "Sneasel", "level": "47-49", "rates": [10, 10, 10]}, {"name": "Jynx", "level": "48-48", "rates": [10, 10, 10]}, {"name": "Abomasnow", "level": "49-49", "rates": [10, 10, 10]}, {"name": "Glalie", "level": "48-48", "rates": [10, 10, 10]}, {"name": "Delibird", "level": "48-48", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Froslass", "level": "48-49", "rates": [22]}]}
     ],
     "Lake Acuity": [
-      {"area": "", "method": "Grass (49-51)", "mons": [{"name": "Sneasel", "level": "49-50"}, {"name": "Abomasnow", "level": "49-51"}, {"name": "Piloswine", "level": "49-50"}, {"name": "Jynx", "level": "49-51"}, {"name": "Glalie", "level": "50-50"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Wobbuffet", "level": "50-50"}]},
-      {"area": "", "method": "Surf (45-50)", "mons": [{"name": "Sealeo", "level": "45-50"}, {"name": "Dewgong", "level": "45-50"}, {"name": "Lapras", "level": "45-50"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Gyarados", "level": ""}]}
+      {"area": "", "method": "Grass (49-51)", "mons": [{"name": "Sneasel", "level": "49-50", "rates": [30, 30, 30]}, {"name": "Abomasnow", "level": "49-51", "rates": [25, 25, 25]}, {"name": "Piloswine", "level": "49-50", "rates": [20, 20, 20]}, {"name": "Jynx", "level": "49-51", "rates": [15, 15, 15]}, {"name": "Glalie", "level": "50-50", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Wobbuffet", "level": "50-50", "rates": [22]}]},
+      {"area": "", "method": "Surf (45-50)", "mons": [{"name": "Sealeo", "level": "45-50", "rates": [60]}, {"name": "Dewgong", "level": "45-50", "rates": [35]}, {"name": "Lapras", "level": "45-50", "rates": [5]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [100]}]}
     ],
     "Snowpoint Temple": [
-      {"area": "1F,B1F,B2F,B3F", "method": "Ground (47-50)", "mons": [{"name": "Golbat", "level": "48-49"}, {"name": "Graveler", "level": "48-48"}, {"name": "Sneasel", "level": "47-48"}, {"name": "Steelix", "level": "50-50"}, {"name": "Jynx", "level": "49-49"}, {"name": "Glalie", "level": "49-49"}, {"name": "Froslass", "level": "49-49"}, {"name": "Weavile", "level": "50-50"}]},
-      {"area": "B4F, B5F", "method": "Ground (47-50)", "mons": [{"name": "Golbat", "level": "48-50"}, {"name": "Graveler", "level": "48-48"}, {"name": "Sneasel", "level": "47-48"}, {"name": "Steelix", "level": "50-50"}, {"name": "Jynx", "level": "50-50"}, {"name": "Glalie", "level": "50-50"}, {"name": "Froslass", "level": "50-50"}, {"name": "Weavile", "level": "50-50"}]},
+      {"area": "1F,B1F,B2F,B3F", "method": "Ground (47-50)", "mons": [{"name": "Golbat", "level": "48-49", "rates": [25, 25, 25]}, {"name": "Graveler", "level": "48-48", "rates": [20, 20, 20]}, {"name": "Sneasel", "level": "47-48", "rates": [20, 20, 20]}, {"name": "Steelix", "level": "50-50", "rates": [10, 10, 10]}, {"name": "Jynx", "level": "49-49", "rates": [10, 10, 10]}, {"name": "Glalie", "level": "49-49", "rates": [5, 5, 5]}, {"name": "Froslass", "level": "49-49", "rates": [5, 5, 5]}, {"name": "Weavile", "level": "50-50", "rates": [5, 5, 5]}]},
+      {"area": "B4F, B5F", "method": "Ground (47-50)", "mons": [{"name": "Golbat", "level": "48-50", "rates": [25, 25, 25]}, {"name": "Graveler", "level": "48-48", "rates": [20, 20, 20]}, {"name": "Sneasel", "level": "47-48", "rates": [20, 20, 20]}, {"name": "Steelix", "level": "50-50", "rates": [10, 10, 10]}, {"name": "Jynx", "level": "50-50", "rates": [10, 10, 10]}, {"name": "Glalie", "level": "50-50", "rates": [5, 5, 5]}, {"name": "Froslass", "level": "50-50", "rates": [5, 5, 5]}, {"name": "Weavile", "level": "50-50", "rates": [5, 5, 5]}]},
       {"area": "B4F, B5F", "method": "Static Encounter (After Credits)", "mons": [{"name": "Regigigas", "level": "70"}]}
     ],
     "Distortion World": [
       {"area": "", "method": "Static Encounter", "mons": [{"name": "Giratina", "level": ""}]}
     ],
     "Sendoff Spring": [
-      {"area": "", "method": "Grass (53-54)", "mons": [{"name": "Staravia", "level": "53-53"}, {"name": "Bibarel", "level": "54-54"}, {"name": "Chimecho", "level": "53-54"}, {"name": "Solrock", "level": "54-54"}, {"name": "Lunatone", "level": "54-54"}, {"name": "Dusclops", "level": "54-54"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Wobbuffet", "level": "54-54"}]},
-      {"area": "", "method": "Surf (45-55)", "mons": [{"name": "Golduck", "level": "45-55"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Gyarados", "level": ""}]}
+      {"area": "", "method": "Grass (53-54)", "mons": [{"name": "Staravia", "level": "53-53", "rates": [30, 30, 30]}, {"name": "Bibarel", "level": "54-54", "rates": [20, 20, 20]}, {"name": "Chimecho", "level": "53-54", "rates": [20, 20, 20]}, {"name": "Solrock", "level": "54-54", "rates": [10, 10, 10]}, {"name": "Lunatone", "level": "54-54", "rates": [10, 10, 10]}, {"name": "Dusclops", "level": "54-54", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Wobbuffet", "level": "54-54", "rates": [22]}]},
+      {"area": "", "method": "Surf (45-55)", "mons": [{"name": "Golduck", "level": "45-55", "rates": [100]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [100]}]}
     ],
     "Turnback Cave": [
-      {"area": "", "method": "Cave (65-66)", "mons": [{"name": "Golbat", "level": "65-65"}, {"name": "Haunter", "level": "65-65"}, {"name": "Dusclops", "level": "65-65"}, {"name": "Banette", "level": "65-65"}, {"name": "Bronzong", "level": "66-66"}, {"name": "Chimecho", "level": "65-65"}, {"name": "Lunatone", "level": "65-66"}, {"name": "Solrock", "level": "65-66"}]},
+      {"area": "", "method": "Cave (65-66)", "mons": [{"name": "Golbat", "level": "65-65", "rates": [20, 20, 20]}, {"name": "Haunter", "level": "65-65", "rates": [20, 20, 20]}, {"name": "Dusclops", "level": "65-65", "rates": [10, 10, 10]}, {"name": "Banette", "level": "65-65", "rates": [10, 10, 10]}, {"name": "Bronzong", "level": "66-66", "rates": [10, 10, 10]}, {"name": "Chimecho", "level": "65-65", "rates": [10, 10, 10]}, {"name": "Lunatone", "level": "65-66", "rates": [10, 10, 10]}, {"name": "Solrock", "level": "65-66", "rates": [10, 10, 10]}]},
       {"area": "", "method": "Static Encounter", "mons": [{"name": "Giratina", "level": "70"}]}
     ],
     "Route 222": [
-      {"area": "", "method": "Grass (53-54)", "mons": [{"name": "Electabuzz", "level": "53-53"}, {"name": "Floatzel", "level": "54-54"}, {"name": "Luxio", "level": "53-53"}, {"name": "Purugly", "level": "53-54"}, {"name": "Pelipper", "level": "54-54"}, {"name": "Flaaffy", "level": "53-53"}, {"name": "Mr_mime", "level": "53-54"}, {"name": "Chatot", "level": "53-53"}]},
-      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Delcatty", "level": "53-54"}]},
-      {"area": "", "method": "Surf (35-55)", "mons": [{"name": "Tentacool", "level": "35-45"}, {"name": "Wingull", "level": "35-45"}, {"name": "Tentacruel", "level": "45-55"}, {"name": "Pelipper", "level": "45-55"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Remoraid", "level": ""}, {"name": "Wailmer", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Octillery", "level": ""}, {"name": "Wailord", "level": ""}]},
-      {"area": "", "method": "Honey Tree (54)", "mons": [{"name": "Tangela", "level": ""}, {"name": "Heracross", "level": ""}, {"name": "Farfetchd", "level": ""}, {"name": "Snorlax", "level": ""}]}
+      {"area": "", "method": "Grass (53-54)", "mons": [{"name": "Electabuzz", "level": "53-53", "rates": [20, 20, 20]}, {"name": "Floatzel", "level": "54-54", "rates": [20, 20, 20]}, {"name": "Luxio", "level": "53-53", "rates": [10, 10, 20]}, {"name": "Purugly", "level": "53-54", "rates": [10, 10, 10]}, {"name": "Pelipper", "level": "54-54", "rates": [10, 10, 10]}, {"name": "Flaaffy", "level": "53-53", "rates": [10, 10, 10]}, {"name": "Mr_mime", "level": "53-54", "rates": [10, 10, 10]}, {"name": "Chatot", "level": "53-53", "rates": [10, 10, 0]}]},
+      {"area": "", "method": "Pok\u00e9 Radar", "mons": [{"name": "Delcatty", "level": "53-54", "rates": [22]}]},
+      {"area": "", "method": "Surf (35-55)", "mons": [{"name": "Tentacool", "level": "35-45", "rates": [60]}, {"name": "Wingull", "level": "35-45", "rates": [30]}, {"name": "Tentacruel", "level": "45-55", "rates": [5]}, {"name": "Pelipper", "level": "45-55", "rates": [5]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Remoraid", "level": "", "rates": [30]}, {"name": "Wailmer", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Remoraid", "level": "", "rates": [30]}, {"name": "Wailmer", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Wailmer", "level": "", "rates": [30]}, {"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Octillery", "level": "", "rates": [15]}, {"name": "Wailord", "level": "", "rates": [15]}]},
+      {"area": "", "method": "Honey Tree (54)", "mons": [{"name": "Tangela", "level": "", "rates": [30]}, {"name": "Heracross", "level": "", "rates": [30]}, {"name": "Farfetchd", "level": "", "rates": [30]}, {"name": "Snorlax", "level": "", "rates": [10]}]}
     ],
     "Sunyshore City": [
-      {"area": "", "method": "Surf (50-60)", "mons": [{"name": "Tentacruel", "level": "50-60"}, {"name": "Pelipper", "level": "50-60"}, {"name": "Mantine", "level": "50-60"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Krabby", "level": ""}, {"name": "Staryu", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Kingler", "level": ""}, {"name": "Starmie", "level": ""}]}
+      {"area": "", "method": "Surf (50-60)", "mons": [{"name": "Tentacruel", "level": "50-60", "rates": [60]}, {"name": "Pelipper", "level": "50-60", "rates": [30]}, {"name": "Mantine", "level": "50-60", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Krabby", "level": "", "rates": [30]}, {"name": "Staryu", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Krabby", "level": "", "rates": [30]}, {"name": "Staryu", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Kingler", "level": "", "rates": [30]}, {"name": "Starmie", "level": "", "rates": [30]}]}
     ],
     "Victory Road": [
-      {"area": "1Fa", "method": "Cave (59)", "mons": [{"name": "Machoke", "level": "59-59"}, {"name": "Golbat", "level": "59-59"}, {"name": "Graveler", "level": "59-59"}, {"name": "Medicham", "level": "59-59"}, {"name": "Hariyama", "level": "59-59"}, {"name": "Gabite", "level": "59-59"}, {"name": "Rhydon", "level": "59-59"}, {"name": "Steelix", "level": "59-59"}]},
-      {"area": "2F", "method": "Cave (59)", "mons": [{"name": "Steelix", "level": "59-59"}, {"name": "Magneton", "level": "59-59"}, {"name": "Graveler", "level": "59-59"}, {"name": "Kadabra", "level": "59-59"}, {"name": "Lickitung", "level": "59-59"}, {"name": "Golbat", "level": "59-59"}, {"name": "Marowak", "level": "59-59"}, {"name": "Gabite", "level": "59-59"}]},
+      {"area": "1Fa", "method": "Cave (59)", "mons": [{"name": "Machoke", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Golbat", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Graveler", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Medicham", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Hariyama", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Gabite", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Rhydon", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Steelix", "level": "59-59", "rates": [10, 10, 10]}]},
+      {"area": "2F", "method": "Cave (59)", "mons": [{"name": "Steelix", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Magneton", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Graveler", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Kadabra", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Lickitung", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Golbat", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Marowak", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Gabite", "level": "59-59", "rates": [10, 10, 10]}]},
       {"area": "1Fa", "method": "Static Encounter", "mons": [{"name": "Moltres", "level": "60"}]},
-      {"area": "B1F", "method": "Cave (59)", "mons": [{"name": "Azumarill", "level": "59-59"}, {"name": "Floatzel", "level": "59-59"}, {"name": "Graveler", "level": "59-59"}, {"name": "Mawile", "level": "59-59"}, {"name": "Sableye", "level": "59-59"}, {"name": "Dewgong", "level": "59-59"}, {"name": "Golbat", "level": "59-59"}, {"name": "Gabite", "level": "59-59"}]},
-      {"area": "B1F", "method": "Surf (50-60)", "mons": [{"name": "Floatzel", "level": "50-60"}, {"name": "Golbat", "level": "50-60"}]},
-      {"area": "B1F", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Gyarados", "level": ""}]},
-      {"area": "1Fb 1,2,3", "method": "Cave (59)", "mons": [{"name": "Azumarill", "level": "59-59"}, {"name": "Floatzel", "level": "59-59"}, {"name": "Graveler", "level": "59-59"}, {"name": "Machoke", "level": "59-59"}, {"name": "Medicham", "level": "59-59"}, {"name": "Steelix", "level": "59-59"}, {"name": "Golbat", "level": "59-59"}, {"name": "Gabite", "level": "59-59"}]},
-      {"area": "1Fb 1,2,3", "method": "Surf (50-60)", "mons": [{"name": "Sealeo", "level": "50-60"}, {"name": "Dewgong", "level": "50-60"}, {"name": "Lapras", "level": "50-60"}]},
-      {"area": "1Fb 1,2,3", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Gyarados", "level": ""}]}
+      {"area": "B1F", "method": "Cave (59)", "mons": [{"name": "Azumarill", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Floatzel", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Graveler", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Mawile", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Sableye", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Dewgong", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Golbat", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Gabite", "level": "59-59", "rates": [10, 10, 10]}]},
+      {"area": "B1F", "method": "Surf (50-60)", "mons": [{"name": "Floatzel", "level": "50-60", "rates": [90]}, {"name": "Golbat", "level": "50-60", "rates": [10]}]},
+      {"area": "B1F", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "B1F", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "B1F", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [100]}]},
+      {"area": "1Fb 1,2,3", "method": "Cave (59)", "mons": [{"name": "Azumarill", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Floatzel", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Graveler", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Machoke", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Medicham", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Steelix", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Golbat", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Gabite", "level": "59-59", "rates": [10, 10, 10]}]},
+      {"area": "1Fb 1,2,3", "method": "Surf (50-60)", "mons": [{"name": "Sealeo", "level": "50-60", "rates": [60]}, {"name": "Dewgong", "level": "50-60", "rates": [30]}, {"name": "Lapras", "level": "50-60", "rates": [10]}]},
+      {"area": "1Fb 1,2,3", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "1Fb 1,2,3", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [100]}]},
+      {"area": "1Fb 1,2,3", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [100]}]}
     ],
     "Route 223": [
-      {"area": "", "method": "Surf (50-60)", "mons": [{"name": "Tentacruel", "level": "50-60"}, {"name": "Pelipper", "level": "50-60"}, {"name": "Mantine", "level": "50-60"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Remoraid", "level": ""}, {"name": "Wailmer", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Octillery", "level": ""}, {"name": "Wailord", "level": ""}]}
+      {"area": "", "method": "Surf (50-60)", "mons": [{"name": "Tentacruel", "level": "50-60", "rates": [60]}, {"name": "Pelipper", "level": "50-60", "rates": [30]}, {"name": "Mantine", "level": "50-60", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Remoraid", "level": "", "rates": [30]}, {"name": "Wailmer", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Remoraid", "level": "", "rates": [30]}, {"name": "Wailmer", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Wailmer", "level": "", "rates": [30]}, {"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Octillery", "level": "", "rates": [15]}, {"name": "Wailord", "level": "", "rates": [15]}]}
     ],
     "Pok\u00e9mon League": [
-      {"area": "", "method": "Surf (50-60)", "mons": [{"name": "Tentacruel", "level": "50-60"}, {"name": "Pelipper", "level": "50-60"}, {"name": "Mantine", "level": "50-60"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Luvdisc", "level": ""}, {"name": "Corsola", "level": ""}, {"name": "Gyarados", "level": ""}]},
+      {"area": "", "method": "Surf (50-60)", "mons": [{"name": "Tentacruel", "level": "50-60", "rates": [60]}, {"name": "Pelipper", "level": "50-60", "rates": [30]}, {"name": "Mantine", "level": "50-60", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [60]}, {"name": "Luvdisc", "level": "", "rates": [30]}, {"name": "Corsola", "level": "", "rates": [10]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Luvdisc", "level": "", "rates": [40]}, {"name": "Corsola", "level": "", "rates": [20]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Luvdisc", "level": "", "rates": [40]}, {"name": "Corsola", "level": "", "rates": [20]}, {"name": "Gyarados", "level": "", "rates": [40]}]},
       {"area": "", "method": "Static Encounter", "mons": [{"name": "Rayquaza", "level": "70"}]}
     ],
     "Route 224": [
-      {"area": "", "method": "Grass (59)", "mons": [{"name": "Beautifly", "level": "59-59"}, {"name": "Dustox", "level": "59-59"}, {"name": "Weepinbell", "level": "59-59"}, {"name": "Chatot", "level": "59-59"}, {"name": "Roselia", "level": "59-59"}, {"name": "Gastrodon", "level": "59-59"}, {"name": "Shuckle", "level": "59-59"}, {"name": "Xatu", "level": "59-59"}, {"name": "Gloom", "level": "59-59"}]},
-      {"area": "", "method": "Surf (50-60)", "mons": [{"name": "Tentacruel", "level": "50-60"}, {"name": "Pelipper", "level": "50-60"}, {"name": "Gastrodon", "level": "50-60"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Luvdisc", "level": ""}, {"name": "Corsola", "level": ""}, {"name": "Gyarados", "level": ""}]}
+      {"area": "", "method": "Grass (59)", "mons": [{"name": "Beautifly", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Dustox", "level": "59-59", "rates": [20, 20, 20]}, {"name": "Weepinbell", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Chatot", "level": "59-59", "rates": [10, 10, 0]}, {"name": "Roselia", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Gastrodon", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Shuckle", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Xatu", "level": "59-59", "rates": [10, 10, 10]}, {"name": "Gloom", "level": "59-59", "rates": [0, 0, 10]}]},
+      {"area": "", "method": "Surf (50-60)", "mons": [{"name": "Tentacruel", "level": "50-60", "rates": [60]}, {"name": "Pelipper", "level": "50-60", "rates": [30]}, {"name": "Gastrodon", "level": "50-60", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Luvdisc", "level": "", "rates": [30]}, {"name": "Corsola", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Luvdisc", "level": "", "rates": [30]}, {"name": "Corsola", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Luvdisc", "level": "", "rates": [30]}, {"name": "Corsola", "level": "", "rates": [30]}, {"name": "Gyarados", "level": "", "rates": [40]}]}
     ],
     "Flower Paradise": [
       {"area": "", "method": "Static Encounter (After getting Oak's Letter)", "mons": [{"name": "Shaymin", "level": "30"}]}
     ],
     "Route 225": [
-      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Fearow", "level": "66-66"}, {"name": "Machoke", "level": "65-65"}, {"name": "Graveler", "level": "65-66"}, {"name": "Raticate", "level": "65-67"}, {"name": "Primeape", "level": "65-67"}, {"name": "Hariyama", "level": "67-67"}, {"name": "Grumpig", "level": "66-67"}]},
-      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Poliwhirl", "level": "65-67"}, {"name": "Golduck", "level": "65-67"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Barboach", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Whiscash", "level": ""}]}
+      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Fearow", "level": "66-66", "rates": [20, 20, 20]}, {"name": "Machoke", "level": "65-65", "rates": [20, 20, 20]}, {"name": "Graveler", "level": "65-66", "rates": [20, 20, 20]}, {"name": "Raticate", "level": "65-67", "rates": [15, 15, 15]}, {"name": "Primeape", "level": "65-67", "rates": [15, 15, 15]}, {"name": "Hariyama", "level": "67-67", "rates": [5, 5, 5]}, {"name": "Grumpig", "level": "66-67", "rates": [5, 5, 5]}]},
+      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Poliwhirl", "level": "65-67", "rates": [60]}, {"name": "Golduck", "level": "65-67", "rates": [40]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Barboach", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Barboach", "level": "", "rates": [60]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Whiscash", "level": "", "rates": [45]}]}
     ],
     "Route 226": [
-      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Raticate", "level": "65-65"}, {"name": "Fearow", "level": "66-66"}, {"name": "Arbok", "level": "66-67"}, {"name": "Sandslash", "level": "66-67"}, {"name": "Rapidash", "level": "67-67"}, {"name": "Dodrio", "level": "67-67"}, {"name": "Kingler", "level": "66-67"}]},
-      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Wingull", "level": "65-67"}, {"name": "Pelipper", "level": "65-67"}, {"name": "Tentacruel", "level": "65-67"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Horsea", "level": ""}, {"name": "Relicanth", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Seadra", "level": ""}]},
+      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Raticate", "level": "65-65", "rates": [20, 20, 20]}, {"name": "Fearow", "level": "66-66", "rates": [20, 20, 20]}, {"name": "Arbok", "level": "66-67", "rates": [15, 15, 15]}, {"name": "Sandslash", "level": "66-67", "rates": [15, 15, 15]}, {"name": "Rapidash", "level": "67-67", "rates": [10, 10, 10]}, {"name": "Dodrio", "level": "67-67", "rates": [10, 10, 10]}, {"name": "Kingler", "level": "66-67", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Wingull", "level": "65-67", "rates": [60]}, {"name": "Pelipper", "level": "65-67", "rates": [30]}, {"name": "Tentacruel", "level": "65-67", "rates": [10]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Horsea", "level": "", "rates": [30]}, {"name": "Relicanth", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Horsea", "level": "", "rates": [30]}, {"name": "Relicanth", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Relicanth", "level": "", "rates": [30]}, {"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Seadra", "level": "", "rates": [30]}]},
       {"area": "", "method": "Trade with a HIker", "mons": [{"name": "Magikarp", "level": ""}]}
     ],
     "Route 227": [
-      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Rhydon", "level": "67-67"}, {"name": "Camerupt", "level": "67-67"}, {"name": "Skarmory", "level": "66-67"}, {"name": "Gligar", "level": "65-67"}, {"name": "Weezing", "level": "66-67"}, {"name": "Torkoal", "level": "65-65"}, {"name": "Spinda", "level": "66-66"}]},
-      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Poliwhirl", "level": "65-67"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Barboach", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Whiscash", "level": ""}]}
+      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Rhydon", "level": "67-67", "rates": [20, 20, 20]}, {"name": "Camerupt", "level": "67-67", "rates": [20, 20, 20]}, {"name": "Skarmory", "level": "66-67", "rates": [15, 15, 15]}, {"name": "Gligar", "level": "65-67", "rates": [15, 15, 15]}, {"name": "Weezing", "level": "66-67", "rates": [10, 10, 10]}, {"name": "Torkoal", "level": "65-65", "rates": [10, 10, 10]}, {"name": "Spinda", "level": "66-66", "rates": [10, 10, 10]}]},
+      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Poliwhirl", "level": "65-67", "rates": [100]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Barboach", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Barboach", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Whiscash", "level": "", "rates": [45]}]}
     ],
     "Route 228": [
-      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Cacturne", "level": "66-66"}, {"name": "Sandslash", "level": "66-66"}, {"name": "Dugtrio", "level": "65-67"}, {"name": "Vibrava", "level": "65-65"}, {"name": "Claydol", "level": "67-67"}, {"name": "Hippowdon", "level": "66-67"}, {"name": "Metang", "level": "65-65"}, {"name": "Gabite", "level": "65-65"}]},
-      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Poliwhirl", "level": "65-67"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Barboach", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Whiscash", "level": ""}]}
+      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Cacturne", "level": "66-66", "rates": [20, 20, 20]}, {"name": "Sandslash", "level": "66-66", "rates": [20, 20, 20]}, {"name": "Dugtrio", "level": "65-67", "rates": [20, 20, 20]}, {"name": "Vibrava", "level": "65-65", "rates": [10, 10, 10]}, {"name": "Claydol", "level": "67-67", "rates": [10, 10, 10]}, {"name": "Hippowdon", "level": "66-67", "rates": [10, 10, 10]}, {"name": "Metang", "level": "65-65", "rates": [5, 5, 5]}, {"name": "Gabite", "level": "65-65", "rates": [5, 5, 5]}]},
+      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Poliwhirl", "level": "65-67", "rates": [100]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Barboach", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Barboach", "level": "", "rates": [30]}, {"name": "Whiscash", "level": "", "rates": [15]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Whiscash", "level": "", "rates": [45]}]}
     ],
     "Route 229": [
-      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Scyther", "level": "66-66"}, {"name": "Pinsir", "level": "66-66"}, {"name": "Ledian", "level": "65-67"}, {"name": "Sunkern", "level": "65-67"}, {"name": "Ariados", "level": "65-67"}, {"name": "Roselia", "level": "65-67"}, {"name": "Venomoth", "level": "67-67"}, {"name": "Weepinbell", "level": "66-66"}, {"name": "Illumise", "level": "65-67"}, {"name": "Volbeat", "level": "65-67"}]},
-      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Masquerain", "level": "65-67"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Goldeen", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Seaking", "level": ""}]}
+      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Scyther", "level": "66-66", "rates": [20, 20, 20]}, {"name": "Pinsir", "level": "66-66", "rates": [20, 20, 20]}, {"name": "Ledian", "level": "65-67", "rates": [20, 0, 0]}, {"name": "Sunkern", "level": "65-67", "rates": [0, 20, 0]}, {"name": "Ariados", "level": "65-67", "rates": [0, 0, 20]}, {"name": "Roselia", "level": "65-67", "rates": [15, 15, 15]}, {"name": "Venomoth", "level": "67-67", "rates": [10, 10, 10]}, {"name": "Weepinbell", "level": "66-66", "rates": [5, 5, 5]}, {"name": "Illumise", "level": "65-67", "rates": [5, 5, 5]}, {"name": "Volbeat", "level": "65-67", "rates": [5, 5, 5]}]},
+      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Masquerain", "level": "65-67", "rates": [100]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Goldeen", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [55]}, {"name": "Goldeen", "level": "", "rates": [45]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Gyarados", "level": "", "rates": [55]}, {"name": "Seaking", "level": "", "rates": [45]}]}
     ],
     "Resort Area": [
       {"area": "", "method": "Surf and Rods (1-100)", "mons": [{"name": "Magikarp", "level": ""}]}
     ],
     "Route 230": [
-      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Pelipper", "level": "66-66"}, {"name": "Floatzel", "level": "66-66"}, {"name": "Gastrodon", "level": "66-67"}, {"name": "Golduck", "level": "67-67"}, {"name": "Tropius", "level": "66-67"}, {"name": "Zangoose", "level": "66-66"}, {"name": "Seviper", "level": "66-66"}, {"name": "Togetic", "level": "65-65"}]},
-      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Sealeo", "level": "65-67"}, {"name": "Tentacruel", "level": "65-67"}]},
-      {"area": "", "method": "Rods (O-10, G-25, S-50)", "mons": [{"name": "Magikarp", "level": ""}, {"name": "Corsola", "level": ""}, {"name": "Wailmer", "level": ""}, {"name": "Gyarados", "level": ""}, {"name": "Wailord", "level": ""}]}
+      {"area": "", "method": "Grass (65-67)", "mons": [{"name": "Pelipper", "level": "66-66", "rates": [20, 20, 20]}, {"name": "Floatzel", "level": "66-66", "rates": [20, 20, 20]}, {"name": "Gastrodon", "level": "66-67", "rates": [15, 15, 15]}, {"name": "Golduck", "level": "67-67", "rates": [10, 10, 10]}, {"name": "Tropius", "level": "66-67", "rates": [10, 10, 10]}, {"name": "Zangoose", "level": "66-66", "rates": [10, 10, 10]}, {"name": "Seviper", "level": "66-66", "rates": [10, 10, 10]}, {"name": "Togetic", "level": "65-65", "rates": [5, 5, 5]}]},
+      {"area": "", "method": "Surf (65-67)", "mons": [{"name": "Sealeo", "level": "65-67", "rates": [60]}, {"name": "Tentacruel", "level": "65-67", "rates": [40]}]},
+      {"area": "", "method": "Old Rod (10)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Corsola", "level": "", "rates": [30]}, {"name": "Wailmer", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Good Rod (25)", "mons": [{"name": "Magikarp", "level": "", "rates": [40]}, {"name": "Corsola", "level": "", "rates": [30]}, {"name": "Wailmer", "level": "", "rates": [30]}]},
+      {"area": "", "method": "Super Rod (50)", "mons": [{"name": "Corsola", "level": "", "rates": [30]}, {"name": "Gyarados", "level": "", "rates": [40]}, {"name": "Wailord", "level": "", "rates": [30]}]}
     ],
     "Stark Mountain": [
-      {"area": "Outside", "method": "Grass (66-68)", "mons": [{"name": "Fearow", "level": "67-67"}, {"name": "Rhydon", "level": "68-68"}, {"name": "Camerupt", "level": "67-68"}, {"name": "Machoke", "level": "66-66"}, {"name": "Skarmory", "level": "67-67"}, {"name": "Gligar", "level": "66-66"}, {"name": "Magmar", "level": "67-67"}, {"name": "Torkoal", "level": "67-68"}]},
+      {"area": "Outside", "method": "Grass (66-68)", "mons": [{"name": "Fearow", "level": "67-67", "rates": [20, 20, 20]}, {"name": "Rhydon", "level": "68-68", "rates": [20, 20, 20]}, {"name": "Camerupt", "level": "67-68", "rates": [10, 10, 10]}, {"name": "Machoke", "level": "66-66", "rates": [10, 10, 10]}, {"name": "Skarmory", "level": "67-67", "rates": [10, 10, 10]}, {"name": "Gligar", "level": "66-66", "rates": [10, 10, 10]}, {"name": "Magmar", "level": "67-67", "rates": [10, 10, 10]}, {"name": "Torkoal", "level": "67-68", "rates": [10, 10, 10]}]},
       {"area": "", "method": "After the Events of Stark Mountain. Talk to Buck's Grandpa and come back to encounter", "mons": [{"name": "Heatran", "level": "68"}]},
-      {"area": "Inside", "method": "Cave (67-69)", "mons": [{"name": "Golbat", "level": "67-67"}, {"name": "Rhydon", "level": "69-69"}, {"name": "Magcargo", "level": "68-68"}, {"name": "Graveler", "level": "67-67"}, {"name": "Machoke", "level": "67-67"}, {"name": "Weezing", "level": "68-69"}, {"name": "Muk", "level": "68-69"}, {"name": "Torkoal", "level": "68-68"}]},
+      {"area": "Inside", "method": "Cave (67-69)", "mons": [{"name": "Golbat", "level": "67-67", "rates": [20, 20, 20]}, {"name": "Rhydon", "level": "69-69", "rates": [20, 20, 20]}, {"name": "Magcargo", "level": "68-68", "rates": [10, 10, 10]}, {"name": "Graveler", "level": "67-67", "rates": [10, 10, 10]}, {"name": "Machoke", "level": "67-67", "rates": [10, 10, 10]}, {"name": "Weezing", "level": "68-69", "rates": [10, 10, 10]}, {"name": "Muk", "level": "68-69", "rates": [10, 10, 10]}, {"name": "Torkoal", "level": "68-68", "rates": [10, 10, 10]}]},
       {"area": "", "method": "Static Encounter", "mons": [{"name": "Groudon", "level": "70"}]}
     ],
     "Hall of Origin": [
@@ -698,5 +790,234 @@
     ["Darkrai"],
     ["Shaymin", "Shaymin_sky"],
     ["Arceus"]
-  ]
+  ],
+  "evolutions": {
+    "Bulbasaur": [{"name": "Ivysaur", "how": "Lv. 16"}],
+    "Ivysaur": [{"name": "Venusaur", "how": "Lv. 32"}],
+    "Charmander": [{"name": "Charmeleon", "how": "Lv. 16"}],
+    "Charmeleon": [{"name": "Charizard", "how": "Lv. 36"}],
+    "Squirtle": [{"name": "Wartortle", "how": "Lv. 16"}],
+    "Wartortle": [{"name": "Blastoise", "how": "Lv. 36"}],
+    "Caterpie": [{"name": "Metapod", "how": "Lv. 7"}],
+    "Metapod": [{"name": "Butterfree", "how": "Lv. 10"}],
+    "Weedle": [{"name": "Kakuna", "how": "Lv. 7"}],
+    "Kakuna": [{"name": "Beedrill", "how": "Lv. 10"}],
+    "Pidgey": [{"name": "Pidgeotto", "how": "Lv. 18"}],
+    "Pidgeotto": [{"name": "Pidgeot", "how": "Lv. 36"}],
+    "Rattata": [{"name": "Raticate", "how": "Lv. 20"}],
+    "Spearow": [{"name": "Fearow", "how": "Lv. 20"}],
+    "Ekans": [{"name": "Arbok", "how": "Lv. 22"}],
+    "Pichu": [{"name": "Pikachu", "how": "Level up when friendship high"}],
+    "Sandshrew": [{"name": "Sandslash", "how": "Lv. 22"}],
+    "Nidoran_f": [{"name": "Nidorina", "how": "Lv. 16"}],
+    "Nidorina": [{"name": "Nidoqueen", "how": "Use Moon Stone"}],
+    "Nidoran_m": [{"name": "Nidorino", "how": "Lv. 16"}],
+    "Nidorino": [{"name": "Nidoking", "how": "Use Moon Stone"}],
+    "Cleffa": [{"name": "Clefairy", "how": "Level up when friendship high"}],
+    "Clefairy": [{"name": "Clefable", "how": "Use Moon Stone"}],
+    "Vulpix": [{"name": "Ninetales", "how": "Use Fire Stone"}],
+    "Igglybuff": [{"name": "Jigglypuff", "how": "Level up when friendship high"}],
+    "Jigglypuff": [{"name": "Wigglytuff", "how": "Use Moon Stone"}],
+    "Zubat": [{"name": "Golbat", "how": "Lv. 22"}],
+    "Golbat": [{"name": "Crobat", "how": "Level up when friendship high"}],
+    "Oddish": [{"name": "Gloom", "how": "Lv. 22"}],
+    "Gloom": [{"name": "Vileplume", "how": "Use Leaf Stone"}, {"name": "Bellossom", "how": "Use Sun Stone"}],
+    "Paras": [{"name": "Parasect", "how": "Lv. 24"}],
+    "Venonat": [{"name": "Venomoth", "how": "Lv. 31"}],
+    "Diglett": [{"name": "Dugtrio", "how": "Lv. 26"}],
+    "Meowth": [{"name": "Persian", "how": "Lv. 28"}],
+    "Psyduck": [{"name": "Golduck", "how": "Lv. 33"}],
+    "Mankey": [{"name": "Primeape", "how": "Lv. 28"}],
+    "Growlithe": [{"name": "Arcanine", "how": "Use Fire Stone"}],
+    "Poliwag": [{"name": "Poliwhirl", "how": "Lv. 25"}],
+    "Poliwhirl": [{"name": "Poliwrath", "how": "Use Water Stone"}, {"name": "Politoed", "how": "Use King's Rock"}],
+    "Abra": [{"name": "Kadabra", "how": "Lv. 16"}],
+    "Kadabra": [{"name": "Alakazam", "how": "Lv. 36"}],
+    "Machop": [{"name": "Machoke", "how": "Lv. 28"}],
+    "Machoke": [{"name": "Machamp", "how": "Lv. 36"}],
+    "Bellsprout": [{"name": "Weepinbell", "how": "Lv. 21"}],
+    "Weepinbell": [{"name": "Victreebel", "how": "Use Leaf Stone"}],
+    "Tentacool": [{"name": "Tentacruel", "how": "Lv. 30"}],
+    "Geodude": [{"name": "Graveler", "how": "Lv. 25"}],
+    "Graveler": [{"name": "Golem", "how": "Lv. 36"}],
+    "Ponyta": [{"name": "Rapidash", "how": "Lv. 35"}],
+    "Slowpoke": [{"name": "Slowbro", "how": "Lv. 33"}, {"name": "Slowking", "how": "Use King's Rock"}],
+    "Magnemite": [{"name": "Magneton", "how": "Lv. 30"}],
+    "Magneton": [{"name": "Magnezone", "how": "Level up at Mt. Coronet"}],
+    "Doduo": [{"name": "Dodrio", "how": "Lv. 31"}],
+    "Seel": [{"name": "Dewgong", "how": "Lv. 34"}],
+    "Grimer": [{"name": "Muk", "how": "Lv. 35"}],
+    "Shellder": [{"name": "Cloyster", "how": "Use Water Stone"}],
+    "Gastly": [{"name": "Haunter", "how": "Lv. 25"}],
+    "Haunter": [{"name": "Gengar", "how": "Lv. 36"}],
+    "Onix": [{"name": "Steelix", "how": "Use Metal Coat"}],
+    "Drowzee": [{"name": "Hypno", "how": "Lv. 26"}],
+    "Krabby": [{"name": "Kingler", "how": "Lv. 28"}],
+    "Voltorb": [{"name": "Electrode", "how": "Lv. 30"}],
+    "Exeggcute": [{"name": "Exeggutor", "how": "Use Leaf Stone"}],
+    "Cubone": [{"name": "Marowak", "how": "Lv. 28"}],
+    "Tyrogue": [{"name": "Hitmonlee", "how": "Lv. 20 when Atk > Def"}, {"name": "Hitmonchan", "how": "Lv. 20 when Atk < Def"}, {"name": "Hitmontop", "how": "Lv. 20 when Atk = Def"}],
+    "Lickitung": [{"name": "Lickilicky", "how": "Level up knowing Rollout"}],
+    "Koffing": [{"name": "Weezing", "how": "Lv. 35"}],
+    "Rhyhorn": [{"name": "Rhyperior", "how": "Use Protector"}],
+    "Happiny": [{"name": "Chansey", "how": "Lv. up during day w/ Oval Stone"}],
+    "Chansey": [{"name": "Blissey", "how": "Level up when friendship high"}],
+    "Tangela": [{"name": "Tangrowth", "how": "Level up knowing Ancient Power"}],
+    "Horsea": [{"name": "Seadra", "how": "Lv. 32"}],
+    "Seadra": [{"name": "Kingdra", "how": "Use Dragon Scale"}],
+    "Goldeen": [{"name": "Seaking", "how": "Lv. 33"}],
+    "Staryu": [{"name": "Starmie", "how": "Use Water Stone"}],
+    "Mime_jr": [{"name": "Mr_mime", "how": "Level up with Mimic"}],
+    "Scyther": [{"name": "Scizor", "how": "Use Metal Coat"}],
+    "Smoochum": [{"name": "Jynx", "how": "Lv. 30"}],
+    "Elekid": [{"name": "Electabuzz", "how": "Lv. 30"}],
+    "Electabuzz": [{"name": "Electivire", "how": "Use Electrizer"}],
+    "Magby": [{"name": "Magmar", "how": "Lv. 30"}],
+    "Magmar": [{"name": "Magmortar", "how": "Use Magmarizer"}],
+    "Magikarp": [{"name": "Gyarados", "how": "Lv. 20"}],
+    "Eevee": [{"name": "Vaporeon", "how": "Use Water Stone"}, {"name": "Jolteon", "how": "Use Thunderstone"}, {"name": "Flareon", "how": "Use Fire Stone"}, {"name": "Espeon", "how": "Use Sun Stone"}, {"name": "Umbreon", "how": "Use Moon Stone"}, {"name": "Leafeon", "how": "Use Leaf Stone"}, {"name": "Glaceon", "how": "Use Ice Stone"}],
+    "Porygon": [{"name": "Porygon2", "how": "Use Up-Grade"}],
+    "Porygon2": [{"name": "Porygon_z", "how": "Use Dubious Disc"}],
+    "Omanyte": [{"name": "Omastar", "how": "Lv. 30"}],
+    "Kabuto": [{"name": "Kabutops", "how": "Lv. 30"}],
+    "Munchlax": [{"name": "Snorlax", "how": "Level up when friendship high"}],
+    "Dratini": [{"name": "Dragonair", "how": "Lv. 30"}],
+    "Dragonair": [{"name": "Dragonite", "how": "Lv. 55"}],
+    "Chikorita": [{"name": "Bayleef", "how": "Lv. 16"}],
+    "Bayleef": [{"name": "Meganium", "how": "Lv. 32"}],
+    "Cyndaquil": [{"name": "Quilava", "how": "Lv. 14"}],
+    "Quilava": [{"name": "Typhlosion", "how": "Lv. 36"}],
+    "Totodile": [{"name": "Croconaw", "how": "Lv. 18"}],
+    "Croconaw": [{"name": "Feraligatr", "how": "Lv. 30"}],
+    "Sentret": [{"name": "Furret", "how": "Lv. 15"}],
+    "Hoothoot": [{"name": "Noctowl", "how": "Lv. 20"}],
+    "Ledyba": [{"name": "Ledian", "how": "Lv. 18"}],
+    "Spinarak": [{"name": "Ariados", "how": "Lv. 22"}],
+    "Chinchou": [{"name": "Lanturn", "how": "Lv. 27"}],
+    "Togepi": [{"name": "Togetic", "how": "Level up when friendship high"}],
+    "Togetic": [{"name": "Togekiss", "how": "Use Shiny Stone"}],
+    "Natu": [{"name": "Xatu", "how": "Lv. 25"}],
+    "Mareep": [{"name": "Flaaffy", "how": "Lv. 15"}],
+    "Flaaffy": [{"name": "Ampharos", "how": "Lv. 30"}],
+    "Azurill": [{"name": "Marill", "how": "Level up when friendship high"}],
+    "Marill": [{"name": "Azumarill", "how": "Lv. 18"}],
+    "Bonsly": [{"name": "Sudowoodo", "how": "Level up with Mimic"}],
+    "Hoppip": [{"name": "Skiploom", "how": "Lv. 18"}],
+    "Skiploom": [{"name": "Jumpluff", "how": "Lv. 27"}],
+    "Aipom": [{"name": "Ambipom", "how": "Level up knowing Double Hit"}],
+    "Sunkern": [{"name": "Sunflora", "how": "Use Sun Stone"}],
+    "Yanma": [{"name": "Yanmega", "how": "Level up knowing Ancient Power"}],
+    "Wooper": [{"name": "Quagsire", "how": "Lv. 20"}],
+    "Murkrow": [{"name": "Honchkrow", "how": "Use Dusk Stone"}],
+    "Misdreavus": [{"name": "Mismagius", "how": "Use Dusk Stone"}],
+    "Wynaut": [{"name": "Wobbuffet", "how": "Lv. 15"}],
+    "Pineco": [{"name": "Forretress", "how": "Lv. 31"}],
+    "Gligar": [{"name": "Gliscor", "how": "Night Level up holding Razor Fang"}],
+    "Snubbull": [{"name": "Granbull", "how": "Lv. 23"}],
+    "Sneasel": [{"name": "Weavile", "how": "Night Level up holding Razor Claw"}],
+    "Teddiursa": [{"name": "Ursaring", "how": "Lv. 30"}],
+    "Slugma": [{"name": "Magcargo", "how": "Lv. 32"}],
+    "Swinub": [{"name": "Piloswine", "how": "Lv. 33"}],
+    "Piloswine": [{"name": "Mamoswine", "how": "Level up knowing Ancient Power"}],
+    "Remoraid": [{"name": "Octillery", "how": "Lv. 25"}],
+    "Mantyke": [{"name": "Mantine", "how": "Level with Remoraid in team"}],
+    "Houndour": [{"name": "Houndoom", "how": "Lv. 24"}],
+    "Phanpy": [{"name": "Donphan", "how": "Lv. 25"}],
+    "Larvitar": [{"name": "Pupitar", "how": "Lv. 30"}],
+    "Pupitar": [{"name": "Tyranitar", "how": "Lv. 55"}],
+    "Treecko": [{"name": "Grovyle", "how": "Lv. 16"}],
+    "Grovyle": [{"name": "Sceptile", "how": "Lv. 36"}],
+    "Torchic": [{"name": "Combusken", "how": "Lv. 16"}],
+    "Combusken": [{"name": "Blaziken", "how": "Lv. 36"}],
+    "Mudkip": [{"name": "Marshtomp", "how": "Lv. 16"}],
+    "Marshtomp": [{"name": "Swampert", "how": "Lv. 36"}],
+    "Poochyena": [{"name": "Mightyena", "how": "Lv. 18"}],
+    "Zigzagoon": [{"name": "Linoone", "how": "Lv. 20"}],
+    "Wurmple": [{"name": "Silcoon", "how": "Lv. 7"}, {"name": "Cascoon", "how": "Lv. 7"}],
+    "Silcoon": [{"name": "Beautifly", "how": "Lv. 10"}],
+    "Cascoon": [{"name": "Dustox", "how": "Lv. 10"}],
+    "Lotad": [{"name": "Lombre", "how": "Lv. 14"}],
+    "Lombre": [{"name": "Ludicolo", "how": "Use Water Stone"}],
+    "Seedot": [{"name": "Nuzleaf", "how": "Lv. 14"}],
+    "Nuzleaf": [{"name": "Shiftry", "how": "Use Leaf Stone"}],
+    "Taillow": [{"name": "Swellow", "how": "Lv. 22"}],
+    "Wingull": [{"name": "Pelipper", "how": "Lv. 25"}],
+    "Ralts": [{"name": "Kirlia", "how": "Lv. 20"}],
+    "Kirlia": [{"name": "Gardevoir", "how": "Lv. 30"}, {"name": "Gallade", "how": "Male Use Dawn Stone"}],
+    "Surskit": [{"name": "Masquerain", "how": "Lv. 22"}],
+    "Shroomish": [{"name": "Breloom", "how": "Lv. 23"}],
+    "Slakoth": [{"name": "Vigoroth", "how": "Lv. 18"}],
+    "Vigoroth": [{"name": "Slaking", "how": "Lv. 36"}],
+    "Nincada": [{"name": "Ninjask", "how": "Lv. 20"}, {"name": "Shedinja", "how": "Lv. 20 with an empty slot in team"}],
+    "Whismur": [{"name": "Loudred", "how": "Lv. 20"}],
+    "Loudred": [{"name": "Exploud", "how": "Lv. 40"}],
+    "Makuhita": [{"name": "Hariyama", "how": "Lv. 24"}],
+    "Nosepass": [{"name": "Probopass", "how": "Level up at Mt. Coronet"}],
+    "Skitty": [{"name": "Delcatty", "how": "Use Moon Stone"}],
+    "Aron": [{"name": "Lairon", "how": "Lv. 24"}],
+    "Lairon": [{"name": "Aggron", "how": "Lv. 40"}],
+    "Meditite": [{"name": "Medicham", "how": "Lv. 33"}],
+    "Electrike": [{"name": "Manectric", "how": "Lv. 26"}],
+    "Budew": [{"name": "Roselia", "how": "Level up when friendship high"}],
+    "Roselia": [{"name": "Roserade", "how": "Use Shiny Stone"}],
+    "Gulpin": [{"name": "Swalot", "how": "Lv. 26"}],
+    "Carvanha": [{"name": "Sharpedo", "how": "Lv. 30"}],
+    "Wailmer": [{"name": "Wailord", "how": "Lv. 36"}],
+    "Numel": [{"name": "Camerupt", "how": "Lv. 33"}],
+    "Spoink": [{"name": "Grumpig", "how": "Lv. 32"}],
+    "Trapinch": [{"name": "Vibrava", "how": "Lv. 30"}],
+    "Vibrava": [{"name": "Flygon", "how": "Lv. 45"}],
+    "Cacnea": [{"name": "Cacturne", "how": "Lv. 32"}],
+    "Swablu": [{"name": "Altaria", "how": "Lv. 35"}],
+    "Barboach": [{"name": "Whiscash", "how": "Lv. 30"}],
+    "Corphish": [{"name": "Crawdaunt", "how": "Lv. 30"}],
+    "Baltoy": [{"name": "Claydol", "how": "Lv. 32"}],
+    "Lileep": [{"name": "Cradily", "how": "Lv. 30"}],
+    "Anorith": [{"name": "Armaldo", "how": "Lv. 30"}],
+    "Feebas": [{"name": "Milotic", "how": "Use Prism Scale"}],
+    "Shuppet": [{"name": "Banette", "how": "Lv. 32"}],
+    "Duskull": [{"name": "Dusclops", "how": "Lv. 32"}],
+    "Dusclops": [{"name": "Dusknoir", "how": "Use Reaper Cloth"}],
+    "Chingling": [{"name": "Chimecho", "how": "Level up when friendship high"}],
+    "Snorunt": [{"name": "Glalie", "how": "Lv. 32"}, {"name": "Froslass", "how": "Female Use Dawn Stone"}],
+    "Spheal": [{"name": "Sealeo", "how": "Lv. 24"}],
+    "Sealeo": [{"name": "Walrein", "how": "Lv. 40"}],
+    "Clamperl": [{"name": "Huntail", "how": "Use Deep Sea Tooth"}, {"name": "Gorebyss", "how": "Use Deep Sea Scale"}],
+    "Bagon": [{"name": "Shelgon", "how": "Lv. 30"}],
+    "Shelgon": [{"name": "Salamence", "how": "Lv. 50"}],
+    "Beldum": [{"name": "Metang", "how": "Lv. 20"}],
+    "Metang": [{"name": "Metagross", "how": "Lv. 45"}],
+    "Turtwig": [{"name": "Grotle", "how": "Lv. 18"}],
+    "Grotle": [{"name": "Torterra", "how": "Lv. 32"}],
+    "Chimchar": [{"name": "Monferno", "how": "Lv. 14"}],
+    "Monferno": [{"name": "Infernape", "how": "Lv. 36"}],
+    "Piplup": [{"name": "Prinplup", "how": "Lv. 16"}],
+    "Prinplup": [{"name": "Empoleon", "how": "Lv. 36"}],
+    "Starly": [{"name": "Staravia", "how": "Lv. 14"}],
+    "Staravia": [{"name": "Staraptor", "how": "Lv. 34"}],
+    "Bidoof": [{"name": "Bibarel", "how": "Lv. 15"}],
+    "Kricketot": [{"name": "Kricketune", "how": "Lv. 10"}],
+    "Shinx": [{"name": "Luxio", "how": "Lv. 15"}],
+    "Luxio": [{"name": "Luxray", "how": "Lv. 30"}],
+    "Cranidos": [{"name": "Rampardos", "how": "Lv. 30"}],
+    "Shieldon": [{"name": "Bastiodon", "how": "Lv. 30"}],
+    "Burmy": [{"name": "Wormadam", "how": "Female Plant Cloak Lv. 20"}, {"name": "Wormadam_sandy", "how": "Female Sand Cloak Lv. 20"}, {"name": "Wormadam_trash", "how": "Female Trash Cloak Lv. 20"}, {"name": "Mothim", "how": "Male Lv. 20"}],
+    "Combee": [{"name": "Vespiquen", "how": "Female Lv. 21"}],
+    "Buizel": [{"name": "Floatzel", "how": "Lv. 26"}],
+    "Cherubi": [{"name": "Cherrim", "how": "Lv. 25"}],
+    "Shellos": [{"name": "Gastrodon", "how": "Lv. 30"}],
+    "Drifloon": [{"name": "Drifblim", "how": "Lv. 28"}],
+    "Buneary": [{"name": "Lopunny", "how": "Level up when friendship high"}],
+    "Glameow": [{"name": "Purugly", "how": "Lv. 32"}],
+    "Stunky": [{"name": "Skuntank", "how": "Lv. 32"}],
+    "Bronzor": [{"name": "Bronzong", "how": "Lv. 33"}],
+    "Gible": [{"name": "Gabite", "how": "Lv. 24"}],
+    "Gabite": [{"name": "Garchomp", "how": "Lv. 48"}],
+    "Riolu": [{"name": "Lucario", "how": "Level up when friendship high"}],
+    "Hippopotas": [{"name": "Hippowdon", "how": "Lv. 34"}],
+    "Skorupi": [{"name": "Drapion", "how": "Lv. 30"}],
+    "Croagunk": [{"name": "Toxicroak", "how": "Lv. 33"}],
+    "Finneon": [{"name": "Lumineon", "how": "Lv. 31"}],
+    "Snover": [{"name": "Abomasnow", "how": "Lv. 40"}]
+  }
 }

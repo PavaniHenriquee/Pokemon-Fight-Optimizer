@@ -9,6 +9,7 @@ import type {
   PokemonConfig,
   TrainerDB,
   EncounterDB,
+  ItemLocationDB,
   NuzlockeRun,
   BoxEntry,
 } from "./types";
@@ -71,6 +72,7 @@ export default function App() {
   const [trainerItems, setTrainerItems] = useState<string[]>(["", "", "", ""]);
   const [terrain, setTerrain] = useState("plain");
   const [encounterDB, setEncounterDB] = useState<EncounterDB | null>(null);
+  const [itemDB, setItemDB] = useState<ItemLocationDB | null>(null);
   const [run, setRun] = useState<NuzlockeRun | null>(null); // null until loaded: see TrackerView
   const [trackerError, setTrackerError] = useState<string | null>(null);
   const runSaves = useRef<Promise<unknown>>(Promise.resolve()); // one at a time, in order
@@ -78,6 +80,7 @@ export default function App() {
   const loadTracker = useCallback(() => {
     const onError = (e: Error) => setTrackerError(e.message);
     getJSON<EncounterDB>("/encounters").then(setEncounterDB).catch(onError);
+    getJSON<ItemLocationDB>("/item-locations").then(setItemDB).catch(onError);
     getJSON<NuzlockeRun>("/nuzlocke").then(setRun).catch(onError);
   }, []);
 
@@ -418,6 +421,7 @@ export default function App() {
                 onRunChange={saveRun}
                 boxState={boxState}
                 onSetDead={setBoxEntryDead}
+                evolutions={encounterDB?.evolutions}
               />
             </div>
 
@@ -425,6 +429,7 @@ export default function App() {
               <TrackerView
                 run={run}
                 encounterDB={encounterDB}
+                itemDB={itemDB}
                 pokemonData={pokemonData}
                 box={boxState.box}
                 lineOf={lineOf}
@@ -491,6 +496,7 @@ export default function App() {
             nodeId={continueNodeId}
             path={pathIds.map((id, i) => ({ node_id: id, opp_move: pathMoves[i] }))}
             onClose={() => setContinueNodeId(null)}
+            defaultIterations={iterations}
             onStarted={(n) => {
               setSessionActive(true);
               setTree(null);

@@ -2,6 +2,7 @@ import type {
   BoxEntry,
   EncounterDB,
   EncounterTable,
+  ItemLocationDB,
   IVs,
   NuzlockeEncounter,
   NuzlockeRun,
@@ -20,6 +21,7 @@ export const EMPTY_RUN: NuzlockeRun = {
   starter: NO_ENCOUNTER,
   encounters: {},
   last_trainer: "",
+  items: [],
 };
 
 // Rival variants the run can't meet are hidden. A choice not made yet hides nothing.
@@ -96,6 +98,35 @@ export function newSpecies(
   return [...names].filter((name) => !holders.has(lineOf(name)));
 }
 
+// ─── Tables an item unlocks: the rods and Surf ────────────────────────────────
+
+// Method → the pickup that unlocks it. "Surf (20-40)" and "Surf and Rods" need Surf
+const METHOD_NEEDS = [
+  { method: "Old Rod", item: "Old Rod", label: "the Old Rod" },
+  { method: "Good Rod", item: "Good Rod", label: "the Good Rod" },
+  { method: "Super Rod", item: "Super Rod", label: "the Super Rod" },
+  { method: "Surf", item: "HM03", label: "HM03 Surf" },
+];
+
+// What a table still needs, "" when nothing (or the item data hasn't loaded: then nothing is locked).
+// Any ticked pickup of the item unlocks it.
+export type LockOf = (table: EncounterTable) => string;
+
+export function makeLockOf(itemDB: ItemLocationDB | null, run: NuzlockeRun): LockOf {
+  if (!itemDB) return () => "";
+  const picked = new Set(run.items);
+  const owned = new Set(
+    Object.values(itemDB.locations)
+      .flat()
+      .filter((p) => picked.has(p.id))
+      .map((p) => p.item),
+  );
+  return (table) => {
+    const need = METHOD_NEEDS.find((n) => table.method.startsWith(n.method));
+    return need && !owned.has(need.item) ? need.label : "";
+  };
+}
+
 // How many of a location's Pokémon can still be caught
 export function countNew(
   tables: EncounterTable[],
@@ -103,6 +134,27 @@ export function countNew(
   lineOf: LineOf,
 ): number {
   return newSpecies(tables, holders, lineOf).length;
+}
+
+// A table's rates as you'd meet them now: per Pokémon, one per column (morning, day, night, or the only
+// one). The species clause skips a Pokémon whose line is taken, so the ones still counted share its
+// weight. Only a full table (a column adding up to 100) is spread again: Poké Radar's 22% and the Great
+// Marsh's odds of being the day's Pokémon stay as the sheet gives them. A skipped Pokémon gets 0.
+export function shownRates(table: EncounterTable, counts: (species: string) => boolean): number[][] {
+  const columns = Math.max(0, ...table.mons.map((mon) => mon.rates?.length ?? 0));
+  const total = (i: number, countedOnly: boolean) =>
+    table.mons.reduce(
+      (sum, mon) => sum + (!countedOnly || counts(mon.name) ? (mon.rates?.[i] ?? 0) : 0),
+      0,
+    );
+  const scale = Array.from({ length: columns }, (_, i) => {
+    if (total(i, false) !== 100) return 1;
+    const left = total(i, true);
+    return left > 0 ? 100 / left : 0;
+  });
+  return table.mons.map((mon) =>
+    (mon.rates ?? []).map((rate, i) => (counts(mon.name) ? rate * scale[i] : 0)),
+  );
 }
 
 // ─── Catching: what a new box Pokémon starts with ─────────────────────────────

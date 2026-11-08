@@ -1,0 +1,459 @@
+{
+  "locations": {
+    "Lake Verity": [
+      {"id": "Lake Verity||TM38|Item on ground", "item": "TM38", "kind": "tm", "area": "", "how": "Item on ground", "move": "Fire Blast", "type": "Fire"}
+    ],
+    "Jubilife City": [
+      {"id": "Jubilife City||Charcoal|Held by the gift Charmander", "item": "Charcoal", "kind": "item", "area": "", "how": "Held by the gift Charmander"},
+      {"id": "Jubilife City||Miracle Seed|Held by the gift Bulbasaur", "item": "Miracle Seed", "kind": "item", "area": "", "how": "Held by the gift Bulbasaur"},
+      {"id": "Jubilife City||Mystic Water|Held by the gift Squirtle", "item": "Mystic Water", "kind": "item", "area": "", "how": "Held by the gift Squirtle"},
+      {"id": "Jubilife City||Quick Claw|", "item": "Quick Claw", "kind": "item", "area": "", "how": ""},
+      {"id": "Jubilife City||Scope Lens|", "item": "Scope Lens", "kind": "item", "area": "", "how": ""},
+      {"id": "Jubilife City||TM42|Gift from NPC", "item": "TM42", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Facade", "type": "Normal"}
+    ],
+    "Trainers' School": [
+      {"id": "Trainers' School||TM10|Gift from NPC", "item": "TM10", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Hidden Power", "type": "Normal"}
+    ],
+    "Route 218": [
+      {"id": "Route 218||Old Rod|Gift from NPC", "item": "Old Rod", "kind": "key", "area": "", "how": "Gift from NPC"},
+      {"id": "Route 218||TM03|Item on ground", "item": "TM03", "kind": "tm", "area": "", "how": "Item on ground", "move": "Water Pulse", "type": "Water"}
+    ],
+    "Route 204": [
+      {"id": "Route 204|North|Miracle Seed|", "item": "Miracle Seed", "kind": "item", "area": "North", "how": ""},
+      {"id": "Route 204||Sea Incense|", "item": "Sea Incense", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 204|North|TM09|Item on ground", "item": "TM09", "kind": "tm", "area": "North", "how": "Item on ground", "move": "Bullet Seed", "type": "Grass"},
+      {"id": "Route 204|North|TM78|Gift from NPC", "item": "TM78", "kind": "tm", "area": "North", "how": "Gift from NPC", "move": "Captivate", "type": "Normal"}
+    ],
+    "Ravaged Path": [
+      {"id": "Ravaged Path||Expert Belt|", "item": "Expert Belt", "kind": "item", "area": "", "how": ""},
+      {"id": "Ravaged Path||Luck Incense|", "item": "Luck Incense", "kind": "item", "area": "", "how": ""},
+      {"id": "Ravaged Path||TM39|Item on ground", "item": "TM39", "kind": "tm", "area": "", "how": "Item on ground", "move": "Rock Tomb", "type": "Rock"},
+      {"id": "Ravaged Path||TM71|Item on ground", "item": "TM71", "kind": "tm", "area": "", "how": "Item on ground", "move": "Stone Edge", "type": "Rock"}
+    ],
+    "Route 203": [
+      {"id": "Route 203||Exp. Share|", "item": "Exp. Share", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 203||Silk Scarf|", "item": "Silk Scarf", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 203||Soothe Bell|", "item": "Soothe Bell", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 203||TM58|Item on ground", "item": "TM58", "kind": "tm", "area": "", "how": "Item on ground", "move": "Endure", "type": "Normal"}
+    ],
+    "Oreburgh Gate": [
+      {"id": "Oreburgh Gate||Light Clay|", "item": "Light Clay", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh Gate||TM01|Item on ground", "item": "TM01", "kind": "tm", "area": "", "how": "Item on ground", "move": "Focus Punch", "type": "Fighting"},
+      {"id": "Oreburgh Gate||TM31|Item on ground", "item": "TM31", "kind": "tm", "area": "", "how": "Item on ground", "move": "Brick Break", "type": "Fighting"},
+      {"id": "Oreburgh Gate||TM70|Item on ground", "item": "TM70", "kind": "tm", "area": "", "how": "Item on ground", "move": "Flash", "type": "Normal"},
+      {"id": "Oreburgh Gate||HM06|Gift from NPC", "item": "HM06", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Rock Smash", "type": "Fighting"}
+    ],
+    "Oreburgh City": [
+      {"id": "Oreburgh City||Charcoal|Held by the gift Torchic", "item": "Charcoal", "kind": "item", "area": "", "how": "Held by the gift Torchic"},
+      {"id": "Oreburgh City||Miracle Seed|Held by the gift Treecko", "item": "Miracle Seed", "kind": "item", "area": "", "how": "Held by the gift Treecko"},
+      {"id": "Oreburgh City||Mystic Water|Held by the gift Mudkip", "item": "Mystic Water", "kind": "item", "area": "", "how": "Held by the gift Mudkip"},
+      {"id": "Oreburgh City||Never-Melt Ice|Held by the traded Spheal", "item": "Never-Melt Ice", "kind": "item", "area": "", "how": "Held by the traded Spheal"},
+      {"id": "Oreburgh City||Oval Stone|", "item": "Oval Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh City||Soul Dew|", "item": "Soul Dew", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh City|Gym|TM76|Gift from Roark", "item": "TM76", "kind": "tm", "area": "Gym", "how": "Gift from Roark", "move": "Stealth Rock", "type": "Rock"}
+    ],
+    "Route 207": [
+      {"id": "Route 207||Hard Stone|", "item": "Hard Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 207||Metal Coat|", "item": "Metal Coat", "kind": "item", "area": "", "how": ""}
+    ],
+    "Oreburgh Mine": [
+      {"id": "Oreburgh Mine||Fire Stone|", "item": "Fire Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh Mine||Ice Stone|", "item": "Ice Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh Mine||Leaf Stone|", "item": "Leaf Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh Mine||Moon Stone|", "item": "Moon Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh Mine||Muscle Band|", "item": "Muscle Band", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh Mine||Sun Stone|", "item": "Sun Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh Mine||Thunder Stone|", "item": "Thunder Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Oreburgh Mine||Water Stone|", "item": "Water Stone", "kind": "item", "area": "", "how": ""}
+    ],
+    "Floaroma Town": [
+      {"id": "Floaroma Town||Charcoal|Held by the gift Cyndaquil", "item": "Charcoal", "kind": "item", "area": "", "how": "Held by the gift Cyndaquil"},
+      {"id": "Floaroma Town||DeepSeaScale|", "item": "DeepSeaScale", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||DeepSeaTooth|", "item": "DeepSeaTooth", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||Light Ball|", "item": "Light Ball", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||Lucky Punch|", "item": "Lucky Punch", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||Metal Powder|", "item": "Metal Powder", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||Miracle Seed|Held by the gift Chikorita", "item": "Miracle Seed", "kind": "item", "area": "", "how": "Held by the gift Chikorita"},
+      {"id": "Floaroma Town||Mystic Water|Held by the gift Totodile", "item": "Mystic Water", "kind": "item", "area": "", "how": "Held by the gift Totodile"},
+      {"id": "Floaroma Town||Poison Barb|Held by the traded Skorupi", "item": "Poison Barb", "kind": "item", "area": "", "how": "Held by the traded Skorupi"},
+      {"id": "Floaroma Town||Quick Powder|", "item": "Quick Powder", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||Stick|", "item": "Stick", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||Thick Club|", "item": "Thick Club", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Town||TM40|Gift from NPC", "item": "TM40", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Aerial Ace", "type": "Flying"}
+    ],
+    "Floaroma Meadow": [
+      {"id": "Floaroma Meadow||Leaf Stone|", "item": "Leaf Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Meadow||Miracle Seed|", "item": "Miracle Seed", "kind": "item", "area": "", "how": ""},
+      {"id": "Floaroma Meadow||White Herb|", "item": "White Herb", "kind": "item", "area": "", "how": ""}
+    ],
+    "Valley Windworks": [
+      {"id": "Valley Windworks||Magnet|", "item": "Magnet", "kind": "item", "area": "", "how": ""},
+      {"id": "Valley Windworks||TM24|Item on ground", "item": "TM24", "kind": "tm", "area": "", "how": "Item on ground", "move": "Thunderbolt", "type": "Electric"},
+      {"id": "Valley Windworks||TM34|Item on ground", "item": "TM34", "kind": "tm", "area": "", "how": "Item on ground", "move": "Shock Wave", "type": "Electric"}
+    ],
+    "Route 205": [
+      {"id": "Route 205||Destiny Knot|", "item": "Destiny Knot", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 205||Water Stone|", "item": "Water Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 205|South|TM08|Item on ground", "item": "TM08", "kind": "tm", "area": "South", "how": "Item on ground", "move": "Bulk Up", "type": "Fighting"}
+    ],
+    "Eterna Forest": [
+      {"id": "Eterna Forest|Moss Rock|Leaf Stone|", "item": "Leaf Stone", "kind": "item", "area": "Moss Rock", "how": ""},
+      {"id": "Eterna Forest||Silver Powder|", "item": "Silver Powder", "kind": "item", "area": "", "how": ""},
+      {"id": "Eterna Forest||TM27|Gift from Cheryl", "item": "TM27", "kind": "tm", "area": "", "how": "Gift from Cheryl", "move": "Return", "type": "Normal"},
+      {"id": "Eterna Forest|Outside|TM82|Item on ground", "item": "TM82", "kind": "tm", "area": "Outside", "how": "Item on ground", "move": "Sleep Talk", "type": "Normal"}
+    ],
+    "Old Chateau": [
+      {"id": "Old Chateau||Spell Tag|", "item": "Spell Tag", "kind": "item", "area": "", "how": ""},
+      {"id": "Old Chateau||TM65|Item on ground", "item": "TM65", "kind": "tm", "area": "", "how": "Item on ground", "move": "Shadow Claw", "type": "Ghost"},
+      {"id": "Old Chateau||TM90|Item on ground", "item": "TM90", "kind": "tm", "area": "", "how": "Item on ground", "move": "Substitute", "type": "Normal"}
+    ],
+    "Eterna City": [
+      {"id": "Eterna City||Dawn Stone|Gift from the Bike Shop owner", "item": "Dawn Stone", "kind": "item", "area": "", "how": "Gift from the Bike Shop owner"},
+      {"id": "Eterna City||Moon Stone|Hidden", "item": "Moon Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Eterna City||Sharp Beak|Held by the traded Chatot", "item": "Sharp Beak", "kind": "item", "area": "", "how": "Held by the traded Chatot"},
+      {"id": "Eterna City||Sun Stone|", "item": "Sun Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Eterna City||TM28|Gift from NPC", "item": "TM28", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Dig", "type": "Ground"},
+      {"id": "Eterna City||TM46|Item on ground", "item": "TM46", "kind": "tm", "area": "", "how": "Item on ground", "move": "Thief", "type": "Dark"},
+      {"id": "Eterna City||TM54|Gift from NPC", "item": "TM54", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "False Swipe", "type": "Normal"},
+      {"id": "Eterna City||TM67|Gift from NPC", "item": "TM67", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Recycle", "type": "Normal"},
+      {"id": "Eterna City||TM80|Gift from NPC", "item": "TM80", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Rock Slide", "type": "Rock"},
+      {"id": "Eterna City|Gym|TM86|Gift from Gardenia", "item": "TM86", "kind": "tm", "area": "Gym", "how": "Gift from Gardenia", "move": "Grass Knot", "type": "Grass"},
+      {"id": "Eterna City||HM01|Gift from Cynthia", "item": "HM01", "kind": "tm", "area": "", "how": "Gift from Cynthia", "move": "Cut", "type": "Grass"}
+    ],
+    "Route 211": [
+      {"id": "Route 211|East|Fire Stone|", "item": "Fire Stone", "kind": "item", "area": "East", "how": ""},
+      {"id": "Route 211|East|Red Flute|", "item": "Red Flute", "kind": "item", "area": "East", "how": ""},
+      {"id": "Route 211|West|TM12|Item on ground", "item": "TM12", "kind": "tm", "area": "West", "how": "Item on ground", "move": "Taunt", "type": "Dark"},
+      {"id": "Route 211||TM77|Gift from NPC", "item": "TM77", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Psych Up", "type": "Normal"}
+    ],
+    "Mt. Coronet": [
+      {"id": "Mt. Coronet||Adamant Orb|", "item": "Adamant Orb", "kind": "item", "area": "", "how": ""},
+      {"id": "Mt. Coronet||Black Flute|", "item": "Black Flute", "kind": "item", "area": "", "how": ""},
+      {"id": "Mt. Coronet||Bright Powder|", "item": "Bright Powder", "kind": "item", "area": "", "how": ""},
+      {"id": "Mt. Coronet||Dawn Stone|", "item": "Dawn Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Mt. Coronet||Lustrous Orb|", "item": "Lustrous Orb", "kind": "item", "area": "", "how": ""},
+      {"id": "Mt. Coronet|Route 211 entrance|Moon Stone|", "item": "Moon Stone", "kind": "item", "area": "Route 211 entrance", "how": ""},
+      {"id": "Mt. Coronet||Moon Stone|Hidden", "item": "Moon Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Mt. Coronet||Prism Scale|", "item": "Prism Scale", "kind": "item", "area": "", "how": ""},
+      {"id": "Mt. Coronet||Soft Sand|", "item": "Soft Sand", "kind": "item", "area": "", "how": ""},
+      {"id": "Mt. Coronet||Sun Stone|Hidden", "item": "Sun Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Mt. Coronet||TM02|Item on ground", "item": "TM02", "kind": "tm", "area": "", "how": "Item on ground", "move": "Dragon Claw", "type": "Dragon"},
+      {"id": "Mt. Coronet||TM69|Item on ground", "item": "TM69", "kind": "tm", "area": "", "how": "Item on ground", "move": "Rock Polish", "type": "Rock"}
+    ],
+    "Route 216": [
+      {"id": "Route 216||Blue Flute|", "item": "Blue Flute", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 216||Ice Stone|", "item": "Ice Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 216||Mental Herb|", "item": "Mental Herb", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 216||TM13|Gift from NPC", "item": "TM13", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Ice Beam", "type": "Ice"}
+    ],
+    "T.G. Eterna Bldg": [
+      {"id": "T.G. Eterna Bldg||Wise Glasses|", "item": "Wise Glasses", "kind": "item", "area": "", "how": ""},
+      {"id": "T.G. Eterna Bldg||TM16|Item on ground", "item": "TM16", "kind": "tm", "area": "", "how": "Item on ground", "move": "Light Screen", "type": "Psychic"},
+      {"id": "T.G. Eterna Bldg||TM33|Item on ground", "item": "TM33", "kind": "tm", "area": "", "how": "Item on ground", "move": "Reflect", "type": "Psychic"},
+      {"id": "T.G. Eterna Bldg||TM73|Item on ground", "item": "TM73", "kind": "tm", "area": "", "how": "Item on ground", "move": "Thunder Wave", "type": "Electric"}
+    ],
+    "Route 206": [
+      {"id": "Route 206||Poison Barb|", "item": "Poison Barb", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 206||Thunder Stone|", "item": "Thunder Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 206||TM74|Item on ground", "item": "TM74", "kind": "tm", "area": "", "how": "Item on ground", "move": "Gyro Ball", "type": "Steel"}
+    ],
+    "Wayward Cave": [
+      {"id": "Wayward Cave||Dusk Stone|Hidden", "item": "Dusk Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Wayward Cave||Dusk Stone|", "item": "Dusk Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Wayward Cave||Focus Band|", "item": "Focus Band", "kind": "item", "area": "", "how": ""},
+      {"id": "Wayward Cave||Grip Claw|", "item": "Grip Claw", "kind": "item", "area": "", "how": ""},
+      {"id": "Wayward Cave||King's Rock|", "item": "King's Rock", "kind": "item", "area": "", "how": ""},
+      {"id": "Wayward Cave||TM32|Item on ground", "item": "TM32", "kind": "tm", "area": "", "how": "Item on ground", "move": "Double Team", "type": "Normal"},
+      {"id": "Wayward Cave||TM85|Gift from Mira", "item": "TM85", "kind": "tm", "area": "", "how": "Gift from Mira", "move": "Dazzling Gleam", "type": "Fairy"}
+    ],
+    "Route 208": [
+      {"id": "Route 208||TM75|Item on ground", "item": "TM75", "kind": "tm", "area": "", "how": "Item on ground", "move": "Swords Dance", "type": "Normal"},
+      {"id": "Route 208||TM81|Gift from Aaron", "item": "TM81", "kind": "tm", "area": "", "how": "Gift from Aaron", "move": "X-Scissor", "type": "Bug"}
+    ],
+    "Hearthome City": [
+      {"id": "Hearthome City|Amity Square|Amulet Coin|", "item": "Amulet Coin", "kind": "item", "area": "Amity Square", "how": ""},
+      {"id": "Hearthome City|Amity Square|Metronome|", "item": "Metronome", "kind": "item", "area": "Amity Square", "how": ""},
+      {"id": "Hearthome City||Shell Bell|", "item": "Shell Bell", "kind": "item", "area": "", "how": ""},
+      {"id": "Hearthome City||Shiny Stone|", "item": "Shiny Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Hearthome City||Up-Grade|", "item": "Up-Grade", "kind": "item", "area": "", "how": ""},
+      {"id": "Hearthome City||TM30|Gift from Fantina", "item": "TM30", "kind": "tm", "area": "", "how": "Gift from Fantina", "move": "Shadow Ball", "type": "Ghost"},
+      {"id": "Hearthome City|Amity Square|TM43|Item on ground", "item": "TM43", "kind": "tm", "area": "Amity Square", "how": "Item on ground", "move": "Secret Power", "type": "Normal"},
+      {"id": "Hearthome City||TM44|Gift from NPC", "item": "TM44", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Rest", "type": "Psychic"},
+      {"id": "Hearthome City|Amity Square|TM45|Item on ground", "item": "TM45", "kind": "tm", "area": "Amity Square", "how": "Item on ground", "move": "Attract", "type": "Normal"},
+      {"id": "Hearthome City||TM55|Gift from NPC", "item": "TM55", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Scald", "type": "Water"}
+    ],
+    "Route 212": [
+      {"id": "Route 212|South|Dawn Stone|Hidden", "item": "Dawn Stone", "kind": "item", "area": "South", "how": "Hidden"},
+      {"id": "Route 212||Rose Incense|", "item": "Rose Incense", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 212|South|TM06|Item on ground", "item": "TM06", "kind": "tm", "area": "South", "how": "Item on ground", "move": "Toxic", "type": "Poison"},
+      {"id": "Route 212|North|TM11|Item on ground", "item": "TM11", "kind": "tm", "area": "North", "how": "Item on ground", "move": "Sunny Day", "type": "Fire"},
+      {"id": "Route 212|North|TM20|Item on ground", "item": "TM20", "kind": "tm", "area": "North", "how": "Item on ground", "move": "Safeguard", "type": "Normal"},
+      {"id": "Route 212|South|TM62|Item on ground", "item": "TM62", "kind": "tm", "area": "South", "how": "Item on ground", "move": "Bug Buzz", "type": "Bug"},
+      {"id": "Route 212|South|TM84|Item on ground", "item": "TM84", "kind": "tm", "area": "South", "how": "Item on ground", "move": "Poison Jab", "type": "Poison"}
+    ],
+    "Pok\u00e9mon Mansion": [
+      {"id": "Pok\u00e9mon Mansion||Lucky Egg|", "item": "Lucky Egg", "kind": "item", "area": "", "how": ""},
+      {"id": "Pok\u00e9mon Mansion||Soothe Bell|", "item": "Soothe Bell", "kind": "item", "area": "", "how": ""},
+      {"id": "Pok\u00e9mon Mansion||TM87|Gift from NPC", "item": "TM87", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Swagger", "type": "Normal"}
+    ],
+    "Route 209": [
+      {"id": "Route 209|Lost Tower|Cleanse Tag|", "item": "Cleanse Tag", "kind": "item", "area": "Lost Tower", "how": ""},
+      {"id": "Route 209|Lost Tower|Oval Stone|", "item": "Oval Stone", "kind": "item", "area": "Lost Tower", "how": ""},
+      {"id": "Route 209|Lost Tower|Reaper Cloth|", "item": "Reaper Cloth", "kind": "item", "area": "Lost Tower", "how": ""},
+      {"id": "Route 209||Twisted Spoon|", "item": "Twisted Spoon", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 209||Good Rod|Gift from NPC", "item": "Good Rod", "kind": "key", "area": "", "how": "Gift from NPC"},
+      {"id": "Route 209||TM19|Item on ground", "item": "TM19", "kind": "tm", "area": "", "how": "Item on ground", "move": "Giga Drain", "type": "Grass"},
+      {"id": "Route 209||TM47|Item on ground", "item": "TM47", "kind": "tm", "area": "", "how": "Item on ground", "move": "Steel Wing", "type": "Steel"},
+      {"id": "Route 209|Lost Tower|TM61|Item on ground", "item": "TM61", "kind": "tm", "area": "Lost Tower", "how": "Item on ground", "move": "Will-O-Wisp", "type": "Fire"}
+    ],
+    "Solaceon Town": [
+      {"id": "Solaceon Town||Power Anklet|", "item": "Power Anklet", "kind": "item", "area": "", "how": ""},
+      {"id": "Solaceon Town||Power Band|", "item": "Power Band", "kind": "item", "area": "", "how": ""},
+      {"id": "Solaceon Town||Power Belt|", "item": "Power Belt", "kind": "item", "area": "", "how": ""},
+      {"id": "Solaceon Town||Power Bracer|", "item": "Power Bracer", "kind": "item", "area": "", "how": ""},
+      {"id": "Solaceon Town||Power Lens|", "item": "Power Lens", "kind": "item", "area": "", "how": ""},
+      {"id": "Solaceon Town||Power Weight|", "item": "Power Weight", "kind": "item", "area": "", "how": ""},
+      {"id": "Solaceon Town||TM29|Gift from Lucian", "item": "TM29", "kind": "tm", "area": "", "how": "Gift from Lucian", "move": "Psychic", "type": "Psychic"}
+    ],
+    "Solaceon Ruins": [
+      {"id": "Solaceon Ruins||Choice Scarf|", "item": "Choice Scarf", "kind": "item", "area": "", "how": ""},
+      {"id": "Solaceon Ruins||Fire Stone|Hidden", "item": "Fire Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Solaceon Ruins||Odd Incense|", "item": "Odd Incense", "kind": "item", "area": "", "how": ""},
+      {"id": "Solaceon Ruins||Thunder Stone|Hidden", "item": "Thunder Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Solaceon Ruins||Water Stone|Hidden", "item": "Water Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Solaceon Ruins||TM04|Item on ground", "item": "TM04", "kind": "tm", "area": "", "how": "Item on ground", "move": "Calm Mind", "type": "Psychic"},
+      {"id": "Solaceon Ruins||HM05|Item on ground", "item": "HM05", "kind": "tm", "area": "", "how": "Item on ground", "move": "Defog", "type": "Flying"}
+    ],
+    "Route 210": [
+      {"id": "Route 210|South|Life Orb|", "item": "Life Orb", "kind": "item", "area": "South", "how": ""},
+      {"id": "Route 210|North|Shiny Stone|Hidden", "item": "Shiny Stone", "kind": "item", "area": "North", "how": "Hidden"},
+      {"id": "Route 210||Smoke Ball|", "item": "Smoke Ball", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 210|North|Wave Incense|", "item": "Wave Incense", "kind": "item", "area": "North", "how": ""},
+      {"id": "Route 210|North|Yellow Flute|", "item": "Yellow Flute", "kind": "item", "area": "North", "how": ""},
+      {"id": "Route 210||TM22|Item on ground", "item": "TM22", "kind": "tm", "area": "", "how": "Item on ground", "move": "Solar Beam", "type": "Grass"},
+      {"id": "Route 210|South|TM51|Gift from NPC", "item": "TM51", "kind": "tm", "area": "South", "how": "Gift from NPC", "move": "Roost", "type": "Flying"},
+      {"id": "Route 210|North|TM88|Item on ground", "item": "TM88", "kind": "tm", "area": "North", "how": "Item on ground", "move": "Hurricane", "type": "Flying"}
+    ],
+    "Route 215": [
+      {"id": "Route 215||BlackGlasses|", "item": "BlackGlasses", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 215||Razor Claw|", "item": "Razor Claw", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 215||TM66|Item on ground", "item": "TM66", "kind": "tm", "area": "", "how": "Item on ground", "move": "Payback", "type": "Dark"},
+      {"id": "Route 215||TM83|Item on ground", "item": "TM83", "kind": "tm", "area": "", "how": "Item on ground", "move": "Hyper Voice", "type": "Normal"}
+    ],
+    "Veilstone City": [
+      {"id": "Veilstone City|Dept. Store|Dawn Stone|Buyable", "item": "Dawn Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Game Corner|DeepSeaScale|Prize \u00b7 Buyable", "item": "DeepSeaScale", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|DeepSeaTooth|Prize \u00b7 Buyable", "item": "DeepSeaTooth", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City||Dragon Scale|From an NPC in the Pok\u00e9mon Center", "item": "Dragon Scale", "kind": "item", "area": "", "how": "From an NPC in the Pok\u00e9mon Center"},
+      {"id": "Veilstone City||Dubious Disc|", "item": "Dubious Disc", "kind": "item", "area": "", "how": ""},
+      {"id": "Veilstone City|Galactic Warehouse|Dusk Stone|", "item": "Dusk Stone", "kind": "item", "area": "Galactic Warehouse", "how": ""},
+      {"id": "Veilstone City|Dept. Store|Dusk Stone|Buyable", "item": "Dusk Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Dept. Store|Everstone|Buyable", "item": "Everstone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Game Corner|Expert Belt|Prize", "item": "Expert Belt", "kind": "item", "area": "Game Corner", "how": "Prize"},
+      {"id": "Veilstone City|Dept. Store|Fire Stone|Buyable", "item": "Fire Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Game Corner|Flame Orb|Prize \u00b7 Buyable", "item": "Flame Orb", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Focus Sash|Prize \u00b7 Buyable", "item": "Focus Sash", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City||Full Incense|", "item": "Full Incense", "kind": "item", "area": "", "how": ""},
+      {"id": "Veilstone City|Dept. Store|Ice Stone|Buyable", "item": "Ice Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Game Corner|King's Rock|Prize \u00b7 Buyable", "item": "King's Rock", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Dept. Store|Leaf Stone|Buyable", "item": "Leaf Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Game Corner|Leftovers|Prize \u00b7 Buyable", "item": "Leftovers", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Life Orb|Prize \u00b7 Buyable", "item": "Life Orb", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Light Clay|Prize \u00b7 Buyable", "item": "Light Clay", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Mental Herb|Prize \u00b7 Buyable", "item": "Mental Herb", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Metal Coat|Prize \u00b7 Buyable", "item": "Metal Coat", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Metronome|Prize \u00b7 Buyable", "item": "Metronome", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Dept. Store|Moon Stone|Buyable", "item": "Moon Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Game Corner|Muscle Band|Prize \u00b7 Buyable", "item": "Muscle Band", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Dept. Store|Oval Stone|Buyable", "item": "Oval Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Game Corner|Power Herb|Prize \u00b7 Buyable", "item": "Power Herb", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Dept. Store|Shiny Stone|Buyable", "item": "Shiny Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Dept. Store|Sticky Barb|", "item": "Sticky Barb", "kind": "item", "area": "Dept. Store", "how": ""},
+      {"id": "Veilstone City|Dept. Store|Sun Stone|Buyable", "item": "Sun Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Dept. Store|Thunder Stone|Buyable", "item": "Thunder Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Game Corner|Toxic Orb|Prize \u00b7 Buyable", "item": "Toxic Orb", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Dept. Store|Water Stone|Buyable", "item": "Water Stone", "kind": "item", "area": "Dept. Store", "how": "Buyable"},
+      {"id": "Veilstone City|Game Corner|White Herb|Prize \u00b7 Buyable", "item": "White Herb", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Wide Lens|Prize", "item": "Wide Lens", "kind": "item", "area": "Game Corner", "how": "Prize"},
+      {"id": "Veilstone City|Game Corner|Wise Glasses|Prize \u00b7 Buyable", "item": "Wise Glasses", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Game Corner|Zoom Lens|Prize \u00b7 Buyable", "item": "Zoom Lens", "kind": "item", "area": "Game Corner", "how": "Prize \u00b7 Buyable"},
+      {"id": "Veilstone City|Dept. Store|TM26|Gift from Bertha", "item": "TM26", "kind": "tm", "area": "Dept. Store", "how": "Gift from Bertha", "move": "Earthquake", "type": "Ground"},
+      {"id": "Veilstone City|Galactic Warehouse|TM49|Item on ground", "item": "TM49", "kind": "tm", "area": "Galactic Warehouse", "how": "Item on ground", "move": "Snatch", "type": "Dark"},
+      {"id": "Veilstone City|Gym|TM60|Gift from Maylene", "item": "TM60", "kind": "tm", "area": "Gym", "how": "Gift from Maylene", "move": "Drain Punch", "type": "Fighting"},
+      {"id": "Veilstone City||TM63|Gift from NPC", "item": "TM63", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Embargo", "type": "Dark"},
+      {"id": "Veilstone City|Game Corner|TM64|Gift from NPC", "item": "TM64", "kind": "tm", "area": "Game Corner", "how": "Gift from NPC", "move": "Explosion", "type": "Normal"},
+      {"id": "Veilstone City||TM79|Item on ground", "item": "TM79", "kind": "tm", "area": "", "how": "Item on ground", "move": "Dark Pulse", "type": "Dark"},
+      {"id": "Veilstone City|Galactic Warehouse|HM02|Item on ground", "item": "HM02", "kind": "tm", "area": "Galactic Warehouse", "how": "Item on ground", "move": "Fly", "type": "Flying"}
+    ],
+    "Maniac Tunnel": [
+      {"id": "Maniac Tunnel||TM59|Item on ground", "item": "TM59", "kind": "tm", "area": "", "how": "Item on ground", "move": "Dragon Pulse", "type": "Dragon"}
+    ],
+    "Route 214": [
+      {"id": "Route 214||Big Root|", "item": "Big Root", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 214||Choice Band|", "item": "Choice Band", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 214||Heat Rock|", "item": "Heat Rock", "kind": "item", "area": "", "how": ""}
+    ],
+    "Valor Lakefront": [
+      {"id": "Valor Lakefront||Sharp Beak|", "item": "Sharp Beak", "kind": "item", "area": "", "how": ""},
+      {"id": "Valor Lakefront||Sun Stone|Hidden", "item": "Sun Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Valor Lakefront||White Flute|", "item": "White Flute", "kind": "item", "area": "", "how": ""},
+      {"id": "Valor Lakefront||TM53|Item on ground", "item": "TM53", "kind": "tm", "area": "", "how": "Item on ground", "move": "Energy Ball", "type": "Grass"}
+    ],
+    "Lake Valor": [
+      {"id": "Lake Valor||TM25|Item on ground", "item": "TM25", "kind": "tm", "area": "", "how": "Item on ground", "move": "Thunder", "type": "Electric"}
+    ],
+    "Route 213": [
+      {"id": "Route 213|Hotel Grand Lake|Electirizer|", "item": "Electirizer", "kind": "item", "area": "Hotel Grand Lake", "how": ""},
+      {"id": "Route 213|Hotel Grand Lake|Magmarizer|", "item": "Magmarizer", "kind": "item", "area": "Hotel Grand Lake", "how": ""},
+      {"id": "Route 213||Water Stone|", "item": "Water Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 213||TM05|Item on ground", "item": "TM05", "kind": "tm", "area": "", "how": "Item on ground", "move": "Roar", "type": "Normal"},
+      {"id": "Route 213||TM41|Item on ground", "item": "TM41", "kind": "tm", "area": "", "how": "Item on ground", "move": "Torment", "type": "Dark"},
+      {"id": "Route 213||TM92|Gift from NPC", "item": "TM92", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Trick Room", "type": "Psychic"}
+    ],
+    "Pastoria City": [
+      {"id": "Pastoria City||Blue Scarf|", "item": "Blue Scarf", "kind": "item", "area": "", "how": ""},
+      {"id": "Pastoria City||Green Scarf|", "item": "Green Scarf", "kind": "item", "area": "", "how": ""},
+      {"id": "Pastoria City||Macho Brace|", "item": "Macho Brace", "kind": "item", "area": "", "how": ""},
+      {"id": "Pastoria City||Mystic Water|", "item": "Mystic Water", "kind": "item", "area": "", "how": ""},
+      {"id": "Pastoria City||Pink Scarf|", "item": "Pink Scarf", "kind": "item", "area": "", "how": ""},
+      {"id": "Pastoria City||Red Scarf|", "item": "Red Scarf", "kind": "item", "area": "", "how": ""},
+      {"id": "Pastoria City||Yellow Scarf|", "item": "Yellow Scarf", "kind": "item", "area": "", "how": ""},
+      {"id": "Pastoria City|Gym|HM07|Gift from Wake", "item": "HM07", "kind": "tm", "area": "Gym", "how": "Gift from Wake", "move": "Waterfall", "type": "Water"}
+    ],
+    "Great Marsh": [
+      {"id": "Great Marsh||Black Sludge|", "item": "Black Sludge", "kind": "item", "area": "", "how": ""},
+      {"id": "Great Marsh||Leaf Stone|Hidden", "item": "Leaf Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Great Marsh||Shed Shell|", "item": "Shed Shell", "kind": "item", "area": "", "how": ""},
+      {"id": "Great Marsh||TM17|Gift from NPC", "item": "TM17", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Protect", "type": "Normal"},
+      {"id": "Great Marsh||TM36|Item on ground", "item": "TM36", "kind": "tm", "area": "", "how": "Item on ground", "move": "Sludge Bomb", "type": "Poison"}
+    ],
+    "Celestic Town": [
+      {"id": "Celestic Town||BlackGlasses|", "item": "BlackGlasses", "kind": "item", "area": "", "how": ""},
+      {"id": "Celestic Town||Choice Specs|From an NPC in the morning", "item": "Choice Specs", "kind": "item", "area": "", "how": "From an NPC in the morning"},
+      {"id": "Celestic Town||Dragon Fang|", "item": "Dragon Fang", "kind": "item", "area": "", "how": ""},
+      {"id": "Celestic Town||King's Rock|Hidden", "item": "King's Rock", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Celestic Town||Wise Glasses|", "item": "Wise Glasses", "kind": "item", "area": "", "how": ""},
+      {"id": "Celestic Town||HM03|Gift from NPC", "item": "HM03", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Surf", "type": "Water"}
+    ],
+    "Fuego Ironworks": [
+      {"id": "Fuego Ironworks||Fire Stone|", "item": "Fire Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Fuego Ironworks||Rock Incense|", "item": "Rock Incense", "kind": "item", "area": "", "how": ""},
+      {"id": "Fuego Ironworks||TM35|Item on ground", "item": "TM35", "kind": "tm", "area": "", "how": "Item on ground", "move": "Flamethrower", "type": "Fire"}
+    ],
+    "Route 220": [
+      {"id": "Route 220||Damp Rock|", "item": "Damp Rock", "kind": "item", "area": "", "how": ""}
+    ],
+    "Route 221": [
+      {"id": "Route 221||Black Belt|", "item": "Black Belt", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 221||Focus Sash|", "item": "Focus Sash", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 221||Pure Incense|", "item": "Pure Incense", "kind": "item", "area": "", "how": ""}
+    ],
+    "Iron Island": [
+      {"id": "Iron Island||Iron Ball|", "item": "Iron Ball", "kind": "item", "area": "", "how": ""},
+      {"id": "Iron Island||Metal Coat|", "item": "Metal Coat", "kind": "item", "area": "", "how": ""},
+      {"id": "Iron Island||Protector|", "item": "Protector", "kind": "item", "area": "", "how": ""},
+      {"id": "Iron Island||Shiny Stone|", "item": "Shiny Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Iron Island||Smooth Rock|", "item": "Smooth Rock", "kind": "item", "area": "", "how": ""},
+      {"id": "Iron Island||TM23|Item on ground", "item": "TM23", "kind": "tm", "area": "", "how": "Item on ground", "move": "Iron Tail", "type": "Steel"},
+      {"id": "Iron Island||HM04|Gift from Riley", "item": "HM04", "kind": "tm", "area": "", "how": "Gift from Riley", "move": "Strength", "type": "Normal"}
+    ],
+    "Canalave City": [
+      {"id": "Canalave City||TM48|Gift from NPC", "item": "TM48", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Skill Swap", "type": "Psychic"},
+      {"id": "Canalave City||TM89|Item on ground", "item": "TM89", "kind": "tm", "area": "", "how": "Item on ground", "move": "U-turn", "type": "Bug"},
+      {"id": "Canalave City|Gym|TM91|Gift from Byron", "item": "TM91", "kind": "tm", "area": "Gym", "how": "Gift from Byron", "move": "Flash Cannon", "type": "Steel"}
+    ],
+    "Route 217": [
+      {"id": "Route 217|Ice Rock|Ice Stone|", "item": "Ice Stone", "kind": "item", "area": "Ice Rock", "how": ""},
+      {"id": "Route 217||Icy Rock|", "item": "Icy Rock", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 217||Spell Tag|", "item": "Spell Tag", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 217||TM07|Item on ground", "item": "TM07", "kind": "tm", "area": "", "how": "Item on ground", "move": "Hail", "type": "Ice"},
+      {"id": "Route 217||TM52|Gift from Maylene", "item": "TM52", "kind": "tm", "area": "", "how": "Gift from Maylene", "move": "Focus Blast", "type": "Fighting"}
+    ],
+    "Acuity Lakefront": [
+      {"id": "Acuity Lakefront||Reaper Cloth|", "item": "Reaper Cloth", "kind": "item", "area": "", "how": ""}
+    ],
+    "Snowpoint City": [
+      {"id": "Snowpoint City||Dragon Scale|Buyable", "item": "Dragon Scale", "kind": "item", "area": "", "how": "Buyable"},
+      {"id": "Snowpoint City||Dubious Disc|Buyable", "item": "Dubious Disc", "kind": "item", "area": "", "how": "Buyable"},
+      {"id": "Snowpoint City||Electirizer|Buyable", "item": "Electirizer", "kind": "item", "area": "", "how": "Buyable"},
+      {"id": "Snowpoint City||Magmarizer|Buyable", "item": "Magmarizer", "kind": "item", "area": "", "how": "Buyable"},
+      {"id": "Snowpoint City||Prism Scale|Buyable", "item": "Prism Scale", "kind": "item", "area": "", "how": "Buyable"},
+      {"id": "Snowpoint City||Protector|Buyable", "item": "Protector", "kind": "item", "area": "", "how": "Buyable"},
+      {"id": "Snowpoint City||Razor Claw|Buyable", "item": "Razor Claw", "kind": "item", "area": "", "how": "Buyable"},
+      {"id": "Snowpoint City||Reaper Cloth|Buyable", "item": "Reaper Cloth", "kind": "item", "area": "", "how": "Buyable"},
+      {"id": "Snowpoint City||Up-Grade|Buyable", "item": "Up-Grade", "kind": "item", "area": "", "how": "Buyable"},
+      {"id": "Snowpoint City||Super Rod|Gift from NPC", "item": "Super Rod", "kind": "key", "area": "", "how": "Gift from NPC"},
+      {"id": "Snowpoint City||TM72|Gift from Candice", "item": "TM72", "kind": "tm", "area": "", "how": "Gift from Candice", "move": "Avalanche", "type": "Ice"},
+      {"id": "Snowpoint City||HM08|Gift from Candice", "item": "HM08", "kind": "tm", "area": "", "how": "Gift from Candice", "move": "Rock Climb", "type": "Rock"}
+    ],
+    "Lake Acuity": [
+      {"id": "Lake Acuity||TM14|Item on ground", "item": "TM14", "kind": "tm", "area": "", "how": "Item on ground", "move": "Blizzard", "type": "Ice"}
+    ],
+    "Galactic HQ": [
+      {"id": "Galactic HQ||Razor Claw|", "item": "Razor Claw", "kind": "item", "area": "", "how": ""},
+      {"id": "Galactic HQ||Toxic Orb|", "item": "Toxic Orb", "kind": "item", "area": "", "how": ""},
+      {"id": "Galactic HQ||TM21|Item on ground", "item": "TM21", "kind": "tm", "area": "", "how": "Item on ground", "move": "Frustration", "type": "Normal"}
+    ],
+    "Snowpoint Temple": [
+      {"id": "Snowpoint Temple||Ice Stone|", "item": "Ice Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Snowpoint Temple||Never-Melt Ice|", "item": "Never-Melt Ice", "kind": "item", "area": "", "how": ""}
+    ],
+    "Distortion World": [
+      {"id": "Distortion World||Griseous Orb|", "item": "Griseous Orb", "kind": "item", "area": "", "how": ""}
+    ],
+    "Route 222": [
+      {"id": "Route 222||TM56|Item on ground", "item": "TM56", "kind": "tm", "area": "", "how": "Item on ground", "move": "Fling", "type": "Dark"}
+    ],
+    "Sunyshore City": [
+      {"id": "Sunyshore City||Metal Coat|", "item": "Metal Coat", "kind": "item", "area": "", "how": ""},
+      {"id": "Sunyshore City||Thunder Stone|", "item": "Thunder Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Sunyshore City||TM15|Gift from NPC", "item": "TM15", "kind": "tm", "area": "", "how": "Gift from NPC", "move": "Hyper Beam", "type": "Normal"},
+      {"id": "Sunyshore City||TM50|Gift from Flint", "item": "TM50", "kind": "tm", "area": "", "how": "Gift from Flint", "move": "Overheat", "type": "Fire"},
+      {"id": "Sunyshore City|Gym|TM57|Gift from Volkner", "item": "TM57", "kind": "tm", "area": "Gym", "how": "Gift from Volkner", "move": "Wild Charge", "type": "Electric"}
+    ],
+    "Victory Road": [
+      {"id": "Victory Road||Dragon Scale|", "item": "Dragon Scale", "kind": "item", "area": "", "how": ""},
+      {"id": "Victory Road||Dusk Stone|", "item": "Dusk Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Victory Road||Leftovers|", "item": "Leftovers", "kind": "item", "area": "", "how": ""},
+      {"id": "Victory Road||Razor Claw|", "item": "Razor Claw", "kind": "item", "area": "", "how": ""},
+      {"id": "Victory Road||TM68|Item on ground", "item": "TM68", "kind": "tm", "area": "", "how": "Item on ground", "move": "Giga Impact", "type": "Normal"}
+    ],
+    "Route 223": [
+      {"id": "Route 223||TM18|Item on ground", "item": "TM18", "kind": "tm", "area": "", "how": "Item on ground", "move": "Rain Dance", "type": "Water"}
+    ],
+    "Route 224": [
+      {"id": "Route 224||Destiny Knot|", "item": "Destiny Knot", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 224||Razor Claw|", "item": "Razor Claw", "kind": "item", "area": "", "how": ""}
+    ],
+    "Fight Area": [
+      {"id": "Fight Area||Scope Lens|", "item": "Scope Lens", "kind": "item", "area": "", "how": ""}
+    ],
+    "Route 225": [
+      {"id": "Route 225||Dawn Stone|", "item": "Dawn Stone", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 225||Lax Incense|", "item": "Lax Incense", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 225||Leaf Stone|Hidden", "item": "Leaf Stone", "kind": "item", "area": "", "how": "Hidden"}
+    ],
+    "Route 226": [
+      {"id": "Route 226||Lagging Tail|", "item": "Lagging Tail", "kind": "item", "area": "", "how": ""}
+    ],
+    "Route 227": [
+      {"id": "Route 227||Charcoal|", "item": "Charcoal", "kind": "item", "area": "", "how": ""}
+    ],
+    "Route 228": [
+      {"id": "Route 228||Protector|", "item": "Protector", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 228||Shed Shell|", "item": "Shed Shell", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 228||TM37|Item on ground", "item": "TM37", "kind": "tm", "area": "", "how": "Item on ground", "move": "Sandstorm", "type": "Rock"}
+    ],
+    "Route 229": [
+      {"id": "Route 229||Reaper Cloth|", "item": "Reaper Cloth", "kind": "item", "area": "", "how": ""},
+      {"id": "Route 229||Thunder Stone|Hidden", "item": "Thunder Stone", "kind": "item", "area": "", "how": "Hidden"}
+    ],
+    "Route 230": [
+      {"id": "Route 230||Water Stone|Hidden", "item": "Water Stone", "kind": "item", "area": "", "how": "Hidden"}
+    ],
+    "Stark Mountain": [
+      {"id": "Stark Mountain||Fire Stone|Hidden", "item": "Fire Stone", "kind": "item", "area": "", "how": "Hidden"},
+      {"id": "Stark Mountain||Life Orb|", "item": "Life Orb", "kind": "item", "area": "", "how": ""}
+    ]
+  }
+}

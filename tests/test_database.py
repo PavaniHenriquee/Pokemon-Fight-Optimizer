@@ -8,7 +8,9 @@ from DataBase.loader import moveDB, abDB, itemDB, pkDB
 from DataBase.import_learnsets import move_key, parse_dex, species_name, with_learnsets
 from DataBase.import_encounters import (
     STATS_EVOLUTION_COL, STATS_EVOLUTION_TITLE, db_text, parse_encounters, parse_evolution_lines,
+    parse_evolutions,
 )
+from DataBase import import_items
 from Models.move import Moves
 from Models.ability import ability_to_np
 from Models.item import item_to_np
@@ -414,7 +416,7 @@ def test_encounters_continuation_group_belongs_to_the_left_block():
         ],
     )
     assert [(t["method"], _names(t)) for t in db["locations"]["Route 209"]] == [
-        ("Surf (20-40)", ["Starly", "Bidoof"]), ("Rods (O-10, G-25, S-50)", ["Spheal"]),
+        ("Surf (20-40)", ["Starly", "Bidoof"]), ("Old Rod (10)", ["Spheal"]),
     ]
 
 
@@ -478,9 +480,58 @@ def test_encounters_legendary_lists_repeat_nothing_and_keep_the_story_order():
     assert [_names(t) for t in db["locations"]["Victory Road"]] == [["Starly"]]
 
 
+def test_encounters_rates_follow_the_level():
+    """Morning, day and night, or a single rate. A gift's '-' is no rate"""
+    db = _parse_encounters([
+        ["ROUTE 206"],
+        ["Grass (20-22)", "", "", "M", "D", "N"],
+        ["", "#396 Starly", "21-21", "30", "20", "0"],
+        ["Surf (20-40)"],
+        ["", "#399 Bidoof", "20-40", "90"],
+        ["Static Encounter"],
+        ["", "#377 Regirock", "60", "-"],
+    ])
+    assert [t["mons"][0] for t in db["locations"]["Route 206"]] == [
+        {"name": "Starly", "level": "21-21", "rates": [30, 20, 0]},
+        {"name": "Bidoof", "level": "20-40", "rates": [90]},
+        {"name": "Regirock", "level": "60"},
+    ]
+
+
+def test_encounters_rods_split_into_one_table_per_rod():
+    """Each rod gets its own table with what it can hook, its level in the method"""
+    db = _parse_encounters([
+        ["ROUTE 206"],
+        ["Rods (O-10, G-25, S-50)", "", "", "O", "G", "S"],
+        ["", "#363 Spheal", "", "60", "40", "0"],
+        ["", "#399 Bidoof", "", "40", "60", "100"],
+    ])
+    assert [(t["method"], t["mons"]) for t in db["locations"]["Route 206"]] == [
+        ("Old Rod (10)", [{"name": "Spheal", "level": "", "rates": [60]},
+                          {"name": "Bidoof", "level": "", "rates": [40]}]),
+        ("Good Rod (25)", [{"name": "Spheal", "level": "", "rates": [40]},
+                           {"name": "Bidoof", "level": "", "rates": [60]}]),
+        ("Super Rod (50)", [{"name": "Bidoof", "level": "", "rates": [100]}]),
+    ]
+
+
+def test_encounters_a_repeat_with_more_rates_replaces_them():
+    """Route 218: an Old Rod preview early on, then the full Rods table of the same location"""
+    db = _parse_encounters(
+        [["ROUTE 206"], ["Rods (O-10, G-25, S-50)", "", "", "O"], ["", "#363 Spheal", "", "100"]],
+        [["ROUTE 206"], ["Rods (O-10, G-25, S-50)", "", "", "O", "G", "S"],
+         ["", "#363 Spheal", "", "100", "100", "100"]],
+    )
+    assert [(t["method"], t["mons"][0]["rates"]) for t in db["locations"]["Route 206"]] == [
+        ("Old Rod (10)", [100]), ("Good Rod (25)", [100]), ("Super Rod (50)", [100]),
+    ]
+
+
 @pytest.mark.parametrize("group", [
     [["ROUTE 206"], ["Something new"], ["", "#396 Starly", "21-21"]],   # text it doesn't know
     [["ROUTE 206"], ["Grass (20-22)"], ["", "#999 Missingno", "21-21"]],  # species not in PkDB
+    [["ROUTE 206"], ["Rods (O-10, G-25, S-50)", "", "", "O", "G", "S"],  # rates that fit no rod
+     ["", "#363 Spheal", "", "100"]],
 ])
 def test_encounters_import_fails_on_what_it_does_not_know(group):
     """A layout change in the sheet stops the import instead of writing bad data"""
@@ -502,6 +553,7 @@ def test_encounters_db_text_round_trips():
             {"area": "", "method": "Poké Radar", "mons": [{"name": "Starly", "level": "4-5"}]},
         ]},
         "evolution_lines": [["Starly", "Staravia"], ["Bidoof"]],
+        "evolutions": {"Starly": [{"name": "Staravia", "how": "Lv. 14"}]},
     }
     text = db_text(db)
     assert json.loads(text) == db and text.isascii()
@@ -557,6 +609,35 @@ def test_evolution_lines_correct_the_sheets_hoppip_typo():
     assert parse_evolution_lines(stats, known) == [
         ["Politoed", "Poliwhirl"], ["Hoppip", "Skiploom", "Jumpluff"],
     ]
+
+
+def test_evolutions_say_what_and_how():
+    """Each target with its own cell minus the dex it comes from. Forms are all targets, the Hoppip typo
+    is fixed, and a species that doesn't evolve isn't listed"""
+    stats = _stats_csv(
+        ("#396 Starly", "Can evolve into #397"),
+        ("#397 Staravia", "#396 Lv. 14 - Can evolve into #398"),
+        ("#398 Staraptor", "#397 Lv. 34"),
+        ("#412 Burmy", "Can evolve into #413, #414"),
+        ("#413 Wormadam (Plant)", "#412 Female Plant Cloak Lv. 20"),
+        ("#413 Wormadam (Sandy)", "#412 Female Sand Cloak Lv. 20"),
+        ("#414 Mothim", "#412 Male Lv. 20"),
+        ("#187 Hoppip", "Can evolve into #187"),
+        ("#188 Skiploom", "#186 Lv. 18 - Can evolve into #188"),
+        ("#189 Jumpluff", "#187 Lv. 27"),
+        ("#479 Rotom", "N"),
+    )
+    assert parse_evolutions(stats) == {
+        "Starly": [{"name": "Staravia", "how": "Lv. 14"}],
+        "Staravia": [{"name": "Staraptor", "how": "Lv. 34"}],
+        "Burmy": [
+            {"name": "Wormadam", "how": "Female Plant Cloak Lv. 20"},
+            {"name": "Wormadam_sandy", "how": "Female Sand Cloak Lv. 20"},
+            {"name": "Mothim", "how": "Male Lv. 20"},
+        ],
+        "Hoppip": [{"name": "Skiploom", "how": "Lv. 18"}],
+        "Skiploom": [{"name": "Jumpluff", "how": "Lv. 27"}],
+    }
 
 
 @pytest.mark.parametrize("stats, known", [
@@ -619,6 +700,36 @@ def test_encounter_db_tables_have_pokemon():
     assert not [(name, t["method"]) for name, tables in locations.items() for t in tables if not t["mons"]]
 
 
+def test_encounter_db_rates_fit_their_table():
+    """A table's Pokemon all have the same number of rates: morning/day/night for grass, caves and the
+    ground, one per Pokemon on a rod, none for a gift. No Rods table is left unsplit"""
+    bad = []
+    for name, tables in ENCOUNTER_DB["locations"].items():
+        for t in tables:
+            counts = {len(mon.get("rates", [])) for mon in t["mons"]}
+            time_of_day = t["method"].startswith(("Grass", "Cave", "Ground", "Lost Tower"))
+            rod = t["method"].endswith((" Rod (10)", " Rod (25)", " Rod (50)"))
+            if len(counts) > 1 or (time_of_day and counts != {3}) or (rod and counts != {1}):
+                bad.append((name, t["area"], t["method"], counts))
+            if t["method"].startswith("Rods"):
+                bad.append((name, t["area"], t["method"], "not split"))
+    assert not bad
+
+
+def test_encounter_db_evolutions_stay_in_the_line():
+    """Every evolution is to a PkDB species of the same line, and says how"""
+    line_of = {name: i for i, line in enumerate(ENCOUNTER_DB["evolution_lines"]) for name in line}
+    bad = [
+        (name, target["name"])
+        for name, targets in ENCOUNTER_DB["evolutions"].items()
+        for target in targets
+        if target["name"] not in pkDB or line_of[target["name"]] != line_of[name] or not target["how"]
+    ]
+    assert not bad
+    assert [t["name"] for t in ENCOUNTER_DB["evolutions"]["Kirlia"]] == ["Gardevoir", "Gallade"]
+    assert len(ENCOUNTER_DB["evolutions"]["Eevee"]) == 7 and "Venusaur" not in ENCOUNTER_DB["evolutions"]
+
+
 def test_encounter_db_is_by_met_location():
     """Locations are [pp]'s met locations, not the sheet's blocks or section titles"""
     locations = ENCOUNTER_DB["locations"]
@@ -673,3 +784,177 @@ def test_pkdb_keeps_the_importers_format():
     with open(os.path.join(ROOT, "DataBase", "PkDB.json"), encoding="utf-8", newline="") as f:
         text = f.read()
     assert with_learnsets(text, {name: entry["learnset"] for name, entry in pkDB.items()}) == text
+
+
+# ─── Item locations (DataBase/import_items.py) ────────────────────────────────
+
+# Every location PLACED_AFTER needs, plus a gift and a trade for the items they hold
+ITEM_ENCOUNTERS = {
+    "Jubilife City": [{"area": "", "method": "Gift from the Interviewer", "mons": [{"name": "Bulbasaur"}]}],
+    "Oreburgh City": [{"area": "", "method": "Trade with a Schoolgirl", "mons": [{"name": "Spheal"}]}],
+    **{name: [] for name in (
+        "Route 208", "Route 209", "Route 210", "Route 215", "Acuity Lakefront", "Lake Acuity",
+        "Flower Paradise", "Veilstone City",
+    )},
+}
+
+
+def _parse_items(monkeypatch, items=(), tms=(), keys=(), kept=None) -> dict:
+    """The iTEMS/TMs tab's CSV with one table of each: items (name, places) in columns 1-3, TMs (name,
+    type, place, how) in 5-11, key items (name, place, how, mark) in 16-20, and like the sheet a plate under
+    its heading in 13-15. KEY_ITEMS is `kept`, the key items given by default"""
+    monkeypatch.setattr(import_items, "ITEM_TABLES", 1)
+    monkeypatch.setattr(import_items, "TM_TABLES", 1)
+    monkeypatch.setattr(import_items, "TM_COUNT", len(tms))
+    monkeypatch.setattr(import_items, "KEY_ITEMS", tuple(key[0] for key in keys) if kept is None else kept)
+    rows = [[""] * 21 for _ in range(max(len(items), len(tms), len(keys), 2) + 3)]
+    rows[1][16], rows[1][18] = "Item", "Location"
+    for r, cells in enumerate(keys, start=2):
+        rows[r][17:17 + len(cells)] = cells
+    rows[1][1], rows[1][3] = "Item", "Locations"
+    rows[1][5], rows[1][6] = "TM                      ", "Type"
+    rows[1][13] = "PLATE LOCATIONS"
+    rows[2][13], rows[2][15] = "Item", "Master Trainer Location"
+    rows[3][14], rows[3][15] = "Mind Plate", "Route 209 - Entrance"
+    for r, (name, places) in enumerate(items, start=2):
+        rows[r][2], rows[r][3] = name, places
+    for r, (name, move_type, place, how) in enumerate(tms, start=2):
+        rows[r][5:12] = [name, move_type, "", "", "", place, how]
+    out = io.StringIO()
+    csv.writer(out).writerows(rows)
+    return import_items.parse_items(out.getvalue(), ITEM_ENCOUNTERS)["locations"]
+
+
+def _seen(entries: list) -> list:
+    return [(e["item"], e["area"], e["how"]) for e in entries]
+
+
+def test_items_one_pickup_per_place_with_its_area_and_notes(monkeypatch):
+    """A comma list is one pickup per place, parentheses are an area or how it's found"""
+    db = _parse_items(monkeypatch, items=[
+        ("Shiny Stone", "Route 210 (North) (Hidden), Veilstone Dept. Store (Buyable)"),
+        ("Leftovers", "Veilstone Game Corner Prize (Buyable), Route 209"),
+    ])
+    assert _seen(db["Route 210"]) == [("Shiny Stone", "North", "Hidden")]
+    assert _seen(db["Veilstone City"]) == [
+        ("Shiny Stone", "Dept. Store", "Buyable"), ("Leftovers", "Game Corner", "Prize · Buyable"),
+    ]
+    assert _seen(db["Route 209"]) == [("Leftovers", "", "")]
+
+
+def test_items_held_by_a_gift_or_a_trade_are_where_it_is_given(monkeypatch):
+    """EncounterDB says where the gift and the traded Pokemon are, so the item is picked up there"""
+    db = _parse_items(monkeypatch, items=[
+        ("Miracle Seed", "Route 209, attached to Bulbasaur gifts"),
+        ("NeverMeltIce", "Trade for Spheal in Oreburgh"),
+    ])
+    assert _seen(db["Jubilife City"]) == [("Miracle Seed", "", "Held by the gift Bulbasaur")]
+    assert _seen(db["Route 209"]) == [("Miracle Seed", "", "")]
+    assert _seen(db["Oreburgh City"]) == [("Never-Melt Ice", "", "Held by the traded Spheal")]  # ItemDB's
+
+
+def test_items_tms_and_no_plates(monkeypatch):
+    """A TM keeps its move and type, a gym is its city's. The plate table is left out (after the Champion)"""
+    db = _parse_items(
+        monkeypatch,
+        tms=[("TM76 Stealth Rock ", "Rock", "Oreburgh Gym", "Gift from Roark"),
+             ("HM06 Rock Smash", "Fighting", "Route 209 ", "Gift from NPC")],
+    )
+    assert db["Oreburgh City"] == [{
+        "id": "Oreburgh City|Gym|TM76|Gift from Roark", "item": "TM76", "kind": "tm", "area": "Gym",
+        "how": "Gift from Roark", "move": "Stealth Rock", "type": "Rock",
+    }]
+    assert [(e["item"], e["kind"], e["area"]) for e in db["Route 209"]] == [("HM06", "tm", "")]
+
+
+def test_items_key_items_are_only_the_ones_kept(monkeypatch):
+    """A kept key item is read with how it's given, past the sheet's * mark; any other is left out"""
+    keys = [("Good Rod", "Route 209", "*", "Gift from NPC"), ("Town Map", "Route 209", "Gift from rival")]
+    db = _parse_items(monkeypatch, keys=keys, kept=("Good Rod",))
+    assert db == {"Route 209": [{
+        "id": "Route 209||Good Rod|Gift from NPC", "item": "Good Rod", "kind": "key", "area": "",
+        "how": "Gift from NPC",
+    }]}
+    with pytest.raises(ValueError):  # a kept one the sheet doesn't have
+        _parse_items(monkeypatch, keys=keys, kept=("Good Rod", "Super Rod"))
+
+
+def test_items_follow_the_story_order(monkeypatch):
+    """Locations in EncounterDB's order with PLACED_AFTER's put in (Veilstone City moves up from the end);
+    at a location items, then key items, then TMs"""
+    db = _parse_items(
+        monkeypatch,
+        items=[("Choice Band", "Veilstone City"), ("Magnet", "Route 209"), ("Up-Grade", "Hearthome City"),
+               ("Big Root", "Route 210")],
+        tms=[("TM01 Focus Punch", "Fighting", "Route 209", "Item on ground")],
+        keys=[("Good Rod", "Route 209", "Gift from NPC")],
+    )
+    assert list(db) == ["Hearthome City", "Route 209", "Route 210", "Veilstone City"]
+    assert [e["kind"] for e in db["Route 209"]] == ["item", "key", "tm"]
+
+
+@pytest.mark.parametrize("items, tms", [
+    ([("Magnet", "Somewhere New")], []),                          # a place it doesn't know
+    ([("Magnet", "Route 209 (Something new)")], []),              # a note it doesn't know
+    ([("Magnet", "")], []),                                       # an item with no places
+    ([("Magnet", "Trade for Spheal in Jubilife")], []),           # the trade is somewhere else
+    ([("Magnet", "Route 209, attached to Squirtle gifts")], []),  # a gift EncounterDB doesn't have
+    ([], [("TM99 Something", "Sound", "Route 209", "Item on ground")]),  # not a type
+    ([("Magnet", "Route 209"), ("Magnet", "Route 209")], []),     # the same pickup twice
+])
+def test_items_import_fails_on_what_it_does_not_know(monkeypatch, items, tms):
+    """A layout change in the sheet stops the import instead of writing bad data"""
+    with pytest.raises(ValueError):
+        _parse_items(monkeypatch, items=items, tms=tms)
+
+
+def test_items_import_needs_its_tables():
+    """No header cells means the layout changed"""
+    with pytest.raises(ValueError):
+        import_items.parse_items("a,b\n1,2\n", ITEM_ENCOUNTERS)
+
+
+def test_items_db_text_round_trips():
+    """The custom file format is plain JSON, ASCII for the platform-encoding loader"""
+    db = {"locations": {"Pokémon Mansion": [
+        {"id": "Pokémon Mansion||Lucky Egg|", "item": "Lucky Egg", "kind": "item", "area": "", "how": ""},
+    ]}}
+    text = import_items.db_text(db)
+    assert json.loads(text) == db and text.isascii()
+
+
+ITEM_LOCATION_DB = _load_json("DataBase", "ItemLocationDB.json")
+PICKUPS = [(name, e) for name, entries in ITEM_LOCATION_DB["locations"].items() for e in entries]
+
+
+def test_item_location_db_is_in_the_trackers_story_order():
+    """Every location is a Tracker location or a placed one, in location_order's order"""
+    order = import_items.location_order(ENCOUNTER_DB["locations"])
+    names = list(ITEM_LOCATION_DB["locations"])
+    assert names == [name for name in order if name in names]
+
+
+def test_item_location_db_counts_and_ids():
+    """Every TM and HM, no plates, and one id per pickup for the run to keep"""
+    kinds = [e["kind"] for _, e in PICKUPS]
+    assert kinds.count("tm") == 100 and set(kinds) == {"item", "key", "tm"}
+    # What the Pokémon tab's locks need (nuzlocke.ts METHOD_NEEDS): the rods and HM03 Surf, once each
+    assert sorted(e["item"] for _, e in PICKUPS if e["kind"] == "key") == ["Good Rod", "Old Rod", "Super Rod"]
+    assert [e["move"] for _, e in PICKUPS if e["item"] == "HM03"] == ["Surf"]
+    ids = [e["id"] for _, e in PICKUPS]
+    assert len(ids) == len(set(ids))
+    assert not [e["id"] for name, e in PICKUPS if e["id"] != "|".join((name, e["area"], e["item"], e["how"]))]
+
+
+def test_item_location_db_spells_hold_items_like_itemdb():
+    """A hold item ItemDB has is spelled ItemDB's way, so the two can be matched by name"""
+    def key(name):
+        return "".join(ch for ch in name.lower() if ch.isalnum())
+    spelling = {key(name): name for name in itemDB}
+    assert not [e["item"] for _, e in PICKUPS if spelling.get(key(e["item"]), e["item"]) != e["item"]]
+
+
+def test_item_location_db_gift_items_follow_the_gifts():
+    """Miracle Seed comes with Bulbasaur in Jubilife, Treecko in Oreburgh and Chikorita in Floaroma"""
+    held = [name for name, e in PICKUPS if e["item"] == "Miracle Seed" and e["how"].startswith("Held")]
+    assert sorted(held) == ["Floaroma Town", "Jubilife City", "Oreburgh City"]

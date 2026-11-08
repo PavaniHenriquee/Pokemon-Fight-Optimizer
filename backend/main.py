@@ -177,6 +177,7 @@ class NuzlockeRun(BaseModel):
     starter: NuzlockeEncounter = Field(default_factory=NuzlockeEncounter)  # no species until chosen
     encounters: dict[str, NuzlockeEncounter] = Field(default_factory=dict)
     last_trainer: str = ""  # the trainer picked last in Setup, empty until one is
+    items: list[str] = Field(default_factory=list)  # ItemLocationDB ids picked up, on the Items tab
 
 
 class PokemonConfig(BaseModel):
@@ -444,6 +445,13 @@ async def get_trainers() -> dict:
 async def get_encounters() -> dict:
     """What can be met at each location, from EncounterDB.json (DataBase/import_encounters.py)."""
     with open(os.path.join(_ROOT, "DataBase", "EncounterDB.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@app.get("/item-locations")
+async def get_item_locations() -> dict:
+    """Where each item, TM and plate is picked up, from ItemLocationDB.json (DataBase/import_items.py)."""
+    with open(os.path.join(_ROOT, "DataBase", "ItemLocationDB.json"), "r", encoding="utf-8") as f:
         return json.load(f)
 
 

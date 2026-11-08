@@ -150,7 +150,15 @@ def test_nuzlocke_without_a_file_is_an_empty_run(client):
         "starter": {"species": "", "status": "caught"},
         "encounters": {},
         "last_trainer": "",
+        "items": [],
     }
+
+
+def test_item_locations(client):
+    """Item data is ItemLocationDB.json as-is, in story order"""
+    data = client.get("/item-locations").json()
+    assert list(data["locations"])[0] == "Lake Verity"
+    assert data["locations"]["Oreburgh City"][-1]["item"] == "TM76"
 
 
 def test_nuzlocke_round_trip(client, tmp_path):
@@ -163,6 +171,7 @@ def test_nuzlocke_round_trip(client, tmp_path):
             "Route 202": {"species": "", "status": "missed"},
         },
         "last_trainer": "Lass Natalie 1",
+        "items": ["Route 203||Silk Scarf|"],
     }
     assert client.post("/nuzlocke", json=run).json() == {"status": "saved"}
     assert client.get("/nuzlocke").json() == run
@@ -181,7 +190,7 @@ def test_nuzlocke_loads_a_run_saved_before_last_trainer(client, tmp_path):
     """Runs saved before the last trainer was kept still load, with none picked"""
     old = {"player": "Male", "starter": {"species": "Piplup", "status": "caught"}, "encounters": {}}
     (tmp_path / "nuzlocke.json").write_text(json.dumps(old), encoding="utf-8")
-    assert client.get("/nuzlocke").json() == {**old, "last_trainer": ""}
+    assert client.get("/nuzlocke").json() == {**old, "last_trainer": "", "items": []}
 
 
 @pytest.mark.parametrize("text", ["", "{ not json", '{"player": "Nobody"}'])

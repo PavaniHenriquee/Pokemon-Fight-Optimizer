@@ -8,6 +8,7 @@ Usage: python fetch_sprites.py [--workers N]
 import argparse
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -28,18 +29,31 @@ ITEM_SLUG_OVERRIDES = {
     "bright-powder": "brightpowder",
     "never-melt-ice": "nevermeltice",
     "silver-powder": "silverpowder",
+    "thunder-stone": "thunderstone",
     "twisted-spoon": "twistedspoon",
 }
 
 
+def hyphenated(name: str) -> str:
+    """"King's Rock" -> "kings-rock", "Exp. Share" -> "exp-share" (same as sprites.ts)"""
+    return "-".join(re.sub(r"[^a-z0-9\s_-]", "", name.lower()).replace("_", " ").split())
+
+
 def item_slug(name: str) -> str:
     """Same rule as itemSlug in sprites.ts"""
-    slug = "-".join(name.lower().replace("_", " ").split())
+    slug = hyphenated(name)
     return ITEM_SLUG_OVERRIDES.get(slug, slug)
 
 
-def jobs() -> list[tuple[str, Path]]:
-    """(url, destination) for every sprite"""
+def item_icon_job(name: str) -> tuple[tuple[str, ...], Path]:
+    """Showdown's icon, PokeAPI's for the few it doesn't have (Ice Stone, the Fairy TM)"""
+    slug = item_slug(name)
+    urls = (f"{SHOWDOWN}/itemicons/{slug}.png", f"{POKEAPI}/items/{hyphenated(name)}.png")
+    return urls, OUT / "items" / f"{slug}.png"
+
+
+def jobs() -> list[tuple[str | tuple[str, ...], Path]]:
+    """(url, destination) for every sprite. A tuple of urls is tried in order"""
     out = []
     poke = f"{POKEAPI}/pokemon"
     for pid in sorted({sprite_id(i) for i in PokIdToName}):
@@ -52,10 +66,12 @@ def jobs() -> list[tuple[str, Path]]:
         ]
 
     with open(ROOT / "DataBase" / "ItemDB.json", encoding="utf-8") as f:
-        items = json.load(f)
-    for name in items:
-        slug = item_slug(name)
-        out.append((f"{SHOWDOWN}/itemicons/{slug}.png", OUT / "items" / f"{slug}.png"))
+        items = set(json.load(f))
+    # The Tracker's Items tab: a TM or HM shows its type's disc
+    with open(ROOT / "DataBase" / "ItemLocationDB.json", encoding="utf-8") as f:
+        pickups = [p for ps in json.load(f)["locations"].values() for p in ps]
+    items |= {f"{p['item'][:2]} {p['type']}" if p["kind"] == "tm" else p["item"] for p in pickups}
+    out += [item_icon_job(name) for name in sorted(items)]
 
     with open(ROOT / "DataBase" / "TrainerDB.json", encoding="utf-8") as f:
         trainers = json.load(f)
@@ -71,19 +87,25 @@ def jobs() -> list[tuple[str, Path]]:
     return out
 
 
-def fetch(job: tuple[str, Path]) -> str:
-    """'ok', 'skip' (already there), 'missing' (404) or an error message"""
-    url, dest = job
+def fetch(job: tuple[str | tuple[str, ...], Path]) -> str:
+    """'ok', 'skip' (already there), 'missing' (404 on every url) or an error message"""
+    urls, dest = job
     if dest.exists():
         return "skip"
-    req = urllib.request.Request(url, headers={"User-Agent": "nuzlocke-optimizer-sprite-fetch"})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as res:
-            data = res.read()
-    except urllib.error.HTTPError as e:
-        return "missing" if e.code == 404 else f"HTTP {e.code} {url}"
-    except (urllib.error.URLError, TimeoutError) as e:
-        return f"{e} {url}"
+    data = None
+    for url in (urls,) if isinstance(urls, str) else urls:
+        req = urllib.request.Request(url, headers={"User-Agent": "nuzlocke-optimizer-sprite-fetch"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as res:
+                data = res.read()
+            break
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                return f"HTTP {e.code} {url}"
+        except (urllib.error.URLError, TimeoutError) as e:
+            return f"{e} {url}"
+    if data is None:
+        return "missing"
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".part")  # an interrupted run never leaves half a file
     tmp.write_bytes(data)
