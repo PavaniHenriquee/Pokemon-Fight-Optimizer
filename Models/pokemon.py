@@ -166,7 +166,8 @@ class Pokemon:
             0,   # Semi-invulnerable move being charged (Bounce, Dig), 0 means none
             0,   # Metronome item: last selected move id * 16 + consecutive count
             0,   # vol_status2, same as vol_status
-            *self.hidden_power()  # Hidden Power type and power, for a called Hidden Power
+            *self.hidden_power(),  # Hidden Power type and power, for a called Hidden Power
+            0,   # Substitute HP, 0 without one
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 

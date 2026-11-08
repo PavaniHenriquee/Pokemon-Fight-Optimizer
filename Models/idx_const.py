@@ -64,7 +64,8 @@ class Pok:
     VOL_STATUS2               = METRONOME_COUNT + 1
     HIDDEN_POWER_TYPE         = VOL_STATUS2 + 1
     HIDDEN_POWER_POWER        = HIDDEN_POWER_TYPE + 1
-    AB_ID                     = HIDDEN_POWER_POWER + 1
+    SUB_HP                    = HIDDEN_POWER_POWER + 1
+    AB_ID                     = SUB_HP + 1
     AB_WHEN                   = AB_ID + 1
     AB_BREAKABLE              = AB_WHEN + 1
     """AB_CANT_SUPRESS           = AB_BREAKABLE + 1

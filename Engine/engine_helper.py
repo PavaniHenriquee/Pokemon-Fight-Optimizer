@@ -92,6 +92,8 @@ from Models.constants import (
     _HOLDEFFECT_SWITCH, _VOLSTATUS_INGRAIN, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_MAGNET_PULL,
     _ABILITYNAMES_ARENA_TRAP, _HOLDEFFECT_MAYBE_ENDURE, _HOLDEFFECT_BOOST_REPEATED,
     _POK_METRONOME_COUNT, _ABILITYNAMES_LIQUID_OOZE, _HOLDEFFECT_CHARGE_SKIP,
+    _POK_SUB_HP, _VOLSTATUS2_SUBSTITUTE, _FLAGS_BYPASS_SUB, _MOVENAME_CURSE, _TYPES_GHOST,
+    _MOVENAME_SWAGGER, _MOVENAME_FLATTER, _VOLSTATUS_YAWN, _MOVE_STATUS, _MOVE_VOL_STATUS,
 )
 
 
@@ -112,6 +114,8 @@ EFFECT_SPORE_STATUSES = (_STATUS_POISON, _STATUS_PARALYSIS, _STATUS_SLEEP)
 GRAVITY_ACC_NUM = 6840
 GRAVITY_ACC_DEN = 4096
 SIDE_OR_FIELD_TARGETS = (Target.ALL, Target.FOE_SIDE, Target.ALLY_TEAM)
+# Confusion moves whose pokeplatinum subscript checks the Substitute before Own Tempo
+SUB_FIRST_CONFUSERS = (_MOVENAME_SWAGGER, _MOVENAME_FLATTER)
 PROTECT_COUNT_MAX = 3  # Success chance 1, 1/2, 1/4, then 1/8 from here on
 # Stealth Rock takes max HP * Rock effectiveness / STEALTH_ROCK_DIV, 1/8 when neutral
 STEALTH_ROCK_DIV = 8
@@ -230,6 +234,102 @@ def endure_damage(defender, damage):
     if holds_on and damage >= defender[_POK_CURRENT_HP]:
         return defender[_POK_CURRENT_HP] - 1
     return damage
+
+
+@njit
+def has_substitute(pok):
+    """pok is behind a Substitute"""
+    return (pok[_POK_VOL_STATUS2] & _VOLSTATUS2_SUBSTITUTE) != 0
+
+
+@njit
+def substitute_cost(pok):
+    """The HP a Substitute costs and has, a quarter of max HP and at least 1 (pokeplatinum
+    BtlCmd_TrySubstitute, BattleSystem_Divide)"""
+    return max(1, pok[_POK_MAX_HP] // 4)
+
+
+@njit
+def substitute_fails(pok):
+    """Substitute fails while one is up or when the user has no more HP than it costs"""
+    return has_substitute(pok) or pok[_POK_CURRENT_HP] <= substitute_cost(pok)
+
+
+@njit
+def make_substitute(pok):
+    """
+    The user pays the Substitute's HP, which isn't damage (no Focus Band, Assurance doesn't see
+    it), and is freed from a bind (pokeplatinum BtlCmd_TrySubstitute)
+    """
+    if substitute_fails(pok):
+        return
+    cost = substitute_cost(pok)
+    pok[_POK_CURRENT_HP] -= cost
+    pok[_POK_SUB_HP] = cost
+    pok[_POK_VOL_STATUS2] |= _VOLSTATUS2_SUBSTITUTE
+    pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_PARTIALLY_TRAPPED
+    pok[_POK_TRAP_TURNS] = 0
+
+
+@njit
+def hit_substitute(pok, damage):
+    """
+    A damaging hit on pok's Substitute: it takes the damage up to its HP and breaks at 0, the rest
+    is lost. Returns the HP the Substitute lost, which recoil and drain read (pokeplatinum
+    BattleControllerPlayer_UpdateHP, hitDamage)
+    """
+    sub_hp = pok[_POK_SUB_HP]
+    if damage >= sub_hp:
+        pok[_POK_SUB_HP] = 0
+        pok[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_SUBSTITUTE
+        return sub_hp
+    pok[_POK_SUB_HP] = sub_hp - max(0, damage)
+    return max(0, damage)
+
+
+@njit
+def sub_blocks_move(move, attacker, defender):
+    """
+    A status move aimed at the foe fails against its Substitute unless it bypasses it (Gen IV: no
+    sound exception). Moves aimed at a side or the field aren't, and neither is a non-Ghost's
+    Curse, which boosts the user ([SD] gen4 Substitute onTryPrimaryHit, [pp] CheckSubstitute)
+    """
+    if (
+        not has_substitute(defender)
+        or move[_MOVE_CATEGORY] != _MOVECATEGORY_STATUS
+        or move[_FLAGS_BYPASS_SUB]
+        or move[_MOVE_TARGET] in TARGET_SELF_SIDE
+        or move[_MOVE_TARGET] in SIDE_OR_FIELD_TARGETS
+    ):
+        return False
+    if move[_MOVE_ID] == _MOVENAME_CURSE:
+        return attacker[_POK_TYPE1] == _TYPES_GHOST or attacker[_POK_TYPE2] == _TYPES_GHOST
+    return True
+
+
+@njit
+def sub_blocks_status_move(move, attacker, defender, weather):
+    """
+    sub_blocks_move, and the target's ability that would also stop the status is still revealed:
+    pokeplatinum's status, confusion and Yawn subscripts check it before the Substitute. Swagger
+    and Flatter check the Substitute first
+    """
+    if not sub_blocks_move(move, attacker, defender):
+        return False
+    status = move[_MOVE_STATUS]
+    vol = move[_MOVE_VOL_STATUS]
+    blocked = False
+    if status:
+        blocked = ability_blocks_status(defender, attacker, status, weather)
+    elif vol & _VOLSTATUS_YAWN:
+        blocked = ability_blocks_status(defender, attacker, _STATUS_SLEEP, weather)
+    elif vol & _VOLSTATUS_CONFUSION and move[_MOVE_ID] not in SUB_FIRST_CONFUSERS:
+        blocked = (
+            defender[_POK_AB_ID] == _ABILITYNAMES_OWN_TEMPO and ignorable_ability(defender, attacker)
+        )
+    if blocked:
+        reveal_ability(defender)
+    return True
 
 
 @njit
@@ -352,6 +452,9 @@ def resist_berry(attacker, defender, move, damage, gravity=False):
     """
     effect = defender[_ITEM_HOLD_EFFECT]
     if damage <= 0 or (effect != _HOLDEFFECT_WEAKEN_SE and effect != _HOLDEFFECT_WEAKEN_NORMAL):
+        return damage
+    # Not on a hit its Substitute takes (Showdown gen4 resist berries)
+    if has_substitute(defender):
         return damage
     m_type = normalized_type(attacker, move)
     if m_type != defender[_ITEM_EFFECT_TYPE]:
@@ -874,6 +977,7 @@ def reset_switch_out(pok):
     pok[_POK_SEMI_INV_MOVE] = 0
     pok[_POK_METRONOME_COUNT] = 0
     pok[_POK_VOL_STATUS2] = 0
+    pok[_POK_SUB_HP] = 0
     pok[_POK_AB_KNOWN] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
     if pok[_POK_BASE_AB_ID]:
@@ -958,6 +1062,9 @@ def _toxic_spikes(pok, battle_array, side, weather):
     if ability_blocks_status(pok, pok, _STATUS_POISON, weather):
         reveal_ability(pok)
         return
+    # A Substitute Baton Pass brought in, after the ability (pokeplatinum subscript_poison)
+    if has_substitute(pok):
+        return
     if battle_array[side] & _SIDECONDITION_SAFEGUARD:
         return
     if battle_array[side + SIDE_TOXIC_SPIKES] >= 2:
@@ -1020,9 +1127,11 @@ def trace(pok, foe):
 @njit
 def intimidate(foe, source, foe_side):
     """Intimidate lowers the foe's Attack by one unless it fainted, Mist covers its side (foe_side
-    is its Field.SIDE_COND) or its ability blocks the drop (pokeplatinum subscript_intimidate)"""
+    is its Field.SIDE_COND), it's behind a Substitute or its ability blocks the drop (pokeplatinum
+    subscript_intimidate)"""
     if (
         foe[_POK_CURRENT_HP] > 0
+        and not has_substitute(foe)
         and not foe_side & _SIDECONDITION_MIST
         and not stat_drop_blocked(foe, source, _POK_ATTACK_STAT_STAGE)
     ):
@@ -1032,9 +1141,9 @@ def intimidate(foe, source, foe_side):
 @njit
 def download(pok, foe):
     """Download: +1 Sp. Atk if the foe's Defense is at least its Sp. Def (both with their stages),
-    otherwise +1 Attack, nothing against a fainted foe (pokeplatinum
-    SWITCH_IN_CHECK_STATE_DOWNLOAD)"""
-    if foe[_POK_CURRENT_HP] <= 0:
+    otherwise +1 Attack, nothing against a fainted foe or one behind a Substitute (pokeplatinum
+    SWITCH_IN_CHECK_STATE_DOWNLOAD skips it, so both sums are 0)"""
+    if foe[_POK_CURRENT_HP] <= 0 or has_substitute(foe):
         return
     defense = apply_stat_stage(foe[_POK_DEFENSE], foe[_POK_DEFENSE_STAT_STAGE], False)
     sp_def = apply_stat_stage(

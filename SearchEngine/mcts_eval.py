@@ -13,7 +13,7 @@ from Models.constants import (
     _BATTLEPHASE_TURN_START, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _MOVE_ID,
     _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_TOXIC_SPIKES, _FIELD_GRAVITY_TURNS,
     _MOVENAME_GRAVITY, _MOVE_OH_KO, _TYPES_GROUND, _MOVE_STATUS, _MOVE_VOL_STATUS,
-    _MOVE_BOOST_ACC, _POK_ACCURACY_STAT_STAGE
+    _MOVE_BOOST_ACC, _POK_ACCURACY_STAT_STAGE, _MOVENAME_SUBSTITUTE
 )
 from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
@@ -21,7 +21,9 @@ from Models.trainer_ai_helper import check_immunity_pty, check_resistance_pty
 from Models.trainer_ai import return_idx
 from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
-from Engine.engine_helper import calculate_crit, struggle, ohko_fails, ability_immune
+from Engine.engine_helper import (
+    calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails
+)
 from Engine.ability_helper import levitates, effective_weather, normalized_type
 from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
 from Engine.status_calc import ability_blocks_status, stat_drop_blocked, STAT_MAPPING
@@ -132,7 +134,12 @@ def field_move_fails(move, battle_array):
 @njit
 def status_move_blocked(move, me, foe, weather):
     """A status move aimed at the foe that its ability makes useless: the status it gives is one
-    ability_blocks_status keeps off, or every stat drop it causes is one stat_drop_blocked stops"""
+    ability_blocks_status keeps off, or every stat drop it causes is one stat_drop_blocked stops.
+    Also one the foe's Substitute stops, and my Substitute when it would fail"""
+    if move[_MOVE_ID] == _MOVENAME_SUBSTITUTE:
+        return substitute_fails(me)
+    if sub_blocks_move(move, me, foe):
+        return True
     if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
         return False
     status = move[_MOVE_STATUS]

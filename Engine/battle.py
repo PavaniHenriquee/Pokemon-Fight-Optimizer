@@ -14,6 +14,7 @@ from Engine.engine_helper import (
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
     damp_blocks, status_item, pressure_pp, truant_loafs, metronome_count, metronome_fail,
     power_herb, sticky_hold, big_root, recover_status_by_ability, counter_fails,
+    has_substitute, hit_substitute, make_substitute, sub_blocks_status_move,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -29,7 +30,7 @@ from Models.idx_const import (
     SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES
 )
 from Models.helper import (
-    count_party, PHYSICAL_SPECIAL, Target, TARGET_SELF_SIDE
+    count_party, PHYSICAL_SPECIAL, Target, TARGET_SELF_SIDE, TARGET_OPP_SIDE
 )
 from Models.constants import (
     _FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1, _FIELD_WEATHER,
@@ -80,6 +81,7 @@ from Models.constants import (
     _HOLDEFFECT_HP_RESTORE_GRADUAL, _HOLDEFFECT_HP_RESTORE_PSN_TYPE, _TYPES_POISON,
     _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_HEATPROOF, _ABILITYNAMES_BAD_DREAMS,
     _ABILITYNAMES_LIQUID_OOZE, _FIELD_OPP_MOVE_RAN,
+    _POK_SUB_HP, _VOLSTATUS2_SUBSTITUTE, _MOVENAME_SUBSTITUTE, _SEC_TARGET,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 
@@ -136,6 +138,8 @@ BATON_PASS_VOLS = (
     | _VOLSTATUS_INGRAIN | _VOLSTATUS_AQUA_RING | _VOLSTATUS_MUD_SPORT | _VOLSTATUS_WATER_SPORT
     | _VOLSTATUS_HEAL_BLOCK | _VOLSTATUS_PERISH_SONG
 )
+# Baton Pass also hands over these VOL_STATUS2 bits (the Substitute goes with its HP)
+BATON_PASS_VOLS2 = _VOLSTATUS2_SUBSTITUTE
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
 # Field.OPP_MOVE_RAN: the foe's move slot + 1, plus this for every PP the move paid
@@ -150,6 +154,8 @@ def _pass_baton(old, new):
         old[_POK_ATTACK_STAT_STAGE:_POK_EVASION_STAT_STAGE + 1]
     )
     new[_POK_VOL_STATUS] = old[_POK_VOL_STATUS] & BATON_PASS_VOLS
+    new[_POK_VOL_STATUS2] |= old[_POK_VOL_STATUS2] & BATON_PASS_VOLS2
+    new[_POK_SUB_HP] = old[_POK_SUB_HP]
     new[_POK_CONFUSION_COUNTER] = old[_POK_CONFUSION_COUNTER]
     new[_POK_PERISH_TURNS] = old[_POK_PERISH_TURNS]
 
@@ -330,10 +336,10 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
     weather = effective_weather(battle_array)
     gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
     if calculate_hit_miss(doubled, atk, defn, weather, gravity) == _MOVEOUTCOME_HIT:
-        ps_moves(
+        _, hit_pok = ps_moves(
             atk, defn, doubled, weather, False, False, battle_array[side_base(not is_mine)], gravity
         )
-        if is_mine:
+        if is_mine and hit_pok:
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = normalized_type(atk, mv)
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
@@ -350,8 +356,11 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
         crit = calculate_crit(attacker, defender, None, def_side)
         return struggle_damage(attacker, defender, crit, def_side, weather), crit
-    # OHKO moves take the target's current HP (pokeplatinum BtlCmd_TryOHKOMove)
+    # OHKO moves take the target's current HP (pokeplatinum BtlCmd_TryOHKOMove), its max HP on a
+    # Substitute, so the Substitute always breaks (pokeplatinum BattleControllerPlayer_UpdateHP)
     if move[_MOVE_OH_KO]:
+        if has_substitute(defender):
+            return defender[_POK_MAX_HP], False
         return defender[_POK_CURRENT_HP], False
     move_damage = move[_MOVE_DAMAGE]
     if not move_damage:
@@ -411,13 +420,24 @@ def _apply_move_damage(attacker, defender, move, damage, crit=False):
 @njit
 def _ps_moves_core(attacker, defender, move, weather, def_side=0, gravity=False):
     """
-    Checks for damage and for flinch. Also returns the HP the defender actually lost
+    Checks for damage and for flinch. Also returns the HP the defender actually lost, and whether
+    its Substitute took the hit instead: then dealt is what the Substitute lost and nothing on the
+    defender's side happens (no flinch, Focus Band, Rage, on-damage item or hurt flag)
     """
     raw_damage, crit = _resolve_move_damage(attacker, defender, move, weather, def_side, gravity)
+    if has_substitute(defender):
+        dealt = hit_substitute(defender, raw_damage)
+        return False, dealt, dealt, True
     damage = endure_damage(defender, raw_damage)
     dealt = min(damage, defender[_POK_CURRENT_HP])
     flinch= _apply_move_damage(attacker, defender, move, damage, crit)
-    return flinch, damage, dealt
+    return flinch, damage, dealt, False
+
+
+@njit
+def _sec_reaches(move, sub_hit):
+    """A hit on the Substitute keeps the secondary effects off the target, not the user's own"""
+    return not (sub_hit and move[_SEC_TARGET] in TARGET_OPP_SIDE)
 
 
 @njit
@@ -439,6 +459,7 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
     dmg = 0
     dealt_total = 0
     flinch = False
+    hit_pok = False
     if mult_hit_min == 2 and mult_hit_max == 5:
         # Skill Link always hits 5 times (pokeplatinum BtlCmd_SetMultiHit)
         if attacker[_POK_AB_ID] == _ABILITYNAMES_SKILL_LINK:
@@ -453,48 +474,62 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
         # Rough Skin can knock the user out mid-sequence
         if i and (defender[_POK_CURRENT_HP] <= 0 or attacker[_POK_CURRENT_HP] <= 0):
             break
-        flinch_c, damage, dealt = _ps_moves_core(
+        flinch_c, damage, dealt, sub_hit = _ps_moves_core(
             attacker, defender, move, weather, def_side, gravity
         )
         if flinch_c:
             flinch = True
         dmg += damage
         dealt_total += dealt
+        # Once the Substitute breaks the remaining hits reach the Pokemon, with their effects
+        # (Showdown, each hit is its own move hit)
+        if not sub_hit:
+            hit_pok = True
         # Check for secondary effects and apply them
-        if move[_SEC_CHANCE]:
+        if move[_SEC_CHANCE] and _sec_reaches(move, sub_hit):
             sec_effects(move, attacker, defender, weather, def_side)
-        on_hit_abilities(attacker, defender, move, dealt, weather)
+        if not sub_hit:
+            on_hit_abilities(attacker, defender, move, dealt, weather)
 
     _recoil(attacker, move, dealt_total)
     if move[_MOVE_DRAIN]:
         drain(attacker, defender, move, dealt_total)
 
-    if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+    # A hit on the Substitute isn't recorded for Bide, Counter or Mirror Coat (pokeplatinum
+    # UpdateHP returns first); the last hit is on the Pokemon whenever one is
+    if hit_pok and defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         #Only last damage counts i think, needs check TODO
         defender[_POK_DMG_TAKEN] += damage
-    if (
+    if hit_pok and (
         (rec_p and move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL)
         or (rec_s and move[_MOVE_CATEGORY] == _MOVECATEGORY_SPECIAL)
     ):
         #Only last damage counts i think, needs check TODO
         defender[_POK_DMG_TAKEN] = damage
 
-    return flinch
+    return flinch, hit_pok
 
 
 @njit
 def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravity=False):
     """Physical or Special moves, where I need to calculate damage and secondary effects.
-    def_side is the defender's Field.SIDE_COND"""
-    flinch, damage, dealt = _ps_moves_core(attacker, defender, move, weather, def_side, gravity)
+    def_side is the defender's Field.SIDE_COND. Returns the flinch and whether the hit reached
+    the Pokemon, not its Substitute"""
+    flinch, damage, dealt, sub_hit = _ps_moves_core(
+        attacker, defender, move, weather, def_side, gravity
+    )
 
     _recoil(attacker, move, dealt)
     if move[_MOVE_DRAIN]:
         drain(attacker, defender, move, dealt)
 
     # Check for secondary effects and apply them
-    if move[_SEC_CHANCE]:
+    if move[_SEC_CHANCE] and _sec_reaches(move, sub_hit):
         sec_effects(move, attacker, defender, weather, def_side)
+    # The Substitute keeps off the rest: contact abilities, Bide / Counter's record and the
+    # item moves (pokeplatinum TriggerAbilityOnHit, PluckBerry, subscript_knock_off and co.)
+    if sub_hit:
+        return flinch, False
     # After recoil, drain and the secondary effect (pokeplatinum after-move order)
     on_hit_abilities(attacker, defender, move, dealt, weather)
 
@@ -526,7 +561,7 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
     elif move[_MOVE_ID] == _MOVENAME_KNOCK_OFF:
         knock_off(attacker, defender)
 
-    return flinch
+    return flinch, True
 
 
 @njit
@@ -796,11 +831,13 @@ def _execute_move_slot(
     if mv[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
         _consec_on_hit(atk, mv)
         if mv[_MOVE_MULTI_HIT_MIN]:
-            flinch = ps_moves_multihit(
+            flinch, hit_pok = ps_moves_multihit(
                 atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity
             )
         else:
-            flinch = ps_moves(atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity)
+            flinch, hit_pok = ps_moves(
+                atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity
+            )
         _after_hit_field(atk, mv, battle_array, atk_side, def_side)
         if mv[_MOVE_ID] in ROLLOUT_MOVES and atk[_POK_CONSEC_COUNT] >= ROLLOUT_MAX_USES:
             unlock_move(atk)
@@ -815,6 +852,7 @@ def _execute_move_slot(
         # binder's Grip Claw makes it 6, after the roll (pokeplatinum subscript_bind_start)
         if (
             mv[_MOVE_VOL_STATUS] & _VOLSTATUS_PARTIALLY_TRAPPED
+            and hit_pok
             and defn[_POK_CURRENT_HP] > 0
             and not defn[_POK_VOL_STATUS] & _VOLSTATUS_PARTIALLY_TRAPPED
         ):
@@ -826,14 +864,20 @@ def _execute_move_slot(
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
             atk[_POK_CURRENT_HP] = 0
-        # Information for trainer ai logic
-        if is_mine:
+        # Information for trainer ai logic, not set by a hit its Substitute took
+        if is_mine and hit_pok:
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = normalized_type(atk, mv)
-        # Check to see if the move from the attacker thawed the defender
-        if defn[_POK_STATUS] == _STATUS_FREEZE:
+        # Check to see if the move from the attacker thawed the defender, not through a
+        # Substitute (Showdown frz onDamagingHit)
+        if hit_pok and defn[_POK_STATUS] == _STATUS_FREEZE:
             thaw(atk, mv, defn)
         return flinch
 
+    # A status move aimed at a foe behind a Substitute fails, unless it bypasses it
+    if sub_blocks_status_move(mv, atk, defn, weather):
+        if counted:
+            metronome_fail(atk, outer_id)
+        return False
     if mv[_MOVE_FORCE_SWITCH]:
         _force_switch(atk, defn, battle_array, not is_mine)
         return False
@@ -861,10 +905,13 @@ def _execute_move_slot(
 
 @njit
 def _status_move(atk, defn, mv, is_mine, battle_array, weather):
-    """Recover, Synthesis, Refresh, Recycle, Worry Seed and Minimize's flag (its boost is data)"""
+    """Recover, Synthesis, Refresh, Recycle, Worry Seed, Substitute and Minimize's flag (its boost
+    is data)"""
     move_id = mv[_MOVE_ID]
     if move_id == _MOVENAME_MINIMIZE:
         atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_MINIMIZE
+    elif move_id == _MOVENAME_SUBSTITUTE:
+        make_substitute(atk)
     elif move_id in HEAL_MOVES:
         heal_move(atk, move_id, weather)
     elif move_id == _MOVENAME_REFRESH:
@@ -1433,6 +1480,9 @@ def _rage_glitch(pok, move_id):
     """
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_RAGE and move_id != _MOVENAME_RAGE:
         pok[_POK_VOL_STATUS] &= ~RAGE_GLITCH_CLEARS
+        # Substitute is a statusVolatile bit in pokeplatinum, so it goes too
+        pok[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_SUBSTITUTE
+        pok[_POK_SUB_HP] = 0
 
 
 @njit

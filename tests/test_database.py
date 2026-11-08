@@ -242,6 +242,15 @@ def test_growth_is_gen4():
     assert (arr[Move.BOOST_ATK], arr[Move.BOOST_SPATK]) == (0, 1)
 
 
+def test_gen4_status_sound_moves_hit_the_substitute():
+    """Sound moves only bypass a Substitute from Gen VI (Showdown gen5 mod strips the flag);
+    Roar keeps it like Whirlwind"""
+    bad = [n for n, m in moveDB.items()
+           if m["category"] == "Status" and m.get("flags", {}).get("sound")
+           and m["flags"].get("bypass_sub") and n != "Roar"]
+    assert not bad, bad
+
+
 @pytest.mark.parametrize("name, stats", [
     ("Azumarill", (110, 50, 80, 80, 80, 50)),
     ("Sudowoodo", (90, 115, 125, 30, 75, 30)),

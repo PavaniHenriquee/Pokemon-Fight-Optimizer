@@ -288,6 +288,24 @@ def scenario_move_calling():
     return my, opp, (_POTIONS_POTION,)
 
 
+def scenario_substitute():
+    """Substitute both ways: multi-hit through it, status and sound moves into it, drain, Baton
+    Pass with one up, Rough Skin and Intimidate around it, Ghost Curse, Rage"""
+    my = [
+        _p("Pikachu", 18, "Static", ["Substitute", "Thunder Shock", "Thunder Wave", "Quick Attack"]),
+        _p("Beedrill", 18, "Swarm", ["Twineedle", "Pin Missile", "Substitute", "Focus Energy"]),
+        _p("Ninjask", 18, "Speed Boost", ["Substitute", "Baton Pass", "Fury Cutter", "Harden"]),
+        _p("Paras", 18, "Effect Spore", ["Absorb", "Stun Spore", "Leech Seed", "Fury Cutter"]),
+    ]
+    opp = [
+        _p("Machop", 18, "Guts", ["Substitute", "Karate Chop", "Leer", "Low Kick"]),
+        _p("Carvanha", 18, "Rough Skin", ["Bite", "Leer", "Substitute", "Rage"]),
+        _p("Shinx", 18, "Intimidate", ["Spark", "Bite", "Growl", "Substitute"]),
+        _p("Gastly", 18, "Levitate", ["Curse", "Hypnosis", "Lick", "Substitute"]),
+    ]
+    return my, opp, (_POTIONS_POTION,)
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -297,6 +315,7 @@ SCENARIOS = {
     "switching": scenario_switching,
     "healing_misc": scenario_healing_misc,
     "move_calling": scenario_move_calling,
+    "substitute": scenario_substitute,
 }
 
 

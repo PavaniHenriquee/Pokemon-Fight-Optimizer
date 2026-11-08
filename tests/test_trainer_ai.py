@@ -5,7 +5,9 @@ import pytest
 from Models import trainer_ai_helper as ai
 from Models.trainer_ai import return_idx, sub_after_death, MOVE_EXCEP
 from Models.idx_const import Pok, Move, POK_LEN, Field
-from Models.helper import VolStatus, Status, Types, Enemy_AI_Knows, SideCondition, Weather
+from Models.helper import (
+    VolStatus, VolStatus2, Status, Types, Enemy_AI_Knows, SideCondition, Weather
+)
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.ItemDB import ItemNames
 from DataBase.MoveDB import MoveName
@@ -50,7 +52,7 @@ KIT_DAMAGE = (
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
     "Ingrain", "Aqua Ring", "Attract", "Leech Seed", "Charge", "Destiny Bond", "Yawn", "Rage",
-    "Helping Hand", "Follow Me", "Dig", "Gravity", "Minimize",
+    "Helping Hand", "Follow Me", "Dig", "Gravity", "Minimize", "Substitute",
 )
 KIT_CALLING = ("Metronome", "Copycat", "Mirror Move", "Nature Power")
 
@@ -1699,3 +1701,58 @@ def test_ineffective_moves_withdraw_scans_count_only_damaging_moves(poke):
     assert list(ai.check_super_ef_move_pty(party, psychic, 0)) == [1]
     assert list(ai.check_super_ef_move_pty(party, psychic, 0, False, True)) == []
     assert list(ai.check_any_damaging_move_pty(party, psychic, 0)) == []
+
+
+# ── Substitute ───────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("sub_up, hp_pct, expected", [
+    (True, 100, -8), (False, 25, -10), (False, 26, 0),
+])
+def test_basic_substitute(poke, sub_up, hp_pct, expected):
+    """pokeplatinum Basic_CheckCannotSubstitute: -8 behind one, -10 under 26% HP"""
+    ai_pok = poke("Machop", 20, "Guts", ["Substitute"])
+    ai_pok[Pok.MAX_HP], ai_pok[Pok.CURRENT_HP] = 100, hp_pct
+    if sub_up:
+        ai_pok[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+        ai_pok[Pok.SUB_HP] = 25
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    score = ai.basic_flag(move_slice(ai_pok, 0), AbilityNames.RUN_AWAY, ai_pok, user, 1.0, 0)
+    assert score == expected
+
+
+@pytest.mark.parametrize("ai_moves, hp_pct, expected", [
+    (["Substitute"], 100, []),
+    (["Substitute", "Focus Punch"], 100, [(1, 160)]),
+    (["Substitute"], 91, []),
+    (["Substitute"], 90, [(-1, 156)]),
+    (["Substitute"], 70, [(-1, 156), (-1, 156)]),
+    (["Substitute"], 50, [(-1, 156), (-1, 156), (-1, 156)]),
+])
+def test_expert_substitute_hp_rolls(poke, ai_moves, hp_pct, expected):
+    """pokeplatinum / Pokemow Expert_Substitute: Focus Punch, then one roll per HP threshold"""
+    ai_pok = poke("Machop", 40, "Guts", ai_moves)
+    ai_pok[Pok.MAX_HP], ai_pok[Pok.CURRENT_HP] = 100, hp_pct
+    user = poke("Rattata", 5, "Run Away", ["Tackle"])
+    assert _expert_field(ai_pok, user, MoveName.TACKLE) == (0, expected)
+
+
+@pytest.mark.parametrize("last, user_status, user_vol, ai_lv, expected", [
+    ("Thunder Wave", 0, 0, 40, [(1, 156)]),
+    ("Thunder Wave", Status.PARALYSIS, 0, 40, []),
+    ("Thunder Wave", 0, 0, 5, []),                 # the AI moves second
+    ("Will-O-Wisp", 0, 0, 40, [(1, 156)]),
+    ("Confuse Ray", 0, 0, 40, [(1, 156)]),
+    ("Confuse Ray", 0, VolStatus.CONFUSION, 40, []),
+    ("Leech Seed", 0, 0, 40, [(1, 156)]),
+    ("Leech Seed", 0, VolStatus.LEECH_SEED, 40, []),
+    ("Swagger", 0, 0, 40, []),                     # not BATTLE_EFFECT_STATUS_CONFUSE
+    ("Tackle", 0, 0, 40, []),
+])
+def test_expert_substitute_target_last_move(poke, last, user_status, user_vol, ai_lv, expected):
+    """Moving first, +1 when the target's last status move didn't stick"""
+    ai_pok = poke("Machop", ai_lv, "Guts", ["Substitute"])
+    user = poke("Rattata", 20, "Run Away", [last])
+    user[Pok.STATUS] = user_status
+    user[Pok.VOL_STATUS] = user_vol
+    assert _expert_field(ai_pok, user, getattr(MoveName, last.upper().replace(" ", "_")
+                                               .replace("-", "_"))) == (0, expected)

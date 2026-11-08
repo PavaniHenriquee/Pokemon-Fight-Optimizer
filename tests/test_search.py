@@ -1218,3 +1218,41 @@ def test_rollout_counts_a_working_ohko_as_a_ko(make_pokemon, make_battle):
     actions = np.array([[ActionType.MOVE, 0], [ActionType.SWITCH, 1]], dtype=np.int16)
     picks = {(int(t), int(i)) for t, i in (rollout_pref(arr, 0, actions) for _ in range(100))}
     assert picks == {(ActionType.SWITCH, 1)}
+
+
+# ── Substitute ───────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_a_substitute_not_its_hp(one_v_one, mine):
+    """Whether a Substitute is up splits nodes, its HP doesn't"""
+    arr = one_v_one()
+    key = node_key(arr)
+    pok = my_active(arr) if mine else opp_active(arr)
+    pok[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    pok[Pok.SUB_HP] = 4
+    with_sub = node_key(arr)
+    assert with_sub != key
+    pok[Pok.SUB_HP] = 1
+    assert node_key(arr) == with_sub
+
+
+@pytest.mark.parametrize("move, foe_sub, my_sub, picked", [
+    ("Thunder Wave", False, False, True),
+    ("Thunder Wave", True, False, False),     # the foe's Substitute stops it
+    ("Taunt", True, False, True),             # bypasses it
+    ("Substitute", False, False, True),
+    ("Substitute", False, True, False),       # already up
+])
+def test_rollout_sees_substitute(make_pokemon, make_battle, move, foe_sub, my_sub, picked):
+    """A status move into the foe's Substitute, or my Substitute that would fail, gets weight 0"""
+    me = make_pokemon("Pikachu", 20, "Static", ["Tackle", move])
+    foe = make_pokemon("Rattata", 20, "Run Away", ["Tackle"])
+    arr = make_battle([me], [foe])
+    for pok, up in ((opp_active(arr), foe_sub), (my_active(arr), my_sub)):
+        if up:
+            pok[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+            pok[Pok.SUB_HP] = 5
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
+    picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(200)}
+    assert (1 in picks) == picked

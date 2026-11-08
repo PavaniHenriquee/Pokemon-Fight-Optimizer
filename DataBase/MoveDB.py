@@ -195,7 +195,8 @@ class MoveName:
     STRING_SHOT     = STOMP + 1
     STRUGGLE        = STRING_SHOT + 1
     STUN_SPORE      = STRUGGLE + 1
-    SUCKER_PUNCH    = STUN_SPORE + 1
+    SUBSTITUTE      = STUN_SPORE + 1
+    SUCKER_PUNCH    = SUBSTITUTE + 1
     SUPERSONIC      = SUCKER_PUNCH + 1
     SWAGGER         = SUPERSONIC + 1
     SWEET_KISS      = SWAGGER + 1

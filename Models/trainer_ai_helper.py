@@ -75,7 +75,8 @@ from Models.constants import (
     _VOLSTATUS_PERISH_SONG, _POK_CONSUMED_ITEM, _ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE,
     _ABILITYNAMES_STICKY_HOLD, _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT,
     _MOVENAME_NATURE_POWER, _TYPES_TYPELESS, _MOVENAME_BLIZZARD, _MOVE_OH_KO, _POK_LEVEL,
-    _MOVENAME_FIRE_FANG,
+    _MOVENAME_FIRE_FANG, _MOVENAME_SUBSTITUTE, _POK_VOL_STATUS2, _VOLSTATUS2_SUBSTITUTE,
+    _MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS, _MOVENAME_LEECH_SEED,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -198,6 +199,8 @@ BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MO
 # Moves Pokemow gives no Basic and no Expert check at all
 NO_AI_CHECK_M = (_MOVENAME_CHARGE,)
 SPEED_DOWN_ON_HIT = (_MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB, _MOVENAME_MUD_SHOT)
+# pokeplatinum BATTLE_EFFECT_STATUS_CONFUSE, which Expert_Substitute reads off the target's last move
+CONFUSE_EFFECT_M = (_MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS)
 # Moves the Expert AI looks for among the ones it saw the target use. Detect and Shadow Force
 # aren't in MoveDB, Recover is the only RESTORE_HALF_HP move there
 PROTECT_LIKE_M = (_MOVENAME_PROTECT,)
@@ -813,6 +816,11 @@ def basic_flag(
     # Basic_CheckGravityActive
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
         return -10 if gravity else 0
+    # Basic_CheckCannotSubstitute
+    if move[_MOVE_ID] == _MOVENAME_SUBSTITUTE:
+        if ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_SUBSTITUTE:
+            return -8
+        return -10 if (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP] < 26 else 0
     move_category = move[_MOVE_CATEGORY]
     # Check for immunity types
     if move_category != _MOVECATEGORY_STATUS and effectiveness == 0:
@@ -872,7 +880,6 @@ def basic_flag(
     Belly Drum
     Reflect / Light Screen / Mist / Safeguard
     Camouflage / Power Trick / Lucky Chant / Magnet Rise
-    Substitute
     Snore / Sleep Talk
     Lock On / Mean Look / Torment / Miracle Eye / Heal Block / Gastro Acid
     Future Sight / Doom Desire
@@ -1616,6 +1623,56 @@ def expert_call(move, u_pok, rand, idx, move_first, copycat_beats):
 
 
 @njit
+def last_move_slot_arr(u_pok, my_last_move):
+    """Index in u_pok of the target's last move's id (MOVE_ID_SLOTS), -1 for none, Struggle or a
+    move it doesn't know"""
+    if my_last_move <= 0:
+        return -1
+    for i in range(4):
+        if u_pok[MOVE_ID_SLOTS[i]] == my_last_move:
+            return MOVE_ID_SLOTS[i]
+    return -1
+
+
+@njit
+def expert_substitute(ai_pok, u_pok, rand, idx, move_first, my_last_move):
+    """
+    pokeplatinum / Pokemow Expert_Substitute: Focus Punch 62.5% +1, then one 60.9% -1 roll per
+    HP threshold the AI is at or under (90%, 70%, 50%). Moving first, 60.9% +1 when the target's
+    last move tried something that didn't stick: a status move and it isn't statused, a
+    confusion move and it isn't confused, Leech Seed and it isn't seeded
+    """
+    if knows_move(ai_pok, _MOVENAME_FOCUS_PUNCH):
+        add_adjustment(rand, idx, 1, 160)
+    hp_pct = (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP]
+    if hp_pct <= 90:
+        add_adjustment(rand, idx, -1, 156)
+    if hp_pct <= 70:
+        add_adjustment(rand, idx, -1, 156)
+    if hp_pct <= 50:
+        add_adjustment(rand, idx, -1, 156)
+    if not move_first:
+        return 0
+    slot = last_move_slot_arr(u_pok, my_last_move)
+    if slot < 0:
+        return 0
+    if (
+        u_pok[slot + _MOVE_CATEGORY - _MOVE_ID] == _MOVECATEGORY_STATUS
+        and u_pok[slot + _MOVE_STATUS - _MOVE_ID] != 0
+        and u_pok[slot + _MOVE_TARGET - _MOVE_ID] in TARGET_OPP_SIDE
+    ):
+        if u_pok[_POK_STATUS] == 0:
+            add_adjustment(rand, idx, 1, 156)
+    elif my_last_move in CONFUSE_EFFECT_M:
+        if not u_pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
+            add_adjustment(rand, idx, 1, 156)
+    elif my_last_move == _MOVENAME_LEECH_SEED:
+        if not u_pok[_POK_VOL_STATUS] & _VOLSTATUS_LEECH_SEED:
+            add_adjustment(rand, idx, 1, 156)
+    return 0
+
+
+@njit
 def expert_charge_invulnerable(
     ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know=0
 ):
@@ -1894,6 +1951,8 @@ def expert_flag(
         return expert_call(move, u_pok, rand, idx, move_first, copycat_beats)
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
         return expert_gravity(ai_pok, u_pok, rand, idx)
+    if move[_MOVE_ID] == _MOVENAME_SUBSTITUTE:
+        return expert_substitute(ai_pok, u_pok, rand, idx, move_first, my_last_move)
     # Pokemow Expert Blizzard, the roll ends the check either way
     if move[_MOVE_ID] == _MOVENAME_BLIZZARD:
         if effectiveness <= 0.5:
@@ -2026,7 +2085,6 @@ def expert_flag(
     Detect
     Spikes
     Miracle Eye
-    Substitute
     Sunny Day
     Hail
     Gravity

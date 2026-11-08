@@ -86,6 +86,7 @@ class VolStatus2:
     MINIMIZE          = 1
     FLASH_FIRE        = 2
     CAN_UNBURDEN      = 4
+    SUBSTITUTE        = 8
 
 
 @dataclass(slots=True)

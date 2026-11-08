@@ -697,7 +697,6 @@
     "accuracy": true,
     "category": "Special",
     "flags": {
-      "bypass_sub": true,
       "metronome": true,
       "mirror": true,
       "protect": true,
@@ -1296,7 +1295,6 @@
     "accuracy": 55,
     "category": "Status",
     "flags": {
-      "bypass_sub": true,
       "metronome": true,
       "mirror": true,
       "protect": true,
@@ -1326,7 +1324,6 @@
     "boost_atk": -1,
     "category": "Status",
     "flags": {
-      "bypass_sub": true,
       "metronome": true,
       "mirror": true,
       "protect": true,
@@ -2737,7 +2734,6 @@
     "accuracy": 55,
     "category": "Status",
     "flags": {
-      "bypass_sub": true,
       "metronome": true,
       "mirror": true,
       "protect": true,
@@ -2945,6 +2941,19 @@
     "target": "normal",
     "type": "Grass"
   },
+  "Substitute": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "non_sky": true,
+      "snatch": true
+    },
+    "name": "substitute",
+    "pp": 10,
+    "target": "self",
+    "type": "Normal"
+  },
   "Sucker Punch": {
     "accuracy": 100,
     "category": "Physical",
@@ -2965,7 +2974,6 @@
     "accuracy": 55,
     "category": "Status",
     "flags": {
-      "bypass_sub": true,
       "metronome": true,
       "mirror": true,
       "protect": true,
@@ -3262,7 +3270,6 @@
     "accuracy": 100,
     "category": "Special",
     "flags": {
-      "bypass_sub": true,
       "fail_instruct": true,
       "metronome": true,
       "mirror": true,

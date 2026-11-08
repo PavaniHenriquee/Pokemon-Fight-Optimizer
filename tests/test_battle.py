@@ -5,7 +5,7 @@ from Engine import battle
 from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
 from Engine.status_calc import vol_status
 from Models.idx_const import (
-    Pok, Move, Field, POK_LEN, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS,
+    Pok, Move, Sec, Field, POK_LEN, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS,
     SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, FIELD_LEN,
 )
 from Models.helper import (
@@ -184,6 +184,8 @@ def check_invariants(arr, action):
             assert 0 <= p[Pok.STATUS] <= Status.TOXIC, where
             for m in range(4):
                 assert move_slice(p, m)[Move.PP] >= 0, f"negative PP, {where}"
+            has_sub = bool(p[Pok.VOL_STATUS2] & VolStatus2.SUBSTITUTE)
+            assert has_sub == (p[Pok.SUB_HP] > 0), f"Substitute bit and HP disagree, {where}"
     for field in (Field.MY_POK, Field.OPP_POK):
         assert 0 <= arr[field] < 6
     assert pok_slice(arr, int(arr[Field.MY_POK]))[Pok.ID] != 0
@@ -2565,3 +2567,203 @@ def test_metronome_item_keeps_the_count_with_no_foe(monkeypatch, make_pokemon, m
     turn_sim(0, (MOVE, 1), arr)
     assert opp_active(arr)[Pok.CURRENT_HP] == 0
     assert me[Pok.METRONOME_COUNT] == (MoveName.TACKLE << 4) + 2
+
+
+# ── Phase 3: Substitute ──────────────────────────────────────────────────────
+
+def _sub(pok, hp):
+    """pok behind a Substitute of hp HP"""
+    pok[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    pok[Pok.SUB_HP] = hp
+
+
+def _has_sub(pok):
+    return bool(pok[Pok.VOL_STATUS2] & VolStatus2.SUBSTITUTE)
+
+
+def _sure_hit(pok, slot, sec_chance=None):
+    """The slot's move can't miss, and its secondary always rolls when sec_chance is 100"""
+    mv = move_slice(pok, slot)
+    mv[Move.ACCURACY] = -1
+    if sec_chance is not None:
+        mv[Sec.CHANCE] = sec_chance
+    return mv
+
+
+def _use(arr, slot, mine=True, rec=False):
+    """One move slot, no foe action around it"""
+    atk, defn = (my_active(arr), opp_active(arr)) if mine else (opp_active(arr), my_active(arr))
+    mv = move_slice(atk, slot)
+    battle._execute_move_slot(
+        atk, defn, mv, mine, slot if mine else 0, 0 if mine else slot, False, 1, True, arr, 0,
+        rec, rec
+    )
+
+
+def test_substitute_turn(make_pokemon, make_battle):
+    """The user pays a quarter of its max HP, the foe's Tackle then hits the Substitute"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Substitute"], ["Tackle"])
+    me = my_active(arr)
+    cost = me[Pok.MAX_HP] // 4
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP] - cost
+    assert _has_sub(me) and 0 < me[Pok.SUB_HP] < cost
+
+
+def test_hit_on_the_substitute_leaves_the_pokemon_alone(make_pokemon, make_battle):
+    """No HP lost, no hurt flag, nothing recorded for Bide / Counter, and the overflow is lost"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle"], ["Tackle"], my_level=5,
+                         opp_level=50)
+    me = my_active(arr)
+    _sub(me, 2)
+    hp = me[Pok.CURRENT_HP]
+    _use(arr, 0, mine=False, rec=True)
+    assert me[Pok.CURRENT_HP] == hp and not _has_sub(me) and me[Pok.SUB_HP] == 0
+    assert not me[Pok.VOL_STATUS] & VolStatus.HURT_THIS_TURN and me[Pok.DMG_TAKEN] == 0
+
+
+def test_multihit_goes_on_after_the_substitute_breaks(make_pokemon, make_battle):
+    """Double Kick: the first hit breaks it, the second hits the Pokemon"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Double Kick"], ["Tackle"], opp_level=50)
+    foe = opp_active(arr)
+    _sub(foe, 1)
+    _use(arr, 0)
+    assert not _has_sub(foe) and foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("sub_hp, poisoned", [(1, True), (999, False)])
+def test_multihit_secondary_after_the_break(make_pokemon, make_battle, sub_hp, poisoned):
+    """Twineedle's later hits poison once the Substitute is gone (Showdown), not through it"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Twineedle"], ["Tackle"], opp_level=50)
+    _sure_hit(my_active(arr), 0, 100)
+    foe = opp_active(arr)
+    _sub(foe, sub_hp)
+    _use(arr, 0)
+    assert (foe[Pok.STATUS] == Status.POISON) == poisoned
+
+
+def test_substitute_blocks_the_target_secondary_not_the_users(make_pokemon, make_battle):
+    """Thunder Shock doesn't paralyze through it, Metal Claw still raises the user's Attack"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Thunder Shock", "Metal Claw"], ["Tackle"],
+                         opp_level=50)
+    me, foe = my_active(arr), opp_active(arr)
+    _sure_hit(me, 0, 100)
+    _sure_hit(me, 1, 100)
+    _sub(foe, 999)
+    _use(arr, 0)
+    _use(arr, 1)
+    assert foe[Pok.STATUS] == 0 and me[Pok.ATTACK_STAT_STAGE] == 1
+
+
+def test_drain_and_recoil_read_what_the_substitute_lost(make_pokemon, make_battle):
+    """Absorb heals half of the Substitute's lost HP, Take Down recoils a quarter of it"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Absorb", "Take Down"], ["Tackle"])
+    me, foe = my_active(arr), opp_active(arr)
+    _sure_hit(me, 1)
+    me[Pok.CURRENT_HP] = 20
+    _sub(foe, 8)
+    _use(arr, 0)
+    assert me[Pok.CURRENT_HP] == 24 and not _has_sub(foe)
+    _sub(foe, 8)
+    _use(arr, 1)
+    assert me[Pok.CURRENT_HP] == 22
+
+
+@pytest.mark.parametrize("move", ["Wrap", "Knock Off", "Covet"])
+def test_substitute_keeps_off_trap_and_item_moves(make_pokemon, make_battle, move):
+    """No bind, no knocked off or stolen item through a Substitute"""
+    my = [make_pokemon("Rattata", 50, "Run Away", [move])]
+    opp = [make_pokemon("Rattata", 50, "Run Away", ["Tackle"], item="Oran Berry")]
+    arr = make_battle(my, opp)
+    _sure_hit(my_active(arr), 0)
+    foe = opp_active(arr)
+    _sub(foe, 999)
+    item = foe[Pok.ITEM_ID]
+    _use(arr, 0)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.PARTIALLY_TRAPPED
+    assert foe[Pok.ITEM_ID] == item and not foe[Pok.ITEM_KNOCKED_OFF]
+    assert my_active(arr)[Pok.ITEM_ID] == 0
+
+
+def test_contact_abilities_and_resist_berries_stay_out(make_pokemon, make_battle):
+    """Rough Skin doesn't hurt the attacker and a Chilan Berry isn't eaten on a Substitute hit"""
+    my = [make_pokemon("Rattata", 50, "Run Away", ["Tackle"])]
+    opp = [make_pokemon("Carvanha", 50, "Rough Skin", ["Tackle"], item="Chilan Berry")]
+    arr = make_battle(my, opp)
+    me, foe = my_active(arr), opp_active(arr)
+    _sub(foe, 999)
+    item = foe[Pok.ITEM_ID]
+    _use(arr, 0)
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP] and foe[Pok.ITEM_ID] == item
+
+
+def test_fire_move_doesnt_thaw_through_a_substitute(make_pokemon, make_battle):
+    """Showdown thaws on a damaging hit, the Substitute's isn't one. The AI's took-damage
+    record stays empty too"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Ember"], ["Tackle"], opp_level=50)
+    foe = opp_active(arr)
+    foe[Pok.STATUS] = Status.FREEZE
+    _sub(foe, 999)
+    _use(arr, 0)
+    assert foe[Pok.STATUS] == Status.FREEZE
+    assert arr[Field.AI_TOOK_DMG_LAST_TURN] == 0
+
+
+def test_ohko_move_breaks_the_substitute(make_pokemon, make_battle):
+    """It takes max HP on a Substitute, so it breaks even above the Pokemon's own HP"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Fissure"], ["Tackle"])
+    move_slice(my_active(arr), 0)[Move.ACCURACY] = 100
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] = 3
+    _sub(foe, 10)
+    _use(arr, 0)
+    assert not _has_sub(foe) and foe[Pok.CURRENT_HP] == 3
+
+
+@pytest.mark.parametrize("move, works", [
+    ("Thunder Wave", False), ("Growl", False), ("Sing", False), ("Taunt", True),
+])
+def test_status_moves_into_a_substitute(make_pokemon, make_battle, move, works):
+    """Only the moves that bypass it get through, sound moves don't in Gen IV"""
+    arr = _phase3_battle(make_pokemon, make_battle, [move], ["Tackle"], opp_level=50)
+    _sure_hit(my_active(arr), 0)
+    foe = opp_active(arr)
+    _sub(foe, 999)
+    _use(arr, 0)
+    changed = (
+        foe[Pok.STATUS] != 0, foe[Pok.ATTACK_STAT_STAGE] != 0,
+        bool(foe[Pok.VOL_STATUS] & VolStatus.TAUNT),
+    )
+    assert any(changed) == works
+
+
+def test_ghost_curse_fails_into_a_substitute_without_its_cost(make_pokemon, make_battle):
+    """pokeplatinum subscript_curse_ghost checks the Substitute before cutting the user's HP"""
+    my = [make_pokemon("Gastly", 30, "Levitate", ["Curse"])]
+    arr = make_battle(my, [make_pokemon("Rattata", 30, "Run Away", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    _sub(foe, 999)
+    _use(arr, 0)
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP] and not foe[Pok.VOL_STATUS] & VolStatus.CURSE
+
+
+def test_baton_pass_passes_the_substitute(make_pokemon, make_battle):
+    """The receiver gets it with its HP, the user loses it"""
+    arr = _baton_battle(make_pokemon, make_battle, 30, 10)
+    rattata = my_active(arr)
+    _sub(rattata, 7)
+    turn_sim(0, (MOVE, 0), arr)
+    battle.baton_pass_action(arr, 1)
+    geodude = my_active(arr)
+    assert _has_sub(geodude) and 0 < geodude[Pok.SUB_HP] <= 7
+    assert not _has_sub(rattata) and rattata[Pok.SUB_HP] == 0
+
+
+def test_rage_glitch_drops_the_substitute(make_pokemon, make_battle):
+    """Substitute is a statusVolatile bit in pokeplatinum, the glitch wipes it"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Rage", "Tail Whip"], ["Growl"])
+    me = my_active(arr)
+    me[Pok.VOL_STATUS] = VolStatus.RAGE
+    _sub(me, 5)
+    turn_sim(0, (MOVE, 1), arr)
+    assert not _has_sub(me) and me[Pok.SUB_HP] == 0

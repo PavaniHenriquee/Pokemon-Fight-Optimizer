@@ -14,6 +14,7 @@ from Engine.engine_helper import (
     is_grounded, ohko_fails, move_accuracy, on_hit_abilities, trace, download,
     recover_status_by_ability, pressure_pp, confusion, metronome_count, metronome_fail,
     power_herb, sticky_hold, counter_fails,
+    make_substitute, hit_substitute, substitute_fails, sub_blocks_move, sub_blocks_status_move,
 )
 from Engine.damage_calc import METRONOME_MOVE_SHIFT
 from Engine.ability_helper import ignorable_ability
@@ -2663,3 +2664,124 @@ def test_anticipation_reads_the_foes_normalize(poke, foe_ab, knows):
     foe = poke("Abra", 20, foe_ab, ["Confusion"])
     switch_in(p, foe, empty_field(), True)
     assert bool(p[Pok.AB_KNOWN]) == knows
+
+
+# ── Substitute ───────────────────────────────────────────────────────────────
+
+def _with_sub(p, hp=None):
+    """p behind a Substitute of hp HP (a quarter of its max HP by default)"""
+    p[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    p[Pok.SUB_HP] = max(1, p[Pok.MAX_HP] // 4) if hp is None else hp
+    return p
+
+
+def test_make_substitute_pays_a_quarter_and_frees_from_bind(poke):
+    """pokeplatinum BtlCmd_TrySubstitute: Divide(max HP, 4) off the user, into the Substitute"""
+    p = poke("Rattata", 50, "Run Away", ["Substitute"])
+    p[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED
+    p[Pok.TRAP_TURNS] = 3
+    hp, cost = p[Pok.CURRENT_HP], p[Pok.MAX_HP] // 4
+    make_substitute(p)
+    assert p[Pok.CURRENT_HP] == hp - cost and p[Pok.SUB_HP] == cost
+    assert p[Pok.VOL_STATUS2] & VolStatus2.SUBSTITUTE
+    assert not p[Pok.VOL_STATUS] & VolStatus.PARTIALLY_TRAPPED and p[Pok.TRAP_TURNS] == 0
+    assert not p[Pok.VOL_STATUS] & VolStatus.HURT_THIS_TURN
+
+
+@pytest.mark.parametrize("already_up, hp_left", [(True, None), (False, 0)])
+def test_substitute_fails(poke, already_up, hp_left):
+    """Already behind one, or no more HP than it costs (hp_left: HP above the cost)"""
+    p = poke("Rattata", 50, "Run Away", ["Substitute"])
+    if already_up:
+        _with_sub(p, 3)
+    else:
+        p[Pok.CURRENT_HP] = p[Pok.MAX_HP] // 4 + hp_left
+    hp, sub_hp = p[Pok.CURRENT_HP], p[Pok.SUB_HP]
+    assert substitute_fails(p)
+    make_substitute(p)
+    assert p[Pok.CURRENT_HP] == hp and p[Pok.SUB_HP] == sub_hp
+
+
+def test_shedinja_cant_make_a_substitute(poke):
+    """1 max HP: the cost is 1, so it never has more"""
+    p = poke("Shedinja", 30, "Wonder Guard", ["Substitute"])
+    p[Pok.MAX_HP] = p[Pok.CURRENT_HP] = 1
+    assert substitute_fails(p)
+
+
+@pytest.mark.parametrize("damage, lost, left", [(5, 5, 7), (12, 12, 0), (40, 12, 0)])
+def test_hit_substitute(poke, damage, lost, left):
+    """The Substitute takes damage up to its HP and breaks at 0, the rest is lost"""
+    p = _with_sub(poke("Rattata", 50, "Run Away", ["Tackle"]), 12)
+    hp = p[Pok.CURRENT_HP]
+    assert hit_substitute(p, damage) == lost
+    assert p[Pok.SUB_HP] == left and p[Pok.CURRENT_HP] == hp
+    assert bool(p[Pok.VOL_STATUS2] & VolStatus2.SUBSTITUTE) == (left > 0)
+
+
+@pytest.mark.parametrize("move, blocked", [
+    ("Thunder Wave", True), ("Growl", True), ("Sing", True), ("Supersonic", True),
+    ("Leech Seed", True), ("Swagger", True), ("Worry Seed", True), ("Yawn", True),
+    ("Attract", False), ("Taunt", False), ("Encore", False), ("Disable", False),
+    ("Roar", False), ("Psych Up", False), ("Foresight", False),
+    ("Stealth Rock", False), ("Perish Song", False), ("Harden", False), ("Tackle", False),
+])
+def test_sub_blocks_move(poke, move, blocked):
+    """Status moves aimed at the foe fail unless they bypass it, Gen IV sound moves included"""
+    me = poke("Rattata", 30, "Run Away", [move])
+    foe = _with_sub(poke("Rattata", 30, "Run Away", ["Tackle"]))
+    assert sub_blocks_move(move_slice(me, 0), me, foe) == blocked
+    foe[Pok.VOL_STATUS2] = 0
+    assert not sub_blocks_move(move_slice(me, 0), me, foe)
+
+
+@pytest.mark.parametrize("species, blocked", [("Gastly", True), ("Rattata", False)])
+def test_sub_blocks_only_ghost_curse(poke, species, blocked):
+    """A non-Ghost's Curse boosts the user, a Ghost's is aimed at the foe"""
+    me = poke(species, 30, "Levitate", ["Curse"])
+    foe = _with_sub(poke("Rattata", 30, "Run Away", ["Tackle"]))
+    assert sub_blocks_move(move_slice(me, 0), me, foe) == blocked
+
+
+@pytest.mark.parametrize("move, ability, reveals", [
+    ("Thunder Wave", "Limber", True), ("Sing", "Insomnia", True), ("Yawn", "Vital Spirit", True),
+    ("Confuse Ray", "Own Tempo", True), ("Swagger", "Own Tempo", False),
+    ("Thunder Wave", "Run Away", False),
+])
+def test_sub_still_reveals_the_blocking_ability(poke, move, ability, reveals):
+    """pokeplatinum's status subscripts check the ability before the Substitute, Swagger's
+    checks the Substitute first"""
+    me = poke("Rattata", 30, "Run Away", [move])
+    foe = _with_sub(poke("Rattata", 30, ability, ["Tackle"]))
+    assert sub_blocks_status_move(move_slice(me, 0), me, foe, 0)
+    assert bool(foe[Pok.AB_KNOWN]) == reveals
+
+
+def test_intimidate_skips_a_foe_behind_a_substitute(poke):
+    """pokeplatinum subscript_intimidate"""
+    me = poke("Shinx", 50, "Intimidate", ["Tackle"])
+    foe = _with_sub(poke("Rattata", 50, "Run Away", ["Tackle"]))
+    switch_in(me, foe, empty_field(), True)
+    assert foe[Pok.ATTACK_STAT_STAGE] == 0
+
+
+def test_download_ignores_a_foe_behind_a_substitute(poke):
+    """pokeplatinum skips it in both sums, so neither stat goes up"""
+    me = poke("Porygon", 20, "Download", ["Tackle"])
+    foe = _with_sub(poke("Rattata", 20, "Run Away", ["Tackle"]))
+    download(me, foe)
+    assert me[Pok.ATTACK_STAT_STAGE] == me[Pok.SPECIAL_ATTACK_STAT_STAGE] == 0
+
+
+def test_toxic_spikes_dont_poison_behind_a_substitute(poke):
+    """A Baton Passed Substitute keeps Toxic Spikes off (pokeplatinum subscript_poison)"""
+    p = _with_sub(poke("Rattata", 20, "Run Away", ["Tackle"]))
+    apply_hazards(p, _field(TSPIKES, 2), MY_SIDE)
+    assert p[Pok.STATUS] == 0
+
+
+def test_switch_out_drops_the_substitute(poke):
+    """The Substitute and its HP go with the Pokemon"""
+    p = _with_sub(poke("Rattata", 20, "Run Away", ["Tackle"]))
+    reset_switch_out(p)
+    assert p[Pok.SUB_HP] == 0 and not p[Pok.VOL_STATUS2] & VolStatus2.SUBSTITUTE

@@ -262,6 +262,10 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - My calls (abilities/items): Simple doubles accuracy/evasion stages; Quick Claw / Stall follow [SD gen4] (one
   20% roll per holder per turn, within the same priority); the Metronome item follows [pp] (cap 10, keyed in
   `node_key` k4); RP's AI does steal with Covet; the rollout counts a working opponent OHKO as a KO.
+- Substitute: every damaging move hits it (Gen IV has no bypass for them, sound moves included). A multi-hit
+  move's hits after it breaks reach the Pokemon with their effects ([SD]; [pp] blocks them for the rest of the
+  turn). A status move into one still reveals the ability that would block it ([pp] order). Its HP cost isn't
+  damage (no Assurance, no Focus Band). The Rage glitch wipes it ([pp] statusVolatile bit).
 - [pp] over [SD]: Heatproof halves base power; Safeguard blocks Flame Orb; Snow Warning sets hail; Shed Skin is
   30%. Copied quirks: Fire Fang always passes Wonder Guard; Expert Explosion's second evasion -1 starts at +3
   (Pokemow).
@@ -318,19 +322,21 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   `IfMoveEqualTo MOVE_HORN_DRILL` would skip its damage scoring if RP kept that script.
 - Not in MoveDB yet: Spikes damage, Magnet Rise, Iron Ball, Rest, Snore, U-turn, Fly, Dive,
   Heal Block.
-- MoveDB flags from after Gen IV (`python -m DataBase.add_moves --check` lists them): the sound moves
-  (Growl, Sing, Supersonic, Grass Whistle, Uproar, Roar) have `bypass_sub`, which [SD] gen4 doesn't give
-  them; Absorb and Mega Drain have `heal`; Stealth Rock, Foresight and Taunt are `reflectable`; Roar has no
-  `protect`. They matter once Substitute, Magic Coat and Heal Block are in (the Phase 3 audit).
+- MoveDB flags from after Gen IV (`python -m DataBase.add_moves --check` lists them): Absorb and Mega
+  Drain have `heal`; Stealth Rock, Foresight and Taunt are `reflectable`; Roar has no `protect`. They matter
+  once Magic Coat and Heal Block are in.
 - MoveDB: Earthquake's flag is spelled `nonsky`, every other move's `non_sky`. Nothing reads it yet.
 - MoveDB order: `SHOCK_WAVE` sits before `SCRATCH` in `MoveName` and Nightmare before Night Shade in
   MoveDB.json. `add_moves` leaves existing lines alone, so a new move next to them can land a step off
   (Night Slash would go before Nightmare).
 - `test_trainer_lacks` (`test_database.py`) uses Crunch as its missing move: swap it once Crunch is added.
-- Not handled: Klutz and Embargo ([pp] `Battler_HeldItem` returns no item for them); resist berries
-  vs Substitute (no Substitute yet, [SD] skips the berry on a substitute); Covet / Thief failing on a
+- Not handled: Klutz and Embargo ([pp] `Battler_HeldItem` returns no item for them); Covet / Thief failing on a
   defender whose Quick Claw activated ([pp] `BtlCmd_TryStealItem` wasn't found).
 - Metronome can call moves whose mechanics aren't in yet; they run as their data says.
+- Substitute: Dream Eater failing against one waits for Dream Eater's batch (8.2, no sleep check yet either).
+  Focus Punch: Expert's +5 behind a Substitute and losing focus when hit aren't in; a hit on the Substitute
+  mustn't break focus. A failed Substitute keeps its Metronome item count (like the status moves above).
+- UI: a Substitute shows as a chip, without its HP.
 - Metronome item: a status move that fails inside `calculate_effects` (Thunder Wave on a statused
   foe, a stat move at ±6) doesn't give its count back; [pp] does (MOVE_STATUS_FAILED).
 - Accuracy stages are netted with exact thirds; [pp] `HitRateByStage` is a rounded table (differs

@@ -7,7 +7,8 @@ Updated only when asked.
 - Done: Phase 0 (this file and the CLAUDE.md pointers), 2026-11-08.
 - Done: 1.1 (trainer importer), 1.2 (trainer availability) and 1.3 (coverage report), 2026-11-08.
 - Done: 1.4 (MoveDB entry helper), 2.1 (state design note) and 2.2 (`node_key` capacity), 2026-11-08.
-- Next: Phase 3, Substitute.
+- Done: Phase 3 (Substitute and its audit), 2026-11-08.
+- Next: Phase 4, items.
 
 ## Goal
 
@@ -164,8 +165,8 @@ This is architecture, so a note comes first and waits for OK.
 
 It's cross-cutting, so it goes first: every later batch checks its moves against it.
 
-- [ ] Substitute(B/E) !!
-- [ ] Audit every MoveDB move against it once: status moves, secondaries, drain, trapping, multi-hit, Baton
+- [x] Substitute(B/E) !!
+- [x] Audit every MoveDB move against it once: status moves, secondaries, drain, trapping, multi-hit, Baton
       Pass, and resist berries (the Known gaps line).
 
 ## Phase 4: items
