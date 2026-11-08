@@ -1,7 +1,8 @@
 """
 Add each species' level-up moves from the Renegade Platinum documentation sheet to PkDB.json, as
-"learnset": [[level, "Move"], ...]. Moves the engine doesn't have yet stay in the list, the ones it
-has use MoveDB's spelling. Rerun it to refresh: only the learnset lines change.
+"learnset": [[level, "Move"], ...], and the moves its tutors teach, as "tutor": ["Move", ...] (the Move
+Tutor list, then the Special Tutors one). Moves the engine doesn't have yet stay in the lists, the ones it
+has use MoveDB's spelling. Rerun it to refresh: only the learnset and tutor lines change.
 
 The source is the sheet's DEX tab. It has one learnset per species next to the OLD / CLA / COM lines,
 and it's right where the LEARNSETS tab has errors (Twinneedle, Thrash on Wailord).
@@ -29,6 +30,12 @@ MOVE_COL = 14
 BLOCK_START = "LEARNSET"
 LEVEL_UP_TITLE = "Level Up :"
 LEVEL_UP_END = "TMs HMs :"
+# The tutor lists: a title, then one move per row in this column until an empty cell
+TUTOR_COL = 27
+TUTOR_TITLES = ("Move Tutor", "Special Tutors")
+EVERY_TUTOR = "This Pokemon can learn every move Move Tutors can teach"  # Mew
+# A move only one patch has: the cell ends with COM (Complete, the one this project follows) or CLA
+PATCH_MARK = re.compile(r"\s+(COM|CLA)$")
 
 # Sheet name -> PkDB name, the rest are the same
 SPECIES_ALIAS = {
@@ -97,6 +104,46 @@ def parse_dex(text: str, move_names) -> dict:
     return learnsets
 
 
+def parse_tutors(text: str, move_names) -> dict:
+    """{species: [move, ...]} from the DEX tab's CSV: the Move Tutor list, then the Special Tutors one, in
+    the sheet's order. Classic-only moves are left out. A species whose list says it learns every Move Tutor
+    move gets every move the Move Tutor lists have, in the order they first come"""
+    spelling = {move_key(name): name for name in move_names}
+    tutors, every, regular = {}, [], {}
+    current, title = None, ""
+    for row in csv.reader(io.StringIO(text)):
+        if len(row) > MOVE_COL and clean_text(row[LEVEL_COL]) == BLOCK_START:
+            current, title = tutors.setdefault(species_name(row[NAME_COL]), []), ""
+            continue
+        cell = clean_text(row[TUTOR_COL]) if len(row) > TUTOR_COL else ""
+        if current is None:
+            continue
+        if cell in TUTOR_TITLES or not cell:
+            title = cell
+        elif title and cell == EVERY_TUTOR:
+            every.append(current)
+        elif title:
+            patch = PATCH_MARK.search(cell)
+            if patch is None or patch[1] == "COM":
+                move = PATCH_MARK.sub("", cell)
+                move = spelling.get(move_key(move), move)
+                current.append(move)
+                if title == TUTOR_TITLES[0]:
+                    regular[move] = None
+    for moves in every:
+        moves.extend(regular)
+    return tutors
+
+
+def _tutor_text(tutor: list, eol: str) -> str:
+    """One line when it fits Prettier's 80 columns, else one move per line (Prettier's format)"""
+    line = f'    "tutor": {json.dumps(tutor)},{eol}'
+    if len(line.rstrip()) <= 80:
+        return line
+    entries = f",{eol}".join(f"      {json.dumps(move)}" for move in tutor)
+    return f'    "tutor": [{eol}{entries}{eol}    ],{eol}'
+
+
 def _learnset_text(learnset: list, eol: str) -> str:
     """The format Prettier keeps when the editor formats PkDB.json on save: one [level, move] per
     line, a single entry stays inline"""
@@ -106,9 +153,9 @@ def _learnset_text(learnset: list, eol: str) -> str:
     return f'    "learnset": [{eol}{entries}{eol}    ],{eol}'
 
 
-def with_learnsets(db_text: str, learnsets: dict) -> str:
-    """PkDB.json's text with each species' learnset right before its weight line, replacing the one
-    a previous run added, so the rest of the file stays exactly as it is"""
+def with_learnsets(db_text: str, learnsets: dict, tutors: dict | None = None) -> str:
+    """PkDB.json's text with each species' learnset (and tutor moves, when given) right before its weight
+    line, replacing the ones a previous run added, so the rest of the file stays exactly as it is"""
     out = []
     species = None
     in_old_block = False
@@ -119,19 +166,21 @@ def with_learnsets(db_text: str, learnsets: dict) -> str:
         head = re.match(r'  "(.+)": \{', line)
         if head:
             species = head[1]
-        if line.startswith('    "learnset": '):
+        if line.startswith('    "learnset": ') or (tutors is not None and line.startswith('    "tutor": ')):
             in_old_block = line.rstrip().endswith("[")
             continue
         if line.startswith('    "weight": '):
             eol = "\r\n" if line.endswith("\r\n") else "\n"
             out.append(_learnset_text(learnsets[species], eol))
+            if tutors is not None:
+                out.append(_tutor_text(tutors[species], eol))
         out.append(line)
     return "".join(out)
 
 
 def _without_learnsets(database: dict) -> dict:
     return {
-        name: {k: v for k, v in entry.items() if k != "learnset"}
+        name: {k: v for k, v in entry.items() if k not in ("learnset", "tutor")}
         for name, entry in database.items()
     }
 
@@ -152,7 +201,8 @@ def main() -> None:
     old = json.loads(old_text)
 
     learnsets = parse_dex(dex, moves)
-    if set(learnsets) != set(old):
+    tutors = parse_tutors(dex, moves)
+    if set(learnsets) != set(old) or set(tutors) != set(old):
         raise SystemExit(
             f"Species don't match PkDB. Only in the sheet: {sorted(set(learnsets) - set(old))}. "
             f"Only in PkDB: {sorted(set(old) - set(learnsets))}"
@@ -161,7 +211,7 @@ def main() -> None:
     if empty:
         raise SystemExit(f"No level-up moves: {empty}")
 
-    new_text = with_learnsets(old_text, learnsets)
+    new_text = with_learnsets(old_text, learnsets, tutors)
     new = json.loads(new_text)
     if _without_learnsets(new) != _without_learnsets(old) or set(new) != set(old):
         raise SystemExit("Something other than the learnsets changed, PkDB.json left as it was")
@@ -172,6 +222,8 @@ def main() -> None:
     distinct ={move for moves_list in learnsets.values() for _, move in moves_list}
     print(f"{len(learnsets)} species, {len(distinct)} distinct moves, "
           f"{len(distinct & set(moves))} of them in MoveDB")
+    taught = {move for moves_list in tutors.values() for move in moves_list}
+    print(f"Tutors: {len(taught)} distinct moves, {sum(1 for t in tutors.values() if t)} species learn one")
 
 
 if __name__ == "__main__":

@@ -22,10 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from Models.idx_const import Pok, POK_LEN
 from Models.constants import (
     _FIELD_TURN,
-    _FIELD_AI_ITEM1, _FIELD_AI_ITEM2, _FIELD_AI_ITEM3, _FIELD_AI_ITEM4,
-    _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
-    _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL,
-    _POTIONS_X_SPECIAL, _POTIONS_X_DEFEND, _POTIONS_X_SPEED, _FIELD_TERRAIN,
+    _FIELD_AI_ITEM1, _FIELD_AI_ITEM2, _FIELD_AI_ITEM3, _FIELD_AI_ITEM4, _FIELD_TERRAIN,
 )
 from Models.helper import Terrain
 from Models.pokemon import Pokemon
@@ -38,6 +35,7 @@ from Utils.helper import to_battle_array
 from Utils.loader import natures
 from DataBase.loader import pkDB, moveDB, abDB, itemDB
 from DataBase.PkDB import PokemonName, PokIdToName, sprite_id
+from DataBase.support import TRAINER_ITEMS, trainer_lacks
 from .serializer import serialize_node, opp_move_label   # relative import within the backend package
 
 # Put project root on path so Models/Engine/etc. are importable
@@ -70,18 +68,6 @@ _NUZLOCKE_PATH = _nuzlocke_path()
 _TRAINER_ITEM_FIELDS = (
     _FIELD_AI_ITEM1, _FIELD_AI_ITEM2, _FIELD_AI_ITEM3, _FIELD_AI_ITEM4,
 )
-
-_TRAINER_ITEM_MAP: dict[str, int] = {
-    "Potion":       _POTIONS_POTION,
-    "Super Potion": _POTIONS_SUPER_POTION,
-    "Hyper Potion": _POTIONS_HYPER_POTION,
-    "Full Restore": _POTIONS_FULL_RESTORE,
-    "Full Heal":    _POTIONS_FULL_HEAL,
-    "X Special":    _POTIONS_X_SPECIAL,
-    "X Defend":     _POTIONS_X_DEFEND,
-    "X Speed":      _POTIONS_X_SPEED,
-}
-
 
 @njit
 def _seed_numba(seed: int) -> None:
@@ -382,7 +368,7 @@ def _build_battle(config: BattleConfig) -> np.ndarray:
         start_of_battle(battle)
 
     for i, item_name in enumerate(config.trainer_items[:4]):
-        val = _TRAINER_ITEM_MAP.get(item_name, 0)
+        val = TRAINER_ITEMS.get(item_name, 0)
         if val:
             battle[_TRAINER_ITEM_FIELDS[i]] = val
     battle[_FIELD_TERRAIN] = getattr(Terrain, config.terrain.upper())
@@ -420,6 +406,9 @@ async def start_mcts(config: BattleConfig) -> dict:
     """Start from app"""
     # Build everything BEFORE touching the current run, so a bad config
     # reports an error instead of killing a working search.
+    lacks = trainer_lacks([p.model_dump() for p in config.opp_team], config.trainer_items)
+    if lacks:
+        return {"status": "error", "error": "Not supported yet: " + ", ".join(lacks)}
     try:
         battle = _build_battle(config)
     except Exception as exc:
@@ -432,13 +421,18 @@ async def start_mcts(config: BattleConfig) -> dict:
 
 @app.get("/trainers")
 async def get_trainers() -> dict:
-    """Load trainer parties from TrainerDB.json."""
+    """Load trainer parties from TrainerDB.json, each with what it lacks ("lacks") when it lacks something."""
     try:
         trainer_db_path = os.path.join(_ROOT, "DataBase", "TrainerDB.json")
         with open(trainer_db_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            trainers = json.load(f)
     except FileNotFoundError:
         return {}
+    for entry in trainers.values():
+        lacks = trainer_lacks(entry["team"], entry.get("trainer_items", []))
+        if lacks:
+            entry["lacks"] = lacks
+    return trainers
 
 
 @app.get("/encounters")

@@ -1,0 +1,695 @@
+# Engine plan: Renegade Platinum up to the Champion
+
+## Status
+
+Updated only when asked.
+
+- Done: Phase 0 (this file and the CLAUDE.md pointers), 2026-11-08.
+- Done: 1.1 (trainer importer), 1.2 (trainer availability) and 1.3 (coverage report), 2026-11-08.
+- Next: 1.4, the MoveDB entry helper (ask first).
+
+## Goal
+
+Every singles battle in Renegade Platinum up to Champion Cynthia runs in the engine, at a usable speed. That
+means every move, item, ability and trainer item that those trainers and my own Pokemon can have. After that,
+the neural network work resumes (`NN_PLAN.md`).
+
+## Decisions (2026-11-08)
+
+- Singles only. Double and multi battles are out (see below); I play them without the tool.
+- Mechanism first. Phases group shared mechanics across the whole game, cross-cutting ones first. They don't
+  go split by split.
+- A move or item enters MoveDB / ItemDB in the batch that implements it, as before.
+- `TODO.txt` stays as the finished list up to the 1st gym. This file replaces it.
+- `*` counts post-game sources too (1.3): post-game encounters, legendaries and items, so the tool is ready if
+  I explore after the Champion. The sheet doesn't list berries: they come from [pp]'s berry trees.
+
+## Out of scope
+
+- Double and multi battles: Spear Pillar (Mars + Jupiter, with Barry as partner), Riley's tag battle on Iron
+  Island, and Twins and couples on routes. TODO.txt's "Doubles: Bide" goes with them.
+- Post-game and rematches (the sheet's POST GAME and REMATCHES tabs).
+- The plates (Multitype's and Judgment's type change): post-Champion pickups. Arceus itself is in (1.3, see
+  Decisions), and without a plate Judgment is a plain Normal move.
+- Klutz: no RP species has it (PkDB).
+- Search tuning, except what new mechanics need (`node_key`, the rollout).
+
+## How to work from this file
+
+- Read Status and the phase in progress, not the whole file.
+- A numbered step is about one batch. Each batch follows CLAUDE.md: the per-batch flow under "Implementing
+  moves, items and abilities" and the checklist below it.
+- Notation, as in CLAUDE.md:
+  - no `*`: a trainer up to the Champion uses it (do first)
+  - `*`: only my own Pokemon can have it
+  - `!`: check the Showdown handler and pokeplatinum first
+  - `!!`: also write a mechanics note and wait for OK
+  - `(B)` / `(E)`: the `basic_flag` / `expert_flag` branch from [pp] `trainer_ai/script.s` and Pokemow
+- Where the marks come from:
+  - `(B)`, `(E)` and `!` come from TODO.txt where it listed the entry. For everything else, the batch checks
+    `script.s`.
+  - TODO.txt's `*` meant "up to Roark", so nothing here has `*` yet. 1.3 adds them.
+- At the end of a batch, list the boxes that can be ticked. Tick them and update Status only when asked.
+- At the end of each phase:
+  - `pytest`, `pytest -m jit`, and `pytest -m slow` if the layout or turn flow changed
+  - a new `tests/battle_driver.py` scenario that exercises the phase's mechanics
+  - `python -m benchmarks.run quick` on the home PC, compared with the previous report
+  - the coverage report (1.3)
+
+## Phase 1: data foundation
+
+The engine phases only need this for the `*` marks. If the sheet needs a login, Phase 2 can start while the
+CSVs get exported by hand.
+
+- [x] 1.1 Trainer importer, `DataBase/import_trainers.py`, on the pattern of `import_encounters.py`. It
+      downloads a tab by gid, or takes an exported CSV.
+  - Source: the TRAiNERS tab and the split tabs (GARDENiA, FANTINA, MAYLENE, WAKE, BYRON, CANDICE, VOLKNER,
+    CHAMPiON SPLiT). Find which one has the full sets (level, item, ability, nature, IVs, moves) and the
+    rival variants.
+  - Output: TrainerDB.json with every singles trainer from the Roark split to Cynthia, in story order, with a
+    new `"split"` field. Double and multi battles are skipped, and the run lists them.
+  - It has to reproduce the 34 current entries exactly; review the diff with me.
+  - Some things the sheet may not give: the gender rule, IVs, the sprite per trainer class, and `terrain`
+    for Nature Power, Secret Power and Camouflage users. They follow the rule the current entries used, once
+    I've confirmed it.
+  - Afterwards, TrainerDB.json goes under "Generated / derived files" in CLAUDE.md, and the ROARK SPLIT line
+    there covers every split (with my OK).
+- [x] 1.2 Trainer availability (confirm the design at the step).
+  - `/trainers` says what each trainer still lacks:
+    - moves not in MoveDB and items not in ItemDB
+    - entries that exist but aren't implemented yet: the moves below marked "in MoveDB", Color Change and
+      Forecast. One small constant lists them, and it only shrinks.
+  - The Setup picker groups trainers by split. Unsupported trainers show as disabled, with what they lack.
+    `/start` refuses them.
+  - `test_trainer_pokemon_build` covers the supported trainers. Check it in the app with the run-app skill.
+- [x] 1.3 Coverage report, `python -m DataBase.coverage`.
+  - It covers every move, item, ability and trainer item a trainer up to the Champion uses. For each one: the
+    first split, how many trainers, and whether it's supported. It also shows how many trainers per split are
+    supported.
+  - Entries only my own Pokemon can have get `*` in this file. The sources are the learnsets in PkDB, the TMs
+    in ItemLocationDB and the species in EncounterDB.
+  - It also places the moves under "To check". If it suggests a different phase order, propose it and wait.
+- [x] 1.4 (ask first) MoveDB entry helper. It builds a batch's entries from Showdown's gen4 data (every
+      inheritance layer) with the MOVES tab's numbers. Then it inserts them alphabetically into MoveDB.json and
+      `MoveName`.
+
+## Phase 2: state and search capacity
+
+This is architecture, so a note comes first and waits for OK.
+
+- [ ] 2.1 Design note. For each new piece of state: where it lives (VolStatus2 bits, new `Pok` slots, or
+      per-side `Field` slots on the shared `SIDE_*` layout), what switch-out resets, what Baton Pass keeps, and
+      how `node_key` sees it. Draft list to check:
+  - Per Pokemon:
+    - Substitute HP, the choice-locked slot and the Stockpile count
+    - turns left for Magnet Rise, Embargo, Heal Block and Lock-On
+    - bits for Torment, Imprison, Miracle Eye, Mean Look, Power Trick, Transform and Grudge
+    - a rampage counter (Thrash) and the moves used since switch-in (Last Resort)
+    - a backup of the original types and moves, for Roost, Conversion, Camouflage, Color Change, Forecast,
+      Transform and Mimic
+    - item identity changes from Trick, Thief and Fling
+  - Per side: Spikes layers; Tailwind turns; Wish (turns, HP); Future Sight and Doom Desire (turns, damage).
+  - Field: Trick Room (`Field.TRICKROOM` exists).
+  - `node_key`: k1, k2 and k3 are full, and so is `VOL2_KEY_BITS` (3). It needs at least one more 64-bit word.
+- [ ] 2.2 Build the agreed capacity with `node_key` tests, but no mechanics yet: the new key word(s), more
+      VOL2 key bits, and keyed item and type changes. Each slot comes with its own batch, following the note. If
+      a layout change breaks `NeuralNetwork/`, stop and ask.
+
+## Phase 3: Substitute
+
+It's cross-cutting, so it goes first: every later batch checks its moves against it.
+
+- [ ] Substitute(B/E) !!
+- [ ] Audit every MoveDB move against it once: status moves, secondaries, drain, trapping, multi-hit, Baton
+      Pass, and resist berries (the Known gaps line).
+
+## Phase 4: items
+
+### 4.1 Simple held items
+
+Type boosters:
+
+- [ ] BlackGlasses \*
+- [ ] Dragon Fang \*
+- [ ] Magnet \*
+- [ ] Spell Tag
+- [ ] Odd Incense \*
+- [ ] Rock Incense \*
+- [ ] Rose Incense \*
+- [ ] Wave Incense \*
+- [ ] Wise Glasses
+
+Species items:
+
+- [ ] DeepSeaTooth \*
+- [ ] DeepSeaScale \*
+- [ ] Soul Dew \*
+- [ ] Adamant Orb \*
+- [ ] Lustrous Orb \*
+- [ ] Griseous Orb \* !
+- [ ] Lucky Punch \*
+- [ ] Stick \*
+- [ ] Metal Powder \*
+- [ ] Quick Powder \*
+
+Crit, accuracy and flinch:
+
+- [ ] Razor Claw \*
+- [ ] Zoom Lens !
+- [ ] Wide Lens
+- [ ] King's Rock !
+- [ ] Razor Fang \* (not on the iTEMS/TMs tab: [pp] hides one on Route 214)
+
+Speed and order:
+
+- [ ] Macho Brace \*
+- [ ] Power Anklet \*
+- [ ] Power Band \*
+- [ ] Power Belt \*
+- [ ] Power Bracer \*
+- [ ] Power Lens \*
+- [ ] Power Weight \*
+- [ ] Lagging Tail \* !
+- [ ] Full Incense \* !
+- [ ] Iron Ball \* !
+
+No battle effect:
+
+- [ ] No-effect items, only the ones a trainer or my box holds, so Fling, Trick, Thief and Knock Off see
+      them: Amulet Coin, Cleanse Tag, Everstone, Exp. Share, Luck Incense, Lucky Egg, Pure Incense, Smoke Ball,
+      Soothe Bell, evolution items and stones, scarves, flutes
+- [ ] Rare Candy (Lady Celeste's and Rich Boy Liam's Blissey)
+
+### 4.2 Items with their own rules
+
+- [ ] Life Orb !
+- [ ] Shell Bell \*
+- [ ] Focus Sash !
+- [ ] Toxic Orb
+- [ ] White Herb !
+- [ ] Sticky Barb \* !
+- [ ] Destiny Knot \*
+
+### 4.3 Berries
+
+Status:
+
+- [ ] Cheri Berry \*
+- [ ] Rawst Berry \*
+- [ ] Aspear Berry \*
+- [ ] Persim Berry \*
+- [ ] Leppa Berry \* !
+
+HP (they confuse by nature):
+
+- [ ] Figy Berry \* !
+- [ ] Wiki Berry \* !
+- [ ] Mago Berry \* !
+- [ ] Aguav Berry \* !
+- [ ] Iapapa Berry \* !
+
+Pinch:
+
+- [ ] Liechi Berry
+- [ ] Ganlon Berry \*
+- [ ] Salac Berry \*
+- [ ] Petaya Berry
+- [ ] Apicot Berry \*
+- [ ] Lansat Berry \*
+- [ ] Starf Berry !
+- [ ] Micle Berry \* !
+- [ ] Custap Berry \* !
+
+Others:
+
+- [ ] Enigma Berry \* !
+- [ ] Jaboca Berry \*
+- [ ] Rowap Berry \*
+
+### 4.4 Choice items
+
+This covers the lock state, `move_blocked`, the AI, and Encore and Struggle.
+
+- [ ] Choice Band !!
+- [ ] Choice Specs !!
+- [ ] Choice Scarf !!
+
+### 4.5 Item moves
+
+- [ ] Thief(E) \*
+- [ ] Pluck(E)
+- [ ] Trick(B/E) !!
+- [ ] Switcheroo(B) !!
+- [ ] Embargo(B/E) !
+- [ ] Fling(B/E) !! (last: it needs every item's Fling data)
+
+## Phase 5: plain damage moves
+
+The engine already has these mechanics. Each move needs data plus its AI branches.
+
+### 5.1 Status, flinch or confusion chance
+
+Burn:
+
+- [ ] Fire Blast
+- [ ] Flamethrower
+- [ ] Heat Wave
+- [ ] Lava Plume
+- [ ] Blaze Kick
+- [ ] Sacred Fire
+- [ ] Scald !
+
+Paralysis:
+
+- [ ] Thunderbolt
+- [ ] Discharge
+- [ ] Zap Cannon
+- [ ] Body Slam
+
+Poison:
+
+- [ ] Sludge
+- [ ] Sludge Bomb
+- [ ] Gunk Shot
+- [ ] Poison Jab
+- [ ] Cross Poison
+- [ ] Poison Tail
+
+Freeze:
+
+- [ ] Ice Punch
+
+Confusion:
+
+- [ ] Dizzy Punch
+- [ ] Dynamic Punch
+- [ ] Signal Beam
+- [ ] Rock Climb \*
+- [ ] Chatter !
+
+Flinch:
+
+- [ ] Dark Pulse
+- [ ] Dragon Rush
+- [ ] Icicle Crash
+- [ ] Needle Arm \* !
+- [ ] Rolling Kick \*
+- [ ] Waterfall
+
+Fangs:
+
+- [ ] Ice Fang
+- [ ] Thunder Fang
+
+Binding:
+
+- [ ] Magma Storm \* !
+
+### 5.2 Stat changes on hit
+
+Target drop chance:
+
+- [ ] Bug Buzz
+- [ ] Crunch
+- [ ] Crush Claw
+- [ ] Earth Power
+- [ ] Energy Ball
+- [ ] Flash Cannon
+- [ ] Focus Blast
+- [ ] Iron Tail
+- [ ] Mirror Shot \*
+- [ ] Moonblast
+- [ ] Muddy Water
+- [ ] Octazooka
+- [ ] Play Rough
+- [ ] Psychic
+- [ ] Rock Smash \*
+- [ ] Shadow Ball
+- [ ] Seed Flare \*
+
+Self raise chance:
+
+- [ ] Charge Beam
+- [ ] Meteor Mash
+- [ ] Steel Wing \*
+- [ ] Ancient Power
+- [ ] Ominous Wind
+
+Self drop:
+
+- [ ] Close Combat(E) !
+- [ ] Superpower(E) !
+- [ ] Hammer Arm(E) !
+- [ ] Overheat !
+- [ ] Draco Meteor !
+- [ ] Leaf Storm !
+- [ ] Psycho Boost !
+
+### 5.3 Everything else in this phase
+
+Plain:
+
+- [ ] Aqua Tail
+- [ ] Cut \*
+- [ ] Dazzling Gleam
+- [ ] Dragon Claw
+- [ ] Dragon Pulse
+- [ ] Drill Peck
+- [ ] Egg Bomb
+- [ ] Hyper Voice
+- [ ] Judgment \* (Arceus, post-game: Normal without a plate)
+- [ ] Mega Kick
+- [ ] Mega Punch
+- [ ] Megahorn
+- [ ] Pay Day
+- [ ] Power Gem
+- [ ] Power Whip
+- [ ] Strength
+- [ ] X-Scissor
+
+High crit:
+
+- [ ] Slash
+- [ ] Night Slash
+- [ ] Psycho Cut
+- [ ] Cross Chop
+- [ ] Stone Edge
+- [ ] Leaf Blade
+- [ ] Shadow Claw
+- [ ] Crabhammer \*
+- [ ] Drill Run ! (it's in Horn Drill's slot, see Known gaps)
+- [ ] Attack Order
+- [ ] Aeroblast
+- [ ] Spacial Rend
+
+Priority:
+
+- [ ] Bullet Punch
+- [ ] Ice Shard
+- [ ] Shadow Sneak
+- [ ] Vacuum Wave
+
+Sure hit:
+
+- [ ] Aura Sphere
+- [ ] Magnet Bomb
+- [ ] Shadow Punch
+- [ ] Vital Throw(E)
+
+Multi-hit:
+
+- [ ] Bone Rush
+- [ ] Icicle Spear
+- [ ] Spike Cannon
+- [ ] Double Hit
+- [ ] Bonemerang
+
+Recoil:
+
+- [ ] Double-Edge
+- [ ] Brave Bird
+- [ ] Wood Hammer
+- [ ] Head Smash
+- [ ] Wild Charge
+- [ ] Flare Blitz
+
+Drain:
+
+- [ ] Giga Drain
+- [ ] Leech Life
+- [ ] Drain Punch
+
+Fixed damage:
+
+- [ ] Sonic Boom
+
+## Phase 6: forced turns and hit rules
+
+### 6.1 Recharge
+
+- [ ] Hyper Beam (in MoveDB)
+- [ ] Giga Impact
+- [ ] Blast Burn
+- [ ] Hydro Cannon
+- [ ] Frenzy Plant
+- [ ] Roar of Time \*
+- [ ] Rock Wrecker \*
+
+### 6.2 Charge turn
+
+- [ ] Solar Beam !
+- [ ] Skull Bash
+- [ ] Sky Attack
+- [ ] Razor Wind
+
+### 6.3 Semi-invulnerable, and what reaches it
+
+- [ ] Fly
+- [ ] Dive
+- [ ] Shadow Force !
+- [ ] Sky Uppercut
+- [ ] Surf
+- [ ] Thunder ! (weather accuracy too)
+- [ ] Hurricane ! (RP's version)
+
+### 6.4 Rampage
+
+- [ ] Thrash !
+- [ ] Outrage !
+- [ ] Petal Dance !
+
+### 6.5 Crash damage
+
+- [ ] Jump Kick !
+- [ ] High Jump Kick !
+
+## Phase 7: power and damage rules
+
+### 7.1 Variable power
+
+- [ ] Eruption
+- [ ] Water Spout
+- [ ] Wring Out(E)
+- [ ] Crush Grip(E) \*
+- [ ] Reversal(E)
+- [ ] Punishment(E)
+- [ ] Trump Card(E)
+- [ ] Facade(E)
+- [ ] Smelling Salts(E)
+- [ ] Wake-Up Slap(E)
+- [ ] Grass Knot
+- [ ] Return !! (where friendship comes from)
+- [ ] Frustration !! (same)
+- [ ] Present !
+- [ ] Triple Kick !
+- [ ] Beat Up !!
+- [ ] Last Resort(B/E)
+- [ ] Secret Power \* !
+
+### 7.2 Fixed and HP-based damage
+
+- [ ] Super Fang(E)
+- [ ] Endeavor(E)
+- [ ] Pain Split(E)
+- [ ] Metal Burst(B/E)
+- [ ] False Swipe
+
+### 7.3 Turn order
+
+- [ ] Avalanche
+- [ ] Revenge
+- [ ] Payback(E)
+- [ ] Sucker Punch(E) ! (in MoveDB)
+- [ ] Focus Punch(E) ! (in MoveDB)
+
+## Phase 8: status moves
+
+### 8.1 Stat stages
+
+- [ ] Swords Dance
+- [ ] Calm Mind(B)
+- [ ] Cosmic Power(B)
+- [ ] Acid Armor
+- [ ] Tail Glow \*
+- [ ] Sharpen \*
+- [ ] Defend Order
+- [ ] Feather Dance
+- [ ] Metal Sound
+- [ ] Cotton Spore
+- [ ] Dragon Dance(B/E) (in MoveDB)
+- [ ] Swagger (in MoveDB)
+- [ ] Flatter (in MoveDB)
+- [ ] Belly Drum(B/E) !
+- [ ] Acupressure(B/E) !
+- [ ] Psych Up(E) ! (in MoveDB)
+- [ ] Haze(E)
+- [ ] Power Swap(B/E) \*
+- [ ] Guard Swap(B/E)
+- [ ] Heart Swap(E) \*
+- [ ] Power Trick(B/E) !
+- [ ] Captivate(B/E)
+
+### 8.2 Status and sleep
+
+- [ ] Toxic(E)
+- [ ] Glare
+- [ ] Spore
+- [ ] Lovely Kiss
+- [ ] Dark Void \*
+- [ ] Poison Gas
+- [ ] Teeter Dance
+- [ ] Rest(E) !
+- [ ] Sleep Talk(B/E) ! (in MoveDB)
+- [ ] Snore(B)
+- [ ] Nightmare(B/E) ! (in MoveDB)
+- [ ] Dream Eater ! (in MoveDB)
+- [ ] Psycho Shift(B/E) !
+- [ ] Heal Bell(E) !
+- [ ] Aromatherapy(E) !
+
+### 8.3 Healing
+
+- [ ] Milk Drink \*
+- [ ] Soft-Boiled
+- [ ] Slack Off
+- [ ] Heal Order
+- [ ] Moonlight
+- [ ] Morning Sun
+- [ ] Roost !
+- [ ] Heal Block(B/E) !
+
+## Phase 9: weather, field and hazards
+
+### 9.1 Weather
+
+- [ ] Sunny Day(E)
+- [ ] Hail(E)
+- [ ] Weather Ball !
+- [ ] Heat Rock
+- [ ] Icy Rock \*
+- [ ] Forecast (ability) !
+
+### 9.2 Field
+
+- [ ] Trick Room(B/E) ! (in MoveDB)
+- [ ] Tailwind(B/E) !
+
+### 9.3 Hazards and grounding
+
+- [ ] Spikes(E) !
+- [ ] Defog(B/E) \* !
+- [ ] Rapid Spin clears Spikes too
+- [ ] Magnet Rise(B/E) !
+
+## Phase 10: delayed effects, sacrifice and self-switch
+
+### 10.1 Delayed effects
+
+- [ ] Future Sight(B) !! (in MoveDB)
+- [ ] Doom Desire(B) !!
+- [ ] Wish !
+- [ ] Stockpile(B)
+- [ ] Spit Up(B/E)
+- [ ] Swallow(B)
+
+### 10.2 Sacrifice
+
+- [ ] Memento(B/E)
+- [ ] Healing Wish(B/E) !! (the replacement is picked mid-turn)
+- [ ] Grudge \* !
+
+### 10.3 Self-switch
+
+- [ ] U-turn(E) !! (my mid-turn pick reuses the Baton Pass phase; the AI uses its post-KO pick)
+
+## Phase 11: restriction, trapping and protection
+
+### 11.1 Restriction and trapping
+
+- [ ] Torment(B)
+- [ ] Imprison(B/E)
+- [ ] Spite \* !
+- [ ] Mean Look(B)
+- [ ] Block
+- [ ] Spider Web \*
+
+### 11.2 Accuracy locks and protection
+
+- [ ] Lock-On(B/E)
+- [ ] Mind Reader(E)
+- [ ] Miracle Eye(B/E)
+- [ ] Detect(E)
+
+### 11.3 Reflection
+
+- [ ] Magic Coat(E) !!
+- [ ] Snatch(E) !!
+
+## Phase 12: copying, calling and type/ability changes
+
+### 12.1 Type and ability changes
+
+- [ ] Conversion(E) \*
+- [ ] Conversion 2 \*
+- [ ] Camouflage(B)
+- [ ] Color Change (ability) !
+- [ ] Role Play
+- [ ] Skill Swap \*
+- [ ] Gastro Acid(B/E)
+
+### 12.2 Copying
+
+- [ ] Mimic !!
+- [ ] Sketch \* !
+- [ ] Transform \* !!
+
+### 12.3 Calling
+
+- [ ] Assist !
+- [ ] Me First(E) !!
+
+## To check in 1.3
+
+No RP learnset or TM has these. Place each one if the DEX tab's tutor or egg lists or a trainer team have it,
+and drop it otherwise. Done in 1.3 (the DEX tab has no egg moves):
+
+- [x] Twister: dropped, nothing has it
+- [x] Frenzy Plant: in 6.1, three trainers use it
+- [x] Volt Tackle: dropped, nothing has it
+- [x] Lunar Dance: dropped, nothing has it
+- [x] Brine: dropped, nothing has it
+- [x] Any other tutor move: Judgment (in 5.3), nothing else
+
+## Phase 13: trainer AI
+
+- [ ] 13.1 Only if the tool shows the 3-flag assumption is wrong (CLAUDE.md Known gaps, "AI flags").
+      The assumption: every RP trainer has Basic, Evaluate Attack and Expert, no more and no less. If it's wrong:
+  - add per-trainer `ai_flags` in TrainerDB, defaulting to those 3
+  - add whatever flags the evidence shows, for example Setup First Turn ! (Pokemow + [pp] `script.s`).
+    [pp] `res/trainers/data` gives it to Lucian, and to Mars at Spear Pillar (a multi battle).
+- [ ] 13.2 Trainer items that 1.3 finds and the AI can't use yet, per [pp] `TrainerAI_ShouldUseItem`.
+      Possible ones: Max Potion, X Attack, X Accuracy, Dire Hit, Guard Spec and status heals. Done already:
+      Potion, Super Potion, Hyper Potion, Full Restore, Full Heal, X Special, X Defend and X Speed.
+- [ ] 13.3 Re-check each AI line in CLAUDE.md's Known gaps against the trainers now covered. Do the ones a
+      trainer reaches.
+
+## Phase 14: wrap-up
+
+- [ ] A `pytest -m slow` fuzz battle against every TrainerDB trainer.
+- [ ] `python -m benchmarks.run quick` compared with the last report from before this plan
+      (`benchmarks/results/`).
+- [ ] UI leftovers, and the box editor's "manual add can add any species". Known gaps says to remove it once
+      the app covers the full game; ask first.
+- [ ] README Status, the CLAUDE.md intro, and the Known gaps cleanup (only what I approve).
+- [ ] Remove CLAUDE.md's NN hold line. `NN_PLAN.md` work resumes.
+
+## Where the numbers came from (2026-11-08)
+
+- MoveDB had 222 moves. 244 were missing and are in Phases 3 to 12: 235 from PkDB's learnsets (the DEX tab)
+  and 9 TM/HM-only ones (ItemLocationDB). 12 more are in MoveDB but have no mechanics yet, marked "in
+  MoveDB".
+- ItemDB had 58 items. The rest come from the iTEMS/TMs tab (ItemLocationDB) and the Gen IV battle berries.
+- AbilitiesDB had 122, every ability any species has.
+- TrainerDB had 34 trainers, the Roark split.
+- AI flags (pokeplatinum `res/trainers/data`): every gym leader, Elite Four member, Cynthia, Cyrus and the
+  late rival use Basic, Evaluate Attack and Expert. Lucian and Mars at Spear Pillar also have Setup First Turn.

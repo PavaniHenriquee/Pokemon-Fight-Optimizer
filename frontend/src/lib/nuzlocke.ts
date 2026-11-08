@@ -34,6 +34,11 @@ export function trainerVisible(entry: TrainerEntry, run: NuzlockeRun | null): bo
   );
 }
 
+// A trainer the run can meet and the engine can run (nothing in "lacks")
+export function trainerPickable(entry: TrainerEntry, run: NuzlockeRun | null): boolean {
+  return trainerVisible(entry, run) && !entry.lacks;
+}
+
 // ─── Species clause: one Pokémon per evolution line ───────────────────────────
 
 // Species → the name of its evolution line

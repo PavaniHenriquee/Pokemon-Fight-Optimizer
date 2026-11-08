@@ -3,14 +3,19 @@ import csv
 import io
 import json
 import os
+import zipfile
 import pytest
 from DataBase.loader import moveDB, abDB, itemDB, pkDB
-from DataBase.import_learnsets import move_key, parse_dex, species_name, with_learnsets
+from DataBase.import_learnsets import (
+    EVERY_TUTOR, TUTOR_COL, move_key, parse_dex, parse_tutors, species_name, with_learnsets,
+)
 from DataBase.import_encounters import (
     STATS_EVOLUTION_COL, STATS_EVOLUTION_TITLE, db_text, parse_encounters, parse_evolution_lines,
     parse_evolutions,
 )
 from DataBase import import_items
+from DataBase import import_trainers
+from DataBase.support import NOT_IMPLEMENTED, team_lacks, trainer_lacks
 from Models.move import Moves
 from Models.ability import ability_to_np
 from Models.item import item_to_np
@@ -121,23 +126,48 @@ def _team_items(entries, label):
 
 
 TRAINER_DB = _load_json("DataBase", "TrainerDB.json")
+SUPPORTED_TRAINERS = {name: t for name, t in TRAINER_DB.items() if not team_lacks(t["team"])}
 
 
 def test_trainer_pokemon_build():
-    """Every TrainerDB Pokemon builds, catches typos in names/moves/items/abilities"""
+    """Every Pokemon of a supported trainer builds, catches typos in names/moves/items/abilities"""
     items = [
-        it for trainer, data in TRAINER_DB.items() for it in _team_items(data["team"], trainer)
+        it for trainer, data in SUPPORTED_TRAINERS.items() for it in _team_items(data["team"], trainer)
     ]
+    assert len(SUPPORTED_TRAINERS) >= 34
     assert not _failures(items, _block_check(_team_block, POK_LEN))
 
 
+def test_unsupported_trainers_lack_something_real():
+    """A name team_lacks gives is missing from its database or in NOT_IMPLEMENTED, and NOT_IMPLEMENTED
+    only has names MoveDB / AbilitiesDB know (a typo there would hide nothing)"""
+    assert NOT_IMPLEMENTED <= set(moveDB) | set(abDB), sorted(NOT_IMPLEMENTED - set(moveDB) - set(abDB))
+    known = set(moveDB) | set(itemDB) | set(abDB)
+    wrong = {
+        name: lack for name, t in TRAINER_DB.items() for lack in team_lacks(t["team"])
+        if lack in known and lack not in NOT_IMPLEMENTED
+    }
+    assert not wrong
+
+
+def test_trainer_lacks():
+    """Moves and held items the databases don't have, NOT_IMPLEMENTED ones, unknown trainer items"""
+    foe = {"name": "Squirtle", "level": 5, "ability": "Torrent", "moves": ["Tackle", "Tail Whip", "", ""]}
+    team = [{**foe, "moves": ["Tackle", "Crunch", "Swagger", ""], "item": "Life Orb"}, {**foe, "ability": "Forecast"}]
+    assert trainer_lacks(team, ["Potion", "X Attack"]) == ["Crunch", "Forecast", "Life Orb", "Swagger", "X Attack"]
+    assert not trainer_lacks([foe], ["Full Restore"])
+
+
 def test_trainer_db_shape():
-    """Each trainer has a sprite and 1-6 Pokemon"""
+    """Each trainer has a sprite, a split and 1-6 Pokemon, and the splits come in story order"""
+    splits = [name for name, _ in import_trainers.SPLITS]
     for trainer, data in TRAINER_DB.items():
         assert "sprite" in data, trainer
+        assert data["split"] in splits, trainer
         assert 1 <= len(data["team"]) <= 6, trainer
         for p in data["team"]:
             assert len(p["moves"]) <= 4, (trainer, p["name"])
+    assert list(dict.fromkeys(t["split"] for t in TRAINER_DB.values())) == splits
 
 
 # The starter each rival has, by the starter you chose (the sheet's ROARK SPLIT tab, "IF YOU CHOSE ...").
@@ -154,29 +184,37 @@ def _rival_entries():
     return {name: t for name, t in TRAINER_DB.items() if name.split()[0] in RIVAL_STARTER}
 
 
+def _rival_fights():
+    """'Barry 4' -> its variants' keys"""
+    fights = {}
+    for name in _rival_entries():
+        fights.setdefault(name.rsplit("-", 1)[0], []).append(name)
+    return fights
+
+
 def test_rival_variants_match_the_starter():
-    """if_starter on every rival variant says which team the sheet gives that starter"""
+    """if_starter on every rival variant says which team the sheet gives that starter, evolved or not"""
     rivals = _rival_entries()
-    assert len(rivals) == 12
+    lines = {s: line for line in _load_json("DataBase", "EncounterDB.json")["evolution_lines"] for s in line}
+    assert len(_rival_fights()) == 15
     for name, trainer in rivals.items():
-        species = [p["name"] for p in trainer["team"]]
-        assert RIVAL_STARTER[name.split()[0]][trainer["if_starter"]] in species, name
+        species = {p["name"] for p in trainer["team"]}
+        assert species & set(lines[RIVAL_STARTER[name.split()[0]][trainer["if_starter"]]]), name
     others = [name for name, t in TRAINER_DB.items() if name not in rivals and "if_starter" in t]
     assert not others
 
 
 @pytest.mark.parametrize("starter", ["Turtwig", "Chimchar", "Piplup"])
 def test_a_starter_leaves_one_of_each_rival(starter):
-    """A starter leaves Barry 1, Lucas 1, Dawn 1, Barry 2. Choosing a gender then drops Lucas or Dawn"""
+    """A starter leaves one variant of every rival fight. Choosing a gender then drops Lucas's or Dawn's"""
     left = {
         name: t for name, t in TRAINER_DB.items() if t.get("if_starter") == starter
     }
-    assert sorted(name.rsplit("-", 1)[0] for name in left) == [
-        "Barry 1", "Barry 2", "Dawn 1", "Lucas 1",
-    ]
-    for player, kept in (("Female", "Lucas"), ("Male", "Dawn")):
-        names = [n for n, t in left.items() if t.get("if_player", player) == player]
-        assert sorted(n.split()[0] for n in names) == sorted(["Barry", "Barry", kept])
+    fights = _rival_fights()
+    assert sorted(name.rsplit("-", 1)[0] for name in left) == sorted(fights)
+    for player, dropped in (("Female", "Dawn"), ("Male", "Lucas")):
+        names = {n.rsplit("-", 1)[0] for n, t in left.items() if t.get("if_player", player) == player}
+        assert names == {f for f in fights if not f.startswith(dropped)}
 
 
 def test_box_pokemon_build():
@@ -281,6 +319,40 @@ def test_import_reads_only_level_up_moves():
     assert parse_dex(dex, ["Mud-Slap", "Leer"]) == {
         "Venusaur": [[1, "Earth Power"], [5, "Mud-Slap"]],
         "Deoxys_attack": [[1, "Leer"]],
+    }
+
+
+def _tutor_row(cell, name="", level=""):
+    """A DEX row with a tutor column cell (and the block's name and LEARNSET cell when given)"""
+    row = _dex_row(name, level) + [""] * 13
+    row[TUTOR_COL] = cell
+    return row
+
+
+def test_import_reads_the_tutor_lists():
+    """Move Tutor then Special Tutors, until an empty cell. COM moves stay, CLA ones go, and Mew's
+    "every move" line gets each Move Tutor list move once, Special Tutors' left out"""
+    dex = _dex_csv([
+        _tutor_row("", "#003 Venusaur", "LEARNSET"),
+        _tutor_row("Move Tutor"),
+        _tutor_row("Mud-slap"),
+        _tutor_row("Hurricane (!)"),
+        _tutor_row("Special Tutors"),
+        _tutor_row("Frenzy Plant"),
+        _tutor_row("Draco Meteor (!!) COM"),
+        _tutor_row("Old Move CLA"),
+        _tutor_row(""),
+        _tutor_row("Not a list"),
+        _tutor_row("", "#151 Mew", "LEARNSET"),
+        _tutor_row("Move Tutor"),
+        _tutor_row(EVERY_TUTOR),
+        _tutor_row("", "#129 Magikarp", "LEARNSET"),
+        _tutor_row("Move Tutor"),
+    ])
+    assert parse_tutors(dex, ["Mud-Slap"]) == {
+        "Venusaur": ["Mud-Slap", "Hurricane", "Frenzy Plant", "Draco Meteor"],
+        "Mew": ["Mud-Slap", "Hurricane"],
+        "Magikarp": [],
     }
 
 
@@ -783,7 +855,9 @@ def test_pkdb_keeps_the_importers_format():
     """Rerunning the import changes nothing, so saving PkDB.json in the editor won't either"""
     with open(os.path.join(ROOT, "DataBase", "PkDB.json"), encoding="utf-8", newline="") as f:
         text = f.read()
-    assert with_learnsets(text, {name: entry["learnset"] for name, entry in pkDB.items()}) == text
+    learnsets = {name: entry["learnset"] for name, entry in pkDB.items()}
+    tutors = {name: entry["tutor"] for name, entry in pkDB.items()}
+    assert with_learnsets(text, learnsets, tutors) == text
 
 
 # ─── Item locations (DataBase/import_items.py) ────────────────────────────────
@@ -958,3 +1032,353 @@ def test_item_location_db_gift_items_follow_the_gifts():
     """Miracle Seed comes with Bulbasaur in Jubilife, Treecko in Oreburgh and Chikorita in Floaroma"""
     held = [name for name, e in PICKUPS if e["item"] == "Miracle Seed" and e["how"].startswith("Held")]
     assert sorted(held) == ["Floaroma Town", "Jubilife City", "Oreburgh City"]
+
+
+# ─── Trainers (DataBase/import_trainers.py) ───────────────────────────────────
+
+# (index, constant, display name, female) as parse_classes gives them, for the classes these tests use
+TRAINER_CLASSES = [
+    (0, "PLAYER_MALE", "PKMN TRAINER", False),
+    (1, "PLAYER_FEMALE", "PKMN TRAINER", True),
+    (2, "YOUNGSTER", "YOUNGSTER", False),
+    (3, "LASS", "LASS", True),
+    (62, "LEADER_ROARK", "LEADER", False),
+    (63, "RIVAL", "PKMN TRAINER", False),
+]
+YOUNGSTER, RIVAL, PLAYER_MALE = TRAINER_CLASSES[2], TRAINER_CLASSES[5], TRAINER_CLASSES[0]
+TRAINER_RATIOS = {"hoothoot": 127, "turtwig": 31, "chimchar": 31, "piplup": 31, "pidgey": 127}
+TRAINER_DATABASES = {
+    "species": ["Hoothoot", "Turtwig", "Chimchar", "Piplup", "Pidgey"],
+    "moves": ["Tackle", "Scratch", "Pound", "Peck"],
+    "items": ["Oran Berry"],
+    "abilities": ["Insomnia", "Overgrow", "Blaze", "Torrent", "Keen Eye"],
+}
+TRAINER_DEX = {"Hoothoot": 163, "Turtwig": 387, "Chimchar": 390, "Piplup": 393, "Pidgey": 16}
+
+
+def _nature(scale, level, species, trainer_id, cls):
+    """The nature [pp] gives this Pokemon, cls a TRAINER_CLASSES entry"""
+    return import_trainers.personality_nature(scale, level, TRAINER_DEX[species], trainer_id, cls[0], cls[3])
+
+
+def _put_team(grid, row, mons, col=4):
+    """A team's blocks with their "HP Atk Def" label on `row`. A mon is (species, level, gender mark, nature,
+    IV, ability, moves[, item])"""
+    values, formulas = grid
+    for i, (species, level, mark, nature, iv, ability, moves, *item) in enumerate(mons):
+        c = col + i * import_trainers.BLOCK_WIDTH
+        values.update({(row, c): "HP", (row, c + 1): "Atk", (row, c + 2): "Def"})
+        values[(row - 2, c + 1)] = f"#{TRAINER_DEX[species]:03d} {species}"
+        values[(row - 2, c + 6)] = f"Lv.{level}"
+        if mark:
+            formulas[(row - 2, c + 5)] = mark
+        values[(row + 2, c + 1)] = item[0] if item else "No Item"
+        values[(row + 2, c + 4)] = ability
+        values[(row + 3, c)] = f"{nature} (Neutral)"
+        values[(row + 3, c + 6)] = f"{iv} IV"
+        for m, move in enumerate(moves):
+            values[(row + 4 + m, c)] = move
+
+
+def _put(grid, row, text, col=1):
+    grid[0][(row, col)] = text
+
+
+PIDGEY = ("Pidgey", 7, "MALE()", "Hardy", 12, "Keen Eye", ["Peck"])
+
+
+def test_trainers_personality_gives_the_sheets_natures():
+    """[pp] TrainerData_BuildParty: the ROARK SPLiT tab's natures, from its ids, levels and IVs"""
+    nature = import_trainers.personality_nature
+    assert nature(250, 5, 387, 850, 63, False) == "Serious"  # Barry's Turtwig, IV 30
+    roark = [(299, 15, 250, "Modest"), (438, 15, 251, "Impish"), (74, 15, 244, "Adamant"),
+             (95, 15, 245, "Jolly"), (246, 15, 252, "Jolly"), (408, 16, 254, "Hasty")]
+    natures = [nature(scale, level, dex, 246, 62, False) for dex, level, scale, _ in roark]
+    assert natures == [n for *_, n in roark]
+    # Class 0 runs the LCRNG no times: Lucas 1-P's Turtwig, at the scale of Dawn's mirror fight
+    assert nature(250, 9, 387, 932, 0, False) == "Naughty"
+
+
+def test_trainers_iv_scales_are_the_ones_that_give_the_iv():
+    for iv in range(32):
+        assert list(import_trainers._iv_scales(iv)) == [s for s in range(256) if s * 31 // 255 == iv]
+
+
+@pytest.mark.parametrize("ratio, female_class, gender", [
+    (31, True, "Male"), (31, False, "Male"),  # 87.5% male: male for either trainer (the Reporters' starters)
+    (127, True, "Female"), (127, False, "Male"),  # 50%: the trainer's gender
+    (191, False, "Female"), (254, False, "Female"), (0, True, "Male"), (255, True, None),
+])
+def test_trainers_pp_gender(ratio, female_class, gender):
+    assert import_trainers.pp_gender(ratio, female_class) == gender
+
+
+@pytest.mark.parametrize("ratio, mark, gender, reported", [
+    (127, "FEMALE()", "Female", True),  # a 50% species on a male trainer: the sheet's mark wins
+    (127, "MALE()", "Male", False),
+    (63, "FEMALE()", "Male", True),  # 75% male (Electivire): [pp]'s, whatever the trainer's gender
+    (127, "", "Male", True),  # no mark
+    (255, "FEMALE()", None, True),  # a genderless species (Staryu)
+    (254, "ASEXUAL()", "Female", True),  # Nidoran F
+])
+def test_trainers_gender_takes_the_sheet_only_where_the_trainer_decides(ratio, mark, gender, reported):
+    report = {"genders": []}
+    p = {"name": "Pidgey", "mark": mark}
+    assert import_trainers._gender(p, YOUNGSTER, {"pidgey": ratio}, "X", report) == gender
+    assert bool(report["genders"]) == reported
+
+
+@pytest.mark.parametrize("notes, items", [
+    (["can use : 1 SUPER POTION", "1 POTION", "(LOOKS DOWN)", "1 FULL HEAL"], ["Super Potion", "Potion"]),
+    (["Can use : 2 FULL RESTORES"], ["Full Restore", "Full Restore"]),
+    (["can use : X DEFEND"], ["X Defend"]),
+    (["can use : 1 X SP. DEF"], ["X Sp. Def"]),
+    (["(LOOKS LEFT)"], []),
+])
+def test_trainers_items(notes, items):
+    assert import_trainers._trainer_items(notes, "X") == items
+
+
+def test_trainers_items_fail_on_what_they_cannot_read():
+    with pytest.raises(ValueError):
+        import_trainers._trainer_items(["can use : (see below)"], "X")
+
+
+@pytest.mark.parametrize("notes, double", [
+    (["Can be fought alone or with Psychic Lindsey [206] in a double battle but has to be fought",
+      "If fought in a double battle his team will be on the left"], False),
+    (["Can be ignored completely", "Can be fought alone or with Camper Diego [379] in a double battle",
+      "Her team is on the left side of the double battle"], False),
+    (["DOUBLE BATTLE"], True),
+    (["(DOUBLE BATTLE)"], True),
+    (["Your partner in the double battle"], True),
+    (["Has to be fought in a double battle with Ace Trainer Aran"], True),
+    (["This is the team Cheryl has when she takes part in wild encounters and trainer fights."], True),
+    (["Fights you when you approach"], False),
+])
+def test_trainers_double_battles(notes, double):
+    assert import_trainers._is_double(notes, [YOUNGSTER]) == double
+
+
+def test_trainers_double_classes_are_skipped_without_a_note():
+    assert import_trainers._is_double([], [(8, "TWINS", "TWINS", True)])
+
+
+def test_trainers_team_layouts():
+    """A header on the label row or on the name row (two sharing a team), a team's second row of blocks
+    with no header, and a header under the label row (the Interviewers' on the NPC/TRADES tab)"""
+    grid = ({}, {})
+    _put_team(grid, 10, [PIDGEY, PIDGEY])
+    _put(grid, 10, "YOUNGSTER TRISTAN [1]")
+    _put(grid, 11, "can use : 1 POTION")
+    _put_team(grid, 30, [PIDGEY])
+    _put(grid, 28, "PKMN TRAINER LUCAS [932]")
+    _put(grid, 30, "PKMN TRAINER DAWN [929]")
+    _put(grid, 33, "(Dawn's Pidgey is Careful (+SpD, -SpA) )", col=12)
+    _put_team(grid, 41, [PIDGEY])
+    _put_team(grid, 60, [PIDGEY], col=29)
+    _put(grid, 61, "INTERVIEWERS ROXY & OLI [368]", col=26)
+    teams = import_trainers.read_teams(grid[0])
+    assert [[h[1:] for h in t["headers"]] for t in teams] == [
+        [("YOUNGSTER TRISTAN", 1)],
+        [("PKMN TRAINER LUCAS", 932), ("PKMN TRAINER DAWN", 929)],
+        [("INTERVIEWERS ROXY & OLI", 368)],
+    ]
+    assert teams[0]["blocks"] == [(10, 4), (10, 12)]
+    assert "can use : 1 POTION" in teams[0]["notes"]
+    assert teams[1]["blocks"] == [(30, 4), (41, 4)]
+    assert teams[1]["shared_natures"] == {("DAWN", "Pidgey"): "Careful"}
+    assert teams[2]["blocks"] == [(60, 29)]
+
+
+def test_trainers_a_team_needs_a_trainer():
+    grid = ({}, {})
+    _put_team(grid, 10, [PIDGEY])
+    with pytest.raises(ValueError, match="has no trainer"):
+        import_trainers.read_teams(grid[0])
+
+
+def _entry(**fields):
+    return {"split": "Roark", "team": [], **fields}
+
+
+def test_trainers_keys():
+    """A name's n-th fight, a rival's variants by their order, a random team by its number, the variants of
+    a fight together where the sheet interleaves two rivals"""
+    def starter(name, mon):
+        return name, _entry(if_starter=mon), ("starter", mon)
+    entries = [
+        ("Youngster Tristan", _entry(), None),
+        starter("Lucas", "Chimchar"), starter("Dawn", "Chimchar"), starter("Lucas", "Piplup"),
+        starter("Dawn", "Piplup"), starter("Lucas", "Turtwig"), starter("Dawn", "Turtwig"),
+        ("Youngster Tristan", _entry(), None),
+        ("Champion Cynthia", _entry(), ("random", 1)),
+        ("Champion Cynthia", _entry(), ("random", 2)),
+    ]
+    report = {"short_variants": []}
+    assert list(import_trainers._number(entries, report)) == [
+        "Youngster Tristan 1", "Lucas 1-P", "Lucas 1-T", "Lucas 1-C", "Dawn 1-P", "Dawn 1-T", "Dawn 1-C",
+        "Youngster Tristan 2", "Champion Cynthia 1-1", "Champion Cynthia 1-2",
+    ]
+    assert not report["short_variants"]
+
+
+def test_trainers_keys_report_a_rival_fight_missing_a_variant():
+    entries = [("Barry", _entry(), ("starter", "Piplup")), ("Barry", _entry(), ("starter", "Turtwig")),
+               ("Barry", _entry(), ("starter", "Piplup"))]
+    report = {"short_variants": []}
+    assert list(import_trainers._number(entries, report)) == ["Barry 1-P", "Barry 1-T", "Barry 2-P"]
+    assert len(report["short_variants"]) == 2
+
+
+def test_trainers_fill_a_missing_nature_or_iv_from_the_teams_scale():
+    """Barry [470]'s Grotle, Lucas [967]'s IVs: the scale every other Pokemon fits gives the rest"""
+    team = [
+        {"name": s, "dex": TRAINER_DEX[s], "level": 10, "iv": 31, "nature": _nature(255, 10, s, 470, RIVAL)}
+        for s in ("Hoothoot", "Pidgey", "Piplup")
+    ]
+    team[2]["nature"] = None
+    team[1]["iv"] = None
+    assert len(import_trainers._fill_gaps(470, RIVAL, team, "X")) == 2
+    assert team[2]["nature"] == _nature(255, 10, "Piplup", 470, RIVAL) and team[1]["iv"] == 31
+    for p in team:
+        p["nature"] = None
+    assert import_trainers._fill_gaps(470, RIVAL, team, "X") is None  # nothing to find the scale from
+
+
+def test_trainers_mirror_takes_the_scale_of_the_mirror_fight():
+    team = [{"name": "Turtwig", "dex": 387, "level": 9, "iv": None, "nature": "Hasty"}]
+    import_trainers._mirror(team, {255}, 932, PLAYER_MALE, "X", {"mirrored": []})
+    assert team[0]["iv"] == 31 and team[0]["nature"] == _nature(255, 9, "Turtwig", 932, PLAYER_MALE)
+    team[0]["iv"] = 30
+    with pytest.raises(ValueError, match="IV 30"):
+        import_trainers._mirror(team, {255}, 932, PLAYER_MALE, "X", {"mirrored": []})
+
+
+def _one_tab(monkeypatch, grid):
+    monkeypatch.setattr(import_trainers, "SPLITS", (("Roark", "ROARK"),))
+    monkeypatch.setattr(import_trainers, "CENTER_TAB", "CENTER")
+    tabs = {"ROARK": grid, "CENTER": ({}, {})}
+    return import_trainers.build_trainers(tabs, TRAINER_CLASSES, TRAINER_RATIOS, TRAINER_DATABASES)
+
+
+def test_trainers_build(monkeypatch):
+    """One tab end to end: a trainer with a held and a trainer item, a rival's variants, a double battle"""
+    grid = ({}, {})
+    _put(grid, 5, "ROUTE 201")
+    hoothoot_nature = _nature(100, 7, "Hoothoot", 1, YOUNGSTER)
+    _put_team(grid, 10, [("Hoothoot", 7, "MALE()", hoothoot_nature, 12, "Insomnia", ["Peck", "Hypnosis"],
+                          "Oran Berry")])
+    _put(grid, 10, "YOUNGSTER TRISTAN [1]")
+    _put(grid, 11, "can use : 1 POTION")
+    rivals = ((850, "PIPLUP", "Turtwig", "Overgrow"), (851, "TURTWIG", "Chimchar", "Blaze"),
+              (852, "CHIMCHAR", "Piplup", "Torrent"))
+    for row, (trainer_id, starter, species, ability) in zip((30, 45, 60), rivals):
+        nature = _nature(250, 5, species, trainer_id, RIVAL)
+        _put_team(grid, row, [(species, 5, "MALE()", nature, 30, ability, ["Tackle"])])
+        _put(grid, row, f"RIVAL BARRY [{trainer_id}]")
+        _put(grid, row + 1, f"(IF YOU CHOSE {starter})")
+    _put_team(grid, 80, [("Pidgey", 8, "FEMALE()", "Hardy", 12, "Keen Eye", ["Peck"])])
+    _put(grid, 80, "LASS SARAH [12]")
+    _put(grid, 81, "DOUBLE BATTLE")
+    db, report = _one_tab(monkeypatch, grid)
+    assert list(db) == ["Youngster Tristan 1", "Barry 1-P", "Barry 1-T", "Barry 1-C"]
+    assert db["Youngster Tristan 1"] == {
+        "split": "Roark", "id": 1, "sprite": "youngster-gen4dp", "trainer_items": ["Potion"],
+        "team": [{
+            "name": "Hoothoot", "gender": "Male", "level": 7, "item": "Oran Berry", "ability": "Insomnia",
+            "nature": hoothoot_nature, "moves": ["Peck", "Hypnosis", "", ""],
+            "ivs": dict.fromkeys(import_trainers.STATS, 12),
+        }],
+    }
+    assert [db[f"Barry 1-{x}"]["if_starter"] for x in "PTC"] == ["Piplup", "Turtwig", "Chimchar"]
+    assert db["Barry 1-P"]["sprite"] == "barry"
+    assert report["doubles"] == ["Roark: LASS SARAH [12]"]
+    assert report["unknown"] == ["moves: Hypnosis"]  # kept as the sheet writes it
+    assert not report["bad_natures"] and not report["genders"]
+
+
+def test_trainers_build_reports_natures_no_class_gives(monkeypatch):
+    grid = ({}, {})
+    wrong = next(n for n in import_trainers.NATURES if all(
+        _nature(s, 7, "Pidgey", 1, YOUNGSTER) != n for s in import_trainers._iv_scales(12)))
+    _put_team(grid, 10, [("Pidgey", 7, "MALE()", wrong, 12, "Keen Eye", ["Peck"])])
+    _put(grid, 10, "YOUNGSTER TRISTAN [1]")
+    _, report = _one_tab(monkeypatch, grid)
+    assert report["bad_natures"] == ["Roark: YOUNGSTER TRISTAN [1]: ['YOUNGSTER']"]
+
+
+XLSX_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+XLSX_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+XLSX_PKG = "http://schemas.openxmlformats.org/package/2006/relationships"
+
+
+def _xlsx(sheets: dict) -> bytes:
+    """A workbook of {tab: [(ref, kind, value)]}: kind "s" a shared string, "f" a formula, "n" a number"""
+    shared, rels, entries = [], [], []
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        for i, (tab, cells) in enumerate(sheets.items(), start=1):
+            body = []
+            for ref, kind, value in cells:
+                if kind == "s":
+                    shared.append(value)
+                    body.append(f'<c r="{ref}" t="s"><v>{len(shared) - 1}</v></c>')
+                elif kind == "f":
+                    body.append(f'<c r="{ref}" t="str"><f>{value}</f><v></v></c>')
+                else:
+                    body.append(f'<c r="{ref}"><v>{value}</v></c>')
+            row = f'<sheetData><row>{"".join(body)}</row></sheetData>'
+            z.writestr(f"xl/worksheets/sheet{i}.xml", f'<worksheet xmlns="{XLSX_NS}">{row}</worksheet>')
+            rels.append(f'<Relationship Id="rId{i}" Target="worksheets/sheet{i}.xml"/>')
+            entries.append(f'<sheet name="{tab}" sheetId="{i}" r:id="rId{i}"/>')
+        z.writestr("xl/_rels/workbook.xml.rels",
+                   f'<Relationships xmlns="{XLSX_PKG}">{"".join(rels)}</Relationships>')
+        sheets_xml = f'<sheets>{"".join(entries)}</sheets>'
+        z.writestr("xl/workbook.xml",
+                   f'<workbook xmlns="{XLSX_NS}" xmlns:r="{XLSX_R}">{sheets_xml}</workbook>')
+        strings = "".join(f"<si><t>{t}</t></si>" for t in shared)
+        z.writestr("xl/sharedStrings.xml", f'<sst xmlns="{XLSX_NS}">{strings}</sst>')
+    return out.getvalue()
+
+
+def test_trainers_read_workbook_keeps_formulas():
+    """Shared strings, numbers and the gender formula, by 0-based (row, col). A tab's trailing space is
+    ignored (the xlsx has "FANTINA SPLiT ")"""
+    data = _xlsx({
+        "FANTINA SPLiT ": [("B3", "s", "YOUNGSTER TRISTAN [1]"), ("J21", "f", "MALE()"), ("E4", "n", "55.0")],
+        "OTHER": [("A1", "s", "x")],
+    })
+    values, formulas = import_trainers.read_workbook(data, ["FANTINA SPLiT"])["FANTINA SPLiT"]
+    assert values[(2, 1)] == "YOUNGSTER TRISTAN [1]" and values[(3, 4)] == "55.0"
+    assert formulas == {(20, 9): "MALE()"}
+    with pytest.raises(ValueError, match="No tab"):
+        import_trainers.read_workbook(data, ["ROARK SPLiT"])
+
+
+def test_trainers_reference_data():
+    """[pp]'s class tables and [SD]'s gender ratios, as the importer downloads them"""
+    names = json.dumps({"messages": [{"en_US": "₧₦ Trainer"}, {"en_US": "Swimmer♀"}]})
+    genders = "[TRAINER_CLASS_PLAYER_MALE] = GENDER_MALE,\n[TRAINER_CLASS_SWIMMER_FEMALE] = GENDER_FEMALE,"
+    constants = "TRAINER_CLASS_PLAYER_MALE\nTRAINER_CLASS_SWIMMER_FEMALE\n"
+    classes = import_trainers.parse_classes(names, constants, genders)
+    assert classes == [(0, "PLAYER_MALE", "PKMN TRAINER", False), (1, "SWIMMER_FEMALE", "SWIMMER", True)]
+    pokedex = (
+        '\n\tbulbasaur: {\n\t\tname: "Bulbasaur",\n\t\tgenderRatio: { M: 0.875, F: 0.125 },\n\t},'
+        '\n\tstaryu: {\n\t\tname: "Staryu",\n\t\tgender: "N",\n\t},'
+        '\n\tpidgey: {\n\t\tname: "Pidgey",\n\t},'
+        '\n\tfarfetchd: {\n\t\tname: "Farfetch\\u2019d",\n\t},\n'
+    )
+    assert import_trainers.parse_gender_ratios(pokedex) == {
+        "bulbasaur": 31, "staryu": 255, "pidgey": 127, "farfetchd": 127,
+    }
+
+
+def test_trainers_db_text_round_trips():
+    """2 spaces, a list of strings on one line, plain ASCII (Poké Kid)"""
+    db = {"Poké Kid Ariel 1": {"split": "Roark", "trainer_items": ["Potion", "Potion"],
+                               "team": [{"name": "Pichu", "moves": ["Charm", "", "", ""]}]}}
+    text = import_trainers.db_text(db)
+    assert json.loads(text) == db
+    assert '"moves": ["Charm", "", "", ""]' in text and '"trainer_items": ["Potion", "Potion"]' in text
+    assert text.isascii() and text.endswith("}\n")

@@ -74,10 +74,13 @@ def test_pokemon_data(client):
 
 
 def test_trainers(client):
-    """Trainer list is TrainerDB.json as-is"""
+    """Trainer list is TrainerDB.json as-is, plus what a trainer lacks"""
     data = client.get("/trainers").json()
     assert "Gym Leader Roark 1" in data
     assert all("team" in t for t in data.values())
+    assert "lacks" not in data["Gym Leader Roark 1"]
+    assert "Life Orb" in data["Champion Cynthia 1-1"]["lacks"]
+    assert all(t["lacks"] for t in data.values() if "lacks" in t)
 
 
 def test_box_round_trip(client, tmp_path):
@@ -220,6 +223,13 @@ def test_start_rejects_bad_config(client):
     res = client.post("/start", json={"my_team": [bad], "opp_team": [OPP_MEMBER],
                                       "iterations": 10}).json()
     assert res["status"] == "error"
+
+
+def test_start_refuses_what_the_engine_lacks(client):
+    """An opponent with a move the engine can't run is refused before the running search is touched"""
+    foe = {**OPP_MEMBER, "moves": ["Tackle", "Swagger"]}
+    res = client.post("/start", json={"my_team": [TEAM_MEMBER], "opp_team": [foe], "iterations": 10}).json()
+    assert res == {"status": "error", "error": "Not supported yet: Swagger"}
 
 
 def test_start_node_info_and_continue(client):

@@ -29,6 +29,14 @@
       [41, "Seed Bomb"],
       [44, "Leaf Storm"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 6.9
   },
   "Ivysaur": {
@@ -61,6 +69,14 @@
       [46, "Synthesis"],
       [50, "Solar Beam"],
       [54, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 13.0
   },
@@ -98,6 +114,16 @@
       [55, "Solar Beam"],
       [60, "Leaf Storm"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Synthesis",
+      "Mud-Slap",
+      "Outrage",
+      "Seed Bomb",
+      "Frenzy Plant"
+    ],
     "weight": 100.0
   },
   "Charmander": {
@@ -128,6 +154,15 @@
       [38, "Fire Spin"],
       [41, "Belly Drum"],
       [44, "Flare Blitz"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Mud-Slap"
     ],
     "weight": 8.5
   },
@@ -160,6 +195,15 @@
       [46, "Fire Spin"],
       [50, "Belly Drum"],
       [54, "Flare Blitz"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Mud-Slap"
     ],
     "weight": 19.0
   },
@@ -197,6 +241,21 @@
       [54, "Belly Drum"],
       [59, "Flare Blitz"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fire Punch",
+      "Fury Cutter",
+      "Ominous Wind",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Blast Burn",
+      "Draco Meteor"
+    ],
     "weight": 90.5
   },
   "Squirtle": {
@@ -227,6 +286,17 @@
       [38, "Rain Dance"],
       [41, "Hydro Pump"],
       [44, "Water Spout"]
+    ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Aqua Tail",
+      "Iron Defense",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 9.0
   },
@@ -259,6 +329,17 @@
       [46, "Rain Dance"],
       [50, "Hydro Pump"],
       [54, "Water Spout"]
+    ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Aqua Tail",
+      "Iron Defense",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 22.5
   },
@@ -296,6 +377,20 @@
       [54, "Hydro Pump"],
       [59, "Water Spout"]
     ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Aqua Tail",
+      "Iron Defense",
+      "Mud-Slap",
+      "Outrage",
+      "Rollout",
+      "Signal Beam",
+      "Hydro Cannon"
+    ],
     "weight": 85.5
   },
   "Caterpie": {
@@ -314,6 +409,7 @@
       [1, "String Shot"],
       [1, "Bug Bite"]
     ],
+    "tutor": ["Snore"],
     "weight": 2.9
   },
   "Metapod": {
@@ -332,6 +428,7 @@
       [7, "Harden"],
       [7, "Iron Defense"]
     ],
+    "tutor": ["Iron Defense"],
     "weight": 9.9
   },
   "Butterfree": {
@@ -366,6 +463,14 @@
       [43, "Teleport"],
       [45, "Hurricane"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 32.0
   },
   "Weedle": {
@@ -384,6 +489,7 @@
       [1, "String Shot"],
       [1, "Bug Bite"]
     ],
+    "tutor": [],
     "weight": 3.2
   },
   "Kakuna": {
@@ -402,6 +508,7 @@
       [7, "Harden"],
       [7, "Iron Defense"]
     ],
+    "tutor": ["Iron Defense"],
     "weight": 10.0
   },
   "Beedrill": {
@@ -435,6 +542,15 @@
       [43, "Outrage"],
       [45, "Megahorn"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Knock Off",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Endeavor"
+    ],
     "weight": 29.5
   },
   "Pidgey": {
@@ -467,6 +583,16 @@
       [42, "Hurricane"],
       [45, "Brave Bird"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 1.8
   },
   "Pidgeotto": {
@@ -498,6 +624,16 @@
       [47, "Mirror Move"],
       [51, "Hurricane"],
       [55, "Brave Bird"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
     ],
     "weight": 30.0
   },
@@ -535,6 +671,16 @@
       [55, "Hurricane"],
       [60, "Brave Bird"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 39.5
   },
   "Rattata": {
@@ -565,6 +711,16 @@
       [37, "Reversal"],
       [40, "Endeavor"],
       [43, "Last Resort"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Sucker Punch",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Mud-Slap"
     ],
     "weight": 3.5
   },
@@ -600,6 +756,16 @@
       [47, "Endeavor"],
       [51, "Last Resort"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Sucker Punch",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Mud-Slap"
+    ],
     "weight": 18.5
   },
   "Spearow": {
@@ -631,6 +797,15 @@
       [40, "Tailwind"],
       [43, "Double-Edge"],
       [46, "Brave Bird"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
     ],
     "weight": 2.0
   },
@@ -667,6 +842,15 @@
       [51, "Double-Edge"],
       [55, "Brave Bird"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 38.0
   },
   "Ekans": {
@@ -698,6 +882,14 @@
       [34, "Haze"],
       [37, "Sucker Punch"],
       [40, "Gunk Shot"]
+    ],
+    "tutor": [
+      "Snore",
+      "Spite",
+      "Aqua Tail",
+      "Gastro Acid",
+      "Gunk Shot",
+      "Seed Bomb"
     ],
     "weight": 6.9
   },
@@ -735,6 +927,14 @@
       [43, "Sucker Punch"],
       [47, "Gunk Shot"]
     ],
+    "tutor": [
+      "Snore",
+      "Spite",
+      "Aqua Tail",
+      "Gastro Acid",
+      "Gunk Shot",
+      "Seed Bomb"
+    ],
     "weight": 65.0
   },
   "Pikachu": {
@@ -767,6 +967,17 @@
       [36, "Light Screen"],
       [39, "Thunder"]
     ],
+    "tutor": [
+      "Knock Off",
+      "Thunder Punch",
+      "Helping Hand",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 6.0
   },
   "Raichu": {
@@ -789,6 +1000,17 @@
       [1, "Tail Whip"],
       [1, "Quick Attack"],
       [1, "Thunderbolt"]
+    ],
+    "tutor": [
+      "Knock Off",
+      "Thunder Punch",
+      "Helping Hand",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 30.0
   },
@@ -824,6 +1046,15 @@
       [39, "Swords Dance"],
       [42, "Sandstorm"],
       [45, "Fissure"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Swift",
+      "Earth Power",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 12.0
   },
@@ -861,6 +1092,15 @@
       [49, "Sandstorm"],
       [53, "Fissure"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Swift",
+      "Earth Power",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 29.5
   },
   "Nidoran_f": {
@@ -892,6 +1132,7 @@
       [36, "Captivate"],
       [39, "Super Fang"]
     ],
+    "tutor": ["Helping Hand", "Snore", "Mud-Slap"],
     "weight": 7.0
   },
   "Nidorina": {
@@ -923,6 +1164,7 @@
       [43, "Captivate"],
       [47, "Super Fang"]
     ],
+    "tutor": ["Helping Hand", "Snore", "Mud-Slap"],
     "weight": 20.0
   },
   "Nidoqueen": {
@@ -947,6 +1189,21 @@
       [35, "Earth Power"],
       [45, "Earthquake"],
       [55, "Superpower"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Helping Hand",
+      "Snore",
+      "Uproar",
+      "Aqua Tail",
+      "Earth Power",
+      "Mud-Slap",
+      "Outrage",
+      "Superpower"
     ],
     "weight": 60.0
   },
@@ -979,6 +1236,7 @@
       [36, "Captivate"],
       [39, "Head Smash"]
     ],
+    "tutor": ["Sucker Punch", "Helping Hand", "Snore", "Mud-Slap"],
     "weight": 9.0
   },
   "Nidorino": {
@@ -1010,6 +1268,7 @@
       [43, "Captivate"],
       [47, "Head Smash"]
     ],
+    "tutor": ["Sucker Punch", "Helping Hand", "Snore", "Mud-Slap"],
     "weight": 19.5
   },
   "Nidoking": {
@@ -1034,6 +1293,22 @@
       [35, "Earth Power"],
       [45, "Earthquake"],
       [55, "Megahorn"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Snore",
+      "Uproar",
+      "Aqua Tail",
+      "Earth Power",
+      "Mud-Slap",
+      "Outrage",
+      "Superpower"
     ],
     "weight": 62.0
   },
@@ -1071,6 +1346,23 @@
       [37, "Gravity"],
       [39, "Healing Wish"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Bounce",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 7.5
   },
   "Clefable": {
@@ -1092,6 +1384,23 @@
       [1, "Minimize"],
       [1, "Metronome"],
       [37, "Moonblast"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Bounce",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 40.0
   },
@@ -1127,6 +1436,14 @@
       [43, "Grudge"],
       [45, "Fire Blast"]
     ],
+    "tutor": [
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Heat Wave"
+    ],
     "weight": 9.9
   },
   "Ninetales": {
@@ -1148,6 +1465,14 @@
       [1, "Quick Attack"],
       [1, "Confuse Ray"],
       [1, "Safeguard"]
+    ],
+    "tutor": [
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Heat Wave"
     ],
     "weight": 19.9
   },
@@ -1185,6 +1510,20 @@
       [35, "Double-Edge"],
       [37, "Last Resort"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Thunder Punch",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Bounce",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 5.5
   },
   "Wigglytuff": {
@@ -1208,6 +1547,20 @@
       [1, "Double Slap"],
       [33, "Hyper Voice"],
       [43, "Moonblast"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Thunder Punch",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Bounce",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 12.0
   },
@@ -1240,6 +1593,16 @@
       [37, "Zen Headbutt"],
       [40, "Nasty Plot"],
       [43, "Brave Bird"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Hurricane"
     ],
     "weight": 7.5
   },
@@ -1275,6 +1638,16 @@
       [47, "Nasty Plot"],
       [51, "Brave Bird"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Hurricane"
+    ],
     "weight": 55.0
   },
   "Oddish": {
@@ -1307,6 +1680,7 @@
       [37, "Natural Gift"],
       [40, "Petal Dance"]
     ],
+    "tutor": ["Snore", "Synthesis", "Gastro Acid", "Seed Bomb"],
     "weight": 5.4
   },
   "Gloom": {
@@ -1339,6 +1713,7 @@
       [43, "Natural Gift"],
       [47, "Petal Dance"]
     ],
+    "tutor": ["Snore", "Synthesis", "Gastro Acid", "Seed Bomb"],
     "weight": 8.6
   },
   "Vileplume": {
@@ -1364,6 +1739,7 @@
       [47, "Petal Dance"],
       [57, "Solar Beam"]
     ],
+    "tutor": ["Snore", "Synthesis", "Gastro Acid", "Seed Bomb"],
     "weight": 18.6
   },
   "Paras": {
@@ -1396,6 +1772,7 @@
       [43, "Aromatherapy"],
       [46, "X-Scissor"]
     ],
+    "tutor": ["Fury Cutter", "Knock Off", "Snore", "Synthesis", "Seed Bomb"],
     "weight": 5.4
   },
   "Parasect": {
@@ -1429,6 +1806,7 @@
       [50, "Aromatherapy"],
       [54, "X-Scissor"]
     ],
+    "tutor": ["Fury Cutter", "Knock Off", "Snore", "Synthesis", "Seed Bomb"],
     "weight": 29.5
   },
   "Venonat": {
@@ -1461,6 +1839,7 @@
       [36, "Psychic"],
       [39, "Morning Sun"]
     ],
+    "tutor": ["Zen Headbutt", "Snore", "Swift", "Signal Beam"],
     "weight": 30.0
   },
   "Venomoth": {
@@ -1496,6 +1875,15 @@
       [42, "Morning Sun"],
       [46, "Bug Buzz"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 12.5
   },
   "Diglett": {
@@ -1528,6 +1916,7 @@
       [40, "Memento"],
       [43, "Fissure"]
     ],
+    "tutor": ["Sucker Punch", "Snore", "Earth Power", "Mud-Slap"],
     "weight": 0.8
   },
   "Dugtrio": {
@@ -1562,6 +1951,7 @@
       [45, "Memento"],
       [49, "Fissure"]
     ],
+    "tutor": ["Sucker Punch", "Snore", "Earth Power", "Mud-Slap"],
     "weight": 33.3
   },
   "Meowth": {
@@ -1595,6 +1985,18 @@
       [42, "Captivate"],
       [45, "Feint"],
       [48, "Double-Edge"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Knock Off",
+      "Last Resort",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 4.2
   },
@@ -1632,6 +2034,18 @@
       [50, "Feint"],
       [54, "Double-Edge"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Knock Off",
+      "Last Resort",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 32.0
   },
   "Psyduck": {
@@ -1664,6 +2078,17 @@
       [42, "Amnesia"],
       [45, "Cross Chop"],
       [48, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 19.6
   },
@@ -1701,6 +2126,18 @@
       [50, "Cross Chop"],
       [54, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 76.6
   },
   "Mankey": {
@@ -1735,6 +2172,21 @@
       [44, "Screech"],
       [47, "Outrage"],
       [50, "Close Combat"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Endeavor",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Outrage",
+      "Seed Bomb"
     ],
     "weight": 28.0
   },
@@ -1772,6 +2224,21 @@
       [54, "Outrage"],
       [58, "Close Combat"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Endeavor",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Outrage",
+      "Seed Bomb"
+    ],
     "weight": 32.0
   },
   "Growlithe": {
@@ -1805,6 +2272,7 @@
       [38, "Play Rough"],
       [41, "Flare Blitz"]
     ],
+    "tutor": ["Helping Hand", "Snore", "Swift", "Heat Wave", "Mud-Slap"],
     "weight": 19.0
   },
   "Arcanine": {
@@ -1829,6 +2297,14 @@
       [34, "Extreme Speed"],
       [44, "Close Combat"],
       [54, "Flare Blitz"]
+    ],
+    "tutor": [
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Iron Head",
+      "Mud-Slap"
     ],
     "weight": 155.0
   },
@@ -1860,6 +2336,7 @@
       [36, "Wake-Up Slap"],
       [39, "Hydro Pump"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Helping Hand", "Snore"],
     "weight": 12.4
   },
   "Poliwhirl": {
@@ -1890,6 +2367,14 @@
       [40, "Wake-Up Slap"],
       [44, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Helping Hand",
+      "Snore",
+      "Mud-Slap"
+    ],
     "weight": 20.0
   },
   "Poliwrath": {
@@ -1917,6 +2402,15 @@
       [43, "Mind Reader"],
       [53, "Close Combat"]
     ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Mud-Slap"
+    ],
     "weight": 54.0
   },
   "Abra": {
@@ -1931,6 +2425,16 @@
     },
     "abilities": ["Magic Guard", "Synchronize"],
     "learnset": [[1, "Teleport"]],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Signal Beam"
+    ],
     "weight": 19.5
   },
   "Kadabra": {
@@ -1962,6 +2466,16 @@
       [43, "Future Sight"],
       [46, "Substitute"],
       [49, "Trick"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Signal Beam"
     ],
     "weight": 56.5
   },
@@ -1998,6 +2512,16 @@
       [49, "Trick"],
       [52, "Aura Sphere"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Signal Beam"
+    ],
     "weight": 48.0
   },
   "Machop": {
@@ -2032,6 +2556,16 @@
       [47, "Close Combat"],
       [50, "Superpower"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 19.5
   },
   "Machoke": {
@@ -2065,6 +2599,16 @@
       [50, "Dynamic Punch"],
       [54, "Close Combat"],
       [58, "Superpower"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 70.5
   },
@@ -2102,6 +2646,16 @@
       [54, "Close Combat"],
       [58, "Superpower"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 130.0
   },
   "Bellsprout": {
@@ -2133,6 +2687,14 @@
       [34, "Slam"],
       [37, "Wring Out"],
       [40, "Power Whip"]
+    ],
+    "tutor": [
+      "Knock Off",
+      "Sucker Punch",
+      "Snore",
+      "Synthesis",
+      "Gastro Acid",
+      "Seed Bomb"
     ],
     "weight": 4.0
   },
@@ -2166,6 +2728,14 @@
       [43, "Wring Out"],
       [47, "Power Whip"]
     ],
+    "tutor": [
+      "Knock Off",
+      "Sucker Punch",
+      "Snore",
+      "Synthesis",
+      "Gastro Acid",
+      "Seed Bomb"
+    ],
     "weight": 6.4
   },
   "Victreebel": {
@@ -2193,6 +2763,14 @@
       [33, "Leaf Blade"],
       [43, "Power Whip"],
       [53, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Knock Off",
+      "Sucker Punch",
+      "Snore",
+      "Synthesis",
+      "Gastro Acid",
+      "Seed Bomb"
     ],
     "weight": 15.5
   },
@@ -2225,6 +2803,7 @@
       [43, "Hydro Pump"],
       [46, "Wring Out"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Knock Off", "Snore"],
     "weight": 45.5
   },
   "Tentacruel": {
@@ -2256,6 +2835,7 @@
       [48, "Hydro Pump"],
       [52, "Wring Out"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Knock Off", "Snore"],
     "weight": 55.0
   },
   "Geodude": {
@@ -2287,6 +2867,17 @@
       [40, "Double-Edge"],
       [43, "Stone Edge"],
       [46, "Hammer Arm"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
     ],
     "weight": 20.0
   },
@@ -2320,6 +2911,17 @@
       [46, "Double-Edge"],
       [50, "Stone Edge"],
       [54, "Hammer Arm"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
     ],
     "weight": 105.0
   },
@@ -2357,6 +2959,19 @@
       [50, "Stone Edge"],
       [54, "Hammer Arm"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
+    ],
     "weight": 300.0
   },
   "Ponyta": {
@@ -2389,6 +3004,7 @@
       [43, "Jump Kick"],
       [46, "Fire Blast"]
     ],
+    "tutor": ["Snore", "Swift", "Bounce", "Heat Wave"],
     "weight": 30.0
   },
   "Rapidash": {
@@ -2425,6 +3041,7 @@
       [46, "Jump Kick"],
       [50, "Fire Blast"]
     ],
+    "tutor": ["Snore", "Swift", "Bounce", "Heat Wave"],
     "weight": 95.0
   },
   "Slowpoke": {
@@ -2457,6 +3074,17 @@
       [40, "Psych Up"],
       [43, "Future Sight"],
       [46, "Trick Room"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 36.0
   },
@@ -2492,6 +3120,20 @@
       [47, "Future Sight"],
       [51, "Trick Room"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Iron Defense",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 78.5
   },
   "Magnemite": {
@@ -2526,6 +3168,14 @@
       [43, "Magnet Rise"],
       [46, "Gyro Ball"],
       [49, "Zap Cannon"]
+    ],
+    "tutor": [
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 6.0
   },
@@ -2563,6 +3213,14 @@
       [53, "Gyro Ball"],
       [57, "Zap Cannon"]
     ],
+    "tutor": [
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 60.0
   },
   "Farfetchd": {
@@ -2599,6 +3257,19 @@
       [46, "Double-Edge"],
       [49, "Close Combat"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Knock Off",
+      "Ominous Wind",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 15.0
   },
   "Doduo": {
@@ -2631,6 +3302,15 @@
       [42, "Endeavor"],
       [45, "Thrash"],
       [48, "Brave Bird"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Knock Off",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Endeavor",
+      "Mud-Slap"
     ],
     "weight": 39.2
   },
@@ -2668,6 +3348,15 @@
       [50, "Thrash"],
       [54, "Brave Bird"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Knock Off",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Endeavor",
+      "Mud-Slap"
+    ],
     "weight": 85.2
   },
   "Seel": {
@@ -2703,6 +3392,7 @@
       [41, "Hail"],
       [43, "Megahorn"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Aqua Tail", "Signal Beam"],
     "weight": 90.0
   },
   "Dewgong": {
@@ -2739,6 +3429,7 @@
       [45, "Hail"],
       [49, "Megahorn"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Aqua Tail", "Signal Beam"],
     "weight": 120.0
   },
   "Grimer": {
@@ -2771,6 +3462,14 @@
       [40, "Acid Armor"],
       [43, "Gunk Shot"],
       [46, "Memento"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Snore",
+      "Gunk Shot",
+      "Mud-Slap"
     ],
     "weight": 30.0
   },
@@ -2807,6 +3506,14 @@
       [46, "Gunk Shot"],
       [50, "Memento"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Snore",
+      "Gunk Shot",
+      "Mud-Slap"
+    ],
     "weight": 30.0
   },
   "Shellder": {
@@ -2838,6 +3545,7 @@
       [35, "Aqua Ring"],
       [37, "Hydro Pump"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Swift", "Iron Defense"],
     "weight": 4.0
   },
   "Cloyster": {
@@ -2863,6 +3571,14 @@
       [31, "Twineedle"],
       [37, "Rock Blast"],
       [43, "Icicle Crash"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Signal Beam"
     ],
     "weight": 132.5
   },
@@ -2897,6 +3613,19 @@
       [40, "Nightmare"],
       [43, "Destiny Bond"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Uproar"
+    ],
     "weight": 0.1
   },
   "Haunter": {
@@ -2930,6 +3659,19 @@
       [42, "Dark Pulse"],
       [46, "Nightmare"],
       [50, "Destiny Bond"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Uproar"
     ],
     "weight": 0.1
   },
@@ -2966,6 +3708,19 @@
       [50, "Destiny Bond"],
       [54, "Aura Sphere"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Uproar"
+    ],
     "weight": 40.5
   },
   "Onix": {
@@ -2998,6 +3753,15 @@
       [37, "Stone Edge"],
       [40, "Double-Edge"],
       [43, "Sandstorm"]
+    ],
+    "tutor": [
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Hurricane"
     ],
     "weight": 210.0
   },
@@ -3032,6 +3796,14 @@
       [45, "Nasty Plot"],
       [48, "Guard Swap"],
       [51, "Future Sight"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Signal Beam"
     ],
     "weight": 32.4
   },
@@ -3069,6 +3841,14 @@
       [48, "Guard Swap"],
       [51, "Future Sight"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Signal Beam"
+    ],
     "weight": 75.6
   },
   "Krabby": {
@@ -3100,6 +3880,17 @@
       [38, "X-Scissor"],
       [41, "Agility"],
       [44, "Flail"]
+    ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Iron Defense",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 6.5
   },
@@ -3137,6 +3928,17 @@
       [46, "Agility"],
       [50, "Flail"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Iron Defense",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 60.0
   },
   "Voltorb": {
@@ -3170,6 +3972,14 @@
       [42, "Gyro Ball"],
       [45, "Mirror Coat"],
       [48, "Thunder"]
+    ],
+    "tutor": [
+      "Sucker Punch",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 10.4
   },
@@ -3205,6 +4015,14 @@
       [51, "Mirror Coat"],
       [55, "Thunder"]
     ],
+    "tutor": [
+      "Sucker Punch",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 66.6
   },
   "Exeggcute": {
@@ -3238,6 +4056,14 @@
       [37, "Solar Beam"],
       [39, "Leaf Storm"]
     ],
+    "tutor": [
+      "Snore",
+      "Synthesis",
+      "Uproar",
+      "Ancient Power",
+      "Rollout",
+      "Seed Bomb"
+    ],
     "weight": 2.5
   },
   "Exeggutor": {
@@ -3261,6 +4087,14 @@
       [33, "Synthesis"],
       [43, "Wood Hammer"],
       [53, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Zen Headbutt",
+      "Snore",
+      "Synthesis",
+      "Ancient Power",
+      "Rollout",
+      "Seed Bomb"
     ],
     "weight": 120.0
   },
@@ -3295,6 +4129,19 @@
       [43, "Belly Drum"],
       [46, "Double-Edge"],
       [49, "Earthquake"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Thunder Punch",
+      "Snore",
+      "Uproar",
+      "Earth Power",
+      "Endeavor",
+      "Iron Defense",
+      "Mud-Slap"
     ],
     "weight": 6.5
   },
@@ -3331,6 +4178,20 @@
       [53, "Double-Edge"],
       [57, "Earthquake"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Thunder Punch",
+      "Snore",
+      "Uproar",
+      "Earth Power",
+      "Endeavor",
+      "Iron Defense",
+      "Mud-Slap",
+      "Outrage"
+    ],
     "weight": 45.0
   },
   "Hitmonlee": {
@@ -3362,6 +4223,17 @@
       [41, "Mind Reader"],
       [43, "Blaze Kick"],
       [45, "Reversal"]
+    ],
+    "tutor": [
+      "Knock Off",
+      "Sucker Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 49.8
   },
@@ -3395,6 +4267,16 @@
       [41, "Vacuum Wave"],
       [43, "Sky Uppercut"],
       [45, "Focus Punch"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap"
     ],
     "weight": 50.2
   },
@@ -3431,6 +4313,18 @@
       [52, "Power Whip"],
       [55, "Wring Out"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 65.5
   },
   "Koffing": {
@@ -3463,6 +4357,7 @@
       [43, "Explosion"],
       [46, "Memento"]
     ],
+    "tutor": ["Snore", "Spite", "Uproar", "Rollout"],
     "weight": 1.0
   },
   "Weezing": {
@@ -3497,6 +4392,7 @@
       [46, "Explosion"],
       [50, "Memento"]
     ],
+    "tutor": ["Snore", "Spite", "Uproar", "Rollout"],
     "weight": 9.5
   },
   "Rhyhorn": {
@@ -3529,6 +4425,19 @@
       [43, "Stone Edge"],
       [46, "Dragon Rush"],
       [49, "Superpower"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
     ],
     "weight": 115.0
   },
@@ -3564,6 +4473,24 @@
       [46, "Stone Edge"],
       [50, "Dragon Rush"],
       [54, "Superpower"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Outrage",
+      "Rollout",
+      "Superpower"
     ],
     "weight": 120.0
   },
@@ -3601,6 +4528,19 @@
       [43, "Counter"],
       [46, "Double-Edge"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 34.6
   },
   "Tangela": {
@@ -3635,6 +4575,7 @@
       [46, "Power Whip"],
       [49, "Leaf Storm"]
     ],
+    "tutor": ["Knock Off", "Snore", "Synthesis", "Ancient Power", "Seed Bomb"],
     "weight": 35.0
   },
   "Kangaskhan": {
@@ -3668,6 +4609,22 @@
       [46, "Double-Edge"],
       [49, "Reversal"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Aqua Tail",
+      "Endeavor",
+      "Mud-Slap",
+      "Outrage"
+    ],
     "weight": 80.0
   },
   "Horsea": {
@@ -3699,6 +4656,16 @@
       [40, "Dragon Dance"],
       [43, "Outrage"],
       [46, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Outrage",
+      "Signal Beam",
+      "Hurricane"
     ],
     "weight": 8.0
   },
@@ -3733,6 +4700,16 @@
       [47, "Outrage"],
       [51, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Outrage",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 25.0
   },
   "Goldeen": {
@@ -3766,6 +4743,17 @@
       [40, "Bounce"],
       [43, "Megahorn"],
       [46, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Bounce",
+      "Mud-Slap"
     ],
     "weight": 15.0
   },
@@ -3802,6 +4790,17 @@
       [47, "Megahorn"],
       [51, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Bounce",
+      "Mud-Slap"
+    ],
     "weight": 39.0
   },
   "Staryu": {
@@ -3836,6 +4835,15 @@
       [37, "Cosmic Power"],
       [41, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Rollout",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 34.5
   },
   "Starmie": {
@@ -3858,6 +4866,16 @@
       [1, "Swift"],
       [1, "Psywave"],
       [43, "Confuse Ray"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Trick",
+      "Snore",
+      "Swift",
+      "Rollout",
+      "Signal Beam",
+      "Hurricane"
     ],
     "weight": 80.0
   },
@@ -3895,6 +4913,18 @@
       [45, "Baton Pass"],
       [48, "Safeguard"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Iron Defense",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 54.5
   },
   "Scyther": {
@@ -3931,6 +4961,7 @@
       [49, "Reversal"],
       [52, "Feint"]
     ],
+    "tutor": ["Fury Cutter", "Knock Off", "Ominous Wind", "Snore", "Swift"],
     "weight": 56.0
   },
   "Jynx": {
@@ -3967,6 +4998,16 @@
       [55, "Nasty Plot"],
       [59, "Psycho Boost"]
     ],
+    "tutor": [
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 40.6
   },
   "Electabuzz": {
@@ -3999,6 +5040,17 @@
       [49, "Close Combat"],
       [53, "Thunder"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 30.0
   },
   "Magmar": {
@@ -4030,6 +5082,14 @@
       [45, "Flare Blitz"],
       [49, "Aura Sphere"],
       [53, "Fire Blast"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Snore",
+      "Heat Wave",
+      "Mud-Slap"
     ],
     "weight": 44.5
   },
@@ -4064,6 +5124,13 @@
       [43, "Megahorn"],
       [46, "Superpower"],
       [49, "Guillotine"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Iron Defense",
+      "Superpower"
     ],
     "weight": 55.0
   },
@@ -4100,6 +5167,17 @@
       [49, "Outrage"],
       [52, "Giga Impact"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Endeavor",
+      "Iron Head",
+      "Outrage"
+    ],
     "weight": 88.4
   },
   "Magikarp": {
@@ -4119,6 +5197,7 @@
       [1, "Flail"],
       [15, "Bounce"]
     ],
+    "tutor": [],
     "weight": 10.0
   },
   "Gyarados": {
@@ -4149,6 +5228,18 @@
       [47, "Rain Dance"],
       [50, "Hurricane"],
       [53, "Hyper Beam"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Aqua Tail",
+      "Bounce",
+      "Iron Head",
+      "Outrage",
+      "Hurricane"
     ],
     "weight": 235.0
   },
@@ -4186,6 +5277,17 @@
       [52, "Hydro Pump"],
       [55, "Sheer Cold"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Iron Head",
+      "Outrage",
+      "Signal Beam"
+    ],
     "weight": 220.0
   },
   "Ditto": {
@@ -4201,6 +5303,7 @@
     "abilities": ["Limber", "Limber"],
     "genderless": true,
     "learnset": [[1, "Transform"]],
+    "tutor": [],
     "weight": 4.0
   },
   "Eevee": {
@@ -4235,6 +5338,7 @@
       [40, "Last Resort"],
       [43, "Trump Card"]
     ],
+    "tutor": ["Helping Hand", "Last Resort", "Snore", "Swift", "Mud-Slap"],
     "weight": 6.5
   },
   "Vaporeon": {
@@ -4268,6 +5372,17 @@
       [37, "Ice Beam"],
       [40, "Last Resort"],
       [43, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 29.0
   },
@@ -4303,6 +5418,15 @@
       [40, "Last Resort"],
       [43, "Thunder"]
     ],
+    "tutor": [
+      "Helping Hand",
+      "Last Resort",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 24.5
   },
   "Flareon": {
@@ -4336,6 +5460,15 @@
       [37, "Close Combat"],
       [40, "Last Resort"],
       [43, "Flare Blitz"]
+    ],
+    "tutor": [
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 25.0
   },
@@ -4373,6 +5506,15 @@
       [46, "Zap Cannon"],
       [49, "Hyper Beam"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Signal Beam"
+    ],
     "weight": 36.5
   },
   "Omanyte": {
@@ -4404,6 +5546,16 @@
       [43, "Rock Blast"],
       [46, "Hydro Pump"],
       [49, "Wring Out"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Rollout"
     ],
     "weight": 7.5
   },
@@ -4440,6 +5592,16 @@
       [52, "Hydro Pump"],
       [56, "Wring Out"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Rollout"
+    ],
     "weight": 35.0
   },
   "Kabuto": {
@@ -4471,6 +5633,16 @@
       [40, "Metal Sound"],
       [43, "Wring Out"],
       [46, "Leech Life"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 11.5
   },
@@ -4508,6 +5680,20 @@
       [52, "Leech Life"],
       [56, "Stone Edge"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Iron Defense",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
+    ],
     "weight": 40.5
   },
   "Aerodactyl": {
@@ -4544,6 +5730,18 @@
       [61, "Giga Impact"],
       [65, "Sky Attack"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Heat Wave",
+      "Iron Head",
+      "Hurricane"
+    ],
     "weight": 59.0
   },
   "Snorlax": {
@@ -4579,6 +5777,22 @@
       [48, "Snatch"],
       [51, "Giga Impact"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Gunk Shot",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Rollout",
+      "Seed Bomb",
+      "Superpower"
+    ],
     "weight": 460.0
   },
   "Articuno": {
@@ -4610,6 +5824,17 @@
       [42, "Roost"],
       [46, "Hurricane"],
       [50, "Sheer Cold"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Icy Wind",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Mud-Slap",
+      "Signal Beam",
+      "Hurricane"
     ],
     "weight": 55.4
   },
@@ -4643,6 +5868,17 @@
       [46, "Light Screen"],
       [50, "Zap Cannon"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Heat Wave",
+      "Mud-Slap",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 52.6
   },
   "Moltres": {
@@ -4675,6 +5911,16 @@
       [46, "Hurricane"],
       [50, "Overheat"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 60.0
   },
   "Dratini": {
@@ -4706,6 +5952,15 @@
       [43, "Outrage"],
       [46, "Hyper Beam"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 3.3
   },
   "Dragonair": {
@@ -4736,6 +5991,15 @@
       [44, "Extreme Speed"],
       [48, "Outrage"],
       [52, "Hyper Beam"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
     ],
     "weight": 16.5
   },
@@ -4773,6 +6037,26 @@
       [55, "Wing Attack"],
       [60, "Hurricane"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Dive",
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Ominous Wind",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Heat Wave",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Superpower",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 210.0
   },
   "Mewtwo": {
@@ -4808,6 +6092,19 @@
       [46, "Me First"],
       [50, "Aura Sphere"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 122.0
   },
   "Mew": {
@@ -4837,6 +6134,52 @@
       [42, "Nasty Plot"],
       [46, "Hypnosis"],
       [50, "Aura Sphere"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Outrage",
+      "Fire Punch",
+      "Thunder Punch",
+      "Swift",
+      "Heat Wave",
+      "Air Cutter",
+      "Ominous Wind",
+      "Hurricane",
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Aqua Tail",
+      "Iron Defense",
+      "Rollout",
+      "Signal Beam",
+      "Endeavor",
+      "Uproar",
+      "Sucker Punch",
+      "Last Resort",
+      "Spite",
+      "Gastro Acid",
+      "Gunk Shot",
+      "Helping Hand",
+      "Magnet Rise",
+      "Earth Power",
+      "Superpower",
+      "Trick",
+      "Bounce",
+      "Pain Split",
+      "Gravity",
+      "Role Play",
+      "Magic Coat",
+      "Heal Bell",
+      "Headbutt",
+      "Vacuum Wave",
+      "Iron Head",
+      "Ancient Power"
     ],
     "weight": 4.0
   },
@@ -4870,6 +6213,14 @@
       [41, "Solar Beam"],
       [44, "Leaf Storm"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Synthesis",
+      "Ancient Power",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 6.4
   },
   "Bayleef": {
@@ -4902,6 +6253,14 @@
       [46, "Aromatherapy"],
       [50, "Solar Beam"],
       [54, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Synthesis",
+      "Ancient Power",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 15.8
   },
@@ -4939,6 +6298,16 @@
       [55, "Solar Beam"],
       [60, "Leaf Storm"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Synthesis",
+      "Ancient Power",
+      "Mud-Slap",
+      "Outrage",
+      "Seed Bomb",
+      "Frenzy Plant"
+    ],
     "weight": 100.5
   },
   "Cyndaquil": {
@@ -4970,6 +6339,7 @@
       [41, "Flare Blitz"],
       [44, "Eruption"]
     ],
+    "tutor": ["Snore", "Swift", "Heat Wave", "Mud-Slap", "Rollout"],
     "weight": 7.9
   },
   "Quilava": {
@@ -5001,6 +6371,14 @@
       [47, "Double-Edge"],
       [51, "Flare Blitz"],
       [55, "Eruption"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 19.0
   },
@@ -5038,6 +6416,17 @@
       [55, "Flare Blitz"],
       [60, "Eruption"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Mud-Slap",
+      "Rollout",
+      "Blast Burn"
+    ],
     "weight": 79.5
   },
   "Totodile": {
@@ -5069,6 +6458,18 @@
       [38, "Dragon Dance"],
       [41, "Superpower"],
       [44, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 9.5
   },
@@ -5102,6 +6503,19 @@
       [45, "Dragon Dance"],
       [49, "Superpower"],
       [53, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 25.0
   },
@@ -5139,6 +6553,21 @@
       [54, "Superpower"],
       [59, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Outrage",
+      "Superpower",
+      "Hydro Cannon"
+    ],
     "weight": 88.8
   },
   "Sentret": {
@@ -5171,6 +6600,22 @@
       [38, "Me First"],
       [41, "Hyper Voice"],
       [44, "Double-Edge"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Knock Off",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 6.0
   },
@@ -5207,6 +6652,22 @@
       [50, "Hyper Voice"],
       [54, "Double-Edge"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Knock Off",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 32.5
   },
   "Hoothoot": {
@@ -5239,6 +6700,16 @@
       [39, "Roost"],
       [42, "Dream Eater"],
       [45, "Hurricane"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
     ],
     "weight": 21.2
   },
@@ -5276,6 +6747,16 @@
       [50, "Dream Eater"],
       [54, "Hurricane"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 40.8
   },
   "Ledyba": {
@@ -5309,6 +6790,17 @@
       [36, "Bug Buzz"],
       [39, "Double-Edge"],
       [42, "Meteor Mash"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ice Punch",
+      "Knock Off",
+      "Ominous Wind",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Rollout"
     ],
     "weight": 10.8
   },
@@ -5346,6 +6838,17 @@
       [47, "Double-Edge"],
       [51, "Meteor Mash"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ice Punch",
+      "Knock Off",
+      "Ominous Wind",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Rollout"
+    ],
     "weight": 35.6
   },
   "Spinarak": {
@@ -5380,6 +6883,7 @@
       [43, "Psychic"],
       [45, "Megahorn"]
     ],
+    "tutor": ["Sucker Punch", "Bounce", "Signal Beam"],
     "weight": 8.5
   },
   "Ariados": {
@@ -5416,6 +6920,7 @@
       [52, "Psychic"],
       [55, "Megahorn"]
     ],
+    "tutor": ["Sucker Punch", "Bounce", "Signal Beam"],
     "weight": 33.5
   },
   "Crobat": {
@@ -5451,6 +6956,16 @@
       [47, "Nasty Plot"],
       [51, "Brave Bird"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Hurricane"
+    ],
     "weight": 75.0
   },
   "Chinchou": {
@@ -5482,6 +6997,14 @@
       [39, "Aqua Ring"],
       [42, "Hydro Pump"],
       [45, "Charge"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Sucker Punch",
+      "Snore",
+      "Bounce",
+      "Signal Beam"
     ],
     "weight": 12.0
   },
@@ -5515,6 +7038,15 @@
       [49, "Hydro Pump"],
       [53, "Charge"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Sucker Punch",
+      "Snore",
+      "Aqua Tail",
+      "Bounce",
+      "Signal Beam"
+    ],
     "weight": 22.5
   },
   "Pichu": {
@@ -5537,6 +7069,16 @@
       [11, "Thunder Wave"],
       [13, "Nasty Plot"],
       [15, "Disarming Voice"]
+    ],
+    "tutor": [
+      "Helping Hand",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 2.0
   },
@@ -5562,6 +7104,19 @@
       [13, "Magical Leaf"],
       [15, "Draining Kiss"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Uproar",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 3.0
   },
   "Igglybuff": {
@@ -5584,6 +7139,14 @@
       [7, "Sweet Kiss"],
       [11, "Copycat"],
       [15, "Draining Kiss"]
+    ],
+    "tutor": [
+      "Pain Split",
+      "Gravity",
+      "Role Play",
+      "Magic Coat",
+      "Heal Bell",
+      "Headbutt"
     ],
     "weight": 1.0
   },
@@ -5618,6 +7181,19 @@
       [31, "Nasty Plot"],
       [33, "Double-Edge"],
       [35, "Last Resort"]
+    ],
+    "tutor": [
+      "Trick",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 1.5
   },
@@ -5655,6 +7231,22 @@
       [33, "Double-Edge"],
       [35, "Last Resort"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Endeavor",
+      "Heat Wave",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 3.2
   },
   "Natu": {
@@ -5686,6 +7278,18 @@
       [40, "Power Swap"],
       [40, "Guard Swap"],
       [43, "Me First"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Signal Beam",
+      "Hurricane"
     ],
     "weight": 2.0
   },
@@ -5722,6 +7326,18 @@
       [50, "Me First"],
       [54, "Hurricane"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Heat Wave",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 15.0
   },
   "Mareep": {
@@ -5753,6 +7369,7 @@
       [40, "Heal Bell"],
       [43, "Thunder"]
     ],
+    "tutor": ["Magnet Rise", "Snore", "Swift", "Signal Beam"],
     "weight": 7.8
   },
   "Flaaffy": {
@@ -5783,6 +7400,14 @@
       [45, "Light Screen"],
       [49, "Heal Bell"],
       [53, "Thunder"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Signal Beam"
     ],
     "weight": 13.3
   },
@@ -5820,6 +7445,16 @@
       [54, "Heal Bell"],
       [59, "Thunder"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Outrage",
+      "Signal Beam",
+      "Draco Meteor"
+    ],
     "weight": 61.5
   },
   "Bellossom": {
@@ -5848,6 +7483,7 @@
       [47, "Petal Dance"],
       [57, "Leaf Storm"]
     ],
+    "tutor": ["Snore", "Synthesis", "Uproar", "Gastro Acid", "Seed Bomb"],
     "weight": 5.8
   },
   "Marill": {
@@ -5880,6 +7516,19 @@
       [36, "Double-Edge"],
       [39, "Superpower"],
       [42, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
     ],
     "weight": 8.5
   },
@@ -5917,6 +7566,19 @@
       [47, "Superpower"],
       [51, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
+    ],
     "weight": 28.5
   },
   "Sudowoodo": {
@@ -5952,6 +7614,17 @@
       [45, "Hammer Arm"],
       [48, "Head Smash"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Snore",
+      "Earth Power",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 38.0
   },
   "Politoed": {
@@ -5975,6 +7648,14 @@
       [33, "Swagger"],
       [43, "Bounce"],
       [53, "Hyper Voice"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Helping Hand",
+      "Snore",
+      "Bounce",
+      "Mud-Slap"
     ],
     "weight": 33.9
   },
@@ -6012,6 +7693,7 @@
       [33, "Aromatherapy"],
       [35, "Memento"]
     ],
+    "tutor": ["Helping Hand", "Snore", "Synthesis", "Bounce", "Seed Bomb"],
     "weight": 0.5
   },
   "Skiploom": {
@@ -6048,6 +7730,7 @@
       [41, "Aromatherapy"],
       [44, "Memento"]
     ],
+    "tutor": ["Helping Hand", "Snore", "Synthesis", "Bounce", "Seed Bomb"],
     "weight": 1.0
   },
   "Jumpluff": {
@@ -6084,6 +7767,7 @@
       [46, "Aromatherapy"],
       [50, "Memento"]
     ],
+    "tutor": ["Helping Hand", "Snore", "Synthesis", "Bounce", "Seed Bomb"],
     "weight": 3.0
   },
   "Aipom": {
@@ -6117,6 +7801,22 @@
       [44, "Nasty Plot"],
       [47, "Switcheroo"],
       [50, "Last Resort"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Knock Off",
+      "Thunder Punch",
+      "Last Resort",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Bounce",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 11.5
   },
@@ -6152,6 +7852,14 @@
       [41, "Sunny Day"],
       [43, "Solar Beam"],
       [45, "Seed Bomb"]
+    ],
+    "tutor": [
+      "Helping Hand",
+      "Snore",
+      "Synthesis",
+      "Uproar",
+      "Endeavor",
+      "Seed Bomb"
     ],
     "weight": 1.8
   },
@@ -6189,6 +7897,14 @@
       [43, "Solar Beam"],
       [45, "Leaf Storm"]
     ],
+    "tutor": [
+      "Helping Hand",
+      "Snore",
+      "Synthesis",
+      "Uproar",
+      "Endeavor",
+      "Seed Bomb"
+    ],
     "weight": 8.5
   },
   "Yanma": {
@@ -6222,6 +7938,15 @@
       [39, "U-turn"],
       [43, "Screech"],
       [45, "Bug Buzz"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Signal Beam"
     ],
     "weight": 38.0
   },
@@ -6257,6 +7982,17 @@
       [43, "Haze"],
       [46, "Recover"]
     ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 8.5
   },
   "Quagsire": {
@@ -6290,6 +8026,17 @@
       [51, "Mist"],
       [51, "Haze"],
       [55, "Recover"]
+    ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 75.0
   },
@@ -6325,6 +8072,16 @@
       [40, "Last Resort"],
       [43, "Power Swap"]
     ],
+    "tutor": [
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 26.5
   },
   "Umbreon": {
@@ -6359,6 +8116,15 @@
       [40, "Last Resort"],
       [43, "Guard Swap"]
     ],
+    "tutor": [
+      "Sucker Punch",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap"
+    ],
     "weight": 27.0
   },
   "Murkrow": {
@@ -6389,6 +8155,18 @@
       [35, "Dark Pulse"],
       [37, "Torment"],
       [39, "Brave Bird"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Icy Wind",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
     ],
     "weight": 2.1
   },
@@ -6426,6 +8204,20 @@
       [46, "Trick Room"],
       [49, "Aura Sphere"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Iron Defense",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 79.5
   },
   "Misdreavus": {
@@ -6461,6 +8253,16 @@
       [39, "Grudge"],
       [41, "Destiny Bond"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar"
+    ],
     "weight": 1.0
   },
   "Unown": {
@@ -6483,6 +8285,7 @@
       [1, "Earth Power"],
       [1, "Ancient Power"]
     ],
+    "tutor": [],
     "weight": 5.0
   },
   "Wobbuffet": {
@@ -6505,6 +8308,7 @@
       [1, "Safeguard"],
       [1, "Destiny Bond"]
     ],
+    "tutor": [],
     "weight": 28.5
   },
   "Girafarig": {
@@ -6540,6 +8344,16 @@
       [42, "Hyper Voice"],
       [45, "Nasty Plot"]
     ],
+    "tutor": [
+      "Sucker Punch",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 41.5
   },
   "Pineco": {
@@ -6573,6 +8387,7 @@
       [42, "Iron Defense"],
       [45, "Double-Edge"]
     ],
+    "tutor": ["Snore", "Iron Defense", "Rollout"],
     "weight": 7.2
   },
   "Forretress": {
@@ -6609,6 +8424,7 @@
       [54, "Magnet Rise"],
       [58, "Zap Cannon"]
     ],
+    "tutor": ["Magnet Rise", "Snore", "Iron Defense", "Rollout", "Signal Beam"],
     "weight": 125.8
   },
   "Dunsparce": {
@@ -6645,6 +8461,17 @@
       [41, "Endure"],
       [43, "Flail"]
     ],
+    "tutor": [
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Spite",
+      "Ancient Power",
+      "Aqua Tail",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 14.0
   },
   "Gligar": {
@@ -6677,6 +8504,14 @@
       [40, "Sky Uppercut"],
       [43, "Swords Dance"],
       [46, "Guillotine"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Earth Power"
     ],
     "weight": 64.8
   },
@@ -6714,6 +8549,17 @@
       [40, "Double-Edge"],
       [43, "Sandstorm"]
     ],
+    "tutor": [
+      "Magnet Rise",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Hurricane"
+    ],
     "weight": 400.0
   },
   "Snubbull": {
@@ -6748,6 +8594,15 @@
       [37, "Close Combat"],
       [40, "Heal Bell"],
       [43, "Double-Edge"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Last Resort",
+      "Snore",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 7.8
   },
@@ -6785,6 +8640,15 @@
       [50, "Double-Edge"],
       [54, "Outrage"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Last Resort",
+      "Snore",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 48.7
   },
   "Qwilfish": {
@@ -6819,6 +8683,16 @@
       [42, "Destiny Bond"],
       [45, "Gunk Shot"],
       [48, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Bounce",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 3.9
   },
@@ -6856,6 +8730,16 @@
       [49, "Reversal"],
       [52, "Feint"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Iron Head",
+      "Superpower"
+    ],
     "weight": 118.0
   },
   "Shuckle": {
@@ -6888,6 +8772,15 @@
       [42, "Earth Power"],
       [45, "Stealth Rock"],
       [48, "Stone Edge"]
+    ],
+    "tutor": [
+      "Helping Hand",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Gastro Acid",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 20.5
   },
@@ -6924,6 +8817,14 @@
       [47, "Counter"],
       [51, "Reversal"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Iron Defense"
+    ],
     "weight": 54.0
   },
   "Sneasel": {
@@ -6955,6 +8856,16 @@
       [40, "Snatch"],
       [43, "Punishment"],
       [46, "Dark Pulse"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap"
     ],
     "weight": 28.0
   },
@@ -6992,6 +8903,20 @@
       [48, "Close Combat"],
       [51, "Double-Edge"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Thunder Punch",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb",
+      "Superpower"
+    ],
     "weight": 8.8
   },
   "Ursaring": {
@@ -7028,6 +8953,21 @@
       [55, "Close Combat"],
       [59, "Double-Edge"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Thunder Punch",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb",
+      "Superpower"
+    ],
     "weight": 125.8
   },
   "Slugma": {
@@ -7060,6 +9000,15 @@
       [45, "Heat Wave"],
       [48, "Memento"],
       [51, "Overheat"]
+    ],
+    "tutor": [
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Heat Wave",
+      "Iron Defense",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 35.0
   },
@@ -7094,6 +9043,15 @@
       [54, "Memento"],
       [58, "Overheat"]
     ],
+    "tutor": [
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Heat Wave",
+      "Iron Defense",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 55.0
   },
   "Swinub": {
@@ -7126,6 +9084,15 @@
       [40, "Icicle Crash"],
       [43, "Amnesia"],
       [46, "Blizzard"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 6.5
   },
@@ -7162,6 +9129,15 @@
       [47, "Amnesia"],
       [51, "Blizzard"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 55.8
   },
   "Corsola": {
@@ -7197,6 +9173,16 @@
       [46, "Mirror Coat"],
       [49, "Flail"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Sucker Punch",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 5.0
   },
   "Remoraid": {
@@ -7228,6 +9214,17 @@
       [42, "Gunk Shot"],
       [45, "Hyper Beam"],
       [48, "Water Spout"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Signal Beam"
     ],
     "weight": 12.0
   },
@@ -7265,6 +9262,17 @@
       [52, "Hyper Beam"],
       [56, "Water Spout"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Signal Beam"
+    ],
     "weight": 28.5
   },
   "Delibird": {
@@ -7298,6 +9306,16 @@
       [42, "Blizzard"],
       [45, "Hurricane"],
       [48, "Destiny Bond"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Swift",
+      "Bounce",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb",
+      "Signal Beam"
     ],
     "weight": 16.0
   },
@@ -7335,6 +9353,21 @@
       [43, "Tailwind"],
       [46, "Hydro Pump"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Dive",
+      "Icy Wind",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Bounce",
+      "Gunk Shot",
+      "Iron Head",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Signal Beam"
+    ],
     "weight": 220.0
   },
   "Skarmory": {
@@ -7371,6 +9404,17 @@
       [49, "Counter"],
       [52, "Brave Bird"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Icy Wind",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 50.5
   },
   "Houndour": {
@@ -7401,6 +9445,15 @@
       [34, "Dark Pulse"],
       [37, "Embargo"],
       [40, "Nasty Plot"]
+    ],
+    "tutor": [
+      "Sucker Punch",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap"
     ],
     "weight": 10.8
   },
@@ -7433,6 +9486,15 @@
       [38, "Dark Pulse"],
       [42, "Embargo"],
       [46, "Nasty Plot"]
+    ],
+    "tutor": [
+      "Sucker Punch",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap"
     ],
     "weight": 35.0
   },
@@ -7469,6 +9531,18 @@
       [51, "Hydro Pump"],
       [55, "Hyper Beam"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Iron Head",
+      "Outrage",
+      "Signal Beam",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 152.0
   },
   "Phanpy": {
@@ -7502,6 +9576,18 @@
       [40, "Double-Edge"],
       [43, "Play Rough"],
       [46, "Head Smash"]
+    ],
+    "tutor": [
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Endeavor",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb",
+      "Superpower"
     ],
     "weight": 33.5
   },
@@ -7539,6 +9625,20 @@
       [50, "Play Rough"],
       [54, "Head Smash"]
     ],
+    "tutor": [
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Bounce",
+      "Earth Power",
+      "Endeavor",
+      "Gunk Shot",
+      "Iron Defense",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb",
+      "Superpower"
+    ],
     "weight": 120.0
   },
   "Porygon2": {
@@ -7575,6 +9675,15 @@
       [46, "Zap Cannon"],
       [49, "Hyper Beam"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Signal Beam"
+    ],
     "weight": 32.5
   },
   "Stantler": {
@@ -7609,6 +9718,18 @@
       [48, "Megahorn"],
       [51, "Double-Edge"],
       [54, "Me First"]
+    ],
+    "tutor": [
+      "Sucker Punch",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Bounce",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 71.2
   },
@@ -7645,6 +9766,7 @@
       [91, "Sketch"],
       [96, "Sketch"]
     ],
+    "tutor": [],
     "weight": 58.0
   },
   "Tyrogue": {
@@ -7666,6 +9788,14 @@
       [1, "Low Kick"],
       [1, "Mach Punch"],
       [1, "Rapid Spin"]
+    ],
+    "tutor": [
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Mud-Slap"
     ],
     "weight": 21.0
   },
@@ -7698,6 +9828,17 @@
       [41, "Bullet Punch"],
       [43, "Endeavor"],
       [45, "High Jump Kick"]
+    ],
+    "tutor": [
+      "Sucker Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout",
+      "Hurricane"
     ],
     "weight": 48.0
   },
@@ -7733,6 +9874,17 @@
       [45, "Blizzard"],
       [48, "Nasty Plot"]
     ],
+    "tutor": [
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Uproar",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 6.0
   },
   "Elekid": {
@@ -7764,6 +9916,18 @@
       [40, "Wild Charge"],
       [43, "Close Combat"],
       [46, "Thunder"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 23.5
   },
@@ -7797,6 +9961,15 @@
       [43, "Aura Sphere"],
       [46, "Fire Blast"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Snore",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap"
+    ],
     "weight": 21.4
   },
   "Miltank": {
@@ -7826,6 +9999,18 @@
       [45, "Heal Bell"],
       [49, "Hammer Arm"],
       [53, "Double-Edge"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 75.5
   },
@@ -7863,6 +10048,19 @@
       [43, "Counter"],
       [46, "Double-Edge"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 46.8
   },
   "Raikou": {
@@ -7895,6 +10093,14 @@
       [42, "Calm Mind"],
       [46, "Thunder"],
       [50, "Aura Sphere"]
+    ],
+    "tutor": [
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Iron Head",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 178.0
   },
@@ -7929,6 +10135,7 @@
       [46, "Eruption"],
       [50, "Flare Blitz"]
     ],
+    "tutor": ["Snore", "Swift", "Heat Wave", "Iron Head", "Mud-Slap"],
     "weight": 198.0
   },
   "Suicune": {
@@ -7962,6 +10169,16 @@
       [46, "Blizzard"],
       [50, "Air Slash"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Iron Head",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 187.0
   },
   "Larvitar": {
@@ -7994,6 +10211,16 @@
       [40, "Stone Edge"],
       [43, "Hyper Beam"]
     ],
+    "tutor": [
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 72.0
   },
   "Pupitar": {
@@ -8025,6 +10252,17 @@
       [43, "Outrage"],
       [48, "Stone Edge"],
       [53, "Hyper Beam"]
+    ],
+    "tutor": [
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 152.0
   },
@@ -8062,6 +10300,22 @@
       [54, "Hyper Beam"],
       [60, "Giga Impact"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Superpower"
+    ],
     "weight": 202.0
   },
   "Lugia": {
@@ -8093,6 +10347,23 @@
       [42, "Dragon Rush"],
       [46, "Aeroblast"],
       [50, "Sky Attack"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Dive",
+      "Icy Wind",
+      "Ominous Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Signal Beam",
+      "Hurricane"
     ],
     "weight": 216.0
   },
@@ -8126,6 +10397,20 @@
       [46, "Sacred Fire"],
       [50, "Sky Attack"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Earth Power",
+      "Heat Wave",
+      "Iron Head",
+      "Mud-Slap",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 199.0
   },
   "Celebi": {
@@ -8158,6 +10443,22 @@
       [46, "Perish Song"],
       [50, "Leaf Storm"]
     ],
+    "tutor": [
+      "Sucker Punch",
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Synthesis",
+      "Uproar",
+      "Ancient Power",
+      "Earth Power",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Signal Beam"
+    ],
     "weight": 5.0
   },
   "Treecko": {
@@ -8188,6 +10489,16 @@
       [38, "Screech"],
       [41, "Endeavor"],
       [44, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Synthesis",
+      "Endeavor",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 5.0
   },
@@ -8220,6 +10531,16 @@
       [46, "Screech"],
       [50, "Endeavor"],
       [54, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Synthesis",
+      "Endeavor",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 21.6
   },
@@ -8257,6 +10578,19 @@
       [54, "Endeavor"],
       [59, "Leaf Storm"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Synthesis",
+      "Endeavor",
+      "Mud-Slap",
+      "Outrage",
+      "Seed Bomb",
+      "Frenzy Plant",
+      "Draco Meteor"
+    ],
     "weight": 52.2
   },
   "Torchic": {
@@ -8288,6 +10622,15 @@
       [38, "Last Resort"],
       [41, "Mirror Move"],
       [44, "Fire Blast"]
+    ],
+    "tutor": [
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Heat Wave",
+      "Mud-Slap"
     ],
     "weight": 2.5
   },
@@ -8321,6 +10664,19 @@
       [46, "Superpower"],
       [50, "Mirror Move"],
       [54, "Flare Blitz"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Heat Wave",
+      "Mud-Slap"
     ],
     "weight": 19.5
   },
@@ -8358,6 +10714,22 @@
       [54, "Brave Bird"],
       [59, "Flare Blitz"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Knock Off",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Heat Wave",
+      "Mud-Slap",
+      "Superpower",
+      "Blast Burn"
+    ],
     "weight": 52.0
   },
   "Mudkip": {
@@ -8388,6 +10760,17 @@
       [38, "Mirror Coat"],
       [41, "Hydro Pump"],
       [44, "Endeavor"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
     ],
     "weight": 7.6
   },
@@ -8421,6 +10804,19 @@
       [46, "Mirror Coat"],
       [50, "Hydro Pump"],
       [54, "Endeavor"]
+    ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
     ],
     "weight": 28.0
   },
@@ -8458,6 +10854,21 @@
       [54, "Hydro Pump"],
       [59, "Endeavor"]
     ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Outrage",
+      "Rollout",
+      "Superpower",
+      "Hydro Cannon"
+    ],
     "weight": 81.9
   },
   "Poochyena": {
@@ -8489,6 +10900,7 @@
       [40, "Play Rough"],
       [43, "Sucker Punch"]
     ],
+    "tutor": ["Sucker Punch", "Snore", "Spite", "Uproar", "Mud-Slap"],
     "weight": 13.6
   },
   "Mightyena": {
@@ -8525,6 +10937,7 @@
       [47, "Play Rough"],
       [51, "Sucker Punch"]
     ],
+    "tutor": ["Sucker Punch", "Snore", "Spite", "Uproar", "Mud-Slap"],
     "weight": 37.0
   },
   "Zigzagoon": {
@@ -8555,6 +10968,19 @@
       [34, "Belly Drum"],
       [37, "Fling"],
       [40, "Super Fang"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Icy Wind",
+      "Trick",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb"
     ],
     "weight": 17.5
   },
@@ -8591,6 +11017,19 @@
       [47, "Super Fang"],
       [51, "Extreme Speed"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Icy Wind",
+      "Trick",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb"
+    ],
     "weight": 32.5
   },
   "Wurmple": {
@@ -8610,6 +11049,7 @@
       [1, "Poison Sting"],
       [1, "Bug Bite"]
     ],
+    "tutor": ["Snore"],
     "weight": 3.6
   },
   "Silcoon": {
@@ -8628,6 +11068,7 @@
       [7, "Harden"],
       [7, "Iron Defense"]
     ],
+    "tutor": ["Iron Defense"],
     "weight": 10.0
   },
   "Beautifly": {
@@ -8658,6 +11099,14 @@
       [42, "Whirlwind"],
       [45, "Hurricane"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 28.4
   },
   "Cascoon": {
@@ -8676,6 +11125,7 @@
       [7, "Harden"],
       [7, "Iron Defense"]
     ],
+    "tutor": ["Iron Defense"],
     "weight": 11.5
   },
   "Dustox": {
@@ -8706,6 +11156,14 @@
       [42, "Whirlwind"],
       [45, "Hurricane"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 31.6
   },
   "Lotad": {
@@ -8733,6 +11191,14 @@
       [28, "Mist"],
       [31, "Zen Headbutt"],
       [34, "Energy Ball"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Synthesis",
+      "Uproar",
+      "Seed Bomb"
     ],
     "weight": 2.6
   },
@@ -8765,6 +11231,19 @@
       [40, "Energy Ball"],
       [44, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Synthesis",
+      "Uproar",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 32.5
   },
   "Ludicolo": {
@@ -8785,6 +11264,19 @@
       [1, "Nature Power"],
       [32, "Teeter Dance"],
       [44, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Synthesis",
+      "Uproar",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 55.0
   },
@@ -8810,6 +11302,7 @@
       [25, "Sunny Day"],
       [30, "Explosion"]
     ],
+    "tutor": ["Snore", "Spite", "Synthesis", "Rollout", "Seed Bomb"],
     "weight": 4.0
   },
   "Nuzleaf": {
@@ -8838,6 +11331,16 @@
       [32, "Swagger"],
       [35, "Extrasensory"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Synthesis",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb"
+    ],
     "weight": 28.0
   },
   "Shiftry": {
@@ -8860,6 +11363,23 @@
       [1, "Nasty Plot"],
       [32, "Hurricane"],
       [44, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Synthesis",
+      "Bounce",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb",
+      "Hurricane"
     ],
     "weight": 59.6
   },
@@ -8889,6 +11409,16 @@
       [34, "Endeavor"],
       [37, "Brave Bird"],
       [40, "Hurricane"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
     ],
     "weight": 2.3
   },
@@ -8921,6 +11451,16 @@
       [43, "Brave Bird"],
       [47, "Hurricane"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 19.8
   },
   "Wingull": {
@@ -8951,6 +11491,17 @@
       [37, "Uproar"],
       [40, "Agility"],
       [43, "Hurricane"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Mud-Slap",
+      "Hurricane"
     ],
     "weight": 9.5
   },
@@ -8988,6 +11539,19 @@
       [46, "Hydro Pump"],
       [50, "Hurricane"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Hurricane"
+    ],
     "weight": 28.0
   },
   "Ralts": {
@@ -9020,6 +11584,19 @@
       [40, "Dream Eater"],
       [43, "Future Sight"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 6.6
   },
   "Kirlia": {
@@ -9051,6 +11628,19 @@
       [43, "Charm"],
       [47, "Dream Eater"],
       [51, "Future Sight"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 20.2
   },
@@ -9086,6 +11676,19 @@
       [52, "Future Sight"],
       [57, "Dream Eater"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 48.4
   },
   "Surskit": {
@@ -9116,6 +11719,7 @@
       [33, "Baton Pass"],
       [36, "Hydro Pump"]
     ],
+    "tutor": ["Icy Wind", "Snore", "Swift", "Mud-Slap", "Signal Beam"],
     "weight": 1.7
   },
   "Masquerain": {
@@ -9151,6 +11755,16 @@
       [41, "Hydro Pump"],
       [45, "Bug Buzz"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Icy Wind",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 3.6
   },
   "Shroomish": {
@@ -9183,6 +11797,7 @@
       [40, "Charm"],
       [43, "Solar Beam"]
     ],
+    "tutor": ["Helping Hand", "Snore", "Synthesis", "Seed Bomb"],
     "weight": 4.5
   },
   "Breloom": {
@@ -9217,6 +11832,17 @@
       [46, "Dynamic Punch"],
       [50, "Superpower"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Superpower"
+    ],
     "weight": 39.2
   },
   "Slakoth": {
@@ -9244,6 +11870,17 @@
       [39, "Counter"],
       [43, "Flail"],
       [47, "Play Rough"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Snore",
+      "Gunk Shot",
+      "Mud-Slap"
     ],
     "weight": 24.0
   },
@@ -9273,6 +11910,17 @@
       [43, "Reversal"],
       [47, "Play Rough"],
       [51, "Focus Punch"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Uproar",
+      "Gunk Shot",
+      "Mud-Slap"
     ],
     "weight": 46.5
   },
@@ -9306,6 +11954,17 @@
       [55, "Punishment"],
       [59, "Hammer Arm"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Snore",
+      "Gunk Shot",
+      "Mud-Slap"
+    ],
     "weight": 130.5
   },
   "Nincada": {
@@ -9335,6 +11994,7 @@
       [35, "Bide"],
       [39, "False Swipe"]
     ],
+    "tutor": ["Fury Cutter", "Snore", "Spite", "Mud-Slap"],
     "weight": 5.5
   },
   "Ninjask": {
@@ -9371,6 +12031,16 @@
       [47, "Bug Buzz"],
       [51, "Extreme Speed"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Mud-Slap"
+    ],
     "weight": 12.0
   },
   "Shedinja": {
@@ -9401,6 +12071,14 @@
       [35, "Shadow Ball"],
       [39, "Heal Block"],
       [43, "Grudge"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Mud-Slap"
     ],
     "weight": 1.2
   },
@@ -9433,6 +12111,17 @@
       [37, "Hammer Arm"],
       [40, "Endeavor"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Uproar",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 16.3
   },
   "Loudred": {
@@ -9463,6 +12152,17 @@
       [39, "Sleep Talk"],
       [43, "Hammer Arm"],
       [47, "Endeavor"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Uproar",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 40.5
   },
@@ -9500,6 +12200,18 @@
       [49, "Endeavor"],
       [54, "Hyper Beam"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Uproar",
+      "Mud-Slap",
+      "Outrage",
+      "Rollout"
+    ],
     "weight": 84.0
   },
   "Makuhita": {
@@ -9533,6 +12245,17 @@
       [39, "Close Combat"],
       [42, "Reversal"],
       [45, "Counter"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Knock Off",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 86.4
   },
@@ -9569,6 +12292,18 @@
       [49, "Reversal"],
       [53, "Counter"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Knock Off",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Iron Head",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 253.8
   },
   "Azurill": {
@@ -9594,6 +12329,15 @@
       [14, "Helping Hand"],
       [16, "Slam"],
       [18, "Bounce"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Knock Off",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Rollout"
     ],
     "weight": 2.0
   },
@@ -9627,6 +12371,18 @@
       [43, "Lock-On"],
       [43, "Zap Cannon"],
       [46, "Head Smash"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Magnet Rise",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 97.0
   },
@@ -9664,6 +12420,17 @@
       [35, "Play Rough"],
       [37, "Double-Edge"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Sucker Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 11.0
   },
   "Delcatty": {
@@ -9686,6 +12453,17 @@
       [1, "Sing"],
       [1, "Attract"],
       [1, "Double Slap"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Sucker Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 32.6
   },
@@ -9723,6 +12501,22 @@
       [45, "Nasty Plot"],
       [47, "Recover"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Spite",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 11.0
   },
   "Mawile": {
@@ -9759,6 +12553,19 @@
       [40, "Spit Up"],
       [43, "Metal Burst"]
     ],
+    "tutor": [
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Magnet Rise",
+      "Snore",
+      "Ancient Power",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap"
+    ],
     "weight": 11.5
   },
   "Aron": {
@@ -9792,6 +12599,21 @@
       [46, "Head Smash"],
       [49, "Metal Burst"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Magnet Rise",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Earth Power",
+      "Endeavor",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
+    ],
     "weight": 60.0
   },
   "Lairon": {
@@ -9824,6 +12646,21 @@
       [50, "Dragon Rush"],
       [54, "Head Smash"],
       [58, "Metal Burst"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Magnet Rise",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Earth Power",
+      "Endeavor",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
     ],
     "weight": 120.0
   },
@@ -9861,6 +12698,27 @@
       [58, "Head Smash"],
       [63, "Metal Burst"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Magnet Rise",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Endeavor",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Rollout",
+      "Superpower"
+    ],
     "weight": 360.0
   },
   "Meditite": {
@@ -9893,6 +12751,19 @@
       [43, "Power Trick"],
       [46, "Reversal"],
       [49, "Recover"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Trick",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 11.2
   },
@@ -9930,6 +12801,19 @@
       [51, "Reversal"],
       [55, "Recover"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Trick",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 31.5
   },
   "Electrike": {
@@ -9964,6 +12848,7 @@
       [40, "Charge"],
       [43, "Thunder"]
     ],
+    "tutor": ["Magnet Rise", "Snore", "Swift", "Mud-Slap", "Signal Beam"],
     "weight": 15.2
   },
   "Manectric": {
@@ -9998,6 +12883,7 @@
       [45, "Charge"],
       [49, "Thunder"]
     ],
+    "tutor": ["Magnet Rise", "Snore", "Swift", "Mud-Slap", "Signal Beam"],
     "weight": 40.2
   },
   "Plusle": {
@@ -10031,6 +12917,18 @@
       [43, "Last Resort"],
       [46, "Thunder"],
       [49, "Nasty Plot"]
+    ],
+    "tutor": [
+      "Thunder Punch",
+      "Helping Hand",
+      "Last Resort",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 4.2
   },
@@ -10066,6 +12964,18 @@
       [46, "Thunder"],
       [49, "Nasty Plot"]
     ],
+    "tutor": [
+      "Thunder Punch",
+      "Helping Hand",
+      "Last Resort",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 4.2
   },
   "Volbeat": {
@@ -10100,6 +13010,18 @@
       [51, "Baton Pass"],
       [54, "Thunder"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ice Punch",
+      "Ominous Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 17.7
   },
   "Illumise": {
@@ -10133,6 +13055,17 @@
       [48, "Covet"],
       [51, "Baton Pass"],
       [54, "Thunder"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ice Punch",
+      "Ominous Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap"
     ],
     "weight": 17.7
   },
@@ -10170,6 +13103,14 @@
       [48, "Synthesis"],
       [51, "Power Whip"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Swift",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 2.0
   },
   "Gulpin": {
@@ -10201,6 +13142,17 @@
       [38, "Destiny Bond"],
       [41, "Wring Out"],
       [44, "Gunk Shot"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Snore",
+      "Gastro Acid",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb"
     ],
     "weight": 10.3
   },
@@ -10237,6 +13189,17 @@
       [47, "Wring Out"],
       [51, "Gunk Shot"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Snore",
+      "Gastro Acid",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb"
+    ],
     "weight": 80.0
   },
   "Carvanha": {
@@ -10268,6 +13231,19 @@
       [40, "Zen Headbutt"],
       [43, "Agility"],
       [46, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Bounce",
+      "Mud-Slap"
     ],
     "weight": 20.8
   },
@@ -10305,6 +13281,19 @@
       [49, "Agility"],
       [53, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Bounce",
+      "Mud-Slap"
+    ],
     "weight": 88.8
   },
   "Wailmer": {
@@ -10340,6 +13329,7 @@
       [49, "Hydro Pump"],
       [52, "Fissure"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Bounce", "Rollout"],
     "weight": 130.0
   },
   "Wailord": {
@@ -10375,6 +13365,7 @@
       [54, "Hydro Pump"],
       [58, "Fissure"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Bounce", "Iron Head", "Rollout"],
     "weight": 398.0
   },
   "Numel": {
@@ -10405,6 +13396,7 @@
       [40, "Earthquake"],
       [43, "Double-Edge"]
     ],
+    "tutor": ["Snore", "Earth Power", "Heat Wave", "Mud-Slap", "Rollout"],
     "weight": 24.0
   },
   "Camerupt": {
@@ -10438,6 +13430,14 @@
       [51, "Eruption"],
       [55, "Fissure"]
     ],
+    "tutor": [
+      "Snore",
+      "Earth Power",
+      "Heat Wave",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 220.0
   },
   "Torkoal": {
@@ -10470,6 +13470,14 @@
       [43, "Amnesia"],
       [46, "Flail"],
       [49, "Eruption"]
+    ],
+    "tutor": [
+      "Snore",
+      "Earth Power",
+      "Heat Wave",
+      "Iron Defense",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 80.4
   },
@@ -10505,6 +13513,15 @@
       [43, "Future Sight"],
       [46, "Trick"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Signal Beam"
+    ],
     "weight": 30.6
   },
   "Grumpig": {
@@ -10539,6 +13556,19 @@
       [43, "Bounce"],
       [47, "Future Sight"],
       [51, "Trick"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 71.5
   },
@@ -10576,6 +13606,21 @@
       [49, "Trick Room"],
       [52, "Hyper Voice"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 5.0
   },
   "Trapinch": {
@@ -10609,6 +13654,7 @@
       [51, "Fissure"],
       [55, "Hyper Beam"]
     ],
+    "tutor": ["Fury Cutter", "Snore", "Earth Power", "Mud-Slap"],
     "weight": 15.0
   },
   "Vibrava": {
@@ -10641,6 +13687,19 @@
       [47, "Uproar"],
       [51, "Dragon Pulse"],
       [55, "Hyper Beam"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Earth Power",
+      "Heat Wave",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
     ],
     "weight": 15.3
   },
@@ -10678,6 +13737,21 @@
       [55, "Hyper Beam"],
       [59, "Dragon Rush"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fire Punch",
+      "Fury Cutter",
+      "Ominous Wind",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Earth Power",
+      "Heat Wave",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 82.0
   },
   "Cacnea": {
@@ -10712,6 +13786,16 @@
       [49, "Dark Pulse"],
       [52, "Sandstorm"],
       [55, "Destiny Bond"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 51.3
   },
@@ -10749,6 +13833,17 @@
       [59, "Sandstorm"],
       [63, "Destiny Bond"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Superpower"
+    ],
     "weight": 77.4
   },
   "Swablu": {
@@ -10781,6 +13876,17 @@
       [40, "Dragon Pulse"],
       [43, "Perish Song"],
       [46, "Brave Bird"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane"
     ],
     "weight": 1.2
   },
@@ -10818,6 +13924,18 @@
       [50, "Brave Bird"],
       [54, "Sky Attack"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 20.6
   },
   "Zangoose": {
@@ -10852,6 +13970,20 @@
       [46, "Belly Drum"],
       [49, "Double-Edge"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Thunder Punch",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 40.3
   },
   "Seviper": {
@@ -10884,6 +14016,15 @@
       [43, "Swords Dance"],
       [46, "Gunk Shot"],
       [49, "Wring Out"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Sucker Punch",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap"
     ],
     "weight": 52.5
   },
@@ -10919,6 +14060,17 @@
       [49, "Future Sight"],
       [53, "Explosion"]
     ],
+    "tutor": [
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Head",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 168.0
   },
   "Solrock": {
@@ -10952,6 +14104,18 @@
       [49, "Solar Beam"],
       [53, "Explosion"]
     ],
+    "tutor": [
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Iron Head",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 154.0
   },
   "Barboach": {
@@ -10984,6 +14148,15 @@
       [40, "Dragon Dance"],
       [43, "Hydro Pump"],
       [46, "Fissure"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Aqua Tail",
+      "Bounce",
+      "Earth Power",
+      "Mud-Slap"
     ],
     "weight": 1.9
   },
@@ -11021,6 +14194,16 @@
       [49, "Hydro Pump"],
       [53, "Fissure"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Aqua Tail",
+      "Bounce",
+      "Earth Power",
+      "Mud-Slap"
+    ],
     "weight": 23.6
   },
   "Corphish": {
@@ -11054,6 +14237,18 @@
       [44, "Dragon Dance"],
       [47, "Superpower"],
       [50, "Guillotine"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Spite",
+      "Ancient Power",
+      "Endeavor",
+      "Iron Defense",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 11.5
   },
@@ -11090,6 +14285,20 @@
       [53, "Superpower"],
       [57, "Guillotine"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Ancient Power",
+      "Endeavor",
+      "Iron Defense",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 32.8
   },
   "Baltoy": {
@@ -11123,6 +14332,15 @@
       [43, "Imprison"],
       [46, "Trick Room"],
       [49, "Explosion"]
+    ],
+    "tutor": [
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 21.5
   },
@@ -11161,6 +14379,15 @@
       [51, "Trick Room"],
       [55, "Explosion"]
     ],
+    "tutor": [
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 108.0
   },
   "Lileep": {
@@ -11193,6 +14420,15 @@
       [45, "Spit Up"],
       [45, "Swallow"],
       [48, "Wring Out"]
+    ],
+    "tutor": [
+      "Snore",
+      "Synthesis",
+      "Ancient Power",
+      "Earth Power",
+      "Gastro Acid",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 23.8
   },
@@ -11228,6 +14464,15 @@
       [51, "Swallow"],
       [55, "Wring Out"]
     ],
+    "tutor": [
+      "Snore",
+      "Synthesis",
+      "Ancient Power",
+      "Earth Power",
+      "Gastro Acid",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 60.4
   },
   "Anorith": {
@@ -11259,6 +14504,15 @@
       [39, "Knock Off"],
       [42, "Protect"],
       [45, "Rock Blast"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Mud-Slap"
     ],
     "weight": 12.5
   },
@@ -11294,6 +14548,17 @@
       [51, "Rock Blast"],
       [55, "Stone Edge"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Iron Defense",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 68.2
   },
   "Feebas": {
@@ -11313,6 +14578,7 @@
       [1, "Flail"],
       [15, "Water Pulse"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Swift"],
     "weight": 7.4
   },
   "Milotic": {
@@ -11349,6 +14615,15 @@
       [48, "Mirror Coat"],
       [51, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Iron Head",
+      "Mud-Slap"
+    ],
     "weight": 162.0
   },
   "Castform": {
@@ -11377,6 +14652,7 @@
       [35, "Blizzard"],
       [45, "Hurricane"]
     ],
+    "tutor": ["Icy Wind", "Ominous Wind", "Last Resort", "Snore", "Swift"],
     "weight": 0.8
   },
   "Kecleon": {
@@ -11413,6 +14689,23 @@
       [46, "Substitute"],
       [49, "Double-Edge"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Sucker Punch",
+      "Trick",
+      "Thunder Punch",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 22.0
   },
   "Shuppet": {
@@ -11445,6 +14738,14 @@
       [43, "Gunk Shot"],
       [46, "Grudge"],
       [49, "Destiny Bond"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Spite"
     ],
     "weight": 2.3
   },
@@ -11480,6 +14781,15 @@
       [51, "Grudge"],
       [55, "Destiny Bond"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Spite",
+      "Mud-Slap"
+    ],
     "weight": 12.5
   },
   "Duskull": {
@@ -11509,6 +14819,14 @@
       [37, "Mean Look"],
       [40, "Future Sight"],
       [43, "Destiny Bond"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite"
     ],
     "weight": 15.0
   },
@@ -11546,6 +14864,18 @@
       [43, "Future Sight"],
       [47, "Destiny Bond"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Mud-Slap"
+    ],
     "weight": 30.6
   },
   "Tropius": {
@@ -11582,6 +14912,16 @@
       [51, "Solar Beam"],
       [54, "Leaf Storm"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Synthesis",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane"
+    ],
     "weight": 100.0
   },
   "Chimecho": {
@@ -11615,6 +14955,18 @@
       [43, "Recover"],
       [46, "Hyper Voice"],
       [49, "Healing Wish"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Knock Off",
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Uproar",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 1.0
   },
@@ -11652,6 +15004,19 @@
       [49, "Future Sight"],
       [52, "Perish Song"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Sucker Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Bounce",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 47.0
   },
   "Wynaut": {
@@ -11674,6 +15039,7 @@
       [15, "Safeguard"],
       [15, "Destiny Bond"]
     ],
+    "tutor": [],
     "weight": 14.0
   },
   "Snorunt": {
@@ -11705,6 +15071,7 @@
       [42, "Hail"],
       [45, "Blizzard"]
     ],
+    "tutor": ["Icy Wind", "Snore", "Spite", "Rollout"],
     "weight": 16.8
   },
   "Glalie": {
@@ -11741,6 +15108,14 @@
       [50, "Blizzard"],
       [54, "Sheer Cold"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Snore",
+      "Spite",
+      "Iron Head",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 256.5
   },
   "Spheal": {
@@ -11773,6 +15148,15 @@
       [37, "Belly Drum"],
       [40, "Blizzard"],
       [43, "Sheer Cold"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 39.5
   },
@@ -11807,6 +15191,15 @@
       [42, "Belly Drum"],
       [46, "Blizzard"],
       [50, "Sheer Cold"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 87.6
   },
@@ -11844,6 +15237,17 @@
       [50, "Blizzard"],
       [56, "Sheer Cold"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Snore",
+      "Aqua Tail",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 150.6
   },
   "Clamperl": {
@@ -11865,6 +15269,7 @@
       [15, "Water Pulse"],
       [25, "Muddy Water"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Iron Defense"],
     "weight": 52.5
   },
   "Huntail": {
@@ -11896,6 +15301,16 @@
       [47, "Super Fang"],
       [51, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Sucker Punch",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Bounce",
+      "Mud-Slap"
+    ],
     "weight": 27.0
   },
   "Gorebyss": {
@@ -11926,6 +15341,16 @@
       [43, "Confuse Ray"],
       [47, "Barrier"],
       [51, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Bounce",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 22.6
   },
@@ -11963,6 +15388,16 @@
       [52, "Hydro Pump"],
       [55, "Head Smash"]
     ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Ancient Power",
+      "Aqua Tail",
+      "Bounce",
+      "Earth Power",
+      "Mud-Slap"
+    ],
     "weight": 23.4
   },
   "Luvdisc": {
@@ -11996,6 +15431,7 @@
       [46, "Safeguard"],
       [49, "Hydro Pump"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Swift", "Bounce"],
     "weight": 8.7
   },
   "Bagon": {
@@ -12029,6 +15465,15 @@
       [46, "Hydro Pump"],
       [49, "Outrage"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Zen Headbutt",
+      "Snore",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 42.1
   },
   "Shelgon": {
@@ -12061,6 +15506,17 @@
       [48, "Double-Edge"],
       [52, "Hydro Pump"],
       [56, "Outrage"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Zen Headbutt",
+      "Snore",
+      "Iron Defense",
+      "Mud-Slap",
+      "Outrage",
+      "Rollout",
+      "Hurricane",
+      "Draco Meteor"
     ],
     "weight": 110.5
   },
@@ -12098,6 +15554,21 @@
       [54, "Hydro Pump"],
       [60, "Outrage"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Heat Wave",
+      "Mud-Slap",
+      "Outrage",
+      "Rollout",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 102.6
   },
   "Beldum": {
@@ -12118,6 +15589,7 @@
       [1, "Iron Head"],
       [1, "Iron Defense"]
     ],
+    "tutor": ["Zen Headbutt", "Iron Defense", "Iron Head"],
     "weight": 95.2
   },
   "Metang": {
@@ -12150,6 +15622,22 @@
       [44, "Meteor Mash"],
       [47, "Iron Defense"],
       [50, "Hyper Beam"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 202.5
   },
@@ -12187,6 +15675,22 @@
       [51, "Iron Defense"],
       [59, "Hyper Beam"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 550.0
   },
   "Regirock": {
@@ -12219,6 +15723,18 @@
       [46, "Superpower"],
       [50, "Hyper Beam"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
+    ],
     "weight": 230.0
   },
   "Regice": {
@@ -12250,6 +15766,18 @@
       [42, "Ice Beam"],
       [46, "Superpower"],
       [50, "Hyper Beam"]
+    ],
+    "tutor": [
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Snore",
+      "Ancient Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam",
+      "Superpower"
     ],
     "weight": 175.0
   },
@@ -12285,6 +15813,17 @@
       [46, "Superpower"],
       [50, "Hyper Beam"]
     ],
+    "tutor": [
+      "Ice Punch",
+      "Thunder Punch",
+      "Snore",
+      "Ancient Power",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
+    ],
     "weight": 205.0
   },
   "Latias": {
@@ -12315,6 +15854,22 @@
       [42, "Psychic"],
       [46, "Dragon Pulse"],
       [50, "Last Resort"]
+    ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Sucker Punch",
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
     ],
     "weight": 40.0
   },
@@ -12347,6 +15902,21 @@
       [46, "Dragon Pulse"],
       [50, "Last Resort"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 60.0
   },
   "Kyogre": {
@@ -12376,6 +15946,18 @@
       [42, "Thunder"],
       [46, "Double-Edge"],
       [50, "Water Spout"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Iron Head",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 352.0
   },
@@ -12407,6 +15989,19 @@
       [46, "Earthquake"],
       [50, "Eruption"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Thunder Punch",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 950.0
   },
   "Rayquaza": {
@@ -12435,6 +16030,22 @@
       [42, "Hyper Voice"],
       [46, "Outrage"],
       [50, "Hyper Beam"]
+    ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
     ],
     "weight": 206.5
   },
@@ -12470,6 +16081,24 @@
       [46, "Last Resort"],
       [50, "Doom Desire"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 1.1
   },
   "Deoxys": {
@@ -12500,6 +16129,19 @@
       [46, "Psycho Boost"],
       [50, "Hyper Beam"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 60.8
   },
   "Deoxys_attack": {
@@ -12529,6 +16171,14 @@
       [42, "Zap Cannon"],
       [46, "Psycho Boost"],
       [50, "Hyper Beam"]
+    ],
+    "tutor": [
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Mud-Slap",
+      "Signal Beam",
+      "Superpower"
     ],
     "weight": 60.8
   },
@@ -12562,6 +16212,15 @@
       [50, "Counter"],
       [50, "Mirror Coat"]
     ],
+    "tutor": [
+      "Knock Off",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Iron Defense",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 60.8
   },
   "Deoxys_speed": {
@@ -12591,6 +16250,15 @@
       [42, "Recover"],
       [46, "Psycho Boost"],
       [50, "Extreme Speed"]
+    ],
+    "tutor": [
+      "Knock Off",
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 60.8
   },
@@ -12622,6 +16290,14 @@
       [38, "Giga Drain"],
       [41, "Leaf Storm"]
     ],
+    "tutor": [
+      "Snore",
+      "Synthesis",
+      "Earth Power",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Superpower"
+    ],
     "weight": 10.2
   },
   "Grotle": {
@@ -12652,6 +16328,14 @@
       [41, "Synthesis"],
       [45, "Giga Drain"],
       [49, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Snore",
+      "Synthesis",
+      "Earth Power",
+      "Mud-Slap",
+      "Seed Bomb",
+      "Superpower"
     ],
     "weight": 97.0
   },
@@ -12688,6 +16372,17 @@
       [49, "Giga Drain"],
       [54, "Leaf Storm"]
     ],
+    "tutor": [
+      "Snore",
+      "Synthesis",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Seed Bomb",
+      "Superpower",
+      "Frenzy Plant"
+    ],
     "weight": 310.0
   },
   "Chimchar": {
@@ -12717,6 +16412,20 @@
       [35, "Slack Off"],
       [38, "Fire Spin"],
       [41, "Fire Blast"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Endeavor",
+      "Gunk Shot",
+      "Heat Wave",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 6.2
   },
@@ -12748,6 +16457,19 @@
       [43, "Fire Spin"],
       [47, "Slack Off"],
       [51, "Flare Blitz"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Gunk Shot",
+      "Heat Wave",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 22.0
   },
@@ -12783,6 +16505,20 @@
       [51, "Slack Off"],
       [56, "Flare Blitz"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Gunk Shot",
+      "Heat Wave",
+      "Mud-Slap",
+      "Rollout",
+      "Blast Burn"
+    ],
     "weight": 55.0
   },
   "Piplup": {
@@ -12813,6 +16549,7 @@
       [38, "Drill Peck"],
       [41, "Hydro Pump"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Mud-Slap", "Signal Beam"],
     "weight": 5.2
   },
   "Prinplup": {
@@ -12844,6 +16581,7 @@
       [46, "Drill Peck"],
       [50, "Hydro Pump"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Mud-Slap", "Signal Beam"],
     "weight": 23.0
   },
   "Empoleon": {
@@ -12879,6 +16617,17 @@
       [49, "Drill Peck"],
       [54, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Iron Defense",
+      "Mud-Slap",
+      "Signal Beam",
+      "Hydro Cannon"
+    ],
     "weight": 84.5
   },
   "Starly": {
@@ -12909,6 +16658,16 @@
       [38, "Brave Bird"],
       [41, "Double-Edge"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 2.0
   },
   "Staravia": {
@@ -12938,6 +16697,16 @@
       [42, "Agility"],
       [46, "Brave Bird"],
       [50, "Double-Edge"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
     ],
     "weight": 15.5
   },
@@ -12972,6 +16741,16 @@
       [50, "Brave Bird"],
       [55, "Double-Edge"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 24.9
   },
   "Bidoof": {
@@ -13002,6 +16781,17 @@
       [35, "Superpower"],
       [38, "Curse"],
       [41, "Double-Edge"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Icy Wind",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
     ],
     "weight": 20.0
   },
@@ -13036,6 +16826,18 @@
       [46, "Curse"],
       [50, "Double-Edge"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout",
+      "Superpower"
+    ],
     "weight": 31.5
   },
   "Kricketot": {
@@ -13055,6 +16857,7 @@
       [1, "Bug Bite"],
       [1, "String Shot"]
     ],
+    "tutor": ["Snore", "Uproar", "Endeavor", "Mud-Slap"],
     "weight": 2.2
   },
   "Kricketune": {
@@ -13091,6 +16894,14 @@
       [46, "Hyper Voice"],
       [49, "Perish Song"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Uproar",
+      "Endeavor",
+      "Mud-Slap"
+    ],
     "weight": 25.5
   },
   "Shinx": {
@@ -13124,6 +16935,14 @@
       [39, "Discharge"],
       [42, "Sucker Punch"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 9.5
   },
   "Luxio": {
@@ -13156,6 +16975,14 @@
       [44, "Scary Face"],
       [48, "Discharge"],
       [52, "Sucker Punch"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 30.5
   },
@@ -13191,6 +17018,15 @@
       [53, "Discharge"],
       [58, "Sucker Punch"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam",
+      "Superpower"
+    ],
     "weight": 42.0
   },
   "Budew": {
@@ -13214,6 +17050,7 @@
       [15, "Worry Seed"],
       [18, "Extrasensory"]
     ],
+    "tutor": ["Snore", "Swift", "Synthesis", "Uproar", "Mud-Slap", "Seed Bomb"],
     "weight": 1.2
   },
   "Roserade": {
@@ -13234,6 +17071,14 @@
       [1, "Magical Leaf"],
       [1, "Sweet Scent"],
       [53, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Swift",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 14.5
   },
@@ -13266,6 +17111,20 @@
       [42, "Stone Edge"],
       [45, "Hammer Arm"],
       [48, "Head Smash"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Earth Power",
+      "Endeavor",
+      "Iron Head",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 31.5
   },
@@ -13301,6 +17160,21 @@
       [51, "Hammer Arm"],
       [55, "Head Smash"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Earth Power",
+      "Endeavor",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Superpower"
+    ],
     "weight": 102.5
   },
   "Shieldon": {
@@ -13332,6 +17206,15 @@
       [42, "Stone Edge"],
       [45, "Magnet Rise"],
       [48, "Head Smash"]
+    ],
+    "tutor": [
+      "Magnet Rise",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap"
     ],
     "weight": 57.0
   },
@@ -13367,6 +17250,16 @@
       [51, "Magnet Rise"],
       [55, "Head Smash"]
     ],
+    "tutor": [
+      "Magnet Rise",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage"
+    ],
     "weight": 149.5
   },
   "Burmy": {
@@ -13386,6 +17279,7 @@
       [1, "Bug Bite"],
       [1, "Hidden Power"]
     ],
+    "tutor": ["Snore"],
     "weight": 3.4
   },
   "Wormadam": {
@@ -13418,6 +17312,15 @@
       [47, "Captivate"],
       [50, "Leaf Storm"]
     ],
+    "tutor": [
+      "Sucker Punch",
+      "Snore",
+      "Synthesis",
+      "Uproar",
+      "Endeavor",
+      "Seed Bomb",
+      "Signal Beam"
+    ],
     "weight": 6.5
   },
   "Wormadam_sandy": {
@@ -13449,6 +17352,16 @@
       [44, "Flail"],
       [47, "Captivate"],
       [50, "Fissure"]
+    ],
+    "tutor": [
+      "Sucker Punch",
+      "Snore",
+      "Uproar",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 6.5
   },
@@ -13483,6 +17396,17 @@
       [47, "Captivate"],
       [50, "Iron Head"]
     ],
+    "tutor": [
+      "Sucker Punch",
+      "Magnet Rise",
+      "Snore",
+      "Uproar",
+      "Endeavor",
+      "Gunk Shot",
+      "Iron Defense",
+      "Iron Head",
+      "Signal Beam"
+    ],
     "weight": 6.5
   },
   "Mothim": {
@@ -13514,6 +17438,15 @@
       [47, "Camouflage"],
       [50, "Hurricane"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam",
+      "Hurricane"
+    ],
     "weight": 23.3
   },
   "Combee": {
@@ -13532,6 +17465,14 @@
       [1, "Gust"],
       [1, "Bug Bite"],
       [1, "Bug Buzz"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Mud-Slap"
     ],
     "weight": 5.5
   },
@@ -13568,6 +17509,16 @@
       [45, "Tailwind"],
       [49, "Destiny Bond"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Endeavor",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 38.5
   },
   "Pachirisu": {
@@ -13601,6 +17552,19 @@
       [43, "Thunder"],
       [45, "Last Resort"]
     ],
+    "tutor": [
+      "Thunder Punch",
+      "Helping Hand",
+      "Last Resort",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb"
+    ],
     "weight": 3.9
   },
   "Buizel": {
@@ -13631,6 +17595,7 @@
       [40, "Me First"],
       [43, "Hydro Pump"]
     ],
+    "tutor": ["Dive", "Ice Punch", "Icy Wind", "Snore", "Swift", "Mud-Slap"],
     "weight": 29.5
   },
   "Floatzel": {
@@ -13662,6 +17627,15 @@
       [45, "Me First"],
       [49, "Hydro Pump"]
     ],
+    "tutor": [
+      "Dive",
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap"
+    ],
     "weight": 33.5
   },
   "Cherubi": {
@@ -13692,6 +17666,7 @@
       [40, "Healing Wish"],
       [43, "Solar Beam"]
     ],
+    "tutor": ["Helping Hand", "Snore", "Synthesis", "Rollout", "Seed Bomb"],
     "weight": 3.3
   },
   "Cherrim": {
@@ -13724,6 +17699,7 @@
       [46, "Healing Wish"],
       [50, "Solar Beam"]
     ],
+    "tutor": ["Helping Hand", "Snore", "Synthesis", "Rollout", "Seed Bomb"],
     "weight": 9.3
   },
   "Shellos": {
@@ -13756,6 +17732,7 @@
       [40, "Amnesia"],
       [43, "Recover"]
     ],
+    "tutor": ["Dive", "Icy Wind", "Snore", "Ancient Power", "Earth Power"],
     "weight": 6.3
   },
   "Gastrodon": {
@@ -13788,6 +17765,14 @@
       [44, "Acid Armor"],
       [44, "Amnesia"],
       [48, "Recover"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Mud-Slap"
     ],
     "weight": 29.9
   },
@@ -13823,6 +17808,22 @@
       [47, "Switcheroo"],
       [50, "Last Resort"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Knock Off",
+      "Thunder Punch",
+      "Last Resort",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Bounce",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 20.3
   },
   "Drifloon": {
@@ -13855,6 +17856,19 @@
       [40, "Weather Ball"],
       [43, "Hurricane"],
       [46, "Explosion"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 1.2
   },
@@ -13890,6 +17904,19 @@
       [49, "Hurricane"],
       [53, "Explosion"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 15.0
   },
   "Buneary": {
@@ -13922,6 +17949,16 @@
       [40, "Bounce"],
       [43, "Focus Punch"],
       [46, "Healing Wish"]
+    ],
+    "tutor": [
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Bounce",
+      "Endeavor",
+      "Mud-Slap"
     ],
     "weight": 5.5
   },
@@ -13959,6 +17996,20 @@
       [46, "Healing Wish"],
       [49, "High Jump Kick"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Bounce",
+      "Endeavor",
+      "Mud-Slap"
+    ],
     "weight": 33.3
   },
   "Mismagius": {
@@ -13984,6 +18035,16 @@
       [1, "Astonish"],
       [43, "Moonblast"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Uproar"
+    ],
     "weight": 4.4
   },
   "Honchkrow": {
@@ -14008,6 +18069,18 @@
       [41, "Night Slash"],
       [49, "Nasty Plot"],
       [55, "Brave Bird"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Spite",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Superpower",
+      "Hurricane"
     ],
     "weight": 27.3
   },
@@ -14042,6 +18115,15 @@
       [43, "Sucker Punch"],
       [46, "Flail"],
       [49, "Last Resort"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Sucker Punch",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Mud-Slap"
     ],
     "weight": 3.9
   },
@@ -14078,6 +18160,16 @@
       [51, "Flail"],
       [55, "Last Resort"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Sucker Punch",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 43.8
   },
   "Chingling": {
@@ -14101,6 +18193,19 @@
       [16, "Extrasensory"],
       [19, "Take Down"],
       [22, "Uproar"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Knock Off",
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 0.6
   },
@@ -14137,6 +18242,7 @@
       [49, "Gunk Shot"],
       [52, "Explosion"]
     ],
+    "tutor": ["Fury Cutter", "Sucker Punch", "Snore", "Swift", "Mud-Slap"],
     "weight": 19.2
   },
   "Skuntank": {
@@ -14173,6 +18279,7 @@
       [55, "Gunk Shot"],
       [59, "Explosion"]
     ],
+    "tutor": ["Fury Cutter", "Sucker Punch", "Snore", "Swift", "Mud-Slap"],
     "weight": 38.0
   },
   "Bronzor": {
@@ -14206,6 +18313,7 @@
       [42, "Payback"],
       [45, "Heal Block"]
     ],
+    "tutor": ["Trick", "Snore", "Ancient Power", "Rollout", "Signal Beam"],
     "weight": 60.5
   },
   "Bronzong": {
@@ -14242,6 +18350,15 @@
       [46, "Payback"],
       [50, "Heal Block"]
     ],
+    "tutor": [
+      "Trick",
+      "Zen Headbutt",
+      "Snore",
+      "Ancient Power",
+      "Iron Head",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 187.0
   },
   "Bonsly": {
@@ -14272,6 +18389,14 @@
       [33, "Counter"],
       [36, "Sucker Punch"],
       [39, "Double-Edge"]
+    ],
+    "tutor": [
+      "Sucker Punch",
+      "Helping Hand",
+      "Snore",
+      "Uproar",
+      "Earth Power",
+      "Rollout"
     ],
     "weight": 15.0
   },
@@ -14308,6 +18433,14 @@
       [45, "Baton Pass"],
       [48, "Safeguard"]
     ],
+    "tutor": [
+      "Trick",
+      "Helping Hand",
+      "Snore",
+      "Uproar",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 13.0
   },
   "Happiny": {
@@ -14328,6 +18461,17 @@
       [4, "Copycat"],
       [7, "Refresh"],
       [10, "Sweet Kiss"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Uproar",
+      "Endeavor",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 24.4
   },
@@ -14362,6 +18506,15 @@
       [45, "Nasty Plot"],
       [48, "Hurricane"]
     ],
+    "tutor": [
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Heat Wave",
+      "Mud-Slap",
+      "Hurricane"
+    ],
     "weight": 1.9
   },
   "Spiritomb": {
@@ -14394,6 +18547,15 @@
       [40, "Memento"],
       [43, "Pain Split"],
       [46, "Destiny Bond"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Uproar"
     ],
     "weight": 108.0
   },
@@ -14428,6 +18590,17 @@
       [46, "Stone Edge"],
       [49, "Outrage"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Swift",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 20.5
   },
   "Gabite": {
@@ -14459,6 +18632,17 @@
       [50, "Iron Head"],
       [54, "Stone Edge"],
       [58, "Outrage"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Swift",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
     ],
     "weight": 56.0
   },
@@ -14495,6 +18679,18 @@
       [64, "Outrage"],
       [70, "Extreme Speed"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 95.0
   },
   "Munchlax": {
@@ -14529,6 +18725,21 @@
       [48, "Snatch"],
       [51, "Last Resort"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Uproar",
+      "Gunk Shot",
+      "Mud-Slap",
+      "Rollout",
+      "Seed Bomb",
+      "Superpower"
+    ],
     "weight": 105.0
   },
   "Riolu": {
@@ -14557,6 +18768,19 @@
       [25, "Crunch"],
       [28, "Nasty Plot"],
       [31, "Cross Chop"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Ice Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Mud-Slap"
     ],
     "weight": 20.2
   },
@@ -14594,6 +18818,19 @@
       [53, "High Jump Kick"],
       [57, "Extreme Speed"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Ice Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Mud-Slap"
+    ],
     "weight": 54.0
   },
   "Hippopotas": {
@@ -14625,6 +18862,7 @@
       [51, "Fissure"],
       [55, "Superpower"]
     ],
+    "tutor": ["Snore", "Earth Power", "Mud-Slap", "Superpower"],
     "weight": 49.5
   },
   "Hippowdon": {
@@ -14659,6 +18897,7 @@
       [56, "Fissure"],
       [61, "Superpower"]
     ],
+    "tutor": ["Snore", "Earth Power", "Iron Head", "Mud-Slap", "Superpower"],
     "weight": 300.0
   },
   "Skorupi": {
@@ -14691,6 +18930,7 @@
       [42, "Crunch"],
       [45, "Cross Poison"]
     ],
+    "tutor": ["Fury Cutter", "Knock Off", "Snore", "Aqua Tail", "Mud-Slap"],
     "weight": 12.0
   },
   "Drapion": {
@@ -14726,6 +18966,7 @@
       [47, "Crunch"],
       [51, "Cross Poison"]
     ],
+    "tutor": ["Fury Cutter", "Knock Off", "Snore", "Aqua Tail", "Mud-Slap"],
     "weight": 61.5
   },
   "Croagunk": {
@@ -14759,6 +19000,20 @@
       [43, "Sludge Bomb"],
       [46, "Flatter"],
       [49, "Gunk Shot"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Snore",
+      "Spite",
+      "Bounce",
+      "Gunk Shot",
+      "Mud-Slap"
     ],
     "weight": 23.0
   },
@@ -14795,6 +19050,21 @@
       [51, "Flatter"],
       [55, "Gunk Shot"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Sucker Punch",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Helping Hand",
+      "Snore",
+      "Spite",
+      "Bounce",
+      "Gunk Shot",
+      "Mud-Slap"
+    ],
     "weight": 44.4
   },
   "Carnivine": {
@@ -14830,6 +19100,15 @@
       [42, "Wring Out"],
       [45, "Power Whip"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Synthesis",
+      "Gastro Acid",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 27.0
   },
   "Finneon": {
@@ -14861,6 +19140,17 @@
       [42, "U-turn"],
       [45, "Bounce"],
       [48, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Dive",
+      "Icy Wind",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Bounce",
+      "Hurricane"
     ],
     "weight": 7.0
   },
@@ -14897,6 +19187,17 @@
       [50, "Bounce"],
       [54, "Hydro Pump"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Dive",
+      "Icy Wind",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Bounce",
+      "Hurricane"
+    ],
     "weight": 24.0
   },
   "Mantyke": {
@@ -14930,6 +19231,16 @@
       [43, "Tailwind"],
       [46, "Hydro Pump"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Dive",
+      "Icy Wind",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Bounce",
+      "Mud-Slap"
+    ],
     "weight": 65.0
   },
   "Snover": {
@@ -14961,6 +19272,14 @@
       [40, "Icicle Crash"],
       [43, "Blizzard"],
       [46, "Sheer Cold"]
+    ],
+    "tutor": [
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 50.5
   },
@@ -14994,6 +19313,14 @@
       [41, "Icicle Crash"],
       [45, "Blizzard"],
       [49, "Sheer Cold"]
+    ],
+    "tutor": [
+      "Ice Punch",
+      "Icy Wind",
+      "Snore",
+      "Synthesis",
+      "Mud-Slap",
+      "Outrage"
     ],
     "weight": 135.5
   },
@@ -15030,6 +19357,16 @@
       [40, "Snatch"],
       [43, "Punishment"],
       [46, "Dark Pulse"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap"
     ],
     "weight": 34.0
   },
@@ -15068,6 +19405,15 @@
       [53, "Gyro Ball"],
       [57, "Zap Cannon"]
     ],
+    "tutor": [
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Iron Defense",
+      "Iron Head",
+      "Rollout",
+      "Signal Beam"
+    ],
     "weight": 180.0
   },
   "Lickilicky": {
@@ -15103,6 +19449,18 @@
       [52, "Power Whip"],
       [55, "Wring Out"],
       [58, "Gyro Ball"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Knock Off",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Rollout"
     ],
     "weight": 140.0
   },
@@ -15140,6 +19498,25 @@
       [54, "Superpower"],
       [58, "Rock Wrecker"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Uproar",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Endeavor",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Rollout",
+      "Superpower"
+    ],
     "weight": 282.8
   },
   "Tangrowth": {
@@ -15174,6 +19551,14 @@
       [43, "Wring Out"],
       [46, "Power Whip"],
       [49, "Leaf Storm"]
+    ],
+    "tutor": [
+      "Knock Off",
+      "Snore",
+      "Synthesis",
+      "Ancient Power",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 128.6
   },
@@ -15211,6 +19596,17 @@
       [53, "Thunder"],
       [57, "Giga Impact"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 138.6
   },
   "Magmortar": {
@@ -15246,6 +19642,14 @@
       [57, "Hyper Beam"],
       [61, "Magma Storm"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Thunder Punch",
+      "Helping Hand",
+      "Snore",
+      "Heat Wave",
+      "Mud-Slap"
+    ],
     "weight": 68.0
   },
   "Togekiss": {
@@ -15266,6 +19670,22 @@
       [1, "Extreme Speed"],
       [1, "Aura Sphere"],
       [1, "Air Slash"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Endeavor",
+      "Heat Wave",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam",
+      "Hurricane"
     ],
     "weight": 38.0
   },
@@ -15303,6 +19723,16 @@
       [43, "Screech"],
       [45, "Bug Buzz"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 51.5
   },
   "Leafeon": {
@@ -15338,6 +19768,17 @@
       [40, "Last Resort"],
       [43, "Power Whip"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 25.5
   },
   "Glaceon": {
@@ -15372,6 +19813,16 @@
       [37, "Earth Power"],
       [40, "Last Resort"],
       [43, "Blizzard"]
+    ],
+    "tutor": [
+      "Icy Wind",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 25.9
   },
@@ -15409,6 +19860,15 @@
       [43, "Swords Dance"],
       [46, "Guillotine"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Knock Off",
+      "Snore",
+      "Swift",
+      "Aqua Tail",
+      "Earth Power",
+      "Mud-Slap"
+    ],
     "weight": 42.5
   },
   "Mamoswine": {
@@ -15444,6 +19904,17 @@
       [43, "Icicle Crash"],
       [47, "Scary Face"],
       [51, "Blizzard"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Icy Wind",
+      "Knock Off",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Superpower"
     ],
     "weight": 291.0
   },
@@ -15482,6 +19953,16 @@
       [46, "Zap Cannon"],
       [49, "Hyper Beam"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Signal Beam"
+    ],
     "weight": 34.0
   },
   "Gallade": {
@@ -15514,6 +19995,21 @@
       [47, "False Swipe"],
       [52, "Feint"],
       [57, "Memento"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Fury Cutter",
+      "Ice Punch",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Vacuum Wave",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 52.0
   },
@@ -15551,6 +20047,19 @@
       [43, "Zap Cannon"],
       [46, "Head Smash"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Thunder Punch",
+      "Magnet Rise",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Rollout"
+    ],
     "weight": 340.0
   },
   "Dusknoir": {
@@ -15587,6 +20096,18 @@
       [43, "Future Sight"],
       [47, "Destiny Bond"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Thunder Punch",
+      "Snore",
+      "Spite",
+      "Mud-Slap"
+    ],
     "weight": 106.6
   },
   "Froslass": {
@@ -15621,6 +20142,18 @@
       [46, "Hail"],
       [50, "Blizzard"],
       [54, "Destiny Bond"]
+    ],
+    "tutor": [
+      "Ice Punch",
+      "Icy Wind",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Mud-Slap",
+      "Rollout",
+      "Signal Beam"
     ],
     "weight": 26.6
   },
@@ -15658,6 +20191,16 @@
       [46, "Pain Split"],
       [49, "Thunder"]
     ],
+    "tutor": [
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 0.3
   },
   "Rotom_heat": {
@@ -15693,6 +20236,17 @@
       [43, "Dark Pulse"],
       [46, "Pain Split"],
       [49, "Thunder"]
+    ],
+    "tutor": [
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam",
+      "Overheat"
     ],
     "weight": 0.3
   },
@@ -15730,6 +20284,17 @@
       [46, "Pain Split"],
       [49, "Thunder"]
     ],
+    "tutor": [
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam",
+      "Hydro Pump"
+    ],
     "weight": 0.3
   },
   "Rotom_frost": {
@@ -15765,6 +20330,17 @@
       [43, "Dark Pulse"],
       [46, "Pain Split"],
       [49, "Thunder"]
+    ],
+    "tutor": [
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam",
+      "Blizzard"
     ],
     "weight": 0.3
   },
@@ -15802,6 +20378,17 @@
       [46, "Pain Split"],
       [49, "Thunder"]
     ],
+    "tutor": [
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam",
+      "Air Slash"
+    ],
     "weight": 0.3
   },
   "Rotom_mow": {
@@ -15838,6 +20425,17 @@
       [46, "Pain Split"],
       [49, "Thunder"]
     ],
+    "tutor": [
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam",
+      "Leaf Storm"
+    ],
     "weight": 0.3
   },
   "Uxie": {
@@ -15868,6 +20466,19 @@
       [42, "Amnesia"],
       [46, "Rest"],
       [50, "Psychic"]
+    ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 0.3
   },
@@ -15900,6 +20511,19 @@
       [46, "Rest"],
       [50, "Psychic"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 0.3
   },
   "Azelf": {
@@ -15931,6 +20555,21 @@
       [46, "Rest"],
       [50, "Psychic"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Knock Off",
+      "Trick",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 0.3
   },
   "Dialga": {
@@ -15960,6 +20599,20 @@
       [42, "Earth Power"],
       [46, "Flash Cannon"],
       [50, "Roar of Time"]
+    ],
+    "tutor": [
+      "Fury Cutter",
+      "Magnet Rise",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
     ],
     "weight": 683.0
   },
@@ -15991,6 +20644,19 @@
       [46, "Hydro Pump"],
       [50, "Spacial Rend"]
     ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 336.0
   },
   "Heatran": {
@@ -16019,6 +20685,16 @@
       [42, "Heat Wave"],
       [46, "Stone Edge"],
       [50, "Magma Storm"]
+    ],
+    "tutor": [
+      "Snore",
+      "Uproar",
+      "Ancient Power",
+      "Earth Power",
+      "Heat Wave",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap"
     ],
     "weight": 430.0
   },
@@ -16052,6 +20728,19 @@
       [46, "Superpower"],
       [50, "Giga Impact"]
     ],
+    "tutor": [
+      "Fire Punch",
+      "Ice Punch",
+      "Icy Wind",
+      "Thunder Punch",
+      "Zen Headbutt",
+      "Snore",
+      "Ancient Power",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Superpower"
+    ],
     "weight": 420.0
   },
   "Giratina": {
@@ -16081,6 +20770,23 @@
       [42, "Earth Power"],
       [46, "Dragon Pulse"],
       [50, "Shadow Force"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Icy Wind",
+      "Ominous Wind",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
     ],
     "weight": 750.0
   },
@@ -16112,6 +20818,23 @@
       [46, "Dragon Pulse"],
       [50, "Shadow Force"]
     ],
+    "tutor": [
+      "Air Cutter",
+      "Fury Cutter",
+      "Icy Wind",
+      "Ominous Wind",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Hurricane",
+      "Draco Meteor"
+    ],
     "weight": 650.0
   },
   "Cresselia": {
@@ -16142,6 +20865,17 @@
       [46, "Psychic"],
       [50, "Moonblast"]
     ],
+    "tutor": [
+      "Fury Cutter",
+      "Icy Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Helping Hand",
+      "Snore",
+      "Swift",
+      "Mud-Slap",
+      "Signal Beam"
+    ],
     "weight": 85.6
   },
   "Phione": {
@@ -16171,6 +20905,20 @@
       [42, "Dive"],
       [46, "Rain Dance"],
       [50, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Knock Off",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Bounce",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 3.1
   },
@@ -16203,6 +20951,20 @@
       [42, "Dive"],
       [46, "Rain Dance"],
       [50, "Hydro Pump"]
+    ],
+    "tutor": [
+      "Dive",
+      "Icy Wind",
+      "Knock Off",
+      "Helping Hand",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Uproar",
+      "Ancient Power",
+      "Bounce",
+      "Mud-Slap",
+      "Signal Beam"
     ],
     "weight": 1.4
   },
@@ -16237,6 +20999,18 @@
       [46, "Dream Eater"],
       [50, "Dark Pulse"]
     ],
+    "tutor": [
+      "Icy Wind",
+      "Knock Off",
+      "Ominous Wind",
+      "Sucker Punch",
+      "Trick",
+      "Last Resort",
+      "Snore",
+      "Spite",
+      "Swift",
+      "Mud-Slap"
+    ],
     "weight": 50.5
   },
   "Shaymin": {
@@ -16267,6 +21041,17 @@
       [46, "Leaf Storm"],
       [50, "Seed Flare"]
     ],
+    "tutor": [
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Synthesis",
+      "Earth Power",
+      "Endeavor",
+      "Mud-Slap",
+      "Seed Bomb"
+    ],
     "weight": 2.1
   },
   "Shaymin_sky": {
@@ -16296,6 +21081,17 @@
       [42, "Sweet Kiss"],
       [46, "Leaf Storm"],
       [50, "Seed Flare"]
+    ],
+    "tutor": [
+      "Air Cutter",
+      "Ominous Wind",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Synthesis",
+      "Mud-Slap",
+      "Seed Bomb"
     ],
     "weight": 5.2
   },
@@ -16332,6 +21128,28 @@
       [46, "Blast Burn"],
       [46, "Hydro Cannon"],
       [50, "Judgment"]
+    ],
+    "tutor": [
+      "Dive",
+      "Fury Cutter",
+      "Icy Wind",
+      "Ominous Wind",
+      "Trick",
+      "Zen Headbutt",
+      "Last Resort",
+      "Snore",
+      "Swift",
+      "Ancient Power",
+      "Aqua Tail",
+      "Earth Power",
+      "Heat Wave",
+      "Iron Defense",
+      "Iron Head",
+      "Mud-Slap",
+      "Outrage",
+      "Signal Beam",
+      "Hurricane",
+      "Draco Meteor"
     ],
     "weight": 320.0
   }

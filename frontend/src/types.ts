@@ -186,12 +186,15 @@ export interface PathClick {
 }
 
 export interface TrainerEntry {
+  split: string; // the sheet's split tab ("Roark" ... "Champion"), the file is in story order
+  id?: number; // [pp] trainer id, missing when the sheet doesn't give one
   sprite: string;
   team: PokemonConfig[];
   trainer_items?: string[];
   terrain?: string; // Nature Power's battle terrain, plain when missing
   if_starter?: string; // a rival variant: only met if the player chose this starter
   if_player?: string; // only met if the player is this gender ("Male" / "Female")
+  lacks?: string[]; // added by /trainers: what the engine can't run yet, missing when nothing
 }
 
 export type TrainerDB = Record<string, TrainerEntry>;

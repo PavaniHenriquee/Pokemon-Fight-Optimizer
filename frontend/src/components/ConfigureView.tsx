@@ -16,13 +16,25 @@ import type {
   PokemonData,
   TrainerDB,
 } from "../types";
-import { MyTeamSlot, NameSelect, OpponentSlot } from "./PokemonSlots";
+import { MyTeamSlot, OpponentSlot } from "./PokemonSlots";
 import { OPPONENT_MIN_HEIGHT, teamCardFit } from "@/lib/cardFit";
 import {
   boxAfterPartyEdit,
   partyAfterEdit,
+  trainerPickable,
   trainerVisible,
 } from "@/lib/nuzlocke";
+import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+} from "./ui/combobox";
 import { displayName } from "@/lib/format";
 import { trainerSprite } from "@/lib/sprites";
 import type { BoxState } from "@/lib/useBox";
@@ -193,6 +205,72 @@ function BoxUnavailable({
 
 // ─── Opponent side: trainer picker, items, read-only team ─────────────────────
 
+type TrainerGroup = { value: string; items: string[] };
+
+// Trainers under a header per split, in the file's story order. One the engine can't run yet is greyed
+// out with what it lacks on a second line (a disabled item gets no hover, so no tooltip)
+function TrainerSelect({
+  trainerDB,
+  trainers,
+  value,
+  onChange,
+  placeholder,
+}: {
+  trainerDB: TrainerDB;
+  trainers: string[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const groups: TrainerGroup[] = [];
+  for (const t of trainers) {
+    const last = groups[groups.length - 1];
+    if (last?.value === trainerDB[t].split) last.items.push(t);
+    else groups.push({ value: trainerDB[t].split, items: [t] });
+  }
+  return (
+    <Combobox
+      value={value}
+      onValueChange={(v) => onChange((v as string | null) ?? "")}
+      items={groups}
+    >
+      <ComboboxInput
+        className="h-8 w-full min-w-0"
+        placeholder={placeholder}
+        showClear={!!value}
+        onFocus={(e) => e.currentTarget.select()}
+      />
+      <ComboboxContent className="min-w-72">
+        <ComboboxEmpty>No results</ComboboxEmpty>
+        <ComboboxList>
+          {(group: TrainerGroup) => (
+            <ComboboxGroup key={group.value} items={group.items}>
+              <ComboboxLabel>{group.value} split</ComboboxLabel>
+              <ComboboxCollection>
+                {(t: string) => {
+                  const lacks = trainerDB[t].lacks;
+                  return (
+                    <ComboboxItem key={t} value={t} disabled={!!lacks}>
+                      <span className="min-w-0">
+                        <span className="block truncate">{t}</span>
+                        {lacks && (
+                          <span className="block text-[11px] text-muted-foreground">
+                            Lacks {lacks.join(", ")}
+                          </span>
+                        )}
+                      </span>
+                    </ComboboxItem>
+                  );
+                }}
+              </ComboboxCollection>
+            </ComboboxGroup>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
 function OpponentPanel({
   trainerDB,
   run,
@@ -216,9 +294,10 @@ function OpponentPanel({
   pokemonData: PokemonData;
   onAddSlot: () => void;
 }) {
-  const options = Object.keys(trainerDB).filter((t) =>
+  const visible = Object.keys(trainerDB).filter((t) =>
     trainerVisible(trainerDB[t], run),
   );
+  const options = visible.filter((t) => !trainerDB[t].lacks); // ‹ › skip what the engine can't run
   const position = options.indexOf(selectedTrainer); // -1 with none selected: › goes to the first
   const sprite = trainerDB[selectedTrainer]?.sprite;
   const items = trainerItems.filter(Boolean);
@@ -282,12 +361,12 @@ function OpponentPanel({
                   </Button>
                 </div>
               </div>
-              <NameSelect
+              <TrainerSelect
+                trainerDB={trainerDB}
+                trainers={visible}
                 value={selectedTrainer}
                 onChange={(v) => onSelectTrainer(v || null)}
-                items={options}
                 placeholder={options[0]}
-                clearable={!!selectedTrainer}
               />
             </div>
           </div>
@@ -405,9 +484,10 @@ export default function ConfigureView({
       return;
     if (savedTrainer && savedTrainer === selectedTrainer) return;
     const first = Object.keys(trainerDB).find((t) =>
-      trainerVisible(trainerDB[t], run),
+      trainerPickable(trainerDB[t], run),
     );
-    loadTrainer(trainerDB[savedTrainer] ? savedTrainer : (first ?? null));
+    const saved = trainerDB[savedTrainer] && !trainerDB[savedTrainer].lacks;
+    loadTrainer(saved ? savedTrainer : (first ?? null));
   }, [trainerDB, savedTrainer]);
 
   // A starter or gender choice (or the run loading) hid the selected rival variant
@@ -415,7 +495,7 @@ export default function ConfigureView({
     const selected = trainerDB[selectedTrainer];
     if (selected && !trainerVisible(selected, run)) {
       const first = Object.keys(trainerDB).find((t) =>
-        trainerVisible(trainerDB[t], run),
+        trainerPickable(trainerDB[t], run),
       );
       handleSelectTrainer(first ?? null);
     }
