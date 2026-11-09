@@ -263,7 +263,8 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   20% roll per holder per turn, within the same priority); the Metronome item follows [pp] (cap 10, keyed in
   `node_key` k4); RP's AI does steal with Covet; the rollout counts a working opponent OHKO as a KO. King's Rock
   / Razor Fang follow [SD gen4] (10% per hit, Serene Grace doubles it) on its move list plus RP's damaging moves
-  from after Gen IV (`kings_rock` in MoveDB, which `add_moves` sets).
+  from after Gen IV (`kings_rock` in MoveDB, which `add_moves` sets). Choice Band / Specs go before every
+  ability ([pp] applies Huge Power, Pure Power and Slow Start first), and Band boosts the confusion self-hit ([pp]).
 - Berries (4.3): Micle follows [pp] (lasts until the holder's next accuracy roll or a switch-out, OHKO and
   always-hit moves keep it); Safeguard doesn't stop a confusion berry's confusion ([SD]); Enigma, Jaboca and
   Rowap work per hit ([SD]); Bug Bite follows [pp] PluckBerry, quirk included: a plucked Persim raises Attack
@@ -368,6 +369,11 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   doesn't see.
 - Custap is eaten when the turn order is set, not when its holder moves: a holder KO'd first by a higher
   priority move loses it ([pp] keeps it), and its slot's Recycle item follows.
+- Choice lock: a locked move that leaves the moveset ends the lock in [pp] (`CheckInvalidMoves`); it needs Mimic or
+  Transform (12.2). [pp] also clears the lock of a Pokemon hit while holding no choice item; the engine keeps it
+  stored (it does nothing without a choice item) until a choice item comes back, which only Trick can do (4.5).
+- Sleep Talk isn't in yet: its move pool must go through `move_blocked` ([pp] `TrySleepTalk`), so it fails
+  under a choice lock ([SD gen4] agrees).
 - Search: `evaluate_terminal` counts deaths, so every Pokemon is worth the same: a win that loses the
   team's best Pokemon scores like one that loses its worst.
 - Search: `ROOT_C` costs wins at very low budgets: Roark weak at 200 iterations wins 2.1%, against 8.7% with

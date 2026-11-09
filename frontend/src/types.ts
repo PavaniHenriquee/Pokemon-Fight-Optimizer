@@ -20,7 +20,7 @@ export interface PokemonState {
   hp: number;
   max_hp: number;
   status: string; // "BRN" | "PAR" | "SLP" | ""
-  vol_status: string[]; // ["Confused", "Leech Seed"]
+  vol_status: string[]; // ["Confused", "Leech Seed", "Choice: Tackle"]
   stages: Record<string, number>; // { "Atk": 2, "SpD": -1 } — only non-zero
   item?: string;
   moves?: MoveEntry[];

@@ -702,6 +702,51 @@ def test_confusion_self_hit_thick_club(poke):
     assert ratio(calculate_damage_confusion(held), base) == pytest.approx(2.0, abs=0.1)
 
 
+def test_confusion_self_hit_choice_band(poke):
+    """Choice Band boosts the Attack of the confusion hit too (pokeplatinum CALC_SELF_HIT goes
+    through BattleSystem_CalcMoveDamage)"""
+    plain = poke("Rattata", 100, "Run Away", ["Tackle"])
+    held = poke("Rattata", 100, "Run Away", ["Tackle"], item="Choice Band")
+    random.seed(3)
+    base = calculate_damage_confusion(plain)
+    random.seed(3)
+    assert ratio(calculate_damage_confusion(held), base) == pytest.approx(1.5, abs=0.1)
+
+
+@pytest.mark.parametrize("item, attack, sp_attack", [
+    ("Choice Band", 151, 101), ("Choice Specs", 101, 151), ("Choice Scarf", 101, 101),
+])
+def test_choice_band_and_specs(poke, item, attack, sp_attack):
+    """Choice Band x150/100 on the raw Attack, Choice Specs on the raw Sp. Atk, before the stages"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle", "Ember"], item=item)
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.ATTACK] = a[Pok.SPECIAL_ATTACK] = 101
+    assert raw_atk_def(move_slice(a, 0), a, d)[0] == attack
+    assert raw_atk_def(move_slice(a, 1), a, d)[0] == sp_attack
+    a[Pok.ATTACK_STAT_STAGE] = 2
+    assert raw_atk_def(move_slice(a, 0), a, d)[0] == attack * 2
+
+
+def test_choice_band_before_huge_power(poke):
+    """The item goes before every ability, Huge Power included: 101 -> 151 -> 302 (my call,
+    pokeplatinum doubles first, 303)"""
+    a = poke("Azumarill", 50, "Huge Power", ["Tackle"], item="Choice Band")
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.ATTACK] = 101
+    assert raw_atk_def(move_slice(a, 0), a, d)[0] == 302
+
+
+@pytest.mark.parametrize("item, slot", [("Choice Band", 0), ("Choice Specs", 1)])
+def test_ai_damage_sees_choice_items(poke, item, slot):
+    """The AI's damage estimate gets Choice Band / Specs too (TrainerAI_CalcDamage)"""
+    plain = poke("Rattata", 100, "Run Away", ["Tackle", "Ember"])
+    held = poke("Rattata", 100, "Run Away", ["Tackle", "Ember"], item=item)
+    d = poke("Rattata", 100, "Run Away", ["Tackle"])
+    base = calculate_ai_logic_damage(1.0, plain, d, move_slice(plain, slot), 0)
+    boosted = calculate_ai_logic_damage(1.0, held, d, move_slice(held, slot), 0)
+    assert ratio(boosted, base) == pytest.approx(1.5, abs=0.1)
+
+
 @pytest.mark.parametrize("item, boosted", [("Muscle Band", True), ("Silk Scarf", False)])
 def test_struggle_items(poke, item, boosted):
     """Struggle is typeless: Muscle Band boosts it, a type item doesn't"""

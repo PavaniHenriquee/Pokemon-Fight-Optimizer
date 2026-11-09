@@ -108,6 +108,7 @@ from Models.constants import (
     _HOLDEFFECT_PINCH_CRITRATE_UP, _HOLDEFFECT_PINCH_RANDOM_UP, _HOLDEFFECT_PINCH_ACC_UP,
     _HOLDEFFECT_HP_RESTORE_SE, _HOLDEFFECT_RECOIL_PHYSICAL, _HOLDEFFECT_RECOIL_SPECIAL,
     _POK_NATURE_MINUS, _VOLSTATUS2_MICLE, _MOVE_PP_UP, _MOVECATEGORY_SPECIAL,
+    _POK_CHOICE_LOCK, _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK, _HOLDEFFECT_CHOICE_SPEED,
 )
 from DataBase.PkDB import PokemonName
 
@@ -119,6 +120,8 @@ DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 HP_RESTORE_EFFECTS = (_HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE)
 METRONOME_MAX_COUNT = 10
+# Choice Band, Choice Specs and Choice Scarf
+CHOICE_EFFECTS = (_HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK, _HOLDEFFECT_CHOICE_SPEED)
 # Pecha, Chesto, Lum, Mental Herb, Cheri, Rawst, Aspear and Persim
 STATUS_CURE_EFFECTS = (
     _HOLDEFFECT_PSN_RESTORE, _HOLDEFFECT_SLP_RESTORE, _HOLDEFFECT_STATUS_RESTORE,
@@ -215,9 +218,12 @@ def unlock_move(pok):
 def move_blocked(pok, slot, gravity=False):
     """
     Disable, Encore or Taunt keep this move slot from being selected, and so does Gravity for
-    its moves (PP is checked apart)
+    its moves and a choice item for every slot but the locked one (PP is checked apart)
     """
     if gravity and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _FLAGS_GRAVITY]:
+        return True
+    lock = pok[_POK_CHOICE_LOCK]
+    if lock and slot != lock - 1 and pok[_ITEM_HOLD_EFFECT] in CHOICE_EFFECTS:
         return True
     vol = pok[_POK_VOL_STATUS]
     if vol & _VOLSTATUS_DISABLE and slot == pok[_POK_DISABLE_TURNS] & SLOT_MASK:
@@ -228,6 +234,22 @@ def move_blocked(pok, slot, gravity=False):
         vol & _VOLSTATUS_TAUNT
         and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_CATEGORY] == _MOVECATEGORY_STATUS
     )
+
+
+@njit
+def update_choice_lock(pok, slot):
+    """
+    After a move that got past the can't-move checks, a choice item holder is locked into the
+    selected slot (a caller like Metronome locks itself, Struggle keeps the lock it had) and
+    without one the lock ends. The item is read after the move, so a Covet that steals one locks
+    into Covet (pokeplatinum BattleControllerPlayer_UpdateMoveBuffers)
+    """
+    if pok[_POK_CURRENT_HP] <= 0 or pok[_POK_LAST_MOVE_ID] == 0:
+        return
+    if pok[_ITEM_HOLD_EFFECT] not in CHOICE_EFFECTS:
+        pok[_POK_CHOICE_LOCK] = 0
+    elif slot < 4:
+        pok[_POK_CHOICE_LOCK] = slot + 1
 
 
 @njit
@@ -1225,6 +1247,7 @@ def reset_switch_out(pok):
     pok[_POK_METRONOME_COUNT] = 0
     pok[_POK_VOL_STATUS2] = 0
     pok[_POK_SUB_HP] = 0
+    pok[_POK_CHOICE_LOCK] = 0
     pok[_POK_AB_KNOWN] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
     if pok[_POK_BASE_AB_ID]:

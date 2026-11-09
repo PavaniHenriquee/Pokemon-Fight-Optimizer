@@ -283,6 +283,9 @@ class HoldEffect:
     HP_RESTORE_SE       = 73
     RECOIL_PHYSICAL     = 74
     RECOIL_SPECIAL      = 75
+    CHOICE_ATK          = 76
+    CHOICE_SPATK        = 77
+    CHOICE_SPEED        = 78
 
 
 _HP_RAW = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))

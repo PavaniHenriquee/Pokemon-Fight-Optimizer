@@ -3054,3 +3054,86 @@ def test_custap_turn(make_pokemon, make_battle):
     me[Pok.CURRENT_HP] = 1
     first = battle.move_order(me, 0, opp_active(arr), 0, False, False, 0)
     assert first[3] is True and me[Item.ID] == 0
+
+
+# ── Choice items ─────────────────────────────────────────────────────────────
+
+def _choice_battle(make_pokemon, make_battle, my_moves, my_item="Choice Band", opp=None):
+    me = make_pokemon("Rattata", 30, "Run Away", my_moves, item=my_item)
+    return make_battle([me], opp or [make_pokemon("Geodude", 30, "Sturdy", ["Defense Curl"])])
+
+
+def test_choice_item_locks_into_the_move_that_ran(make_pokemon, make_battle):
+    """The first move locks the holder, the other slots can't be picked"""
+    arr = _choice_battle(make_pokemon, make_battle, ["Tackle", "Growl"])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.CHOICE_LOCK] == 2
+    assert engine_helper.move_blocked(me, 0) and not engine_helper.move_blocked(me, 1)
+
+
+def test_choice_item_doesnt_lock_on_a_turn_without_the_move(monkeypatch, make_pokemon, make_battle):
+    """Full paralysis, a flinch or sleep: "X used Y!" never shows, no lock (pokeplatinum
+    SYSCTL_ATTACK_MESSAGE_SHOWN)"""
+    arr = _choice_battle(make_pokemon, make_battle, ["Tackle", "Growl"])
+    monkeypatch.setattr(battle, "early_returns", lambda *args: True)
+    turn_sim(0, (MOVE, 1), arr)
+    assert my_active(arr)[Pok.CHOICE_LOCK] == 0
+
+
+def test_choice_item_locks_metronome_into_itself(make_pokemon, make_battle):
+    """The selected move locks, not the one Metronome called"""
+    battle.random.seed(4)
+    arr = _choice_battle(make_pokemon, make_battle, ["Tackle", "Metronome"])
+    turn_sim(0, (MOVE, 1), arr)
+    assert my_active(arr)[Pok.CHOICE_LOCK] == 2
+
+
+def test_choice_lock_follows_the_foe(make_pokemon, make_battle):
+    """The foe's move locks it the same way"""
+    opp = [make_pokemon("Geodude", 30, "Sturdy", ["Tackle", "Defense Curl"], item="Choice Scarf")]
+    arr = _choice_battle(make_pokemon, make_battle, ["Growl"], my_item="", opp=opp)
+    turn_sim(1, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.CHOICE_LOCK] == 2
+
+
+def test_covet_stealing_a_choice_item_locks_into_covet(make_pokemon, make_battle):
+    """The item is read after the move (pokeplatinum UpdateMoveBuffers)"""
+    battle.random.seed(1)
+    opp = [make_pokemon("Geodude", 30, "Sturdy", ["Defense Curl"], item="Choice Band")]
+    arr = _choice_battle(make_pokemon, make_battle, ["Tackle", "Covet"], my_item="", opp=opp)
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Item.ID] == ItemNames.CHOICE_BAND and me[Pok.CHOICE_LOCK] == 2
+
+
+def test_pursuit_on_a_switch_locks(make_pokemon, make_battle):
+    """Pursuit before the switch locks its user (pokeplatinum BtlCmd_TryPursuit)"""
+    mine = [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    opp = [make_pokemon("Murkrow", 20, "Insomnia", ["Growl", "Pursuit"], item="Choice Band")]
+    arr = make_battle(mine, opp)
+    turn_sim(1, (SWITCH, 1), arr)
+    assert opp_active(arr)[Pok.CHOICE_LOCK] == 2
+
+
+def test_baton_pass_doesnt_pass_the_choice_lock(make_pokemon, make_battle):
+    """The passer's lock ends on switch-out, the one coming in isn't locked"""
+    mine = [make_pokemon("Rattata", 30, "Run Away", ["Baton Pass"], item="Choice Band"),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"], item="Choice Band")]
+    arr = make_battle(mine, [make_pokemon("Machop", 10, "Guts", ["Leer"])])
+    rattata = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    battle.baton_pass_action(arr, 1)
+    assert rattata[Pok.CHOICE_LOCK] == 0 and my_active(arr)[Pok.CHOICE_LOCK] == 0
+
+
+def test_choice_lock_with_no_pp_left_struggles(make_pokemon, make_battle):
+    """The locked move out of PP leaves only Struggle, which keeps the lock"""
+    arr = _choice_battle(make_pokemon, make_battle, ["Tackle", "Growl"])
+    me = my_active(arr)
+    me[Pok.CHOICE_LOCK] = 1
+    move_slice(me, 0)[Move.PP] = 0
+    hp = opp_active(arr)[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 10), arr)
+    assert opp_active(arr)[Pok.CURRENT_HP] < hp and me[Pok.CHOICE_LOCK] == 1

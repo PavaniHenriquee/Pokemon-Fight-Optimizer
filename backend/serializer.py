@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from Models.idx_const import (
-    Pok, Move, MOVE_STRIDE, POK_LEN, Field as FieldIdx, SIDE_REFLECT_TURNS,
+    Pok, Move, Item, MOVE_STRIDE, POK_LEN, Field as FieldIdx, SIDE_REFLECT_TURNS,
     SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS,
     SIDE_TOXIC_SPIKES,
 )
@@ -11,6 +11,7 @@ from Models.helper import (
     BattlePhase, Gender, VolStatus, VolStatus2, SideCondition, Weather, Types, MoveCategory,
 )
 from DataBase.PkDB import PokIdToName, sprite_id
+from Engine.engine_helper import CHOICE_EFFECTS
 from DataBase.MoveDB import MoveIdToName, MoveName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
 from DataBase.AbilitiesDB import AbilityNames
@@ -174,6 +175,15 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
     }
 
 
+def _choice_chip(arr) -> list[str]:
+    """'Choice: <move>' while a choice item keeps the Pokemon to one move"""
+    lock = int(arr[Pok.CHOICE_LOCK])
+    if not lock or int(arr[Item.HOLD_EFFECT]) not in CHOICE_EFFECTS:
+        return []
+    move_id = int(arr[Pok.MOVE1_ID + (lock - 1) * MOVE_STRIDE + Move.ID])
+    return [f"Choice: {MoveIdToName.get(move_id, f'Move#{move_id}').replace('_', ' ').title()}"]
+
+
 def _pok(arr) -> dict | None:
     """Serialize the key display fields from one Pokemon's array slice."""
     if arr is None or len(arr) == 0:
@@ -192,7 +202,8 @@ def _pok(arr) -> dict | None:
         "vol_status": [name for bit, name in VOL_BITS.items()
                        if int(arr[Pok.VOL_STATUS]) & bit]
                       + [name for bit, name in VOL2_BITS.items()
-                         if int(arr[Pok.VOL_STATUS2]) & bit],
+                         if int(arr[Pok.VOL_STATUS2]) & bit]
+                      + _choice_chip(arr),
         "stages":     {STAGE_NAMES[i]: int(arr[Pok.ATTACK_STAT_STAGE + i])
                        for i in range(7)
                        if int(arr[Pok.ATTACK_STAT_STAGE + i]) != 0},

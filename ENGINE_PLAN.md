@@ -9,7 +9,8 @@ Updated only when asked.
 - Done: 1.4 (MoveDB entry helper), 2.1 (state design note) and 2.2 (`node_key` capacity), 2026-11-08.
 - Done: Phase 3 (Substitute and its audit), 2026-11-08.
 - Done: 4.1 (simple held items), 4.2 (items with their own rules) and 4.3 (berries), 2026-11-08.
-- Next: 4.4, choice items.
+- Done: 4.4 (choice items), 2026-11-09.
+- Next: 4.5, item moves.
 
 ## Goal
 
@@ -277,9 +278,9 @@ Others:
 
 This covers the lock state, `move_blocked`, the AI, and Encore and Struggle.
 
-- [ ] Choice Band !!
-- [ ] Choice Specs !!
-- [ ] Choice Scarf !!
+- [x] Choice Band !!
+- [x] Choice Specs !!
+- [x] Choice Scarf !!
 
 ### 4.5 Item moves
 

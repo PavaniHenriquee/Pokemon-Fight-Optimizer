@@ -11,6 +11,7 @@ from Engine.engine_helper import (
     RECORD_DAMAGE, weather_dmg, WEATHER_NOT_END_OF_TURN,
     mark_hurt, unlock_move, apply_recoil, move_recoil, struggle_recoil, natural_gift,
     try_protect, endure_damage, side_base, knock_off, carry_recycle, recycle, heal_move, refresh,
+    update_choice_lock,
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
     damp_blocks, status_item, pressure_pp, truant_loafs, metronome_count, metronome_fail,
     power_herb, sticky_hold, big_root, recover_status_by_ability, counter_fails,
@@ -347,6 +348,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
             mark_hurt(atk)
             atk[_POK_CURRENT_HP] = 0
         after_move_hit_items(atk, doubled, dealt, hit_pok)
+    update_choice_lock(atk, slot)
     status_item(atk)
     status_item(defn)
     return True
@@ -1025,6 +1027,7 @@ def action(current_move, opp_move, battle_array):
             atk1, def1, mv1, first_is_mine, current_move, opp_move,
             flinch, 1, count == 1, battle_array, weather, record_phy, record_sp
         )
+        update_choice_lock(atk1, mv1_slot)
         _clear_charge(atk1, mv1)
         _after_move_items(battle_array)
 
@@ -1059,6 +1062,7 @@ def action(current_move, opp_move, battle_array):
             atk2, def2, mv2, not first_is_mine, current_move, opp_move,
             flinch, 2, True, battle_array, effective_weather(battle_array)
         )
+        update_choice_lock(atk2, mv2_slot)
         _clear_charge(atk2, mv2)
         _after_move_items(battle_array)
 
@@ -1708,6 +1712,7 @@ def baton_pass_action(battle_array, switch_idx: int):
             current_opp, current_pokemon, mv, False, -1, slot, False, 2, True, battle_array,
             effective_weather(battle_array)
         )
+        update_choice_lock(current_opp, slot)
         _clear_charge(current_opp, mv)
         _after_move_items(battle_array)
     phase, _opp_idx = _finish_turn(battle_array)

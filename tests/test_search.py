@@ -950,6 +950,20 @@ def test_disable_encore_taunt_filter_moves(make_pokemon, make_battle, vol, field
     assert mask_actions(arr) == moves + [(SWITCH, 1)] == legal_actions(arr)
 
 
+@pytest.mark.parametrize("item, pp, moves", [
+    ("Choice Band", 10, [(MOVE, 1)]), ("Choice Band", 0, [(MOVE, 10)]),
+    ("Oran Berry", 10, [(MOVE, 0), (MOVE, 1)]),
+])
+def test_choice_lock_filters_moves(make_pokemon, make_battle, item, pp, moves):
+    """Only the locked move while a choice item holds it, Struggle once it's out of PP"""
+    team = [make_pokemon("Rattata", 10, "Run Away", ["Tackle", "Growl"], item=item),
+            make_pokemon("Pidgey", 10, "Run Away", ["Tackle"])]
+    arr = make_battle(team, [make_pokemon("Rattata", 10, "Run Away", ["Tackle"])])
+    my_active(arr)[Pok.CHOICE_LOCK] = 2
+    move_slice(my_active(arr), 1)[Move.PP] = pp
+    assert mask_actions(arr) == moves + [(SWITCH, 1)] == legal_actions(arr)
+
+
 def test_bind_blocks_switching(make_pokemon, make_battle):
     """A partially trapped active can't switch out"""
     team = [make_pokemon(n, 10, "Run Away", ["Tackle"]) for n in ("Rattata", "Pidgey")]
@@ -1169,6 +1183,27 @@ def test_node_key_sees_the_metronome_item_count(one_v_one, mine):
     two = node_key(arr)
     pok[Pok.METRONOME_COUNT] = (MoveName.GROWL << 4) + 2
     assert len({key, one, two, node_key(arr)}) == 4
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_the_choice_lock(make_pokemon, make_battle, mine):
+    """The locked slot splits nodes while a choice item holds it, a leftover lock without one adds
+    nothing"""
+    my = [make_pokemon("Rattata", 10, "Run Away", ["Tackle", "Growl"], item="Choice Band")]
+    opp = [make_pokemon("Rattata", 10, "Run Away", ["Tackle", "Growl"], item="Choice Scarf")]
+    arr = make_battle(my, opp)
+    pok = my_active(arr) if mine else opp_active(arr)
+    free = node_key(arr)
+    pok[Pok.CHOICE_LOCK] = 1
+    one = node_key(arr)
+    pok[Pok.CHOICE_LOCK] = 2
+    assert len({free, one, node_key(arr)}) == 3
+    shift = CHOICE_KEY_SHIFT + (SIDE_KEY_SHIFT if mine else 0)
+    assert node_key(arr)[4] >> shift & 7 == 2
+    pok[Item.ID:Item.ID + ITEM_LEN] = 0
+    without = node_key(arr)
+    pok[Pok.CHOICE_LOCK] = 0
+    assert without == node_key(arr)
 
 
 @pytest.mark.parametrize("ability, picked", [("Cute Charm", True), ("Normalize", False)])

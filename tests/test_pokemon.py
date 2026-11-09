@@ -55,6 +55,7 @@ def test_to_np_base_fields(make_pokemon):
     assert arr[Pok.LOCKED_MOVE] == -1
     assert not arr[Pok.ATTACK_STAT_STAGE:Pok.EVASION_STAT_STAGE + 1].any()
     assert arr[Pok.STATUS] == 0 and arr[Pok.VOL_STATUS] == 0
+    assert arr[Pok.CHOICE_LOCK] == 0
     assert arr[Pok.AB_ID] == AbilityNames.STURDY
 
 

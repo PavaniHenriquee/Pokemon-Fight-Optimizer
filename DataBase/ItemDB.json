@@ -177,6 +177,30 @@
     "type": "berry",
     "when": "on_receive_damage"
   },
+  "Choice Band": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "choice_atk",
+    "name": "choice_band",
+    "type": "choice",
+    "when": "on_prepare_hit"
+  },
+  "Choice Scarf": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "choice_speed",
+    "name": "choice_scarf",
+    "type": "choice",
+    "when": "on_selection"
+  },
+  "Choice Specs": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "choice_spatk",
+    "name": "choice_specs",
+    "type": "choice",
+    "when": "on_prepare_hit"
+  },
   "Chople Berry": {
     "effect_param": 0,
     "effect_type": "Fighting",

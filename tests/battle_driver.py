@@ -50,8 +50,15 @@ def is_over(arr):
     return not alive_slots(arr) or not alive_slots(arr, opp=True)
 
 
+_CHOICE_ITEMS = (HoldEffect.CHOICE_ATK, HoldEffect.CHOICE_SPATK, HoldEffect.CHOICE_SPEED)
+
+
 def _blocked(active, i, mv):
-    """Disable, Encore and Taunt (the slot is packed as turns * 4 + slot)"""
+    """Disable, Encore and Taunt (the slot is packed as turns * 4 + slot), and a choice item's
+    lock (slot + 1)"""
+    lock = active[Pok.CHOICE_LOCK]
+    if lock and i != lock - 1 and active[Item.HOLD_EFFECT] in _CHOICE_ITEMS:
+        return True
     vol = active[Pok.VOL_STATUS]
     if vol & VolStatus.DISABLE and i == active[Pok.DISABLE_TURNS] % 4:
         return True

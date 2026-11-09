@@ -11,6 +11,7 @@ from Models.constants import (
     _HOLDEFFECT_SOMETIMES_PRIORITY, _HOLDEFFECT_DITTO_SPEED_UP, _POK_ID,
     _HOLDEFFECT_EVS_UP_SPEED_DOWN, _HOLDEFFECT_LVLUP_EV_UP, _HOLDEFFECT_SPEED_DOWN_GROUNDED,
     _POK_CURRENT_HP, _POK_MAX_HP, _ABILITYNAMES_GLUTTONY, _HOLDEFFECT_PINCH_PRIORITY,
+    _HOLDEFFECT_CHOICE_SPEED,
 )
 from DataBase.PkDB import PokemonName
 
@@ -82,9 +83,10 @@ def _speed(pok, weather):
             speed *= 2
         elif weather == _WEATHER_RAIN and ab == _ABILITYNAMES_SWIFT_SWIM:
             speed *= 2
-    # TODO: Choice Scarf ×1.5 goes after the halving items, before Quick Powder.
     if pok[_ITEM_HOLD_EFFECT] in SPEED_HALVING:
         speed //= 2
+    elif pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_CHOICE_SPEED:
+        speed = speed * 15 // 10
     elif pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_DITTO_SPEED_UP and pok[_POK_ID] == DITTO:
         speed *= 2
     if speed_ab and ab == _ABILITYNAMES_QUICK_FEET and pok[_POK_STATUS] != 0:

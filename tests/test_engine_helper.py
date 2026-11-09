@@ -10,6 +10,7 @@ from Engine.engine_helper import (
     early_returns, struggle,
     thaw, heal_weather, on_residual, flinch_checker, unlock_move, move_recoil, apply_recoil,
     natural_gift, try_protect, endure_damage, move_blocked, apply_hazards, stealth_rock_damage,
+    update_choice_lock,
     heal_move, refresh, recycle, carry_recycle, knock_off, worry_seed, perish_song, perish_count,
     is_grounded, ohko_fails, move_accuracy, on_hit_abilities, trace, download,
     recover_status_by_ability, pressure_pp, confusion, metronome_count, metronome_fail,
@@ -64,6 +65,17 @@ def test_quick_powder_doubles_ditto_speed_before_paralysis(poke, species, double
     assert check_speed(a, b, 0)[0] == speed
     a[Pok.STATUS] = Status.PARALYSIS
     assert check_speed(a, b, 0)[0] == speed // 4
+
+
+def test_choice_scarf_before_paralysis(poke):
+    """Choice Scarf x15/10, then paralysis quarters it (pokeplatinum
+    BattleSystem_CompareBattlerSpeed)"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"], item="Choice Scarf")
+    b = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.SPEED] = 101
+    assert check_speed(a, b, 0)[0] == 151
+    a[Pok.STATUS] = Status.PARALYSIS
+    assert check_speed(a, b, 0)[0] == 151 // 4
 
 
 @pytest.mark.parametrize("item", [
@@ -1603,6 +1615,44 @@ def test_move_blocked(poke, vol, field, packed, blocked):
     p[Pok.VOL_STATUS] = vol
     p[field] = packed
     assert [move_blocked(p, i) for i in range(3)] == blocked
+
+
+@pytest.mark.parametrize("item, blocked", [
+    ("Choice Band", [True, False, True]), ("Choice Scarf", [True, False, True]),
+    ("Choice Specs", [True, False, True]), ("Oran Berry", [False, False, False]), ("", [False] * 3),
+])
+def test_move_blocked_by_choice_lock(poke, item, blocked):
+    """A choice item blocks every slot but the locked one, the lock does nothing without one
+    (pokeplatinum CHECK_INVALID_CHOICE_ITEM)"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle", "Growl", "Quick Attack"], item=item)
+    assert [move_blocked(p, i) for i in range(3)] == [False] * 3
+    p[Pok.CHOICE_LOCK] = 2
+    assert [move_blocked(p, i) for i in range(3)] == blocked
+
+
+@pytest.mark.parametrize("item, lock_before, slot, last_move, lock_after", [
+    ("Choice Band", 0, 1, MoveName.GROWL, 2),      # the move that ran
+    ("Choice Band", 1, 1, MoveName.GROWL, 2),      # the lock follows the move that ran
+    ("Choice Band", 1, 10, MoveName.STRUGGLE, 1),  # Struggle keeps the lock it had
+    ("Choice Band", 1, 1, 0, 1),                   # it didn't move (paralysis, flinch...)
+    ("Oran Berry", 1, 1, MoveName.GROWL, 0),       # without a choice item the lock ends
+    ("Oran Berry", 1, 10, MoveName.STRUGGLE, 0),
+])
+def test_update_choice_lock(poke, item, lock_before, slot, last_move, lock_after):
+    """pokeplatinum BattleControllerPlayer_UpdateMoveBuffers"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle", "Growl"], item=item)
+    p[Pok.CHOICE_LOCK] = lock_before
+    p[Pok.LAST_MOVE_ID] = last_move
+    update_choice_lock(p, slot)
+    assert p[Pok.CHOICE_LOCK] == lock_after
+
+
+def test_switch_out_ends_the_choice_lock(poke):
+    """Switching out clears the lock"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle", "Growl"], item="Choice Band")
+    p[Pok.CHOICE_LOCK] = 2
+    reset_switch_out(p)
+    assert p[Pok.CHOICE_LOCK] == 0
 
 
 @pytest.mark.parametrize("vol, field, packed, slot, blocked", [

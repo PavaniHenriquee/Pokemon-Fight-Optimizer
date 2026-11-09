@@ -66,7 +66,8 @@ class Pok:
     HIDDEN_POWER_POWER        = HIDDEN_POWER_TYPE + 1
     SUB_HP                    = HIDDEN_POWER_POWER + 1
     NATURE_MINUS              = SUB_HP + 1
-    AB_ID                     = NATURE_MINUS + 1
+    CHOICE_LOCK               = NATURE_MINUS + 1
+    AB_ID                     = CHOICE_LOCK + 1
     AB_WHEN                   = AB_ID + 1
     AB_BREAKABLE              = AB_WHEN + 1
     """AB_CANT_SUPRESS           = AB_BREAKABLE + 1

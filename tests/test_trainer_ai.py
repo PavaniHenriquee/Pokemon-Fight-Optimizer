@@ -1,5 +1,6 @@
 """Trainer AI: which expert-flag evaluation a status move is scored by, and that the AI can
 pick a move with any implemented status move in its kit"""
+import random
 import numpy as np
 import pytest
 from Models import trainer_ai_helper as ai
@@ -675,6 +676,22 @@ def test_ai_skips_blocked_moves(make_pokemon, make_battle, vol, field, packed, m
     ai_pok[Pok.VOL_STATUS] = vol
     ai_pok[field] = packed
     assert all(return_idx(arr) == pick for _ in range(30))
+
+
+@pytest.mark.parametrize("item, pp, picks", [
+    ("Choice Band", 10, {0}), ("Choice Band", 0, {10}), ("Oran Berry", 10, {0, 1}),
+])
+def test_ai_keeps_to_its_choice_lock(make_pokemon, make_battle, item, pp, picks):
+    """A choice-locked AI only scores the locked move (Growl), Struggle once it's out of PP, and a
+    lock without a choice item does nothing"""
+    me = make_pokemon("Rattata", 20, "Run Away", ["Tackle"])
+    opp = make_pokemon("Rattata", 20, "Run Away", ["Growl", "Tackle"], item=item)
+    arr = make_battle([me], [opp])
+    ai_pok = pok_slice(arr, 0, opp=True)
+    ai_pok[Pok.CHOICE_LOCK] = 1
+    move_slice(ai_pok, 0)[Move.PP] = pp
+    random.seed(2)
+    assert {return_idx(arr) for _ in range(60)} == picks
 
 
 def test_bound_ai_never_switches(make_pokemon, make_battle):

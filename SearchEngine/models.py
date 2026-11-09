@@ -17,12 +17,12 @@ from Models.constants import (
     _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID, _POK_AB_ID,
     _POK_METRONOME_COUNT, _POK_BASE_AB_ID, _FIELD_OPP_MOVE_RAN, _FIELD_PENDING_OPP_MOVE,
     _POK_TYPE1, _POK_TYPE2, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _VOLSTATUS_ENCORE,
-    _VOLSTATUS_DISABLE, _FIELD_TRICKROOM
+    _VOLSTATUS_DISABLE, _FIELD_TRICKROOM, _POK_CHOICE_LOCK, _ITEM_HOLD_EFFECT
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action, baton_pass_action, OPP_RAN_PP_STEP
-from Engine.engine_helper import move_blocked, truant_loafs, is_trapped
+from Engine.engine_helper import move_blocked, truant_loafs, is_trapped, CHOICE_EFFECTS
 from Engine.speed import slow_start_active
 from Engine.status_calc import SLOT_MASK
 from Utils.jit import njit
@@ -284,8 +284,11 @@ def _stages_key(pok):
 
 @njit
 def _vol_key(pok):
-    """One side's half of k5: VOL_STATUS2, then the Encore and Disable slots while they hold"""
+    """One side's half of k5: VOL_STATUS2, the choice-locked slot while a choice item holds it,
+    then the Encore and Disable slots while they hold"""
     packed = np.int64(pok[_POK_VOL_STATUS2])
+    if pok[_ITEM_HOLD_EFFECT] in CHOICE_EFFECTS:
+        packed |= np.int64(pok[_POK_CHOICE_LOCK]) << CHOICE_KEY_SHIFT
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_ENCORE:
         packed |= np.int64(pok[_POK_ENCORE_TURNS] & SLOT_MASK) << ENCORE_KEY_SHIFT
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_DISABLE:
@@ -317,7 +320,8 @@ def node_key(battle_array):
     side's conditions and Toxic Spikes layers
     (not the turns left), my active slot (Roar picks it at random), the Baton Pass phase, each
     active's Metronome item move and count (k4, opp low 32 bits, mine high), Trick Room, and per
-    side (k5, k6) the Encore and Disable slots, the active's item id, types and lock"""
+    side (k5, k6) the choice-locked slot, the Encore and Disable slots, the active's item id, types
+    and lock"""
     opp_idx = battle_array[_FIELD_OPP_POK]
     opp = battle_array[(opp_idx + 6) * POK_LEN:(opp_idx + 7) * POK_LEN]
     is_death = battle_array[_FIELD_PHASE] == _BATTLEPHASE_DEATH_END_OF_TURN

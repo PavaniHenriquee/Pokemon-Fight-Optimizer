@@ -179,6 +179,7 @@ class Pokemon:
             *self.hidden_power(),  # Hidden Power type and power, for a called Hidden Power
             0,   # Substitute HP, 0 without one
             self.nature_minus(),  # The stat the nature lowers, for the confusion berries
+            0,   # Choice-locked move slot + 1, 0 means none
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 

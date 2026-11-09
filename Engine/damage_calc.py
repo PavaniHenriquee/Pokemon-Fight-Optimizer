@@ -37,6 +37,7 @@ from Models.constants import (
     _VOLSTATUS2_FLASH_FIRE, _HOLDEFFECT_BOOST_REPEATED, _POK_METRONOME_COUNT,
     _HOLDEFFECT_POWER_UP_SPEC, _HOLDEFFECT_CLAMPERL_SPATK, _HOLDEFFECT_CLAMPERL_SPDEF,
     _HOLDEFFECT_LATI_SPECIAL, _HOLDEFFECT_DIALGA_BOOST, _HOLDEFFECT_PALKIA_BOOST,
+    _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK,
     _HOLDEFFECT_GIRATINA_BOOST, _HOLDEFFECT_DITTO_DEF_UP, _TYPES_DRAGON, _TYPES_STEEL, _TYPES_WATER,
     _HOLDEFFECT_HP_DRAIN_ON_ATK,
 )
@@ -371,7 +372,9 @@ def item_power(attacker, move_type, category, power):
 
 @njit
 def item_attack(attacker, attack):
-    """Thick Club doubles Cubone's and Marowak's Attack, before Hustle and Guts"""
+    """Choice Band x150/100, Thick Club doubles Cubone's and Marowak's Attack, before every ability"""
+    if attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_CHOICE_ATK:
+        return attack * 150 // 100
     if (
         attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_CUBONE_ATK_UP
         and attacker[_POK_ID] in THICK_CLUB_USERS
@@ -390,8 +393,10 @@ def item_defense(defender, defense):
 
 @njit
 def item_sp_attack(attacker, sp_attack):
-    """Soul Dew x150/100 for Latias and Latios, DeepSeaTooth x2 for Clamperl"""
+    """Choice Specs x150/100, Soul Dew x150/100 for Latias and Latios, DeepSeaTooth x2 for Clamperl"""
     effect = attacker[_ITEM_HOLD_EFFECT]
+    if effect == _HOLDEFFECT_CHOICE_SPATK:
+        return sp_attack * 150 // 100
     if effect == _HOLDEFFECT_LATI_SPECIAL and attacker[_POK_ID] in SOUL_DEW_USERS:
         return sp_attack * 150 // 100
     if effect == _HOLDEFFECT_CLAMPERL_SPATK and attacker[_POK_ID] == CLAMPERL:
@@ -735,7 +740,6 @@ def calculate_damage_confusion(pok):
     # Random Multiplier
     damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
     #TODO: Helping Hand
-    #TODO: Choice Band
     #TODO: Power Trick, Power Split, Guard Split
 
     return damage
