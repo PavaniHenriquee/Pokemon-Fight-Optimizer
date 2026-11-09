@@ -25,7 +25,8 @@ from Models.constants import (
     _MOVENAME_TRI_ATTACK, _ABILITYNAMES_SERENE_GRACE,
     _ABILITYNAMES_SHIELD_DUST, _ABILITYNAMES_MAGMA_ARMOR, _ABILITYNAMES_LEAF_GUARD,
     _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _ABILITYNAMES_CLEAR_BODY,
-    _ABILITYNAMES_WHITE_SMOKE, _ABILITYNAMES_HYPER_CUTTER,
+    _ABILITYNAMES_WHITE_SMOKE, _ABILITYNAMES_HYPER_CUTTER, _ITEM_HOLD_EFFECT,
+    _HOLDEFFECT_RECIPROCATE_INFAT,
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from Models.move import CURSE_BOOST
@@ -283,20 +284,34 @@ def stat_changes(move, attacker, defender, sec=False, def_side=0):
 
 
 @njit
-def infatuate(pok, source):
-    """Attract and Cute Charm: only between a male and a female. Oblivious stops it unless the
-    source has Mold Breaker (pokeplatinum subscript_infatuate)"""
-    if pok[_POK_AB_ID] == _ABILITYNAMES_OBLIVIOUS and ignorable_ability(pok, source):
-        return
+def _can_infatuate(pok, source):
+    """Only between a male and a female, not twice (pokeplatinum BtlCmd_TryAttract)"""
     pok_gender = pok[_POK_GENDER]
     src_gender = source[_POK_GENDER]
-    if (
+    return (
         not pok[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT
         and pok_gender != _GENDER_GENDERLESS
         and src_gender != _GENDER_GENDERLESS
         and pok_gender != src_gender
-    ):
+    )
+
+
+@njit
+def infatuate(pok, source):
+    """Attract and Cute Charm: only between a male and a female. Oblivious stops it unless the
+    source has Mold Breaker (pokeplatinum subscript_infatuate). An infatuated Destiny Knot holder
+    infatuates the source back, under the same rules (pokeplatinum, after Synchronize; Showdown
+    destinyknot onAttract)"""
+    if pok[_POK_AB_ID] == _ABILITYNAMES_OBLIVIOUS and ignorable_ability(pok, source):
+        return
+    if _can_infatuate(pok, source):
         pok[_POK_VOL_STATUS] |= _VOLSTATUS_ATTRACT
+        if pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_RECIPROCATE_INFAT:
+            # "X's Oblivious made the item ineffective!" names the ability
+            if source[_POK_AB_ID] == _ABILITYNAMES_OBLIVIOUS and ignorable_ability(source, pok):
+                reveal_ability(source)
+            elif _can_infatuate(source, pok):
+                source[_POK_VOL_STATUS] |= _VOLSTATUS_ATTRACT
 
 
 @njit

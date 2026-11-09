@@ -3,8 +3,8 @@ import random
 import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
-from Engine.speed import check_speed, slow_start_active, quick_claw
-from Engine.status_calc import  freeze, paralysis, sleep_blocked, SLOT_MASK
+from Engine.speed import check_speed, slow_start_active, quick_claw, pinch_hp, custap_ready
+from Engine.status_calc import  freeze, paralysis, sleep_blocked, SLOT_MASK, TURNS_2_5
 from Engine.status_calc import (
     apply_status, infatuate, cure_status, ability_blocks_status, ability_forbids_status,
     stat_drop_blocked
@@ -13,7 +13,7 @@ from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
     item_power, item_attack, item_defense, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
     AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB, is_scrappy,
-    METRONOME_MOVE_SHIFT, METRONOME_COUNT_MASK
+    METRONOME_MOVE_SHIFT, METRONOME_COUNT_MASK, life_orb_damage
 )
 from Engine.ability_helper import (
     ignorable_ability, levitates, reveal_ability, effective_weather, normalized_type,
@@ -23,7 +23,7 @@ from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_T
 from Models.helper import TARGET_SELF_SIDE, Target
 from Models.item import ITEM_TABLE
 from Models.ability import ABILITY_TABLE
-from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES
+from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES, MOVE_TABLE
 from Models.constants import (
     _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
     _WEATHER_SUN, _MOVENAME_FAKE_OUT,
@@ -97,7 +97,17 @@ from Models.constants import (
     _MOVENAME_SWAGGER, _MOVENAME_FLATTER, _VOLSTATUS_YAWN, _MOVE_STATUS, _MOVE_VOL_STATUS,
     _HOLDEFFECT_CHANSEY_CRITRATE_UP, _HOLDEFFECT_FARFETCHD_CRITRATE_UP, _ITEMNAMES_GRISEOUS_ORB,
     _POK_ID, _HOLDEFFECT_PRIORITY_DOWN, _HOLDEFFECT_ACCURACY_UP, _HOLDEFFECT_ACCURACY_UP_SLOWER,
-    _HOLDEFFECT_SOMETIMES_FLINCH, _ITEM_EFFECT_PARAM,
+    _HOLDEFFECT_SOMETIMES_FLINCH, _ITEM_EFFECT_PARAM, _HOLDEFFECT_ENDURE,
+    _HOLDEFFECT_STATDOWN_RESTORE, _HOLDEFFECT_DMG_USER_CONTACT_XFR, _HOLDEFFECT_HP_RESTORE_ON_DMG,
+    _HOLDEFFECT_HP_DRAIN_ON_ATK, _MOVENAME_KNOCK_OFF,
+    _HOLDEFFECT_PRZ_RESTORE, _HOLDEFFECT_BRN_RESTORE, _HOLDEFFECT_FRZ_RESTORE,
+    _HOLDEFFECT_CONFUSE_RESTORE, _HOLDEFFECT_PP_RESTORE, _HOLDEFFECT_HP_RESTORE_SPICY,
+    _HOLDEFFECT_HP_RESTORE_DRY, _HOLDEFFECT_HP_RESTORE_SWEET, _HOLDEFFECT_HP_RESTORE_BITTER,
+    _HOLDEFFECT_HP_RESTORE_SOUR, _HOLDEFFECT_PINCH_ATK_UP, _HOLDEFFECT_PINCH_DEF_UP,
+    _HOLDEFFECT_PINCH_SPEED_UP, _HOLDEFFECT_PINCH_SPATK_UP, _HOLDEFFECT_PINCH_SPDEF_UP,
+    _HOLDEFFECT_PINCH_CRITRATE_UP, _HOLDEFFECT_PINCH_RANDOM_UP, _HOLDEFFECT_PINCH_ACC_UP,
+    _HOLDEFFECT_HP_RESTORE_SE, _HOLDEFFECT_RECOIL_PHYSICAL, _HOLDEFFECT_RECOIL_SPECIAL,
+    _POK_NATURE_MINUS, _VOLSTATUS2_MICLE, _MOVE_PP_UP, _MOVECATEGORY_SPECIAL,
 )
 from DataBase.PkDB import PokemonName
 
@@ -109,11 +119,28 @@ DAMP_IGNORES = (_MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT)
 WEATHER_NOT_END_OF_TURN = (0, _WEATHER_RAIN)
 HP_RESTORE_EFFECTS = (_HOLDEFFECT_HP_RESTORE, _HOLDEFFECT_HP_PCT_RESTORE)
 METRONOME_MAX_COUNT = 10
-# Pecha, Chesto, Lum and Mental Herb
+# Pecha, Chesto, Lum, Mental Herb, Cheri, Rawst, Aspear and Persim
 STATUS_CURE_EFFECTS = (
     _HOLDEFFECT_PSN_RESTORE, _HOLDEFFECT_SLP_RESTORE, _HOLDEFFECT_STATUS_RESTORE,
-    _HOLDEFFECT_HEAL_INFATUATION
+    _HOLDEFFECT_HEAL_INFATUATION, _HOLDEFFECT_PRZ_RESTORE, _HOLDEFFECT_BRN_RESTORE,
+    _HOLDEFFECT_FRZ_RESTORE, _HOLDEFFECT_CONFUSE_RESTORE
 )
+# Figy, Iapapa, Wiki, Aguav, Mago: the flavor of each Pok.NATURE_MINUS stat (pokeplatinum FLAVOR_*)
+FLAVOR_EFFECTS = (
+    _HOLDEFFECT_HP_RESTORE_SPICY, _HOLDEFFECT_HP_RESTORE_SOUR, _HOLDEFFECT_HP_RESTORE_DRY,
+    _HOLDEFFECT_HP_RESTORE_BITTER, _HOLDEFFECT_HP_RESTORE_SWEET
+)
+# Liechi, Ganlon, Petaya, Apicot, Salac in stat stage order
+PINCH_STAT_EFFECTS = (
+    _HOLDEFFECT_PINCH_ATK_UP, _HOLDEFFECT_PINCH_DEF_UP, _HOLDEFFECT_PINCH_SPATK_UP,
+    _HOLDEFFECT_PINCH_SPDEF_UP, _HOLDEFFECT_PINCH_SPEED_UP
+)
+# The stat ones, Lansat, Starf and Micle (Custap works from the turn order)
+PINCH_EFFECTS = PINCH_STAT_EFFECTS + (
+    _HOLDEFFECT_PINCH_CRITRATE_UP, _HOLDEFFECT_PINCH_RANDOM_UP, _HOLDEFFECT_PINCH_ACC_UP
+)
+MICLE_ACC_BOOST = 120
+MAX_PP_UPS = 3
 RECORD_DAMAGE = (_DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT)
 # pokeplatinum BattleSystem_TriggerAbilityOnHit: RandNext % 3 picks poison, paralysis, sleep
 EFFECT_SPORE_STATUSES = (_STATUS_POISON, _STATUS_PARALYSIS, _STATUS_SLEEP)
@@ -231,14 +258,27 @@ def focus_band(pok, damage):
 
 
 @njit
-def endure_damage(defender, damage):
+def focus_sash_ready(pok):
+    """A Focus Sash holder at full HP, checked on every hit that reaches it (pokeplatinum
+    BattleControllerPlayer_UpdateHP)"""
+    return pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_ENDURE and pok[_POK_CURRENT_HP] == pok[_POK_MAX_HP]
+
+
+@njit
+def endure_damage(defender, damage, sash=False):
     """Endure leaves the defender at 1 HP from a hit that would KO it, without Endure a Focus Band
-    can do the same"""
-    if defender[_POK_VOL_STATUS] & _VOLSTATUS_ENDURE:
+    can do the same. sash: a Focus Sash found its holder at full HP on a hit of this move, so every
+    lethal hit left of the move leaves 1 HP, and the first one uses the Sash up (pokeplatinum
+    focusItemActivated lasts the move, subscript_move_followup_message; Showdown gen4 focussash)"""
+    endure = (defender[_POK_VOL_STATUS] & _VOLSTATUS_ENDURE) != 0
+    if endure or sash:
         holds_on = True
     else:
         holds_on = focus_band(defender, damage)
     if holds_on and damage >= defender[_POK_CURRENT_HP]:
+        if not endure and defender[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_ENDURE:
+            defender[_POK_CONSUMED_ITEM] = defender[_ITEM_ID]
+            clear_item(defender)
         return defender[_POK_CURRENT_HP] - 1
     return damage
 
@@ -380,28 +420,138 @@ def clear_item(pok):
 
 
 @njit
-def _apply_berry_effect(source, target):
+def _apply_berry_effect(source, target, plucked=False):
     """Apply the effect of source's held item to target. target = the beneficiary, which is
-    'pok' for a self-trigger, or 'attacker' for Bug Bite."""
+    'pok' for a self-trigger, or 'attacker' for Bug Bite (plucked: no HP check for the pinch
+    berries, pokeplatinum BattleSystem_PluckBerry)."""
     cur_hp = target[_POK_CURRENT_HP]
     max_hp = target[_POK_MAX_HP]
     effect = source[_ITEM_HOLD_EFFECT]
+    param = source[_ITEM_EFFECT_PARAM]
     if effect == _HOLDEFFECT_HP_RESTORE:
-        cur_hp = min(cur_hp + source[_ITEM_EFFECT_PARAM], max_hp)
+        cur_hp = min(cur_hp + param, max_hp)
     elif effect == _HOLDEFFECT_HP_PCT_RESTORE:
         # Needs to be with min because of bug bite
-        cur_hp = min(cur_hp + max(1, max_hp * source[_ITEM_EFFECT_PARAM] // 100), max_hp)
+        cur_hp = min(cur_hp + max(1, max_hp * param // 100), max_hp)
+    elif effect in FLAVOR_EFFECTS:
+        if cur_hp < max_hp:
+            cur_hp = min(cur_hp + max(1, max_hp // param), max_hp)
+            if dislikes_flavor(target, effect):
+                _flavor_confuse(target)
+    elif plucked and effect == _HOLDEFFECT_CONFUSE_RESTORE and target[_POK_ATTACK_STAT_STAGE] < 6:
+        # pokeplatinum PluckBerry: PLUCK_EFFECT_CNF_RESTORE has no break and falls into ATK_UP,
+        # so below +6 Attack goes up instead of the confusion being cured
+        target[_POK_ATTACK_STAT_STAGE] += 1
     elif effect in STATUS_CURE_EFFECTS:
         item_cure(effect, target)
+    elif effect == _HOLDEFFECT_PP_RESTORE:
+        leppa(target, param, plucked)
+    elif effect in PINCH_EFFECTS:
+        pinch_boost(effect, target)
     target[_POK_CURRENT_HP] = cur_hp
+
+
+@njit
+def dislikes_flavor(pok, effect):
+    """The nature lowers the stat whose flavor this confusion berry is"""
+    minus = pok[_POK_NATURE_MINUS]
+    return minus > 0 and FLAVOR_EFFECTS[minus - 1] == effect
+
+
+@njit
+def _flavor_confuse(pok):
+    """
+    A disliked flavor confuses for 2-5 turns. Own Tempo stops it without a message, so does an
+    existing confusion (pokeplatinum subscript_confuse, SIDE_EFFECT_TYPE_HELD_ITEM). Safeguard
+    doesn't: the eater is its own source (Showdown safeguard onTryAddVolatile)
+    """
+    if pok[_POK_AB_ID] == _ABILITYNAMES_OWN_TEMPO or pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
+        return
+    pok[_POK_VOL_STATUS] |= _VOLSTATUS_CONFUSION
+    pok[_POK_CONFUSION_COUNTER] = TURNS_2_5[random.getrandbits(2)]
+
+
+@njit
+def pinch_boost(effect, pok):
+    """
+    Liechi, Ganlon, Petaya, Apicot and Salac +1 to their stat, Lansat sets Focus Energy, Starf +2 to
+    a random stat from Attack to Speed, Micle boosts the next accuracy roll. Returns False when it
+    has nothing to do: its stat at +6, Focus Energy already on, every Starf stat at +6
+    (pokeplatinum BattleSystem_TriggerHeldItem, the RandNext % 5 loop for Starf)
+    """
+    for i in range(5):
+        if effect == PINCH_STAT_EFFECTS[i]:
+            idx = _POK_ATTACK_STAT_STAGE + i
+            if pok[idx] >= 6:
+                return False
+            pok[idx] += 1
+            return True
+    if effect == _HOLDEFFECT_PINCH_CRITRATE_UP:
+        if pok[_POK_VOL_STATUS] & _VOLSTATUS_FOCUS_ENERGY:
+            return False
+        pok[_POK_VOL_STATUS] |= _VOLSTATUS_FOCUS_ENERGY
+        return True
+    if effect == _HOLDEFFECT_PINCH_RANDOM_UP:
+        can_raise = False
+        for i in range(5):
+            if pok[_POK_ATTACK_STAT_STAGE + i] < 6:
+                can_raise = True
+        if not can_raise:
+            return False
+        idx = _POK_ATTACK_STAT_STAGE + random.randint(0, 4)
+        while pok[idx] >= 6:
+            idx = _POK_ATTACK_STAT_STAGE + random.randint(0, 4)
+        pok[idx] = min(6, pok[idx] + 2)
+        return True
+    if effect == _HOLDEFFECT_PINCH_ACC_UP:
+        pok[_POK_VOL_STATUS2] |= _VOLSTATUS2_MICLE
+        return True
+    return False
+
+
+@njit
+def max_pp(pok, slot):
+    """A move's max PP: base + 20% per PP Up, up to 3 (pokeplatinum MoveTable_CalcMaxPP)"""
+    off = OFFSET_MOVE + slot * MOVE_STRIDE
+    base = MOVE_TABLE[pok[off + _MOVE_ID], _MOVE_PP]
+    return base + base * 20 * min(MAX_PP_UPS, pok[off + _MOVE_PP_UP]) // 100
+
+
+@njit
+def leppa(pok, amount, plucked=False):
+    """
+    Leppa Berry gives a move back amount PP, up to its max. Held, it waits for a move at 0 PP and
+    takes the first one; plucked, it takes the move missing the most PP (pokeplatinum
+    BattleSystem_TriggerHeldItem, BattleSystem_PluckBerry). Returns True if it restored any
+    """
+    slot = -1
+    most = 0
+    for i in range(4):
+        off = OFFSET_MOVE + i * MOVE_STRIDE
+        if not pok[off + _MOVE_ID]:
+            continue
+        if plucked:
+            missing = max_pp(pok, i) - pok[off + _MOVE_PP]
+            if missing > most:
+                most = missing
+                slot = i
+        elif pok[off + _MOVE_PP] == 0:
+            slot = i
+            break
+    if slot < 0:
+        return False
+    off = OFFSET_MOVE + slot * MOVE_STRIDE
+    pok[off + _MOVE_PP] = min(max_pp(pok, slot), pok[off + _MOVE_PP] + amount)
+    return True
 
 
 @njit
 def item_cure(effect, pok):
     """
-    Pecha cures poison, Chesto sleep, Lum any status and confusion, Mental Herb only Attract in
-    Gen IV (pokeplatinum BattleSystem_TriggerHeldItemOnStatus, Showdown gen4 Mental Herb).
-    Returns True if it cured something
+    Pecha cures poison, Chesto sleep, Cheri paralysis, Rawst burn, Aspear freeze, Persim confusion,
+    Lum any status and confusion, Mental Herb only Attract in Gen IV (pokeplatinum
+    BattleSystem_TriggerHeldItemOnStatus, Showdown gen4 Mental Herb). Returns True if it cured
+    something
     """
     status = pok[_POK_STATUS]
     if effect == _HOLDEFFECT_PSN_RESTORE:
@@ -410,6 +560,20 @@ def item_cure(effect, pok):
     elif effect == _HOLDEFFECT_SLP_RESTORE:
         if status != _STATUS_SLEEP:
             return False
+    elif effect == _HOLDEFFECT_PRZ_RESTORE:
+        if status != _STATUS_PARALYSIS:
+            return False
+    elif effect == _HOLDEFFECT_BRN_RESTORE:
+        if status != _STATUS_BURN:
+            return False
+    elif effect == _HOLDEFFECT_FRZ_RESTORE:
+        if status != _STATUS_FREEZE:
+            return False
+    elif effect == _HOLDEFFECT_CONFUSE_RESTORE:
+        if not pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
+            return False
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_CONFUSION
+        return True
     elif effect == _HOLDEFFECT_STATUS_RESTORE:
         if status == 0 and not pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION:
             return False
@@ -426,29 +590,72 @@ def item_cure(effect, pok):
 
 
 @njit
+def restore_stat_drops(pok):
+    """White Herb: every lowered stage back to 0, accuracy and evasion too (pokeplatinum
+    BattleSystem_TriggerHeldItemOnStatus). Returns True if one was lowered"""
+    restored = False
+    for idx in range(_POK_ATTACK_STAT_STAGE, _POK_EVASION_STAT_STAGE + 1):
+        if pok[idx] < 0:
+            pok[idx] = 0
+            restored = True
+    return restored
+
+
+@njit
 def status_item(pok):
     """
-    A status berry or Mental Herb is used up once its holder has the condition it cures. A fainted
-    Pokemon doesn't use it. pokeplatinum checks after every move, on switch-in and after Yawn
+    A status berry, Mental Herb or White Herb is used up once its holder has the condition it cures,
+    Leppa once a move is at 0 PP, and the HP and pinch berries get another look (eat_berry). A
+    fainted Pokemon doesn't use it. pokeplatinum checks after every move, on switch-in and after Yawn
     """
     effect = pok[_ITEM_HOLD_EFFECT]
-    if effect in STATUS_CURE_EFFECTS and pok[_POK_CURRENT_HP] > 0 and item_cure(effect, pok):
+    if pok[_POK_CURRENT_HP] <= 0:
+        return
+    if (
+        (effect in STATUS_CURE_EFFECTS and item_cure(effect, pok))
+        or (effect == _HOLDEFFECT_STATDOWN_RESTORE and restore_stat_drops(pok))
+        or (effect == _HOLDEFFECT_PP_RESTORE and leppa(pok, pok[_ITEM_EFFECT_PARAM]))
+    ):
         pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
         clear_item(pok)
+    else:
+        eat_berry(pok)
 
 
 @njit
 def eat_berry(pok):
-    """Self-triggered berry eat at low HP (end of turn / on receiving damage). A fainted
-    Pokemon doesn't eat it (pokeplatinum BattleSystem_TriggerHeldItem)"""
-    if (
-        pok[_ITEM_HOLD_EFFECT] in HP_RESTORE_EFFECTS
-        and 0 < pok[_POK_CURRENT_HP]
-        and pok[_POK_CURRENT_HP] * 2 <= pok[_POK_MAX_HP]
-    ):
+    """Self-triggered berry eat at low HP (on receiving damage, after every move, end of turn).
+    The HP and confusion berries at half HP, the pinch berries at a quarter (Gluttony: half) once
+    they have something to do. A fainted Pokemon doesn't eat it (pokeplatinum
+    BattleSystem_TriggerHeldItem)"""
+    effect = pok[_ITEM_HOLD_EFFECT]
+    if pok[_POK_CURRENT_HP] <= 0:
+        return
+    if effect in HP_RESTORE_EFFECTS or effect in FLAVOR_EFFECTS:
+        if pok[_POK_CURRENT_HP] * 2 > pok[_POK_MAX_HP]:
+            return
         _apply_berry_effect(pok, pok)
-        pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
-        clear_item(pok)
+    elif effect in PINCH_EFFECTS:
+        if not pinch_hp(pok) or not pinch_boost(effect, pok):
+            return
+    else:
+        return
+    pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
+    clear_item(pok)
+
+
+@njit
+def custap(pok):
+    """
+    Custap Berry in a pinch is eaten when both sides use a move, whatever their priority, and its
+    holder goes first in its bracket (pokeplatinum CompareBattlerSpeed and
+    subscript_check_quick_claw, Showdown gen4 custapberry). Returns True if it activated
+    """
+    if not custap_ready(pok):
+        return False
+    pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
+    clear_item(pok)
+    return True
 
 
 @njit
@@ -482,7 +689,7 @@ def resist_berry(attacker, defender, move, damage, gravity=False):
 @njit
 def eat_berry_bug_bite(attacker, defender):
     """Bug Bite forces the target to eat its berry immediately; attacker gets the benefit"""
-    _apply_berry_effect(defender, attacker)
+    _apply_berry_effect(defender, attacker, True)
     clear_item(defender)
 
 
@@ -598,6 +805,8 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
         return my_move, -1, 1, True
 
     p1_speed, p2_speed = check_speed(p1, p2, weather)
+    custap1 = custap(p1)
+    custap2 = custap(p2)
 
     move1_prio = (p1[my_move  * MOVE_STRIDE + OFFSET_MOVE + _MOVE_PRIORITY]
               if my_move  != 10 else 0)
@@ -611,11 +820,11 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
         if move1_prio > move2_prio:
             return my_move, opp_move, 2, True
         return opp_move, my_move, 2, False
-    # Same bracket (Showdown gen4): an activated Quick Claw goes first, then a lone Lagging Tail /
-    # Full Incense holder last, then a lone Stall holder last at priority >= 0. Both Quick Claws,
-    # both items or both Stalls fall back to speed
-    claw1 = quick_claw(p1)
-    claw2 = quick_claw(p2)
+    # Same bracket (Showdown gen4): an activated Quick Claw or Custap goes first, then a lone
+    # Lagging Tail / Full Incense holder last, then a lone Stall holder last at priority >= 0. Both
+    # Quick Claws, both items or both Stalls fall back to speed
+    claw1 = custap1 or quick_claw(p1)
+    claw2 = custap2 or quick_claw(p2)
     if claw1 != claw2:
         if claw1:
             return my_move, opp_move, 2, True
@@ -834,6 +1043,8 @@ def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False, ta
         atk_item == _HOLDEFFECT_ACCURACY_UP_SLOWER and target_moved
     ):
         accuracy = accuracy * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
+    if attacker[_POK_VOL_STATUS2] & _VOLSTATUS2_MICLE:
+        accuracy = accuracy * MICLE_ACC_BOOST // 100
 
     if gravity:
         return accuracy * GRAVITY_ACC_NUM / GRAVITY_ACC_DEN
@@ -923,6 +1134,8 @@ def _hit_outcome(move, attacker, defender, weather, gravity=False, target_moved=
         return _MOVEOUTCOME_HIT
 
     accuracy = move_accuracy(move, attacker, defender, move_acc, weather, gravity, target_moved)
+    # Micle's boost is used up by the next accuracy roll, OHKO and always-hit moves keep it
+    attacker[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_MICLE
 
     if accuracy == 100 or random.randint(1,100) <= accuracy:
         return _MOVEOUTCOME_HIT
@@ -1316,8 +1529,10 @@ def switch_in(attacker, defender, battle_array, is_mine, foe_entering=False):
     # pokeplatinum SWITCH_IN_CHECK_STATE_FORBIDDEN_STATUS
     recover_status_by_ability(attacker)
     recover_status_by_ability(defender)
-    # A status from the hazards (pokeplatinum SWITCH_IN_CHECK_STATE_HELD_ITEM_STATUS)
+    # A status from the hazards, a drop from Intimidate (pokeplatinum
+    # SWITCH_IN_CHECK_STATE_HELD_ITEM_STATUS, every active)
     status_item(attacker)
+    status_item(defender)
 
 
 # ── In-battle status / contact effects ────────────────────────────────────────────
@@ -1461,6 +1676,104 @@ def on_hit_abilities(attacker, defender, move, dealt, weather):
     # "X's Static paralyzed Y!" only when the status lands (pokeplatinum, SIDE_EFFECT_TYPE_ABILITY)
     if attacker[_POK_STATUS]:
         reveal_ability(defender)
+
+
+@njit
+def sticky_barb_transfer(attacker, defender, move, dealt):
+    """
+    A contact hit that dealt damage to the Sticky Barb holder moves the barb to an attacker with no
+    item, the KO hit included. Not on Knock Off, not to a Pokemon whose item was knocked off, Sticky Hold
+    doesn't stop it (pokeplatinum BattleSystem_TriggerHeldItemOnHit, Showdown stickybarb)
+    """
+    if (
+        defender[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_DMG_USER_CONTACT_XFR
+        and dealt > 0
+        and move[_FLAGS_CONTACT]
+        and move[_MOVE_ID] != _MOVENAME_KNOCK_OFF
+        and attacker[_POK_CURRENT_HP] > 0
+        and not attacker[_ITEM_ID]
+        and not attacker[_POK_ITEM_KNOCKED_OFF]
+    ):
+        switch_items(attacker, defender)
+
+
+@njit
+def _super_effective(attacker, defender, move, gravity):
+    """The hit's type is super effective on the defender"""
+    m_type = normalized_type(attacker, move)
+    def_type1, def_type2 = matchup_types(m_type, defender, gravity, is_scrappy(attacker))
+    effectiveness, _ = get_type_effectiveness(m_type, def_type1, 0)
+    effectiveness2 = 2
+    if def_type2:
+        effectiveness2, _ = get_type_effectiveness(m_type, def_type2, 0)
+    return effectiveness * effectiveness2 > 4
+
+
+@njit
+def on_hit_berries(attacker, defender, move, dealt, gravity=False):
+    """
+    The defender's berries that react to a hit on it, per hit after the contact abilities (Showdown
+    onHit / onDamagingHit). Enigma heals 1/4 of max HP after a super effective hit the holder
+    survives, only from a move with a damage roll (Showdown's typeMod is never set for fixed damage
+    or OHKO moves). Jaboca (physical) and Rowap (special) cost a live attacker 1/8 of its max HP,
+    even from a fainted holder; Magic Guard stops it (pokeplatinum TriggerHeldItemOnHit)
+    """
+    effect = defender[_ITEM_HOLD_EFFECT]
+    if dealt <= 0:
+        return
+    if effect == _HOLDEFFECT_HP_RESTORE_SE:
+        if (
+            defender[_POK_CURRENT_HP] <= 0
+            or move[_MOVE_DAMAGE]
+            or move[_MOVE_OH_KO]
+            or move[_MOVE_ID] == _MOVENAME_STRUGGLE
+            or not _super_effective(attacker, defender, move, gravity)
+        ):
+            return
+        max_hp = defender[_POK_MAX_HP]
+        heal = max(1, max_hp // defender[_ITEM_EFFECT_PARAM])
+        defender[_POK_CURRENT_HP] = min(max_hp, defender[_POK_CURRENT_HP] + heal)
+    elif (
+        (effect == _HOLDEFFECT_RECOIL_PHYSICAL and move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL)
+        or (effect == _HOLDEFFECT_RECOIL_SPECIAL and move[_MOVE_CATEGORY] == _MOVECATEGORY_SPECIAL)
+    ):
+        if attacker[_POK_CURRENT_HP] <= 0 or attacker[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
+            return
+        damage = max(1, attacker[_POK_MAX_HP] // defender[_ITEM_EFFECT_PARAM])
+        defender[_POK_CONSUMED_ITEM] = defender[_ITEM_ID]
+        clear_item(defender)
+        _contact_damage(attacker, damage)
+        return
+    else:
+        return
+    defender[_POK_CONSUMED_ITEM] = defender[_ITEM_ID]
+    clear_item(defender)
+
+
+@njit
+def after_move_hit_items(attacker, move, dealt, hit_pok):
+    """
+    Once per move, after Destiny Bond, for a move whose hit reached the Pokemon, not only its
+    Substitute (pokeplatinum AFTER_MOVE_HIT_STATE_SHELL_BELL / LIFE_ORB, SYSCTL_MOVE_HIT).
+    Shell Bell heals 1/8 of the damage dealt, the Substitute's included. Life Orb costs 1/10 of max
+    HP, only after a move with a base power: fixed damage, OHKO, Counter and co. skip it (Showdown
+    gen4 lifeorb onBasePower). Magic Guard skips it, a fainted holder gets neither
+    """
+    if not hit_pok or attacker[_POK_CURRENT_HP] <= 0:
+        return
+    effect = attacker[_ITEM_HOLD_EFFECT]
+    if effect == _HOLDEFFECT_HP_RESTORE_ON_DMG:
+        max_hp = attacker[_POK_MAX_HP]
+        if dealt > 0 and attacker[_POK_CURRENT_HP] < max_hp:
+            heal = max(1, dealt // attacker[_ITEM_EFFECT_PARAM])
+            attacker[_POK_CURRENT_HP] = min(max_hp, attacker[_POK_CURRENT_HP] + heal)
+    elif (
+        effect == _HOLDEFFECT_HP_DRAIN_ON_ATK
+        and attacker[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD
+        and not move[_MOVE_OH_KO]
+        and not move[_MOVE_DAMAGE]
+    ):
+        apply_recoil(attacker, max(1, attacker[_POK_MAX_HP] // 10))
 
 
 # ── The turn-blocking gate ───────────────────────────────────────────────────────
@@ -1829,6 +2142,8 @@ def struggle_damage(attacker, defender, crit, def_side=0, weather=0):
 
     if crit:
         damage *= crit_multiplier(attacker)
+    # Struggle runs the normal damage command, so Life Orb boosts it (pokeplatinum BtlCmd_CalcDamage)
+    damage = life_orb_damage(attacker, damage)
 
     return (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
 

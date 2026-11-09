@@ -107,6 +107,16 @@ class Pokemon:
         power_bits = sum(((self.ivs[s] >> 1) & 1) << i for i, s in enumerate(order))
         return type_bits * 15 // 63 + 2, power_bits * 40 // 63 + 30
 
+    def nature_minus(self):
+        """The stat the nature lowers, 1-5 in stat stage order (Attack, Defense, Sp. Atk, Sp. Def,
+        Speed), 0 for a neutral nature. It dislikes that stat's flavor (pokeplatinum
+        Pokemon_GetFlavorAffinityOf)"""
+        order = ('Attack', 'Defense', 'Special Attack', 'Special Defense', 'Speed')
+        for i, stat in enumerate(order):
+            if self.nature.get(stat, 1.0) < 1.0:
+                return i + 1
+        return 0
+
     def to_np(self):
         """Transforming everything in np array"""
         status_val = getattr(Status, self, self.status.upper()) if self.status else 0
@@ -168,6 +178,7 @@ class Pokemon:
             0,   # vol_status2, same as vol_status
             *self.hidden_power(),  # Hidden Power type and power, for a called Hidden Power
             0,   # Substitute HP, 0 without one
+            self.nature_minus(),  # The stat the nature lowers, for the confusion berries
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 

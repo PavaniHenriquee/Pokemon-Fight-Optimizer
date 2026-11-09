@@ -15,6 +15,7 @@ from Engine.engine_helper import (
     damp_blocks, status_item, pressure_pp, truant_loafs, metronome_count, metronome_fail,
     power_herb, sticky_hold, big_root, recover_status_by_ability, counter_fails,
     has_substitute, hit_substitute, make_substitute, sub_blocks_status_move, takeable_item,
+    focus_sash_ready, sticky_barb_transfer, after_move_hit_items, on_hit_berries,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -82,6 +83,7 @@ from Models.constants import (
     _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_HEATPROOF, _ABILITYNAMES_BAD_DREAMS,
     _ABILITYNAMES_LIQUID_OOZE, _FIELD_OPP_MOVE_RAN,
     _POK_SUB_HP, _VOLSTATUS2_SUBSTITUTE, _MOVENAME_SUBSTITUTE, _SEC_TARGET,
+    _HOLDEFFECT_PSN_USER, _HOLDEFFECT_DMG_USER_CONTACT_XFR, _TYPES_STEEL,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 
@@ -336,7 +338,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
     weather = effective_weather(battle_array)
     gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
     if calculate_hit_miss(doubled, atk, defn, weather, gravity, True) == _MOVEOUTCOME_HIT:
-        _, hit_pok = ps_moves(
+        _, hit_pok, dealt = ps_moves(
             atk, defn, doubled, weather, False, False, battle_array[side_base(not is_mine)], gravity
         )
         if is_mine and hit_pok:
@@ -344,6 +346,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
             atk[_POK_CURRENT_HP] = 0
+        after_move_hit_items(atk, doubled, dealt, hit_pok)
     status_item(atk)
     status_item(defn)
     return True
@@ -420,20 +423,22 @@ def _apply_move_damage(attacker, defender, move, damage, crit=False):
 
 
 @njit
-def _ps_moves_core(attacker, defender, move, weather, def_side=0, gravity=False):
+def _ps_moves_core(attacker, defender, move, weather, def_side=0, gravity=False, sash=False):
     """
     Checks for damage and for flinch. Also returns the HP the defender actually lost, and whether
     its Substitute took the hit instead: then dealt is what the Substitute lost and nothing on the
-    defender's side happens (no flinch, Focus Band, Rage, on-damage item or hurt flag)
+    defender's side happens (no flinch, Focus Band, Rage, on-damage item or hurt flag). sash: a
+    Focus Sash already found the defender at full HP earlier in this move, returned updated
     """
     raw_damage, crit = _resolve_move_damage(attacker, defender, move, weather, def_side, gravity)
     if has_substitute(defender):
         dealt = hit_substitute(defender, raw_damage)
-        return False, dealt, dealt, True
-    damage = endure_damage(defender, raw_damage)
+        return False, dealt, dealt, True, sash
+    sash = sash or focus_sash_ready(defender)
+    damage = endure_damage(defender, raw_damage, sash)
     dealt = min(damage, defender[_POK_CURRENT_HP])
     flinch= _apply_move_damage(attacker, defender, move, damage, crit)
-    return flinch, damage, dealt, False
+    return flinch, damage, dealt, False, sash
 
 
 @njit
@@ -462,6 +467,7 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
     dealt_total = 0
     flinch = False
     hit_pok = False
+    sash = False
     if mult_hit_min == 2 and mult_hit_max == 5:
         # Skill Link always hits 5 times (pokeplatinum BtlCmd_SetMultiHit)
         if attacker[_POK_AB_ID] == _ABILITYNAMES_SKILL_LINK:
@@ -476,8 +482,8 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
         # Rough Skin can knock the user out mid-sequence
         if i and (defender[_POK_CURRENT_HP] <= 0 or attacker[_POK_CURRENT_HP] <= 0):
             break
-        flinch_c, damage, dealt, sub_hit = _ps_moves_core(
-            attacker, defender, move, weather, def_side, gravity
+        flinch_c, damage, dealt, sub_hit, sash = _ps_moves_core(
+            attacker, defender, move, weather, def_side, gravity, sash
         )
         if flinch_c:
             flinch = True
@@ -492,6 +498,8 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
             sec_effects(move, attacker, defender, weather, def_side)
         if not sub_hit:
             on_hit_abilities(attacker, defender, move, dealt, weather)
+            sticky_barb_transfer(attacker, defender, move, dealt)
+            on_hit_berries(attacker, defender, move, dealt, gravity)
 
     _recoil(attacker, move, dealt_total)
     if move[_MOVE_DRAIN]:
@@ -509,15 +517,15 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
         #Only last damage counts i think, needs check TODO
         defender[_POK_DMG_TAKEN] = damage
 
-    return flinch, hit_pok
+    return flinch, hit_pok, dealt_total
 
 
 @njit
 def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravity=False):
     """Physical or Special moves, where I need to calculate damage and secondary effects.
-    def_side is the defender's Field.SIDE_COND. Returns the flinch and whether the hit reached
-    the Pokemon, not its Substitute"""
-    flinch, damage, dealt, sub_hit = _ps_moves_core(
+    def_side is the defender's Field.SIDE_COND. Returns the flinch, whether the hit reached
+    the Pokemon, not its Substitute, and the HP it took off"""
+    flinch, damage, dealt, sub_hit, _ = _ps_moves_core(
         attacker, defender, move, weather, def_side, gravity
     )
 
@@ -531,9 +539,11 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
     # The Substitute keeps off the rest: contact abilities, Bide / Counter's record and the
     # item moves (pokeplatinum TriggerAbilityOnHit, PluckBerry, subscript_knock_off and co.)
     if sub_hit:
-        return flinch, False
+        return flinch, False, dealt
     # After recoil, drain and the secondary effect (pokeplatinum after-move order)
     on_hit_abilities(attacker, defender, move, dealt, weather)
+    sticky_barb_transfer(attacker, defender, move, dealt)
+    on_hit_berries(attacker, defender, move, dealt, gravity)
 
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         defender[_POK_DMG_TAKEN] += damage
@@ -563,7 +573,7 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
     elif move[_MOVE_ID] == _MOVENAME_KNOCK_OFF:
         knock_off(attacker, defender)
 
-    return flinch, True
+    return flinch, True, dealt
 
 
 @njit
@@ -833,11 +843,11 @@ def _execute_move_slot(
     if mv[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
         _consec_on_hit(atk, mv)
         if mv[_MOVE_MULTI_HIT_MIN]:
-            flinch, hit_pok = ps_moves_multihit(
+            flinch, hit_pok, dealt = ps_moves_multihit(
                 atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity
             )
         else:
-            flinch, hit_pok = ps_moves(
+            flinch, hit_pok, dealt = ps_moves(
                 atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity
             )
         _after_hit_field(atk, mv, battle_array, atk_side, def_side)
@@ -866,6 +876,7 @@ def _execute_move_slot(
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
             atk[_POK_CURRENT_HP] = 0
+        after_move_hit_items(atk, mv, dealt, hit_pok)
         # Information for trainer ai logic, not set by a hit its Substitute took
         if is_mine and hit_pok:
             battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN] = normalized_type(atk, mv)
@@ -1165,16 +1176,31 @@ def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
 def _flame_orb(pok, side_cond, weather):
     """
     Flame Orb burns its holder unless it's Fire type, already has a status, is under Safeguard,
-    has Water Veil, or Leaf Guard in sun (pokeplatinum subscript_burn, held item branch)
+    has Water Veil, or Leaf Guard in sun (pokeplatinum subscript_burn, held item branch).
+    Toxic Orb badly poisons it the same way, Poison and Steel types and Immunity instead
+    (pokeplatinum subscript_badly_poison)
     """
-    if pok[_POK_STATUS] or pok[_POK_TYPE1] == _TYPES_FIRE or pok[_POK_TYPE2] == _TYPES_FIRE:
+    if pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_PSN_USER:
+        status = _STATUS_TOXIC
+        immune1 = _TYPES_POISON
+        immune2 = _TYPES_STEEL
+    else:
+        status = _STATUS_BURN
+        immune1 = _TYPES_FIRE
+        immune2 = _TYPES_FIRE
+    if pok[_POK_STATUS]:
         return
+    for t in (pok[_POK_TYPE1], pok[_POK_TYPE2]):
+        if t == immune1 or t == immune2:
+            return
     if side_cond & _SIDECONDITION_SAFEGUARD:
         return
-    if ability_blocks_status(pok, pok, _STATUS_BURN, weather):
+    if ability_blocks_status(pok, pok, status, weather):
         reveal_ability(pok)
         return
-    pok[_POK_STATUS] = _STATUS_BURN
+    pok[_POK_STATUS] = status
+    if status == _STATUS_TOXIC:
+        pok[_POK_BADLY_POISON] = 1
 
 
 @njit
@@ -1230,7 +1256,8 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     """
     Gen IV order (pokeplatinum CheckMonConditions, Showdown gen4 residual suborders):
     Ingrain, Aqua Ring, Speed Boost, Leftovers / Black Sludge, Leech Seed, Psn/Tox, Burn, Curse,
-    Bind, Bad Dreams, Uproar, Disable, Encore, Taunt, Yawn, status items, Flame Orb
+    Bind, Bad Dreams, Uproar, Disable, Encore, Taunt, Yawn, status items, Flame / Toxic Orb and
+    Sticky Barb
     """
     if pok[_POK_CURRENT_HP] <= 0:
         return
@@ -1362,10 +1389,15 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     # 13. Status items, for Yawn's sleep (pokeplatinum MON_COND_CHECK_STATE_ITEM_CONDITION)
     status_item(pok)
 
-    # 14. Flame Orb
-    if pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_BRN_USER:
+    # 14. Flame Orb, Toxic Orb and Sticky Barb (pokeplatinum TriggerDetrimentalHeldItem)
+    effect = pok[_ITEM_HOLD_EFFECT]
+    if effect == _HOLDEFFECT_BRN_USER or effect == _HOLDEFFECT_PSN_USER:
         side = side_base(enter_field_flag_idx == _FIELD_MY_ENTER_FIELD)
         _flame_orb(pok, battle_array[side], effective_weather(battle_array))
+    elif effect == _HOLDEFFECT_DMG_USER_CONTACT_XFR and not is_magic_guard:
+        dmg = max(1, pok[_POK_MAX_HP] // pok[_ITEM_EFFECT_PARAM])
+        if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
+            return
 
     if enter_field:
         battle_array[enter_field_flag_idx] = 0

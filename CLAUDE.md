@@ -264,6 +264,10 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   `node_key` k4); RP's AI does steal with Covet; the rollout counts a working opponent OHKO as a KO. King's Rock
   / Razor Fang follow [SD gen4] (10% per hit, Serene Grace doubles it) on its move list plus RP's damaging moves
   from after Gen IV (`kings_rock` in MoveDB, which `add_moves` sets).
+- Berries (4.3): Micle follows [pp] (lasts until the holder's next accuracy roll or a switch-out, OHKO and
+  always-hit moves keep it); Safeguard doesn't stop a confusion berry's confusion ([SD]); Enigma, Jaboca and
+  Rowap work per hit ([SD]); Bug Bite follows [pp] PluckBerry, quirk included: a plucked Persim raises Attack
+  below +6 instead of curing confusion, a plucked Leppa takes the move missing the most PP.
 - Substitute: every damaging move hits it (Gen IV has no bypass for them, sound moves included). A multi-hit
   move's hits after it breaks reach the Pokemon with their effects ([SD]; [pp] blocks them for the rest of the
   turn). A status move into one still reveals the ability that would block it ([pp] order). Its HP cost isn't
@@ -360,6 +364,10 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - UI: no "the AI knows this ability" marker, and the field's weather shows while Cloud Nine / Air Lock
   suppress it.
 - Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
+- Leppa on the foe (only through a Covet on my Leppa holder) gives back PP that Continue's foe PP arithmetic
+  doesn't see.
+- Custap is eaten when the turn order is set, not when its holder moves: a holder KO'd first by a higher
+  priority move loses it ([pp] keeps it), and its slot's Recycle item follows.
 - Search: `evaluate_terminal` counts deaths, so every Pokemon is worth the same: a win that loses the
   team's best Pokemon scores like one that loses its worst.
 - Search: `ROOT_C` costs wins at very low budgets: Roark weak at 200 iterations wins 2.1%, against 8.7% with

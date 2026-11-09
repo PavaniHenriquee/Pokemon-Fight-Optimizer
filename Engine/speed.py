@@ -10,6 +10,7 @@ from Models.constants import (
     _VOLSTATUS2_CAN_UNBURDEN, _ITEM_ID, _ITEM_HOLD_EFFECT, _ITEM_EFFECT_PARAM,
     _HOLDEFFECT_SOMETIMES_PRIORITY, _HOLDEFFECT_DITTO_SPEED_UP, _POK_ID,
     _HOLDEFFECT_EVS_UP_SPEED_DOWN, _HOLDEFFECT_LVLUP_EV_UP, _HOLDEFFECT_SPEED_DOWN_GROUNDED,
+    _POK_CURRENT_HP, _POK_MAX_HP, _ABILITYNAMES_GLUTTONY, _HOLDEFFECT_PINCH_PRIORITY,
 )
 from DataBase.PkDB import PokemonName
 
@@ -25,6 +26,29 @@ def quick_claw(pok):
     return (
         pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_SOMETIMES_PRIORITY
         and random.randint(0, 99) < pok[_ITEM_EFFECT_PARAM]
+    )
+
+
+@njit
+def pinch_hp(pok):
+    """
+    The pinch berries' HP check: at most max HP / its effect param (4), Gluttony halves the param
+    (pokeplatinum BattleSystem_TriggerHeldItem, CompareBattlerSpeed)
+    """
+    divisor = pok[_ITEM_EFFECT_PARAM]
+    if pok[_POK_AB_ID] == _ABILITYNAMES_GLUTTONY:
+        divisor //= 2
+    return pok[_POK_CURRENT_HP] <= pok[_POK_MAX_HP] // divisor
+
+
+@njit
+def custap_ready(pok):
+    """A live Custap Berry holder in a pinch moves first in its bracket, like an activated Quick
+    Claw (pokeplatinum CompareBattlerSpeed)"""
+    return (
+        pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_PINCH_PRIORITY
+        and pok[_POK_CURRENT_HP] > 0
+        and pinch_hp(pok)
     )
 
 

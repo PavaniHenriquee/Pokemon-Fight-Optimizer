@@ -726,3 +726,21 @@ def test_synchronize_reveals_when_it_passes_the_status(poke):
     d = poke("Abra", 20, "Synchronize", ["Tackle"])
     calculate_effects(a, d, move_slice(a, 0), 0)
     assert a[Pok.STATUS] == Status.POISON and d[Pok.AB_KNOWN]
+
+
+# ── 4.2: Destiny Knot ────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("user_ability, user_gender, item, both", [
+    ("Static", "Male", "Destiny Knot", True),
+    ("Static", "Male", None, False),
+    ("Oblivious", "Male", "Destiny Knot", False),
+])
+def test_destiny_knot_infatuates_the_attract_user(poke, user_ability, user_gender, item, both):
+    """The infatuated holder infatuates the user back, under Attract's rules; the user's Oblivious
+    shows ("made the item ineffective", pokeplatinum subscript_infatuate)"""
+    a = poke("Pikachu", 20, user_ability, ["Attract"], gender=user_gender)
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item=item, gender="Female")
+    calculate_effects(a, d, move_slice(a, 0), 0)
+    assert d[Pok.VOL_STATUS] & VolStatus.ATTRACT
+    assert bool(a[Pok.VOL_STATUS] & VolStatus.ATTRACT) == both
+    assert bool(a[Pok.AB_KNOWN]) == (user_ability == "Oblivious")

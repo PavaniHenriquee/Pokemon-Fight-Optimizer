@@ -80,7 +80,7 @@ def test_trainers(client):
     assert "Gym Leader Roark 1" in data
     assert all("team" in t for t in data.values())
     assert "lacks" not in data["Gym Leader Roark 1"]
-    assert "Life Orb" in data["Champion Cynthia 1-1"]["lacks"]
+    assert "Choice Scarf" in data["Champion Cynthia 1-2"]["lacks"]
     assert all(t["lacks"] for t in data.values() if "lacks" in t)
 
 

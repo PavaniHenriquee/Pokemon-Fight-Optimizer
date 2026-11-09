@@ -32,7 +32,7 @@ from Models.helper import (
     Status, Weather, VolStatus, VolStatus2, Potions, MoveOutcome, Types, SideCondition, Gender,
 )
 from DataBase.ItemDB import ItemNames
-from battle_driver import move_slice
+from battle_driver import move_slice, my_active
 
 
 def empty_field():
@@ -2917,3 +2917,472 @@ def test_switch_out_drops_the_substitute(poke):
     p = _with_sub(poke("Rattata", 20, "Run Away", ["Tackle"]))
     reset_switch_out(p)
     assert p[Pok.SUB_HP] == 0 and not p[Pok.VOL_STATUS2] & VolStatus2.SUBSTITUTE
+
+
+# ── 4.2: Focus Sash, White Herb, Sticky Barb, Shell Bell, Life Orb, Destiny Knot ──
+
+def _sash_holder(poke, hp=None):
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item="Focus Sash")
+    if hp is not None:
+        d[Pok.CURRENT_HP] = hp
+    return d
+
+
+def test_focus_sash_holds_a_ko_at_full_hp_and_is_used_up(poke):
+    """1 HP left, the Sash is gone and recyclable (pokeplatinum subscript_move_followup_message)"""
+    d = _sash_holder(poke)
+    full = int(d[Pok.MAX_HP])
+    assert engine_helper.focus_sash_ready(d)
+    assert endure_damage(d, 10_000, engine_helper.focus_sash_ready(d)) == full - 1
+    assert d[Item.ID] == 0 and d[Pok.CONSUMED_ITEM] == ItemNames.FOCUS_SASH
+
+
+@pytest.mark.parametrize("hp, damage", [(None, 1), (10, 10_000)])
+def test_focus_sash_keeps_quiet_below_full_hp_or_on_a_non_ko(poke, hp, damage):
+    """A hit that doesn't KO leaves it held, and it does nothing once the holder is hurt"""
+    d = _sash_holder(poke, hp)
+    assert endure_damage(d, damage, engine_helper.focus_sash_ready(d)) == damage
+    assert d[Item.ID] == ItemNames.FOCUS_SASH
+
+
+def test_focus_sash_flag_holds_later_hits_without_the_item(poke):
+    """Once the Sash found its holder at full HP, every lethal hit of the move leaves 1 HP"""
+    d = _sash_holder(poke, 1)
+    engine_helper.clear_item(d)
+    assert endure_damage(d, 50, True) == 0
+
+
+def test_endure_goes_before_the_focus_sash(poke):
+    """Endure holds on and the Sash stays (pokeplatinum: focusItemActivated only without Endure)"""
+    d = _sash_holder(poke)
+    d[Pok.VOL_STATUS] = VolStatus.ENDURE
+    assert endure_damage(d, 10_000, engine_helper.focus_sash_ready(d)) == d[Pok.MAX_HP] - 1
+    assert d[Item.ID] == ItemNames.FOCUS_SASH
+
+
+def test_focus_sash_skips_the_confusion_self_hit(monkeypatch, poke):
+    """Showdown: the Sash only reacts to a move's damage"""
+    monkeypatch.setattr(engine_helper, "calculate_damage_confusion", lambda pok: 10_000)
+    d = _sash_holder(poke)
+    engine_helper.confusion(d)
+    assert d[Pok.CURRENT_HP] == 0 and d[Item.ID] == ItemNames.FOCUS_SASH
+
+
+def test_white_herb_restores_only_lowered_stages(poke):
+    """Every stage below 0 back to 0, accuracy and evasion too, raised ones stay; used up"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle"], item="White Herb")
+    p[Pok.ATTACK_STAT_STAGE] = -2
+    p[Pok.DEFENSE_STAT_STAGE] = 3
+    p[Pok.EVASION_STAT_STAGE] = -1
+    engine_helper.status_item(p)
+    assert p[Pok.ATTACK_STAT_STAGE] == 0 and p[Pok.EVASION_STAT_STAGE] == 0
+    assert p[Pok.DEFENSE_STAT_STAGE] == 3
+    assert p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] == ItemNames.WHITE_HERB
+
+
+def test_white_herb_stays_without_a_drop(poke):
+    """No lowered stage, nothing happens"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle"], item="White Herb")
+    p[Pok.SPEED_STAT_STAGE] = 2
+    engine_helper.status_item(p)
+    assert p[Item.ID] == ItemNames.WHITE_HERB
+
+
+def test_white_herb_answers_intimidate_on_the_foes_switch_in(make_pokemon, make_battle):
+    """pokeplatinum SWITCH_IN_CHECK_STATE_HELD_ITEM_STATUS checks every active"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Tackle"], item="White Herb")],
+                      [make_pokemon("Growlithe", 20, "Intimidate", ["Tackle"])])
+    me = my_active(arr)
+    assert me[Pok.ATTACK_STAT_STAGE] == 0 and me[Item.ID] == 0
+    assert me[Pok.CONSUMED_ITEM] == ItemNames.WHITE_HERB
+
+
+def _barb_pair(poke, move="Tackle", attacker_item=None):
+    a = poke("Rattata", 20, "Run Away", [move], item=attacker_item)
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item="Sticky Barb")
+    return a, d
+
+
+def test_sticky_barb_moves_to_an_itemless_contact_attacker(poke):
+    """The KO hit too, Sticky Hold doesn't stop it (pokeplatinum TriggerHeldItemOnHit)"""
+    a, d = _barb_pair(poke)
+    d[Pok.CURRENT_HP] = 0
+    d[Pok.AB_ID] = AbilityNames.STICKY_HOLD
+    engine_helper.sticky_barb_transfer(a, d, move_slice(a, 0), 5)
+    assert a[Item.ID] == ItemNames.STICKY_BARB and d[Item.ID] == 0
+
+
+@pytest.mark.parametrize("move, attacker_item, knocked, dealt", [
+    ("Ember", None, 0, 5),            # no contact
+    ("Tackle", "Oran Berry", 0, 5),   # attacker holds an item
+    ("Knock Off", None, 0, 5),
+    ("Tackle", None, 1, 5),           # its own item was knocked off
+    ("Tackle", None, 0, 0),           # no damage taken
+])
+def test_sticky_barb_stays(poke, move, attacker_item, knocked, dealt):
+    """Contact, an empty hand, damage dealt, and not Knock Off"""
+    a, d = _barb_pair(poke, move, attacker_item)
+    a[Pok.ITEM_KNOCKED_OFF] = knocked
+    engine_helper.sticky_barb_transfer(a, d, move_slice(a, 0), dealt)
+    assert d[Item.ID] == ItemNames.STICKY_BARB
+
+
+@pytest.mark.parametrize("hp, dealt, hit_pok, healed", [
+    (10, 40, True, 5), (10, 3, True, 1), (None, 40, True, 0), (10, 40, False, 0), (10, 0, True, 0),
+])
+def test_shell_bell_heals_an_eighth_of_the_damage(poke, hp, dealt, hit_pok, healed):
+    """At least 1, not at full HP, nothing when only a Substitute was hit (pokeplatinum
+    AFTER_MOVE_HIT_STATE_SHELL_BELL)"""
+    a = poke("Rattata", 20, "Run Away", ["Tackle"], item="Shell Bell")
+    if hp is not None:
+        a[Pok.CURRENT_HP] = hp
+    before = int(a[Pok.CURRENT_HP])
+    engine_helper.after_move_hit_items(a, move_slice(a, 0), dealt, hit_pok)
+    assert a[Pok.CURRENT_HP] - before == healed
+
+
+@pytest.mark.parametrize("move, ability, hit_pok, recoil", [
+    ("Tackle", "Run Away", True, True),
+    ("Tackle", "Run Away", False, False),      # a Substitute took it
+    ("Tackle", "Magic Guard", True, False),
+    ("Seismic Toss", "Run Away", True, False),  # fixed damage (Showdown gen4)
+    ("Guillotine", "Run Away", True, False),    # OHKO
+    ("Counter", "Run Away", True, False),
+])
+def test_life_orb_recoil(poke, move, ability, hit_pok, recoil):
+    """1/10 of max HP after a move with a base power that reached the Pokemon"""
+    a = poke("Rattata", 20, ability, [move], item="Life Orb")
+    full = int(a[Pok.MAX_HP])
+    engine_helper.after_move_hit_items(a, move_slice(a, 0), 10, hit_pok)
+    assert a[Pok.CURRENT_HP] == (full - max(1, full // 10) if recoil else full)
+
+
+def test_destiny_knot_through_cute_charm(monkeypatch, poke):
+    """The infatuated knot holder infatuates the Cute Charm user back"""
+    _fix_rolls(monkeypatch, 0)
+    a = poke("Rattata", 50, "Run Away", ["Tackle"], item="Destiny Knot")
+    a[Pok.GENDER] = Gender.MALE
+    d = poke("Clefairy", 50, "Cute Charm", ["Pound"])
+    d[Pok.GENDER] = Gender.FEMALE
+    on_hit_abilities(a, d, move_slice(a, 0), 10, 0)
+    assert a[Pok.VOL_STATUS] & VolStatus.ATTRACT and d[Pok.VOL_STATUS] & VolStatus.ATTRACT
+
+
+# ── 4.3 Berries ──────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("item, status, vol, cured", [
+    ("Cheri Berry", Status.PARALYSIS, 0, True),
+    ("Cheri Berry", Status.BURN, 0, False),
+    ("Rawst Berry", Status.BURN, 0, True),
+    ("Rawst Berry", Status.FREEZE, 0, False),
+    ("Aspear Berry", Status.FREEZE, 0, True),
+    ("Aspear Berry", Status.SLEEP, 0, False),
+    ("Persim Berry", 0, VolStatus.CONFUSION, True),
+    ("Persim Berry", Status.PARALYSIS, 0, False),
+])
+def test_status_berries(poke, item, status, vol, cured):
+    """Each cures its own condition after a move and is used up, recyclable (pokeplatinum
+    BattleSystem_TriggerHeldItemOnStatus)"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item=item)
+    held = p[Item.ID]
+    p[Pok.STATUS] = status
+    p[Pok.VOL_STATUS] = vol
+    engine_helper.status_item(p)
+    if cured:
+        assert p[Pok.STATUS] == 0 and p[Pok.VOL_STATUS] == 0
+        assert p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] == held
+    else:
+        assert p[Pok.STATUS] == status and p[Item.ID] == held
+
+
+def _pp(pok, slot):
+    return pok[Pok.MOVE1_ID + slot * (Pok.MOVE2_ID - Pok.MOVE1_ID) + Move.PP]
+
+
+def _set_pp(pok, slot, value):
+    pok[Pok.MOVE1_ID + slot * (Pok.MOVE2_ID - Pok.MOVE1_ID) + Move.PP] = value
+
+
+def test_leppa_waits_for_a_move_at_zero_pp(poke):
+    """Held, Leppa does nothing while every move has PP, then gives the first empty one 10"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle", "Quick Attack", "Bite"], item="Leppa Berry")
+    _set_pp(p, 0, 3)
+    engine_helper.status_item(p)
+    assert p[Item.ID] == ItemNames.LEPPA_BERRY
+    _set_pp(p, 1, 0)
+    _set_pp(p, 2, 0)
+    engine_helper.status_item(p)
+    assert (_pp(p, 0), _pp(p, 1), _pp(p, 2)) == (3, 10, 0)
+    assert p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] == ItemNames.LEPPA_BERRY
+
+
+@pytest.mark.parametrize("pp_ups, restored", [(0, 5), (3, 8)])
+def test_leppa_stops_at_max_pp(poke, pp_ups, restored):
+    """A 5 PP move gets back at most its max: 5 + 20% per PP Up (pokeplatinum MoveTable_CalcMaxPP)"""
+    p = poke("Rattata", 50, "Run Away", ["Blizzard"], item="Leppa Berry")
+    p[Pok.MOVE1_ID + Move.PP_UP] = pp_ups
+    _set_pp(p, 0, 0)
+    engine_helper.status_item(p)
+    assert _pp(p, 0) == restored
+
+
+@pytest.mark.parametrize("item, nature, confused", [
+    ("Figy Berry", "Modest", True),     # -Atk dislikes spicy
+    ("Figy Berry", "Adamant", False),
+    ("Wiki Berry", "Adamant", True),    # -SpA, dry
+    ("Mago Berry", "Brave", True),      # -Spe, sweet
+    ("Aguav Berry", "Naughty", True),   # -SpD, bitter
+    ("Iapapa Berry", "Lonely", True),   # -Def, sour
+    ("Iapapa Berry", "Hardy", False),
+])
+def test_flavor_berries(make_pokemon, item, nature, confused):
+    """At half HP they heal 1/8 of max HP, and confuse a nature that dislikes their flavor
+    (pokeplatinum HOLD_EFFECT_HP_RESTORE_*, Gen IV numbers)"""
+    p = make_pokemon("Rattata", 50, "Run Away", ["Tackle"], item=item, nature=nature).to_np()
+    half = p[Pok.MAX_HP] // 2
+    p[Pok.CURRENT_HP] = half + 1
+    eat_berry(p)
+    assert p[Item.ID] != 0
+    p[Pok.CURRENT_HP] = half
+    eat_berry(p)
+    assert p[Pok.CURRENT_HP] == half + p[Pok.MAX_HP] // 8
+    assert bool(p[Pok.VOL_STATUS] & VolStatus.CONFUSION) == confused
+    if confused:
+        assert 2 <= p[Pok.CONFUSION_COUNTER] <= 5
+    assert p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] != 0
+
+
+def test_flavor_berry_own_tempo_isnt_confused(make_pokemon):
+    """Own Tempo stops the berry's confusion, the heal still happens"""
+    p = make_pokemon("Spinda", 50, "Own Tempo", ["Tackle"], item="Figy Berry",
+                     nature="Modest").to_np()
+    p[Pok.CURRENT_HP] = 1
+    eat_berry(p)
+    assert p[Pok.CURRENT_HP] > 1 and not p[Pok.VOL_STATUS] & VolStatus.CONFUSION
+
+
+@pytest.mark.parametrize("item, stage", [
+    ("Liechi Berry", Pok.ATTACK_STAT_STAGE), ("Ganlon Berry", Pok.DEFENSE_STAT_STAGE),
+    ("Petaya Berry", Pok.SPECIAL_ATTACK_STAT_STAGE),
+    ("Apicot Berry", Pok.SPECIAL_DEFENSE_STAT_STAGE), ("Salac Berry", Pok.SPEED_STAT_STAGE),
+])
+def test_pinch_stat_berries(poke, item, stage):
+    """+1 to their stat at a quarter of max HP, used up (pokeplatinum HOLD_EFFECT_PINCH_*)"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item=item)
+    quarter = p[Pok.MAX_HP] // 4
+    p[Pok.CURRENT_HP] = quarter + 1
+    item_on_rdmg(p)
+    assert p[stage] == 0 and p[Item.ID] != 0
+    p[Pok.CURRENT_HP] = quarter
+    item_on_rdmg(p)
+    assert p[stage] == 1 and p[Item.ID] == 0 and p[Pok.CONSUMED_ITEM] != 0
+
+
+def test_pinch_berry_kept_at_plus_six(poke):
+    """At +6 it has nothing to do and stays held, a stat drop lets it work after the next move"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item="Liechi Berry")
+    p[Pok.CURRENT_HP] = 1
+    p[Pok.ATTACK_STAT_STAGE] = 6
+    item_on_rdmg(p)
+    assert p[Item.ID] == ItemNames.LIECHI_BERRY
+    p[Pok.ATTACK_STAT_STAGE] = 5
+    engine_helper.status_item(p)
+    assert p[Pok.ATTACK_STAT_STAGE] == 6 and p[Item.ID] == 0
+
+
+def test_gluttony_eats_pinch_berries_at_half(poke):
+    """Gluttony halves the effect param: half HP instead of a quarter"""
+    p = poke("Zigzagoon", 50, "Gluttony", ["Tackle"], item="Salac Berry")
+    p[Pok.CURRENT_HP] = p[Pok.MAX_HP] // 2
+    item_on_rdmg(p)
+    assert p[Pok.SPEED_STAT_STAGE] == 1 and p[Item.ID] == 0
+
+
+def test_gluttony_doesnt_change_the_half_hp_berries(poke):
+    """Sitrus and the confusion berries already work at half"""
+    p = poke("Zigzagoon", 50, "Gluttony", ["Tackle"], item="Sitrus Berry")
+    p[Pok.CURRENT_HP] = p[Pok.MAX_HP] // 2 + 1
+    item_on_rdmg(p)
+    assert p[Item.ID] == ItemNames.SITRUS_BERRY
+
+
+def test_lansat_sets_focus_energy(poke):
+    """Lansat gives Focus Energy, and stays held when it's already on"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item="Lansat Berry")
+    p[Pok.CURRENT_HP] = 1
+    p[Pok.VOL_STATUS] = VolStatus.FOCUS_ENERGY
+    item_on_rdmg(p)
+    assert p[Item.ID] == ItemNames.LANSAT_BERRY
+    p[Pok.VOL_STATUS] = 0
+    item_on_rdmg(p)
+    assert p[Pok.VOL_STATUS] & VolStatus.FOCUS_ENERGY and p[Item.ID] == 0
+
+
+def test_starf_raises_a_stat_that_isnt_maxed(poke):
+    """+2 to a random stat from Attack to Speed, never one at +6, never accuracy or evasion"""
+    for _ in range(20):
+        p = poke("Rattata", 50, "Run Away", ["Tackle"], item="Starf Berry")
+        p[Pok.CURRENT_HP] = 1
+        p[Pok.ATTACK_STAT_STAGE:Pok.SPEED_STAT_STAGE] = 6
+        p[Pok.SPEED_STAT_STAGE] = 5
+        item_on_rdmg(p)
+        assert p[Pok.SPEED_STAT_STAGE] == 6 and p[Item.ID] == 0
+        assert p[Pok.ACCURACY_STAT_STAGE] == 0 and p[Pok.EVASION_STAT_STAGE] == 0
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item="Starf Berry")
+    p[Pok.CURRENT_HP] = 1
+    p[Pok.ATTACK_STAT_STAGE:Pok.SPEED_STAT_STAGE + 1] = 6
+    item_on_rdmg(p)
+    assert p[Item.ID] == ItemNames.STARF_BERRY
+
+
+def test_starf_rng_only_when_it_triggers(poke):
+    """No RNG call above the threshold, so other scenarios keep their RNG order"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"], item="Starf Berry")
+    state = random.getstate()
+    item_on_rdmg(p)
+    assert random.getstate() == state
+
+
+def test_micle_boosts_the_next_roll_only(poke):
+    """x120/100 on the holder's next accuracy roll, then it's gone; an always-hit move keeps it
+    (pokeplatinum BattleControllerPlayer_CheckMoveHitAccuracy)"""
+    a = poke("Rattata", 50, "Run Away", ["Fury Attack", "Swift"], item="Micle Berry")
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    a[Pok.CURRENT_HP] = 1
+    item_on_rdmg(a)
+    assert a[Pok.VOL_STATUS2] & VolStatus2.MICLE and a[Item.ID] == 0
+    fury = move_slice(a, 0)
+    assert move_accuracy(fury, a, d, 85, 0) == 85 * 120 // 100
+    calculate_hit_miss(move_slice(a, 1), a, d, 0)
+    assert a[Pok.VOL_STATUS2] & VolStatus2.MICLE
+    calculate_hit_miss(fury, a, d, 0)
+    assert not a[Pok.VOL_STATUS2] & VolStatus2.MICLE
+    assert move_accuracy(fury, a, d, 85, 0) == 85
+
+
+def test_micle_ends_on_switch_out(poke):
+    """It's a battler flag: switching out drops it"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"])
+    p[Pok.VOL_STATUS2] = VolStatus2.MICLE
+    reset_switch_out(p)
+    assert not p[Pok.VOL_STATUS2] & VolStatus2.MICLE
+
+
+@pytest.mark.parametrize("hp_quarter, first", [(True, True), (False, False)])
+def test_custap_moves_first_in_its_bracket(poke, hp_quarter, first):
+    """In a pinch the slower holder goes first and eats it (pokeplatinum CompareBattlerSpeed)"""
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Custap Berry")
+    fast = poke("Rattata", 50, "Run Away", ["Tackle"])
+    slow[Pok.CURRENT_HP] = slow[Pok.MAX_HP] // 4 + (0 if hp_quarter else 1)
+    assert move_order(slow, 0, fast, 0, False, False, 0)[3] is first
+    assert (slow[Item.ID] == 0) == first
+    if first:
+        assert slow[Pok.CONSUMED_ITEM] == ItemNames.CUSTAP_BERRY
+
+
+def test_custap_eaten_against_a_higher_priority(poke):
+    """Quick Attack still goes first, the berry is eaten anyway"""
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Custap Berry")
+    fast = poke("Rattata", 50, "Run Away", ["Quick Attack"])
+    slow[Pok.CURRENT_HP] = 1
+    assert move_order(slow, 0, fast, 0, False, False, 0)[3] is False
+    assert slow[Item.ID] == 0
+
+
+def test_custap_kept_when_the_foe_switches(poke):
+    """Only when both sides use a move"""
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Custap Berry")
+    other = poke("Rattata", 50, "Run Away", ["Tackle"])
+    slow[Pok.CURRENT_HP] = 1
+    move_order(slow, 0, other, -1, False, True, 0)
+    assert slow[Item.ID] == ItemNames.CUSTAP_BERRY
+
+
+def test_bug_bite_persim_raises_attack(poke):
+    """pokeplatinum PluckBerry's CNF_RESTORE falls into ATK_UP: below +6 Attack goes up and the
+    confusion stays, at +6 it cures"""
+    atk = poke("Kricketune", 50, "Swarm", ["Bug Bite"])
+    atk[Pok.VOL_STATUS] = VolStatus.CONFUSION
+    eat_berry_bug_bite(atk, poke("Rattata", 50, "Run Away", ["Tackle"], item="Persim Berry"))
+    assert atk[Pok.ATTACK_STAT_STAGE] == 1 and atk[Pok.VOL_STATUS] & VolStatus.CONFUSION
+    atk[Pok.ATTACK_STAT_STAGE] = 6
+    eat_berry_bug_bite(atk, poke("Rattata", 50, "Run Away", ["Tackle"], item="Persim Berry"))
+    assert not atk[Pok.VOL_STATUS] & VolStatus.CONFUSION
+
+
+def test_bug_bite_leppa_takes_the_move_missing_most(poke):
+    """Plucked, Leppa picks the move missing the most PP, not one at 0 (pokeplatinum PluckBerry)"""
+    atk = poke("Kricketune", 50, "Swarm", ["Bug Bite", "Tackle"])
+    _set_pp(atk, 0, 1)   # 19 missing
+    _set_pp(atk, 1, 5)   # 30 missing
+    eat_berry_bug_bite(atk, poke("Rattata", 50, "Run Away", ["Tackle"], item="Leppa Berry"))
+    assert (_pp(atk, 0), _pp(atk, 1)) == (1, 15)
+
+
+def test_bug_bite_pinch_berry_ignores_hp(poke):
+    """Plucked, a pinch berry works at full HP"""
+    atk = poke("Kricketune", 50, "Swarm", ["Bug Bite"])
+    eat_berry_bug_bite(atk, poke("Rattata", 50, "Run Away", ["Tackle"], item="Liechi Berry"))
+    assert atk[Pok.ATTACK_STAT_STAGE] == 1
+
+
+def test_bug_bite_flavor_berry_at_full_hp_does_nothing(make_pokemon, poke):
+    """Plucked at full HP: no heal and no confusion, the berry is still gone"""
+    atk = make_pokemon("Kricketune", 50, "Swarm", ["Bug Bite"], nature="Modest").to_np()
+    dfn = poke("Rattata", 50, "Run Away", ["Tackle"], item="Figy Berry")
+    eat_berry_bug_bite(atk, dfn)
+    assert not atk[Pok.VOL_STATUS] & VolStatus.CONFUSION and dfn[Item.ID] == 0
+
+
+@pytest.mark.parametrize("move, healed", [("Bubble", True), ("Tackle", False)])
+def test_enigma_heals_after_a_super_effective_hit(poke, move, healed):
+    """1/4 of max HP after a super effective hit (Showdown enigmaberry)"""
+    a = poke("Squirtle", 50, "Torrent", [move])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Enigma Berry")
+    d[Pok.CURRENT_HP] = 10
+    engine_helper.on_hit_berries(a, d, move_slice(a, 0), 5)
+    assert d[Pok.CURRENT_HP] == (10 + d[Pok.MAX_HP] // 4 if healed else 10)
+    assert (d[Item.ID] == 0) == healed
+
+
+def test_enigma_not_on_a_ko_or_fixed_damage(poke):
+    """A fainted holder doesn't heal, and a fixed damage move has no type effectiveness"""
+    a = poke("Squirtle", 50, "Torrent", ["Bubble", "Seismic Toss"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Enigma Berry")
+    d[Pok.CURRENT_HP] = 0
+    engine_helper.on_hit_berries(a, d, move_slice(a, 0), 5)
+    assert d[Item.ID] == ItemNames.ENIGMA_BERRY
+    d[Pok.CURRENT_HP] = 10
+    engine_helper.on_hit_berries(a, d, move_slice(a, 1), 5)
+    assert d[Item.ID] == ItemNames.ENIGMA_BERRY
+
+
+@pytest.mark.parametrize("item, move, hurts", [
+    ("Jaboca Berry", "Tackle", True), ("Jaboca Berry", "Bubble", False),
+    ("Rowap Berry", "Bubble", True), ("Rowap Berry", "Tackle", False),
+])
+def test_jaboca_rowap(poke, item, move, hurts):
+    """Jaboca answers a physical hit, Rowap a special one: 1/8 of the attacker's max HP"""
+    a = poke("Squirtle", 50, "Torrent", [move])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"], item=item)
+    full = int(a[Pok.MAX_HP])
+    engine_helper.on_hit_berries(a, d, move_slice(a, 0), 5)
+    assert a[Pok.CURRENT_HP] == (full - full // 8 if hurts else full)
+    assert (d[Item.ID] == 0) == hurts
+
+
+def test_jaboca_from_a_fainted_holder(poke):
+    """The KO hit still costs the attacker, the holder needn't be alive"""
+    a = poke("Squirtle", 50, "Torrent", ["Tackle"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Jaboca Berry")
+    d[Pok.CURRENT_HP] = 0
+    engine_helper.on_hit_berries(a, d, move_slice(a, 0), 5)
+    assert a[Pok.CURRENT_HP] < a[Pok.MAX_HP] and d[Item.ID] == 0
+
+
+def test_jaboca_magic_guard(poke):
+    """Magic Guard takes nothing and the berry stays"""
+    a = poke("Clefairy", 50, "Magic Guard", ["Pound"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Jaboca Berry")
+    engine_helper.on_hit_berries(a, d, move_slice(a, 0), 5)
+    assert a[Pok.CURRENT_HP] == a[Pok.MAX_HP] and d[Item.ID] == ItemNames.JABOCA_BERRY

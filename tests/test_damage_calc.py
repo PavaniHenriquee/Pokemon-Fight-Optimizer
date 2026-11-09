@@ -1270,3 +1270,34 @@ def test_struggle_flower_gift_in_sun(poke):
     base = struggle(a, d, False, 0, 0)
     random.seed(8)
     assert ratio(struggle(a, d, False, 0, Weather.SUN), base) == pytest.approx(1.5, abs=0.1)
+
+
+# ── 4.2: Life Orb ────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("crit", [False, True])
+def test_life_orb_multiplier_after_the_crit(poke, crit):
+    """x(100+30)/100 after the crit, before the roll (pokeplatinum BtlCmd_CalcDamage); with no STAB
+    or type change it's the last step at roll 100"""
+    plain = poke("Rattata", 50, "Run Away", ["Ember"])
+    held = poke("Rattata", 50, "Run Away", ["Ember"], item="Life Orb")
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    assert dmg(held, d, crit=crit) == dmg(plain, d, crit=crit) * 130 // 100
+
+
+def test_life_orb_not_in_the_ai_estimate(poke):
+    """pokeplatinum TrainerAI_CalcDamage calls CalcMoveDamage, which has no Life Orb"""
+    plain = poke("Rattata", 50, "Run Away", ["Tackle"])
+    held = poke("Rattata", 50, "Run Away", ["Tackle"], item="Life Orb")
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(plain, 0)
+    assert calculate_ai_logic_damage(2, held, d, mv, 0) == calculate_ai_logic_damage(2, plain, d, mv, 0)
+
+
+def test_life_orb_boosts_struggle(monkeypatch, poke):
+    """Struggle runs the normal damage command, so Life Orb boosts it too"""
+    from Engine import engine_helper
+    monkeypatch.setattr(engine_helper.random, "getrandbits", lambda n: 15)  # roll 100
+    plain = poke("Rattata", 50, "Run Away", ["Tackle"])
+    held = poke("Rattata", 50, "Run Away", ["Tackle"], item="Life Orb")
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    assert struggle_damage(held, d, False) == struggle_damage(plain, d, False) * 130 // 100

@@ -8,8 +8,8 @@ Updated only when asked.
 - Done: 1.1 (trainer importer), 1.2 (trainer availability) and 1.3 (coverage report), 2026-11-08.
 - Done: 1.4 (MoveDB entry helper), 2.1 (state design note) and 2.2 (`node_key` capacity), 2026-11-08.
 - Done: Phase 3 (Substitute and its audit), 2026-11-08.
-- Done: 4.1 (simple held items), 2026-11-08.
-- Next: 4.2, items with their own rules.
+- Done: 4.1 (simple held items), 4.2 (items with their own rules) and 4.3 (berries), 2026-11-08.
+- Next: 4.4, choice items.
 
 ## Goal
 
@@ -229,49 +229,49 @@ No battle effect:
 
 ### 4.2 Items with their own rules
 
-- [ ] Life Orb !
-- [ ] Shell Bell \*
-- [ ] Focus Sash !
-- [ ] Toxic Orb
-- [ ] White Herb !
-- [ ] Sticky Barb \* !
-- [ ] Destiny Knot \*
+- [x] Life Orb !
+- [x] Shell Bell \*
+- [x] Focus Sash !
+- [x] Toxic Orb
+- [x] White Herb !
+- [x] Sticky Barb \* !
+- [x] Destiny Knot \*
 
 ### 4.3 Berries
 
 Status:
 
-- [ ] Cheri Berry \*
-- [ ] Rawst Berry \*
-- [ ] Aspear Berry \*
-- [ ] Persim Berry \*
-- [ ] Leppa Berry \* !
+- [x] Cheri Berry \*
+- [x] Rawst Berry \*
+- [x] Aspear Berry \*
+- [x] Persim Berry \*
+- [x] Leppa Berry \* !
 
 HP (they confuse by nature):
 
-- [ ] Figy Berry \* !
-- [ ] Wiki Berry \* !
-- [ ] Mago Berry \* !
-- [ ] Aguav Berry \* !
-- [ ] Iapapa Berry \* !
+- [x] Figy Berry \* !
+- [x] Wiki Berry \* !
+- [x] Mago Berry \* !
+- [x] Aguav Berry \* !
+- [x] Iapapa Berry \* !
 
 Pinch:
 
-- [ ] Liechi Berry
-- [ ] Ganlon Berry \*
-- [ ] Salac Berry \*
-- [ ] Petaya Berry
-- [ ] Apicot Berry \*
-- [ ] Lansat Berry \*
-- [ ] Starf Berry !
-- [ ] Micle Berry \* !
-- [ ] Custap Berry \* !
+- [x] Liechi Berry
+- [x] Ganlon Berry \*
+- [x] Salac Berry \*
+- [x] Petaya Berry
+- [x] Apicot Berry \*
+- [x] Lansat Berry \*
+- [x] Starf Berry !
+- [x] Micle Berry \* !
+- [x] Custap Berry \* !
 
 Others:
 
-- [ ] Enigma Berry \* !
-- [ ] Jaboca Berry \*
-- [ ] Rowap Berry \*
+- [x] Enigma Berry \* !
+- [x] Jaboca Berry \*
+- [x] Rowap Berry \*
 
 ### 4.4 Choice items
 

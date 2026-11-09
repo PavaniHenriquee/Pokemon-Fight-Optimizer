@@ -117,3 +117,12 @@ def test_hidden_power_from_ivs(ivs, hp_type, power):
     hidden_power = Pok.MOVE2_ID
     assert (arr[hidden_power + Move.TYPE], arr[hidden_power + Move.POWER]) == (hp_type, power)
     assert arr[Pok.MOVE1_ID + Move.TYPE] == Types.NORMAL
+
+
+@pytest.mark.parametrize("nature, minus", [
+    ("Hardy", 0), ("Modest", 1), ("Lonely", 2), ("Adamant", 3), ("Naughty", 4), ("Brave", 5),
+])
+def test_nature_minus(make_pokemon, nature, minus):
+    """The stat the nature lowers, in stat stage order, for the confusion berries"""
+    arr = make_pokemon("Charmander", 50, "Blaze", ["Scratch"], nature=nature).to_np()
+    assert arr[Pok.NATURE_MINUS] == minus

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from Models import trainer_ai_helper as ai
 from Models.trainer_ai import return_idx, sub_after_death, MOVE_EXCEP
-from Models.idx_const import Pok, Move, POK_LEN, Field
+from Models.idx_const import Pok, Move, POK_LEN, Field, Item
 from Models.helper import (
     VolStatus, VolStatus2, Status, Types, Enemy_AI_Knows, SideCondition, Weather
 )
@@ -1786,3 +1786,16 @@ def test_expert_substitute_target_last_move(poke, last, user_status, user_vol, a
     user[Pok.VOL_STATUS] = user_vol
     assert _expert_field(ai_pok, user, getattr(MoveName, last.upper().replace(" ", "_")
                                                .replace("-", "_"))) == (0, expected)
+
+
+def test_quick_claw_guess_counts_custap(poke):
+    """A Custap holder in a pinch always counts as an activated Quick Claw, no RNG (pokeplatinum
+    CompareBattlerSpeed)"""
+    plain = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    custap = poke("Rattata", 20, "Run Away", ["Tackle"], item="Custap Berry")
+    assert ai.quick_claw_guess(plain, custap) == 0
+    custap[Pok.CURRENT_HP] = custap[Pok.MAX_HP] // 4
+    state = ai.random.getstate()
+    assert ai.quick_claw_guess(custap, plain) == 1
+    assert ai.random.getstate() == state
+    assert custap[Item.ID] == ItemNames.CUSTAP_BERRY

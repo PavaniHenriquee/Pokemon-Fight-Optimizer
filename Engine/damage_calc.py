@@ -38,6 +38,7 @@ from Models.constants import (
     _HOLDEFFECT_POWER_UP_SPEC, _HOLDEFFECT_CLAMPERL_SPATK, _HOLDEFFECT_CLAMPERL_SPDEF,
     _HOLDEFFECT_LATI_SPECIAL, _HOLDEFFECT_DIALGA_BOOST, _HOLDEFFECT_PALKIA_BOOST,
     _HOLDEFFECT_GIRATINA_BOOST, _HOLDEFFECT_DITTO_DEF_UP, _TYPES_DRAGON, _TYPES_STEEL, _TYPES_WATER,
+    _HOLDEFFECT_HP_DRAIN_ON_ATK,
 )
 from Engine.ability_helper import ignorable_ability, normalized_type, grounded_by_item
 
@@ -416,6 +417,17 @@ def crit_multiplier(attacker):
 
 
 @njit
+def life_orb_damage(attacker, damage):
+    """Life Orb x(100+30)/100 after the crit, before the Metronome item (pokeplatinum
+    BtlCmd_CalcDamage). Not in the AI's estimate, TrainerAI_CalcDamage skips it.
+    TODO: Future Sight and Doom Desire don't get it ([SD gen4] futuremove), skip them here once
+    they're implemented"""
+    if attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_HP_DRAIN_ON_ATK:
+        return damage * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
+    return damage
+
+
+@njit
 def filter_damage(attacker, defender, effectiveness, effectiveness2, damage):
     """
     Filter and Solid Rock cut a super effective hit to 3/4, at least 1, before Expert Belt
@@ -499,6 +511,8 @@ def multipliers(
     # Crit
     if crit:
         damage *= crit_multiplier(attacker)
+
+    damage = life_orb_damage(attacker, damage)
 
     # Metronome item x(10+n)/10 (pokeplatinum BattleScript_CalcMoveDamage)
     if attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_BOOST_REPEATED:

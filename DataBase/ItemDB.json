@@ -7,12 +7,42 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Aguav Berry": {
+    "effect_param": 8,
+    "fling_power": 10,
+    "hold_effect": "hp_restore_bitter",
+    "name": "aguav_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Dragon",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
   "Amulet Coin": {
     "effect_param": 0,
     "fling_power": 30,
     "hold_effect": "none",
     "name": "amulet_coin",
     "type": "held"
+  },
+  "Apicot Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "pinch_spdef_up",
+    "name": "apicot_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Ground",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Aspear Berry": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "frz_restore",
+    "name": "aspear_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Ice",
+    "type": "berry",
+    "when": "on_end"
   },
   "Babiri Berry": {
     "effect_param": 0,
@@ -116,6 +146,16 @@
     "type": "berry",
     "when": "on_receive_damage"
   },
+  "Cheri Berry": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "prz_restore",
+    "name": "cheri_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Fire",
+    "type": "berry",
+    "when": "on_end"
+  },
   "Chesto Berry": {
     "effect_param": 0,
     "fling_power": 10,
@@ -177,6 +217,16 @@
     "type": "berry",
     "when": "on_receive_damage"
   },
+  "Custap Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "pinch_priority",
+    "name": "custap_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Ghost",
+    "type": "berry",
+    "when": "on_selection"
+  },
   "Damp Rock": {
     "effect_param": 3,
     "fling_power": 60,
@@ -207,6 +257,13 @@
     "name": "deep_sea_tooth",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Destiny Knot": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "reciprocate_infat",
+    "name": "destiny_knot",
+    "type": "held"
   },
   "Dragon Fang": {
     "effect_param": 20,
@@ -245,6 +302,16 @@
     "name": "electirizer",
     "type": "held"
   },
+  "Enigma Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "hp_restore_se",
+    "name": "enigma_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Bug",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
   "Everstone": {
     "effect_param": 0,
     "fling_power": 30,
@@ -266,6 +333,16 @@
     "name": "expert_belt",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Figy Berry": {
+    "effect_param": 8,
+    "fling_power": 10,
+    "hold_effect": "hp_restore_spicy",
+    "name": "figy_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Bug",
+    "type": "berry",
+    "when": "on_receive_damage"
   },
   "Fire Stone": {
     "effect_param": 0,
@@ -290,6 +367,14 @@
     "type": "held",
     "when": "on_damage"
   },
+  "Focus Sash": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "endure",
+    "name": "focus_sash",
+    "type": "consumable",
+    "when": "on_damage"
+  },
   "Full Incense": {
     "effect_param": 0,
     "fling_power": 10,
@@ -297,6 +382,16 @@
     "name": "full_incense",
     "type": "held",
     "when": "on_selection"
+  },
+  "Ganlon Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "pinch_def_up",
+    "name": "ganlon_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Ice",
+    "type": "berry",
+    "when": "on_receive_damage"
   },
   "Green Scarf": {
     "effect_param": 0,
@@ -341,6 +436,16 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Iapapa Berry": {
+    "effect_param": 8,
+    "fling_power": 10,
+    "hold_effect": "hp_restore_sour",
+    "name": "iapapa_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Dark",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
   "Ice Stone": {
     "effect_param": 0,
     "fling_power": 30,
@@ -355,6 +460,16 @@
     "name": "iron_ball",
     "type": "held",
     "when": "on_selection"
+  },
+  "Jaboca Berry": {
+    "effect_param": 8,
+    "fling_power": 10,
+    "hold_effect": "recoil_physical",
+    "name": "jaboca_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Dragon",
+    "type": "berry",
+    "when": "on_receive_damage"
   },
   "Kasib Berry": {
     "effect_param": 0,
@@ -394,6 +509,16 @@
     "type": "held",
     "when": "on_selection"
   },
+  "Lansat Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "pinch_critrate_up",
+    "name": "lansat_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Flying",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
   "Lax Incense": {
     "effect_param": 10,
     "fling_power": 10,
@@ -416,6 +541,34 @@
     "name": "leftovers",
     "type": "held",
     "when": "on_end"
+  },
+  "Leppa Berry": {
+    "effect_param": 10,
+    "fling_power": 10,
+    "hold_effect": "pp_restore",
+    "name": "leppa_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Fighting",
+    "type": "berry",
+    "when": "on_end"
+  },
+  "Liechi Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "pinch_atk_up",
+    "name": "liechi_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Grass",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Life Orb": {
+    "effect_param": 30,
+    "fling_power": 30,
+    "hold_effect": "hp_drain_on_atk",
+    "name": "life_orb",
+    "type": "held",
+    "when": "on_prepare_hit"
   },
   "Light Ball": {
     "effect_param": 0,
@@ -498,6 +651,16 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Mago Berry": {
+    "effect_param": 8,
+    "fling_power": 10,
+    "hold_effect": "hp_restore_sweet",
+    "name": "mago_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Ghost",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
   "Mental Herb": {
     "effect_param": 0,
     "fling_power": 10,
@@ -530,6 +693,16 @@
     "name": "metronome",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Micle Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "pinch_acc_up",
+    "name": "micle_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Rock",
+    "type": "berry",
+    "when": "on_receive_damage"
   },
   "Miracle Seed": {
     "effect_param": 20,
@@ -641,6 +814,26 @@
     "natural_gift_type": "Electric",
     "type": "berry",
     "when": "on_end"
+  },
+  "Persim Berry": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "confuse_restore",
+    "name": "persim_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Ground",
+    "type": "berry",
+    "when": "on_end"
+  },
+  "Petaya Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "pinch_spatk_up",
+    "name": "petaya_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Poison",
+    "type": "berry",
+    "when": "on_receive_damage"
   },
   "Pink Scarf": {
     "effect_param": 0,
@@ -758,6 +951,16 @@
     "name": "rare_candy",
     "type": "held"
   },
+  "Rawst Berry": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "brn_restore",
+    "name": "rawst_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Grass",
+    "type": "berry",
+    "when": "on_end"
+  },
   "Razor Claw": {
     "effect_param": 0,
     "fling_power": 80,
@@ -824,6 +1027,26 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Rowap Berry": {
+    "effect_param": 8,
+    "fling_power": 10,
+    "hold_effect": "recoil_special",
+    "name": "rowap_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Dark",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
+  "Salac Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "pinch_speed_up",
+    "name": "salac_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Fighting",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
   "Scope Lens": {
     "effect_param": 0,
     "fling_power": 30,
@@ -857,6 +1080,14 @@
     "name": "shed_shell",
     "type": "held",
     "when": "on_selection"
+  },
+  "Shell Bell": {
+    "effect_param": 8,
+    "fling_power": 30,
+    "hold_effect": "hp_restore_on_dmg",
+    "name": "shell_bell",
+    "type": "held",
+    "when": "on_prepare_hit"
   },
   "Shiny Stone": {
     "effect_param": 0,
@@ -952,6 +1183,16 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Starf Berry": {
+    "effect_param": 4,
+    "fling_power": 10,
+    "hold_effect": "pinch_random_up",
+    "name": "starf_berry",
+    "natural_gift_power": 80,
+    "natural_gift_type": "Psychic",
+    "type": "berry",
+    "when": "on_receive_damage"
+  },
   "Stick": {
     "effect_param": 0,
     "fling_power": 60,
@@ -959,6 +1200,14 @@
     "name": "stick",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Sticky Barb": {
+    "effect_param": 8,
+    "fling_power": 80,
+    "hold_effect": "dmg_user_contact_xfr",
+    "name": "sticky_barb",
+    "type": "held",
+    "when": "on_end"
   },
   "Sun Stone": {
     "effect_param": 0,
@@ -993,6 +1242,14 @@
     "hold_effect": "none",
     "name": "thunder_stone",
     "type": "held"
+  },
+  "Toxic Orb": {
+    "effect_param": 0,
+    "fling_power": 30,
+    "hold_effect": "psn_user",
+    "name": "toxic_orb",
+    "type": "held",
+    "when": "on_end"
   },
   "Twisted Spoon": {
     "effect_param": 20,
@@ -1044,6 +1301,14 @@
     "name": "white_flute",
     "type": "held"
   },
+  "White Herb": {
+    "effect_param": 0,
+    "fling_power": 10,
+    "hold_effect": "statdown_restore",
+    "name": "white_herb",
+    "type": "consumable",
+    "when": "on_end"
+  },
   "Wide Lens": {
     "effect_param": 10,
     "fling_power": 10,
@@ -1051,6 +1316,16 @@
     "name": "wide_lens",
     "type": "held",
     "when": "on_prepare_hit"
+  },
+  "Wiki Berry": {
+    "effect_param": 8,
+    "fling_power": 10,
+    "hold_effect": "hp_restore_dry",
+    "name": "wiki_berry",
+    "natural_gift_power": 60,
+    "natural_gift_type": "Rock",
+    "type": "berry",
+    "when": "on_receive_damage"
   },
   "Wise Glasses": {
     "effect_param": 10,

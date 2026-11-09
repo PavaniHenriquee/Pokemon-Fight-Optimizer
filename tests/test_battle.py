@@ -1648,7 +1648,7 @@ def test_kings_rock_rolls_per_hit_and_not_through_a_substitute(monkeypatch, poke
     calls.clear()
     d[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
     d[Pok.SUB_HP] = 200
-    flinch, _, _, sub_hit = battle._ps_moves_core(a, d, move_slice(a, 0), 0)
+    flinch, _, _, sub_hit, _ = battle._ps_moves_core(a, d, move_slice(a, 0), 0)
     assert sub_hit and not flinch and not calls
 
 
@@ -2889,3 +2889,168 @@ def test_rage_glitch_drops_the_substitute(make_pokemon, make_battle):
     _sub(me, 5)
     turn_sim(0, (MOVE, 1), arr)
     assert not _has_sub(me) and me[Pok.SUB_HP] == 0
+
+
+# ── 4.2: Life Orb, Shell Bell, Focus Sash, Toxic Orb, Sticky Barb ────────────
+
+def _item_battle(make_pokemon, make_battle, my_item, my_move="Tackle", opp_item=None,
+                 opp="Munchlax", opp_ability="Thick Fat"):
+    """My Rattata with my_item vs a foe that only Growls"""
+    return make_battle([make_pokemon("Rattata", 50, "Run Away", [my_move], item=my_item)],
+                       [make_pokemon(opp, 50, opp_ability, ["Growl"], item=opp_item)])
+
+
+@pytest.mark.parametrize("move, sub, recoil", [
+    ("Tackle", False, True), ("Tackle", True, False), ("Seismic Toss", False, False),
+])
+def test_life_orb_recoil_after_my_move(make_pokemon, make_battle, move, sub, recoil):
+    """1/10 of max HP once the hit reaches the foe; a Substitute or fixed damage costs nothing"""
+    arr = _item_battle(make_pokemon, make_battle, "Life Orb", move)
+    me, foe = my_active(arr), opp_active(arr)
+    _sure_hit(me, 0)
+    if sub:
+        _sub(foe, 200)
+    full = int(me[Pok.MAX_HP])
+    _use(arr, 0)
+    assert me[Pok.CURRENT_HP] == (full - full // 10 if recoil else full)
+
+
+def test_shell_bell_heals_after_my_hit(make_pokemon, make_battle):
+    """1/8 of what the foe lost, at least 1"""
+    arr = _item_battle(make_pokemon, make_battle, "Shell Bell")
+    me, foe = my_active(arr), opp_active(arr)
+    _sure_hit(me, 0)
+    me[Pok.CURRENT_HP] = 1
+    _use(arr, 0)
+    dealt = int(foe[Pok.MAX_HP] - foe[Pok.CURRENT_HP])
+    assert dealt > 0 and me[Pok.CURRENT_HP] == 1 + max(1, dealt // 8)
+
+
+def _big_hits(monkeypatch, damage):
+    monkeypatch.setattr(battle, "_resolve_move_damage", lambda *args: (damage, False))
+
+
+@pytest.mark.parametrize("full_hp, survives", [(True, True), (False, False)])
+def test_focus_sash_holds_every_hit_of_a_multihit_move(monkeypatch, poke, full_hp, survives):
+    """Gen IV: found at full HP on the first hit, the Sash holds every lethal hit after it
+    (pokeplatinum focusItemActivated lasts the move, Showdown gen4 focussash)"""
+    a = poke("Shellder", 50, "Skill Link", ["Fury Attack"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item="Focus Sash")
+    _big_hits(monkeypatch, int(d[Pok.MAX_HP]) * 6 // 10)
+    if not full_hp:
+        d[Pok.CURRENT_HP] -= 1
+    battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+    assert (d[Pok.CURRENT_HP] == 1) == survives
+    assert d[Item.ID] == (0 if survives else ItemNames.FOCUS_SASH)
+
+
+def test_focus_sash_after_the_substitute_breaks(monkeypatch, poke):
+    """The hit on the Substitute doesn't count, the next one finds the holder at full HP"""
+    a = poke("Shellder", 50, "Skill Link", ["Fury Attack"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item="Focus Sash")
+    _sub(d, 5)
+    _big_hits(monkeypatch, 10_000)
+    battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+    assert not _has_sub(d) and d[Pok.CURRENT_HP] == 1 and d[Item.ID] == 0
+
+
+def test_focus_sash_holds_an_ohko_move(poke):
+    """An OHKO takes the current HP, so a Sash at full HP holds it"""
+    a = poke("Krabby", 50, "Hyper Cutter", ["Guillotine"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item="Focus Sash")
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.CURRENT_HP] == 1 and d[Pok.CONSUMED_ITEM] == ItemNames.FOCUS_SASH
+
+
+@pytest.mark.parametrize("species, ability, side, toxic", [
+    ("Rattata", "Run Away", 0, True),
+    ("Magnemite", "Sturdy", 0, False),
+    ("Grimer", "Stench", 0, False),
+    ("Snorlax", "Immunity", 0, False),
+    ("Rattata", "Run Away", SideCondition.SAFEGUARD, False),
+])
+def test_toxic_orb(poke, species, ability, side, toxic):
+    """Badly poisons its holder unless it's Poison or Steel, has Immunity or Safeguard
+    (pokeplatinum subscript_badly_poison, held item branch)"""
+    p = poke(species, 20, ability, ["Tackle"], item="Toxic Orb")
+    battle._flame_orb(p, side, 0)
+    assert (p[Pok.STATUS] == Status.TOXIC) == toxic
+    assert bool(p[Pok.AB_KNOWN]) == (ability == "Immunity")
+
+
+def test_toxic_orb_at_the_end_of_the_turn_after_the_poison_step(make_pokemon, make_battle):
+    """It comes after the poison damage, so the first 1/16 is next turn"""
+    arr = _item_battle(make_pokemon, make_battle, "Toxic Orb", "Growl")
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.STATUS] == Status.TOXIC and me[Pok.CURRENT_HP] == me[Pok.MAX_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP] - max(1, me[Pok.MAX_HP] // 16)
+
+
+@pytest.mark.parametrize("species, ability, loses", [
+    ("Rattata", "Run Away", True), ("Clefairy", "Magic Guard", False),
+])
+def test_sticky_barb_hurts_its_holder(make_pokemon, make_battle, species, ability, loses):
+    """1/8 of max HP at the end of the turn, Magic Guard is immune"""
+    arr = make_battle([make_pokemon(species, 50, ability, ["Growl"], item="Sticky Barb")],
+                      [make_pokemon("Munchlax", 50, "Thick Fat", ["Growl"])])
+    me = my_active(arr)
+    full = int(me[Pok.MAX_HP])
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == (full - full // 8 if loses else full)
+
+
+def test_sticky_barb_sticks_to_my_tackle(make_pokemon, make_battle):
+    """My contact hit takes the foe's barb, and it hurts me at the end of the turn"""
+    arr = _item_battle(make_pokemon, make_battle, None, opp_item="Sticky Barb")
+    me, foe = my_active(arr), opp_active(arr)
+    _sure_hit(me, 0)
+    full = int(me[Pok.MAX_HP])
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Item.ID] == ItemNames.STICKY_BARB and foe[Item.ID] == 0
+    assert me[Pok.CURRENT_HP] == full - full // 8
+
+
+# ── 4.3 Berries ──────────────────────────────────────────────────────────────
+
+def test_jaboca_stops_a_multihit_move(monkeypatch, poke):
+    """Jaboca's damage KOs the user on the first hit, the remaining hits don't happen (Showdown
+    onDamagingHit, per hit)"""
+    core = battle._ps_moves_core
+    calls = []
+
+    def counting_core(*args):
+        calls.append(1)
+        return core(*args)
+
+    monkeypatch.setattr(battle, "_ps_moves_core", counting_core)
+    a = poke("Shellder", 50, "Skill Link", ["Fury Attack"])
+    a[Pok.CURRENT_HP] = 1
+    d = poke("Snorlax", 100, "Thick Fat", ["Tackle"], item="Jaboca Berry")
+    battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+    assert a[Pok.CURRENT_HP] == 0 and d[Item.ID] == 0
+    assert len(calls) == 1
+
+
+def test_jaboca_not_through_a_substitute(make_pokemon, make_battle):
+    """A hit on the Substitute leaves the berry alone"""
+    arr = _item_battle(make_pokemon, make_battle, None, opp_item="Jaboca Berry")
+    me, foe = my_active(arr), opp_active(arr)
+    _sure_hit(me, 0)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 200
+    _use(arr, 0)
+    assert foe[Item.ID] == ItemNames.JABOCA_BERRY and me[Pok.CURRENT_HP] == me[Pok.MAX_HP]
+
+
+def test_custap_turn(make_pokemon, make_battle):
+    """My slow Custap holder in a pinch hits first and the berry is gone after the turn"""
+    arr = make_battle(
+        [make_pokemon("Geodude", 50, "Sturdy", ["Tackle"], item="Custap Berry")],
+        [make_pokemon("Rattata", 50, "Run Away", ["Tackle"])],
+    )
+    me = my_active(arr)
+    me[Pok.CURRENT_HP] = 1
+    first = battle.move_order(me, 0, opp_active(arr), 0, False, False, 0)
+    assert first[3] is True and me[Item.ID] == 0

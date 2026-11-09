@@ -87,6 +87,7 @@ class VolStatus2:
     FLASH_FIRE        = 2
     CAN_UNBURDEN      = 4
     SUBSTITUTE        = 8
+    MICLE             = 16
 
 
 @dataclass(slots=True)
@@ -253,6 +254,35 @@ class HoldEffect:
     ACCURACY_UP         = 44
     ACCURACY_UP_SLOWER  = 45
     SOMETIMES_FLINCH    = 46
+    HP_DRAIN_ON_ATK     = 47
+    HP_RESTORE_ON_DMG   = 48
+    ENDURE              = 49
+    PSN_USER            = 50
+    STATDOWN_RESTORE    = 51
+    DMG_USER_CONTACT_XFR = 52
+    RECIPROCATE_INFAT   = 53
+    PRZ_RESTORE         = 54
+    BRN_RESTORE         = 55
+    FRZ_RESTORE         = 56
+    CONFUSE_RESTORE     = 57
+    PP_RESTORE          = 58
+    HP_RESTORE_SPICY    = 59
+    HP_RESTORE_DRY      = 60
+    HP_RESTORE_SWEET    = 61
+    HP_RESTORE_BITTER   = 62
+    HP_RESTORE_SOUR     = 63
+    PINCH_ATK_UP        = 64
+    PINCH_DEF_UP        = 65
+    PINCH_SPEED_UP      = 66
+    PINCH_SPATK_UP      = 67
+    PINCH_SPDEF_UP      = 68
+    PINCH_CRITRATE_UP   = 69
+    PINCH_RANDOM_UP     = 70
+    PINCH_ACC_UP        = 71
+    PINCH_PRIORITY      = 72
+    HP_RESTORE_SE       = 73
+    RECOIL_PHYSICAL     = 74
+    RECOIL_SPECIAL      = 75
 
 
 _HP_RAW = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))

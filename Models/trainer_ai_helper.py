@@ -10,7 +10,7 @@ from DataBase.PkDB import POKEMON_ABILITY_POOL, POKEMON_LENGTH
 from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC_MOVES, MoveName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
-from Engine.speed import check_speed, quick_claw
+from Engine.speed import check_speed, quick_claw, custap_ready
 from Models.idx_const import POK_LEN
 from Models.helper import TARGET_SELF_SIDE, TARGET_OPP_SIDE, STEEL_POISON
 from Models.constants import (
@@ -1878,9 +1878,12 @@ def expert_explosion(ai_pok, u_pok, rand, idx, slower):
 def quick_claw_guess(ai_pok, u_pok):
     """
     The AI's guess of which Quick Claws activate this turn, independent of the real roll (Pokemow):
-    bit 1 its own, bit 2 the target's
+    bit 1 its own, bit 2 the target's. A Custap Berry in a pinch always counts (pokeplatinum
+    CompareBattlerSpeed)
     """
-    return (1 if quick_claw(ai_pok) else 0) | (2 if quick_claw(u_pok) else 0)
+    ai_claw = quick_claw(ai_pok) or custap_ready(ai_pok)
+    u_claw = quick_claw(u_pok) or custap_ready(u_pok)
+    return (1 if ai_claw else 0) | (2 if u_claw else 0)
 
 
 @njit
