@@ -1162,6 +1162,25 @@
     "target": "all_adjacent",
     "type": "Electric"
   },
+  "Dive": {
+    "accuracy": 100,
+    "category": "Physical",
+    "charge": 1,
+    "flags": {
+      "charge": true,
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "no_sleep_talk": true,
+      "non_sky": true,
+      "protect": true
+    },
+    "name": "dive",
+    "power": 80,
+    "pp": 10,
+    "target": "normal",
+    "type": "Water"
+  },
   "Dizzy Punch": {
     "accuracy": 100,
     "category": "Physical",
@@ -1949,6 +1968,25 @@
     "target": "normal",
     "type": "Dark"
   },
+  "Fly": {
+    "accuracy": 100,
+    "category": "Physical",
+    "charge": 1,
+    "flags": {
+      "charge": true,
+      "contact": true,
+      "distance": true,
+      "gravity": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "fly",
+    "power": 100,
+    "pp": 15,
+    "target": "any",
+    "type": "Flying"
+  },
   "Focus Blast": {
     "accuracy": 70,
     "category": "Special",
@@ -2426,6 +2464,23 @@
     "pp": 40,
     "target": "self",
     "type": "Normal"
+  },
+  "Hurricane": {
+    "accuracy": 70,
+    "category": "Special",
+    "flags": {
+      "distance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "wind": true
+    },
+    "kings_rock": true,
+    "name": "hurricane",
+    "power": 110,
+    "pp": 10,
+    "target": "any",
+    "type": "Flying"
   },
   "Hydro Cannon": {
     "accuracy": 90,
@@ -4470,6 +4525,23 @@
     "target": "normal",
     "type": "Ghost"
   },
+  "Shadow Force": {
+    "accuracy": 100,
+    "category": "Physical",
+    "charge": 1,
+    "flags": {
+      "charge": true,
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "no_sleep_talk": true
+    },
+    "name": "shadow_force",
+    "power": 120,
+    "pp": 5,
+    "target": "normal",
+    "type": "Ghost"
+  },
   "Shadow Punch": {
     "accuracy": true,
     "category": "Physical",
@@ -4629,6 +4701,22 @@
     },
     "target": "any",
     "type": "Flying"
+  },
+  "Sky Uppercut": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "sky_uppercut",
+    "power": 85,
+    "pp": 15,
+    "target": "normal",
+    "type": "Fighting"
   },
   "Slam": {
     "accuracy": 75,
@@ -5062,6 +5150,21 @@
     "type": "Normal",
     "vol_status": "confusion"
   },
+  "Surf": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "non_sky": true,
+      "protect": true
+    },
+    "name": "surf",
+    "power": 90,
+    "pp": 15,
+    "target": "all_adjacent",
+    "type": "Water"
+  },
   "Swagger": {
     "accuracy": 85,
     "boost_atk": 2,
@@ -5240,6 +5343,24 @@
     "pp": 25,
     "target": "normal",
     "type": "Dark"
+  },
+  "Thunder": {
+    "accuracy": 70,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "thunder",
+    "power": 110,
+    "pp": 10,
+    "secondary": {
+      "chance": 30,
+      "status": "paralysis"
+    },
+    "target": "normal",
+    "type": "Electric"
   },
   "Thunder Fang": {
     "accuracy": 95,

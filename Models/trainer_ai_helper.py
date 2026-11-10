@@ -55,7 +55,8 @@ from Models.constants import (
     _MOVENAME_MUD_SHOT, _MOVENAME_TICKLE, _MOVENAME_BULK_UP, _VOLSTATUS_FOCUS_ENERGY,
     _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE, _ABILITYNAMES_ROUGH_SKIN, _ABILITYNAMES_ROCK_HEAD,
     _MOVENAME_NATURAL_GIFT, _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _MOVENAME_LOW_KICK,
-    _MOVE_POWER, _MOVENAME_BOUNCE, _MOVENAME_DIG, _MOVENAME_GRAVITY, _ITEMNAMES_POWER_HERB,
+    _MOVE_POWER, _MOVENAME_BOUNCE, _MOVENAME_DIG, _MOVENAME_DIVE, _MOVENAME_FLY, _MOVENAME_SHADOW_FORCE,
+    _MOVENAME_GRAVITY, _ITEMNAMES_POWER_HERB,
     _WEATHER_SANDSTORM, _WEATHER_HAIL,
     _TYPES_ICE, _MOVE_RECOIL, _TYPES_GRASS,
     _TYPES_PSYCHIC, _TYPES_DRAGON, _TYPES_DARK,
@@ -237,7 +238,9 @@ FLING_GOOD_ITEMS = (
     _ITEMNAMES_FLAME_ORB, _ITEMNAMES_LIGHT_BALL,
 )
 FLING_POISON_ITEMS = (_ITEMNAMES_POISON_BARB, _ITEMNAMES_TOXIC_ORB)
-CHARGE_INVULNERABLE_M = (_MOVENAME_BOUNCE, _MOVENAME_DIG)
+CHARGE_INVULNERABLE_M = (
+    _MOVENAME_BOUNCE, _MOVENAME_DIG, _MOVENAME_DIVE, _MOVENAME_FLY, _MOVENAME_SHADOW_FORCE
+)
 CHARGE_NO_INVULN_M = (_MOVENAME_RAZOR_WIND, _MOVENAME_SKULL_BASH, _MOVENAME_SKY_ATTACK, _MOVENAME_SOLAR_BEAM)
 RECOIL_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE)
@@ -251,10 +254,10 @@ SELF_DROP_HP_M = (
 )
 # pokeplatinum BATTLE_EFFECT_STATUS_CONFUSE, which Expert_Substitute reads off the target's last move
 CONFUSE_EFFECT_M = (_MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS)
-# Moves the Expert AI looks for among the ones it saw the target use. Detect and Shadow Force
-# aren't in MoveDB, Recover is the only RESTORE_HALF_HP move there
+# Moves the Expert AI looks for among the ones it saw the target use. Detect
+# isn't in MoveDB, Recover is the only RESTORE_HALF_HP move there
 PROTECT_LIKE_M = (_MOVENAME_PROTECT,)
-FEINT_LIKE_M = (_MOVENAME_FEINT,)
+FEINT_LIKE_M = (_MOVENAME_FEINT, _MOVENAME_SHADOW_FORCE)
 RECOVER_DEF_CURL_M = (_MOVENAME_RECOVER, _MOVENAME_DEFENSE_CURL)
 MOVE_ID_SLOTS = (_POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID, _POK_MOVE4_ID)
 # Side condition and weather moves, scored by basic_field / expert_field
@@ -1846,16 +1849,17 @@ def expert_substitute(ai_pok, u_pok, rand, idx, move_first, my_last_move):
 
 @njit
 def expert_charge_invulnerable(
-    ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know=0
+    ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know=0, move_id=0
 ):
     """
     pokeplatinum Expert_ChargeTurnWithInvuln, including its +1 when the target resists or is
-    immune
+    immune. Shadow Force (Expert_ShadowForce) skips the Protect check and gets +1 for a Power Herb
     """
+    shadow_force = move_id == _MOVENAME_SHADOW_FORCE
     if ai_pok[_POK_ITEM_ID] == _ITEMNAMES_POWER_HERB:
-        return 2
+        return 1 if shadow_force else 2
     # The AI saw the target use Protect
-    if seen_move(u_pok, ai_know, PROTECT_LIKE_M):
+    if not shadow_force and seen_move(u_pok, ai_know, PROTECT_LIKE_M):
         return -1
     if effectiveness <= 0.5:
         return 1
@@ -2290,10 +2294,10 @@ def expert_flag(
             return -1
         return 0
 
-    # Charge Turn Moves With Invulnerability (Bounce, Dig)
+    # Charge Turn Moves With Invulnerability (Bounce, Dig, Dive, Fly, Shadow Force)
     if move[_MOVE_ID] in CHARGE_INVULNERABLE_M:
         return expert_charge_invulnerable(
-            ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know
+            ai_pok, u_pok, effectiveness, rand, idx, weather, move_first, ai_know, move[_MOVE_ID]
         )
 
     # Binding Moves (Wrap, Bind, Clamp, Fire Spin), Whirlpool has its own effect and no check

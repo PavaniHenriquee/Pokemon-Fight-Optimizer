@@ -2113,6 +2113,53 @@ def test_metronome_into_dig_is_underground(monkeypatch, make_pokemon, make_battl
     assert me[Pok.SEMI_INV_MOVE] == 0 and foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
 
 
+@pytest.mark.parametrize("move, foe_move, reached", [
+    ("Fly", "Thunder", True), ("Fly", "Surf", False), ("Dive", "Surf", True),
+    ("Dive", "Thunder", False), ("Shadow Force", "Surf", False),
+])
+def test_hidden_turn_and_what_reaches_it(monkeypatch, make_pokemon, make_battle, move, foe_move, reached):
+    """Fly, Dive and Shadow Force hide on the charge turn, then attack and come back"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda a, b: a)
+    arr = make_battle([make_pokemon("Machop", 50, "Guts", [move])],
+                      [make_pokemon("Geodude", 5, "Sturdy", [foe_move])])
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert me[Pok.SEMI_INV_MOVE] == getattr(MoveName, move.upper().replace(" ", "_"))
+    assert (me[Pok.CURRENT_HP] < me[Pok.MAX_HP]) == reached
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.SEMI_INV_MOVE] == 0 and not me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("move, hits", [("Shadow Force", True), ("Bounce", False)])
+def test_shadow_force_goes_through_protect(make_pokemon, make_battle, move, hits):
+    """
+    The faster foe protects on the attack turn: Shadow Force (no protect flag) still hits,
+    Bounce is blocked
+    """
+    arr = make_battle([make_pokemon("Slowpoke", 50, "Oblivious", [move])],
+                      [make_pokemon("Machop", 50, "Guts", ["Protect"])])
+    foe = opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    foe[Pok.PROTECT_COUNT] = 0
+    turn_sim(0, (MOVE, 0), arr)
+    assert (foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]) == hits
+
+
+@pytest.mark.parametrize("weather", [Weather.SANDSTORM, Weather.HAIL])
+def test_no_weather_damage_underwater(make_pokemon, make_battle, weather):
+    """pokeplatinum MOVE_EFFECT_NO_WEATHER_DAMAGE covers Dive like Dig"""
+    arr = make_battle([make_pokemon("Rattata", 50, "Run Away", ["Dive"])],
+                      [make_pokemon("Geodude", 5, "Sturdy", ["Harden"])])
+    arr[Field.WEATHER] = weather
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.SEMI_INV_MOVE] == MoveName.DIVE
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP]
+
+
 def test_gravity_lasts_five_turns_and_fails_while_up(make_pokemon, make_battle):
     """Gravity counts the turn it was set in, a second Gravity doesn't reset the count"""
     arr = make_battle([make_pokemon("Abra", 20, "Synchronize", ["Gravity"])],

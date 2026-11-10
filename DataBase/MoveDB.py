@@ -77,7 +77,8 @@ class MoveName:
     DISABLE         = DIG + 1
     DISARMING_VOICE = DISABLE + 1
     DISCHARGE       = DISARMING_VOICE + 1
-    DIZZY_PUNCH     = DISCHARGE + 1
+    DIVE            = DISCHARGE + 1
+    DIZZY_PUNCH     = DIVE + 1
     DOUBLE_HIT      = DIZZY_PUNCH + 1
     DOUBLE_KICK     = DOUBLE_HIT + 1
     DOUBLE_SLAP     = DOUBLE_KICK + 1
@@ -124,7 +125,8 @@ class MoveName:
     FLASH_CANNON    = FLASH + 1
     FLATTER         = FLASH_CANNON + 1
     FLING           = FLATTER + 1
-    FOCUS_BLAST     = FLING + 1
+    FLY             = FLING + 1
+    FOCUS_BLAST     = FLY + 1
     FOCUS_ENERGY    = FOCUS_BLAST + 1
     FOCUS_PUNCH     = FOCUS_ENERGY + 1
     FOLLOW_ME       = FOCUS_PUNCH + 1
@@ -154,7 +156,8 @@ class MoveName:
     HIDDEN_POWER    = HELPING_HAND + 1
     HORN_ATTACK     = HIDDEN_POWER + 1
     HOWL            = HORN_ATTACK + 1
-    HYDRO_CANNON    = HOWL + 1
+    HURRICANE       = HOWL + 1
+    HYDRO_CANNON    = HURRICANE + 1
     HYDRO_PUMP      = HYDRO_CANNON + 1
     HYPER_BEAM      = HYDRO_PUMP + 1
     HYPER_FANG      = HYPER_BEAM + 1
@@ -280,7 +283,8 @@ class MoveName:
     SELFDESTRUCT    = SEISMIC_TOSS + 1
     SHADOW_BALL     = SELFDESTRUCT + 1
     SHADOW_CLAW     = SHADOW_BALL + 1
-    SHADOW_PUNCH    = SHADOW_CLAW + 1
+    SHADOW_FORCE    = SHADOW_CLAW + 1
+    SHADOW_PUNCH    = SHADOW_FORCE + 1
     SHADOW_SNEAK    = SHADOW_PUNCH + 1
     SHEER_COLD      = SHADOW_SNEAK + 1
     SHOCK_WAVE      = SHEER_COLD + 1
@@ -289,7 +293,8 @@ class MoveName:
     SING            = SILVER_WIND + 1
     SKULL_BASH      = SING + 1
     SKY_ATTACK      = SKULL_BASH + 1
-    SLAM            = SKY_ATTACK + 1
+    SKY_UPPERCUT    = SKY_ATTACK + 1
+    SLAM            = SKY_UPPERCUT + 1
     SLASH           = SLAM + 1
     SLEEP_POWDER    = SLASH + 1
     SLEEP_TALK      = SLEEP_POWDER + 1
@@ -315,7 +320,8 @@ class MoveName:
     SUCKER_PUNCH    = SUBSTITUTE + 1
     SUPERPOWER      = SUCKER_PUNCH + 1
     SUPERSONIC      = SUPERPOWER + 1
-    SWAGGER         = SUPERSONIC + 1
+    SURF            = SUPERSONIC + 1
+    SWAGGER         = SURF + 1
     SWEET_KISS      = SWAGGER + 1
     SWEET_SCENT     = SWEET_KISS + 1
     SWIFT           = SWEET_SCENT + 1
@@ -327,7 +333,8 @@ class MoveName:
     TAUNT           = TAKE_DOWN + 1
     TELEPORT        = TAUNT + 1
     THIEF           = TELEPORT + 1
-    THUNDER_FANG    = THIEF + 1
+    THUNDER         = THIEF + 1
+    THUNDER_FANG    = THUNDER + 1
     THUNDER_PUNCH   = THUNDER_FANG + 1
     THUNDER_SHOCK   = THUNDER_PUNCH + 1
     THUNDER_WAVE    = THUNDER_SHOCK + 1

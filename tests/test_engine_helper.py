@@ -2164,6 +2164,48 @@ def test_underground_target_only_hit_by_earthquake_and_magnitude(poke):
                         MoveOutcome.HIT, MoveOutcome.HIT]
 
 
+@pytest.mark.parametrize("hidden, reaches", [
+    (MoveName.FLY, ("Gust", "Hurricane", "Sky Uppercut", "Thunder")),
+    (MoveName.BOUNCE, ("Gust", "Hurricane", "Sky Uppercut", "Thunder")),
+    (MoveName.DIG, ("Earthquake", "Magnitude")),
+    (MoveName.DIVE, ("Surf", "Whirlpool")),
+    (MoveName.SHADOW_FORCE, ()),
+])
+def test_what_reaches_each_hiding_place(monkeypatch, poke, hidden, reaches):
+    """pokeplatinum SYSCTL_HIT_DURING_FLY / DIG / DIVE, nothing reaches Shadow Force"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda a, b: 0)
+    moves = ("Tackle", "Gust", "Hurricane", "Sky Uppercut", "Thunder", "Earthquake", "Magnitude",
+             "Surf", "Whirlpool")
+    d = poke("Machop", 50, "Guts", ["Tackle"])
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = hidden
+    for move in moves:
+        a = poke("Geodude", 50, "Sturdy", [move])
+        expected = MoveOutcome.HIT if move in reaches else MoveOutcome.SEMI_INVULNERABLE
+        assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == expected, move
+
+
+@pytest.mark.parametrize("weather, roll, outcome", [
+    (Weather.RAIN, 100, MoveOutcome.HIT), (0, 70, MoveOutcome.HIT), (0, 71, MoveOutcome.MISS),
+    (Weather.SUN, 50, MoveOutcome.HIT), (Weather.SUN, 51, MoveOutcome.MISS),
+])
+def test_thunder_weather_accuracy(monkeypatch, poke, weather, roll, outcome):
+    """Gen IV Thunder can't miss in rain and has 50 accuracy in sun"""
+    monkeypatch.setattr(engine_helper.random, "randint", lambda a, b: roll)
+    a = poke("Pikachu", 20, "Static", ["Thunder"])
+    d = poke("Machop", 20, "Guts", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, weather) == outcome
+
+
+def test_thunder_in_rain_still_misses_underground(poke):
+    """The rain bypass clears the miss, the semi-invulnerable check still runs after it"""
+    a = poke("Pikachu", 20, "Static", ["Thunder"])
+    d = poke("Machop", 20, "Guts", ["Tackle"])
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = MoveName.DIG
+    assert calculate_hit_miss(move_slice(a, 0), a, d, Weather.RAIN) == MoveOutcome.SEMI_INVULNERABLE
+
+
 def test_airborne_target_dodges_earthquake(poke):
     """Bounce's airborne turn isn't reached by Earthquake"""
     a = poke("Geodude", 50, "Sturdy", ["Earthquake"])

@@ -69,6 +69,7 @@ KIT_DAMAGE = (
     "Head Smash", "Wild Charge", "Flare Blitz", "Giga Drain", "Leech Life", "Drain Punch",
     "Sonic Boom", "Hyper Beam", "Giga Impact", "Blast Burn", "Hydro Cannon", "Frenzy Plant", "Roar of Time",
     "Rock Wrecker", "Solar Beam", "Skull Bash", "Sky Attack", "Razor Wind",
+    "Fly", "Dive", "Shadow Force", "Sky Uppercut", "Surf", "Thunder", "Hurricane",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -481,6 +482,41 @@ def test_expert_bounce(make_pokemon, poke, setup, ai_level, effectiveness, expec
     if setup == "toxic":
         user[Pok.STATUS] = Status.TOXIC
     assert _expert(ai_pok, user, effectiveness) == expected
+
+
+@pytest.mark.parametrize("move", ["Fly", "Dive"])
+@pytest.mark.parametrize("setup, effectiveness, expected", [
+    ("power_herb", 1.0, 2), ("protect", 1.0, -1), (None, 0.5, 1), (None, 1.0, 0),
+])
+def test_expert_fly_and_dive(make_pokemon, move, setup, effectiveness, expected):
+    """pokeplatinum Expert_ChargeTurnWithInvuln for Fly and Dive, like Bounce"""
+    item = "Power Herb" if setup == "power_herb" else None
+    ai_pok = make_pokemon("Pidgey", 5, "Keen Eye", [move], item=item).to_np()
+    user = make_pokemon("Machop", 30, "Guts", ["Protect"]).to_np()
+    seen = Enemy_AI_Knows.MOVE1 if setup == "protect" else 0
+    assert _expert_charge(ai_pok, user, effectiveness, ai_know=seen) == (expected, [])
+
+
+@pytest.mark.parametrize("setup, effectiveness, expected", [
+    ("power_herb", 1.0, (1, [])), ("protect", 1.0, (0, [])), (None, 0.5, (1, [])),
+    ("toxic", 1.0, (0, [(1, 176)])),
+])
+def test_expert_shadow_force(make_pokemon, setup, effectiveness, expected):
+    """pokeplatinum Expert_ShadowForce: +1 for a Power Herb, a seen Protect doesn't count"""
+    item = "Power Herb" if setup == "power_herb" else None
+    ai_pok = make_pokemon("Gastly", 5, "Levitate", ["Shadow Force"], item=item).to_np()
+    user = make_pokemon("Machop", 30, "Guts", ["Protect"]).to_np()
+    if setup == "toxic":
+        user[Pok.STATUS] = Status.TOXIC
+    seen = Enemy_AI_Knows.MOVE1 if setup == "protect" else 0
+    assert _expert_charge(ai_pok, user, effectiveness, ai_know=seen) == expected
+
+
+def test_expert_protect_sees_shadow_force(poke):
+    """pokeplatinum and Pokemow Expert Protect: a seen Shadow Force counts like Feint"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Protect"])
+    user = poke("Gastly", 20, "Levitate", ["Shadow Force"])
+    assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE1) == (0, [(-2, 128), (2, 85), (-1, 128)])
 
 
 CHARGE_NO_INVULN = ("Solar Beam", "Skull Bash", "Sky Attack", "Razor Wind")

@@ -13,6 +13,7 @@ from Engine.damage_calc import (
     calculate_damage_confusion, apply_stat_stage, MULTIPLIERS, matchup_types, screen_damage,
     item_power, item_attack, item_defense, unaware_stages, ab_modify_def, rivalry_power, crit_multiplier,
     AIRBORNE_MOVES, HITS_AIRBORNE, HITS_UNDERGROUND, DOUBLE_ATK_AB, is_scrappy,
+    UNDERGROUND_MOVES, UNDERWATER_MOVES, HITS_UNDERWATER,
     METRONOME_MOVE_SHIFT, METRONOME_COUNT_MASK, life_orb_damage
 )
 from Engine.ability_helper import (
@@ -26,7 +27,7 @@ from Models.ability import ABILITY_TABLE
 from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES, MOVE_TABLE
 from Models.constants import (
     _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
-    _WEATHER_SUN, _MOVENAME_FAKE_OUT,
+    _WEATHER_SUN, _MOVENAME_FAKE_OUT, _MOVENAME_THUNDER,
     _POK_AB_ID, _MOVE_PRIORITY, _MOVE_ID, _MOVEOUTCOME_HIT, _MOVEOUTCOME_INVULNERABLE,
     _MOVEOUTCOME_MISS, _TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL, _TYPES_FIRE, _TYPES_ICE,
     _MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT, _MOVENAME_STRUGGLE, _WEATHER_RAIN,
@@ -1148,10 +1149,19 @@ def absorb_move(move, attacker, defender, gravity=False):
 
 @njit
 def semi_inv_reaches(move_id, defender):
-    """Gust reaches a Pokemon in the air (Bounce), Earthquake and Magnitude one underground (Dig)"""
-    if defender[_POK_SEMI_INV_MOVE] in AIRBORNE_MOVES:
+    """
+    Gust, Hurricane, Sky Uppercut and Thunder reach a Pokemon in the air (Fly, Bounce), Earthquake
+    and Magnitude one underground (Dig), Surf and Whirlpool one underwater (Dive). Nothing reaches
+    Shadow Force (pokeplatinum SYSCTL_HIT_DURING_*)
+    """
+    hidden = defender[_POK_SEMI_INV_MOVE]
+    if hidden in AIRBORNE_MOVES:
         return move_id in HITS_AIRBORNE
-    return move_id in HITS_UNDERGROUND
+    if hidden in UNDERGROUND_MOVES:
+        return move_id in HITS_UNDERGROUND
+    if hidden in UNDERWATER_MOVES:
+        return move_id in HITS_UNDERWATER
+    return False
 
 
 @njit
@@ -1273,6 +1283,13 @@ def _hit_outcome(move, attacker, defender, weather, gravity=False, target_moved=
     # Gen IV Blizzard can't miss in hail
     if move[_MOVE_ID] == _MOVENAME_BLIZZARD and weather == _WEATHER_HAIL:
         move_acc = -1
+    # Thunder can't miss in rain and has 50 accuracy in sun, before the stages (pokeplatinum
+    # CheckMoveHitOverrides, CheckMoveHitAccuracy)
+    if move[_MOVE_ID] == _MOVENAME_THUNDER:
+        if weather == _WEATHER_RAIN:
+            move_acc = -1
+        elif weather == _WEATHER_SUN:
+            move_acc = 50
 
     if move[_MOVE_TARGET] not in TARGET_SELF_SIDE and not move[_MOVE_IGNORE_IMMUNITY]:
         m_type = normalized_type(attacker, move)
@@ -2128,7 +2145,7 @@ def start_of_battle(array):
 def heal_weather(self_, weather, underground=False):
     """
     Heals after turns, from items, abilities and volatile conditions.
-    Rain Dish 1/16 and Dry Skin 1/8 in rain, Ice Body 1/16 in hail unless underground, at least 1
+    Rain Dish 1/16 and Dry Skin 1/8 in rain, Ice Body 1/16 in hail unless underground or underwater, at least 1
     (pokeplatinum BtlCmd_EndOfTurnWeatherEffect)
     """
     heal = 0

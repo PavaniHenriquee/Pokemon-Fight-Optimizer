@@ -26,7 +26,8 @@ from Engine.status_calc import (
 )
 from Engine.ability_helper import reveal_ability, effective_weather, normalized_type
 from Engine.damage_calc import (
-    calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, UNDERGROUND_MOVES, EXPLODE_MOVES
+    calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, EXPLODE_MOVES, SEMI_INVULNERABLE_MOVES,
+    NO_WEATHER_MOVES,
 )
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
@@ -89,14 +90,13 @@ from Models.constants import (
     _HOLDEFFECT_PSN_USER, _HOLDEFFECT_DMG_USER_CONTACT_XFR, _TYPES_STEEL,
     _MOVENAME_THIEF, _MOVENAME_PLUCK, _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _MOVENAME_EMBARGO,
     _MOVENAME_FLING, _VOLSTATUS2_EMBARGO, _POK_EMBARGO_TURNS, _ITEM_ID,
-    _MOVENAME_SOLAR_BEAM, _MOVENAME_SKULL_BASH, _POK_DEFENSE_STAT_STAGE,
+    _MOVENAME_SOLAR_BEAM, _MOVENAME_SKULL_BASH, _POK_DEFENSE_STAT_STAGE, _MOVENAME_SHADOW_FORCE,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 from Models.item import refresh_item, raw_item_type
 
 
 MULTIHIT_PROB=(2,2,2,3,3,3,4,5)
-SEMI_INVULNERABLE_MOVES = AIRBORNE_MOVES + UNDERGROUND_MOVES
 ROLLOUT_MAX_USES = 5
 FURY_CUTTER_MAX_COUNT = 5
 STALL_MOVES = (_MOVENAME_PROTECT, _MOVENAME_ENDURE)
@@ -874,6 +874,9 @@ def _execute_move_slot(
         if counted:
             metronome_fail(atk, outer_id)
         return False
+    # Shadow Force goes through Protect and lifts it (pokeplatinum effect 272, the Feint subscript)
+    if mv[_MOVE_ID] == _MOVENAME_SHADOW_FORCE:
+        defn[_POK_VOL_STATUS] &= ~_VOLSTATUS_PROTECT
     if mv[_MOVE_TARGET] not in NO_FOE_TARGETS:
         mirror_record(mv, defn, is_called)
 
@@ -1204,16 +1207,16 @@ def _residual_weather(pok, weather, enter_field_flag_idx, battle_array):
     """Weather heal and damage for one side, Gen IV runs it for everyone before any other residual"""
     if pok[_POK_CURRENT_HP] <= 0:
         return
-    heal_weather(pok, weather, pok[_POK_SEMI_INV_MOVE] in UNDERGROUND_MOVES)
+    heal_weather(pok, weather, pok[_POK_SEMI_INV_MOVE] in NO_WEATHER_MOVES)
     # Hydration cures any status in rain (pokeplatinum BtlCmd_EndOfTurnWeatherEffect)
     if weather == _WEATHER_RAIN and pok[_POK_STATUS] and pok[_POK_AB_ID] == _ABILITYNAMES_HYDRATION:
         cure_status(pok)
         reveal_ability(pok)
-    # Underground (Dig) the Pokemon takes no sandstorm or hail damage
+    # Underground (Dig) or underwater (Dive) the Pokemon takes no sandstorm or hail damage
     if (
         pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD
         and weather not in WEATHER_NOT_END_OF_TURN
-        and pok[_POK_SEMI_INV_MOVE] not in UNDERGROUND_MOVES
+        and pok[_POK_SEMI_INV_MOVE] not in NO_WEATHER_MOVES
     ):
         w_dmg = weather_dmg(pok, weather, pok[_POK_MAX_HP])
         # Solar Power's and Dry Skin's sun damage names it (pokeplatinum subscript_weather_continues)

@@ -40,6 +40,8 @@ from Models.constants import (
     _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK,
     _HOLDEFFECT_GIRATINA_BOOST, _HOLDEFFECT_DITTO_DEF_UP, _TYPES_DRAGON, _TYPES_STEEL, _TYPES_WATER,
     _HOLDEFFECT_HP_DRAIN_ON_ATK, _WEATHER_HAIL, _MOVENAME_SOLAR_BEAM,
+    _MOVENAME_FLY, _MOVENAME_DIVE, _MOVENAME_SHADOW_FORCE, _MOVENAME_HURRICANE,
+    _MOVENAME_SKY_UPPERCUT, _MOVENAME_THUNDER, _MOVENAME_SURF, _MOVENAME_WHIRLPOOL,
 )
 from Engine.ability_helper import ignorable_ability, normalized_type, grounded_by_item
 
@@ -67,10 +69,19 @@ METRONOME_MOVE_SHIFT = 4
 METRONOME_COUNT_MASK = (1 << METRONOME_MOVE_SHIFT) - 1
 FORESIGHT_TYPES = (_TYPES_NORMAL, _TYPES_FIGHTING)
 # Semi-invulnerable moves by where the user is, and the moves that still reach it there
-AIRBORNE_MOVES = (_MOVENAME_BOUNCE,)
+AIRBORNE_MOVES = (_MOVENAME_BOUNCE, _MOVENAME_FLY)
 UNDERGROUND_MOVES = (_MOVENAME_DIG,)
-HITS_AIRBORNE = (_MOVENAME_GUST,)
+UNDERWATER_MOVES = (_MOVENAME_DIVE,)
+# Shadow Force vanishes: no move in the engine reaches it
+VANISH_MOVES = (_MOVENAME_SHADOW_FORCE,)
+SEMI_INVULNERABLE_MOVES = AIRBORNE_MOVES + UNDERGROUND_MOVES + UNDERWATER_MOVES + VANISH_MOVES
+# pokeplatinum MOVE_EFFECT_NO_WEATHER_DAMAGE: no sandstorm or hail damage, no Ice Body heal
+NO_WEATHER_MOVES = UNDERGROUND_MOVES + UNDERWATER_MOVES
+# RP's Hurricane takes Twister's place, so it reaches Fly and Bounce and doubles there like it
+HITS_AIRBORNE = (_MOVENAME_GUST, _MOVENAME_HURRICANE, _MOVENAME_SKY_UPPERCUT, _MOVENAME_THUNDER)
 HITS_UNDERGROUND = (_MOVENAME_EARTHQUAKE, _MOVENAME_MAGNITUDE)
+HITS_UNDERWATER = (_MOVENAME_SURF, _MOVENAME_WHIRLPOOL)
+DOUBLES_AIRBORNE = (_MOVENAME_GUST, _MOVENAME_HURRICANE)
 # Gen IV: only Stomp doubles against a minimized target
 MINIMIZE_DOUBLES = (_MOVENAME_STOMP,)
 # They faint the user and, in Gen IV, halve the target's Defense
@@ -618,6 +629,22 @@ def gyro_ball_power(attacker, defender, weather):
 
 
 @njit
+def semi_inv_power(defender, move_id, power):
+    """
+    Double power against a target hiding where the move reaches: Gust and Hurricane in the air,
+    Earthquake and Magnitude underground, Surf and Whirlpool underwater (pokeplatinum POWER_MULTI 20)
+    """
+    hidden = defender[_POK_SEMI_INV_MOVE]
+    if (
+        (hidden in AIRBORNE_MOVES and move_id in DOUBLES_AIRBORNE)
+        or (hidden in UNDERGROUND_MOVES and move_id in HITS_UNDERGROUND)
+        or (hidden in UNDERWATER_MOVES and move_id in HITS_UNDERWATER)
+    ):
+        return power * 2
+    return power
+
+
+@njit
 def variable_power(attacker, defender, move, weather=0):
     """
     Base power for moves whose power depends on the battle state. Counters are only read here,
@@ -632,10 +659,9 @@ def variable_power(attacker, defender, move, weather=0):
     if move_id == _MOVENAME_LOW_KICK:
         return weight_power(defender)
     if move_id == _MOVENAME_MAGNITUDE:
-        power = magnitude_power()
-        return power * 2 if defender[_POK_SEMI_INV_MOVE] in UNDERGROUND_MOVES else power
-    if move_id == _MOVENAME_EARTHQUAKE and defender[_POK_SEMI_INV_MOVE] in UNDERGROUND_MOVES:
-        return power * 2
+        return semi_inv_power(defender, move_id, magnitude_power())
+    if move_id in DOUBLES_AIRBORNE or move_id in HITS_UNDERGROUND or move_id in HITS_UNDERWATER:
+        return semi_inv_power(defender, move_id, power)
     if move_id in MINIMIZE_DOUBLES and defender[_POK_VOL_STATUS2] & _VOLSTATUS2_MINIMIZE:
         return power * 2
     if move_id == _MOVENAME_FURY_CUTTER:
@@ -646,8 +672,6 @@ def variable_power(attacker, defender, move, weather=0):
             power *= 2
         return power
     if move_id == _MOVENAME_ASSURANCE and defender[_POK_VOL_STATUS] & _VOLSTATUS_HURT_THIS_TURN:
-        return power * 2
-    if move_id == _MOVENAME_GUST and defender[_POK_SEMI_INV_MOVE] in AIRBORNE_MOVES:
         return power * 2
     return power
 
@@ -762,7 +786,8 @@ def calculate_ai_logic_damage(
     attack, defense = raw_atk_def(move, attacker, defender, weather)
 
     # Ability
-    power = charge_power(attacker, move, move[_MOVE_POWER])
+    # Pokemow: Gust / Hurricane, Earthquake and Surf / Whirlpool double against a hidden target
+    power = charge_power(attacker, move, semi_inv_power(defender, move[_MOVE_ID], move[_MOVE_POWER]))
     power = technician_power(attacker, move, power)
     power = item_power(attacker, normalized_type(attacker, move), move[_MOVE_CATEGORY], power)
     power = base_power_ability(attacker, defender, move, power)

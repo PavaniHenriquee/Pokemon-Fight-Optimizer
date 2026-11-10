@@ -20,9 +20,10 @@ there is no such summary in the conversation, or one of these steps is unclear, 
 3. **Remove the outdated comments.** Only the TODOs, docstring entries and commented-out lines the summary
    listed as outdated by this batch (a "not implemented yet" list naming its moves, a commented list of moves now
    in code). Delete only the outdated part of a line. Never touch parked blocks or other TODOs.
-4. **Known gaps in `CLAUDE.md`.**
-   - Add every "noticed but not changed" item from the summary that the user didn't decline, next to the gaps it
-     belongs with, in the file's style: short, sources tagged `[pp]` / `[SD]`.
+4. **Known gaps in `KNOWN_GAPS.md`.**
+   - Add every "noticed but not changed" item from the summary that the user didn't decline, under the area
+     heading it belongs to and next to the gaps it goes with, in the file's style: short, sources tagged
+     `[pp]` / `[SD]`.
    - Remove the entries, or the parts of them, that the batch resolved.
 5. **Checks.** If step 3 changed code, run `pytest`. If an `@njit` function changed beyond its docstring, also run
    `pytest -m jit`. Report any failure and stop there.

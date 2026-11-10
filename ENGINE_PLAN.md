@@ -14,8 +14,8 @@ Updated only when asked.
 - Done: 5.1 (status, flinch or confusion chance) and 5.2 (stat changes on hit), 2026-11-09.
 - Done: 5.3 (everything else in this phase), and with it Phase 5, 2026-11-09. Its `benchmarks.run quick` on the
   home PC is still to do.
-- Done: 6.1 (recharge) and 6.2 (charge turn), 2026-11-10.
-- Next: 6.3 (semi-invulnerable, and what reaches it).
+- Done: 6.1 (recharge), 6.2 (charge turn) and 6.3 (semi-invulnerable, and what reaches it), 2026-11-10.
+- Next: 6.4 (rampage).
 
 ## Goal
 
@@ -497,13 +497,13 @@ Fixed damage:
 
 ### 6.3 Semi-invulnerable, and what reaches it
 
-- [ ] Fly
-- [ ] Dive
-- [ ] Shadow Force !
-- [ ] Sky Uppercut
-- [ ] Surf
-- [ ] Thunder ! (weather accuracy too)
-- [ ] Hurricane ! (RP's version)
+- [x] Fly
+- [x] Dive
+- [x] Shadow Force !
+- [x] Sky Uppercut
+- [x] Surf
+- [x] Thunder ! (weather accuracy too)
+- [x] Hurricane ! (RP's version)
 
 ### 6.4 Rampage
 
@@ -715,7 +715,7 @@ and drop it otherwise. Done in 1.3 (the DEX tab has no egg moves):
 
 ## Phase 13: trainer AI
 
-- [ ] 13.1 Only if the tool shows the 3-flag assumption is wrong (CLAUDE.md Known gaps, "AI flags").
+- [ ] 13.1 Only if the tool shows the 3-flag assumption is wrong (`KNOWN_GAPS.md`, "AI flags").
       The assumption: every RP trainer has Basic, Evaluate Attack and Expert, no more and no less. If it's wrong:
   - add per-trainer `ai_flags` in TrainerDB, defaulting to those 3
   - add whatever flags the evidence shows, for example Setup First Turn ! (Pokemow + [pp] `script.s`).
@@ -723,7 +723,7 @@ and drop it otherwise. Done in 1.3 (the DEX tab has no egg moves):
 - [ ] 13.2 Trainer items that 1.3 finds and the AI can't use yet, per [pp] `TrainerAI_ShouldUseItem`.
       Possible ones: Max Potion, X Attack, X Accuracy, Dire Hit, Guard Spec and status heals. Done already:
       Potion, Super Potion, Hyper Potion, Full Restore, Full Heal, X Special, X Defend and X Speed.
-- [ ] 13.3 Re-check each AI line in CLAUDE.md's Known gaps against the trainers now covered. Do the ones a
+- [ ] 13.3 Re-check each line in `KNOWN_GAPS.md`'s Trainer AI section against the trainers now covered. Do the ones a
       trainer reaches.
 
 ## Phase 14: wrap-up

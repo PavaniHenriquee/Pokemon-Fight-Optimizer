@@ -465,6 +465,41 @@ def test_gust_does_not_double_on_underground_target(poke):
     assert variable_power(a, d, move_slice(a, 0)) == 40
 
 
+@pytest.mark.parametrize("move, hidden, doubled", [
+    ("Gust", MoveName.FLY, True), ("Hurricane", MoveName.FLY, True),
+    ("Hurricane", MoveName.BOUNCE, True), ("Hurricane", 0, False), ("Hurricane", MoveName.DIVE, False),
+    ("Thunder", MoveName.FLY, False), ("Sky Uppercut", MoveName.BOUNCE, False),
+    ("Surf", MoveName.DIVE, True), ("Whirlpool", MoveName.DIVE, True), ("Surf", 0, False),
+    ("Surf", MoveName.DIG, False), ("Earthquake", MoveName.DIVE, False),
+])
+def test_semi_invulnerable_doubles(poke, move, hidden, doubled):
+    """
+    Gust and RP's Hurricane (Twister's slot, effect 146) double in the air, Surf and Whirlpool
+    underwater (effects 257 and 261). Thunder and Sky Uppercut only reach
+    """
+    a = poke("Pidgey", 20, "Keen Eye", [move])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    power = variable_power(a, d, move_slice(a, 0))
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE if hidden else 0
+    d[Pok.SEMI_INV_MOVE] = hidden
+    assert variable_power(a, d, move_slice(a, 0)) == power * (2 if doubled else 1)
+
+
+@pytest.mark.parametrize("move, hidden", [
+    ("Gust", MoveName.BOUNCE), ("Hurricane", MoveName.FLY), ("Earthquake", MoveName.DIG),
+    ("Surf", MoveName.DIVE), ("Whirlpool", MoveName.DIVE),
+])
+def test_ai_damage_doubles_on_hidden_target(poke, move, hidden):
+    """Pokemow: the AI's damage calc doubles these against a target hiding where they reach"""
+    a = poke("Pidgey", 50, "Keen Eye", [move])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0)
+    base = calculate_ai_logic_damage(1.0, a, d, mv, 0)
+    d[Pok.VOL_STATUS] = VolStatus.SEMI_INVULNERABLE
+    d[Pok.SEMI_INV_MOVE] = hidden
+    assert ratio(calculate_ai_logic_damage(1.0, a, d, mv, 0), base) == pytest.approx(2, abs=0.1)
+
+
 @pytest.mark.parametrize("semi_move, doubled", [
     (0, False), (MoveName.DIG, True), (MoveName.BOUNCE, False),
 ])
