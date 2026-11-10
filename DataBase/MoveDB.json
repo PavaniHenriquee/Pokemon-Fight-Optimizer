@@ -850,6 +850,19 @@
     "target": "all_adjacent",
     "type": "Ground"
   },
+  "Embargo": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "embargo",
+    "pp": 15,
+    "target": "normal",
+    "type": "Dark"
+  },
   "Ember": {
     "accuracy": 100,
     "category": "Special",
@@ -1149,6 +1162,21 @@
     "target": "normal",
     "type": "Dark",
     "vol_status": "confusion"
+  },
+  "Fling": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "allyanim": true,
+      "metronome": true,
+      "mirror": true,
+      "no_parental_bond": true,
+      "protect": true
+    },
+    "name": "fling",
+    "pp": 10,
+    "target": "normal",
+    "type": "Dark"
   },
   "Focus Energy": {
     "accuracy": true,
@@ -2151,6 +2179,22 @@
     "target": "normal",
     "type": "Bug"
   },
+  "Pluck": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "distance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "pluck",
+    "power": 60,
+    "pp": 20,
+    "target": "any",
+    "type": "Flying"
+  },
   "Poison Fang": {
     "accuracy": 95,
     "category": "Physical",
@@ -3050,6 +3094,21 @@
     "target": "all_adjacent_foes",
     "type": "Normal"
   },
+  "Switcheroo": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "fail_copycat": true,
+      "mirror": true,
+      "no_assist": true,
+      "protect": true
+    },
+    "name": "switcheroo",
+    "pp": 10,
+    "target": "normal",
+    "type": "Dark"
+  },
   "Synthesis": {
     "accuracy": true,
     "category": "Status",
@@ -3135,6 +3194,23 @@
     "pp": 20,
     "target": "self",
     "type": "Psychic"
+  },
+  "Thief": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "fail_copycat": true,
+      "fail_me_first": true,
+      "mirror": true,
+      "no_assist": true,
+      "protect": true
+    },
+    "name": "thief",
+    "power": 60,
+    "pp": 25,
+    "target": "normal",
+    "type": "Dark"
   },
   "Thunder Punch": {
     "accuracy": 100,
@@ -3236,6 +3312,21 @@
     },
     "target": "normal",
     "type": "Normal"
+  },
+  "Trick": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "fail_copycat": true,
+      "mirror": true,
+      "no_assist": true,
+      "protect": true
+    },
+    "name": "trick",
+    "pp": 10,
+    "target": "normal",
+    "type": "Psychic"
   },
   "Trick Room": {
     "accuracy": true,

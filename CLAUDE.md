@@ -269,6 +269,17 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   always-hit moves keep it); Safeguard doesn't stop a confusion berry's confusion ([SD]); Enigma, Jaboca and
   Rowap work per hit ([SD]); Bug Bite follows [pp] PluckBerry, quirk included: a plucked Persim raises Attack
   below +6 instead of curing confusion, a plucked Leppa takes the move missing the most PP.
+- Item moves (4.5): RP's AI steals and swaps with Thief, Trick and Switcheroo too, like Covet ([pp] fails them for
+  the AI side). Thief runs Covet's path, Pluck Bug Bite's. A target holding no choice item after a move loses its
+  lock ([pp] UpdateMoveBuffers, defender side).
+- Embargo suppresses the item block: `refresh_item` (`Models/item.py`) keeps only `ITEM_ID` while it's up, so
+  every effect read sees no item and checks for holding one still see it. Anything that moves an item between
+  Pokemon goes through `switch_items` / `refresh_item`. A read [pp] makes on the raw item (the speed-halving
+  items, the AI's `LoadHeldItemEffect`, a plucked berry) uses `raw_hold_effect` / `raw_item_type` or
+  `ITEM_TABLE`. Baton Pass keeps it.
+- Fling: the item still boosts the damage, then it's gone (on a miss or Protect too), recyclable. Its effects
+  follow [SD] and land on the hit: the item's `fling_status` / `fling_volatile` (ItemDB) as a sure secondary,
+  berries and herbs on the target. An Embargoed target gets no effect at all ([pp] BattleSystem_FlingItem).
 - Substitute: every damaging move hits it (Gen IV has no bypass for them, sound moves included). A multi-hit
   move's hits after it breaks reach the Pokemon with their effects ([SD]; [pp] blocks them for the rest of the
   turn). A status move into one still reveals the ability that would block it ([pp] order). Its HP cost isn't
@@ -434,6 +445,18 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   the move lists don't offer it, and only a box entry already saved with it can reach this.
 - Setup: Natural Gift shows MoveDB's Normal with no power, the engine takes both from the held berry
   (Hidden Power follows the IVs, `lib/hiddenPower.ts`).
+- Switcheroo and Embargo also fail on a target whose Quick Claw or Custap activated this turn in [pp]
+  (`subscript_exchange_items`, `subscript_embargo_start`); not handled, like Covet / Thief, Knock Off and Trick.
+- Sticky Hold stopping Covet, Thief, Bug Bite or Pluck doesn't reveal the ability; [pp]'s "made ineffective"
+  message names it (`subscript_steal_item`, `subscript_pluck`). Trick and Switcheroo reveal it.
+- Metronome item: a failed Trick, Switcheroo or Embargo keeps its count, like the status moves above ([pp] gives
+  it back on MOVE_STATUS_FAILED). A failed Fling gives it back.
+- AI Basic Fling follows Pokemow (-10 only with no item); [pp] `Basic_CheckFling` is also -10 under Embargo (Fling
+  power under 10) and with Multitype. The Klutz checks in Basic Fling and Expert Trick are left out (no RP species).
+- Fling: Shield Dust blocks the flung status or flinch as a secondary effect ([SD]); [pp]'s side-effect path for
+  the fling scripts wasn't checked. A flung confusion berry only confuses a target below max HP (the held
+  berry's rule); [SD] confuses at full HP too. A flung Leppa takes the move missing the most PP ([pp], like
+  Bug Bite); [SD] gen4 takes the first one at 0 PP.
 
 ## Trainer AI constraints
 

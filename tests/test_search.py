@@ -16,7 +16,7 @@ from SearchEngine.models import (
 )
 from SearchEngine import models as search_models
 from SearchEngine.mcts_eval import (
-    evaluate_terminal, rollout_arr, rollout_pref, field_move_fails
+    evaluate_terminal, rollout_arr, rollout_pref, field_move_fails, status_move_blocked
 )
 from SearchEngine.my_mcts import (
     _select_expand, _backprop, mcts_loop, recursive_backup, print_best_path, wilson_lower_bound,
@@ -1300,3 +1300,15 @@ def test_rollout_sees_substitute(make_pokemon, make_battle, move, foe_sub, my_su
     actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
     picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(200)}
     assert (1 in picks) == picked
+
+
+def test_rollout_sees_embargo_and_trick_fail(poke):
+    """status_move_blocked: Embargo on a foe already under it, Trick with no item on either side"""
+    me = poke("Murkrow", 20, "Insomnia", ["Embargo", "Trick"])
+    foe = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert not status_move_blocked(move_slice(me, 0), me, foe, 0)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.EMBARGO
+    assert status_move_blocked(move_slice(me, 0), me, foe, 0)
+    assert status_move_blocked(move_slice(me, 1), me, foe, 0)
+    foe[Item.ID] = ItemNames.LEFTOVERS
+    assert not status_move_blocked(move_slice(me, 1), me, foe, 0)

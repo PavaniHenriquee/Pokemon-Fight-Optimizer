@@ -11,6 +11,7 @@ from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
 from Engine.speed import check_speed, quick_claw, custap_ready
+from Models.item import raw_hold_effect, embargoed
 from Models.idx_const import POK_LEN
 from Models.helper import TARGET_SELF_SIDE, TARGET_OPP_SIDE, STEEL_POISON
 from Models.constants import (
@@ -78,6 +79,14 @@ from Models.constants import (
     _MOVENAME_FIRE_FANG, _MOVENAME_SUBSTITUTE, _POK_VOL_STATUS2, _VOLSTATUS2_SUBSTITUTE,
     _MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS, _MOVENAME_LEECH_SEED,
     _ITEM_HOLD_EFFECT, _HOLDEFFECT_PRIORITY_DOWN,
+    _MOVENAME_THIEF, _MOVENAME_PLUCK, _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _MOVENAME_EMBARGO,
+    _MOVENAME_FLING, _ITEM_FLING_POWER, _ABILITYNAMES_GUTS, _ITEMNAMES_FLAME_ORB,
+    _ITEMNAMES_KINGS_ROCK, _ITEMNAMES_POISON_BARB, _ITEMNAMES_RAZOR_FANG, _ITEMNAMES_TOXIC_ORB,
+    _HOLDEFFECT_HP_RESTORE_PSN_TYPE, _HOLDEFFECT_EVS_UP_SPEED_DOWN, _HOLDEFFECT_LVLUP_EV_UP,
+    _HOLDEFFECT_DMG_USER_CONTACT_XFR, _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK,
+    _HOLDEFFECT_CHOICE_SPEED, _HOLDEFFECT_SPEED_DOWN_GROUNDED, _HOLDEFFECT_PSN_USER,
+    _HOLDEFFECT_BRN_USER, _HOLDEFFECT_HP_RESTORE_SPICY, _HOLDEFFECT_HP_RESTORE_DRY,
+    _HOLDEFFECT_HP_RESTORE_SWEET, _HOLDEFFECT_HP_RESTORE_BITTER, _HOLDEFFECT_HP_RESTORE_SOUR,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -193,7 +202,38 @@ ITEMS_STEAL = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_J
 
 #--------------Move tuples-----------------------------
 EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET, _MOVENAME_CURSE,
-    _MOVENAME_FAKE_OUT, _MOVENAME_FLAIL, _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE)
+    _MOVENAME_FAKE_OUT, _MOVENAME_FLAIL, _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE,
+    _MOVENAME_THIEF, _MOVENAME_PLUCK)
+# Basic_CheckCanRemoveItem: Knock Off, Trick and Switcheroo
+REMOVE_ITEM_M = (_MOVENAME_KNOCK_OFF, _MOVENAME_TRICK, _MOVENAME_SWITCHEROO)
+# Scored by expert_items
+ITEM_EXPERT_M = (_MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _MOVENAME_EMBARGO, _MOVENAME_FLING)
+# Pokemow List_BadTrade, by hold effect (pokeplatinum Expert_Trick_BadOpponentItems): Macho Brace,
+# the choice items, Iron Ball, Lagging Tail / Full Incense, Sticky Barb, the Power items, the Orbs
+# and Black Sludge
+TRICK_BAD_TRADE = (
+    _HOLDEFFECT_EVS_UP_SPEED_DOWN, _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK,
+    _HOLDEFFECT_CHOICE_SPEED, _HOLDEFFECT_SPEED_DOWN_GROUNDED, _HOLDEFFECT_PRIORITY_DOWN,
+    _HOLDEFFECT_DMG_USER_CONTACT_XFR, _HOLDEFFECT_LVLUP_EV_UP, _HOLDEFFECT_PSN_USER,
+    _HOLDEFFECT_BRN_USER, _HOLDEFFECT_HP_RESTORE_PSN_TYPE,
+)
+# What the AI gives away for +5 (pokeplatinum Expert_Trick_DisruptiveItems, no Macho Brace)
+TRICK_DISRUPTIVE = (
+    _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK, _HOLDEFFECT_CHOICE_SPEED,
+    _HOLDEFFECT_SPEED_DOWN_GROUNDED, _HOLDEFFECT_PRIORITY_DOWN, _HOLDEFFECT_DMG_USER_CONTACT_XFR,
+    _HOLDEFFECT_LVLUP_EV_UP,
+)
+# Figy, Wiki, Mago, Aguav, Iapapa
+FLAVOR_BERRY_EFFECTS = (
+    _HOLDEFFECT_HP_RESTORE_SPICY, _HOLDEFFECT_HP_RESTORE_DRY, _HOLDEFFECT_HP_RESTORE_SWEET,
+    _HOLDEFFECT_HP_RESTORE_BITTER, _HOLDEFFECT_HP_RESTORE_SOUR,
+)
+# Expert Fling doesn't mind a resisted hit with these (pokeplatinum Expert_Fling_DesirableFlingEffects)
+FLING_GOOD_ITEMS = (
+    _ITEMNAMES_KINGS_ROCK, _ITEMNAMES_RAZOR_FANG, _ITEMNAMES_POISON_BARB, _ITEMNAMES_TOXIC_ORB,
+    _ITEMNAMES_FLAME_ORB, _ITEMNAMES_LIGHT_BALL,
+)
+FLING_POISON_ITEMS = (_ITEMNAMES_POISON_BARB, _ITEMNAMES_TOXIC_ORB)
 CHARGE_INVULNERABLE_M = (_MOVENAME_BOUNCE, _MOVENAME_DIG)
 RECOIL_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE)
@@ -246,7 +286,7 @@ ENCORE_ENCOURAGED_M = (
     MoveName.FOLLOW_ME, MoveName.CHARGE, MoveName.INGRAIN, MoveName.RECYCLE, MoveName.KNOCK_OFF,
     MoveName.REFRESH, MoveName.MUD_SPORT, MoveName.WATER_SPORT, MoveName.DRAGON_DANCE,
     MoveName.NATURAL_GIFT, MoveName.FEINT, MoveName.LUCKY_CHANT, MoveName.WORRY_SEED,
-    MoveName.AQUA_RING, MoveName.TRICK_ROOM
+    MoveName.AQUA_RING, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 # pokeplatinum Basic_SoundproofMoves, the ones in MoveDB (Snore, Metal Sound, Bug Buzz and Chatter
@@ -770,6 +810,60 @@ def basic_field(move, ability, ai_pok, user_pok, weather, ai_side, user_side, us
 
 
 @njit
+def _cant_poison(pok, ability, side):
+    """The AI script's "can't be poisoned": statused, behind Safeguard, Poison or Steel, or
+    Immunity, Magic Guard or Poison Heal"""
+    return bool(
+        pok[_POK_STATUS] != 0
+        or side & _SIDECONDITION_SAFEGUARD
+        or pok[_POK_TYPE1] in STEEL_POISON
+        or pok[_POK_TYPE2] in STEEL_POISON
+        or ability in POISON_AB_IM
+    )
+
+
+@njit
+def _cant_burn(pok, ability, side):
+    """The AI script's "can't be burned": statused, behind Safeguard, Fire, or Water Veil or Magic
+    Guard"""
+    return bool(
+        pok[_POK_STATUS] != 0
+        or side & _SIDECONDITION_SAFEGUARD
+        or pok[_POK_TYPE1] == _TYPES_FIRE
+        or pok[_POK_TYPE2] == _TYPES_FIRE
+        or ability in BURN_AB_IM
+    )
+
+
+@njit
+def basic_fling(ability, ai_pok, user_pok, ai_side, user_side):
+    """
+    Pokemow Basic Fling: nothing to throw is -10. A poisoning or burning item the target can't get
+    is -5 if the AI can't get it either (or has Guts), else +3; a Light Ball the target can't be
+    paralyzed by is -5 (pokeplatinum Basic_CheckFling, Klutz left out: no RP species has it).
+    ability is the target's
+    """
+    item = ai_pok[_POK_ITEM_ID]
+    if item == 0:
+        return -10
+    ai_ab = ai_pok[_POK_AB_ID]
+    if item in FLING_POISON_ITEMS:
+        if ai_ab == _ABILITYNAMES_POISON_HEAL or _cant_poison(user_pok, ability, user_side):
+            return -5 if _cant_poison(ai_pok, ai_ab, ai_side) or ai_ab == _ABILITYNAMES_GUTS else 3
+    elif item == _ITEMNAMES_FLAME_ORB:
+        if _cant_burn(user_pok, ability, user_side):
+            return -5 if _cant_burn(ai_pok, ai_ab, ai_side) or ai_ab == _ABILITYNAMES_GUTS else 3
+    elif item == _ITEMNAMES_LIGHT_BALL:
+        if (
+            user_side & _SIDECONDITION_SAFEGUARD
+            or user_pok[_POK_STATUS] != 0
+            or ability == _ABILITYNAMES_LIMBER
+        ):
+            return -5
+    return 0
+
+
+@njit
 def basic_switch(move, ability, ai_pok, user_bench, ai_bench):
     """
     pokeplatinum Basic_CheckCanForceSwitch and Basic_CheckBatonPass, Teleport always fails in
@@ -847,9 +941,15 @@ def basic_flag(
         if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and ability == _ABILITYNAMES_STURDY:
             return -10
         return -10 if ai_pok[_POK_LEVEL] < user_pok[_POK_LEVEL] else 0
-    # Basic_CheckCanRemoveItem
-    if move[_MOVE_ID] == _MOVENAME_KNOCK_OFF:
+    # Basic_CheckCanRemoveItem, also Trick's and Switcheroo's (a target holding nothing still
+    # takes the AI's item, the script doesn't look)
+    if move[_MOVE_ID] in REMOVE_ITEM_M:
         return -10 if ability == _ABILITYNAMES_STICKY_HOLD or user_pok[_POK_ITEM_ID] == 0 else 0
+    # Basic_CheckEmbargo, the Recycle and Frontier checks change nothing outside the Frontier
+    if move[_MOVE_ID] == _MOVENAME_EMBARGO:
+        return -10 if embargoed(user_pok) else 0
+    if move[_MOVE_ID] == _MOVENAME_FLING:
+        return basic_fling(ability, ai_pok, user_pok, ai_side, user_side)
     if move[_MOVE_FORCE_SWITCH] or move[_MOVE_ID] in SWITCH_EXPERT_M:
         return basic_switch(move, ability, ai_pok, user_bench, ai_bench)
     if move_category == _MOVECATEGORY_STATUS:
@@ -1436,7 +1536,7 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
     if m_id == _MOVENAME_BIDE:
         if ai_hp_pct < 91:
             return -2
-    elif m_id == _MOVENAME_BUG_BITE:
+    elif m_id == _MOVENAME_BUG_BITE or m_id == _MOVENAME_PLUCK:
         if effectiveness == 0.5 or effectiveness == 0.25 or effectiveness == 0:
             return -1
         else:
@@ -1503,7 +1603,7 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
             add_adjustment(rand, idx, 1, 128)
         else:
             add_adjustment(rand, idx, 1, 64)
-    elif m_id == _MOVENAME_COVET:
+    elif m_id == _MOVENAME_COVET or m_id == _MOVENAME_THIEF:
         # AI cheats to see the user items
         if u_pok[_POK_ITEM_ID] in ITEMS_STEAL:
             add_adjustment(rand, idx, 1, 206)
@@ -1594,6 +1694,68 @@ def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first):
             add_adjustment(rand, idx, 1, 128)
         add_adjustment(rand, idx, 1, 192)
     return 0
+
+
+@njit
+def expert_items(move, ai_pok, u_pok, effectiveness, rand, idx, ai_side, user_side):
+    """
+    pokeplatinum Expert_Trick (Trick and Switcheroo), Expert_Embargo and Expert_Fling, as Pokemow
+    reads them. Trick reads both raw items, the AI cheats; Fling the AI's Fling power, which Embargo
+    takes. Klutz is left out (no RP species has it)
+    """
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_EMBARGO:
+        add_adjustment(rand, idx, 1, 128)
+        return 0
+    if move_id == _MOVENAME_FLING:
+        if effectiveness == 0 or effectiveness == 0.25 or effectiveness == 0.5:
+            return 0 if ai_pok[_POK_ITEM_ID] in FLING_GOOD_ITEMS else -1
+        power = ai_pok[_ITEM_FLING_POWER]
+        if power < 30:
+            return -2
+        if power > 90:
+            score = 0
+            if effectiveness >= 2:
+                score = 4
+            else:
+                add_adjustment(rand, idx, 1, 128)
+            add_adjustment(rand, idx, 1, 192)
+            return score
+        if power > 60:
+            add_adjustment(rand, idx, 1, 192)
+            return 0
+        add_adjustment(rand, idx, -1, 128)
+        return 0
+    mine = raw_hold_effect(ai_pok)
+    theirs = raw_hold_effect(u_pok)
+    ai_ab = ai_pok[_POK_AB_ID]
+    u_ab = u_pok[_POK_AB_ID]
+    if theirs in TRICK_BAD_TRADE:
+        return -3
+    if mine in TRICK_DISRUPTIVE:
+        return 5
+    if mine == _HOLDEFFECT_PSN_USER:
+        if not _cant_poison(u_pok, u_ab, user_side):
+            return 5
+        return -3 if _cant_poison(ai_pok, ai_ab, ai_side) else 5
+    if mine == _HOLDEFFECT_BRN_USER:
+        if not _cant_burn(u_pok, u_ab, user_side):
+            return 5
+        return -3 if _cant_burn(ai_pok, ai_ab, ai_side) else 5
+    if mine == _HOLDEFFECT_HP_RESTORE_PSN_TYPE:
+        if u_pok[_POK_TYPE1] == _TYPES_POISON or u_pok[_POK_TYPE2] == _TYPES_POISON:
+            ai_poison = ai_pok[_POK_TYPE1] == _TYPES_POISON or ai_pok[_POK_TYPE2] == _TYPES_POISON
+            return -3 if ai_poison or ai_ab == _ABILITYNAMES_MAGIC_GUARD else 5
+        # The script jumps to the Toxic Orb's checks here (Pokemow agrees)
+        if u_ab == _ABILITYNAMES_MAGIC_GUARD:
+            return -3 if _cant_poison(ai_pok, ai_ab, ai_side) else 5
+        return 5
+    if mine in FLAVOR_BERRY_EFFECTS:
+        if theirs in FLAVOR_BERRY_EFFECTS:
+            return -3
+        add_adjustment(rand, idx, 2, 206)
+        return 0
+    return -3
 
 
 @njit
@@ -1922,7 +2084,7 @@ def ai_speed_order(ai_pok, u_pok, weather, claw_guess):
 @njit
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
-    user_side=0, copycat_beats=False, claw_guess=0, speed_weather=-1
+    user_side=0, copycat_beats=False, claw_guess=0, speed_weather=-1, ai_side=0
 ):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
@@ -1931,7 +2093,8 @@ def expert_flag(
     user_side is the target's Field.SIDE_COND. copycat_beats: the target's last move, used on
     itself, does more damage than any of the AI's moves. claw_guess: quick_claw_guess.
     weather is the field's, as the script reads it (pokeplatinum AICmd_LoadCurrentWeather ignores
-    Cloud Nine); speed_weather is the one the speed compare sees, -1 for the same
+    Cloud Nine); speed_weather is the one the speed compare sees, -1 for the same. ai_side is the
+    AI's Field.SIDE_COND
     """
     if speed_weather < 0:
         speed_weather = weather
@@ -1956,6 +2119,8 @@ def expert_flag(
         return expert_moves(
             move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first
         )
+    if move[_MOVE_ID] in ITEM_EXPERT_M:
+        return expert_items(move, ai_pok, u_pok, effectiveness, rand, idx, ai_side, user_side)
     if move[_MOVE_ID] in MISC_EXPERT_M:
         return expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first)
     if move[_MOVE_ID] in CALL_M:

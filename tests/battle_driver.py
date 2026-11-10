@@ -314,6 +314,27 @@ def scenario_substitute():
     return my, opp, (_POTIONS_POTION,)
 
 
+def scenario_items():
+    """Phase 4: choice items, held items and berries, and the item moves both ways: Trick and
+    Switcheroo (choice items changing hands), Thief, Pluck, Embargo (with a potion to block), Fling
+    with a status item, a berry and nothing"""
+    my = [
+        _p("Abra", 18, "Synchronize", ["Trick", "Confusion", "Psybeam", "Swift"], item="Choice Scarf"),
+        _p("Murkrow", 18, "Insomnia", ["Thief", "Embargo", "Peck", "Pursuit"]),
+        _p("Machop", 18, "Guts", ["Fling", "Karate Chop", "Low Kick", "Leer"], item="Flame Orb"),
+        _p("Starly", 18, "Keen Eye", ["Pluck", "Quick Attack", "Growl", "Wing Attack"], item="Life Orb"),
+    ]
+    opp = [
+        _p("Sneasel", 18, "Inner Focus", ["Switcheroo", "Feint Attack", "Scratch", "Leer"],
+           item="Choice Band"),
+        _p("Houndour", 18, "Flash Fire", ["Embargo", "Ember", "Bite", "Thief"], item="Leftovers"),
+        _p("Aipom", 18, "Pickup", ["Fling", "Astonish", "Swift", "Tail Whip"], item="King's Rock"),
+        _p("Geodude", 18, "Sticky Hold", ["Tackle", "Defense Curl", "Rock Throw", "Fling"],
+           item="Sitrus Berry"),
+    ]
+    return my, opp, (_POTIONS_POTION, _POTIONS_POTION)
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -324,6 +345,7 @@ SCENARIOS = {
     "healing_misc": scenario_healing_misc,
     "move_calling": scenario_move_calling,
     "substitute": scenario_substitute,
+    "items": scenario_items,
 }
 
 

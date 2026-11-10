@@ -378,6 +378,7 @@
   "Flame Orb": {
     "effect_param": 0,
     "fling_power": 30,
+    "fling_status": "burn",
     "hold_effect": "brn_user",
     "name": "flame_orb",
     "type": "held",
@@ -520,6 +521,7 @@
   "King's Rock": {
     "effect_param": 10,
     "fling_power": 30,
+    "fling_volatile": "flinch",
     "hold_effect": "sometimes_flinch",
     "name": "kings_rock",
     "type": "held",
@@ -597,6 +599,7 @@
   "Light Ball": {
     "effect_param": 0,
     "fling_power": 30,
+    "fling_status": "paralysis",
     "hold_effect": "pika_spatk_up",
     "item_user": "Pikachu",
     "name": "light_ball",
@@ -870,6 +873,7 @@
     "effect_param": 20,
     "effect_type": "Poison",
     "fling_power": 70,
+    "fling_status": "poison",
     "hold_effect": "type_boost",
     "name": "poison_barb",
     "type": "held",
@@ -996,6 +1000,7 @@
   "Razor Fang": {
     "effect_param": 10,
     "fling_power": 30,
+    "fling_volatile": "flinch",
     "hold_effect": "sometimes_flinch",
     "name": "razor_fang",
     "type": "held",
@@ -1270,6 +1275,7 @@
   "Toxic Orb": {
     "effect_param": 0,
     "fling_power": 30,
+    "fling_status": "toxic",
     "hold_effect": "psn_user",
     "name": "toxic_orb",
     "type": "held",

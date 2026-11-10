@@ -13,6 +13,7 @@ from Models.constants import (
     _POK_CURRENT_HP, _POK_MAX_HP, _ABILITYNAMES_GLUTTONY, _HOLDEFFECT_PINCH_PRIORITY,
     _HOLDEFFECT_CHOICE_SPEED,
 )
+from Models.item import raw_hold_effect
 from DataBase.PkDB import PokemonName
 
 DITTO = PokemonName.DITTO
@@ -83,7 +84,8 @@ def _speed(pok, weather):
             speed *= 2
         elif weather == _WEATHER_RAIN and ab == _ABILITYNAMES_SWIFT_SWIM:
             speed *= 2
-    if pok[_ITEM_HOLD_EFFECT] in SPEED_HALVING:
+    # Embargo doesn't stop the speed-halving items (pokeplatinum reads the raw heldItem there)
+    if raw_hold_effect(pok) in SPEED_HALVING:
         speed //= 2
     elif pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_CHOICE_SPEED:
         speed = speed * 15 // 10

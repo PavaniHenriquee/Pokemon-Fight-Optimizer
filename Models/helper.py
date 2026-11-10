@@ -88,6 +88,7 @@ class VolStatus2:
     CAN_UNBURDEN      = 4
     SUBSTITUTE        = 8
     MICLE             = 16
+    EMBARGO           = 32
 
 
 @dataclass(slots=True)

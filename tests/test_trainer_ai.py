@@ -43,12 +43,12 @@ def test_expert_flag_routing(monkeypatch, poke, move, expected):
 # Moves the AI must be able to hold and score without crashing, one group per battle setup
 KIT_STATUS = (
     "Swagger", "Flatter", "Defense Curl", "Thunder Wave", "Poison Powder", "Sleep Powder",
-    "Hypnosis", "Will-O-Wisp", "Confuse Ray", "Supersonic",
+    "Hypnosis", "Will-O-Wisp", "Confuse Ray", "Supersonic", "Trick", "Switcheroo", "Embargo",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
     "Natural Gift", "Mirror Coat", "Assurance", "Take Down", "Bounce", "Fury Cutter", "Rollout",
-    "Explosion", "Selfdestruct", "Fissure", "Guillotine", "Sheer Cold",
+    "Explosion", "Selfdestruct", "Fissure", "Guillotine", "Sheer Cold", "Thief", "Pluck", "Fling",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -1816,3 +1816,165 @@ def test_quick_claw_guess_counts_custap(poke):
     assert ai.quick_claw_guess(custap, plain) == 1
     assert ai.random.getstate() == state
     assert custap[Item.ID] == ItemNames.CUSTAP_BERRY
+
+
+# ── 4.5: Thief, Pluck, Trick, Switcheroo, Embargo, Fling ─────────────────────
+
+def _item_poke(poke, species, ability, moves, item=""):
+    return poke(species, 20, ability, moves, item=item)
+
+
+def test_fling_is_left_out_of_the_damage_compare():
+    """Pokemow's excluded moves"""
+    assert MoveName.FLING in MOVE_EXCEP
+
+
+@pytest.mark.parametrize("move", ["Trick", "Switcheroo"])
+@pytest.mark.parametrize("user_ability, user_item, expected", [
+    ("Sticky Hold", "Leftovers", -10), ("Sturdy", "", -10), ("Sturdy", "Leftovers", 0),
+])
+def test_basic_trick(poke, move, user_ability, user_item, expected):
+    """Basic_CheckCanRemoveItem, shared with Knock Off"""
+    ai_pok = _item_poke(poke, "Abra", "Synchronize", [move], "Everstone")
+    user = _item_poke(poke, "Geodude", user_ability, ["Tackle"], user_item)
+    ability = getattr(AbilityNames, user_ability.upper().replace(" ", "_"))
+    assert _basic(ai_pok, user, ability) == expected
+
+
+def test_basic_embargo(poke):
+    """Basic_CheckEmbargo: -10 on a target already under it"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Embargo"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"], item="Leftovers")
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+    user[Pok.VOL_STATUS2] |= VolStatus2.EMBARGO
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+
+
+def _basic_fling(poke, item, user="Rattata", user_ability="Run Away", ai_species="Machop",
+                 ai_ability="No Guard", user_side=0, ai_side=0):
+    ai_pok = poke(ai_species, 20, ai_ability, ["Fling"], item=item)
+    target = poke(user, 20, user_ability, ["Tackle"])
+    ability = getattr(AbilityNames, user_ability.upper().replace(" ", "_"))
+    return ai.basic_flag(
+        move_slice(ai_pok, 0), ability, ai_pok, target, 1.0, 0, ai_side, user_side
+    )
+
+
+@pytest.mark.parametrize("kwargs, expected", [
+    ({"item": ""}, -10),
+    ({"item": "Iron Ball"}, 0),
+    # The target can be poisoned: no change
+    ({"item": "Toxic Orb"}, 0),
+    # It can't, and neither can the AI: -5; the AI can: +3
+    ({"item": "Toxic Orb", "user": "Grimer"}, 3),
+    ({"item": "Poison Barb", "user": "Grimer", "ai_species": "Grimer"}, -5),
+    ({"item": "Toxic Orb", "user": "Grimer", "ai_ability": "Guts"}, -5),
+    ({"item": "Toxic Orb", "ai_ability": "Poison Heal"}, -5),
+    ({"item": "Flame Orb", "user": "Ponyta"}, 3),
+    ({"item": "Flame Orb", "user": "Ponyta", "ai_side": SideCondition.SAFEGUARD}, -5),
+    ({"item": "Light Ball"}, 0),
+    ({"item": "Light Ball", "user_ability": "Limber"}, -5),
+    ({"item": "Light Ball", "user_side": SideCondition.SAFEGUARD}, -5),
+])
+def test_basic_fling(poke, kwargs, expected):
+    """Pokemow Basic Fling"""
+    assert _basic_fling(poke, **kwargs) == expected
+
+
+def test_expert_thief_is_covets(poke):
+    """Expert_Thief scores both: an item on the list is 80.5% of +1, anything else -2"""
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"], item="Leftovers")
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Thief"])
+    assert _expert(ai_pok, user) == (0, [(1, 206)])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"], item="Everstone")
+    assert _expert(ai_pok, user) == (-2, [])
+
+
+def test_expert_pluck_is_bug_bites(poke):
+    """Expert_Pluck scores both: resisted -1, else 50% of +1 (75% more on the first turn)"""
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    ai_pok = poke("Starly", 20, "Keen Eye", ["Pluck"])
+    assert _expert(ai_pok, user, 0.5) == (-1, [])
+    ai_pok[Pok.TURNS] = 2
+    assert _expert(ai_pok, user) == (0, [(1, 128)])
+
+
+def test_expert_embargo(poke):
+    """Expert_Embargo: 50% of +1"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Embargo"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, [(1, 128)])
+
+
+@pytest.mark.parametrize("item, effectiveness, expected", [
+    # Resisted: -1 unless the item has a good effect
+    ("Iron Ball", 0.5, (-1, [])),
+    ("King's Rock", 0.5, (0, [])),
+    # By Fling power
+    ("Oran Berry", 1.0, (-2, [])),
+    ("Iron Ball", 2.0, (4, [(1, 192)])),
+    ("Iron Ball", 1.0, (0, [(1, 128), (1, 192)])),
+    ("Poison Barb", 1.0, (0, [(1, 192)])),
+    ("Everstone", 1.0, (0, [(-1, 128)])),
+])
+def test_expert_fling(poke, item, effectiveness, expected):
+    """Expert_Fling"""
+    ai_pok = poke("Machop", 20, "Guts", ["Fling"], item=item)
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user, effectiveness) == expected
+
+
+def _expert_trick(poke, ai_item, user_item="", user="Rattata", user_ability="Run Away",
+                  ai_species="Abra", ai_ability="Synchronize"):
+    ai_pok = poke(ai_species, 20, ai_ability, ["Trick"], item=ai_item)
+    target = poke(user, 20, user_ability, ["Tackle"], item=user_item)
+    return _expert(ai_pok, target)
+
+
+@pytest.mark.parametrize("kwargs, expected", [
+    # A bad item on the target: -3 whatever the AI holds
+    ({"ai_item": "Choice Scarf", "user_item": "Iron Ball"}, (-3, [])),
+    ({"ai_item": "Choice Band"}, (5, [])),
+    ({"ai_item": "Lagging Tail"}, (5, [])),
+    ({"ai_item": "Power Weight"}, (5, [])),
+    # Macho Brace is only on the bad-trade list
+    ({"ai_item": "Macho Brace"}, (-3, [])),
+    ({"ai_item": "Toxic Orb"}, (5, [])),
+    ({"ai_item": "Toxic Orb", "user": "Grimer"}, (5, [])),
+    ({"ai_item": "Toxic Orb", "user": "Grimer", "ai_species": "Magnemite"}, (-3, [])),
+    ({"ai_item": "Flame Orb", "user": "Ponyta", "ai_species": "Ponyta"}, (-3, [])),
+    ({"ai_item": "Black Sludge", "user": "Grimer"}, (5, [])),
+    ({"ai_item": "Black Sludge", "user": "Grimer", "ai_species": "Grimer"}, (-3, [])),
+    # A Magic Guard target sends the script to the Toxic Orb's AI checks (Pokemow agrees)
+    ({"ai_item": "Black Sludge", "user": "Clefairy", "user_ability": "Magic Guard",
+      "ai_species": "Magnemite"}, (-3, [])),
+    ({"ai_item": "Figy Berry"}, (0, [(2, 206)])),
+    ({"ai_item": "Figy Berry", "user_item": "Wiki Berry"}, (-3, [])),
+    ({"ai_item": "Leftovers"}, (-3, [])),
+    ({"ai_item": ""}, (-3, [])),
+])
+def test_expert_trick(poke, kwargs, expected):
+    """Expert_Trick as Pokemow reads it"""
+    assert _expert_trick(poke, **kwargs) == expected
+
+
+def test_expert_trick_sees_through_embargo(poke):
+    """LoadHeldItemEffect reads the raw item: an Embargoed Choice Scarf is still one to give away"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Trick"], item="Choice Scarf")
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    ai_pok[Pok.VOL_STATUS2] |= VolStatus2.EMBARGO
+    ai_pok[Item.HOLD_EFFECT] = 0
+    assert _expert(ai_pok, user) == (5, [])
+
+
+def test_switcheroo_shares_tricks_expert_check(poke):
+    """Same battle effect, same check"""
+    ai_pok = poke("Sneasel", 20, "Inner Focus", ["Switcheroo"], item="Choice Band")
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert(ai_pok, user) == (5, [])
+
+
+def test_encore_likes_the_item_moves():
+    """Pokemow List_Encore has Trick, Switcheroo and Fling"""
+    for move in (MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING):
+        assert move in ai.ENCORE_ENCOURAGED_M

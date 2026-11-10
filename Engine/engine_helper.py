@@ -21,7 +21,7 @@ from Engine.ability_helper import (
 )
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, Target
-from Models.item import ITEM_TABLE
+from Models.item import ITEM_TABLE, refresh_item, embargoed
 from Models.ability import ABILITY_TABLE
 from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES, MOVE_TABLE
 from Models.constants import (
@@ -109,6 +109,8 @@ from Models.constants import (
     _HOLDEFFECT_HP_RESTORE_SE, _HOLDEFFECT_RECOIL_PHYSICAL, _HOLDEFFECT_RECOIL_SPECIAL,
     _POK_NATURE_MINUS, _VOLSTATUS2_MICLE, _MOVE_PP_UP, _MOVECATEGORY_SPECIAL,
     _POK_CHOICE_LOCK, _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK, _HOLDEFFECT_CHOICE_SPEED,
+    _POK_EMBARGO_TURNS, _VOLSTATUS2_EMBARGO, _ITEM_FLING_POWER, _ITEM_FLING_STATUS,
+    _ITEM_FLING_VOLATILE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _SEC_STATUS, _SEC_VOL_STATUS, _SEC_TARGET,
 )
 from DataBase.PkDB import PokemonName
 
@@ -170,6 +172,13 @@ WEATHER_ABILITIES = (
     (_ABILITYNAMES_SAND_STREAM, _WEATHER_SANDSTORM), (_ABILITYNAMES_SNOW_WARNING, _WEATHER_HAIL),
 )
 PERISH_SONG_TURNS = 3
+EMBARGO_TURNS = 5
+# A flung item's status or flinch goes to the target
+FLING_SEC_TARGET = Target.NORMAL
+# Columns of an ITEM_TABLE row
+ITEM_HOLD_EFFECT_COL = _ITEM_HOLD_EFFECT - _ITEM_ID
+ITEM_EFFECT_PARAM_COL = _ITEM_EFFECT_PARAM - _ITEM_ID
+ITEM_TYPE_COL = _ITEM_ITEM_TYPE - _ITEM_ID
 # Moves that call another move
 CALLER_MOVES = (_MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER)
 # pokeplatinum Move_IsInvoker (Assist and Me First aren't in MoveDB), Copycat fails on them too
@@ -250,6 +259,17 @@ def update_choice_lock(pok, slot):
         pok[_POK_CHOICE_LOCK] = 0
     elif slot < 4:
         pok[_POK_CHOICE_LOCK] = slot + 1
+
+
+@njit
+def clear_target_choice_lock(target, user):
+    """
+    After a move its user got to use, the target's lock ends if it holds no choice item, so a lock
+    left from a lost item can't come back with one Trick hands it (pokeplatinum
+    BattleControllerPlayer_UpdateMoveBuffers, the defender's side)
+    """
+    if user[_POK_LAST_MOVE_ID] != 0 and target[_ITEM_HOLD_EFFECT] not in CHOICE_EFFECTS:
+        target[_POK_CHOICE_LOCK] = 0
 
 
 @njit
@@ -446,10 +466,15 @@ def _apply_berry_effect(source, target, plucked=False):
     """Apply the effect of source's held item to target. target = the beneficiary, which is
     'pok' for a self-trigger, or 'attacker' for Bug Bite (plucked: no HP check for the pinch
     berries, pokeplatinum BattleSystem_PluckBerry)."""
+    berry_effect(source[_ITEM_HOLD_EFFECT], source[_ITEM_EFFECT_PARAM], target, plucked)
+
+
+@njit
+def berry_effect(effect, param, target, plucked=False):
+    """_apply_berry_effect from the berry's hold effect and param, also for a berry no one holds
+    anymore (a flung one)"""
     cur_hp = target[_POK_CURRENT_HP]
     max_hp = target[_POK_MAX_HP]
-    effect = source[_ITEM_HOLD_EFFECT]
-    param = source[_ITEM_EFFECT_PARAM]
     if effect == _HOLDEFFECT_HP_RESTORE:
         cur_hp = min(cur_hp + param, max_hp)
     elif effect == _HOLDEFFECT_HP_PCT_RESTORE:
@@ -710,8 +735,12 @@ def resist_berry(attacker, defender, move, damage, gravity=False):
 
 @njit
 def eat_berry_bug_bite(attacker, defender):
-    """Bug Bite forces the target to eat its berry immediately; attacker gets the benefit"""
-    _apply_berry_effect(defender, attacker, True)
+    """Bug Bite forces the target to eat its berry immediately; attacker gets the benefit.
+    Pluck too. An Embargoed target's berry works, an Embargoed attacker only takes it away
+    (pokeplatinum BattleSystem_PluckBerry)"""
+    defender[_ITEM_ID:_ITEM_ID + ITEM_LEN] = ITEM_TABLE[defender[_ITEM_ID]]
+    if not embargoed(attacker):
+        _apply_berry_effect(defender, attacker, True)
     clear_item(defender)
 
 
@@ -722,6 +751,9 @@ def switch_items(pok1, pok2):
     item_copy = np.copy(pok1[item_slice])
     pok1[item_slice] = pok2[item_slice]
     pok2[item_slice] = item_copy
+    # An Embargoed Pokemon's new item does nothing either
+    refresh_item(pok1)
+    refresh_item(pok2)
 
 
 @njit
@@ -785,8 +817,126 @@ def recycle(pok):
     if pok[_ITEM_ID] or item_id == 0:
         return
     pok[_ITEM_ID:_ITEM_ID + ITEM_LEN] = ITEM_TABLE[item_id]
+    refresh_item(pok)
     pok[_POK_CONSUMED_ITEM] = 0
     item_on_rdmg(pok)
+
+
+@njit
+def swap_items(attacker, defender):
+    """
+    Trick and Switcheroo trade the held items. They fail if either side has Multitype, holds a
+    Griseous Orb or had its item knocked off, or if neither holds one. Sticky Hold stops them even
+    with no item on the target, unless the user has Mold Breaker. The AI swaps too, like Covet; the
+    Substitute is checked before (pokeplatinum subscript_exchange_items, BtlCmd_TrySwapItems).
+    Returns True if they swapped
+    """
+    if (
+        attacker[_POK_AB_ID] == _ABILITYNAMES_MULTITYPE
+        or defender[_POK_AB_ID] == _ABILITYNAMES_MULTITYPE
+        or attacker[_ITEM_ID] == _ITEMNAMES_GRISEOUS_ORB
+        or defender[_ITEM_ID] == _ITEMNAMES_GRISEOUS_ORB
+        or attacker[_POK_ITEM_KNOCKED_OFF]
+        or defender[_POK_ITEM_KNOCKED_OFF]
+        or (attacker[_ITEM_ID] == 0 and defender[_ITEM_ID] == 0)
+    ):
+        return False
+    if sticky_hold(defender, attacker):
+        reveal_ability(defender)
+        return False
+    switch_items(attacker, defender)
+    return True
+
+
+@njit
+def embargo(target):
+    """
+    Embargo: the target's held item does nothing for 5 turns. Fails on a target already under it,
+    with Multitype or holding a Griseous Orb, not on one holding nothing; the Substitute is checked
+    before (pokeplatinum subscript_embargo_start). Returns True if it started
+    """
+    if (
+        embargoed(target)
+        or target[_POK_AB_ID] == _ABILITYNAMES_MULTITYPE
+        or target[_ITEM_ID] == _ITEMNAMES_GRISEOUS_ORB
+    ):
+        return False
+    target[_POK_VOL_STATUS2] |= _VOLSTATUS2_EMBARGO
+    target[_POK_EMBARGO_TURNS] = EMBARGO_TURNS
+    refresh_item(target)
+    return True
+
+
+@njit
+def embargo_count(pok):
+    """End of turn: Embargo counts down and the item works again once it ends (pokeplatinum
+    MON_COND_CHECK_STATE_EMBARGO)"""
+    if not embargoed(pok):
+        return
+    pok[_POK_EMBARGO_TURNS] -= 1
+    if pok[_POK_EMBARGO_TURNS] <= 0:
+        pok[_POK_EMBARGO_TURNS] = 0
+        pok[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_EMBARGO
+        refresh_item(pok)
+
+
+@njit
+def fling_fails(pok):
+    """
+    Fling fails with nothing to throw: no item or one with no Fling power, under Embargo (its block
+    reads no item), with Multitype or holding a Griseous Orb (pokeplatinum BATTLE_EFFECT_FLING,
+    BattleSystem_FlingItem). The item stays then
+    """
+    return (
+        pok[_ITEM_FLING_POWER] == 0
+        or pok[_POK_AB_ID] == _ABILITYNAMES_MULTITYPE
+        or pok[_ITEM_ID] == _ITEMNAMES_GRISEOUS_ORB
+    )
+
+
+@njit
+def fling_move(pok, target, move):
+    """
+    The move Fling hits with: the item's Fling power, and its status (Flame Orb, Toxic Orb, Poison
+    Barb, Light Ball) or flinch (King's Rock, Razor Fang) as a sure secondary effect (Showdown fling
+    onPrepareHit). None into an Embargoed target (pokeplatinum BattleSystem_FlingItem)
+    """
+    mv = move.copy()
+    mv[_MOVE_POWER] = pok[_ITEM_FLING_POWER]
+    if not embargoed(target) and (pok[_ITEM_FLING_STATUS] or pok[_ITEM_FLING_VOLATILE]):
+        mv[_SEC_CHANCE] = 100
+        mv[_SEC_TARGET] = FLING_SEC_TARGET
+        mv[_SEC_STATUS] = pok[_ITEM_FLING_STATUS]
+        mv[_SEC_VOL_STATUS] = pok[_ITEM_FLING_VOLATILE]
+    return mv
+
+
+@njit
+def fling_throw(pok):
+    """The flung item is gone after the damage, or on a miss, and Recycle can bring it back
+    (pokeplatinum RemoveItem sets recycleItem, Showdown's fling volatile)"""
+    pok[_POK_CONSUMED_ITEM] = pok[_ITEM_ID]
+    clear_item(pok)
+
+
+@njit
+def fling_hit(attacker, defender):
+    """
+    A flung berry or herb works on the target the hit reached, if it survived: the berry as if it ate
+    it (Leppa takes the move missing the most PP, Persim cures confusion), White Herb restores its
+    lowered stats, Mental Herb cures infatuation. Not on an Embargoed target (Showdown fling onHit,
+    pokeplatinum BattleSystem_FlingItem). The item is the attacker's last used one
+    """
+    if defender[_POK_CURRENT_HP] <= 0 or embargoed(defender):
+        return
+    row = ITEM_TABLE[attacker[_POK_CONSUMED_ITEM]]
+    effect = row[ITEM_HOLD_EFFECT_COL]
+    if effect == _HOLDEFFECT_STATDOWN_RESTORE:
+        restore_stat_drops(defender)
+    elif effect == _HOLDEFFECT_CONFUSE_RESTORE or effect == _HOLDEFFECT_HEAL_INFATUATION:
+        item_cure(effect, defender)
+    elif row[ITEM_TYPE_COL] == _ITEMTYPE_BERRY:
+        berry_effect(effect, row[ITEM_EFFECT_PARAM_COL], defender, True)
 
 
 @njit
@@ -1248,6 +1398,8 @@ def reset_switch_out(pok):
     pok[_POK_VOL_STATUS2] = 0
     pok[_POK_SUB_HP] = 0
     pok[_POK_CHOICE_LOCK] = 0
+    pok[_POK_EMBARGO_TURNS] = 0
+    refresh_item(pok)
     pok[_POK_AB_KNOWN] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
     if pok[_POK_BASE_AB_ID]:

@@ -10,7 +10,8 @@ Updated only when asked.
 - Done: Phase 3 (Substitute and its audit), 2026-11-08.
 - Done: 4.1 (simple held items), 4.2 (items with their own rules) and 4.3 (berries), 2026-11-08.
 - Done: 4.4 (choice items), 2026-11-09.
-- Next: 4.5, item moves.
+- Done: 4.5 (item moves), and with it Phase 4, 2026-11-09. Its `benchmarks.run quick` on the home PC is still to do.
+- Next: Phase 5, plain damage moves.
 
 ## Goal
 
@@ -284,12 +285,12 @@ This covers the lock state, `move_blocked`, the AI, and Encore and Struggle.
 
 ### 4.5 Item moves
 
-- [ ] Thief(E) \*
-- [ ] Pluck(E)
-- [ ] Trick(B/E) !!
-- [ ] Switcheroo(B) !!
-- [ ] Embargo(B/E) !
-- [ ] Fling(B/E) !! (last: it needs every item's Fling data)
+- [x] Thief(E) \*
+- [x] Pluck(E)
+- [x] Trick(B/E) !!
+- [x] Switcheroo(B) !!
+- [x] Embargo(B/E) !
+- [x] Fling(B/E) !! (last: it needs every item's Fling data)
 
 ## Phase 5: plain damage moves
 

@@ -17,6 +17,8 @@ from Engine.engine_helper import (
     power_herb, sticky_hold, big_root, recover_status_by_ability, counter_fails,
     has_substitute, hit_substitute, make_substitute, sub_blocks_status_move, takeable_item,
     focus_sash_ready, sticky_barb_transfer, after_move_hit_items, on_hit_berries,
+    clear_target_choice_lock, swap_items, embargo, embargo_count, fling_fails, fling_move,
+    fling_throw, fling_hit,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -46,7 +48,7 @@ from Models.constants import (
     _BATTLEPHASE_DEATH_END_OF_TURN, _FIELD_PHASE, _MOVE_DRAIN, _MOVE_MULTI_HIT_MIN, _MOVE_MULTI_HIT_MAX,
     _POK_VOL_STATUS, _VOLSTATUS_BIDE, _POK_DMG_TAKEN, _MOVE_CHARGE_RECHARGE, _POK_CHARGE_RECHARGE,
     _POK_LOCKED_MOVE, _ITEM_WHEN, _ITEMACTIVATION_ON_RECEIVE_DAMAGE, _MOVE_DAMAGE, _MOVE_VOL_STATUS,
-    _MOVENAME_BUG_BITE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _DAMAGESOURCES_BIDE, _DAMAGESOURCES_MAGIC_COAT,
+    _MOVENAME_BUG_BITE, _ITEMTYPE_BERRY, _DAMAGESOURCES_BIDE, _DAMAGESOURCES_MAGIC_COAT,
     _STATUS_POISON, _STATUS_TOXIC, _STATUS_BURN, _VOLSTATUS_CURSE, _ABILITYNAMES_MAGIC_GUARD,
     _POK_BADLY_POISON, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL, _MOVE_RECOIL,
     _MOVENAME_FURY_CUTTER, _MOVENAME_NATURAL_GIFT, _POK_CONSEC_COUNT,
@@ -85,8 +87,11 @@ from Models.constants import (
     _ABILITYNAMES_LIQUID_OOZE, _FIELD_OPP_MOVE_RAN,
     _POK_SUB_HP, _VOLSTATUS2_SUBSTITUTE, _MOVENAME_SUBSTITUTE, _SEC_TARGET,
     _HOLDEFFECT_PSN_USER, _HOLDEFFECT_DMG_USER_CONTACT_XFR, _TYPES_STEEL,
+    _MOVENAME_THIEF, _MOVENAME_PLUCK, _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _MOVENAME_EMBARGO,
+    _MOVENAME_FLING, _VOLSTATUS2_EMBARGO, _POK_EMBARGO_TURNS, _ITEM_ID,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
+from Models.item import refresh_item, raw_item_type
 
 
 MULTIHIT_PROB=(2,2,2,3,3,3,4,5)
@@ -141,14 +146,19 @@ BATON_PASS_VOLS = (
     | _VOLSTATUS_INGRAIN | _VOLSTATUS_AQUA_RING | _VOLSTATUS_MUD_SPORT | _VOLSTATUS_WATER_SPORT
     | _VOLSTATUS_HEAL_BLOCK | _VOLSTATUS_PERISH_SONG
 )
-# Baton Pass also hands over these VOL_STATUS2 bits (the Substitute goes with its HP)
-BATON_PASS_VOLS2 = _VOLSTATUS2_SUBSTITUTE
+# Baton Pass also hands over these VOL_STATUS2 bits (the Substitute goes with its HP, Embargo
+# with its turns)
+BATON_PASS_VOLS2 = _VOLSTATUS2_SUBSTITUTE | _VOLSTATUS2_EMBARGO
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
 # Field.OPP_MOVE_RAN: the foe's move slot + 1, plus this for every PP the move paid
 OPP_RAN_PP_STEP = 16
 HEAL_MOVES = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
 RECOIL_IMMUNE_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
+# Covet and Thief take the target's item, Bug Bite and Pluck eat its berry
+STEAL_MOVES = (_MOVENAME_COVET, _MOVENAME_THIEF)
+PLUCK_MOVES = (_MOVENAME_BUG_BITE, _MOVENAME_PLUCK)
+SWAP_MOVES = (_MOVENAME_TRICK, _MOVENAME_SWITCHEROO)
 
 @njit
 def _pass_baton(old, new):
@@ -161,6 +171,9 @@ def _pass_baton(old, new):
     new[_POK_SUB_HP] = old[_POK_SUB_HP]
     new[_POK_CONFUSION_COUNTER] = old[_POK_CONFUSION_COUNTER]
     new[_POK_PERISH_TURNS] = old[_POK_PERISH_TURNS]
+    # Embargo goes on with its turns, now over the new Pokemon's item (pokeplatinum embargoTurns)
+    new[_POK_EMBARGO_TURNS] = old[_POK_EMBARGO_TURNS]
+    refresh_item(new)
 
 
 @njit
@@ -349,6 +362,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
             atk[_POK_CURRENT_HP] = 0
         after_move_hit_items(atk, doubled, dealt, hit_pok)
     update_choice_lock(atk, slot)
+    clear_target_choice_lock(defn, atk)
     status_item(atk)
     status_item(defn)
     return True
@@ -530,6 +544,10 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
     flinch, damage, dealt, sub_hit, _ = _ps_moves_core(
         attacker, defender, move, weather, def_side, gravity
     )
+    # The flung item still boosted the hit, then it's gone (pokeplatinum CalcDamage runs before
+    # RemoveItem, Showdown's fling volatile drops it after)
+    if move[_MOVE_ID] == _MOVENAME_FLING:
+        fling_throw(attacker)
 
     _recoil(attacker, move, dealt)
     if move[_MOVE_DRAIN]:
@@ -555,25 +573,29 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
     ):
         defender[_POK_DMG_TAKEN] = damage
 
+    # An Embargoed target's berry is still a berry
     if (
-        move[_MOVE_ID] == _MOVENAME_BUG_BITE
-        and defender[_ITEM_ITEM_TYPE] == _ITEMTYPE_BERRY
+        move[_MOVE_ID] in PLUCK_MOVES
+        and raw_item_type(defender) == _ITEMTYPE_BERRY
         and not sticky_hold(defender, attacker)
     ):
         eat_berry_bug_bite(attacker, defender)
     # The AI's Covet steals too: correct for RP despite pokeplatinum BtlCmd_TryStealItem failing for
-    # side-1 attackers outside the Frontier (a decomp oversight). It can't take a Griseous Orb
+    # side-1 attackers outside the Frontier (a decomp oversight). It can't take a Griseous Orb.
+    # Thief is the same move ([pp] BATTLE_EFFECT_STEAL_HELD_ITEM)
     elif (
-        move[_MOVE_ID] == _MOVENAME_COVET
+        move[_MOVE_ID] in STEAL_MOVES
         and takeable_item(defender)
         and not sticky_hold(defender, attacker)
-        and not attacker[_ITEM_ITEM_TYPE]
+        and not attacker[_ITEM_ID]
         and not attacker[_POK_ITEM_KNOCKED_OFF]
         and not defender[_POK_ITEM_KNOCKED_OFF]
     ):
         switch_items(attacker, defender)
     elif move[_MOVE_ID] == _MOVENAME_KNOCK_OFF:
         knock_off(attacker, defender)
+    elif move[_MOVE_ID] == _MOVENAME_FLING:
+        fling_hit(attacker, defender)
 
     return flinch, True, dealt
 
@@ -807,6 +829,12 @@ def _execute_move_slot(
     if mv[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and not natural_gift(atk, mv):
         metronome_fail(atk, outer_id)
         return False
+    # Fling takes its power and effect from the item, which is thrown even if the move misses
+    if mv[_MOVE_ID] == _MOVENAME_FLING:
+        if fling_fails(atk):
+            metronome_fail(atk, outer_id)
+            return False
+        mv = fling_move(atk, defn, mv)
     if mv[_MOVE_ID] in STALL_MOVES:
         try_protect(atk, mv[_MOVE_ID], is_last)
         return False
@@ -832,6 +860,8 @@ def _execute_move_slot(
         atk[_POK_CURRENT_HP] = 0
     move_hit = calculate_hit_miss(mv, atk, defn, weather, gravity, is_last)
     if move_hit != _MOVEOUTCOME_HIT:
+        if mv[_MOVE_ID] == _MOVENAME_FLING:
+            fling_throw(atk)
         if not (atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and move_hit in UPROAR_KEEPS_ON):
             unlock_move(atk)
         if counted:
@@ -920,8 +950,8 @@ def _execute_move_slot(
 
 @njit
 def _status_move(atk, defn, mv, is_mine, battle_array, weather):
-    """Recover, Synthesis, Refresh, Recycle, Worry Seed, Substitute and Minimize's flag (its boost
-    is data)"""
+    """Recover, Synthesis, Refresh, Recycle, Worry Seed, Substitute, Trick, Switcheroo, Embargo
+    and Minimize's flag (its boost is data)"""
     move_id = mv[_MOVE_ID]
     if move_id == _MOVENAME_MINIMIZE:
         atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_MINIMIZE
@@ -933,6 +963,10 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         refresh(atk)
     elif move_id == _MOVENAME_RECYCLE:
         recycle(atk)
+    elif move_id in SWAP_MOVES:
+        swap_items(atk, defn)
+    elif move_id == _MOVENAME_EMBARGO:
+        embargo(defn)
     # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
     elif move_id == _MOVENAME_WORRY_SEED and worry_seed(defn) and not is_mine:
         battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY
@@ -1028,6 +1062,7 @@ def action(current_move, opp_move, battle_array):
             flinch, 1, count == 1, battle_array, weather, record_phy, record_sp
         )
         update_choice_lock(atk1, mv1_slot)
+        clear_target_choice_lock(def1, atk1)
         _clear_charge(atk1, mv1)
         _after_move_items(battle_array)
 
@@ -1063,6 +1098,7 @@ def action(current_move, opp_move, battle_array):
             flinch, 2, True, battle_array, effective_weather(battle_array)
         )
         update_choice_lock(atk2, mv2_slot)
+        clear_target_choice_lock(def2, atk2)
         _clear_charge(atk2, mv2)
         _after_move_items(battle_array)
 
@@ -1385,6 +1421,9 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
         pok[_POK_TAUNT_TURNS] -= 1
         if pok[_POK_TAUNT_TURNS] <= 0:
             pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_TAUNT
+
+    # 11b. Embargo (Magnet Rise and Heal Block will go before it)
+    embargo_count(pok)
 
     # 12. Yawn
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_YAWN:
@@ -1713,6 +1752,7 @@ def baton_pass_action(battle_array, switch_idx: int):
             effective_weather(battle_array)
         )
         update_choice_lock(current_opp, slot)
+        clear_target_choice_lock(current_pokemon, current_opp)
         _clear_charge(current_opp, mv)
         _after_move_items(battle_array)
     phase, _opp_idx = _finish_turn(battle_array)

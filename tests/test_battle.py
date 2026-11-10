@@ -21,6 +21,7 @@ from Engine import engine_helper
 from Models.helper import Terrain
 from Models.move import STRUGGLE
 from Models.constants import _ENEMY_AI_KNOWS_MOVE2
+from Models.trainer_ai import return_idx
 from battle_driver import (
     SCENARIOS, build_scenario, play_battle, pok_slice, my_active, opp_active, move_slice,
     is_over, MAX_TURNS,
@@ -3137,3 +3138,442 @@ def test_choice_lock_with_no_pp_left_struggles(make_pokemon, make_battle):
     hp = opp_active(arr)[Pok.CURRENT_HP]
     turn_sim(0, (MOVE, 10), arr)
     assert opp_active(arr)[Pok.CURRENT_HP] < hp and me[Pok.CHOICE_LOCK] == 1
+
+
+# ── 4.5: Thief, Pluck, Trick, Switcheroo, Embargo, Fling ─────────────────────
+
+def test_thief_steals_like_covet(make_pokemon, make_battle):
+    """Thief is Covet's move ([pp] BATTLE_EFFECT_STEAL_HELD_ITEM)"""
+    arr = make_battle([make_pokemon("Murkrow", 20, "Insomnia", ["Thief"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Leer"], item="Leftovers")])
+    me, foe = my_active(arr), opp_active(arr)
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert me[Item.ID] == ItemNames.LEFTOVERS and foe[Item.ID] == 0
+
+
+def test_the_ais_thief_steals_too(make_pokemon, make_battle):
+    """The AI's steal works in RP, like its Covet"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Leer"], item="Leftovers")],
+                      [make_pokemon("Murkrow", 20, "Insomnia", ["Thief"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Item.ID] == ItemNames.LEFTOVERS and my_active(arr)[Item.ID] == 0
+
+
+def test_thief_keeps_the_users_own_item(make_pokemon, make_battle):
+    """A user holding an item steals nothing"""
+    arr = make_battle([make_pokemon("Murkrow", 20, "Insomnia", ["Thief"], item="Everstone")],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Leer"], item="Leftovers")])
+    me, foe = my_active(arr), opp_active(arr)
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert me[Item.ID] == ItemNames.EVERSTONE and foe[Item.ID] == ItemNames.LEFTOVERS
+
+
+def _pluck_battle(make_pokemon, make_battle, ability="Rock Head"):
+    """A weak Pluck into a sturdy Sitrus holder, so the holder never eats it first"""
+    arr = make_battle([make_pokemon("Starly", 10, "Keen Eye", ["Pluck"])],
+                      [make_pokemon("Geodude", 50, ability, ["Defense Curl"], item="Sitrus Berry")])
+    me = my_active(arr)
+    me[Pok.CURRENT_HP] = 1
+    return me, opp_active(arr)
+
+
+def test_pluck_eats_the_targets_berry(make_pokemon, make_battle):
+    """Pluck is Bug Bite's move ([pp] BATTLE_EFFECT_EAT_BERRY)"""
+    me, foe = _pluck_battle(make_pokemon, make_battle)
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert me[Pok.CURRENT_HP] == 1 + me[Pok.MAX_HP] // 4 and foe[Item.ID] == 0
+
+
+@pytest.mark.parametrize("ability, kept", [("Sticky Hold", True), ("Rock Head", False)])
+def test_sticky_hold_keeps_the_berry_from_pluck(make_pokemon, make_battle, ability, kept):
+    """pokeplatinum BtlCmd_TryPluck"""
+    me, foe = _pluck_battle(make_pokemon, make_battle, ability)
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert (foe[Item.ID] != 0) == kept
+
+
+def test_pluck_eats_an_embargoed_targets_berry(make_pokemon, make_battle):
+    """Embargo stops the holder's item, not the plucker eating it (pokeplatinum PluckBerry reads the
+    raw item)"""
+    me, foe = _pluck_battle(make_pokemon, make_battle)
+    assert engine_helper.embargo(foe)
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert me[Pok.CURRENT_HP] == 1 + me[Pok.MAX_HP] // 4 and foe[Item.ID] == 0
+
+
+def test_an_embargoed_plucker_only_takes_the_berry(make_pokemon, make_battle):
+    """pokeplatinum PluckBerry: no script for an Embargoed attacker, the berry still goes"""
+    me, foe = _pluck_battle(make_pokemon, make_battle)
+    assert engine_helper.embargo(me)
+    battle.ps_moves(me, foe, move_slice(me, 0), 0, False, False)
+    assert me[Pok.CURRENT_HP] == 1 and foe[Item.ID] == 0
+
+
+def _trick_battle(make_pokemon, make_battle, my_item, opp_item, move="Trick",
+                  my_ability="Synchronize", opp_ability="Run Away", my_moves=None):
+    return make_battle(
+        [make_pokemon("Abra", 20, my_ability, my_moves or [move], item=my_item)],
+        [make_pokemon("Rattata", 20, opp_ability, ["Growl"], item=opp_item)])
+
+
+def _item_id(name):
+    return getattr(ItemNames, name.upper().replace(" ", "_")) if name else 0
+
+
+@pytest.mark.parametrize("move", ["Trick", "Switcheroo"])
+@pytest.mark.parametrize("my_item, opp_item", [
+    ("Leftovers", "Everstone"), ("Everstone", ""), ("", "Everstone"),
+])
+def test_trick_swaps_the_items(make_pokemon, make_battle, move, my_item, opp_item):
+    """Either side may hold nothing"""
+    arr = _trick_battle(make_pokemon, make_battle, my_item, opp_item, move)
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Item.ID] == _item_id(opp_item)
+    assert opp_active(arr)[Item.ID] == _item_id(my_item)
+
+
+@pytest.mark.parametrize("my_item, opp_item, opp_ability, knocked", [
+    ("", "", "Run Away", None),
+    ("Everstone", "Leftovers", "Sticky Hold", None),
+    ("Everstone", "", "Sticky Hold", None),
+    ("Griseous Orb", "Leftovers", "Run Away", None),
+    ("Everstone", "Griseous Orb", "Run Away", None),
+    ("Everstone", "Leftovers", "Run Away", "mine"),
+    ("Everstone", "Leftovers", "Run Away", "foe"),
+])
+def test_trick_fails(make_pokemon, make_battle, my_item, opp_item, opp_ability, knocked):
+    """Nothing to swap, Sticky Hold (even holding nothing), a Griseous Orb or a knocked-off item on
+    either side (pokeplatinum subscript_exchange_items, BtlCmd_TrySwapItems)"""
+    arr = _trick_battle(make_pokemon, make_battle, my_item, opp_item, opp_ability=opp_ability)
+    me, foe = my_active(arr), opp_active(arr)
+    if knocked == "mine":
+        me[Pok.ITEM_KNOCKED_OFF] = 1
+    elif knocked == "foe":
+        foe[Pok.ITEM_KNOCKED_OFF] = 1
+    assert not engine_helper.swap_items(me, foe)
+    assert (me[Item.ID], foe[Item.ID]) == (_item_id(my_item), _item_id(opp_item))
+
+
+def test_sticky_hold_stopping_trick_reveals_it(make_pokemon, make_battle):
+    """The fail message names the ability; Mold Breaker gets through"""
+    arr = _trick_battle(make_pokemon, make_battle, "Everstone", "Leftovers", opp_ability="Sticky Hold")
+    me, foe = my_active(arr), opp_active(arr)
+    assert not engine_helper.swap_items(me, foe)
+    assert foe[Pok.AB_KNOWN] == 1
+    arr = _trick_battle(make_pokemon, make_battle, "Everstone", "Leftovers",
+                        my_ability="Mold Breaker", opp_ability="Sticky Hold")
+    assert engine_helper.swap_items(my_active(arr), opp_active(arr))
+
+
+def test_trick_fails_into_a_substitute(make_pokemon, make_battle):
+    """pokeplatinum CheckSubstitute in subscript_exchange_items"""
+    arr = _trick_battle(make_pokemon, make_battle, "Everstone", "Leftovers")
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Item.ID] == ItemNames.EVERSTONE and foe[Item.ID] == ItemNames.LEFTOVERS
+
+
+def test_the_ais_trick_swaps_too(make_pokemon, make_battle):
+    """RP's AI swaps like its Covet steals"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Growl"], item="Leftovers")],
+                      [make_pokemon("Abra", 20, "Synchronize", ["Trick"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Item.ID] == ItemNames.LEFTOVERS and my_active(arr)[Item.ID] == 0
+
+
+def test_tricking_a_choice_item_onto_yourself_locks_into_trick(make_pokemon, make_battle):
+    """The item is read after the move (pokeplatinum UpdateMoveBuffers)"""
+    arr = _trick_battle(make_pokemon, make_battle, "", "Choice Band", my_moves=["Trick", "Tackle"])
+    turn_sim(0, (MOVE, 0), arr)
+    me = my_active(arr)
+    assert me[Item.ID] == ItemNames.CHOICE_BAND and me[Pok.CHOICE_LOCK] == 1
+
+
+def test_losing_the_choice_item_to_a_move_ends_the_targets_lock(make_pokemon, make_battle):
+    """pokeplatinum UpdateMoveBuffers clears the defender's lock when it holds no choice item, so a
+    Choice Band Tricked back later doesn't bring the old lock back"""
+    arr = make_battle([make_pokemon("Murkrow", 30, "Insomnia", ["Knock Off"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Tackle", "Growl"],
+                                    item="Choice Band")])
+    foe = opp_active(arr)
+    foe[Pok.CHOICE_LOCK] = 2
+    turn_sim(1, (MOVE, 0), arr)
+    assert foe[Item.ID] == 0 and foe[Pok.CHOICE_LOCK] == 0
+
+
+def test_the_targets_lock_stays_while_it_keeps_its_choice_item(make_pokemon, make_battle):
+    """Only a target without a choice item loses its lock"""
+    arr = make_battle([make_pokemon("Murkrow", 30, "Insomnia", ["Peck"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Tackle", "Growl"],
+                                    item="Choice Band")])
+    foe = opp_active(arr)
+    foe[Pok.CHOICE_LOCK] = 2
+    turn_sim(1, (MOVE, 0), arr)
+    assert foe[Pok.CHOICE_LOCK] == 2
+
+
+def _embargo_battle(make_pokemon, make_battle, my_item="Leftovers", my_ability="Run Away"):
+    """My Rattata against the foe's Embargo"""
+    arr = make_battle([make_pokemon("Rattata", 20, my_ability, ["Growl"], item=my_item),
+                       make_pokemon("Geodude", 20, "Sturdy", ["Tackle"], item="Leftovers")],
+                      [make_pokemon("Murkrow", 20, "Insomnia", ["Embargo"])])
+    return arr, my_active(arr)
+
+
+def test_embargo_stops_the_held_item(make_pokemon, make_battle):
+    """The item stays but does nothing: no Leftovers heal at the end of the turn"""
+    arr, me = _embargo_battle(make_pokemon, make_battle)
+    me[Pok.CURRENT_HP] -= 20
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.EMBARGO
+    assert me[Item.ID] == ItemNames.LEFTOVERS and me[Item.HOLD_EFFECT] == 0
+    assert me[Pok.CURRENT_HP] == hp and me[Pok.EMBARGO_TURNS] == 4
+
+
+def test_embargo_lasts_five_turns(make_pokemon, make_battle):
+    """Set to 5, counted down at every end of turn, the turn it lands included (pokeplatinum
+    subscript_embargo_start, MON_COND_CHECK_STATE_EMBARGO); the item works again after"""
+    _, me = _embargo_battle(make_pokemon, make_battle)
+    assert engine_helper.embargo(me)
+    for _ in range(4):
+        engine_helper.embargo_count(me)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.EMBARGO and me[Pok.EMBARGO_TURNS] == 1
+    engine_helper.embargo_count(me)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.EMBARGO and me[Pok.EMBARGO_TURNS] == 0
+    assert me[Item.HOLD_EFFECT] != 0
+
+
+@pytest.mark.parametrize("item, ability", [("Griseous Orb", "Run Away"), ("Leftovers", "Multitype")])
+def test_embargo_fails(make_pokemon, make_battle, item, ability):
+    """A Griseous Orb holder or Multitype (pokeplatinum subscript_embargo_start)"""
+    _, me = _embargo_battle(make_pokemon, make_battle, item, ability)
+    assert not engine_helper.embargo(me)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.EMBARGO
+
+
+def test_embargo_fails_while_up(make_pokemon, make_battle):
+    """A second Embargo doesn't restart the count"""
+    _, me = _embargo_battle(make_pokemon, make_battle)
+    assert engine_helper.embargo(me)
+    engine_helper.embargo_count(me)
+    assert not engine_helper.embargo(me)
+    assert me[Pok.EMBARGO_TURNS] == 4
+
+
+def test_embargo_on_a_pokemon_holding_nothing(make_pokemon, make_battle):
+    """No item doesn't make it fail"""
+    _, me = _embargo_battle(make_pokemon, make_battle, my_item="")
+    assert engine_helper.embargo(me)
+
+
+def test_embargo_fails_into_a_substitute(make_pokemon, make_battle):
+    """pokeplatinum CheckSubstitute"""
+    arr, me = _embargo_battle(make_pokemon, make_battle)
+    me[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    me[Pok.SUB_HP] = 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.EMBARGO
+
+
+def test_embargo_ends_on_switch_out(make_pokemon, make_battle):
+    """The item works again on the bench"""
+    _, me = _embargo_battle(make_pokemon, make_battle)
+    engine_helper.embargo(me)
+    engine_helper.reset_switch_out(me)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.EMBARGO and me[Pok.EMBARGO_TURNS] == 0
+    assert me[Item.HOLD_EFFECT] != 0
+
+
+def test_baton_pass_passes_embargo(make_pokemon, make_battle):
+    """With its turns, over the new Pokemon's item (pokeplatinum embargoTurns)"""
+    arr, me = _embargo_battle(make_pokemon, make_battle)
+    engine_helper.embargo(me)
+    engine_helper.embargo_count(me)
+    new = pok_slice(arr, 1)
+    battle._pass_baton(me, new)
+    assert new[Pok.VOL_STATUS2] & VolStatus2.EMBARGO and new[Pok.EMBARGO_TURNS] == 4
+    assert new[Item.ID] == ItemNames.LEFTOVERS and new[Item.HOLD_EFFECT] == 0
+
+
+def test_an_embargoed_pokemon_gets_a_suppressed_item_from_trick(make_pokemon, make_battle):
+    """The swap rebuilds both blocks: the Embargoed side's new item does nothing, the other's works"""
+    arr = _trick_battle(make_pokemon, make_battle, "Choice Scarf", "Leftovers")
+    me, foe = my_active(arr), opp_active(arr)
+    engine_helper.embargo(me)
+    assert engine_helper.swap_items(me, foe)
+    assert me[Item.ID] == ItemNames.LEFTOVERS and me[Item.HOLD_EFFECT] == 0
+    assert foe[Item.ID] == ItemNames.CHOICE_SCARF and foe[Item.HOLD_EFFECT] != 0
+
+
+@pytest.mark.parametrize("item, halved", [("Iron Ball", True), ("Choice Scarf", False)])
+def test_embargo_and_speed_items(make_pokemon, make_battle, item, halved):
+    """The speed-halving items still work, the rest doesn't (pokeplatinum reads the raw item for
+    sSpeedHalvingItemEffects)"""
+    _, me = _embargo_battle(make_pokemon, make_battle, my_item=item)
+    engine_helper.embargo(me)
+    speed = me[Pok.SPEED]
+    assert battle.check_speed(me, me, 0)[0] == (speed // 2 if halved else speed)
+
+
+def test_natural_gift_fails_under_embargo(make_pokemon, make_battle):
+    """pokeplatinum Battler_NaturalGiftPower reads Battler_HeldItem: the berry stays"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Natural Gift"], item="Oran Berry")],
+                      [make_pokemon("Geodude", 20, "Sturdy", ["Defense Curl"])])
+    me, foe = my_active(arr), opp_active(arr)
+    engine_helper.embargo(me)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP] and me[Item.ID] == ItemNames.ORAN_BERRY
+
+
+def test_no_trainer_items_on_an_embargoed_pokemon(make_pokemon, make_battle):
+    """pokeplatinum TrainerAI_ShouldUseItem returns early under Embargo"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Growl"])],
+                      [make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])],
+                      trainer_items=(Potions.FULL_RESTORE,))
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] = 1
+    assert return_idx(arr) < 0
+    engine_helper.embargo(foe)
+    assert return_idx(arr) >= 0
+
+
+def _fling_battle(make_pokemon, make_battle, item, opp="Rattata", opp_level=20):
+    arr = make_battle([make_pokemon("Machop", 20, "Guts", ["Fling"], item=item)],
+                      [make_pokemon(opp, opp_level, "Run Away", ["Growl"])])
+    return arr, my_active(arr), opp_active(arr)
+
+
+def _fling(me, foe):
+    """One Fling hit, as _execute_move_slot sets it up"""
+    return battle.ps_moves(
+        me, foe, engine_helper.fling_move(me, foe, move_slice(me, 0)), 0, False, False
+    )
+
+
+@pytest.mark.parametrize("item, power", [("Iron Ball", 130), ("Everstone", 30), ("Oran Berry", 10)])
+def test_fling_power_comes_from_the_item(make_pokemon, make_battle, item, power):
+    """The item's Fling power (ItemDB, [pp] ITEM_PARAM_FLING_POWER)"""
+    _, me, foe = _fling_battle(make_pokemon, make_battle, item)
+    assert engine_helper.fling_move(me, foe, move_slice(me, 0))[Move.POWER] == power
+
+
+def test_fling_throws_the_item(make_pokemon, make_battle):
+    """Gone after the hit, Recycle can bring it back"""
+    arr, me, foe = _fling_battle(make_pokemon, make_battle, "Iron Ball")
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert me[Item.ID] == 0 and me[Pok.CONSUMED_ITEM] == ItemNames.IRON_BALL
+
+
+def test_fling_throws_the_item_on_a_miss(monkeypatch, make_pokemon, make_battle):
+    """[pp] removes it before the hit check, Showdown's fling volatile too"""
+    arr, me, foe = _fling_battle(make_pokemon, make_battle, "Iron Ball")
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.MISS)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP] and me[Item.ID] == 0
+
+
+@pytest.mark.parametrize("item, ability", [
+    ("", "Guts"), ("Griseous Orb", "Guts"), ("Iron Ball", "Multitype"),
+])
+def test_fling_fails(make_pokemon, make_battle, item, ability):
+    """Nothing to throw, a Griseous Orb or Multitype: no hit, the item stays, the PP is spent"""
+    arr = make_battle([make_pokemon("Machop", 20, ability, ["Fling"], item=item)],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Growl"])])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    assert move_slice(me, 0)[Move.PP] == pp - 1 and me[Item.ID] == _item_id(item)
+
+
+def test_fling_fails_under_embargo(make_pokemon, make_battle):
+    """pokeplatinum Battler_ItemFlingPower is 0 under Embargo"""
+    arr, me, foe = _fling_battle(make_pokemon, make_battle, "Iron Ball")
+    engine_helper.embargo(me)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP] and me[Item.ID] == ItemNames.IRON_BALL
+
+
+@pytest.mark.parametrize("item, status", [
+    ("Flame Orb", Status.BURN), ("Toxic Orb", Status.TOXIC), ("Poison Barb", Status.POISON),
+    ("Light Ball", Status.PARALYSIS),
+])
+def test_fling_gives_the_items_status(make_pokemon, make_battle, item, status):
+    """A sure secondary effect (Showdown fling, the item's fling.status)"""
+    _, me, foe = _fling_battle(make_pokemon, make_battle, item, opp_level=40)
+    _fling(me, foe)
+    assert foe[Pok.STATUS] == status
+
+
+def test_fling_status_respects_immunities(make_pokemon, make_battle):
+    """It goes through the normal status checks: a Fire type isn't burned"""
+    _, me, foe = _fling_battle(make_pokemon, make_battle, "Flame Orb", opp="Ponyta", opp_level=40)
+    _fling(me, foe)
+    assert foe[Pok.STATUS] == 0
+
+
+def test_fling_has_no_effect_on_an_embargoed_target(make_pokemon, make_battle):
+    """pokeplatinum BattleSystem_FlingItem drops the fling script, the status ones included"""
+    _, me, foe = _fling_battle(make_pokemon, make_battle, "Flame Orb", opp_level=40)
+    engine_helper.embargo(foe)
+    _fling(me, foe)
+    assert foe[Pok.STATUS] == 0 and foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("item", ["King's Rock", "Razor Fang"])
+def test_fling_flinches(make_pokemon, make_battle, item):
+    """A sure flinch (Showdown fling.volatileStatus)"""
+    _, me, foe = _fling_battle(make_pokemon, make_battle, item, opp_level=40)
+    flinch, _, _ = _fling(me, foe)
+    assert flinch
+
+
+def test_a_flung_sitrus_heals_the_target(make_pokemon, make_battle):
+    """The target eats it after the hit (Showdown fling onHit)"""
+    _, me, foe = _fling_battle(make_pokemon, make_battle, "Sitrus Berry", opp="Geodude", opp_level=50)
+    foe[Pok.CURRENT_HP] = foe[Pok.MAX_HP] // 2
+    hp = foe[Pok.CURRENT_HP]
+    _, _, dealt = _fling(me, foe)
+    assert foe[Pok.CURRENT_HP] == min(foe[Pok.MAX_HP], hp - dealt + foe[Pok.MAX_HP] // 4)
+    assert me[Item.ID] == 0
+
+
+def test_a_flung_persim_cures_confusion(make_pokemon, make_battle):
+    """No Bug Bite quirk: Fling's Persim cures ([pp] FLING_EFFECT_CNF_RESTORE)"""
+    _, me, foe = _fling_battle(make_pokemon, make_battle, "Persim Berry", opp="Geodude", opp_level=50)
+    foe[Pok.VOL_STATUS] |= VolStatus.CONFUSION
+    _fling(me, foe)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.CONFUSION and foe[Pok.ATTACK_STAT_STAGE] == 0
+
+
+def test_flung_herbs(make_pokemon, make_battle):
+    """White Herb restores the target's lowered stats, Mental Herb cures its infatuation"""
+    _, me, foe = _fling_battle(make_pokemon, make_battle, "White Herb", opp="Geodude", opp_level=50)
+    foe[Pok.DEFENSE_STAT_STAGE] = -2
+    _fling(me, foe)
+    assert foe[Pok.DEFENSE_STAT_STAGE] == 0
+    _, me, foe = _fling_battle(make_pokemon, make_battle, "Mental Herb", opp="Geodude", opp_level=50)
+    foe[Pok.VOL_STATUS] |= VolStatus.ATTRACT
+    _fling(me, foe)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.ATTRACT
+
+
+def test_fling_into_a_substitute(make_pokemon, make_battle):
+    """The item is lost, its effect doesn't reach the target"""
+    _, me, foe = _fling_battle(make_pokemon, make_battle, "Flame Orb", opp_level=40)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 200
+    _fling(me, foe)
+    assert foe[Pok.STATUS] == 0 and me[Item.ID] == 0
+
+
+def test_a_flung_life_orb_gives_no_recoil(make_pokemon, make_battle):
+    """Still held for the damage, gone before the recoil (pokeplatinum CalcDamage before RemoveItem)"""
+    arr, me, foe = _fling_battle(make_pokemon, make_battle, "Life Orb", opp="Geodude", opp_level=50)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP] and me[Pok.CONSUMED_ITEM] == ItemNames.LIFE_ORB

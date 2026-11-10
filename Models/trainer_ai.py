@@ -44,6 +44,7 @@ from Models.trainer_ai_helper import (
     ai_move_view, quick_claw_guess, party_super_effective, on_damaging_turn
 )
 from Models.helper import count_party
+from Models.item import embargoed
 
 # mov_excep = ['Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
 #             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Superpower', 'Eruption',
@@ -54,7 +55,9 @@ MOVE_EXCEP = (
     # Power 1 in pokeplatinum and not an alt power move: never compared
     MoveName.COUNTER, MoveName.BIDE, MoveName.MIRROR_COAT, MoveName.FLAIL, MoveName.MAGNITUDE,
     # OHKO moves: Basic_Main skips Fissure's damage scoring, Guillotine and Sheer Cold are power 1
-    MoveName.FISSURE, MoveName.GUILLOTINE, MoveName.SHEER_COLD
+    MoveName.FISSURE, MoveName.GUILLOTINE, MoveName.SHEER_COLD,
+    # Pokemow's excluded moves
+    MoveName.FLING,
 )
 
 
@@ -409,7 +412,7 @@ def choose_move(battle_array):
             ai_know, user_side,
             move_id == _MOVENAME_COPYCAT
             and copycat_beats(ai_pok, user_pok, eff_weather, user_side, gravity),
-            claw_guess, eff_weather
+            claw_guess, eff_weather, ai_side
         )
         score += expert
 
@@ -496,7 +499,8 @@ def choose_move(battle_array):
         if ai_items[_ii] != 0:
             item_count += 1
 
-    if item_count > 0 and ai_pok[_POK_CURRENT_HP] > 0:
+    # No items on an Embargoed Pokemon (pokeplatinum TrainerAI_ShouldUseItem)
+    if item_count > 0 and ai_pok[_POK_CURRENT_HP] > 0 and not embargoed(ai_pok):
         ai_cur_hp  = ai_pok[_POK_CURRENT_HP]
         ai_max_hp  = ai_pok[_POK_MAX_HP]
         hp_quarter = ai_max_hp >> 2          # ai_max_hp // 4
