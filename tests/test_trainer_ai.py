@@ -49,6 +49,11 @@ KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
     "Natural Gift", "Mirror Coat", "Assurance", "Take Down", "Bounce", "Fury Cutter", "Rollout",
     "Explosion", "Selfdestruct", "Fissure", "Guillotine", "Sheer Cold", "Thief", "Pluck", "Fling",
+    "Fire Blast", "Flamethrower", "Heat Wave", "Lava Plume", "Blaze Kick", "Sacred Fire", "Scald",
+    "Thunderbolt", "Discharge", "Zap Cannon", "Body Slam", "Sludge", "Sludge Bomb", "Gunk Shot",
+    "Poison Jab", "Cross Poison", "Poison Tail", "Ice Punch", "Dizzy Punch", "Dynamic Punch",
+    "Signal Beam", "Rock Climb", "Chatter", "Dark Pulse", "Dragon Rush", "Icicle Crash", "Needle Arm",
+    "Rolling Kick", "Waterfall", "Ice Fang", "Thunder Fang", "Magma Storm",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -95,7 +100,9 @@ def _expert(ai_pok, user, effectiveness=1.0):
     return score, queued
 
 
-@pytest.mark.parametrize("move", ["Karate Chop", "Razor Leaf", "Air Cutter"])
+@pytest.mark.parametrize("move", [
+    "Karate Chop", "Razor Leaf", "Air Cutter", "Blaze Kick", "Cross Poison", "Poison Tail",
+])
 @pytest.mark.parametrize("effectiveness, queued", [
     (0.0, []), (0.25, []), (0.5, []),   # resisted: no change
     (1.0, [(1, 64)]),                    # neutral: 25% of +1
@@ -627,7 +634,7 @@ def test_expert_disable(poke):
     assert _expert(fast_ai, user) == (0, [(-1, 156)])
 
 
-@pytest.mark.parametrize("move", ["Wrap", "Bind", "Clamp", "Fire Spin"])
+@pytest.mark.parametrize("move", ["Wrap", "Bind", "Clamp", "Fire Spin", "Magma Storm"])
 def test_expert_binding_moves(poke, move):
     """pokeplatinum Expert_BindingMove: 50% +1 vs Toxic, Curse or Attract (not plain poison)"""
     ai_pok = poke("Rattata", 20, "Run Away", [move])
@@ -1095,7 +1102,7 @@ def test_basic_perish_song(poke):
 
 
 @pytest.mark.parametrize("move, expected", [
-    ("Growl", -10), ("Sing", -10), ("Grass Whistle", -10), ("Disarming Voice", 0),
+    ("Growl", -10), ("Sing", -10), ("Grass Whistle", -10), ("Disarming Voice", 0), ("Chatter", -10),
 ])
 def test_basic_soundproof_uses_the_cartridge_list(poke, move, expected):
     """pokeplatinum Basic_SoundproofMoves, not the sound flag"""

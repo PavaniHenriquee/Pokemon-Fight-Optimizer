@@ -235,6 +235,32 @@ def test_secondary_chance_rate(poke):
     assert hits / n == pytest.approx(0.10, abs=0.015)
 
 
+@pytest.mark.parametrize("move, status, vol", [
+    ("Zap Cannon", Status.PARALYSIS, 0), ("Dynamic Punch", 0, VolStatus.CONFUSION),
+])
+def test_zap_cannon_and_dynamic_punch_always_land_their_effect(monkeypatch, poke, move, status, vol):
+    """A 100% secondary doesn't roll"""
+    monkeypatch.setattr(status_calc.random, "randint", lambda a, b: b)
+    a = poke("Machop", 50, "Guts", [move])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    sec_effects(move_slice(a, 0), a, d, 0)
+    assert d[Pok.STATUS] == status and d[Pok.VOL_STATUS] & VolStatus.CONFUSION == vol
+
+
+@pytest.mark.parametrize("name, confuses", [("Chatot", True), ("Rattata", False)])
+def test_chatter_only_confuses_from_a_chatot(monkeypatch, poke, name, confuses):
+    """pokeplatinum BtlCmd_CheckChatterActivation, at Showdown gen4's 31%"""
+    monkeypatch.setattr(status_calc.random, "randint", lambda a, b: 31)
+    a = poke(name, 50, "Keen Eye", ["Chatter"])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    sec_effects(move_slice(a, 0), a, d, 0)
+    assert bool(d[Pok.VOL_STATUS] & VolStatus.CONFUSION) == confuses
+    d[Pok.VOL_STATUS] = 0
+    monkeypatch.setattr(status_calc.random, "randint", lambda a, b: 32)
+    sec_effects(move_slice(a, 0), a, d, 0)
+    assert not d[Pok.VOL_STATUS] & VolStatus.CONFUSION
+
+
 
 @pytest.mark.parametrize("move", ["Metal Claw", "Silver Wind"])
 @pytest.mark.parametrize("target_fainted", [False, True])

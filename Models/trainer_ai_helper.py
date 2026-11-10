@@ -289,11 +289,11 @@ ENCORE_ENCOURAGED_M = (
     MoveName.AQUA_RING, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
-# pokeplatinum Basic_SoundproofMoves, the ones in MoveDB (Snore, Metal Sound, Bug Buzz and Chatter
+# pokeplatinum Basic_SoundproofMoves, the ones in MoveDB (Snore, Metal Sound and Bug Buzz
 # aren't). Perish Song and Hyper Voice aren't on it
 SOUNDPROOF_M = (
     MoveName.GROWL, MoveName.ROAR, MoveName.SING, MoveName.SUPERSONIC, MoveName.SCREECH,
-    MoveName.UPROAR, MoveName.GRASS_WHISTLE
+    MoveName.UPROAR, MoveName.GRASS_WHISTLE, MoveName.CHATTER
 )
 # Recover is the only RESTORE_HALF_HP move in MoveDB, Synthesis the only HEAL_HALF_MORE_IN_SUN one
 HEAL_M = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)

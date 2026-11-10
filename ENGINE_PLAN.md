@@ -11,7 +11,8 @@ Updated only when asked.
 - Done: 4.1 (simple held items), 4.2 (items with their own rules) and 4.3 (berries), 2026-11-08.
 - Done: 4.4 (choice items), 2026-11-09.
 - Done: 4.5 (item moves), and with it Phase 4, 2026-11-09. Its `benchmarks.run quick` on the home PC is still to do.
-- Next: Phase 5, plain damage moves.
+- Done: 5.1 (status, flinch or confusion chance), 2026-11-09.
+- Next: 5.2, stat changes on hit.
 
 ## Goal
 
@@ -300,59 +301,59 @@ The engine already has these mechanics. Each move needs data plus its AI branche
 
 Burn:
 
-- [ ] Fire Blast
-- [ ] Flamethrower
-- [ ] Heat Wave
-- [ ] Lava Plume
-- [ ] Blaze Kick
-- [ ] Sacred Fire
-- [ ] Scald !
+- [x] Fire Blast
+- [x] Flamethrower
+- [x] Heat Wave
+- [x] Lava Plume
+- [x] Blaze Kick
+- [x] Sacred Fire
+- [x] Scald !
 
 Paralysis:
 
-- [ ] Thunderbolt
-- [ ] Discharge
-- [ ] Zap Cannon
-- [ ] Body Slam
+- [x] Thunderbolt
+- [x] Discharge
+- [x] Zap Cannon
+- [x] Body Slam
 
 Poison:
 
-- [ ] Sludge
-- [ ] Sludge Bomb
-- [ ] Gunk Shot
-- [ ] Poison Jab
-- [ ] Cross Poison
-- [ ] Poison Tail
+- [x] Sludge
+- [x] Sludge Bomb
+- [x] Gunk Shot
+- [x] Poison Jab
+- [x] Cross Poison
+- [x] Poison Tail
 
 Freeze:
 
-- [ ] Ice Punch
+- [x] Ice Punch
 
 Confusion:
 
-- [ ] Dizzy Punch
-- [ ] Dynamic Punch
-- [ ] Signal Beam
-- [ ] Rock Climb \*
-- [ ] Chatter !
+- [x] Dizzy Punch
+- [x] Dynamic Punch
+- [x] Signal Beam
+- [x] Rock Climb \*
+- [x] Chatter !
 
 Flinch:
 
-- [ ] Dark Pulse
-- [ ] Dragon Rush
-- [ ] Icicle Crash
-- [ ] Needle Arm \* !
-- [ ] Rolling Kick \*
-- [ ] Waterfall
+- [x] Dark Pulse
+- [x] Dragon Rush
+- [x] Icicle Crash
+- [x] Needle Arm \* !
+- [x] Rolling Kick \*
+- [x] Waterfall
 
 Fangs:
 
-- [ ] Ice Fang
-- [ ] Thunder Fang
+- [x] Ice Fang
+- [x] Thunder Fang
 
 Binding:
 
-- [ ] Magma Storm \* !
+- [x] Magma Storm \* !
 
 ### 5.2 Stat changes on hit
 

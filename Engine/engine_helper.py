@@ -35,7 +35,7 @@ from Models.constants import (
     _ABILITYNAMES_SOUNDPROOF, _ABILITYNAMES_INNER_FOCUS, _ABILITYNAMES_INTIMIDATE,
     _ABILITYNAMES_SOLAR_POWER, _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_STEADFAST,
     _ABILITYNAMES_POISON_POINT, _ABILITYNAMES_RAIN_DISH, _ABILITYNAMES_SPEED_BOOST,
-    _MOVECATEGORY_PHYSICAL, _FLAGS_SOUND, _ABILITYACTIVATION_ON_TRY_MOVE, _ABILITYACTIVATION_ON_SWITCH_IN,
+    _MOVECATEGORY_PHYSICAL, _FLAGS_SOUND, _FLAGS_DEFROST, _ABILITYACTIVATION_ON_TRY_MOVE, _ABILITYACTIVATION_ON_SWITCH_IN,
     _POK_TYPE1, _POK_TYPE2, _POK_ACCURACY_STAT_STAGE, _POK_EVASION_STAT_STAGE, _POK_ATTACK_STAT_STAGE,
     _POK_VOL_STATUS, _POK_BADLY_POISON, _POK_TURNS, _POK_MAX_HP, _POK_SLEEP_COUNTER, _POK_CURRENT_HP,
     _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE, _SEC_CHANCE, _POK_TURNS_ACTIVE,
@@ -2004,11 +2004,8 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
         attacker[_POK_STATUS] = 0
     # Freeze
     if atker_status == _STATUS_FREEZE:
-        # TODO: a small set of specific moves (Flame Wheel, Sacred Fire, Scald, ...)
-        # auto-thaw the user on use regardless of the roll below. None exist in
-        # MoveDB yet — once added, gate this on a move-id tuple in DataBase/MoveDB.py
-        # (same pattern as FIRE_MOVES / FIRE_WATER_ELECTRIC), not on move[_MOVE_TYPE].
-        if freeze():
+        # A defrost move thaws its user when the roll fails (pokeplatinum CHECK_STATUS_STATE_SELF_THAW)
+        if freeze() and not move[_FLAGS_DEFROST]:
             _tick_charge_if_blocked(attacker)
             return True
         attacker[_POK_STATUS] = 0

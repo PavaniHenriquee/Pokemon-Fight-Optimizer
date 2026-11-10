@@ -457,6 +457,12 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   the fling scripts wasn't checked. A flung confusion berry only confuses a target below max HP (the held
   berry's rule); [SD] confuses at full HP too. A flung Leppa takes the move missing the most PP ([pp], like
   Bug Bite); [SD] gen4 takes the first one at 0 PP.
+- Chatter confuses at [SD gen4]'s 31% whenever a Chatot uses it. [pp] reads the recorded cry's volume (1%, 11% or
+  31%, 1% with no valid recording, `BtlCmd_CheckChatterActivation`). Once Transform is in, a transformed Chatot
+  mustn't confuse.
+- Scald: which [pp] effect RP gives it is unknown (ROM not read). No AI branch reads the burn-hit effects yet.
+- Tests that seed Metronome (`test_choice_item_locks_metronome_into_itself`, the `move_calling` golden scenario)
+  call a different move each time `METRONOME_POOL` grows, so a MoveDB batch can move them.
 
 ## Trainer AI constraints
 

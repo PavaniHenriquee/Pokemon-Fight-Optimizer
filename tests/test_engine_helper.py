@@ -1362,6 +1362,17 @@ def test_flinch_checker_second_slot(poke):
     assert not flinch_checker(mv, a, d2, True)
 
 
+@pytest.mark.parametrize("move, status", [
+    ("Ice Fang", Status.FREEZE), ("Thunder Fang", Status.PARALYSIS),
+])
+def test_fangs_roll_status_and_flinch_apart(poke, move, status):
+    """10% status in the first secondary slot, 10% flinch in the second"""
+    a = poke("Growlithe", 50, "Intimidate", [move])
+    mv = move_slice(a, 0)
+    assert (mv[Sec.CHANCE], mv[Sec.STATUS], mv[Sec.VOL_STATUS]) == (10, status, 0)
+    assert (mv[Sec.CHANCE2], mv[Sec.VOL_STATUS2]) == (10, VolStatus.FLINCH)
+
+
 # ── Phase 2: semi-invulnerability, locks, recoil, Struggle ──────────────────
 
 def test_airborne_target_dodges_all_but_gust(poke):
@@ -1412,6 +1423,19 @@ def test_freeze_keeps_the_lock(monkeypatch, poke):
     monkeypatch.setattr(engine_helper, "freeze", lambda: True)
     assert early_returns(a, d, 1, False, move_slice(a, 0))
     assert a[Pok.LOCKED_MOVE] == 0 and a[Pok.CONSEC_COUNT] == 2
+
+
+@pytest.mark.parametrize("move, thaws", [
+    ("Flame Wheel", True), ("Sacred Fire", True), ("Scald", True), ("Flamethrower", False),
+])
+def test_defrost_move_thaws_its_frozen_user(monkeypatch, poke, move, thaws):
+    """pokeplatinum CHECK_STATUS_STATE_SELF_THAW: a defrost move goes through a failed thaw roll"""
+    a = poke("Growlithe", 50, "Intimidate", [move])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.STATUS] = Status.FREEZE
+    monkeypatch.setattr(engine_helper, "freeze", lambda: True)
+    assert early_returns(a, d, 1, False, move_slice(a, 0)) == (not thaws)
+    assert (a[Pok.STATUS] == 0) == thaws
 
 
 def test_unlock_leaves_bide_alone(poke):

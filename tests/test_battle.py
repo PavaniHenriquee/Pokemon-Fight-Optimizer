@@ -2103,6 +2103,18 @@ def test_grip_claw_binds_for_six_turns(monkeypatch, make_pokemon, make_battle, i
     assert low <= foe[Pok.TRAP_TURNS] <= high
 
 
+def test_magma_storm_traps_like_wrap(monkeypatch, make_pokemon, make_battle):
+    """pokeplatinum BATTLE_EFFECT_BIND_HIT: the hit, then 1/16 at the end of the turn"""
+    _always_hit(monkeypatch)
+    my = [make_pokemon("Rattata", 5, "Run Away", ["Magma Storm"])]
+    arr = make_battle(my, [make_pokemon("Geodude", 50, "Sturdy", ["Growl"])])
+    foe = opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS] & VolStatus.PARTIALLY_TRAPPED
+    assert 2 <= foe[Pok.TRAP_TURNS] <= 5
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP] - foe[Pok.MAX_HP] // 16
+
+
 @pytest.mark.parametrize("vol", [VolStatus.INGRAIN, VolStatus.AQUA_RING])
 def test_big_root_boosts_ingrain_and_aqua_ring(make_pokemon, make_battle, vol):
     """1/16 of max HP x130/100 (pokeplatinum subscript_ingrain_heal / subscript_aqua_ring_heal)"""
@@ -3084,7 +3096,7 @@ def test_choice_item_doesnt_lock_on_a_turn_without_the_move(monkeypatch, make_po
 
 def test_choice_item_locks_metronome_into_itself(make_pokemon, make_battle):
     """The selected move locks, not the one Metronome called"""
-    battle.random.seed(4)
+    battle.random.seed(5)
     arr = _choice_battle(make_pokemon, make_battle, ["Tackle", "Metronome"])
     turn_sim(0, (MOVE, 1), arr)
     assert my_active(arr)[Pok.CHOICE_LOCK] == 2

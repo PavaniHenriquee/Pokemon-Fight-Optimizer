@@ -26,9 +26,10 @@ from Models.constants import (
     _ABILITYNAMES_SHIELD_DUST, _ABILITYNAMES_MAGMA_ARMOR, _ABILITYNAMES_LEAF_GUARD,
     _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _ABILITYNAMES_CLEAR_BODY,
     _ABILITYNAMES_WHITE_SMOKE, _ABILITYNAMES_HYPER_CUTTER, _ITEM_HOLD_EFFECT,
-    _HOLDEFFECT_RECIPROCATE_INFAT,
+    _HOLDEFFECT_RECIPROCATE_INFAT, _MOVENAME_CHATTER, _POK_ID,
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
+from DataBase.PkDB import PokemonName
 from Models.move import CURSE_BOOST
 from Engine.ability_helper import ignorable_ability, reveal_ability
 
@@ -49,6 +50,7 @@ SLOT_MASK = 3
 # Gen IV Encore fails on these last moves (Transform, Mimic, Sketch aren't in MoveDB)
 ENCORE_FAIL_MOVES = (_MOVENAME_ENCORE, _MOVENAME_MIRROR_MOVE, _MOVENAME_STRUGGLE)
 SLEEP_AB_IM = (_ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT)
+CHATOT = PokemonName.CHATOT
 # Block every stat drop the foe causes
 STAT_DROP_AB_IM = (_ABILITYNAMES_CLEAR_BODY, _ABILITYNAMES_WHITE_SMOKE)
 # Tri Attack's secondary picks one of these at random
@@ -442,6 +444,10 @@ def sec_effects(move, attacker, defender, weather, def_side=0):
         and defender[_POK_AB_ID] == _ABILITYNAMES_SHIELD_DUST
         and ignorable_ability(defender, attacker)
     ):
+        return
+
+    # Chatter only confuses when a Chatot uses it (pokeplatinum BtlCmd_CheckChatterActivation)
+    if move[_MOVE_ID] == _MOVENAME_CHATTER and attacker[_POK_ID] != CHATOT:
         return
 
     chance = move[_SEC_CHANCE]

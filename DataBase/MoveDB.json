@@ -305,6 +305,26 @@
     "target": "normal",
     "type": "Dark"
   },
+  "Blaze Kick": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "blaze_kick",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "chance": 10,
+      "status": "burn"
+    },
+    "target": "normal",
+    "type": "Fire"
+  },
   "Blizzard": {
     "accuracy": 70,
     "category": "Special",
@@ -323,6 +343,26 @@
     },
     "target": "all_adjacent_foes",
     "type": "Ice"
+  },
+  "Body Slam": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "non_sky": true,
+      "protect": true
+    },
+    "name": "body_slam",
+    "power": 85,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "status": "paralysis"
+    },
+    "target": "normal",
+    "type": "Normal"
   },
   "Bone Club": {
     "accuracy": 85,
@@ -507,6 +547,30 @@
     "target": "normal",
     "type": "Fairy"
   },
+  "Chatter": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "distance": true,
+      "fail_copycat": true,
+      "fail_me_first": true,
+      "fail_mimic": true,
+      "no_assist": true,
+      "no_sketch": true,
+      "no_sleep_talk": true,
+      "protect": true,
+      "sound": true
+    },
+    "name": "chatter",
+    "power": 90,
+    "pp": 15,
+    "secondary": {
+      "chance": 31,
+      "vol_status": "confusion"
+    },
+    "target": "any",
+    "type": "Flying"
+  },
   "Clamp": {
     "accuracy": 85,
     "category": "Physical",
@@ -620,6 +684,27 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Cross Poison": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "slicing": true
+    },
+    "name": "cross_poison",
+    "power": 90,
+    "pp": 15,
+    "secondary": {
+      "chance": 10,
+      "status": "poison"
+    },
+    "target": "normal",
+    "type": "Poison"
+  },
   "Curse": {
     "accuracy": true,
     "category": "Status",
@@ -631,6 +716,26 @@
     "target": "normal",
     "type": "Ghost",
     "vol_status": "curse"
+  },
+  "Dark Pulse": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "distance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "pulse": true
+    },
+    "name": "dark_pulse",
+    "power": 80,
+    "pp": 15,
+    "secondary": {
+      "chance": 20,
+      "vol_status": "flinch"
+    },
+    "target": "any",
+    "type": "Dark"
   },
   "Defense Curl": {
     "accuracy": true,
@@ -709,6 +814,44 @@
     "pp": 15,
     "target": "all_adjacent_foes",
     "type": "Fairy"
+  },
+  "Discharge": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "discharge",
+    "power": 80,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "status": "paralysis"
+    },
+    "target": "all_adjacent",
+    "type": "Electric"
+  },
+  "Dizzy Punch": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "dizzy_punch",
+    "power": 70,
+    "pp": 10,
+    "secondary": {
+      "chance": 20,
+      "vol_status": "confusion"
+    },
+    "target": "normal",
+    "type": "Normal"
   },
   "Double Kick": {
     "accuracy": 100,
@@ -802,6 +945,25 @@
       "metronome": true
     }
   },
+  "Dragon Rush": {
+    "accuracy": 75,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "dragon_rush",
+    "power": 100,
+    "pp": 10,
+    "secondary": {
+      "chance": 20,
+      "vol_status": "flinch"
+    },
+    "target": "normal",
+    "type": "Dragon"
+  },
   "Draining Kiss": {
     "accuracy": 100,
     "category": "Special",
@@ -834,6 +996,26 @@
     "pp": 15,
     "target": "normal",
     "type": "Psychic"
+  },
+  "Dynamic Punch": {
+    "accuracy": 50,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "dynamic_punch",
+    "power": 100,
+    "pp": 5,
+    "secondary": {
+      "chance": 100,
+      "vol_status": "confusion"
+    },
+    "target": "normal",
+    "type": "Fighting"
   },
   "Earthquake": {
     "accuracy": 100,
@@ -1025,6 +1207,24 @@
     "target": "normal",
     "type": "Dark"
   },
+  "Fire Blast": {
+    "accuracy": 85,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "fire_blast",
+    "power": 110,
+    "pp": 5,
+    "secondary": {
+      "chance": 10,
+      "status": "burn"
+    },
+    "target": "normal",
+    "type": "Fire"
+  },
   "Fire Fang": {
     "accuracy": 95,
     "category": "Physical",
@@ -1123,6 +1323,24 @@
     },
     "name": "flame_wheel",
     "power": 75,
+    "pp": 15,
+    "secondary": {
+      "chance": 10,
+      "status": "burn"
+    },
+    "target": "normal",
+    "type": "Fire"
+  },
+  "Flamethrower": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "flamethrower",
+    "power": 90,
     "pp": 15,
     "secondary": {
       "chance": 10,
@@ -1394,6 +1612,24 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Gunk Shot": {
+    "accuracy": 80,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "gunk_shot",
+    "power": 120,
+    "pp": 5,
+    "secondary": {
+      "chance": 30,
+      "status": "poison"
+    },
+    "target": "normal",
+    "type": "Poison"
+  },
   "Gust": {
     "accuracy": 100,
     "category": "Special",
@@ -1456,6 +1692,25 @@
     },
     "target": "normal",
     "type": "Normal"
+  },
+  "Heat Wave": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "wind": true
+    },
+    "name": "heat_wave",
+    "power": 95,
+    "pp": 10,
+    "secondary": {
+      "chance": 10,
+      "status": "burn"
+    },
+    "target": "all_adjacent_foes",
+    "type": "Fire"
   },
   "Helping Hand": {
     "accuracy": true,
@@ -1615,6 +1870,67 @@
     "target": "normal",
     "type": "Ice"
   },
+  "Ice Fang": {
+    "accuracy": 95,
+    "category": "Physical",
+    "flags": {
+      "bite": true,
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "ice_fang",
+    "power": 65,
+    "pp": 15,
+    "secondary": {
+      "chance": 10,
+      "chance2": 10,
+      "status": "freeze",
+      "vol_status2": "flinch"
+    },
+    "target": "normal",
+    "type": "Ice"
+  },
+  "Ice Punch": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "ice_punch",
+    "power": 75,
+    "pp": 15,
+    "secondary": {
+      "chance": 10,
+      "status": "freeze"
+    },
+    "target": "normal",
+    "type": "Ice"
+  },
+  "Icicle Crash": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "kings_rock": true,
+    "name": "icicle_crash",
+    "power": 85,
+    "pp": 10,
+    "secondary": {
+      "chance": 30,
+      "vol_status": "flinch"
+    },
+    "target": "normal",
+    "type": "Ice"
+  },
   "Icy Wind": {
     "accuracy": 95,
     "category": "Special",
@@ -1725,6 +2041,24 @@
     "pp": 20,
     "target": "normal",
     "type": "Dark"
+  },
+  "Lava Plume": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "lava_plume",
+    "power": 80,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "status": "burn"
+    },
+    "target": "all_adjacent",
+    "type": "Fire"
   },
   "Leech Seed": {
     "accuracy": 90,
@@ -1845,6 +2179,21 @@
     "pp": 20,
     "target": "normal",
     "type": "Grass"
+  },
+  "Magma Storm": {
+    "accuracy": 75,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "magma_storm",
+    "power": 100,
+    "pp": 5,
+    "target": "normal",
+    "type": "Fire",
+    "vol_status": "partially_trapped"
   },
   "Magnitude": {
     "accuracy": 100,
@@ -2092,6 +2441,25 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Needle Arm": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "needle_arm",
+    "power": 90,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "vol_status": "flinch"
+    },
+    "target": "normal",
+    "type": "Grass"
+  },
   "Nightmare": {
     "accuracy": 100,
     "category": "Status",
@@ -2215,6 +2583,25 @@
     "target": "normal",
     "type": "Poison"
   },
+  "Poison Jab": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "poison_jab",
+    "power": 80,
+    "pp": 20,
+    "secondary": {
+      "chance": 30,
+      "status": "poison"
+    },
+    "target": "normal",
+    "type": "Poison"
+  },
   "Poison Powder": {
     "accuracy": 75,
     "category": "Status",
@@ -2244,6 +2631,26 @@
     "pp": 35,
     "secondary": {
       "chance": 30,
+      "status": "poison"
+    },
+    "target": "normal",
+    "type": "Poison"
+  },
+  "Poison Tail": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "poison_tail",
+    "power": 90,
+    "pp": 15,
+    "secondary": {
+      "chance": 10,
       "status": "poison"
     },
     "target": "normal",
@@ -2513,6 +2920,25 @@
     "target": "normal",
     "type": "Rock"
   },
+  "Rock Climb": {
+    "accuracy": 95,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "rock_climb",
+    "power": 80,
+    "pp": 10,
+    "secondary": {
+      "chance": 20,
+      "vol_status": "confusion"
+    },
+    "target": "normal",
+    "type": "Rock"
+  },
   "Rock Polish": {
     "accuracy": true,
     "boost_speed": 2,
@@ -2576,6 +3002,25 @@
     "target": "normal",
     "type": "Rock"
   },
+  "Rolling Kick": {
+    "accuracy": 85,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "rolling_kick",
+    "power": 60,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "vol_status": "flinch"
+    },
+    "target": "normal",
+    "type": "Fighting"
+  },
   "Rollout": {
     "accuracy": 90,
     "category": "Physical",
@@ -2592,6 +3037,25 @@
     "pp": 20,
     "target": "normal",
     "type": "Rock"
+  },
+  "Sacred Fire": {
+    "accuracy": 95,
+    "category": "Physical",
+    "flags": {
+      "defrost": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "sacred_fire",
+    "power": 100,
+    "pp": 5,
+    "secondary": {
+      "chance": 50,
+      "status": "burn"
+    },
+    "target": "normal",
+    "type": "Fire"
   },
   "Safeguard": {
     "accuracy": true,
@@ -2632,6 +3096,26 @@
     "pp": 10,
     "target": "all",
     "type": "Rock"
+  },
+  "Scald": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "defrost": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "kings_rock": true,
+    "name": "scald",
+    "power": 80,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "status": "burn"
+    },
+    "target": "normal",
+    "type": "Water"
   },
   "Scary Face": {
     "accuracy": 100,
@@ -2754,6 +3238,24 @@
     "target": "normal",
     "type": "Electric"
   },
+  "Signal Beam": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "signal_beam",
+    "power": 75,
+    "pp": 15,
+    "secondary": {
+      "chance": 10,
+      "vol_status": "confusion"
+    },
+    "target": "normal",
+    "type": "Bug"
+  },
   "Silver Wind": {
     "accuracy": 100,
     "category": "Special",
@@ -2838,6 +3340,43 @@
     "sleep_usable": true,
     "target": "self",
     "type": "Normal"
+  },
+  "Sludge": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "sludge",
+    "power": 75,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "status": "poison"
+    },
+    "target": "normal",
+    "type": "Poison"
+  },
+  "Sludge Bomb": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "sludge_bomb",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "chance": 30,
+      "status": "poison"
+    },
+    "target": "normal",
+    "type": "Poison"
   },
   "Smog": {
     "accuracy": 70,
@@ -3212,6 +3751,28 @@
     "target": "normal",
     "type": "Dark"
   },
+  "Thunder Fang": {
+    "accuracy": 95,
+    "category": "Physical",
+    "flags": {
+      "bite": true,
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "thunder_fang",
+    "power": 65,
+    "pp": 15,
+    "secondary": {
+      "chance": 10,
+      "chance2": 10,
+      "status": "paralysis",
+      "vol_status2": "flinch"
+    },
+    "target": "normal",
+    "type": "Electric"
+  },
   "Thunder Punch": {
     "accuracy": 100,
     "category": "Physical",
@@ -3263,6 +3824,24 @@
     "name": "thunder_wave",
     "pp": 20,
     "status": "paralysis",
+    "target": "normal",
+    "type": "Electric"
+  },
+  "Thunderbolt": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "thunderbolt",
+    "power": 90,
+    "pp": 15,
+    "secondary": {
+      "chance": 10,
+      "status": "paralysis"
+    },
     "target": "normal",
     "type": "Electric"
   },
@@ -3454,6 +4033,25 @@
     "type": "Water",
     "vol_status": "water_sport"
   },
+  "Waterfall": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "waterfall",
+    "power": 80,
+    "pp": 15,
+    "secondary": {
+      "chance": 20,
+      "vol_status": "flinch"
+    },
+    "target": "normal",
+    "type": "Water"
+  },
   "Whirlpool": {
     "accuracy": 85,
     "category": "Special",
@@ -3574,6 +4172,25 @@
     "target": "normal",
     "type": "Normal",
     "vol_status": "yawn"
+  },
+  "Zap Cannon": {
+    "accuracy": 50,
+    "category": "Special",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "zap_cannon",
+    "power": 120,
+    "pp": 5,
+    "secondary": {
+      "chance": 100,
+      "status": "paralysis"
+    },
+    "target": "normal",
+    "type": "Electric"
   },
   "Zen Headbutt": {
     "accuracy": 90,
