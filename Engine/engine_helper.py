@@ -1987,6 +1987,12 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
     Destiny Bond ends as soon as the user tries to move again, even if the turn is blocked.
     """
     attacker[_POK_VOL_STATUS] &= ~_VOLSTATUS_DESTINY_BOND
+    # A recharge lasts only this turn: whatever blocks the turn first uses it up (pokeplatinum
+    # clears VOLATILE_CONDITION_RECHARGING at the next turn's setup either way)
+    recharging = attacker[_POK_CHARGE_RECHARGE] < 0
+    if recharging:
+        attacker[_POK_CHARGE_RECHARGE] = 0
+        unlock_move(attacker)
     # A sleeping Pokemon wakes up when it tries to move during an uproar
     if attacker[_POK_STATUS] == _STATUS_SLEEP and sleep_blocked(attacker, defender):
         attacker[_POK_STATUS] = 0
@@ -2012,6 +2018,9 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
     # Truant, its script unlocks the move choice (pokeplatinum subscript_loafing_around)
     if truant_loafs(attacker):
         unlock_move(attacker)
+        return True
+    # Recharge, after Truant (pokeplatinum CHECK_STATUS_STATE_RECHARGING)
+    if recharging:
         return True
     # Flinch
     if flinch and idx >= 2:

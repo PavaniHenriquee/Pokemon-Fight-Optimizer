@@ -115,6 +115,21 @@ def test_hyper_beam_not_compared(make_pokemon, make_battle):
     assert rows[0, 3] == 0
 
 
+@pytest.mark.parametrize("move", [
+    "Giga Impact", "Blast Burn", "Hydro Cannon", "Frenzy Plant", "Roar of Time", "Rock Wrecker", "Superpower",
+    "Head Smash",
+])
+def test_no_damage_calc_moves_not_compared(make_pokemon, make_battle, move):
+    """pokeplatinum sNoDamageCalcMoveEffects (Pokemow's excluded moves): the stronger move doesn't make Tackle
+    'not the strongest' and isn't compared itself"""
+    arr = _battle(make_pokemon, make_battle,
+                  ("Geodude", 30, "Sturdy", ["Tackle"]),
+                  ("Rattata", 10, "Guts", [move, "Tackle"]))
+    rows = choose_move(arr)
+    assert rows[1, 1] == 0 and rows[1, 3] == 1
+    assert rows[0, 3] == 0
+
+
 def test_weaker_4x_move_gets_no_bonus(make_pokemon, make_battle):
     """Check_CannotKO terminates: the weaker 4x move only takes the -1, the strongest 4x move
     rolls 68.8% of +2"""

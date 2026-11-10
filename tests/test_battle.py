@@ -485,6 +485,96 @@ def test_bounce_charges_airborne_then_lands(make_pokemon, make_battle):
     assert me[Pok.LOCKED_MOVE] == -1
 
 
+def _beam_battle(make_pokemon, make_battle, monkeypatch, ability="Run Away", move="Hyper Beam"):
+    """A faster Hyper Beam user that always hits a bulky foe that only uses Defense Curl"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    arr = make_battle([make_pokemon("Rattata", 50, ability, [move, "Tackle"])],
+                      [make_pokemon("Snorlax", 50, "Immunity", ["Defense Curl"])])
+    return arr, my_active(arr), opp_active(arr)
+
+
+@pytest.mark.parametrize("move", [
+    "Hyper Beam", "Giga Impact", "Blast Burn", "Hydro Cannon", "Frenzy Plant", "Roar of Time", "Rock Wrecker",
+])
+def test_recharge_blocks_the_next_turn_only(make_pokemon, make_battle, monkeypatch, move):
+    """The hit locks the slot into a recharge, the next turn does nothing and spends no PP, then it's free"""
+    arr, me, foe = _beam_battle(make_pokemon, make_battle, monkeypatch, move=move)
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.CHARGE_RECHARGE], me[Pok.LOCKED_MOVE]) == (-1, 0)
+    hp, pp = foe[Pok.CURRENT_HP], move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.CHARGE_RECHARGE], me[Pok.LOCKED_MOVE]) == (0, -1)
+    assert foe[Pok.CURRENT_HP] == hp and move_slice(me, 0)[Move.PP] == pp
+    turn_sim(0, (MOVE, 1), arr)
+    assert foe[Pok.CURRENT_HP] < hp
+
+
+@pytest.mark.parametrize("outcome", [MoveOutcome.MISS, MoveOutcome.PROTECTED, MoveOutcome.INVULNERABLE])
+def test_no_recharge_without_a_hit(make_pokemon, make_battle, monkeypatch, outcome):
+    """A miss, Protect or an immune target: no recharge"""
+    arr, me, _ = _beam_battle(make_pokemon, make_battle, monkeypatch)
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: outcome)
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.CHARGE_RECHARGE], me[Pok.LOCKED_MOVE]) == (0, -1)
+
+
+def test_recharge_after_a_ko(make_pokemon, make_battle, monkeypatch):
+    """Gen II on, a KO still costs the recharge"""
+    arr, me, foe = _beam_battle(make_pokemon, make_battle, monkeypatch)
+    foe[Pok.CURRENT_HP] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == 0
+    assert me[Pok.CHARGE_RECHARGE] == -1
+
+
+def test_recharge_after_a_substitute_hit(make_pokemon, make_battle, monkeypatch):
+    """Only Gen I skips the recharge when the hit lands on a Substitute"""
+    arr, me, foe = _beam_battle(make_pokemon, make_battle, monkeypatch)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 200
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == hp
+    assert me[Pok.CHARGE_RECHARGE] == -1
+
+
+def test_truant_loaf_is_the_recharge_turn(make_pokemon, make_battle, monkeypatch):
+    """pokeplatinum checks Truant first and clears the recharge at the next turn's setup either way, so the
+    loaf turn and the recharge turn are the same one"""
+    arr, me, foe = _beam_battle(make_pokemon, make_battle, monkeypatch, ability="Truant")
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CHARGE_RECHARGE] == -1
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.CHARGE_RECHARGE], me[Pok.LOCKED_MOVE]) == (0, -1) and foe[Pok.CURRENT_HP] == hp
+    turn_sim(0, (MOVE, 1), arr)
+    assert foe[Pok.CURRENT_HP] < hp
+
+
+@pytest.mark.parametrize("status, counter", [(Status.SLEEP, 3), (Status.SLEEP, 1), (Status.FREEZE, 0)])
+def test_blocked_turn_uses_up_the_recharge(make_pokemon, make_battle, monkeypatch, status, counter):
+    """Sleep or freeze on the recharge turn uses it up, and waking up that turn still recharges"""
+    arr, me, foe = _beam_battle(make_pokemon, make_battle, monkeypatch)
+    monkeypatch.setattr(engine_helper, "freeze", lambda: True)
+    turn_sim(0, (MOVE, 0), arr)
+    me[Pok.STATUS] = status
+    me[Pok.SLEEP_COUNTER] = counter
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.CHARGE_RECHARGE], me[Pok.LOCKED_MOVE]) == (0, -1) and foe[Pok.CURRENT_HP] == hp
+
+
+def test_ai_recharge_turn_is_forced(make_pokemon, make_battle, monkeypatch):
+    """The AI's recharge turn plays its locked slot"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    arr = make_battle([make_pokemon("Onix", 50, "Sturdy", ["Harden"])],
+                      [make_pokemon("Rattata", 50, "Run Away", ["Tackle", "Hyper Beam"])])
+    turn_sim(1, (MOVE, 0), arr)
+    foe = opp_active(arr)
+    assert (foe[Pok.CHARGE_RECHARGE], foe[Pok.LOCKED_MOVE]) == (-1, 1)
+    assert return_idx(arr) == 1
+
+
 @pytest.mark.parametrize("outcome", [MoveOutcome.HIT, MoveOutcome.MISS])
 def test_natural_gift_berry_used_even_on_miss(monkeypatch, make_pokemon, make_battle, outcome):
     """The effect script removes the berry before the accuracy check"""

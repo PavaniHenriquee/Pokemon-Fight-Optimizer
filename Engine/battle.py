@@ -883,6 +883,11 @@ def _execute_move_slot(
                 atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity
             )
         _after_hit_field(atk, mv, battle_array, atk_side, def_side)
+        # Hyper Beam and co. recharge after any hit, a KO or a Substitute hit included (pokeplatinum
+        # MOVE_SUBSCRIPT_PTR_RECHARGE_TURN is an on-hit side effect)
+        if mv[_MOVE_CHARGE_RECHARGE] < 0:
+            atk[_POK_CHARGE_RECHARGE] = -1
+            atk[_POK_LOCKED_MOVE] = current_move if is_mine else opp_move
         if mv[_MOVE_ID] in ROLLOUT_MOVES and atk[_POK_CONSEC_COUNT] >= ROLLOUT_MAX_USES:
             unlock_move(atk)
         if mv[_MOVE_ID] == _MOVENAME_RAGE:

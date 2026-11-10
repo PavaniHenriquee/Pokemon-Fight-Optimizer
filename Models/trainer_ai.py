@@ -46,12 +46,15 @@ from Models.trainer_ai_helper import (
 from Models.helper import count_party
 from Models.item import embargoed
 
-# mov_excep = ['Razor Wind', 'Sky Attack', 'Recharge', 'Hyper Beam', 'Giga Impact',
-#             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Superpower', 'Eruption',
-#             'Water Spout','Head Smash']
+# mov_excep = ['Razor Wind', 'Sky Attack',
+#             'Skull Bash', 'Solarbeam', 'Solar Blade', 'Spit Up', 'Eruption',
+#             'Water Spout']
 MOVE_EXCEP = (
     0, MoveName.EXPLOSION, MoveName.SELFDESTRUCT, MoveName.DREAM_EATER,
     MoveName.FOCUS_PUNCH, MoveName.SUCKER_PUNCH, MoveName.HYPER_BEAM,
+    # Recharge moves, Superpower and Head Smash (pokeplatinum sNoDamageCalcMoveEffects, Pokemow)
+    MoveName.GIGA_IMPACT, MoveName.BLAST_BURN, MoveName.HYDRO_CANNON, MoveName.FRENZY_PLANT,
+    MoveName.ROAR_OF_TIME, MoveName.ROCK_WRECKER, MoveName.SUPERPOWER, MoveName.HEAD_SMASH,
     # Power 1 in pokeplatinum and not an alt power move: never compared
     MoveName.COUNTER, MoveName.BIDE, MoveName.MIRROR_COAT, MoveName.FLAIL, MoveName.MAGNITUDE,
     # OHKO moves: Basic_Main skips Fissure's damage scoring, Guillotine and Sheer Cold are power 1

@@ -10,7 +10,7 @@ from Models.constants import (
 # drop an entry in the batch that implements it
 NOT_IMPLEMENTED = frozenset({
     # moves
-    "Dragon Dance", "Dream Eater", "Flatter", "Focus Punch", "Future Sight", "Hyper Beam", "Nightmare",
+    "Dragon Dance", "Dream Eater", "Flatter", "Focus Punch", "Future Sight", "Nightmare",
     "Psych Up", "Sleep Talk", "Sucker Punch", "Swagger", "Trick Room",
     # abilities
     "Color Change", "Forecast",

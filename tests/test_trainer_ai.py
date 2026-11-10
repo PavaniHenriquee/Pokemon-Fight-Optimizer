@@ -67,7 +67,8 @@ KIT_DAMAGE = (
     "Aura Sphere", "Magnet Bomb", "Shadow Punch", "Vital Throw", "Bone Rush", "Icicle Spear",
     "Spike Cannon", "Double Hit", "Bonemerang", "Double-Edge", "Brave Bird", "Wood Hammer",
     "Head Smash", "Wild Charge", "Flare Blitz", "Giga Drain", "Leech Life", "Drain Punch",
-    "Sonic Boom",
+    "Sonic Boom", "Hyper Beam", "Giga Impact", "Blast Burn", "Hydro Cannon", "Frenzy Plant", "Roar of Time",
+    "Rock Wrecker",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -185,6 +186,31 @@ def test_expert_superpower(poke, fast, hp_pct, effectiveness, atk_stage, expecte
     ai_pok, user = _expert_at(poke, "Superpower", fast, hp_pct)
     ai_pok[Pok.ATTACK_STAT_STAGE] = atk_stage
     assert _expert(ai_pok, user, effectiveness) == (expected, [])
+
+
+RECHARGE_MOVES = (
+    "Hyper Beam", "Giga Impact", "Blast Burn", "Hydro Cannon", "Frenzy Plant", "Roar of Time", "Rock Wrecker",
+)
+
+
+@pytest.mark.parametrize("move", RECHARGE_MOVES)
+@pytest.mark.parametrize("fast, hp_pct, effectiveness, expected", [
+    (True, 10, 0.5, -1), (False, 10, 0.0, -1),      # resisted or immune
+    (True, 41, 1.0, -1), (True, 40, 1.0, 0),        # faster: above 40%
+    (False, 60, 2.0, -1), (False, 59, 1.0, 0),      # slower: 60% or more
+])
+def test_expert_recharge(poke, move, fast, hp_pct, effectiveness, expected):
+    """pokeplatinum Expert_RechargeTurn"""
+    ai_pok, user = _expert_at(poke, move, fast, hp_pct)
+    assert _expert(ai_pok, user, effectiveness) == (expected, [])
+
+
+@pytest.mark.parametrize("effectiveness, expected", [(1.0, (0, [(1, 176)])), (0.5, (-1, []))])
+def test_expert_recharge_truant(poke, effectiveness, expected):
+    """A Truant user skips the HP checks: 68.75% of +1, unless the move is resisted"""
+    ai_pok, user = _expert_at(poke, "Giga Impact", True, 100)
+    ai_pok[Pok.AB_ID] = AbilityNames.TRUANT
+    assert _expert(ai_pok, user, effectiveness) == expected
 
 
 @pytest.mark.parametrize("fast, effectiveness, expected", [

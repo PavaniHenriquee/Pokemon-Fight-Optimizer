@@ -324,8 +324,13 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   checks ([pp] `LOAD_MOVE_TYPE` reads the data type); [pp] Basic_Main skips the immunity check for
   Guillotine / Sheer Cold, so into Wonder Guard the engine gives -12, [pp] 0; [pp] always knows my
   Shadow Tag / Magnet Pull / Arena Trap (no script check reads them yet).
-- AI: Superpower has no Basic branch of its own ([pp] `Basic_CheckNonStandardDamageOrChargeTurn`): the
-  general checks cover it, with Pokemow's -12 into Wonder Guard where [pp]'s script gives -10.
+- AI: Superpower and the recharge moves have no Basic branch of their own ([pp]
+  `Basic_CheckNonStandardDamageOrChargeTurn`): the general checks cover them, with Pokemow's -12 into Wonder
+  Guard where [pp]'s script gives -10.
+- AI: `MOVE_EXCEP` still lacks moves [pp] `sNoDamageCalcMoveEffects` and Pokemow's excluded list leave out of the
+  damage compare: Razor Wind, Sky Attack, Skull Bash, Solar Beam, Spit Up, Eruption, Water Spout, Super Fang,
+  Reversal, Present, Endeavor, Metal Burst, Trump Card, Wring Out, Punishment, Crush Grip. Add each in its batch.
+- Sucker Punch (not in yet): [SD gen4] fails it into a recharging target, whose locked slot is a damaging move.
 - AI: `sub_after_death` stage 2 doesn't copy [pp]'s stale-score quirk (a skipped or empty move slot
   still compares the previous `score`, at first the last stage 1 type score).
 - AI flags: the engine gives every trainer Basic + Evaluate Attack + Expert; vanilla [pp]

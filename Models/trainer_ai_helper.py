@@ -2186,6 +2186,19 @@ def expert_flag(
         add_adjustment(rand, idx, -1, 206 if hp_pct_ai < 40 else 61)
         return 0
 
+    # Expert_RechargeTurn: -1 if resisted, a Truant user 68.75% of +1, else -1 slower at 60% HP or
+    # more, or faster above 40%
+    if move[_MOVE_CHARGE_RECHARGE] < 0:
+        if effectiveness <= 0.5:
+            return -1
+        if ai_pok[_POK_AB_ID] == _ABILITYNAMES_TRUANT:
+            add_adjustment(rand, idx, 1, 176)
+            return 0
+        hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+        if move_first:
+            return -1 if hp_pct_ai > 40 else 0
+        return -1 if hp_pct_ai >= 60 else 0
+
     # Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
     if move[_MOVE_ACCURACY] == -1:  # -1 is how always hit moves is represented
         score = 0
@@ -2350,7 +2363,6 @@ def expert_flag(
     Recovery Moves (e.g., Swallow)
     Charge Turn Moves Without Invulnerability (Razor Wind, Skull Bash, Sky Attack, Solar Beam/Blade)
     Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)
-    Recharge-Turn Attacks (e.g. Hyper Beam, Giga Impact)
     Moves Which Change the User's Ability (Role Play, Skill Swap)
     Moves Which Decrease in Power With Less User HP (Water Spout, Eruption)
     Double-Power Negative-Priority Moves (Avalanche, Revenge)

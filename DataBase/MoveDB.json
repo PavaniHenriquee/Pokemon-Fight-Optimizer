@@ -392,6 +392,22 @@
     "target": "normal",
     "type": "Dark"
   },
+  "Blast Burn": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "recharge": true
+    },
+    "name": "blast_burn",
+    "power": 150,
+    "pp": 5,
+    "recharge": 1,
+    "target": "normal",
+    "type": "Fire"
+  },
   "Blaze Kick": {
     "accuracy": 100,
     "category": "Physical",
@@ -2034,6 +2050,23 @@
     "type": "Normal",
     "vol_status": "foresight"
   },
+  "Frenzy Plant": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "non_sky": true,
+      "protect": true,
+      "recharge": true
+    },
+    "name": "frenzy_plant",
+    "power": 150,
+    "pp": 5,
+    "recharge": 1,
+    "target": "normal",
+    "type": "Grass"
+  },
   "Fury Attack": {
     "accuracy": 85,
     "category": "Physical",
@@ -2110,6 +2143,23 @@
     "pp": 10,
     "target": "normal",
     "type": "Grass"
+  },
+  "Giga Impact": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "recharge": true
+    },
+    "name": "giga_impact",
+    "power": 150,
+    "pp": 5,
+    "recharge": 1,
+    "target": "normal",
+    "type": "Normal"
   },
   "Grass Whistle": {
     "accuracy": 55,
@@ -2376,6 +2426,22 @@
     "pp": 40,
     "target": "self",
     "type": "Normal"
+  },
+  "Hydro Cannon": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "recharge": true
+    },
+    "name": "hydro_cannon",
+    "power": 150,
+    "pp": 5,
+    "recharge": 1,
+    "target": "normal",
+    "type": "Water"
   },
   "Hydro Pump": {
     "accuracy": 80,
@@ -3975,6 +4041,22 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Roar of Time": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "recharge": true
+    },
+    "name": "roar_of_time",
+    "power": 150,
+    "pp": 5,
+    "recharge": 1,
+    "target": "normal",
+    "type": "Dragon"
+  },
   "Rock Blast": {
     "accuracy": 90,
     "category": "Physical",
@@ -4088,6 +4170,23 @@
       "chance": 100,
       "speed": -1
     },
+    "target": "normal",
+    "type": "Rock"
+  },
+  "Rock Wrecker": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "recharge": true
+    },
+    "name": "rock_wrecker",
+    "power": 150,
+    "pp": 5,
+    "recharge": 1,
     "target": "normal",
     "type": "Rock"
   },

@@ -14,7 +14,8 @@ Updated only when asked.
 - Done: 5.1 (status, flinch or confusion chance) and 5.2 (stat changes on hit), 2026-11-09.
 - Done: 5.3 (everything else in this phase), and with it Phase 5, 2026-11-09. Its `benchmarks.run quick` on the
   home PC is still to do.
-- Next: Phase 6, forced turns and hit rules.
+- Done: 6.1 (recharge), 2026-11-10.
+- Next: 6.2 (charge turn).
 
 ## Goal
 
@@ -479,13 +480,13 @@ Fixed damage:
 
 ### 6.1 Recharge
 
-- [ ] Hyper Beam (in MoveDB)
-- [ ] Giga Impact
-- [ ] Blast Burn
-- [ ] Hydro Cannon
-- [ ] Frenzy Plant
-- [ ] Roar of Time \*
-- [ ] Rock Wrecker \*
+- [x] Hyper Beam (in MoveDB)
+- [x] Giga Impact
+- [x] Blast Burn
+- [x] Hydro Cannon
+- [x] Frenzy Plant
+- [x] Roar of Time \*
+- [x] Rock Wrecker \*
 
 ### 6.2 Charge turn
 
