@@ -89,6 +89,7 @@ from Models.constants import (
     _HOLDEFFECT_PSN_USER, _HOLDEFFECT_DMG_USER_CONTACT_XFR, _TYPES_STEEL,
     _MOVENAME_THIEF, _MOVENAME_PLUCK, _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _MOVENAME_EMBARGO,
     _MOVENAME_FLING, _VOLSTATUS2_EMBARGO, _POK_EMBARGO_TURNS, _ITEM_ID,
+    _MOVENAME_SOLAR_BEAM, _MOVENAME_SKULL_BASH, _POK_DEFENSE_STAT_STAGE,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 from Models.item import refresh_item, raw_item_type
@@ -799,19 +800,25 @@ def _execute_move_slot(
         battle_array[_FIELD_LAST_MOVE] = outer_id
     is_called = is_caller and atk[_POK_CALLED_MOVE] != 0
 
-    # Charge moves are positive so they don't do anything first turn, Power Herb hits right away
+    # Charge moves are positive so they don't do anything first turn, Power Herb hits right away.
+    # Solar Beam skips the charge in sun and keeps the Power Herb (pokeplatinum effect 0151)
     if (
         mv[_MOVE_CHARGE_RECHARGE] > 0 and atk[_POK_LOCKED_MOVE] == -1
-        and not power_herb(atk, mv)
+        and not (mv[_MOVE_ID] == _MOVENAME_SOLAR_BEAM and weather == _WEATHER_SUN)
     ):
-        atk[_POK_CHARGE_RECHARGE] = mv[_MOVE_CHARGE_RECHARGE]
-        atk[_POK_LOCKED_MOVE] = current_move if is_mine else opp_move
-        if mv[_MOVE_VOL_STATUS] & _VOLSTATUS_BIDE:
-            atk[_POK_VOL_STATUS] += _VOLSTATUS_BIDE
-        if mv[_MOVE_ID] in SEMI_INVULNERABLE_MOVES:
-            atk[_POK_VOL_STATUS] |= _VOLSTATUS_SEMI_INVULNERABLE
-            atk[_POK_SEMI_INV_MOVE] = mv[_MOVE_ID]
-        return False
+        # Skull Bash raises Defense on the charge turn, before a Power Herb hit too (pokeplatinum
+        # effect 0145, subscript_power_herb_skull_bash)
+        if mv[_MOVE_ID] == _MOVENAME_SKULL_BASH:
+            atk[_POK_DEFENSE_STAT_STAGE] = min(6, atk[_POK_DEFENSE_STAT_STAGE] + 1)
+        if not power_herb(atk, mv):
+            atk[_POK_CHARGE_RECHARGE] = mv[_MOVE_CHARGE_RECHARGE]
+            atk[_POK_LOCKED_MOVE] = current_move if is_mine else opp_move
+            if mv[_MOVE_VOL_STATUS] & _VOLSTATUS_BIDE:
+                atk[_POK_VOL_STATUS] += _VOLSTATUS_BIDE
+            if mv[_MOVE_ID] in SEMI_INVULNERABLE_MOVES:
+                atk[_POK_VOL_STATUS] |= _VOLSTATUS_SEMI_INVULNERABLE
+                atk[_POK_SEMI_INV_MOVE] = mv[_MOVE_ID]
+            return False
 
     # Reset locked Move
     if mv[_MOVE_CHARGE_RECHARGE] > 0:

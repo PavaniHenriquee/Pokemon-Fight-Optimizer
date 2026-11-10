@@ -328,8 +328,10 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   `Basic_CheckNonStandardDamageOrChargeTurn`): the general checks cover them, with Pokemow's -12 into Wonder
   Guard where [pp]'s script gives -10.
 - AI: `MOVE_EXCEP` still lacks moves [pp] `sNoDamageCalcMoveEffects` and Pokemow's excluded list leave out of the
-  damage compare: Razor Wind, Sky Attack, Skull Bash, Solar Beam, Spit Up, Eruption, Water Spout, Super Fang,
+  damage compare: Spit Up, Eruption, Water Spout, Super Fang,
   Reversal, Present, Endeavor, Metal Burst, Trump Card, Wring Out, Punishment, Crush Grip. Add each in its batch.
+- AI: `PROTECT_LIKE_M` (the "saw the target use Protect" checks) holds only Protect. Detect goes in once it's in
+  MoveDB ([pp] `IfMoveEffectKnown BATTLE_EFFECT_PROTECT` covers both).
 - Sucker Punch (not in yet): [SD gen4] fails it into a recharging target, whose locked slot is a damaging move.
 - AI: `sub_after_death` stage 2 doesn't copy [pp]'s stale-score quirk (a skipped or empty move slot
   still compares the previous `score`, at first the last stage 1 type score).

@@ -14,8 +14,8 @@ Updated only when asked.
 - Done: 5.1 (status, flinch or confusion chance) and 5.2 (stat changes on hit), 2026-11-09.
 - Done: 5.3 (everything else in this phase), and with it Phase 5, 2026-11-09. Its `benchmarks.run quick` on the
   home PC is still to do.
-- Done: 6.1 (recharge), 2026-11-10.
-- Next: 6.2 (charge turn).
+- Done: 6.1 (recharge) and 6.2 (charge turn), 2026-11-10.
+- Next: 6.3 (semi-invulnerable, and what reaches it).
 
 ## Goal
 
@@ -490,10 +490,10 @@ Fixed damage:
 
 ### 6.2 Charge turn
 
-- [ ] Solar Beam !
-- [ ] Skull Bash
-- [ ] Sky Attack
-- [ ] Razor Wind
+- [x] Solar Beam !
+- [x] Skull Bash
+- [x] Sky Attack
+- [x] Razor Wind
 
 ### 6.3 Semi-invulnerable, and what reaches it
 

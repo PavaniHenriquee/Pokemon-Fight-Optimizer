@@ -68,7 +68,7 @@ KIT_DAMAGE = (
     "Spike Cannon", "Double Hit", "Bonemerang", "Double-Edge", "Brave Bird", "Wood Hammer",
     "Head Smash", "Wild Charge", "Flare Blitz", "Giga Drain", "Leech Life", "Drain Punch",
     "Sonic Boom", "Hyper Beam", "Giga Impact", "Blast Burn", "Hydro Cannon", "Frenzy Plant", "Roar of Time",
-    "Rock Wrecker",
+    "Rock Wrecker", "Solar Beam", "Skull Bash", "Sky Attack", "Razor Wind",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -481,6 +481,50 @@ def test_expert_bounce(make_pokemon, poke, setup, ai_level, effectiveness, expec
     if setup == "toxic":
         user[Pok.STATUS] = Status.TOXIC
     assert _expert(ai_pok, user, effectiveness) == expected
+
+
+CHARGE_NO_INVULN = ("Solar Beam", "Skull Bash", "Sky Attack", "Razor Wind")
+
+
+def _expert_charge(ai_pok, user, effectiveness=1.0, weather=0, ai_know=0):
+    """_expert with the field's weather and AI_KNOWS passed through"""
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, weather, 0, effectiveness, 0, ai_know
+    )
+    queued = [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+    return score, queued
+
+
+@pytest.mark.parametrize("move", CHARGE_NO_INVULN)
+@pytest.mark.parametrize("setup, hp_pct, effectiveness, expected", [
+    (None, 100, 0.5, -2), (None, 100, 0.0, -2), (None, 100, 0.25, -2),   # resisted or immune
+    ("power_herb", 10, 1.0, 2), ("power_herb", 100, 0.5, -2),
+    ("protect", 100, 1.0, -2), ("protect_unseen", 100, 1.0, 0),
+    (None, 39, 1.0, 0), (None, 38, 1.0, -1), (None, 100, 2.0, 0),
+])
+def test_expert_charge_no_invuln(make_pokemon, move, setup, hp_pct, effectiveness, expected):
+    """pokeplatinum Expert_ChargeTurnNoInvuln, Pokemow RazorWind / Solarbeam (no random rolls)"""
+    item = "Power Herb" if setup == "power_herb" else None
+    ai_pok = make_pokemon("Pidgey", 20, "Keen Eye", [move], item=item).to_np()
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = hp_pct
+    user = make_pokemon("Machop", 20, "Guts", ["Protect"]).to_np()
+    seen = Enemy_AI_Knows.MOVE1 if setup == "protect" else 0
+    assert _expert_charge(ai_pok, user, effectiveness, ai_know=seen) == (expected, [])
+
+
+@pytest.mark.parametrize("move, weather, effectiveness, expected", [
+    ("Solar Beam", Weather.SUN, 1.0, 2), ("Solar Beam", Weather.SUN, 0.5, -2),
+    ("Solar Beam", Weather.RAIN, 1.0, -1), ("Skull Bash", Weather.SUN, 1.0, -1),
+])
+def test_expert_solar_beam_in_sun(poke, move, weather, effectiveness, expected):
+    """+2 for Solar Beam in sun, read off the field's weather, before the HP check"""
+    ai_pok = poke("Bulbasaur", 20, "Overgrow", [move])
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = 10
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert_charge(ai_pok, user, effectiveness, weather) == (expected, [])
 
 
 def test_ai_move_view(make_pokemon, poke):

@@ -485,6 +485,70 @@ def test_bounce_charges_airborne_then_lands(make_pokemon, make_battle):
     assert me[Pok.LOCKED_MOVE] == -1
 
 
+def _charge_battle(make_pokemon, make_battle, monkeypatch, move, item=None, foe_ability="Immunity"):
+    """A faster charge move user that always hits a bulky foe that only uses Defense Curl"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    arr = make_battle([make_pokemon("Rattata", 50, "Run Away", [move], item=item)],
+                      [make_pokemon("Snorlax", 50, foe_ability, ["Defense Curl"])])
+    return arr, my_active(arr), opp_active(arr)
+
+
+@pytest.mark.parametrize("move", ["Solar Beam", "Skull Bash", "Sky Attack", "Razor Wind"])
+def test_charge_move_charges_then_hits(make_pokemon, make_battle, monkeypatch, move):
+    """Turn 1 locks the slot and deals nothing, turn 2 hits and frees it, PP is paid once"""
+    arr, me, foe = _charge_battle(make_pokemon, make_battle, monkeypatch, move)
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.LOCKED_MOVE], me[Pok.CHARGE_RECHARGE]) == (0, 1)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert (me[Pok.LOCKED_MOVE], me[Pok.CHARGE_RECHARGE]) == (-1, 0)
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+
+
+def test_solar_beam_skips_the_charge_in_sun(make_pokemon, make_battle, monkeypatch):
+    """Sun: the hit lands on the first turn and the Power Herb stays (pokeplatinum effect 0151)"""
+    arr, me, foe = _charge_battle(make_pokemon, make_battle, monkeypatch, "Solar Beam", item="Power Herb")
+    arr[Field.WEATHER] = Weather.SUN
+    arr[Field.WEATHER_DURATION] = 5
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert (me[Pok.LOCKED_MOVE], me[Pok.CHARGE_RECHARGE]) == (-1, 0)
+    assert me[Item.ID] == ItemNames.POWER_HERB
+
+
+@pytest.mark.parametrize("ability", ["Cloud Nine", "Air Lock"])
+def test_solar_beam_charges_in_suppressed_sun(make_pokemon, make_battle, monkeypatch, ability):
+    """Cloud Nine and Air Lock take the sun away, so Solar Beam charges (CheckIgnoreWeather)"""
+    arr, me, foe = _charge_battle(make_pokemon, make_battle, monkeypatch, "Solar Beam", foe_ability=ability)
+    arr[Field.WEATHER] = Weather.SUN
+    arr[Field.WEATHER_DURATION] = 5
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    assert (me[Pok.LOCKED_MOVE], me[Pok.CHARGE_RECHARGE]) == (0, 1)
+
+
+@pytest.mark.parametrize("stage, expected", [(0, 1), (-2, -1), (6, 6)])
+def test_skull_bash_raises_defense_on_the_charge_turn(make_pokemon, make_battle, monkeypatch, stage, expected):
+    """Defense +1 on the charge turn only, capped at +6 (pokeplatinum effect 0145)"""
+    arr, me, _ = _charge_battle(make_pokemon, make_battle, monkeypatch, "Skull Bash")
+    me[Pok.DEFENSE_STAT_STAGE] = stage
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.DEFENSE_STAT_STAGE] == expected
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.DEFENSE_STAT_STAGE] == expected
+
+
+def test_skull_bash_power_herb_raises_defense_and_hits(make_pokemon, make_battle, monkeypatch):
+    """Power Herb: Defense +1, then the hit in the same turn (subscript_power_herb_skull_bash)"""
+    arr, me, foe = _charge_battle(make_pokemon, make_battle, monkeypatch, "Skull Bash", item="Power Herb")
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.DEFENSE_STAT_STAGE] == 1
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert me[Pok.LOCKED_MOVE] == -1 and me[Item.ID] == 0
+
+
 def _beam_battle(make_pokemon, make_battle, monkeypatch, ability="Run Away", move="Hyper Beam"):
     """A faster Hyper Beam user that always hits a bulky foe that only uses Defense Curl"""
     monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)

@@ -249,7 +249,8 @@ class MoveName:
     RAIN_DANCE      = RAGE + 1
     RAPID_SPIN      = RAIN_DANCE + 1
     RAZOR_LEAF      = RAPID_SPIN + 1
-    RECOVER         = RAZOR_LEAF + 1
+    RAZOR_WIND      = RAZOR_LEAF + 1
+    RECOVER         = RAZOR_WIND + 1
     RECYCLE         = RECOVER + 1
     REFLECT         = RECYCLE + 1
     REFRESH         = REFLECT + 1
@@ -286,7 +287,9 @@ class MoveName:
     SIGNAL_BEAM     = SHOCK_WAVE + 1
     SILVER_WIND     = SIGNAL_BEAM + 1
     SING            = SILVER_WIND + 1
-    SLAM            = SING + 1
+    SKULL_BASH      = SING + 1
+    SKY_ATTACK      = SKULL_BASH + 1
+    SLAM            = SKY_ATTACK + 1
     SLASH           = SLAM + 1
     SLEEP_POWDER    = SLASH + 1
     SLEEP_TALK      = SLEEP_POWDER + 1
@@ -294,7 +297,8 @@ class MoveName:
     SLUDGE_BOMB     = SLUDGE + 1
     SMOG            = SLUDGE_BOMB + 1
     SMOKESCREEN     = SMOG + 1
-    SONIC_BOOM      = SMOKESCREEN + 1
+    SOLAR_BEAM      = SMOKESCREEN + 1
+    SONIC_BOOM      = SOLAR_BEAM + 1
     SPACIAL_REND    = SONIC_BOOM + 1
     SPARK           = SPACIAL_REND + 1
     SPIKE_CANNON    = SPARK + 1

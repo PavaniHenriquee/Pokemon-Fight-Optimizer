@@ -193,6 +193,20 @@ def test_weather_modifiers(poke, weather, fire_mult, water_mult):
     assert ratio(dmg(a, d, 1, weather), water) == pytest.approx(water_mult, abs=0.07)
 
 
+@pytest.mark.parametrize("weather, mult", [
+    (Weather.RAIN, 0.5), (Weather.SANDSTORM, 0.5), (Weather.HAIL, 0.5), (Weather.SUN, 1.0),
+])
+def test_solar_beam_weather(poke, weather, mult):
+    """Solar Beam's damage is halved in rain, sandstorm and hail at the weather step, for the AI's
+    estimate too (pokeplatinum CalcMoveDamage, FIELD_CONDITION_SOLAR_DOWN)"""
+    a = poke("Bulbasaur", 100, "Overgrow", ["Solar Beam"])
+    d = poke("Rattata", 100, "Run Away", ["Tackle"])
+    assert ratio(dmg(a, d, weather=weather), dmg(a, d)) == pytest.approx(mult, abs=0.02)
+    mv = move_slice(a, 0)
+    assert ratio(calculate_ai_logic_damage(1.0, a, d, mv, weather),
+                 calculate_ai_logic_damage(1.0, a, d, mv, 0)) == pytest.approx(mult, abs=0.02)
+
+
 @pytest.mark.parametrize("weather", [Weather.HAIL, Weather.SANDSTORM])
 def test_special_damage_unaffected_by_unrelated_weather(poke, weather):
     """Regression: clear weather used to give every special hit the Sandstorm Sp.Def boost.

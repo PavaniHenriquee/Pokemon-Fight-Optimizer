@@ -39,7 +39,7 @@ from Models.constants import (
     _HOLDEFFECT_LATI_SPECIAL, _HOLDEFFECT_DIALGA_BOOST, _HOLDEFFECT_PALKIA_BOOST,
     _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK,
     _HOLDEFFECT_GIRATINA_BOOST, _HOLDEFFECT_DITTO_DEF_UP, _TYPES_DRAGON, _TYPES_STEEL, _TYPES_WATER,
-    _HOLDEFFECT_HP_DRAIN_ON_ATK,
+    _HOLDEFFECT_HP_DRAIN_ON_ATK, _WEATHER_HAIL, _MOVENAME_SOLAR_BEAM,
 )
 from Engine.ability_helper import ignorable_ability, normalized_type, grounded_by_item
 
@@ -61,6 +61,7 @@ WEIGHT_TO_POWER = ((100, 20), (250, 40), (500, 60), (1000, 80), (2000, 100))
 # (roll 0..99 below this, power), the rest is 150
 MAGNITUDE_TABLE = ((5, 10), (15, 30), (35, 50), (65, 70), (85, 90), (95, 110))
 ROLLOUT_MOVES = (_MOVENAME_ROLLOUT, _MOVENAME_ICE_BALL)
+SOLAR_DOWN_WEATHER = (_WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL)
 # Pok.METRONOME_COUNT packs the Metronome item's move id above its count
 METRONOME_MOVE_SHIFT = 4
 METRONOME_COUNT_MASK = (1 << METRONOME_MOVE_SHIFT) - 1
@@ -507,6 +508,9 @@ def multipliers(
                 damage = (damage*3) // 2
             elif m_type == _TYPES_FIRE:
                 damage //= 2
+        # Solar Beam is halved in rain, sandstorm and hail (pokeplatinum FIELD_CONDITION_SOLAR_DOWN)
+        if move[_MOVE_ID] == _MOVENAME_SOLAR_BEAM and w in SOLAR_DOWN_WEATHER:
+            damage //= 2
 
     damage = flash_fire_damage(attacker, normalized_type(attacker, move), damage)
 
@@ -794,6 +798,9 @@ def calculate_ai_logic_damage(
                 damage = (damage*3) // 2
             elif m_type == _TYPES_FIRE:
                 damage //= 2
+        # Solar Beam is halved in rain, sandstorm and hail (pokeplatinum FIELD_CONDITION_SOLAR_DOWN)
+        if move[_MOVE_ID] == _MOVENAME_SOLAR_BEAM and w in SOLAR_DOWN_WEATHER:
+            damage //= 2
 
     damage = flash_fire_damage(attacker, normalized_type(attacker, move), damage)
 

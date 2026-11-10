@@ -89,6 +89,7 @@ from Models.constants import (
     _HOLDEFFECT_CHOICE_SPEED, _HOLDEFFECT_SPEED_DOWN_GROUNDED, _HOLDEFFECT_PSN_USER,
     _HOLDEFFECT_BRN_USER, _HOLDEFFECT_HP_RESTORE_SPICY, _HOLDEFFECT_HP_RESTORE_DRY,
     _HOLDEFFECT_HP_RESTORE_SWEET, _HOLDEFFECT_HP_RESTORE_BITTER, _HOLDEFFECT_HP_RESTORE_SOUR,
+    _MOVENAME_RAZOR_WIND, _MOVENAME_SKULL_BASH, _MOVENAME_SKY_ATTACK, _MOVENAME_SOLAR_BEAM,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -237,6 +238,7 @@ FLING_GOOD_ITEMS = (
 )
 FLING_POISON_ITEMS = (_ITEMNAMES_POISON_BARB, _ITEMNAMES_TOXIC_ORB)
 CHARGE_INVULNERABLE_M = (_MOVENAME_BOUNCE, _MOVENAME_DIG)
+CHARGE_NO_INVULN_M = (_MOVENAME_RAZOR_WIND, _MOVENAME_SKULL_BASH, _MOVENAME_SKY_ATTACK, _MOVENAME_SOLAR_BEAM)
 RECOIL_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE)
 # Moves Pokemow gives no Basic and no Expert check at all
@@ -2273,6 +2275,21 @@ def expert_flag(
             return 1
         return 0
 
+    # Expert_ChargeTurnNoInvuln (Pokemow RazorWind, Solarbeam): -2 if resisted, +2 for Solar Beam in
+    # sun or a Power Herb, -2 if the target was seen using Protect, else -1 at 38% HP or less
+    if move[_MOVE_ID] in CHARGE_NO_INVULN_M:
+        if effectiveness <= 0.5:
+            return -2
+        if move[_MOVE_ID] == _MOVENAME_SOLAR_BEAM and weather == _WEATHER_SUN:
+            return 2
+        if ai_pok[_POK_ITEM_ID] == _ITEMNAMES_POWER_HERB:
+            return 2
+        if seen_move(u_pok, ai_know, PROTECT_LIKE_M):
+            return -2
+        if (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP] <= 38:
+            return -1
+        return 0
+
     # Charge Turn Moves With Invulnerability (Bounce, Dig)
     if move[_MOVE_ID] in CHARGE_INVULNERABLE_M:
         return expert_charge_invulnerable(
@@ -2361,7 +2378,6 @@ def expert_flag(
     --------------Effect Moves-----------------
     Switch-Forcing Moves (Roar, Whirlwind)
     Recovery Moves (e.g., Swallow)
-    Charge Turn Moves Without Invulnerability (Razor Wind, Skull Bash, Sky Attack, Solar Beam/Blade)
     Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)
     Moves Which Change the User's Ability (Role Play, Skill Swap)
     Moves Which Decrease in Power With Less User HP (Water Spout, Eruption)

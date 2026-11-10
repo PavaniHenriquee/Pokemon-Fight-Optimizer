@@ -3972,6 +3972,25 @@
     "target": "all_adjacent_foes",
     "type": "Grass"
   },
+  "Razor Wind": {
+    "accuracy": 100,
+    "category": "Special",
+    "charge": 1,
+    "crit_ratio": 2,
+    "flags": {
+      "charge": true,
+      "fail_instruct": true,
+      "metronome": true,
+      "mirror": true,
+      "no_sleep_talk": true,
+      "protect": true
+    },
+    "name": "razor_wind",
+    "power": 80,
+    "pp": 10,
+    "target": "all_adjacent_foes",
+    "type": "Normal"
+  },
   "Recover": {
     "accuracy": true,
     "category": "Status",
@@ -4568,6 +4587,49 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Skull Bash": {
+    "accuracy": 100,
+    "category": "Physical",
+    "charge": 1,
+    "flags": {
+      "charge": true,
+      "contact": true,
+      "fail_instruct": true,
+      "metronome": true,
+      "mirror": true,
+      "no_sleep_talk": true,
+      "protect": true
+    },
+    "name": "skull_bash",
+    "power": 130,
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
+  },
+  "Sky Attack": {
+    "accuracy": 90,
+    "category": "Physical",
+    "charge": 1,
+    "crit_ratio": 2,
+    "flags": {
+      "charge": true,
+      "distance": true,
+      "fail_instruct": true,
+      "metronome": true,
+      "mirror": true,
+      "no_sleep_talk": true,
+      "protect": true
+    },
+    "name": "sky_attack",
+    "power": 140,
+    "pp": 5,
+    "secondary": {
+      "chance": 30,
+      "vol_status": "flinch"
+    },
+    "target": "any",
+    "type": "Flying"
+  },
   "Slam": {
     "accuracy": 75,
     "category": "Physical",
@@ -4700,6 +4762,24 @@
     "pp": 20,
     "target": "normal",
     "type": "Normal"
+  },
+  "Solar Beam": {
+    "accuracy": 100,
+    "category": "Special",
+    "charge": 1,
+    "flags": {
+      "charge": true,
+      "fail_instruct": true,
+      "metronome": true,
+      "mirror": true,
+      "no_sleep_talk": true,
+      "protect": true
+    },
+    "name": "solar_beam",
+    "power": 120,
+    "pp": 10,
+    "target": "normal",
+    "type": "Grass"
   },
   "Sonic Boom": {
     "accuracy": 90,
