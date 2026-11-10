@@ -112,6 +112,7 @@ from Models.constants import (
     _POK_CHOICE_LOCK, _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK, _HOLDEFFECT_CHOICE_SPEED,
     _POK_EMBARGO_TURNS, _VOLSTATUS2_EMBARGO, _ITEM_FLING_POWER, _ITEM_FLING_STATUS,
     _ITEM_FLING_VOLATILE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _SEC_STATUS, _SEC_VOL_STATUS, _SEC_TARGET,
+    _POK_RAMPAGE_TURNS,
 )
 from DataBase.PkDB import PokemonName
 
@@ -210,7 +211,8 @@ def mark_hurt(pok):
 def unlock_move(pok):
     """
     Ends a lock (Rollout, Ice Ball), a charge (Bounce) and the Fury Cutter/Rollout counter when
-    the move doesn't go through. Bide keeps its own pause rule. Uproar ends at this turn's residual
+    the move doesn't go through. Bide keeps its own pause rule. Uproar ends at this turn's residual.
+    A rampage (Thrash) ends without confusion (pokeplatinum BattleContext_MoveFailed)
     """
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
         return
@@ -222,6 +224,7 @@ def unlock_move(pok):
     pok[_POK_CONSEC_COUNT] = 0
     pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_SEMI_INVULNERABLE
     pok[_POK_SEMI_INV_MOVE] = 0
+    pok[_POK_RAMPAGE_TURNS] = 0
 
 
 @njit
@@ -1416,6 +1419,7 @@ def reset_switch_out(pok):
     pok[_POK_SUB_HP] = 0
     pok[_POK_CHOICE_LOCK] = 0
     pok[_POK_EMBARGO_TURNS] = 0
+    pok[_POK_RAMPAGE_TURNS] = 0
     refresh_item(pok)
     pok[_POK_AB_KNOWN] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
@@ -2019,7 +2023,9 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
     # The counter drops first and it wakes at 0, so 2-5 sleeps 1-4 turns. Early Bird drops it by 2
     # (pokeplatinum CHECK_STATUS_STATE_SLEEP)
     if atker_status == _STATUS_SLEEP:
-        unlock_move(attacker)
+        # A rampage keeps counting, the next turn's setup ends it (pokeplatinum SetupNextTurn)
+        if attacker[_POK_RAMPAGE_TURNS] == 0:
+            unlock_move(attacker)
         attacker[_POK_SLEEP_COUNTER] -= 2 if attacker[_POK_AB_ID] == _ABILITYNAMES_EARLY_BIRD else 1
         if attacker[_POK_SLEEP_COUNTER] > 0:
             return True
@@ -2032,9 +2038,11 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
             _tick_charge_if_blocked(attacker)
             return True
         attacker[_POK_STATUS] = 0
-    # Truant, its script unlocks the move choice (pokeplatinum subscript_loafing_around)
+    # Truant, its script unlocks the move choice (pokeplatinum subscript_loafing_around), a
+    # rampage's lock is separate and keeps counting
     if truant_loafs(attacker):
-        unlock_move(attacker)
+        if attacker[_POK_RAMPAGE_TURNS] == 0:
+            unlock_move(attacker)
         return True
     # Recharge, after Truant (pokeplatinum CHECK_STATUS_STATE_RECHARGING)
     if recharging:

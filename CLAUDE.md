@@ -258,7 +258,7 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   forced turns of a step, for the outcome dropdowns and Continue's PP.
 - End of turn (Gen IV): side timers, weather, Gravity count down; weather damage for both
   actives; then per Pokemon Ingrain, Aqua Ring, Speed Boost, Leech Seed, poison/burn, Curse,
-  bind, Uproar, Disable, Encore, Taunt, Yawn; then Perish Song. Speed order, a tie is a coin flip.
+  bind, Uproar, Thrash, Disable, Encore, Taunt, Yawn; then Perish Song. Speed order, a tie is a coin flip.
 - My calls (abilities/items): Simple doubles accuracy/evasion stages; Quick Claw / Stall follow [SD gen4] (one
   20% roll per holder per turn, within the same priority); the Metronome item follows [pp] (cap 10, keyed in
   `node_key` k4); RP's AI does steal with Covet; the rollout counts a working opponent OHKO as a KO. King's Rock

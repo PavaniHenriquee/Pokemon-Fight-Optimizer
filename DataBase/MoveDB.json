@@ -3559,6 +3559,22 @@
     "target": "normal",
     "type": "Ghost"
   },
+  "Outrage": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "fail_instruct": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "outrage",
+    "power": 120,
+    "pp": 10,
+    "target": "random_normal",
+    "type": "Dragon"
+  },
   "Overheat": {
     "accuracy": 90,
     "category": "Special",
@@ -3620,6 +3636,23 @@
     "pp": 5,
     "target": "all",
     "type": "Normal"
+  },
+  "Petal Dance": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "contact": true,
+      "dance": true,
+      "fail_instruct": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "petal_dance",
+    "power": 120,
+    "pp": 10,
+    "target": "random_normal",
+    "type": "Grass"
   },
   "Pin Missile": {
     "accuracy": 95,
@@ -5343,6 +5376,22 @@
     "pp": 25,
     "target": "normal",
     "type": "Dark"
+  },
+  "Thrash": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "fail_instruct": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "thrash",
+    "power": 120,
+    "pp": 10,
+    "target": "random_normal",
+    "type": "Normal"
   },
   "Thunder": {
     "accuracy": 70,

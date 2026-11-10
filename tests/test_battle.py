@@ -1037,6 +1037,131 @@ def test_uproar_goes_on_through_a_miss(monkeypatch, make_pokemon, make_battle, o
     assert me[Pok.LOCKED_MOVE] == (0 if keeps else -1)
 
 
+def _rampaging(arr, turns):
+    """My active is locked into slot 0's rampage with `turns` left"""
+    me = my_active(arr)
+    me[Pok.RAMPAGE_TURNS] = turns
+    me[Pok.LOCKED_MOVE] = 0
+    return me
+
+
+@pytest.mark.parametrize("move", ["Thrash", "Outrage", "Petal Dance"])
+def test_rampage_locks_2_to_3_turns_then_confuses(monkeypatch, make_pokemon, make_battle, move):
+    """PP only on the first turn, the lock ends with the counter and the user gets confused
+    (pokeplatinum subscript_thrash, MON_COND_CHECK_STATE_THRASH)"""
+    _always_hit(monkeypatch)
+    arr = _phase3_battle(make_pokemon, make_battle, [move, "Growl"], ["Growl"])
+    me = my_active(arr)
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.LOCKED_MOVE] == 0 and me[Pok.RAMPAGE_TURNS] in (1, 2)
+    turns = 1
+    while me[Pok.RAMPAGE_TURNS]:
+        assert not me[Pok.VOL_STATUS] & VolStatus.CONFUSION
+        turn_sim(0, (MOVE, 0), arr)
+        turns += 1
+    assert turns in (2, 3) and me[Pok.LOCKED_MOVE] == -1
+    assert me[Pok.VOL_STATUS] & VolStatus.CONFUSION and 2 <= me[Pok.CONFUSION_COUNTER] <= 5
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+
+
+def test_rampage_needs_a_first_hit(monkeypatch, make_pokemon, make_battle):
+    """A miss on the first turn doesn't lock in (an on-hit side effect)"""
+    _always_hit(monkeypatch)
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.MISS)
+    arr = _phase3_battle(make_pokemon, make_battle, ["Thrash"], ["Growl"])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.RAMPAGE_TURNS], me[Pok.LOCKED_MOVE]) == (0, -1)
+
+
+@pytest.mark.parametrize("outcome, keeps", [
+    (MoveOutcome.MISS, True), (MoveOutcome.PROTECTED, True),
+    (MoveOutcome.SEMI_INVULNERABLE, True), (MoveOutcome.INVULNERABLE, False),
+])
+def test_rampage_goes_on_through_a_miss(monkeypatch, make_pokemon, make_battle, outcome, keeps):
+    """A miss, Protect or a hidden target keep it counting, an immune target ends it without
+    confusion (pokeplatinum BattleContext_MoveFailed's noEffect)"""
+    _always_hit(monkeypatch)
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: outcome)
+    arr = _phase3_battle(make_pokemon, make_battle, ["Thrash"], ["Growl"])
+    me = _rampaging(arr, 2)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.RAMPAGE_TURNS] == (1 if keeps else 0)
+    assert me[Pok.LOCKED_MOVE] == (0 if keeps else -1)
+    assert not me[Pok.VOL_STATUS] & VolStatus.CONFUSION
+
+
+def test_full_paralysis_ends_the_rampage_without_confusion(monkeypatch, make_pokemon, make_battle):
+    """A blocked turn on the last turn ends it with no confusion"""
+    monkeypatch.setattr(engine_helper, "paralysis", lambda: True)
+    arr = _phase3_battle(make_pokemon, make_battle, ["Thrash"], ["Growl"])
+    me = _rampaging(arr, 1)
+    me[Pok.STATUS] = Status.PARALYSIS
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.RAMPAGE_TURNS], me[Pok.LOCKED_MOVE]) == (0, -1)
+    assert not me[Pok.VOL_STATUS] & VolStatus.CONFUSION
+
+
+def test_truant_loafing_keeps_the_rampage(monkeypatch, make_pokemon, make_battle):
+    """Loafing around doesn't end it, the counter still drops"""
+    monkeypatch.setattr(engine_helper, "truant_loafs", lambda pok: True)
+    arr = _phase3_battle(make_pokemon, make_battle, ["Thrash"], ["Growl"])
+    me = _rampaging(arr, 2)
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.RAMPAGE_TURNS], me[Pok.LOCKED_MOVE]) == (1, 0)
+
+
+@pytest.mark.parametrize("turns, confused", [(2, False), (1, True)])
+def test_sleep_ends_the_rampage(make_pokemon, make_battle, turns, confused):
+    """Asleep at the turn's end it loses the rampage without confusion, unless that was its last
+    turn: the counter drops first (pokeplatinum SetupNextTurn after MON_COND_CHECK_STATE_THRASH)"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Thrash"], ["Growl"])
+    me = _rampaging(arr, turns)
+    me[Pok.STATUS] = Status.SLEEP
+    me[Pok.SLEEP_COUNTER] = 4
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.STATUS] == Status.SLEEP
+    assert (me[Pok.RAMPAGE_TURNS], me[Pok.LOCKED_MOVE]) == (0, -1)
+    assert bool(me[Pok.VOL_STATUS] & VolStatus.CONFUSION) == confused
+
+
+@pytest.mark.parametrize("ability, vol, side, confused", [
+    ("Own Tempo", 0, 0, False),
+    ("Run Away", 0, SideCondition.SAFEGUARD, True),
+])
+def test_rampage_end_confusion_blocks(make_pokemon, make_battle, ability, vol, side, confused):
+    """Own Tempo stops the fatigue confusion, Safeguard doesn't (pokeplatinum subscript_confuse,
+    SIDE_EFFECT_TYPE_MOVE_EFFECT)"""
+    arr = make_battle([make_pokemon("Slowpoke", 30, ability, ["Thrash"])],
+                      [make_pokemon("Rattata", 5, "Run Away", ["Growl"])])
+    me = _rampaging(arr, 1)
+    me[Pok.VOL_STATUS] = vol
+    arr[MY_SIDE] = side
+    battle._apply_residual(me, opp_active(arr), Field.MY_ENTER_FIELD, arr)
+    assert (me[Pok.RAMPAGE_TURNS], me[Pok.LOCKED_MOVE]) == (0, -1)
+    assert bool(me[Pok.VOL_STATUS] & VolStatus.CONFUSION) == confused
+
+
+def test_rampage_end_keeps_an_existing_confusion(make_pokemon, make_battle):
+    """Already confused: the counter isn't rerolled"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Thrash"], ["Growl"])
+    me = _rampaging(arr, 1)
+    me[Pok.VOL_STATUS] = VolStatus.CONFUSION
+    me[Pok.CONFUSION_COUNTER] = 4
+    battle._apply_residual(me, opp_active(arr), Field.MY_ENTER_FIELD, arr)
+    assert me[Pok.CONFUSION_COUNTER] == 4 and me[Pok.LOCKED_MOVE] == -1
+
+
+def test_switch_out_clears_the_rampage(poke):
+    """A dragged-out thrasher comes back free"""
+    p = poke("Rattata", 20, "Run Away", ["Thrash"])
+    p[Pok.RAMPAGE_TURNS] = 2
+    p[Pok.LOCKED_MOVE] = 0
+    engine_helper.reset_switch_out(p)
+    assert (p[Pok.RAMPAGE_TURNS], p[Pok.LOCKED_MOVE]) == (0, -1)
+
+
 def test_yawn_sleep_blocked_by_uproar(poke):
     """The drowsy Pokemon doesn't fall asleep while someone makes an uproar"""
     p = poke("Rattata", 20, "Run Away", ["Tackle"])
@@ -1984,6 +2109,22 @@ def test_metronome_into_rollout_keeps_rolling(monkeypatch, make_pokemon, make_ba
     _force_metronome(monkeypatch, MoveName.EMBER)    # a fresh draw would be Ember
     turn_sim(0, (MOVE, 0), arr)
     assert me[Pok.CALLED_MOVE] == MoveName.ROLLOUT and me[Pok.CONSEC_COUNT] == 2
+
+
+def test_metronome_into_thrash_keeps_thrashing(monkeypatch, make_pokemon, make_battle):
+    """Thrash locks Metronome's slot, the next turn is Thrash again, then the confusion"""
+    _force_metronome(monkeypatch, MoveName.THRASH)
+    arr = make_battle([make_pokemon("Munchlax", 30, "Thick Fat", ["Metronome"])],
+                      [make_pokemon("Geodude", 30, "Sturdy", ["Defense Curl"])])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.LOCKED_MOVE] == 0 and me[Pok.RAMPAGE_TURNS] == 1  # randint gives the low end
+    _force_metronome(monkeypatch, MoveName.EMBER)
+    hp = opp_active(arr)[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.CURRENT_HP] < hp and arr[Field.LAST_MOVE] == MoveName.METRONOME
+    assert me[Pok.CALLED_MOVE] == MoveName.THRASH
+    assert me[Pok.LOCKED_MOVE] == -1 and me[Pok.VOL_STATUS] & VolStatus.CONFUSION
 
 
 def test_slower_copycat_copies_the_foes_move(make_pokemon, make_battle):

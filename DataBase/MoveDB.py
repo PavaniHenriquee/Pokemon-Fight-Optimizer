@@ -223,11 +223,13 @@ class MoveName:
     OCTAZOOKA       = NIGHTMARE + 1
     ODOR_SLEUTH     = OCTAZOOKA + 1
     OMINOUS_WIND    = ODOR_SLEUTH + 1
-    OVERHEAT        = OMINOUS_WIND + 1
+    OUTRAGE         = OMINOUS_WIND + 1
+    OVERHEAT        = OUTRAGE + 1
     PAY_DAY         = OVERHEAT + 1
     PECK            = PAY_DAY + 1
     PERISH_SONG     = PECK + 1
-    PIN_MISSILE     = PERISH_SONG + 1
+    PETAL_DANCE     = PERISH_SONG + 1
+    PIN_MISSILE     = PETAL_DANCE + 1
     PLAY_ROUGH      = PIN_MISSILE + 1
     PLUCK           = PLAY_ROUGH + 1
     POISON_FANG     = PLUCK + 1
@@ -333,7 +335,8 @@ class MoveName:
     TAUNT           = TAKE_DOWN + 1
     TELEPORT        = TAUNT + 1
     THIEF           = TELEPORT + 1
-    THUNDER         = THIEF + 1
+    THRASH          = THIEF + 1
+    THUNDER         = THRASH + 1
     THUNDER_FANG    = THUNDER + 1
     THUNDER_PUNCH   = THUNDER_FANG + 1
     THUNDER_SHOCK   = THUNDER_PUNCH + 1

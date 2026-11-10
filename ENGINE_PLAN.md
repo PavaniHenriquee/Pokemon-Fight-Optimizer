@@ -14,8 +14,9 @@ Updated only when asked.
 - Done: 5.1 (status, flinch or confusion chance) and 5.2 (stat changes on hit), 2026-11-09.
 - Done: 5.3 (everything else in this phase), and with it Phase 5, 2026-11-09. Its `benchmarks.run quick` on the
   home PC is still to do.
-- Done: 6.1 (recharge), 6.2 (charge turn) and 6.3 (semi-invulnerable, and what reaches it), 2026-11-10.
-- Next: 6.4 (rampage).
+- Done: 6.1 (recharge), 6.2 (charge turn), 6.3 (semi-invulnerable, and what reaches it) and 6.4 (rampage),
+  2026-11-10.
+- Next: 6.5 (crash damage).
 
 ## Goal
 
@@ -507,9 +508,9 @@ Fixed damage:
 
 ### 6.4 Rampage
 
-- [ ] Thrash !
-- [ ] Outrage !
-- [ ] Petal Dance !
+- [x] Thrash !
+- [x] Outrage !
+- [x] Petal Dance !
 
 ### 6.5 Crash damage
 

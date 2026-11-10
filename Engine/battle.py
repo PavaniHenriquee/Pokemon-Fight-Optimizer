@@ -18,7 +18,7 @@ from Engine.engine_helper import (
     has_substitute, hit_substitute, make_substitute, sub_blocks_status_move, takeable_item,
     focus_sash_ready, sticky_barb_transfer, after_move_hit_items, on_hit_berries,
     clear_target_choice_lock, swap_items, embargo, embargo_count, fling_fails, fling_move,
-    fling_throw, fling_hit,
+    fling_throw, fling_hit, _flavor_confuse,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -43,6 +43,7 @@ from Models.constants import (
     _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS, _MOVECATEGORY_SPECIAL,
     _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER, _POK_TURNS_ACTIVE,
     _MOVE_ID, _MOVE_PP, _MOVENAME_COVET,
+    _POK_RAMPAGE_TURNS, _MOVENAME_THRASH, _MOVENAME_OUTRAGE, _MOVENAME_PETAL_DANCE,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
     _SEC_VOL_STATUS2,
     _VOLSTATUS_FLINCH, _STATUS_FREEZE, _ACTIONTYPE_MOVE, _BATTLEPHASE_TURN_START, _MOVECATEGORY_PHYSICAL,
@@ -115,6 +116,8 @@ AI_KNOWS_MOVES = (
 )
 # An uproar keeps going through these, only a blocked turn or an immune target ends it early
 UPROAR_KEEPS_ON = (_MOVEOUTCOME_MISS, _MOVEOUTCOME_SEMI_INVULNERABLE, _MOVEOUTCOME_PROTECTED)
+# Lock in for 2-3 turns, then confuse the user (pokeplatinum BATTLE_EFFECT_CONTINUE_AND_CONFUSE_SELF)
+RAMPAGE_MOVES = (_MOVENAME_THRASH, _MOVENAME_OUTRAGE, _MOVENAME_PETAL_DANCE)
 SIDES = (_FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND)
 # Timed side conditions and their turn counter, in the order the end of turn counts them down
 TIMED_SIDE_CONDITIONS = (
@@ -869,7 +872,10 @@ def _execute_move_slot(
     if move_hit != _MOVEOUTCOME_HIT:
         if mv[_MOVE_ID] == _MOVENAME_FLING:
             fling_throw(atk)
-        if not (atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR and move_hit in UPROAR_KEEPS_ON):
+        # A rampage keeps counting through the same outcomes as an uproar (pokeplatinum
+        # BattleContext_MoveFailed only has the immunity)
+        keeps_on = atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR or atk[_POK_RAMPAGE_TURNS] > 0
+        if not (keeps_on and move_hit in UPROAR_KEEPS_ON):
             unlock_move(atk)
         if counted:
             metronome_fail(atk, outer_id)
@@ -906,6 +912,11 @@ def _execute_move_slot(
         if mv[_MOVE_ID] == _MOVENAME_UPROAR and not atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR:
             atk[_POK_VOL_STATUS] |= _VOLSTATUS_UPROAR
             atk[_POK_UPROAR_TURNS] = random.randint(3, 6)
+            atk[_POK_LOCKED_MOVE] = current_move if is_mine else opp_move
+        # Thrash and co. lock in on their first hit for 2-3 turns, this one included, a KO or a
+        # Substitute hit too (pokeplatinum subscript_thrash, an on-hit side effect)
+        if mv[_MOVE_ID] in RAMPAGE_MOVES and atk[_POK_RAMPAGE_TURNS] == 0:
+            atk[_POK_RAMPAGE_TURNS] = random.randint(2, 3)
             atk[_POK_LOCKED_MOVE] = current_move if is_mine else opp_move
         # Wrap and co. trap a target that survived for 3-6 turns, it isn't refreshed. The
         # binder's Grip Claw makes it 6, after the roll (pokeplatinum subscript_bind_start)
@@ -1193,6 +1204,14 @@ def _uproar_wake(pok):
 
 
 @njit
+def _sleep_ends_rampage(pok):
+    """A Pokemon asleep when the turn ends loses its rampage, no confusion"""
+    if pok[_POK_STATUS] == _STATUS_SLEEP and pok[_POK_RAMPAGE_TURNS] > 0:
+        pok[_POK_RAMPAGE_TURNS] = 0
+        pok[_POK_LOCKED_MOVE] = -1
+
+
+@njit
 def _count_down_slot_lock(pok, counter_idx, vol):
     """Encore/Disable counter (turns * SLOT_STEP + slot): one less turn, ends a turn after reaching 0"""
     if pok[counter_idx] >= SLOT_STEP:
@@ -1420,6 +1439,14 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
             pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_UPROAR
             pok[_POK_LOCKED_MOVE] = -1
 
+    # 8b. Thrash, the last turn confuses the user. Own Tempo or a confusion stop it, Safeguard
+    # doesn't (pokeplatinum MON_COND_CHECK_STATE_THRASH, subscript_thrash_end)
+    if pok[_POK_RAMPAGE_TURNS] > 0:
+        pok[_POK_RAMPAGE_TURNS] -= 1
+        if pok[_POK_RAMPAGE_TURNS] == 0:
+            pok[_POK_LOCKED_MOVE] = -1
+            _flavor_confuse(pok)
+
     # 9. Disable
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_DISABLE:
         _count_down_slot_lock(pok, _POK_DISABLE_TURNS, _VOLSTATUS_DISABLE)
@@ -1547,6 +1574,10 @@ def end_of_turn(battle_array):
     # pokeplatinum CheckSideConditions, after every Pokemon's residuals
     perish_count(first)
     perish_count(second)
+    # A sleeper's rampage ends without confusion (pokeplatinum SetupNextTurn, nothing in between
+    # puts a Pokemon to sleep)
+    _sleep_ends_rampage(first)
+    _sleep_ends_rampage(second)
 
     # If Opponent is dead
     if current_opp[_POK_CURRENT_HP] == 0 and current_pokemon[_POK_CURRENT_HP] != 0:

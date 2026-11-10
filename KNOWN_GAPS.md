@@ -56,6 +56,9 @@
   off for the rest of that move ([pp] checks live).
 - Unverified: an absorbed move ends an Uproar like any immune target; the "Soundproof user can't
   use a sound move on its own side" rule isn't in [pp] `TriggerImmunityAbility`.
+- Thrash's fatigue confusion: Own Tempo always stops it. [pp] `subscript_confuse` checks it with
+  `CheckIgnorableAbility`, so an end-of-turn Mold Breaker "attacker" (a stale `battleCtx->attacker`) would let
+  it through.
 - Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
 - Custap is eaten when the turn order is set, not when its holder moves: a holder KO'd first by a higher
   priority move loses it ([pp] keeps it), and its slot's Recycle item follows.
@@ -117,6 +120,8 @@
 
 - Search: the rollout's quick type check (`rollout_pref`) uses `gravity_types`, so it misses Ingrain grounding a
   Flying type (Iron Ball and Gravity reach it).
+- Search: `node_key` sees a rampage only through `LOCKED_MOVE`, not `RAMPAGE_TURNS`, so 2 turns left and 1
+  left (confusion this turn) share a node.
 - Leppa on the foe (only through a Covet on my Leppa holder) gives back PP that Continue's foe PP arithmetic
   doesn't see.
 - Search: `evaluate_terminal` counts deaths, so every Pokemon is worth the same: a win that loses the
@@ -159,6 +164,7 @@
 ## Tracker, Box, Setup, UI, Lint
 
 - UI: a Substitute shows as a chip, without its HP.
+- UI: no badge for a rampage (Thrash, Outrage, Petal Dance), like Rollout.
 - UI: no "the AI knows this ability" marker, and the field's weather shows while Cloud Nine / Air Lock
   suppress it.
 - Tracker: met locations come from vanilla [pp] `header.json`s, RP's ROM wasn't read. The sheet's
