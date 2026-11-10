@@ -14,9 +14,9 @@ Updated only when asked.
 - Done: 5.1 (status, flinch or confusion chance) and 5.2 (stat changes on hit), 2026-11-09.
 - Done: 5.3 (everything else in this phase), and with it Phase 5, 2026-11-09. Its `benchmarks.run quick` on the
   home PC is still to do.
-- Done: 6.1 (recharge), 6.2 (charge turn), 6.3 (semi-invulnerable, and what reaches it) and 6.4 (rampage),
-  2026-11-10.
-- Next: 6.5 (crash damage).
+- Done: 6.1 (recharge), 6.2 (charge turn), 6.3 (semi-invulnerable, and what reaches it), 6.4 (rampage) and 6.5
+  (crash damage), and with it Phase 6, 2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
+- Next: 7.1 (variable power).
 
 ## Goal
 
@@ -514,8 +514,8 @@ Fixed damage:
 
 ### 6.5 Crash damage
 
-- [ ] Jump Kick !
-- [ ] High Jump Kick !
+- [x] Jump Kick !
+- [x] High Jump Kick !
 
 ## Phase 7: power and damage rules
 

@@ -354,6 +354,25 @@ def scenario_damage_moves():
     return my, opp, ()
 
 
+def scenario_forced_turns():
+    """Phase 6: recharge, charge turns, semi-invulnerable moves both ways and the moves that reach
+    them (Sky Uppercut, Surf, Thunder, Hurricane), rampage both ways, and crash damage both ways,
+    a Ghost to crash into included"""
+    my = [
+        _p("Hitmonlee", 40, "Reckless", ["High Jump Kick", "Jump Kick", "Blaze Kick", "Mega Kick"]),
+        _p("Pidgeot", 40, "Keen Eye", ["Fly", "Hurricane", "Sky Attack", "Quick Attack"]),
+        _p("Garchomp", 40, "Sand Veil", ["Outrage", "Dig", "Rock Wrecker", "Giga Impact"]),
+        _p("Gengar", 40, "Levitate", ["Shadow Ball", "Thunder", "Hypnosis", "Hyper Beam"]),
+    ]
+    opp = [
+        _p("Lapras", 40, "Shell Armor", ["Dive", "Surf", "Thunder", "Giga Impact"]),
+        _p("Hitmontop", 40, "Technician", ["Sky Uppercut", "High Jump Kick", "Jump Kick", "Razor Wind"]),
+        _p("Dusknoir", 40, "Pressure", ["Shadow Force", "Skull Bash", "Thrash", "Shadow Punch"]),
+        _p("Meganium", 40, "Overgrow", ["Petal Dance", "Solar Beam", "Frenzy Plant", "Razor Leaf"]),
+    ]
+    return my, opp, ()
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -366,6 +385,7 @@ SCENARIOS = {
     "substitute": scenario_substitute,
     "items": scenario_items,
     "damage_moves": scenario_damage_moves,
+    "forced_turns": scenario_forced_turns,
 }
 
 

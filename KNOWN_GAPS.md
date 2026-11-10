@@ -22,6 +22,8 @@
 - AI: `ai_move_damage` uses the raw base power except for the semi-invulnerable doublings (6.3). Pokemow's
   damage calc also sees Stomp vs Minimize, Facade, SmellingSalt, Wake-Up Slap, Brine, Rollout / Fury Cutter
   streaks and Weather Ball (7.1).
+- AI: `ai_move_damage` doesn't weigh Jump Kick / High Jump Kick's crash (6.5) when the move could miss or hit an
+  immune target. [pp] `script.s` has no branch for BATTLE_EFFECT_CRASH_ON_MISS, so this only matters past the script.
 - AI: `sub_after_death` stage 2 doesn't copy [pp]'s stale-score quirk (a skipped or empty move slot
   still compares the previous `score`, at first the last stage 1 type score).
 - AI flags: the engine gives every trainer Basic + Evaluate Attack + Expert; vanilla [pp]
@@ -120,6 +122,8 @@
 
 - Search: the rollout's quick type check (`rollout_pref`) uses `gravity_types`, so it misses Ingrain grounding a
   Flying type (Iron Ball and Gravity reach it).
+- Search: the rollout (`rollout_pref`) doesn't weigh Jump Kick / High Jump Kick's crash (6.5) on a move that could
+  miss or hit an immune target (a Ghost: no damage and no crash in [pp]).
 - Search: `node_key` sees a rampage only through `LOCKED_MOVE`, not `RAMPAGE_TURNS`, so 2 turns left and 1
   left (confusion this turn) share a node.
 - Leppa on the foe (only through a Covet on my Leppa holder) gives back PP that Continue's foe PP arithmetic

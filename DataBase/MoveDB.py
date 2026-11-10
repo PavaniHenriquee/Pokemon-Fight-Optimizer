@@ -154,7 +154,8 @@ class MoveName:
     HEAT_WAVE       = HEADBUTT + 1
     HELPING_HAND    = HEAT_WAVE + 1
     HIDDEN_POWER    = HELPING_HAND + 1
-    HORN_ATTACK     = HIDDEN_POWER + 1
+    HIGH_JUMP_KICK  = HIDDEN_POWER + 1
+    HORN_ATTACK     = HIGH_JUMP_KICK + 1
     HOWL            = HORN_ATTACK + 1
     HURRICANE       = HOWL + 1
     HYDRO_CANNON    = HURRICANE + 1
@@ -176,7 +177,8 @@ class MoveName:
     IRON_HEAD       = IRON_DEFENSE + 1
     IRON_TAIL       = IRON_HEAD + 1
     JUDGMENT        = IRON_TAIL + 1
-    KARATE_CHOP     = JUDGMENT + 1
+    JUMP_KICK       = JUDGMENT + 1
+    KARATE_CHOP     = JUMP_KICK + 1
     KINESIS         = KARATE_CHOP + 1
     KNOCK_OFF       = KINESIS + 1
     LAVA_PLUME      = KNOCK_OFF + 1

@@ -2437,6 +2437,23 @@
     "target": "normal",
     "type": "Normal"
   },
+  "High Jump Kick": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "gravity": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "has_crash_damage": true,
+    "name": "high_jump_kick",
+    "power": 130,
+    "pp": 10,
+    "target": "normal",
+    "type": "Fighting"
+  },
   "Horn Attack": {
     "accuracy": 100,
     "category": "Physical",
@@ -2802,6 +2819,23 @@
     "pp": 10,
     "target": "normal",
     "type": "Normal"
+  },
+  "Jump Kick": {
+    "accuracy": 95,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "gravity": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "has_crash_damage": true,
+    "name": "jump_kick",
+    "power": 100,
+    "pp": 10,
+    "target": "normal",
+    "type": "Fighting"
   },
   "Karate Chop": {
     "accuracy": 100,

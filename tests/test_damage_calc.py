@@ -358,6 +358,14 @@ def test_reckless_matches_gen4_rounding(poke):
     assert all(base_power_ability(a, d, mv, p) == p * 12 // 10 for p in range(1, 1024))
 
 
+@pytest.mark.parametrize("move, power", [("Jump Kick", 100), ("High Jump Kick", 130)])
+def test_reckless_boosts_crash_moves(poke, move, power):
+    """Reckless takes the crash moves too (pokeplatinum effect 0045)"""
+    a = poke("Hitmonlee", 50, "Reckless", [move])
+    d = poke("Bidoof", 50, "Simple", ["Tackle"])
+    assert base_power_ability(a, d, move_slice(a, 0), power) == power * 12 // 10
+
+
 # ── Phase 3: Charge, Mud Sport, Water Sport, Foresight, Ingrain ──────────────
 
 @pytest.mark.parametrize("move, doubled", [("Thunder Shock", True), ("Tackle", False)])

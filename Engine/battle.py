@@ -92,6 +92,7 @@ from Models.constants import (
     _MOVENAME_THIEF, _MOVENAME_PLUCK, _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _MOVENAME_EMBARGO,
     _MOVENAME_FLING, _VOLSTATUS2_EMBARGO, _POK_EMBARGO_TURNS, _ITEM_ID,
     _MOVENAME_SOLAR_BEAM, _MOVENAME_SKULL_BASH, _POK_DEFENSE_STAT_STAGE, _MOVENAME_SHADOW_FORCE,
+    _MOVE_HAS_CRASH_DAMAGE,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 from Models.item import refresh_item, raw_item_type
@@ -476,6 +477,19 @@ def _recoil(attacker, move, dealt):
         apply_recoil(attacker, struggle_recoil(attacker))
     elif move[_MOVE_RECOIL] and attacker[_POK_AB_ID] not in RECOIL_IMMUNE_AB:
         apply_recoil(attacker, move_recoil(move, dealt))
+
+
+@njit
+def _crash(attacker, defender, move, weather, def_side=0, gravity=False):
+    """Jump Kick and High Jump Kick: a move that didn't hit costs half the damage it would have
+    dealt (crit and roll included, a type immunity makes it 0), at most half the target's max HP.
+    Magic Guard skips it (pokeplatinum effect 0045 calculates the damage before the hit check,
+    subscript_crash_on_miss)"""
+    if not move[_MOVE_HAS_CRASH_DAMAGE] or attacker[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
+        return
+    crit = calculate_crit(attacker, defender, move, def_side)
+    damage = calculate_damage(attacker, defender, move, weather, crit, None, def_side, gravity)
+    apply_recoil(attacker, min(damage // 2, defender[_POK_MAX_HP] // 2))
 
 
 @njit
@@ -877,6 +891,7 @@ def _execute_move_slot(
         keeps_on = atk[_POK_VOL_STATUS] & _VOLSTATUS_UPROAR or atk[_POK_RAMPAGE_TURNS] > 0
         if not (keeps_on and move_hit in UPROAR_KEEPS_ON):
             unlock_move(atk)
+        _crash(atk, defn, mv, weather, battle_array[side_base(not is_mine)], gravity)
         if counted:
             metronome_fail(atk, outer_id)
         return False

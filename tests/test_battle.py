@@ -1,5 +1,6 @@
 """Turn flow (start_of_turn / action / end_of_turn / switches) and a seeded fuzz over
 whole battles that checks state invariants after every decision"""
+import random
 import pytest
 from Engine import battle
 from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
@@ -4020,3 +4021,85 @@ def test_self_drop_move_keeps_the_stats_on_a_miss(monkeypatch, make_pokemon, mak
     me = my_active(arr)
     turn_sim(0, (MOVE, 0), arr)
     assert (me[Pok.DEFENSE_STAT_STAGE], me[Pok.SPECIAL_DEFENSE_STAT_STAGE]) == (0, 0)
+
+
+# ── Phase 6.5: crash damage ─────────────────────────────────────────────────────
+
+def _crash_battle(make_pokemon, make_battle, move="Jump Kick", ability="Limber",
+                  foe="Rattata", foe_ability="Run Away"):
+    """Hitmonlee with a crash move vs a foe that only uses Growl"""
+    return make_battle([make_pokemon("Hitmonlee", 50, ability, [move])],
+                       [make_pokemon(foe, 50, foe_ability, ["Growl"])])
+
+
+def _crash_lost(monkeypatch, make_pokemon, make_battle, outcome, damage, **kwargs):
+    """HP my Hitmonlee lost to its own move, with the hit check and damage fixed"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: outcome)
+    monkeypatch.setattr(battle, "calculate_crit", lambda *a: False)
+    monkeypatch.setattr(battle, "calculate_damage", lambda *a: damage)
+    arr = _crash_battle(make_pokemon, make_battle, **kwargs)
+    me = my_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    return hp - me[Pok.CURRENT_HP], arr
+
+
+@pytest.mark.parametrize("move", ["Jump Kick", "High Jump Kick"])
+@pytest.mark.parametrize("outcome", [
+    MoveOutcome.MISS, MoveOutcome.PROTECTED, MoveOutcome.SEMI_INVULNERABLE,
+    MoveOutcome.INVULNERABLE,
+])
+def test_crash_costs_half_the_damage(monkeypatch, make_pokemon, make_battle, move, outcome):
+    """Any outcome that didn't hit costs half the damage the move would have dealt (pokeplatinum
+    subscript_missed calls subscript_crash_on_miss)"""
+    lost, _ = _crash_lost(monkeypatch, make_pokemon, make_battle, outcome, 41, move=move)
+    assert lost == 20
+
+
+def test_crash_is_capped_at_half_the_targets_max_hp(monkeypatch, make_pokemon, make_battle):
+    """subscript_crash_on_miss caps it at the defender's max HP / 2"""
+    lost, arr = _crash_lost(monkeypatch, make_pokemon, make_battle, MoveOutcome.MISS, 10_000)
+    assert lost == opp_active(arr)[Pok.MAX_HP] // 2
+
+
+def test_magic_guard_skips_the_crash(monkeypatch, make_pokemon, make_battle):
+    lost, _ = _crash_lost(monkeypatch, make_pokemon, make_battle, MoveOutcome.MISS, 40,
+                          ability="Magic Guard")
+    assert lost == 0
+
+
+def test_no_crash_on_a_hit(monkeypatch, make_pokemon, make_battle):
+    lost, arr = _crash_lost(monkeypatch, make_pokemon, make_battle, MoveOutcome.HIT, 40)
+    foe = opp_active(arr)
+    assert lost == 0 and foe[Pok.MAX_HP] - foe[Pok.CURRENT_HP] == 40
+
+
+def test_no_crash_into_a_ghost(make_pokemon, make_battle):
+    """The type chart already made the stored damage 0, so the crash is 0 (pokeplatinum
+    ApplyTypeChart runs on it in TryMove)"""
+    arr = _crash_battle(make_pokemon, make_battle, foe="Gastly", foe_ability="Levitate")
+    me = my_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == hp
+
+
+def test_wonder_guard_still_costs_the_crash(make_pokemon, make_battle):
+    """Wonder Guard leaves the stored damage as it is, so the crash goes through"""
+    random.seed(3)
+    arr = _crash_battle(make_pokemon, make_battle, foe="Zubat", foe_ability="Wonder Guard")
+    me, foe = my_active(arr), opp_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    assert 0 < hp - me[Pok.CURRENT_HP] <= foe[Pok.MAX_HP] // 2
+
+
+def test_crash_can_knock_the_user_out(monkeypatch, make_pokemon, make_battle):
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.MISS)
+    monkeypatch.setattr(battle, "calculate_damage", lambda *a: 10_000)
+    arr = _crash_battle(make_pokemon, make_battle)
+    me = my_active(arr)
+    me[Pok.CURRENT_HP] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == 0

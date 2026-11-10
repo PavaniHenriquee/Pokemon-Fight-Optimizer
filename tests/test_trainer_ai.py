@@ -70,7 +70,7 @@ KIT_DAMAGE = (
     "Sonic Boom", "Hyper Beam", "Giga Impact", "Blast Burn", "Hydro Cannon", "Frenzy Plant", "Roar of Time",
     "Rock Wrecker", "Solar Beam", "Skull Bash", "Sky Attack", "Razor Wind",
     "Fly", "Dive", "Shadow Force", "Sky Uppercut", "Surf", "Thunder", "Hurricane",
-    "Thrash", "Outrage", "Petal Dance",
+    "Thrash", "Outrage", "Petal Dance", "Jump Kick", "High Jump Kick",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
