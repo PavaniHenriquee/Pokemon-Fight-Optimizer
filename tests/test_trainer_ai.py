@@ -54,6 +54,11 @@ KIT_DAMAGE = (
     "Poison Jab", "Cross Poison", "Poison Tail", "Ice Punch", "Dizzy Punch", "Dynamic Punch",
     "Signal Beam", "Rock Climb", "Chatter", "Dark Pulse", "Dragon Rush", "Icicle Crash", "Needle Arm",
     "Rolling Kick", "Waterfall", "Ice Fang", "Thunder Fang", "Magma Storm",
+    "Bug Buzz", "Crunch", "Crush Claw", "Earth Power", "Energy Ball", "Flash Cannon", "Focus Blast",
+    "Iron Tail", "Mirror Shot", "Moonblast", "Muddy Water", "Octazooka", "Play Rough", "Psychic",
+    "Rock Smash", "Shadow Ball", "Seed Flare", "Charge Beam", "Meteor Mash", "Steel Wing",
+    "Ancient Power", "Ominous Wind", "Close Combat", "Superpower", "Hammer Arm", "Overheat",
+    "Draco Meteor", "Leaf Storm", "Psycho Boost",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -124,6 +129,47 @@ def test_expert_speed_down_on_hit(poke, move):
     assert _expert(slow_ai, user, 0.5) == (0, [])
     assert _expert(fast_ai, user) == (-3, [])
     assert _expert(slow_ai, user) == (0, [(2, 186)])
+
+
+def _expert_at(poke, move, fast, hp_pct):
+    """A faster or slower AI at that HP percent, and its target"""
+    ai_pok = poke("Pikachu", 60, "Static", [move]) if fast else poke("Geodude", 10, "Sturdy", [move])
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = hp_pct
+    return ai_pok, poke("Rattata", 30, "Run Away", ["Tackle"])
+
+
+@pytest.mark.parametrize("move", ["Close Combat", "Overheat", "Draco Meteor", "Leaf Storm", "Psycho Boost"])
+@pytest.mark.parametrize("fast, hp_pct, effectiveness, expected", [
+    (True, 100, 0.5, -1), (False, 100, 0.0, -1),   # resisted or immune
+    (True, 61, 1.0, 0), (True, 60, 1.0, -1),       # faster: 60% or less
+    (False, 81, 1.0, 0), (False, 80, 1.0, -1),     # slower: 80% or less
+])
+def test_expert_close_combat_and_overheat(poke, move, fast, hp_pct, effectiveness, expected):
+    """pokeplatinum Expert_CloseCombat and Expert_Overheat, the same check"""
+    ai_pok, user = _expert_at(poke, move, fast, hp_pct)
+    assert _expert(ai_pok, user, effectiveness) == (expected, [])
+
+
+@pytest.mark.parametrize("fast, hp_pct, effectiveness, atk_stage, expected", [
+    (True, 10, 0.5, 0, -1), (True, 10, 1.0, -1, -1),   # resisted, Attack below 0
+    (True, 41, 1.0, 0, -1), (True, 40, 1.0, 0, 0),     # faster: above 40%
+    (False, 60, 1.0, 0, -1), (False, 59, 1.0, 0, 0),   # slower: 60% or more
+])
+def test_expert_superpower(poke, fast, hp_pct, effectiveness, atk_stage, expected):
+    """pokeplatinum Expert_Superpower"""
+    ai_pok, user = _expert_at(poke, "Superpower", fast, hp_pct)
+    ai_pok[Pok.ATTACK_STAT_STAGE] = atk_stage
+    assert _expert(ai_pok, user, effectiveness) == (expected, [])
+
+
+@pytest.mark.parametrize("fast, effectiveness, expected", [
+    (False, 0.5, -1), (True, 0.25, -1), (False, 1.0, 1), (True, 2.0, 0),
+])
+def test_expert_hammer_arm(poke, fast, effectiveness, expected):
+    """pokeplatinum Expert_HammerArm: -1 if resisted, +1 if slower"""
+    ai_pok, user = _expert_at(poke, "Hammer Arm", fast, 100)
+    assert _expert(ai_pok, user, effectiveness) == (expected, [])
 
 
 def test_expert_speed_down_only_named_moves(poke):
@@ -1103,6 +1149,7 @@ def test_basic_perish_song(poke):
 
 @pytest.mark.parametrize("move, expected", [
     ("Growl", -10), ("Sing", -10), ("Grass Whistle", -10), ("Disarming Voice", 0), ("Chatter", -10),
+    ("Bug Buzz", -10),
 ])
 def test_basic_soundproof_uses_the_cartridge_list(poke, move, expected):
     """pokeplatinum Basic_SoundproofMoves, not the sound flag"""

@@ -354,13 +354,26 @@ def _effects(sd: dict, entry: dict, notes: list) -> None:
             entry[db_key] = _enum_value(enum, sd[sd_key])
         elif sd.get(sd_key):
             notes.append(f"{sd_key}: {sd[sd_key]} (no {enum.__name__} member)")
+    if _sure_self_boosts(sd):  # _secondaries holds it
+        return
     if sd.get("self") and sd["self"] != {"volatileStatus": "mustrecharge"}:  # the recharge flag has that one
         notes.append(f"self: {_show(sd['self'])}")
 
 
+def _sure_self_boosts(sd: dict) -> dict:
+    """A damaging move's own sure stat change (Close Combat), when it has no secondary to share the slot with"""
+    own = sd.get("self") or {}
+    if set(own) != {"boosts"} or sd.get("category") == "Status" or sd.get("secondary") or sd.get("secondaries"):
+        return {}
+    return own["boosts"]
+
+
 def _secondaries(sd: dict, entry: dict, notes: list) -> None:
-    """The secondary effect. A second one (the fangs' flinch) goes in chance2 / vol_status2"""
+    """The secondary effect. A second one (the fangs' flinch) goes in chance2 / vol_status2. A damaging move's
+    sure stat change on its user goes there too, as a 100% one aimed at the user"""
     secondaries = sd.get("secondaries") or ([sd["secondary"]] if sd.get("secondary") else [])
+    if _sure_self_boosts(sd):
+        secondaries = [{"chance": 100, "self": {"boosts": _sure_self_boosts(sd)}}]
     if not secondaries:
         return
     secondary = _secondary(secondaries[0], notes, "secondary")

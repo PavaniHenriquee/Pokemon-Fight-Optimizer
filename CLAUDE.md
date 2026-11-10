@@ -324,6 +324,8 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   checks ([pp] `LOAD_MOVE_TYPE` reads the data type); [pp] Basic_Main skips the immunity check for
   Guillotine / Sheer Cold, so into Wonder Guard the engine gives -12, [pp] 0; [pp] always knows my
   Shadow Tag / Magnet Pull / Arena Trap (no script check reads them yet).
+- AI: Superpower has no Basic branch of its own ([pp] `Basic_CheckNonStandardDamageOrChargeTurn`): the
+  general checks cover it, with Pokemow's -12 into Wonder Guard where [pp]'s script gives -10.
 - AI: `sub_after_death` stage 2 doesn't copy [pp]'s stale-score quirk (a skipped or empty move slot
   still compares the previous `score`, at first the last stage 1 type score).
 - AI flags: the engine gives every trainer Basic + Evaluate Attack + Expert; vanilla [pp]
@@ -345,7 +347,7 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
 - MoveDB order: `SHOCK_WAVE` sits before `SCRATCH` in `MoveName` and Nightmare before Night Shade in
   MoveDB.json. `add_moves` leaves existing lines alone, so a new move next to them can land a step off
   (Night Slash would go before Nightmare).
-- `test_trainer_lacks` (`test_database.py`) uses Crunch as its missing move: swap it once Crunch is added.
+- `test_trainer_lacks` (`test_database.py`) uses U-turn as its missing move: swap it once U-turn is added.
 - Not handled: Klutz and Embargo ([pp] `Battler_HeldItem` returns no item for them; the speed-halving items
   must keep working under them, [pp] reads the raw item there). Covet / Thief, Knock Off and Trick failing on a
   defender whose Quick Claw or Custap activated this turn ([pp] `BtlCmd_TryStealItem`, `subscript_knock_off`,

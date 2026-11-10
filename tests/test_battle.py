@@ -3589,3 +3589,46 @@ def test_a_flung_life_orb_gives_no_recoil(make_pokemon, make_battle):
     turn_sim(0, (MOVE, 0), arr)
     assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
     assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP] and me[Pok.CONSUMED_ITEM] == ItemNames.LIFE_ORB
+
+
+SELF_DROPS = [
+    ("Close Combat", {Pok.DEFENSE_STAT_STAGE: -1, Pok.SPECIAL_DEFENSE_STAT_STAGE: -1}),
+    ("Superpower", {Pok.ATTACK_STAT_STAGE: -1, Pok.DEFENSE_STAT_STAGE: -1}),
+    ("Hammer Arm", {Pok.SPEED_STAT_STAGE: -1}),
+    ("Overheat", {Pok.SPECIAL_ATTACK_STAT_STAGE: -2}),
+    ("Draco Meteor", {Pok.SPECIAL_ATTACK_STAT_STAGE: -2}),
+    ("Leaf Storm", {Pok.SPECIAL_ATTACK_STAT_STAGE: -2}),
+    ("Psycho Boost", {Pok.SPECIAL_ATTACK_STAT_STAGE: -2}),
+]
+STAGES = (
+    Pok.ATTACK_STAT_STAGE, Pok.DEFENSE_STAT_STAGE, Pok.SPECIAL_ATTACK_STAT_STAGE,
+    Pok.SPECIAL_DEFENSE_STAT_STAGE, Pok.SPEED_STAT_STAGE,
+)
+
+
+@pytest.mark.parametrize("move, drops", SELF_DROPS)
+@pytest.mark.parametrize("case", ["hit", "ko", "substitute"])
+def test_self_drop_moves_lower_the_user_on_any_hit(poke, move, drops, case):
+    """pokeplatinum MOVE_SIDE_EFFECT_TO_ATTACKER: no roll, on a KO and into a Substitute too. The
+    target having Clear Body changes nothing"""
+    a = poke("Machop", 50, "Guts", [move])
+    d = poke("Metang", 100, "Clear Body", ["Tackle"])
+    if case == "ko":
+        d[Pok.CURRENT_HP] = 1
+    if case == "substitute":
+        d[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+        d[Pok.SUB_HP] = 1
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert (d[Pok.CURRENT_HP] <= 0) == (case == "ko")
+    assert {s: a[s] for s in STAGES} == {s: drops.get(s, 0) for s in STAGES}
+    assert all(d[s] == 0 for s in STAGES)
+
+
+def test_self_drop_move_keeps_the_stats_on_a_miss(monkeypatch, make_pokemon, make_battle):
+    """The drop is part of the hit"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.MISS)
+    arr = make_battle([make_pokemon("Machop", 50, "Guts", ["Close Combat"])],
+                      [make_pokemon("Onix", 50, "Sturdy", ["Harden"])])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.DEFENSE_STAT_STAGE], me[Pok.SPECIAL_DEFENSE_STAT_STAGE]) == (0, 0)

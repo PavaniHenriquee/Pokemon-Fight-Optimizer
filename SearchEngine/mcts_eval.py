@@ -14,7 +14,7 @@ from Models.constants import (
     _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_TOXIC_SPIKES, _FIELD_GRAVITY_TURNS,
     _MOVENAME_GRAVITY, _MOVE_OH_KO, _TYPES_GROUND, _MOVE_STATUS, _MOVE_VOL_STATUS,
     _MOVE_BOOST_ACC, _POK_ACCURACY_STAT_STAGE, _MOVENAME_SUBSTITUTE, _MOVENAME_EMBARGO,
-    _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _ITEM_ID,
+    _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _ITEM_ID, _SEC_TARGET,
 )
 from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
@@ -303,8 +303,11 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                         else:  # 0.5x
                             weight = 1
 
-                    # Secondary effect scaled by chance
-                    if move[_SEC_CHANCE]:
+                    # Secondary effect scaled by chance. A sure one on the user is the move's
+                    # own stat drop (Close Combat), not a bonus
+                    if move[_SEC_CHANCE] and not (
+                        move[_SEC_CHANCE] == 100 and move[_SEC_TARGET] in TARGET_SELF_SIDE
+                    ):
                         weight += move[_SEC_CHANCE] // 10
 
         else:  # switch

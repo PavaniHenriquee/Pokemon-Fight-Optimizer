@@ -770,3 +770,27 @@ def test_destiny_knot_infatuates_the_attract_user(poke, user_ability, user_gende
     assert d[Pok.VOL_STATUS] & VolStatus.ATTRACT
     assert bool(a[Pok.VOL_STATUS] & VolStatus.ATTRACT) == both
     assert bool(a[Pok.AB_KNOWN]) == (user_ability == "Oblivious")
+
+
+@pytest.mark.parametrize("move, roll, stage, target, change", [
+    ("Crunch", 20, Pok.DEFENSE_STAT_STAGE, "foe", -1),
+    ("Crunch", 21, Pok.DEFENSE_STAT_STAGE, "foe", 0),
+    ("Seed Flare", 40, Pok.SPECIAL_DEFENSE_STAT_STAGE, "foe", -2),
+    ("Mirror Shot", 30, Pok.ACCURACY_STAT_STAGE, "foe", -1),
+    ("Moonblast", 30, Pok.SPECIAL_ATTACK_STAT_STAGE, "foe", -1),
+    ("Play Rough", 10, Pok.ATTACK_STAT_STAGE, "foe", -1),
+    ("Charge Beam", 70, Pok.SPECIAL_ATTACK_STAT_STAGE, "user", 1),
+    ("Charge Beam", 71, Pok.SPECIAL_ATTACK_STAT_STAGE, "user", 0),
+    ("Meteor Mash", 20, Pok.ATTACK_STAT_STAGE, "user", 1),
+    ("Steel Wing", 10, Pok.DEFENSE_STAT_STAGE, "user", 1),
+    ("Ancient Power", 10, Pok.SPEED_STAT_STAGE, "user", 1),
+    ("Ominous Wind", 11, Pok.SPEED_STAT_STAGE, "user", 0),
+])
+def test_stat_change_on_hit_rolls_its_chance(monkeypatch, poke, move, roll, stage, target, change):
+    """The secondary lands at its chance and on the right side"""
+    monkeypatch.setattr(status_calc.random, "randint", lambda a, b: roll)
+    a = poke("Machop", 50, "Guts", [move])
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    sec_effects(move_slice(a, 0), a, d, 0)
+    assert (a if target == "user" else d)[stage] == change
+    assert (d if target == "user" else a)[stage] == 0

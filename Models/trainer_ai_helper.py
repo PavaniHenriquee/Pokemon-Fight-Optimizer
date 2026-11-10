@@ -50,6 +50,8 @@ from Models.constants import (
     _ITEMNAMES_CHARTI_BERRY, _ITEMNAMES_KASIB_BERRY, _ITEMNAMES_HABAN_BERRY, _ITEMNAMES_COLBUR_BERRY,
     _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE, _POK_TURNS_ACTIVE,
     _MOVE_CRIT_RATIO, _MOVE_CHARGE_RECHARGE, _MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB,
+    _MOVENAME_CLOSE_COMBAT, _MOVENAME_OVERHEAT, _MOVENAME_DRACO_METEOR, _MOVENAME_LEAF_STORM,
+    _MOVENAME_PSYCHO_BOOST, _MOVENAME_SUPERPOWER, _MOVENAME_HAMMER_ARM,
     _MOVENAME_MUD_SHOT, _MOVENAME_TICKLE, _MOVENAME_BULK_UP, _VOLSTATUS_FOCUS_ENERGY,
     _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE, _ABILITYNAMES_ROUGH_SKIN, _ABILITYNAMES_ROCK_HEAD,
     _MOVENAME_NATURAL_GIFT, _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _MOVENAME_LOW_KICK,
@@ -240,6 +242,11 @@ BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MO
 # Moves Pokemow gives no Basic and no Expert check at all
 NO_AI_CHECK_M = (_MOVENAME_CHARGE,)
 SPEED_DOWN_ON_HIT = (_MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB, _MOVENAME_MUD_SHOT)
+# Expert_CloseCombat and Expert_Overheat (USER_SP_ATK_DOWN_2) are the same check
+SELF_DROP_HP_M = (
+    _MOVENAME_CLOSE_COMBAT, _MOVENAME_OVERHEAT, _MOVENAME_DRACO_METEOR, _MOVENAME_LEAF_STORM,
+    _MOVENAME_PSYCHO_BOOST
+)
 # pokeplatinum BATTLE_EFFECT_STATUS_CONFUSE, which Expert_Substitute reads off the target's last move
 CONFUSE_EFFECT_M = (_MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS)
 # Moves the Expert AI looks for among the ones it saw the target use. Detect and Shadow Force
@@ -289,11 +296,11 @@ ENCORE_ENCOURAGED_M = (
     MoveName.AQUA_RING, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
-# pokeplatinum Basic_SoundproofMoves, the ones in MoveDB (Snore, Metal Sound and Bug Buzz
+# pokeplatinum Basic_SoundproofMoves, the ones in MoveDB (Snore and Metal Sound
 # aren't). Perish Song and Hyper Voice aren't on it
 SOUNDPROOF_M = (
     MoveName.GROWL, MoveName.ROAR, MoveName.SING, MoveName.SUPERSONIC, MoveName.SCREECH,
-    MoveName.UPROAR, MoveName.GRASS_WHISTLE, MoveName.CHATTER
+    MoveName.UPROAR, MoveName.GRASS_WHISTLE, MoveName.CHATTER, MoveName.BUG_BUZZ
 )
 # Recover is the only RESTORE_HALF_HP move in MoveDB, Synthesis the only HEAL_HALF_MORE_IN_SUN one
 HEAL_M = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
@@ -2211,6 +2218,30 @@ def expert_flag(
             return -3
         add_adjustment(rand, idx, 2, 186)
         return 0
+
+    # Expert_CloseCombat / Expert_Overheat: -1 if resisted, slower at 80% HP or less, or faster
+    # at 60% or less
+    if move[_MOVE_ID] in SELF_DROP_HP_M:
+        if effectiveness <= 0.5:
+            return -1
+        hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+        return -1 if hp_pct_ai <= (60 if move_first else 80) else 0
+
+    # Expert_Superpower: -1 if resisted, Attack below 0, slower at 60% HP or more, or faster
+    # above 40%
+    if move[_MOVE_ID] == _MOVENAME_SUPERPOWER:
+        if effectiveness <= 0.5 or ai_pok[_POK_ATTACK_STAT_STAGE] < 0:
+            return -1
+        hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+        if move_first:
+            return -1 if hp_pct_ai > 40 else 0
+        return -1 if hp_pct_ai >= 60 else 0
+
+    # Expert_HammerArm: -1 if resisted, +1 if slower
+    if move[_MOVE_ID] == _MOVENAME_HAMMER_ARM:
+        if effectiveness <= 0.5:
+            return -1
+        return 0 if move_first else 1
 
     # Recoil Moves (e.g. Take Down, Double-Edge)
     if move[_MOVE_RECOIL]:

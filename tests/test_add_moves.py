@@ -243,7 +243,10 @@ def test_build_entry_notes():
     """What MoveDB can't hold is left out and listed"""
     moves = _showdown()
     entry, notes = am.build_entry("Close Combat", moves["closecombat"], ROWS["closecombat"])
-    assert "self" not in entry and notes == ['self: {"boosts": {"def": -1, "spd": -1}}']
+    assert "self" not in entry and notes == []
+    assert entry["secondary"] == {"chance": 100, "def": -1, "spd": -1, "target": "self"}
+    entry, notes = am.build_entry("Baton Pass", moves["batonpass"], ROWS["batonpass"])
+    assert "secondary" not in entry and any(n.startswith("self: ") for n in notes)
     entry, notes = am.build_entry("Bounce", moves["bounce"], ROWS["bounce"])
     assert entry["charge"] == 1 and notes == ["engine work: condition, onTryMove"]
     entry, notes = am.build_entry("Bounce", moves["bounce"], None)

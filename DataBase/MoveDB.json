@@ -113,6 +113,29 @@
     "target": "self",
     "type": "Psychic"
   },
+  "Ancient Power": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "ancient_power",
+    "power": 60,
+    "pp": 5,
+    "secondary": {
+      "atk": 1,
+      "chance": 10,
+      "def": 1,
+      "spa": 1,
+      "spd": 1,
+      "speed": 1,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Rock"
+  },
   "Aqua Jet": {
     "accuracy": 100,
     "category": "Physical",
@@ -473,6 +496,25 @@
     "target": "normal",
     "type": "Bug"
   },
+  "Bug Buzz": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "sound": true
+    },
+    "name": "bug_buzz",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "chance": 10,
+      "spd": -1
+    },
+    "target": "normal",
+    "type": "Bug"
+  },
   "Bulk Up": {
     "accuracy": true,
     "boost_atk": 1,
@@ -531,6 +573,25 @@
     "type": "Electric",
     "vol_status": "charge"
   },
+  "Charge Beam": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "charge_beam",
+    "power": 50,
+    "pp": 10,
+    "secondary": {
+      "chance": 70,
+      "spa": 1,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Electric"
+  },
   "Charm": {
     "accuracy": 100,
     "boost_atk": -2,
@@ -586,6 +647,27 @@
     "target": "normal",
     "type": "Water",
     "vol_status": "partially_trapped"
+  },
+  "Close Combat": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "close_combat",
+    "power": 120,
+    "pp": 5,
+    "secondary": {
+      "chance": 100,
+      "def": -1,
+      "spd": -1,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Fighting"
   },
   "Comet Punch": {
     "accuracy": 85,
@@ -704,6 +786,45 @@
     },
     "target": "normal",
     "type": "Poison"
+  },
+  "Crunch": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "bite": true,
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "crunch",
+    "power": 80,
+    "pp": 15,
+    "secondary": {
+      "chance": 20,
+      "def": -1
+    },
+    "target": "normal",
+    "type": "Dark"
+  },
+  "Crush Claw": {
+    "accuracy": 95,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "crush_claw",
+    "power": 75,
+    "pp": 10,
+    "secondary": {
+      "chance": 50,
+      "def": -1
+    },
+    "target": "normal",
+    "type": "Normal"
   },
   "Curse": {
     "accuracy": true,
@@ -898,6 +1019,25 @@
     "target": "self",
     "type": "Normal"
   },
+  "Draco Meteor": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "draco_meteor",
+    "power": 130,
+    "pp": 5,
+    "secondary": {
+      "chance": 100,
+      "spa": -2,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Dragon"
+  },
   "Dragon Breath": {
     "accuracy": 100,
     "category": "Special",
@@ -1017,6 +1157,25 @@
     "target": "normal",
     "type": "Fighting"
   },
+  "Earth Power": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "non_sky": true,
+      "protect": true
+    },
+    "name": "earth_power",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "chance": 10,
+      "spd": -1
+    },
+    "target": "normal",
+    "type": "Ground"
+  },
   "Earthquake": {
     "accuracy": 100,
     "category": "Physical",
@@ -1092,6 +1251,25 @@
     "target": "self",
     "type": "Normal",
     "vol_status": "endure"
+  },
+  "Energy Ball": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "energy_ball",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "chance": 10,
+      "spd": -1
+    },
+    "target": "normal",
+    "type": "Grass"
   },
   "Explosion": {
     "accuracy": 100,
@@ -1364,6 +1542,24 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Flash Cannon": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "flash_cannon",
+    "power": 80,
+    "pp": 10,
+    "secondary": {
+      "chance": 10,
+      "spd": -1
+    },
+    "target": "normal",
+    "type": "Steel"
+  },
   "Flatter": {
     "accuracy": 100,
     "boost_spatk": 1,
@@ -1395,6 +1591,25 @@
     "pp": 10,
     "target": "normal",
     "type": "Dark"
+  },
+  "Focus Blast": {
+    "accuracy": 70,
+    "category": "Special",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "focus_blast",
+    "power": 120,
+    "pp": 5,
+    "secondary": {
+      "chance": 10,
+      "spd": -1
+    },
+    "target": "normal",
+    "type": "Fighting"
   },
   "Focus Energy": {
     "accuracy": true,
@@ -1660,6 +1875,27 @@
     "pp": 5,
     "target": "normal",
     "type": "Steel"
+  },
+  "Hammer Arm": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "hammer_arm",
+    "power": 100,
+    "pp": 10,
+    "secondary": {
+      "chance": 100,
+      "speed": -1,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Fighting"
   },
   "Harden": {
     "accuracy": true,
@@ -1996,6 +2232,25 @@
     "target": "normal",
     "type": "Steel"
   },
+  "Iron Tail": {
+    "accuracy": 75,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "iron_tail",
+    "power": 100,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "def": -1
+    },
+    "target": "normal",
+    "type": "Steel"
+  },
   "Karate Chop": {
     "accuracy": 100,
     "category": "Physical",
@@ -2059,6 +2314,25 @@
     },
     "target": "all_adjacent",
     "type": "Fire"
+  },
+  "Leaf Storm": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "leaf_storm",
+    "power": 130,
+    "pp": 5,
+    "secondary": {
+      "chance": 100,
+      "spa": -2,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Grass"
   },
   "Leech Seed": {
     "accuracy": 90,
@@ -2258,6 +2532,27 @@
     "target": "normal",
     "type": "Steel"
   },
+  "Meteor Mash": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "meteor_mash",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "atk": 1,
+      "chance": 20,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Steel"
+  },
   "Metronome": {
     "accuracy": true,
     "category": "Status",
@@ -2318,6 +2613,24 @@
     "target": "self",
     "type": "Flying"
   },
+  "Mirror Shot": {
+    "accuracy": 85,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "mirror_shot",
+    "power": 65,
+    "pp": 10,
+    "secondary": {
+      "accuracy": -1,
+      "chance": 30
+    },
+    "target": "normal",
+    "type": "Steel"
+  },
   "Mist": {
     "accuracy": true,
     "category": "Status",
@@ -2330,6 +2643,25 @@
     "side_condition": "mist",
     "target": "ally_side",
     "type": "Ice"
+  },
+  "Moonblast": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "kings_rock": true,
+    "name": "moonblast",
+    "power": 95,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "spa": -1
+    },
+    "target": "normal",
+    "type": "Fairy"
   },
   "Mud Bomb": {
     "accuracy": 85,
@@ -2398,6 +2730,25 @@
     },
     "target": "normal",
     "type": "Ground"
+  },
+  "Muddy Water": {
+    "accuracy": 85,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "non_sky": true,
+      "protect": true
+    },
+    "name": "muddy_water",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "accuracy": -1,
+      "chance": 30
+    },
+    "target": "all_adjacent_foes",
+    "type": "Water"
   },
   "Nasty Plot": {
     "accuracy": true,
@@ -2488,6 +2839,25 @@
     "target": "normal",
     "type": "Ghost"
   },
+  "Octazooka": {
+    "accuracy": 85,
+    "category": "Special",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "octazooka",
+    "power": 65,
+    "pp": 10,
+    "secondary": {
+      "accuracy": -1,
+      "chance": 50
+    },
+    "target": "normal",
+    "type": "Water"
+  },
   "Odor Sleuth": {
     "accuracy": true,
     "category": "Status",
@@ -2502,6 +2872,48 @@
     "target": "normal",
     "type": "Normal",
     "vol_status": "foresight"
+  },
+  "Ominous Wind": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "ominous_wind",
+    "power": 60,
+    "pp": 5,
+    "secondary": {
+      "atk": 1,
+      "chance": 10,
+      "def": 1,
+      "spa": 1,
+      "spd": 1,
+      "speed": 1,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Ghost"
+  },
+  "Overheat": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "overheat",
+    "power": 130,
+    "pp": 5,
+    "secondary": {
+      "chance": 100,
+      "spa": -2,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Fire"
   },
   "Peck": {
     "accuracy": 100,
@@ -2546,6 +2958,26 @@
     "pp": 20,
     "target": "normal",
     "type": "Bug"
+  },
+  "Play Rough": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "kings_rock": true,
+    "name": "play_rough",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "atk": -1,
+      "chance": 10
+    },
+    "target": "normal",
+    "type": "Fairy"
   },
   "Pluck": {
     "accuracy": 100,
@@ -2733,6 +3165,43 @@
     "pp": 10,
     "target": "normal",
     "type": "Normal"
+  },
+  "Psychic": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "psychic",
+    "power": 90,
+    "pp": 10,
+    "secondary": {
+      "chance": 10,
+      "spd": -1
+    },
+    "target": "normal",
+    "type": "Psychic"
+  },
+  "Psycho Boost": {
+    "accuracy": 90,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "psycho_boost",
+    "power": 140,
+    "pp": 5,
+    "secondary": {
+      "chance": 100,
+      "spa": -2,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Psychic"
   },
   "Psywave": {
     "accuracy": 100,
@@ -2970,6 +3439,25 @@
     "target": "all_adjacent_foes",
     "type": "Rock"
   },
+  "Rock Smash": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "rock_smash",
+    "power": 60,
+    "pp": 15,
+    "secondary": {
+      "chance": 50,
+      "def": -1
+    },
+    "target": "normal",
+    "type": "Fighting"
+  },
   "Rock Throw": {
     "accuracy": 90,
     "category": "Physical",
@@ -3179,6 +3667,24 @@
     "target": "normal",
     "type": "Grass"
   },
+  "Seed Flare": {
+    "accuracy": 85,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "seed_flare",
+    "power": 120,
+    "pp": 5,
+    "secondary": {
+      "chance": 40,
+      "spd": -2
+    },
+    "target": "normal",
+    "type": "Grass"
+  },
   "Seismic Toss": {
     "accuracy": 100,
     "category": "Physical",
@@ -3209,6 +3715,25 @@
     "pp": 5,
     "target": "all_adjacent",
     "type": "Normal"
+  },
+  "Shadow Ball": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "shadow_ball",
+    "power": 80,
+    "pp": 15,
+    "secondary": {
+      "chance": 20,
+      "spd": -1
+    },
+    "target": "normal",
+    "type": "Ghost"
   },
   "Sheer Cold": {
     "accuracy": 30,
@@ -3456,6 +3981,26 @@
     "target": "foe_side",
     "type": "Rock"
   },
+  "Steel Wing": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "steel_wing",
+    "power": 70,
+    "pp": 25,
+    "secondary": {
+      "chance": 10,
+      "def": 1,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Steel"
+  },
   "Stomp": {
     "accuracy": 100,
     "category": "Physical",
@@ -3555,6 +4100,27 @@
     "priority": 1,
     "target": "normal",
     "type": "Dark"
+  },
+  "Superpower": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "superpower",
+    "power": 120,
+    "pp": 5,
+    "secondary": {
+      "atk": -1,
+      "chance": 100,
+      "def": -1,
+      "target": "self"
+    },
+    "target": "normal",
+    "type": "Fighting"
   },
   "Supersonic": {
     "accuracy": 55,

@@ -11,8 +11,8 @@ Updated only when asked.
 - Done: 4.1 (simple held items), 4.2 (items with their own rules) and 4.3 (berries), 2026-11-08.
 - Done: 4.4 (choice items), 2026-11-09.
 - Done: 4.5 (item moves), and with it Phase 4, 2026-11-09. Its `benchmarks.run quick` on the home PC is still to do.
-- Done: 5.1 (status, flinch or confusion chance), 2026-11-09.
-- Next: 5.2, stat changes on hit.
+- Done: 5.1 (status, flinch or confusion chance) and 5.2 (stat changes on hit), 2026-11-09.
+- Next: 5.3, everything else in this phase.
 
 ## Goal
 
@@ -359,41 +359,41 @@ Binding:
 
 Target drop chance:
 
-- [ ] Bug Buzz
-- [ ] Crunch
-- [ ] Crush Claw
-- [ ] Earth Power
-- [ ] Energy Ball
-- [ ] Flash Cannon
-- [ ] Focus Blast
-- [ ] Iron Tail
-- [ ] Mirror Shot \*
-- [ ] Moonblast
-- [ ] Muddy Water
-- [ ] Octazooka
-- [ ] Play Rough
-- [ ] Psychic
-- [ ] Rock Smash \*
-- [ ] Shadow Ball
-- [ ] Seed Flare \*
+- [x] Bug Buzz
+- [x] Crunch
+- [x] Crush Claw
+- [x] Earth Power
+- [x] Energy Ball
+- [x] Flash Cannon
+- [x] Focus Blast
+- [x] Iron Tail
+- [x] Mirror Shot \*
+- [x] Moonblast
+- [x] Muddy Water
+- [x] Octazooka
+- [x] Play Rough
+- [x] Psychic
+- [x] Rock Smash \*
+- [x] Shadow Ball
+- [x] Seed Flare \*
 
 Self raise chance:
 
-- [ ] Charge Beam
-- [ ] Meteor Mash
-- [ ] Steel Wing \*
-- [ ] Ancient Power
-- [ ] Ominous Wind
+- [x] Charge Beam
+- [x] Meteor Mash
+- [x] Steel Wing \*
+- [x] Ancient Power
+- [x] Ominous Wind
 
 Self drop:
 
-- [ ] Close Combat(E) !
-- [ ] Superpower(E) !
-- [ ] Hammer Arm(E) !
-- [ ] Overheat !
-- [ ] Draco Meteor !
-- [ ] Leaf Storm !
-- [ ] Psycho Boost !
+- [x] Close Combat(E) !
+- [x] Superpower(E) !
+- [x] Hammer Arm(E) !
+- [x] Overheat !
+- [x] Draco Meteor !
+- [x] Leaf Storm !
+- [x] Psycho Boost !
 
 ### 5.3 Everything else in this phase
 
