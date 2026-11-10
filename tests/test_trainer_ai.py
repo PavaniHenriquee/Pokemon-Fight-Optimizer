@@ -59,6 +59,15 @@ KIT_DAMAGE = (
     "Rock Smash", "Shadow Ball", "Seed Flare", "Charge Beam", "Meteor Mash", "Steel Wing",
     "Ancient Power", "Ominous Wind", "Close Combat", "Superpower", "Hammer Arm", "Overheat",
     "Draco Meteor", "Leaf Storm", "Psycho Boost",
+    "Aqua Tail", "Cut", "Dazzling Gleam", "Dragon Claw", "Dragon Pulse", "Drill Peck", "Egg Bomb",
+    "Hyper Voice", "Judgment", "Mega Kick", "Mega Punch", "Megahorn", "Pay Day", "Power Gem",
+    "Power Whip", "Strength", "X-Scissor", "Slash", "Night Slash", "Psycho Cut", "Cross Chop",
+    "Stone Edge", "Leaf Blade", "Shadow Claw", "Crabhammer", "Drill Run", "Attack Order",
+    "Aeroblast", "Spacial Rend", "Bullet Punch", "Ice Shard", "Shadow Sneak", "Vacuum Wave",
+    "Aura Sphere", "Magnet Bomb", "Shadow Punch", "Vital Throw", "Bone Rush", "Icicle Spear",
+    "Spike Cannon", "Double Hit", "Bonemerang", "Double-Edge", "Brave Bird", "Wood Hammer",
+    "Head Smash", "Wild Charge", "Flare Blitz", "Giga Drain", "Leech Life", "Drain Punch",
+    "Sonic Boom",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -107,6 +116,8 @@ def _expert(ai_pok, user, effectiveness=1.0):
 
 @pytest.mark.parametrize("move", [
     "Karate Chop", "Razor Leaf", "Air Cutter", "Blaze Kick", "Cross Poison", "Poison Tail",
+    "Cut", "Slash", "Night Slash", "Psycho Cut", "Cross Chop", "Stone Edge", "Leaf Blade",
+    "Shadow Claw", "Crabhammer", "Drill Run", "Attack Order", "Aeroblast", "Spacial Rend",
 ])
 @pytest.mark.parametrize("effectiveness, queued", [
     (0.0, []), (0.25, []), (0.5, []),   # resisted: no change
@@ -151,6 +162,19 @@ def test_expert_close_combat_and_overheat(poke, move, fast, hp_pct, effectivenes
     assert _expert(ai_pok, user, effectiveness) == (expected, [])
 
 
+@pytest.mark.parametrize("fast, hp_pct, queued", [
+    (False, 10, []),                                 # slower: no change
+    (True, 61, []),                                  # above 60%
+    (True, 60, [(-1, 61)]), (True, 40, [(-1, 61)]),  # 76/256 * 206/256 = 23.9%
+    (True, 39, [(-1, 206)]),                         # below 40%: 80.5%
+])
+def test_expert_vital_throw(poke, fast, hp_pct, queued):
+    """pokeplatinum Expert_VitalThrow, which never reaches the never-miss branch"""
+    ai_pok, user = _expert_at(poke, "Vital Throw", fast, hp_pct)
+    ai_pok[Pok.ACCURACY_STAT_STAGE] = -5
+    assert _expert(ai_pok, user) == (0, queued)
+
+
 @pytest.mark.parametrize("fast, hp_pct, effectiveness, atk_stage, expected", [
     (True, 10, 0.5, 0, -1), (True, 10, 1.0, -1, -1),   # resisted, Attack below 0
     (True, 41, 1.0, 0, -1), (True, 40, 1.0, 0, 0),     # faster: above 40%
@@ -179,7 +203,10 @@ def test_expert_speed_down_only_named_moves(poke):
     assert _expert(ai_pok, user) == (0, [])
 
 
-@pytest.mark.parametrize("move", ["Aerial Ace", "Feint Attack", "Magical Leaf", "Swift", "Shock Wave"])
+@pytest.mark.parametrize("move", [
+    "Aerial Ace", "Feint Attack", "Magical Leaf", "Swift", "Shock Wave", "Aura Sphere", "Magnet Bomb",
+    "Shadow Punch",
+])
 def test_expert_never_miss_covers(poke, move):
     """CannotMiss branch: user accuracy -3 queues 60.9% of +1, -5 also adds a flat +1"""
     ai_pok = poke("Pidgey", 20, "Keen Eye", [move])
@@ -359,6 +386,25 @@ def test_expert_recoil(poke, ai_ability, effectiveness, expected):
     ai_pok = poke("Rattata", 20, ai_ability, ["Take Down"])
     user = poke("Rattata", 20, "Run Away", ["Tackle"])
     assert _expert(ai_pok, user, effectiveness) == (expected, [])
+
+
+@pytest.mark.parametrize("move", [
+    "Double-Edge", "Brave Bird", "Wood Hammer", "Head Smash", "Wild Charge", "Flare Blitz",
+])
+def test_expert_recoil_covers(poke, move):
+    """RECOIL_THIRD, RECOIL_HALF and RECOIL_BURN_HIT all go to Expert_RecoilMove"""
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert(poke("Rattata", 20, "Rock Head", [move]), user) == (1, [])
+    assert _expert(poke("Rattata", 20, "Run Away", [move]), user) == (0, [])
+
+
+@pytest.mark.parametrize("move", ["Giga Drain", "Leech Life", "Drain Punch"])
+def test_expert_drain_covers(poke, move):
+    """pokeplatinum Expert_DrainMove: 80.5% of -3 when resisted"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert(ai_pok, user, 1.0) == (0, [])
+    assert _expert(ai_pok, user, 0.5) == (0, [(-3, 206)])
 
 
 @pytest.mark.parametrize("ai_ability, ai_level, effectiveness, expected", [

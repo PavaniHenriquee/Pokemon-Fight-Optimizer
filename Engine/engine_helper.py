@@ -2344,10 +2344,11 @@ def struggle_recoil(pok):
 
 @njit
 def move_recoil(move, dealt):
-    """Recoil from a recoil move (Take Down), from the HP the target actually lost"""
+    """Recoil from a recoil move (Take Down), from the HP the target actually lost. Move.RECOIL
+    is the divisor (pokeplatinum subscript_recoil_1_4 / 1_3 / 1_2)"""
     if dealt <= 0:
         return 0
-    return max(1, dealt * move[_MOVE_RECOIL] // 100)
+    return max(1, dealt // move[_MOVE_RECOIL])
 
 
 @njit

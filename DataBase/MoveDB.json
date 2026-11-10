@@ -50,6 +50,23 @@
     "target": "any",
     "type": "Flying"
   },
+  "Aeroblast": {
+    "accuracy": 95,
+    "category": "Special",
+    "crit_ratio": 2,
+    "flags": {
+      "distance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "wind": true
+    },
+    "name": "aeroblast",
+    "power": 100,
+    "pp": 5,
+    "target": "any",
+    "type": "Flying"
+  },
   "Agility": {
     "accuracy": true,
     "boost_speed": 2,
@@ -164,6 +181,21 @@
     "type": "Water",
     "vol_status": "aqua_ring"
   },
+  "Aqua Tail": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "aqua_tail",
+    "power": 90,
+    "pp": 10,
+    "target": "normal",
+    "type": "Water"
+  },
   "Arm Thrust": {
     "accuracy": 100,
     "category": "Physical",
@@ -214,6 +246,21 @@
     "target": "normal",
     "type": "Ghost"
   },
+  "Attack Order": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "attack_order",
+    "power": 90,
+    "pp": 15,
+    "target": "normal",
+    "type": "Bug"
+  },
   "Attract": {
     "accuracy": 100,
     "category": "Status",
@@ -229,6 +276,23 @@
     "target": "normal",
     "type": "Normal",
     "vol_status": "attract"
+  },
+  "Aura Sphere": {
+    "accuracy": true,
+    "category": "Special",
+    "flags": {
+      "bullet": true,
+      "distance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "pulse": true
+    },
+    "name": "aura_sphere",
+    "power": 80,
+    "pp": 20,
+    "target": "any",
+    "type": "Fighting"
   },
   "Aurora Beam": {
     "accuracy": 100,
@@ -405,6 +469,36 @@
     "target": "normal",
     "type": "Ground"
   },
+  "Bone Rush": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "multi_hit": [2, 5],
+    "name": "bone_rush",
+    "power": 25,
+    "pp": 10,
+    "target": "normal",
+    "type": "Ground"
+  },
+  "Bonemerang": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "multi_hit": [2, 2],
+    "name": "bonemerang",
+    "power": 50,
+    "pp": 10,
+    "target": "normal",
+    "type": "Ground"
+  },
   "Bounce": {
     "accuracy": 85,
     "category": "Physical",
@@ -426,6 +520,23 @@
       "chance": 30,
       "status": "paralysis"
     },
+    "target": "any",
+    "type": "Flying"
+  },
+  "Brave Bird": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "distance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "brave_bird",
+    "power": 120,
+    "pp": 15,
+    "recoil": 3,
     "target": "any",
     "type": "Flying"
   },
@@ -542,6 +653,23 @@
     },
     "target": "all_adjacent",
     "type": "Ground"
+  },
+  "Bullet Punch": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "bullet_punch",
+    "power": 40,
+    "pp": 30,
+    "priority": 1,
+    "target": "normal",
+    "type": "Steel"
   },
   "Bullet Seed": {
     "accuracy": 100,
@@ -766,6 +894,38 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Crabhammer": {
+    "accuracy": 90,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "crabhammer",
+    "power": 100,
+    "pp": 10,
+    "target": "normal",
+    "type": "Water"
+  },
+  "Cross Chop": {
+    "accuracy": 80,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "cross_chop",
+    "power": 100,
+    "pp": 5,
+    "target": "normal",
+    "type": "Fighting"
+  },
   "Cross Poison": {
     "accuracy": 100,
     "category": "Physical",
@@ -838,6 +998,23 @@
     "type": "Ghost",
     "vol_status": "curse"
   },
+  "Cut": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "slicing": true
+    },
+    "name": "cut",
+    "power": 60,
+    "pp": 25,
+    "target": "normal",
+    "type": "Grass"
+  },
   "Dark Pulse": {
     "accuracy": 100,
     "category": "Special",
@@ -857,6 +1034,21 @@
     },
     "target": "any",
     "type": "Dark"
+  },
+  "Dazzling Gleam": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "kings_rock": true,
+    "name": "dazzling_gleam",
+    "power": 80,
+    "pp": 10,
+    "target": "all_adjacent_foes",
+    "type": "Fairy"
   },
   "Defense Curl": {
     "accuracy": true,
@@ -974,6 +1166,22 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Double Hit": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "multi_hit": [2, 2],
+    "name": "double_hit",
+    "power": 35,
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Double Kick": {
     "accuracy": 100,
     "category": "Physical",
@@ -1019,6 +1227,22 @@
     "target": "self",
     "type": "Normal"
   },
+  "Double-Edge": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "double_edge",
+    "power": 120,
+    "pp": 15,
+    "recoil": 3,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Draco Meteor": {
     "accuracy": 90,
     "category": "Special",
@@ -1056,6 +1280,21 @@
     "target": "normal",
     "type": "Dragon"
   },
+  "Dragon Claw": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "dragon_claw",
+    "power": 80,
+    "pp": 15,
+    "target": "normal",
+    "type": "Dragon"
+  },
   "Dragon Dance": {
     "accuracy": true,
     "boost_atk": 1,
@@ -1069,6 +1308,22 @@
     "name": "dragon_dance",
     "pp": 20,
     "target": "self",
+    "type": "Dragon"
+  },
+  "Dragon Pulse": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "distance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "pulse": true
+    },
+    "name": "dragon_pulse",
+    "power": 85,
+    "pp": 10,
+    "target": "any",
     "type": "Dragon"
   },
   "Dragon Rage": {
@@ -1104,6 +1359,23 @@
     "target": "normal",
     "type": "Dragon"
   },
+  "Drain Punch": {
+    "accuracy": 100,
+    "category": "Physical",
+    "drain": [1, 2],
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "drain_punch",
+    "power": 75,
+    "pp": 10,
+    "target": "normal",
+    "type": "Fighting"
+  },
   "Draining Kiss": {
     "accuracy": 100,
     "category": "Special",
@@ -1136,6 +1408,39 @@
     "pp": 15,
     "target": "normal",
     "type": "Psychic"
+  },
+  "Drill Peck": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "distance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "drill_peck",
+    "power": 80,
+    "pp": 20,
+    "target": "any",
+    "type": "Flying"
+  },
+  "Drill Run": {
+    "accuracy": 95,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "kings_rock": true,
+    "name": "drill_run",
+    "power": 80,
+    "pp": 10,
+    "target": "normal",
+    "type": "Ground"
   },
   "Dynamic Punch": {
     "accuracy": 50,
@@ -1190,6 +1495,21 @@
     "pp": 10,
     "target": "all_adjacent",
     "type": "Ground"
+  },
+  "Egg Bomb": {
+    "accuracy": 75,
+    "category": "Physical",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "egg_bomb",
+    "power": 100,
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
   },
   "Embargo": {
     "accuracy": 100,
@@ -1527,6 +1847,27 @@
     "target": "normal",
     "type": "Fire"
   },
+  "Flare Blitz": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "defrost": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "flare_blitz",
+    "power": 120,
+    "pp": 15,
+    "recoil": 3,
+    "secondary": {
+      "chance": 10,
+      "status": "burn"
+    },
+    "target": "normal",
+    "type": "Fire"
+  },
   "Flash": {
     "accuracy": 100,
     "boost_acc": -1,
@@ -1755,6 +2096,21 @@
     "target": "normal",
     "type": "Psychic"
   },
+  "Giga Drain": {
+    "accuracy": 100,
+    "category": "Special",
+    "drain": [1, 2],
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "giga_drain",
+    "power": 75,
+    "pp": 10,
+    "target": "normal",
+    "type": "Grass"
+  },
   "Grass Whistle": {
     "accuracy": 55,
     "category": "Status",
@@ -1910,6 +2266,22 @@
     "target": "self",
     "type": "Normal"
   },
+  "Head Smash": {
+    "accuracy": 80,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "head_smash",
+    "power": 150,
+    "pp": 5,
+    "recoil": 2,
+    "target": "normal",
+    "type": "Rock"
+  },
   "Headbutt": {
     "accuracy": 100,
     "category": "Physical",
@@ -2055,6 +2427,21 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Hyper Voice": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "sound": true
+    },
+    "name": "hyper_voice",
+    "power": 90,
+    "pp": 10,
+    "target": "all_adjacent_foes",
+    "type": "Normal"
+  },
   "Hypnosis": {
     "accuracy": 60,
     "category": "Status",
@@ -2148,6 +2535,21 @@
     "target": "normal",
     "type": "Ice"
   },
+  "Ice Shard": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "ice_shard",
+    "power": 40,
+    "pp": 30,
+    "priority": 1,
+    "target": "normal",
+    "type": "Ice"
+  },
   "Icicle Crash": {
     "accuracy": 90,
     "category": "Physical",
@@ -2164,6 +2566,21 @@
       "chance": 30,
       "vol_status": "flinch"
     },
+    "target": "normal",
+    "type": "Ice"
+  },
+  "Icicle Spear": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "multi_hit": [2, 5],
+    "name": "icicle_spear",
+    "power": 25,
+    "pp": 30,
     "target": "normal",
     "type": "Ice"
   },
@@ -2251,6 +2668,20 @@
     "target": "normal",
     "type": "Steel"
   },
+  "Judgment": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "judgment",
+    "power": 100,
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Karate Chop": {
     "accuracy": 100,
     "category": "Physical",
@@ -2315,6 +2746,23 @@
     "target": "all_adjacent",
     "type": "Fire"
   },
+  "Leaf Blade": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "slicing": true
+    },
+    "name": "leaf_blade",
+    "power": 90,
+    "pp": 15,
+    "target": "normal",
+    "type": "Grass"
+  },
   "Leaf Storm": {
     "accuracy": 90,
     "category": "Special",
@@ -2333,6 +2781,22 @@
     },
     "target": "normal",
     "type": "Grass"
+  },
+  "Leech Life": {
+    "accuracy": 100,
+    "category": "Physical",
+    "drain": [1, 2],
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "leech_life",
+    "power": 80,
+    "pp": 10,
+    "target": "normal",
+    "type": "Bug"
   },
   "Leech Seed": {
     "accuracy": 90,
@@ -2469,6 +2933,21 @@
     "type": "Fire",
     "vol_status": "partially_trapped"
   },
+  "Magnet Bomb": {
+    "accuracy": true,
+    "category": "Physical",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "magnet_bomb",
+    "power": 60,
+    "pp": 20,
+    "target": "normal",
+    "type": "Steel"
+  },
   "Magnitude": {
     "accuracy": 100,
     "category": "Physical",
@@ -2511,6 +2990,52 @@
     "pp": 15,
     "target": "normal",
     "type": "Grass"
+  },
+  "Mega Kick": {
+    "accuracy": 75,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "mega_kick",
+    "power": 120,
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
+  },
+  "Mega Punch": {
+    "accuracy": 85,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "mega_punch",
+    "power": 80,
+    "pp": 20,
+    "target": "normal",
+    "type": "Normal"
+  },
+  "Megahorn": {
+    "accuracy": 85,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "megahorn",
+    "power": 120,
+    "pp": 10,
+    "target": "normal",
+    "type": "Bug"
   },
   "Metal Claw": {
     "accuracy": 95,
@@ -2811,6 +3336,23 @@
     "target": "normal",
     "type": "Grass"
   },
+  "Night Slash": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "slicing": true
+    },
+    "name": "night_slash",
+    "power": 70,
+    "pp": 15,
+    "target": "normal",
+    "type": "Dark"
+  },
   "Nightmare": {
     "accuracy": 100,
     "category": "Status",
@@ -2914,6 +3456,20 @@
     },
     "target": "normal",
     "type": "Fire"
+  },
+  "Pay Day": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "pay_day",
+    "power": 40,
+    "pp": 20,
+    "target": "normal",
+    "type": "Normal"
   },
   "Peck": {
     "accuracy": 100,
@@ -3121,6 +3677,35 @@
     "target": "all_adjacent_foes",
     "type": "Ice"
   },
+  "Power Gem": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "power_gem",
+    "power": 80,
+    "pp": 20,
+    "target": "normal",
+    "type": "Rock"
+  },
+  "Power Whip": {
+    "accuracy": 85,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "power_whip",
+    "power": 120,
+    "pp": 10,
+    "target": "normal",
+    "type": "Grass"
+  },
   "Protect": {
     "accuracy": true,
     "category": "Status",
@@ -3200,6 +3785,22 @@
       "spa": -2,
       "target": "self"
     },
+    "target": "normal",
+    "type": "Psychic"
+  },
+  "Psycho Cut": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "slicing": true
+    },
+    "name": "psycho_cut",
+    "power": 70,
+    "pp": 20,
     "target": "normal",
     "type": "Psychic"
   },
@@ -3735,6 +4336,54 @@
     "target": "normal",
     "type": "Ghost"
   },
+  "Shadow Claw": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "shadow_claw",
+    "power": 80,
+    "pp": 15,
+    "target": "normal",
+    "type": "Ghost"
+  },
+  "Shadow Punch": {
+    "accuracy": true,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "punch": true
+    },
+    "name": "shadow_punch",
+    "power": 80,
+    "pp": 15,
+    "target": "normal",
+    "type": "Ghost"
+  },
+  "Shadow Sneak": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "shadow_sneak",
+    "power": 40,
+    "pp": 30,
+    "priority": 1,
+    "target": "normal",
+    "type": "Ghost"
+  },
   "Sheer Cold": {
     "accuracy": 30,
     "category": "Special",
@@ -3832,6 +4481,23 @@
     },
     "name": "slam",
     "power": 80,
+    "pp": 20,
+    "target": "normal",
+    "type": "Normal"
+  },
+  "Slash": {
+    "accuracy": 100,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "slicing": true
+    },
+    "name": "slash",
+    "power": 70,
     "pp": 20,
     "target": "normal",
     "type": "Normal"
@@ -3936,6 +4602,35 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Sonic Boom": {
+    "accuracy": 90,
+    "category": "Special",
+    "damage": 20,
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "sonic_boom",
+    "pp": 20,
+    "target": "normal",
+    "type": "Normal"
+  },
+  "Spacial Rend": {
+    "accuracy": 95,
+    "category": "Special",
+    "crit_ratio": 2,
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "spacial_rend",
+    "power": 100,
+    "pp": 5,
+    "target": "normal",
+    "type": "Dragon"
+  },
   "Spark": {
     "accuracy": 100,
     "category": "Physical",
@@ -3954,6 +4649,21 @@
     },
     "target": "normal",
     "type": "Electric"
+  },
+  "Spike Cannon": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "multi_hit": [2, 5],
+    "name": "spike_cannon",
+    "power": 20,
+    "pp": 15,
+    "target": "normal",
+    "type": "Normal"
   },
   "Splash": {
     "accuracy": true,
@@ -4018,6 +4728,41 @@
     "secondary": {
       "chance": 30,
       "vol_status": "flinch"
+    },
+    "target": "normal",
+    "type": "Normal"
+  },
+  "Stone Edge": {
+    "accuracy": 80,
+    "category": "Physical",
+    "crit_ratio": 2,
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "stone_edge",
+    "power": 100,
+    "pp": 5,
+    "target": "normal",
+    "type": "Rock"
+  },
+  "Strength": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "strength",
+    "power": 100,
+    "pp": 15,
+    "secondary": {
+      "atk": 1,
+      "chance": 10,
+      "target": "self"
     },
     "target": "normal",
     "type": "Normal"
@@ -4269,7 +5014,7 @@
     "name": "take_down",
     "power": 90,
     "pp": 20,
-    "recoil": 25,
+    "recoil": 4,
     "target": "normal",
     "type": "Normal"
   },
@@ -4522,6 +5267,21 @@
     "target": "random_normal",
     "type": "Normal"
   },
+  "Vacuum Wave": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "vacuum_wave",
+    "power": 40,
+    "pp": 30,
+    "priority": 1,
+    "target": "normal",
+    "type": "Fighting"
+  },
   "Vice Grip": {
     "accuracy": 100,
     "category": "Physical",
@@ -4551,6 +5311,22 @@
     "pp": 25,
     "target": "normal",
     "type": "Grass"
+  },
+  "Vital Throw": {
+    "accuracy": true,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "vital_throw",
+    "power": 70,
+    "pp": 10,
+    "priority": -1,
+    "target": "normal",
+    "type": "Fighting"
   },
   "Water Gun": {
     "accuracy": 100,
@@ -4649,6 +5425,23 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Wild Charge": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "kings_rock": true,
+    "name": "wild_charge",
+    "power": 100,
+    "pp": 15,
+    "recoil": 4,
+    "target": "normal",
+    "type": "Electric"
+  },
   "Will-O-Wisp": {
     "accuracy": 85,
     "category": "Status",
@@ -4693,6 +5486,22 @@
     "target": "self",
     "type": "Water"
   },
+  "Wood Hammer": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "wood_hammer",
+    "power": 120,
+    "pp": 15,
+    "recoil": 3,
+    "target": "normal",
+    "type": "Grass"
+  },
   "Worry Seed": {
     "accuracy": 100,
     "category": "Status",
@@ -4723,6 +5532,22 @@
     "target": "normal",
     "type": "Normal",
     "vol_status": "partially_trapped"
+  },
+  "X-Scissor": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "slicing": true
+    },
+    "name": "x_scissor",
+    "power": 80,
+    "pp": 15,
+    "target": "normal",
+    "type": "Bug"
   },
   "Yawn": {
     "accuracy": true,

@@ -122,6 +122,21 @@ def test_priority_beats_speed(poke):
     assert (mv1, mv2, count, first_is_mine) == (1, 0, 2, True)
 
 
+@pytest.mark.parametrize("move", ["Bullet Punch", "Ice Shard", "Shadow Sneak", "Vacuum Wave"])
+def test_new_priority_moves_go_first(poke, move):
+    """+1 like Quick Attack"""
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle", move])
+    fast = poke("Rattata", 50, "Run Away", ["Tackle"])
+    assert move_order(slow, 1, fast, 0, False, False, 0) == (1, 0, 2, True)
+
+
+def test_vital_throw_goes_last(poke):
+    """Vital Throw (-1) moves after a slower Tackle"""
+    fast = poke("Rattata", 50, "Run Away", ["Vital Throw"])
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    assert move_order(fast, 0, slow, 0, False, False, 0)[3] is False
+
+
 def test_negative_priority_goes_last(poke):
     """Counter (-5) moves after a slower Tackle"""
     me = poke("Rattata", 50, "Run Away", ["Counter"])
@@ -1427,6 +1442,7 @@ def test_freeze_keeps_the_lock(monkeypatch, poke):
 
 @pytest.mark.parametrize("move, thaws", [
     ("Flame Wheel", True), ("Sacred Fire", True), ("Scald", True), ("Flamethrower", False),
+    ("Flare Blitz", True),
 ])
 def test_defrost_move_thaws_its_frozen_user(monkeypatch, poke, move, thaws):
     """pokeplatinum CHECK_STATUS_STATE_SELF_THAW: a defrost move goes through a failed thaw roll"""
@@ -1480,6 +1496,17 @@ def test_struggle_uses_attack_abilities(poke):
 def test_take_down_recoil(poke, dealt, recoil):
     """A quarter of the HP the target lost, at least 1"""
     a = poke("Rattata", 50, "Run Away", ["Take Down"])
+    assert move_recoil(move_slice(a, 0), dealt) == recoil
+
+
+@pytest.mark.parametrize("move, dealt, recoil", [
+    ("Double-Edge", 2, 1), ("Double-Edge", 99, 33), ("Double-Edge", 300, 100),
+    ("Brave Bird", 100, 33), ("Wood Hammer", 101, 33), ("Flare Blitz", 3, 1),
+    ("Head Smash", 1, 1), ("Head Smash", 99, 49), ("Wild Charge", 99, 24),
+])
+def test_recoil_is_a_whole_fraction_of_the_damage(poke, move, dealt, recoil):
+    """pokeplatinum subscript_recoil_1_3 / 1_2 / 1_4 divide the damage: a third isn't 33%"""
+    a = poke("Rattata", 50, "Run Away", [move])
     assert move_recoil(move_slice(a, 0), dealt) == recoil
 
 
@@ -2527,6 +2554,14 @@ def test_water_absorb_ignores_water_status_moves(poke, move):
     d[Pok.CURRENT_HP] = 10
     assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.HIT
     assert d[Pok.CURRENT_HP] == 10
+
+
+def test_sonic_boom_doesnt_hit_a_ghost(monkeypatch, poke):
+    """Fixed damage still goes through the type check"""
+    _always_hit(monkeypatch)
+    a = poke("Magnemite", 50, "Sturdy", ["Sonic Boom"])
+    d = poke("Gastly", 50, "Levitate", ["Tackle"])
+    assert calculate_hit_miss(move_slice(a, 0), a, d, 0) == MoveOutcome.INVULNERABLE
 
 
 @pytest.mark.parametrize("move, outcome", [

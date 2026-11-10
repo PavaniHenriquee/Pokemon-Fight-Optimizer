@@ -785,6 +785,8 @@ def test_destiny_knot_infatuates_the_attract_user(poke, user_ability, user_gende
     ("Steel Wing", 10, Pok.DEFENSE_STAT_STAGE, "user", 1),
     ("Ancient Power", 10, Pok.SPEED_STAT_STAGE, "user", 1),
     ("Ominous Wind", 11, Pok.SPEED_STAT_STAGE, "user", 0),
+    ("Strength", 10, Pok.ATTACK_STAT_STAGE, "user", 1),  # RP's Strength
+    ("Strength", 11, Pok.ATTACK_STAT_STAGE, "user", 0),
 ])
 def test_stat_change_on_hit_rolls_its_chance(monkeypatch, poke, move, roll, stage, target, change):
     """The secondary lands at its chance and on the right side"""

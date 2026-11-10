@@ -12,7 +12,9 @@ Updated only when asked.
 - Done: 4.4 (choice items), 2026-11-09.
 - Done: 4.5 (item moves), and with it Phase 4, 2026-11-09. Its `benchmarks.run quick` on the home PC is still to do.
 - Done: 5.1 (status, flinch or confusion chance) and 5.2 (stat changes on hit), 2026-11-09.
-- Next: 5.3, everything else in this phase.
+- Done: 5.3 (everything else in this phase), and with it Phase 5, 2026-11-09. Its `benchmarks.run quick` on the
+  home PC is still to do.
+- Next: Phase 6, forced turns and hit rules.
 
 ## Goal
 
@@ -399,79 +401,79 @@ Self drop:
 
 Plain:
 
-- [ ] Aqua Tail
-- [ ] Cut \*
-- [ ] Dazzling Gleam
-- [ ] Dragon Claw
-- [ ] Dragon Pulse
-- [ ] Drill Peck
-- [ ] Egg Bomb
-- [ ] Hyper Voice
-- [ ] Judgment \* (Arceus, post-game: Normal without a plate)
-- [ ] Mega Kick
-- [ ] Mega Punch
-- [ ] Megahorn
-- [ ] Pay Day
-- [ ] Power Gem
-- [ ] Power Whip
-- [ ] Strength
-- [ ] X-Scissor
+- [x] Aqua Tail
+- [x] Cut \*
+- [x] Dazzling Gleam
+- [x] Dragon Claw
+- [x] Dragon Pulse
+- [x] Drill Peck
+- [x] Egg Bomb
+- [x] Hyper Voice
+- [x] Judgment \* (Arceus, post-game: Normal without a plate)
+- [x] Mega Kick
+- [x] Mega Punch
+- [x] Megahorn
+- [x] Pay Day
+- [x] Power Gem
+- [x] Power Whip
+- [x] Strength
+- [x] X-Scissor
 
 High crit:
 
-- [ ] Slash
-- [ ] Night Slash
-- [ ] Psycho Cut
-- [ ] Cross Chop
-- [ ] Stone Edge
-- [ ] Leaf Blade
-- [ ] Shadow Claw
-- [ ] Crabhammer \*
-- [ ] Drill Run ! (it's in Horn Drill's slot, see Known gaps)
-- [ ] Attack Order
-- [ ] Aeroblast
-- [ ] Spacial Rend
+- [x] Slash
+- [x] Night Slash
+- [x] Psycho Cut
+- [x] Cross Chop
+- [x] Stone Edge
+- [x] Leaf Blade
+- [x] Shadow Claw
+- [x] Crabhammer \*
+- [x] Drill Run ! (it's in Horn Drill's slot, see Known gaps)
+- [x] Attack Order
+- [x] Aeroblast
+- [x] Spacial Rend
 
 Priority:
 
-- [ ] Bullet Punch
-- [ ] Ice Shard
-- [ ] Shadow Sneak
-- [ ] Vacuum Wave
+- [x] Bullet Punch
+- [x] Ice Shard
+- [x] Shadow Sneak
+- [x] Vacuum Wave
 
 Sure hit:
 
-- [ ] Aura Sphere
-- [ ] Magnet Bomb
-- [ ] Shadow Punch
-- [ ] Vital Throw(E)
+- [x] Aura Sphere
+- [x] Magnet Bomb
+- [x] Shadow Punch
+- [x] Vital Throw(E)
 
 Multi-hit:
 
-- [ ] Bone Rush
-- [ ] Icicle Spear
-- [ ] Spike Cannon
-- [ ] Double Hit
-- [ ] Bonemerang
+- [x] Bone Rush
+- [x] Icicle Spear
+- [x] Spike Cannon
+- [x] Double Hit
+- [x] Bonemerang
 
 Recoil:
 
-- [ ] Double-Edge
-- [ ] Brave Bird
-- [ ] Wood Hammer
-- [ ] Head Smash
-- [ ] Wild Charge
-- [ ] Flare Blitz
+- [x] Double-Edge
+- [x] Brave Bird
+- [x] Wood Hammer
+- [x] Head Smash
+- [x] Wild Charge
+- [x] Flare Blitz
 
 Drain:
 
-- [ ] Giga Drain
-- [ ] Leech Life
-- [ ] Drain Punch
+- [x] Giga Drain
+- [x] Leech Life
+- [x] Drain Punch
 
 Fixed damage:
 
-- [ ] Sonic Boom
+- [x] Sonic Boom
 
 ## Phase 6: forced turns and hit rules
 

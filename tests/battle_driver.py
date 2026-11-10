@@ -335,6 +335,25 @@ def scenario_items():
     return my, opp, (_POTIONS_POTION, _POTIONS_POTION)
 
 
+def scenario_damage_moves():
+    """Phase 5: status, flinch and confusion chances, stat changes on hit (both sides, self drops),
+    high crit, priority both ways, sure hit, multi-hit, recoil (a third, a half, with a burn
+    chance), drain and fixed damage"""
+    my = [
+        _p("Lucario", 40, "Steadfast", ["Aura Sphere", "Bullet Punch", "Close Combat", "Dark Pulse"]),
+        _p("Rapidash", 40, "Run Away", ["Flare Blitz", "Megahorn", "Overheat", "Strength"]),
+        _p("Rampardos", 40, "Mold Breaker", ["Head Smash", "Stone Edge", "Crunch", "Ancient Power"]),
+        _p("Roserade", 40, "Natural Cure", ["Giga Drain", "Sludge Bomb", "Shadow Ball", "Leaf Storm"]),
+    ]
+    opp = [
+        _p("Machamp", 40, "No Guard", ["Vital Throw", "Cross Chop", "Rock Smash", "Double-Edge"]),
+        _p("Marowak", 40, "Rock Head", ["Bonemerang", "Bone Rush", "Double-Edge", "Iron Tail"]),
+        _p("Magneton", 40, "Sturdy", ["Sonic Boom", "Magnet Bomb", "Thunderbolt", "Flash Cannon"]),
+        _p("Weavile", 40, "Pressure", ["Ice Shard", "Night Slash", "Ice Punch", "Drain Punch"]),
+    ]
+    return my, opp, ()
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -346,6 +365,7 @@ SCENARIOS = {
     "move_calling": scenario_move_calling,
     "substitute": scenario_substitute,
     "items": scenario_items,
+    "damage_moves": scenario_damage_moves,
 }
 
 

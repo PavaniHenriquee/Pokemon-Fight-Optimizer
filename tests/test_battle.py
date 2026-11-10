@@ -338,6 +338,52 @@ def test_level_damage_moves_deal_user_level(poke, move):
     assert d[Pok.CURRENT_HP] == hp - 14
 
 
+@pytest.mark.parametrize("level", [5, 100])
+def test_sonic_boom_deals_20(poke, level):
+    """Always 20, whatever the stats"""
+    a = poke("Magnemite", level, "Sturdy", ["Sonic Boom"])
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    hp = d[Pok.CURRENT_HP]
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert hp - d[Pok.CURRENT_HP] == 20
+
+
+@pytest.mark.parametrize("move", ["Double-Edge", "Flare Blitz", "Head Smash", "Wild Charge"])
+def test_recoil_moves_recoil_from_hp_lost(monkeypatch, poke, move):
+    """A third, a half or a quarter of what the target lost"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    a = poke("Rattata", 50, "Run Away", [move])
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    a_hp, d_hp = a[Pok.CURRENT_HP], d[Pok.CURRENT_HP]
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    dealt = d_hp - d[Pok.CURRENT_HP]
+    assert dealt > 0
+    assert a_hp - a[Pok.CURRENT_HP] == max(1, dealt // move_slice(a, 0)[Move.RECOIL])
+
+
+@pytest.mark.parametrize("move", ["Double Hit", "Bonemerang"])
+def test_two_hit_moves_hit_twice(monkeypatch, poke, move):
+    """Double Hit and Bonemerang are 2 hits, like Double Kick"""
+    core = battle._ps_moves_core
+    calls = []
+
+    def counting_core(*args):
+        calls.append(1)
+        return core(*args)
+
+    monkeypatch.setattr(battle, "_ps_moves_core", counting_core)
+    a = poke("Machop", 50, "Guts", [move])
+    d = poke("Snorlax", 100, "Thick Fat", ["Tackle"])
+    battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+    assert len(calls) == 2
+
+
+def test_rp_cut_is_a_high_crit_move(poke):
+    """RP's Cut: Grass, 60 power, high critical ratio"""
+    cut = move_slice(poke("Rattata", 50, "Run Away", ["Cut"]), 0)
+    assert (cut[Move.CRIT_RATIO], cut[Move.POWER], cut[Move.TYPE]) == (2, 60, Types.GRASS)
+
+
 @pytest.mark.parametrize("level, roll, expected", [(30, 0, 15), (30, 10, 45), (30, 5, 30), (1, 0, 1)])
 def test_psywave_gen4_formula(monkeypatch, poke, level, roll, expected):
     """Effect script 0088: level * (rand(0..10) + 5) / 10, at least 1"""

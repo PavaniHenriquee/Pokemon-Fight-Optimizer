@@ -51,7 +51,7 @@ from Models.constants import (
     _ITEMNAMES_BABIRI_BERRY, _ITEMNAMES_CHILAN_BERRY, _ITEMNAMES_BLACK_SLUDGE, _POK_TURNS_ACTIVE,
     _MOVE_CRIT_RATIO, _MOVE_CHARGE_RECHARGE, _MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB,
     _MOVENAME_CLOSE_COMBAT, _MOVENAME_OVERHEAT, _MOVENAME_DRACO_METEOR, _MOVENAME_LEAF_STORM,
-    _MOVENAME_PSYCHO_BOOST, _MOVENAME_SUPERPOWER, _MOVENAME_HAMMER_ARM,
+    _MOVENAME_PSYCHO_BOOST, _MOVENAME_SUPERPOWER, _MOVENAME_HAMMER_ARM, _MOVENAME_VITAL_THROW,
     _MOVENAME_MUD_SHOT, _MOVENAME_TICKLE, _MOVENAME_BULK_UP, _VOLSTATUS_FOCUS_ENERGY,
     _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE, _ABILITYNAMES_ROUGH_SKIN, _ABILITYNAMES_ROCK_HEAD,
     _MOVENAME_NATURAL_GIFT, _ITEM_NATURAL_GIFT_POWER, _ITEM_NATURAL_GIFT_TYPE, _MOVENAME_LOW_KICK,
@@ -2177,6 +2177,15 @@ def expert_flag(
                 move_first, u_pok, hp_pct_u, my_last_move
             )
 
+    # Expert_VitalThrow, its own effect in pokeplatinum (not BYPASS_ACCURACY): faster at 60% HP
+    # or less, -1 at 206/256 below 40%, else at 76/256 * 206/256
+    if move[_MOVE_ID] == _MOVENAME_VITAL_THROW:
+        hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+        if not move_first or hp_pct_ai > 60:
+            return 0
+        add_adjustment(rand, idx, -1, 206 if hp_pct_ai < 40 else 61)
+        return 0
+
     # Moves Ignoring Accuracy (e.g. Aerial Ace, Shock Wave)
     if move[_MOVE_ACCURACY] == -1:  # -1 is how always hit moves is represented
         score = 0
@@ -2274,7 +2283,6 @@ def expert_flag(
     Mirror Move
     Dragon Dance
     Acupressure
-    Vital Throw
     Haze
     Conversion
     Rest
@@ -2342,7 +2350,6 @@ def expert_flag(
     Recovery Moves (e.g., Swallow)
     Charge Turn Moves Without Invulnerability (Razor Wind, Skull Bash, Sky Attack, Solar Beam/Blade)
     Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)
-    Recoil Moves (e.g. Submission, Flare Blitz, Double-Edge)
     Recharge-Turn Attacks (e.g. Hyper Beam, Giga Impact)
     Moves Which Change the User's Ability (Role Play, Skill Swap)
     Moves Which Decrease in Power With Less User HP (Water Spout, Eruption)

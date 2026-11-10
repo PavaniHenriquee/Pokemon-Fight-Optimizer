@@ -336,7 +336,7 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   and consistency.
 - The confusion self-hit has no weather, so Flower Gift's sun boost doesn't reach it
   (`early_returns` has no field state).
-- Drill Run (not in MoveDB): RP puts it in Horn Drill's slot, so [pp] Basic_Main's
+- Drill Run: RP puts it in Horn Drill's slot, so [pp] Basic_Main's
   `IfMoveEqualTo MOVE_HORN_DRILL` would skip its damage scoring if RP kept that script.
 - Not in MoveDB yet: Spikes damage, Magnet Rise, Rest, Snore, U-turn, Fly, Dive,
   Heal Block.
@@ -463,6 +463,12 @@ sources>`, `NUMBA_CACHE_ON=0` opts out; the installed app uses `%LOCALAPPDATA%`)
   31%, 1% with no valid recording, `BtlCmd_CheckChatterActivation`). Once Transform is in, a transformed Chatot
   mustn't confuse.
 - Scald: which [pp] effect RP gives it is unknown (ROM not read). No AI branch reads the burn-hit effects yet.
+- Wild Charge, Cut and Strength: which [pp] effect RP gives them is unknown too. The AI goes by their data:
+  recoil, high crit, and no branch for Strength's Attack raise (like Meteor Mash).
+- AI: Expert Vital Throw's middle case (40-60% HP) is two rolls in [pp] (76/256, then 206/256); the engine
+  queues one roll of 61/256 (23.8% for 23.9%).
+- MoveDB: Cut's `crit_ratio` and Strength's Attack raise are hand edits (RP effect changes, which `add_moves`
+  only prints), so `add_moves --check` should list both as different. Not run to confirm.
 - Tests that seed Metronome (`test_choice_item_locks_metronome_into_itself`, the `move_calling` golden scenario)
   call a different move each time `METRONOME_POOL` grows, so a MoveDB batch can move them.
 

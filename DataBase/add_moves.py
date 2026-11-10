@@ -313,7 +313,7 @@ def _basics(sd: dict, entry: dict, notes: list) -> None:
     if sd.get("critRatio", 1) != 1:
         entry["crit_ratio"] = sd["critRatio"]
     if sd.get("recoil"):
-        entry["recoil"] = sd["recoil"][0] * 100 // sd["recoil"][1]
+        entry["recoil"] = sd["recoil"][1] // sd["recoil"][0]  # the divisor: 4, 3 or 2
     if sd.get("multihit"):
         hits = sd["multihit"]
         entry["multi_hit"] = hits if isinstance(hits, list) else [hits, hits]

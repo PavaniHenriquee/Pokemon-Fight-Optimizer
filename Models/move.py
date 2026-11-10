@@ -114,7 +114,7 @@ class Moves():
             if side_condition
             else 0
         )
-        base_move_array[Move.RECOIL] = self.move.get('recoil', 0)  #Considering division by 100 later
+        base_move_array[Move.RECOIL] = self.move.get('recoil', 0)
         base_move_array[Move.CHARGE_RECHARGE] = self.move.get('charge', 0) - self.move.get('recharge', 0)
         drain = self.move.get('drain', 0)
         if not isinstance(drain, int):
