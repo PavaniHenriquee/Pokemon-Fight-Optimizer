@@ -16,6 +16,9 @@
   checks ([pp] `LOAD_MOVE_TYPE` reads the data type); [pp] Basic_Main skips the immunity check for
   Guillotine / Sheer Cold, so into Wonder Guard the engine gives -12, [pp] 0; [pp] always knows my
   Shadow Tag / Magnet Pull / Arena Trap (no script check reads them yet).
+- AI: `sub_after_death` phase 2 gives Weather Ball the weather's type for the whole damage calc; [pp]
+  `BattleAI_PostKOSwitchIn` passes only the type chart the variable type, `CalcMoveDamage` keeps the data type
+  (Normal), so [pp] adds no sun / rain boost there. Rounding only.
 - AI: Superpower and the recharge moves have no Basic branch of their own ([pp]
   `Basic_CheckNonStandardDamageOrChargeTurn`): the general checks cover them, with Pokemow's -12 into Wonder
   Guard where [pp]'s script gives -10.
@@ -24,8 +27,8 @@
 - AI: `PROTECT_LIKE_M` (the "saw the target use Protect" checks) holds only Protect. Detect goes in once it's in
   MoveDB ([pp] `IfMoveEffectKnown BATTLE_EFFECT_PROTECT` covers both).
 - AI: `ai_move_damage` uses the raw base power except for the semi-invulnerable doublings (6.3). Pokemow's
-  damage calc also sees Stomp vs Minimize, Brine, Rollout / Fury Cutter
-  streaks and Weather Ball (7.1).
+  damage calc also sees Stomp vs Minimize, Brine and Rollout / Fury Cutter
+  streaks (7.1).
 - AI: `ai_move_damage` doesn't weigh Jump Kick / High Jump Kick's crash (6.5) when the move could miss or hit an
   immune target. [pp] `script.s` has no branch for BATTLE_EFFECT_CRASH_ON_MISS, so this only matters past the script.
 - AI: `sub_after_death` stage 2 doesn't copy [pp]'s stale-score quirk (a skipped or empty move slot
@@ -60,6 +63,11 @@
   Rounding only.
 - The weather is read once per move execution, so a Cloud Nine holder fainting mid-move keeps it
   off for the rest of that move ([pp] checks live).
+- Natural Gift (`natural_gift`) writes the berry's type and power into the move slot itself, not a copy, so
+  after it the slot keeps them (the move fails without a berry, but the AI and the rollout read the slot).
+  Unconfirmed as a bug.
+- Forecast is checked by ability only. Fine while only Castform can hold it (Trace can't copy it); once Skill
+  Swap or Role Play exist, a non-Castform holder must not change ([pp] also checks `SPECIES_CASTFORM`).
 - Unverified: an absorbed move ends an Uproar like any immune target; the "Soundproof user can't
   use a sound move on its own side" rule isn't in [pp] `TriggerImmunityAbility`.
 - Thrash's fatigue confusion: Own Tempo always stops it. [pp] `subscript_confuse` checks it with
@@ -227,3 +235,4 @@
   `ui/button.tsx` and `ui/combobox.tsx`. `ConfigureView.tsx` has two `react-hooks/exhaustive-deps` warnings.
 - Setup: Natural Gift shows MoveDB's Normal with no power, the engine takes both from the held berry
   (Hidden Power follows the IVs, `lib/hiddenPower.ts`).
+- UI: Weather Ball shows MoveDB's Normal 50 in the move lists, the engine uses the weather's type and 100.

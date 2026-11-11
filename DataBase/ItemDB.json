@@ -461,6 +461,14 @@
     "type": "held",
     "when": "on_prepare_hit"
   },
+  "Heat Rock": {
+    "effect_param": 3,
+    "fling_power": 60,
+    "hold_effect": "extend_sun",
+    "name": "heat_rock",
+    "type": "held",
+    "when": "on_weather_change"
+  },
   "Iapapa Berry": {
     "effect_param": 8,
     "fling_power": 10,
@@ -477,6 +485,14 @@
     "hold_effect": "none",
     "name": "ice_stone",
     "type": "held"
+  },
+  "Icy Rock": {
+    "effect_param": 3,
+    "fling_power": 40,
+    "hold_effect": "extend_hail",
+    "name": "icy_rock",
+    "type": "held",
+    "when": "on_weather_change"
   },
   "Iron Ball": {
     "effect_param": 0,

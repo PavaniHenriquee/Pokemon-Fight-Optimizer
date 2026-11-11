@@ -290,6 +290,8 @@ class HoldEffect:
     CHOICE_ATK          = 76
     CHOICE_SPATK        = 77
     CHOICE_SPEED        = 78
+    EXTEND_SUN          = 79
+    EXTEND_HAIL         = 80
 
 
 _HP_RAW = tuple(i * POK_LEN + Pok.CURRENT_HP for i in range(6))

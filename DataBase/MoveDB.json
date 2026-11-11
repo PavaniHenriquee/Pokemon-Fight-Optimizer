@@ -2639,6 +2639,17 @@
     "target": "normal",
     "type": "Steel"
   },
+  "Hail": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true
+    },
+    "name": "hail",
+    "pp": 10,
+    "target": "all",
+    "type": "Ice"
+  },
   "Hammer Arm": {
     "accuracy": 90,
     "category": "Physical",
@@ -5953,6 +5964,17 @@
     "target": "normal",
     "type": "Dark"
   },
+  "Sunny Day": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true
+    },
+    "name": "sunny_day",
+    "pp": 5,
+    "target": "all",
+    "type": "Fire"
+  },
   "Super Fang": {
     "accuracy": 90,
     "category": "Physical",
@@ -6680,6 +6702,21 @@
     },
     "target": "normal",
     "type": "Water"
+  },
+  "Weather Ball": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "bullet": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "weather_ball",
+    "power": 50,
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
   },
   "Whirlpool": {
     "accuracy": 85,

@@ -21,7 +21,8 @@ Updated only when asked.
 - Done: 8.1 (stat stages), 2026-11-10.
 - Done: 8.2 (status and sleep) and 8.3 (healing), and with it Phase 8, 2026-11-11. Its `benchmarks.run quick`
   on the home PC is still to do.
-- Next: 9.1 (weather).
+- Done: 9.1 (weather), 2026-11-11.
+- Next: 9.2 (field).
 
 ## Goal
 
@@ -621,12 +622,12 @@ Fixed damage:
 
 ### 9.1 Weather
 
-- [ ] Sunny Day(E)
-- [ ] Hail(E)
-- [ ] Weather Ball !
-- [ ] Heat Rock
-- [ ] Icy Rock \*
-- [ ] Forecast (ability) !
+- [x] Sunny Day(E)
+- [x] Hail(E)
+- [x] Weather Ball !
+- [x] Heat Rock
+- [x] Icy Rock \*
+- [x] Forecast (ability) !
 
 ### 9.2 Field
 

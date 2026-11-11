@@ -29,7 +29,9 @@ from Engine.engine_helper import (
     calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails,
     has_substitute, heal_blocked
 )
-from Engine.ability_helper import levitates, effective_weather, normalized_type, grounded_by_item
+from Engine.ability_helper import (
+    levitates, effective_weather, normalized_type, grounded_by_item, weather_ball_move
+)
 from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
 from Engine.status_calc import (
     ability_blocks_status, stat_drop_blocked, STAT_MAPPING, sleep_blocked, SLEEP_AB_IM
@@ -238,7 +240,11 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
         opp_choice = -50
 
     if opp_choice != 10 and opp_choice>=0:  # Struggle
-        o_move = o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE]
+        # Weather Ball with the weather's type and power, as it will run
+        o_move = weather_ball_move(
+            o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE],
+            weather
+        )
         if o_move[_MOVE_OH_KO]:
             # Counted as a KO whenever it can work, so the safer path stays in mind
             o_dmg = 0 if ohko_fails(o_pok, c_pok) else c_pok[_POK_CURRENT_HP]
@@ -248,8 +254,8 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                 my_side, gravity
             )
         o_mv_type = normalized_type(o_pok, o_move)
-        imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx, gravity)
-        res   = check_resistance_pty(my_pty, o_pok, o_mv_type, my_idx, gravity)
+        imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx, gravity, weather)
+        res   = check_resistance_pty(my_pty, o_pok, o_mv_type, my_idx, gravity, weather)
     elif opp_choice < 0:  # Switch or potion
         o_dmg = 0
     else:
@@ -272,7 +278,9 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
         if a_type == _ACTIONTYPE_MOVE:
             if a_idx == 10:
                 continue
-            move = c_pok[OFFSET_MOVE + a_idx * MOVE_STRIDE: OFFSET_MOVE + (a_idx + 1) * MOVE_STRIDE]
+            move = weather_ball_move(
+                c_pok[OFFSET_MOVE + a_idx * MOVE_STRIDE: OFFSET_MOVE + (a_idx + 1) * MOVE_STRIDE], weather
+            )
             cat = move[_MOVE_CATEGORY]
 
             if cat == _MOVECATEGORY_STATUS:

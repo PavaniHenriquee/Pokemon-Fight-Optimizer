@@ -15,7 +15,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from DataBase.PkDB import PokIdToName, sprite_id
+from DataBase.PkDB import PokIdToName, sprite_id, CASTFORM_SPRITE_ID
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "frontend" / "public" / "sprites"
@@ -56,7 +56,7 @@ def jobs() -> list[tuple[str | tuple[str, ...], Path]]:
     """(url, destination) for every sprite. A tuple of urls is tried in order"""
     out = []
     poke = f"{POKEAPI}/pokemon"
-    for pid in sorted({sprite_id(i) for i in PokIdToName}):
+    for pid in sorted({sprite_id(i) for i in PokIdToName} | set(CASTFORM_SPRITE_ID.values())):
         out += [
             (f"{poke}/versions/generation-v/black-white/animated/{pid}.gif", OUT / "front" / f"{pid}.gif"),
             (f"{poke}/versions/generation-v/black-white/animated/back/{pid}.gif", OUT / "back" / f"{pid}.gif"),

@@ -36,7 +36,7 @@ from Utils.loader import natures
 from DataBase.loader import pkDB, moveDB, abDB, itemDB
 from DataBase.PkDB import PokemonName, PokIdToName, sprite_id
 from DataBase.support import TRAINER_ITEMS, trainer_lacks
-from .serializer import serialize_node, opp_move_label   # relative import within the backend package
+from .serializer import serialize_node, opp_move_label, battle_sprite   # relative import within the backend package
 
 # Put project root on path so Models/Engine/etc. are importable
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -541,10 +541,10 @@ async def node_info(node_id: str) -> dict:
 
     snap = node.snapshot
 
-    def _entry(pok_id: int, hp: int, max_hp: int, slot: int) -> dict:
+    def _entry(pok_id: int, hp: int, max_hp: int, slot: int, arr=None) -> dict:
         return {
             "slot":   slot,
-            "pok_id": sprite_id(pok_id),
+            "pok_id": sprite_id(pok_id) if arr is None else battle_sprite(arr),
             "name":   PokIdToName.get(pok_id, "?").capitalize(),
             "hp":     hp,
             "max_hp": max_hp,
@@ -557,6 +557,7 @@ async def node_info(node_id: str) -> dict:
             int(snap.my_slice[Pok.CURRENT_HP]),
             int(snap.my_slice[Pok.MAX_HP]),
             my_active_slot,
+            snap.my_slice,
         )
         if my_active_slot >= 0 else None
     )
@@ -566,6 +567,7 @@ async def node_info(node_id: str) -> dict:
         int(snap.opp_slice[Pok.CURRENT_HP]),
         int(snap.opp_slice[Pok.MAX_HP]),
         snap.opp_active,
+        snap.opp_slice,
     )
 
     my_bench = []

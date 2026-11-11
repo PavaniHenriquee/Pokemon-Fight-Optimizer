@@ -5,7 +5,7 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 from backend import main
-from backend.serializer import serialize_node, opp_move_label
+from backend.serializer import serialize_node, opp_move_label, battle_sprite
 from SearchEngine.models import (
     GameState, Node, reconstruct_battle_array, OPP_DIDNT_MOVE, OPP_STRUGGLED, OPP_SWITCHED,
     OPP_USED_ITEM, OPP_TURN_BITS,
@@ -13,7 +13,7 @@ from SearchEngine.models import (
 from SearchEngine.my_mcts import mcts_loop
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.PkDB import PokemonName
-from Models.helper import Gender
+from Models.helper import Gender, Types
 from Models.idx_const import Pok, POK_LEN, Move
 from battle_driver import build_scenario, pok_slice, move_slice
 
@@ -582,3 +582,14 @@ def test_build_battle_friendship():
 def test_box_entry_friendship_defaults_to_255():
     entry = main.BoxEntry(id="a", name="Lopunny")
     assert entry.friendship == 255
+
+
+@pytest.mark.parametrize("m_type, sprite", [
+    (Types.NORMAL, PokemonName.CASTFORM), (Types.FIRE, 10013), (Types.WATER, 10014), (Types.ICE, 10015),
+])
+def test_castform_sprite_follows_its_form(make_pokemon, m_type, sprite):
+    """The battle view shows Castform's sunny, rainy or snowy form for the type Forecast gave it"""
+    arr = make_pokemon("Castform", 30, "Forecast", ["Weather Ball"]).to_np()
+    arr[Pok.TYPE1] = m_type
+    assert battle_sprite(arr) == sprite
+    assert battle_sprite(make_pokemon("Charmander", 30, "Blaze", ["Ember"]).to_np()) == PokemonName.CHARMANDER

@@ -28,7 +28,9 @@ from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
     ability_blocks_status, cure_status,
 )
-from Engine.ability_helper import reveal_ability, effective_weather, normalized_type
+from Engine.ability_helper import (
+    reveal_ability, effective_weather, normalized_type, weather_ball_move, forecast_actives
+)
 from Engine.damage_calc import (
     calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, EXPLODE_MOVES, SEMI_INVULNERABLE_MOVES,
     NO_WEATHER_MOVES, beat_up_damage, TRIPLE_KICK_STEP,
@@ -86,7 +88,8 @@ from Models.constants import (
     _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _POK_SEMI_INV_MOVE, _FIELD_GRAVITY_TURNS,
     _MOVENAME_GRAVITY, _MOVENAME_MINIMIZE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _FLAGS_GRAVITY,
     _ITEM_HOLD_EFFECT, _ITEM_EFFECT_PARAM, _HOLDEFFECT_EXTEND_SCREENS, _HOLDEFFECT_EXTEND_SANDSTORM,
-    _HOLDEFFECT_EXTEND_RAIN, _HOLDEFFECT_EXTEND_TRAPPING,
+    _HOLDEFFECT_EXTEND_RAIN, _HOLDEFFECT_EXTEND_TRAPPING, _HOLDEFFECT_EXTEND_SUN, _HOLDEFFECT_EXTEND_HAIL,
+    _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL, _WEATHER_HAIL, _MOVENAME_WEATHER_BALL,
     _HOLDEFFECT_BRN_USER, _POK_TYPE1, _POK_TYPE2, _TYPES_FIRE,
     _FIELD_MY_ENTER_FIELD, _ABILITYNAMES_ROCK_HEAD,
     _MOVE_OH_KO, _ABILITYNAMES_ANGER_POINT, _ABILITYNAMES_SKILL_LINK, _ABILITYNAMES_HYDRATION,
@@ -152,7 +155,15 @@ FIELD_EFFECT_TURNS = 5
 TOXIC_SPIKES_MAX = 2
 # Leftovers, and Black Sludge on a Poison type
 GRADUAL_HEAL_EFFECTS = (_HOLDEFFECT_HP_RESTORE_GRADUAL, _HOLDEFFECT_HP_RESTORE_PSN_TYPE)
-WEATHER_MOVES = ((_MOVENAME_RAIN_DANCE, _WEATHER_RAIN), (_MOVENAME_SANDSTORM, _WEATHER_SANDSTORM))
+WEATHER_MOVES = (
+    (_MOVENAME_RAIN_DANCE, _WEATHER_RAIN), (_MOVENAME_SANDSTORM, _WEATHER_SANDSTORM),
+    (_MOVENAME_SUNNY_DAY, _WEATHER_SUN), (_MOVENAME_HAIL, _WEATHER_HAIL)
+)
+# The held rock that lengthens each weather: Damp Rock, Smooth Rock, Heat Rock, Icy Rock
+WEATHER_ROCKS = (
+    (_WEATHER_RAIN, _HOLDEFFECT_EXTEND_RAIN), (_WEATHER_SANDSTORM, _HOLDEFFECT_EXTEND_SANDSTORM),
+    (_WEATHER_SUN, _HOLDEFFECT_EXTEND_SUN), (_WEATHER_HAIL, _HOLDEFFECT_EXTEND_HAIL)
+)
 # Stealth Rock and Toxic Spikes go on the foe's side, the other side conditions on the user's
 FOE_SIDE_TARGET = Target.FOE_SIDE
 # Self, side and field moves still work against a fainted foe
@@ -805,7 +816,7 @@ def _clear_charge(atk, mv):
 
 @njit
 def _held_extension(pok, effect):
-    """Extra turns a held Light Clay or Smooth Rock adds, its effect_param"""
+    """Extra turns a held Light Clay or weather rock adds, its effect_param"""
     return pok[_ITEM_EFFECT_PARAM] if pok[_ITEM_HOLD_EFFECT] == effect else 0
 
 
@@ -843,16 +854,16 @@ def _move_weather(move_id):
 
 @njit
 def _set_weather(battle_array, weather, user):
-    """Rain Dance and Sandstorm fail under the same weather, else it lasts 5 turns, plus the
-    user's Smooth Rock turns for Sandstorm and Damp Rock turns for Rain Dance."""
+    """A weather move fails under the same weather, whatever set it (Showdown; pokeplatinum's Hail
+    only fails under a move's hail), else it lasts 5 turns plus the user's matching rock
+    (pokeplatinum effect scripts 0115, 0136, 0137, 0164)"""
     if battle_array[_FIELD_WEATHER] == weather:
         return
     battle_array[_FIELD_WEATHER] = weather
     battle_array[_FIELD_WEATHER_DURATION] = FIELD_EFFECT_TURNS
-    if weather == _WEATHER_SANDSTORM:
-        battle_array[_FIELD_WEATHER_DURATION] += _held_extension(user, _HOLDEFFECT_EXTEND_SANDSTORM)
-    elif weather == _WEATHER_RAIN:
-        battle_array[_FIELD_WEATHER_DURATION] += _held_extension(user, _HOLDEFFECT_EXTEND_RAIN)
+    for rock_weather, effect in WEATHER_ROCKS:
+        if weather == rock_weather:
+            battle_array[_FIELD_WEATHER_DURATION] += _held_extension(user, effect)
 
 
 @njit
@@ -1072,6 +1083,8 @@ def _execute_move_slot(
         mv = _present_move(mv)
     elif mv[_MOVE_ID] == _MOVENAME_SECRET_POWER:
         mv = secret_power_move(mv, battle_array)
+    elif mv[_MOVE_ID] == _MOVENAME_WEATHER_BALL:
+        mv = weather_ball_move(mv, weather)
     move_hit = calculate_hit_miss(mv, atk, defn, weather, gravity, is_last)
     if move_hit != _MOVEOUTCOME_HIT:
         if mv[_MOVE_ID] == _MOVENAME_FLING:
@@ -1406,6 +1419,8 @@ def _after_move_items(battle_array):
     status_item(opp)
     recover_status_by_ability(mine)
     recover_status_by_ability(opp)
+    # A move or a switch it caused changed the weather (pokeplatinum BattleSystem_TriggerFormChange)
+    forecast_actives(battle_array)
 
 
 @njit
@@ -1832,6 +1847,7 @@ def end_of_turn(battle_array):
     weather = battle_array[_FIELD_WEATHER]
 
     _count_down_field(battle_array)
+    forecast_actives(battle_array)
     weather = effective_weather(battle_array)
 
     # Gen IV re-sorts by speed before the end of the turn, then weather hits everyone before the

@@ -545,9 +545,20 @@ FORM_SPRITE_ID = {
 }
 
 
+# Castform's forms, by the type Forecast gives it in battle: PokeAPI castform-sunny, -rainy, -snowy
+CASTFORM_SPRITE_ID = {"Fire": 10013, "Water": 10014, "Ice": 10015}
+
+
 def sprite_id(pok_id: int) -> int:
     """Id used by the frontend for PokeAPI sprites"""
     return FORM_SPRITE_ID.get(pok_id, pok_id)
+
+
+def battle_sprite_id(pok_id: int, type1: str) -> int:
+    """sprite_id in battle, where Castform shows the form of its current first type"""
+    if pok_id == PokemonName.CASTFORM:
+        return CASTFORM_SPRITE_ID.get(type1, pok_id)
+    return sprite_id(pok_id)
 
 _MAX_ABILITIES = 2  # adjust if you ever add 3-ability Pokemon
 _pool_np = np.zeros((POKEMON_LENGTH + 1, _MAX_ABILITIES), dtype=np.int16)

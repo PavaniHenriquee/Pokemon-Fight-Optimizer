@@ -6,11 +6,20 @@ from Models.constants import (
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _POK_AB_KNOWN, _POK_CURRENT_HP, _FIELD_MY_POK,
     _FIELD_OPP_POK, _FIELD_WEATHER, _ABILITYNAMES_CLOUD_NINE, _ABILITYNAMES_AIR_LOCK,
     _ABILITYNAMES_NORMALIZE, _MOVE_ID, _MOVE_TYPE, _MOVENAME_STRUGGLE, _TYPES_NORMAL,
-    _ITEM_HOLD_EFFECT, _HOLDEFFECT_SPEED_DOWN_GROUNDED,
+    _ITEM_HOLD_EFFECT, _HOLDEFFECT_SPEED_DOWN_GROUNDED, _MOVENAME_WEATHER_BALL, _MOVE_POWER,
+    _WEATHER_SUN, _WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL, _TYPES_FIRE, _TYPES_WATER,
+    _TYPES_ROCK, _TYPES_ICE, _ABILITYNAMES_FORECAST, _POK_TYPE1, _POK_TYPE2,
 )
 
 # Abilities that switch the weather's effects off while their holder is out
 WEATHER_SUPPRESSORS = (_ABILITYNAMES_CLOUD_NINE, _ABILITYNAMES_AIR_LOCK)
+# Weather Ball's type per weather (pokeplatinum BtlCmd_CalcWeatherBallParams)
+WEATHER_BALL_TYPES = (
+    (_WEATHER_SUN, _TYPES_FIRE), (_WEATHER_RAIN, _TYPES_WATER), (_WEATHER_SANDSTORM, _TYPES_ROCK),
+    (_WEATHER_HAIL, _TYPES_ICE)
+)
+# Castform's type per weather, sandstorm leaves it Normal (pokeplatinum FIELD_CONDITION_CASTFORM)
+FORECAST_TYPES = ((_WEATHER_SUN, _TYPES_FIRE), (_WEATHER_RAIN, _TYPES_WATER), (_WEATHER_HAIL, _TYPES_ICE))
 
 
 @njit
@@ -31,6 +40,66 @@ def normalized_type(attacker, move):
     if attacker[_POK_AB_ID] == _ABILITYNAMES_NORMALIZE and move[_MOVE_ID] != _MOVENAME_STRUGGLE:
         return _TYPES_NORMAL
     return move[_MOVE_TYPE]
+
+
+@njit
+def weather_ball_type(weather):
+    """The type Weather Ball takes under the weather its effects see, Normal under none"""
+    for w, m_type in WEATHER_BALL_TYPES:
+        if weather == w:
+            return m_type
+    return _TYPES_NORMAL
+
+
+@njit
+def slot_move_type(attacker, move, weather):
+    """
+    normalized_type for a move read off its slot, outside its own execution: Weather Ball takes the
+    weather's type, unless Normalize makes it Normal (pokeplatinum Move_CalcVariableType)
+    """
+    if move[_MOVE_ID] == _MOVENAME_WEATHER_BALL and attacker[_POK_AB_ID] != _ABILITYNAMES_NORMALIZE:
+        return weather_ball_type(weather)
+    return normalized_type(attacker, move)
+
+
+@njit
+def weather_ball_move(move, weather):
+    """
+    Weather Ball under a weather has double power and the weather's type, under none (Cloud Nine
+    included) it's Normal with its own power (Showdown onModifyType / onModifyMove). Other moves
+    are returned as is
+    """
+    if move[_MOVE_ID] != _MOVENAME_WEATHER_BALL or weather == 0:
+        return move
+    mv = move.copy()
+    mv[_MOVE_POWER] *= 2
+    mv[_MOVE_TYPE] = weather_ball_type(weather)
+    return mv
+
+
+@njit
+def forecast(pok, weather):
+    """
+    A living Forecast holder is Fire in sun, Water in rain, Ice in hail and Normal otherwise
+    (pokeplatinum BattleSystem_TriggerFormChange; Showdown reads the effective weather, so Cloud
+    Nine turns it back to Normal)
+    """
+    if pok[_POK_CURRENT_HP] <= 0 or pok[_POK_AB_ID] != _ABILITYNAMES_FORECAST:
+        return
+    new_type = _TYPES_NORMAL
+    for w, f_type in FORECAST_TYPES:
+        if weather == w:
+            new_type = f_type
+    pok[_POK_TYPE1] = new_type
+    pok[_POK_TYPE2] = 0
+
+
+@njit
+def forecast_actives(battle_array):
+    """Forecast for both actives, after anything that can change the weather they see"""
+    weather = effective_weather(battle_array)
+    for base in (battle_array[_FIELD_MY_POK] * POK_LEN, (battle_array[_FIELD_OPP_POK] + 6) * POK_LEN):
+        forecast(battle_array[base:base + POK_LEN], weather)
 
 
 @njit

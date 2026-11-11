@@ -106,13 +106,17 @@ from Models.constants import (
     _MOVENAME_AROMATHERAPY, _MOVENAME_TEETER_DANCE, _VOLSTATUS_NIGHTMARE,
     _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER,
     _MOVENAME_ROOST, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _MOVENAME_HEAL_BLOCK,
-    _VOLSTATUS_HEAL_BLOCK, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING
+    _VOLSTATUS_HEAL_BLOCK, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _ABILITYNAMES_ICE_BODY,
+    _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SOLAR_POWER, _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL,
+    _MOVENAME_WEATHER_BALL,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
     FORESIGHT_TYPES
 )
-from Engine.ability_helper import ignorable_ability, levitates, normalized_type, grounded_by_item
+from Engine.ability_helper import (
+    ignorable_ability, levitates, normalized_type, grounded_by_item, slot_move_type, weather_ball_move
+)
 
 COUNTER_EX_TYPES = (
     _TYPES_NORMAL, _TYPES_FIGHTING, _TYPES_FLYING, _TYPES_POISON, _TYPES_GROUND,
@@ -181,6 +185,7 @@ _EXPLICIT_RELEVANT: set = {
     _ABILITYNAMES_STICKY_HOLD,
     _ABILITYNAMES_TRUANT,
     _ABILITYNAMES_MULTITYPE,
+    _ABILITYNAMES_ICE_BODY,
 }
 
 _DAMAGE_RELEVANT_WHEN = {"on_try_move"}
@@ -327,7 +332,7 @@ RESTORE_HALF_M = (
 RECOVER_DEF_CURL_M = RESTORE_HALF_M + (_MOVENAME_DEFENSE_CURL,)
 MOVE_ID_SLOTS = (_POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID, _POK_MOVE4_ID)
 # Side condition and weather moves, scored by basic_field / expert_field
-WEATHER_M = (_MOVENAME_RAIN_DANCE, _MOVENAME_SANDSTORM)
+WEATHER_M = (_MOVENAME_RAIN_DANCE, _MOVENAME_SANDSTORM, _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL)
 FIELD_EXPERT_M = WEATHER_M + (_MOVENAME_BRICK_BREAK,)
 SCREEN_MIST_SAFEGUARD = (
     _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN, _SIDECONDITION_MIST,
@@ -344,6 +349,10 @@ SWITCH_STAGES = (
     _POK_SPECIAL_DEFENSE_STAT_STAGE, _POK_EVASION_STAT_STAGE
 )
 RAIN_DANCE_GOOD_WEATHER = (_WEATHER_HAIL, _WEATHER_SUN, _WEATHER_SANDSTORM)
+SUNNY_DAY_GOOD_WEATHER = (_WEATHER_HAIL, _WEATHER_RAIN, _WEATHER_SANDSTORM)
+HAIL_GOOD_WEATHER = (_WEATHER_SUN, _WEATHER_RAIN, _WEATHER_SANDSTORM)
+# Basic_CheckSunnyDay: the AI's abilities that skip the target's Hydration check
+SUN_ABILITIES = (_ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_LEAF_GUARD, _ABILITYNAMES_SOLAR_POWER)
 TOXIC_SPIKES_MAX = 2
 AI_KNOWS_MOVE_BITS = (
     _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4
@@ -367,7 +376,8 @@ ENCORE_ENCOURAGED_M = (
     MoveName.NATURAL_GIFT, MoveName.FEINT, MoveName.LUCKY_CHANT, MoveName.WORRY_SEED,
     MoveName.AQUA_RING, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING,
     MoveName.TOXIC, MoveName.REST, MoveName.POISON_GAS, MoveName.GLARE, MoveName.HEAL_BELL,
-    MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT
+    MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT, MoveName.SUNNY_DAY,
+    MoveName.HAIL
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 MOVE_DRAIN_SLOTS = tuple(slot + _MOVE_DRAIN - _MOVE_ID for slot in MOVE_ID_SLOTS)
@@ -444,8 +454,9 @@ def knows_move(pok, move_id):
 def ai_move_view(move, ai_pok, user_pok, weather=0):
     """
     The AI damage calc sees Natural Gift's berry type and power, Low Kick's and Grass Knot's
-    weight power and Gyro Ball's speed power (pokeplatinum TrainerAI_CalcDamage), every other
-    move is returned as is
+    weight power and Gyro Ball's speed power (pokeplatinum TrainerAI_CalcDamage), and Weather
+    Ball's type and power (Pokemow; pokeplatinum's damage calc keeps it Normal 50, its type checks
+    see the weather type). weather is the effective one. Every other move is returned as is
     """
     move_id = move[_MOVE_ID]
     if move_id == _MOVENAME_NATURAL_GIFT:
@@ -462,6 +473,8 @@ def ai_move_view(move, ai_pok, user_pok, weather=0):
         view = move.copy()
         view[_MOVE_POWER] = gyro_ball_power(ai_pok, user_pok, weather)
         return view
+    if move_id == _MOVENAME_WEATHER_BALL:
+        return weather_ball_move(move, weather)
     return move
 
 
@@ -1011,6 +1024,21 @@ def basic_field(move, ability, ai_pok, user_pok, weather, ai_side, user_side, us
     move_id = move[_MOVE_ID]
     if move_id == _MOVENAME_SANDSTORM:
         return -8 if weather == _WEATHER_SANDSTORM else 0
+    if move_id == _MOVENAME_SUNNY_DAY:
+        if (
+            ai_pok[_POK_AB_ID] not in SUN_ABILITIES
+            and ability == _ABILITYNAMES_HYDRATION
+            and user_pok[_POK_STATUS] != 0
+        ):
+            return -10
+        return -8 if weather == _WEATHER_SUN else 0
+    if move_id == _MOVENAME_HAIL:
+        if weather == _WEATHER_HAIL:
+            return -8
+        # Basic_CheckHail undoes its -8 when the AI has Ice Body too
+        if ability == _ABILITYNAMES_ICE_BODY and ai_pok[_POK_AB_ID] != _ABILITYNAMES_ICE_BODY:
+            return -8
+        return 0
     if move_id == _MOVENAME_RAIN_DANCE:
         ai_ab = ai_pok[_POK_AB_ID]
         if (
@@ -2513,7 +2541,7 @@ def seen_high_crit(pok, ai_know):
 def expert_field(move, ai_pok, u_pok, rand, idx, weather, my_last_move, ai_know, user_side, move_first):
     """
     pokeplatinum Expert checks for the side condition and weather moves and Brick Break. Mist,
-    Safeguard and Sandstorm have none
+    Safeguard and Sandstorm have none. weather is the field's
     """
     move_id = move[_MOVE_ID]
     ai_hp_pct = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
@@ -2539,6 +2567,29 @@ def expert_field(move, ai_pok, u_pok, rand, idx, weather, my_last_move, ai_know,
         if ai_ab == _ABILITYNAMES_HYDRATION and ai_pok[_POK_STATUS] != 0:
             return 1
         return 0
+    if move_id == _MOVENAME_SUNNY_DAY:
+        if ai_hp_pct < 40:
+            return -1
+        ai_ab = ai_pok[_POK_AB_ID]
+        if (
+            weather in SUNNY_DAY_GOOD_WEATHER
+            or ai_ab == _ABILITYNAMES_FLOWER_GIFT
+            # pokeplatinum's bug: Leaf Guard counts when the AI already has a status
+            or (ai_ab == _ABILITYNAMES_LEAF_GUARD and ai_pok[_POK_STATUS] != 0)
+        ):
+            return 1
+        return 0
+    if move_id == _MOVENAME_HAIL:
+        if ai_hp_pct < 40:
+            return -1
+        if weather not in HAIL_GOOD_WEATHER:
+            return 0
+        score = 1
+        if knows_move(ai_pok, _MOVENAME_BLIZZARD):
+            score += 2
+        if ai_pok[_POK_AB_ID] == _ABILITYNAMES_ICE_BODY:
+            score += 2
+        return score
     if move_id == _MOVENAME_BRICK_BREAK:
         return 1 if user_side & SCREENS else 0
     if move_id == _MOVENAME_LUCKY_CHANT:
@@ -3079,7 +3130,9 @@ def party_super_effective(move_type, attacker, defender, gravity=False, damaging
 
 
 @njit
-def check_super_ef_move_pty(ai_party, user_pok, opp_active, gravity=False, damaging_only=False):
+def check_super_ef_move_pty(
+        ai_party, user_pok, opp_active, gravity=False, damaging_only=False, weather=0
+):
     """
     Check if there's any pokemon with super effective move. damaging_only skips status moves and
     empty slots (Pokemow: the Wonder Guard withdraw counts any move, the ineffective-moves one only
@@ -3101,7 +3154,7 @@ def check_super_ef_move_pty(ai_party, user_pok, opp_active, gravity=False, damag
             if damaging_only and (mv[_MOVE_ID] == 0 or mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS):
                 continue
             if party_super_effective(
-                normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+                slot_move_type(pok, mv, weather), pok, user_pok, gravity, on_damaging_turn(mv)
             ):
                 buf[n] = idx
                 n += 1
@@ -3110,7 +3163,7 @@ def check_super_ef_move_pty(ai_party, user_pok, opp_active, gravity=False, damag
 
 
 @njit
-def check_any_damaging_move_pty(ai_party, user_pok, opp_active, gravity=False):
+def check_any_damaging_move_pty(ai_party, user_pok, opp_active, gravity=False, weather=0):
     """
     Check party for a damaging move that affects the target, status moves and empty slots don't
     count (Pokemow ineffective-moves withdraw)
@@ -3131,7 +3184,7 @@ def check_any_damaging_move_pty(ai_party, user_pok, opp_active, gravity=False):
             if mv[_MOVE_ID] == 0 or mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
                 continue
             eff, den = party_effectiveness(
-                normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+                slot_move_type(pok, mv, weather), pok, user_pok, gravity, on_damaging_turn(mv)
             )
             if eff / den != 0:
                 buf[n] = idx
@@ -3172,7 +3225,7 @@ def check_absorb_abi_pty(ai_party, my_last_move, opp_active):
 
 
 @njit
-def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active, gravity=False):
+def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active, gravity=False, weather=0):
     """
     Check if there's any pokemon with super effective move
     """
@@ -3195,7 +3248,7 @@ def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active, gravity=F
             moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
             for mv in moves:
                 if party_super_effective(
-                    normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+                    slot_move_type(pok, mv, weather), pok, user_pok, gravity, on_damaging_turn(mv)
                 ):
                     buf[n] = idx
                     n += 1
@@ -3207,7 +3260,7 @@ def check_immunity_pty(ai_party, user_pok, last_move_type, opp_active, gravity=F
 
 
 @njit
-def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active, gravity=False):
+def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active, gravity=False, weather=0):
     """
     Check if there's any pokemon with super effective move
     """
@@ -3230,7 +3283,7 @@ def check_resistance_pty(ai_party, user_pok, last_move_type, opp_active, gravity
             moves = pok[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
             for mv in moves:
                 if party_super_effective(
-                    normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+                    slot_move_type(pok, mv, weather), pok, user_pok, gravity, on_damaging_turn(mv)
                 ):
                     buf[n] = idx
                     n += 1

@@ -169,7 +169,8 @@ class MoveName:
     GUNK_SHOT       = GUILLOTINE + 1
     GUST            = GUNK_SHOT + 1
     GYRO_BALL       = GUST + 1
-    HAMMER_ARM      = GYRO_BALL + 1
+    HAIL            = GYRO_BALL + 1
+    HAMMER_ARM      = HAIL + 1
     HARDEN          = HAMMER_ARM + 1
     HAZE            = HARDEN + 1
     HEAD_SMASH      = HAZE + 1
@@ -376,7 +377,8 @@ class MoveName:
     STUN_SPORE      = STRUGGLE + 1
     SUBSTITUTE      = STUN_SPORE + 1
     SUCKER_PUNCH    = SUBSTITUTE + 1
-    SUPER_FANG      = SUCKER_PUNCH + 1
+    SUNNY_DAY       = SUCKER_PUNCH + 1
+    SUPER_FANG      = SUNNY_DAY + 1
     SUPERPOWER      = SUPER_FANG + 1
     SUPERSONIC      = SUPERPOWER + 1
     SURF            = SUPERSONIC + 1
@@ -422,7 +424,8 @@ class MoveName:
     WATER_SPORT     = WATER_PULSE + 1
     WATER_SPOUT     = WATER_SPORT + 1
     WATERFALL       = WATER_SPOUT + 1
-    WHIRLPOOL       = WATERFALL + 1
+    WEATHER_BALL    = WATERFALL + 1
+    WHIRLPOOL       = WEATHER_BALL + 1
     WHIRLWIND       = WHIRLPOOL + 1
     WILD_CHARGE     = WHIRLWIND + 1
     WILL_O_WISP     = WILD_CHARGE + 1

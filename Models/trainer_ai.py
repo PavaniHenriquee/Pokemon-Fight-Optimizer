@@ -3,7 +3,7 @@ import random
 import numpy as np
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
 from Engine.engine_helper import move_blocked
-from Engine.ability_helper import effective_weather, normalized_type
+from Engine.ability_helper import effective_weather, slot_move_type
 from Engine.status_calc import last_move_slot
 from Utils.jit import njit
 from Utils.helper import (
@@ -17,7 +17,7 @@ from Models.idx_const import (
 from Models.constants import (
     _POK_MOVE1_ID, _POK_ITEM_ID, _POK_ID, _POK_AB_ID, _POK_CURRENT_HP, _POK_TYPE1,
     _POK_TYPE2, _ENEMY_AI_KNOWS_ABILITY, _POK_AB_KNOWN, _MOVE_ID, _MOVE_PP, _MOVE_CATEGORY,
-    _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD, _POK_STATUS,
+    _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD, _POK_STATUS, _MOVENAME_WEATHER_BALL,
     _STATUS_SLEEP, _ABILITYNAMES_NATURAL_CURE, _POK_MAX_HP, _POK_ATTACK_STAT_STAGE,
     _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
     _FIELD_GRAVITY_TURNS,
@@ -117,7 +117,7 @@ def sub_after_death(
             if mv[_MOVE_TYPE] == 0:
                 break
             if party_super_effective(
-                normalized_type(pok, mv), pok, user_pok, gravity, on_damaging_turn(mv)
+                slot_move_type(pok, mv, weather), pok, user_pok, gravity, on_damaging_turn(mv)
             ):
                 phase1_indices.append(idx)
                 break
@@ -167,7 +167,15 @@ def sub_after_death(
                 or mv[_MOVE_ID] == _MOVENAME_HIDDEN_POWER
             ):
                 continue
-            raw_dmg = calculate_damage(deadmon, user_pok, mv, weather, False, 100, user_side, gravity)
+            # Weather Ball keeps its data power, the type chart sees the weather type
+            # (pokeplatinum BattleAI_PostKOSwitchIn, Move_CalcVariableType)
+            dmg_mv = mv
+            if mv[_MOVE_ID] == _MOVENAME_WEATHER_BALL:
+                dmg_mv = mv.copy()
+                dmg_mv[_MOVE_TYPE] = slot_move_type(mon, mv, weather)
+            raw_dmg = calculate_damage(
+                deadmon, user_pok, dmg_mv, weather, False, 100, user_side, gravity
+            )
             #overflow bug:
             dmg = raw_dmg - 255 if raw_dmg > 255 else raw_dmg
             dmg = min(dmg, user_hp)
@@ -338,11 +346,11 @@ def choose_move(battle_array):
                 _evaluated_moves[0] = [sub-6,0,0,False]
                 return _evaluated_moves
         if took_dmg:
-            im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active, gravity)
+            im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active, gravity, eff_weather)
             if im.size > 0:
                 _evaluated_moves[0] = [im[0]-6,0,0,False]
                 return _evaluated_moves
-            res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active, gravity)
+            res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active, gravity, eff_weather)
             if res.size > 0:
                 _evaluated_moves[0] = [res[0]-6,0,0,False]
                 return _evaluated_moves
@@ -440,7 +448,7 @@ def choose_move(battle_array):
 
     # Withdraw 2 - The active Pokémon is facing a foe with Wonder Guard and cannot hit it supereffectively
     if can_switch and ab == _ABILITYNAMES_WONDER_GUARD and not s_e:
-        cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active, gravity)
+        cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active, gravity, False, eff_weather)
         if cand.size > 0:
             for i in cand:
                 if random.random() < 0.66666:
@@ -451,14 +459,14 @@ def choose_move(battle_array):
     # Withdraw 3 - More than 2 damaging moves and All of them do not affect the target
     if can_switch and not_status_counter>1 and not can_hit:
         # Only damaging moves count here, unlike the Wonder Guard check (Pokemow)
-        cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active, gravity, True)
+        cand = check_super_ef_move_pty(ai_pty, user_pok, opp_active, gravity, True, eff_weather)
         if cand.size> 0:
             for i in cand:
                 if random.random() < 0.888:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [i-6,0,0,False]
                     return _evaluated_moves
-        cand_normal = check_any_damaging_move_pty(ai_pty, user_pok, opp_active, gravity)
+        cand_normal = check_any_damaging_move_pty(ai_pty, user_pok, opp_active, gravity, eff_weather)
         if cand_normal.size > 0:
             for i in cand_normal:
                 if random.random() < 0.75:
@@ -492,14 +500,14 @@ def choose_move(battle_array):
         if can_switch and took_dmg:
             # 6. A party member is immune to the previous attack and can hit the foe supereffectively
             if random.getrandbits(1):
-                im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active, gravity)
+                im = check_immunity_pty(ai_pty, user_pok, took_dmg, opp_active, gravity, eff_weather)
                 if im.size > 0:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [im[0]-6,0,0,False]
                     return _evaluated_moves
             # 7. A party member resists the previous attack and can hit the foe supereffectively
             if random.random() < 0.3333:
-                res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active, gravity)
+                res = check_resistance_pty(ai_pty, user_pok, took_dmg, opp_active, gravity, eff_weather)
                 if res.size > 0:
                     _evaluated_moves.fill(10)
                     _evaluated_moves[0] = [res[0]-6,0,0,False]

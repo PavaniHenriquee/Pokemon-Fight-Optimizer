@@ -12,7 +12,7 @@ NOT_IMPLEMENTED = frozenset({
     # moves
     "Future Sight", "Trick Room",
     # abilities
-    "Color Change", "Forecast",
+    "Color Change",
 })
 
 

@@ -10,7 +10,7 @@ from Models.idx_const import (
 from Models.helper import (
     BattlePhase, Gender, VolStatus, VolStatus2, SideCondition, Weather, Types, MoveCategory,
 )
-from DataBase.PkDB import PokIdToName, sprite_id
+from DataBase.PkDB import PokIdToName, battle_sprite_id
 from Engine.engine_helper import CHOICE_EFFECTS
 from DataBase.MoveDB import MoveIdToName, MoveName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
@@ -108,6 +108,11 @@ def _move_fields(base_slice, offset: int) -> dict:
     }
 
 
+def battle_sprite(arr) -> int:
+    """The sprite id of a Pokemon's array slice, Castform's in its current form"""
+    return battle_sprite_id(int(arr[Pok.ID]), _TYPE_NAMES.get(int(arr[Pok.TYPE1]), ""))
+
+
 def _types(arr) -> list[str]:
     """Live types from the TYPE1 / TYPE2 slots (0 = no second type)"""
     out = []
@@ -161,7 +166,7 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
     moves = _extract_moves(battle_array[base : base + POK_LEN], current_pps=bench_pps)
     return {
         "slot":   i,
-        "id":     sprite_id(pok_id),
+        "id":     battle_sprite(battle_array[base : base + POK_LEN]),
         "name":   PokIdToName.get(pok_id, "?").capitalize(),
         "hp":     int(snap.bench_delta[delta_i, 0]),
         "max_hp": int(battle_array[base + Pok.MAX_HP]),
@@ -190,7 +195,7 @@ def _pok(arr) -> dict | None:
         return None
     pok_id = int(arr[Pok.ID])
     return {
-        "id":         sprite_id(pok_id),
+        "id":         battle_sprite(arr),
         "name":       PokIdToName.get(pok_id, "?").capitalize(),
         "level":      int(arr[Pok.LEVEL]),
         "gender":     _GENDER_NAMES.get(int(arr[Pok.GENDER])),

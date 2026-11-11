@@ -18,7 +18,7 @@ from Engine.damage_calc import (
 )
 from Engine.ability_helper import (
     ignorable_ability, levitates, reveal_ability, effective_weather, normalized_type,
-    grounded_by_item,
+    grounded_by_item, slot_move_type, forecast_actives,
 )
 from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
 from Models.helper import TARGET_SELF_SIDE, Target
@@ -26,6 +26,7 @@ from Models.item import ITEM_TABLE, refresh_item, embargoed
 from Models.ability import ABILITY_TABLE
 from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES, MOVE_TABLE
 from Models.constants import (
+    _TYPES_NORMAL,
     _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH, _MOVENAME_PAYBACK, _MOVENAME_REVENGE,
     _MOVENAME_AVALANCHE, _VOLSTATUS2_DAMAGED_BY_MOVE,
     _MOVE_SLEEP_USABLE, _FLAGS_NO_SLEEP_TALK, _MOVE_CHARGE_RECHARGE, _ABILITYNAMES_VITAL_SPIRIT,
@@ -1751,6 +1752,10 @@ def reset_switch_out(pok):
     if pok[_POK_BASE_AB_ID]:
         pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[pok[_POK_BASE_AB_ID]]
         pok[_POK_BASE_AB_ID] = 0
+    # Castform leaves in its normal form, pokeplatinum reloads the party's types
+    if pok[_POK_AB_ID] == _ABILITYNAMES_FORECAST:
+        pok[_POK_TYPE1] = _TYPES_NORMAL
+        pok[_POK_TYPE2] = 0
 
 
 @njit
@@ -1941,12 +1946,13 @@ def weather_ability(pok, battle_array):
 
 
 @njit
-def anticipation_shudders(pok, foe, gravity):
+def anticipation_shudders(pok, foe, gravity, weather=0):
     """
     One of the foe's moves is super effective on pok, or is an OHKO move from a foe at pok's
     level or higher. A status move is never super effective, the fixed-damage moves and Counter /
     Mirror Coat don't count, and an immune move doesn't either (pokeplatinum
-    SWITCH_IN_CHECK_STATE_ANTICIPATION, ApplyTypeChart on the move's data type or the foe's Normalize)
+    SWITCH_IN_CHECK_STATE_ANTICIPATION, ApplyTypeChart on CalcMoveType: the move's data type, the
+    foe's Normalize or Weather Ball's weather type)
     """
     if foe[_POK_CURRENT_HP] <= 0:
         return False
@@ -1954,7 +1960,7 @@ def anticipation_shudders(pok, foe, gravity):
         mv = foe[OFFSET_MOVE + i * MOVE_STRIDE:OFFSET_MOVE + (i + 1) * MOVE_STRIDE]
         if not mv[_MOVE_ID] or mv[_MOVE_DAMAGE]:
             continue
-        m_type = normalized_type(foe, mv)
+        m_type = slot_move_type(foe, mv, weather)
         def_t1, def_t2 = matchup_types(m_type, pok, gravity, is_scrappy(foe))
         eff, den = get_type_effectiveness(m_type, def_t1, def_t2)
         if eff == 0:
@@ -1985,7 +1991,9 @@ def switch_in_ability(pok, foe, battle_array, is_mine):
     elif ability in SWITCH_IN_MESSAGE_ABS:
         reveal_ability(pok)
     elif ability == _ABILITYNAMES_ANTICIPATION:
-        if anticipation_shudders(pok, foe, battle_array[_FIELD_GRAVITY_TURNS] > 0):
+        if anticipation_shudders(
+            pok, foe, battle_array[_FIELD_GRAVITY_TURNS] > 0, effective_weather(battle_array)
+        ):
             reveal_ability(pok)
     elif ability == _ABILITYNAMES_FOREWARN:
         # It names one of the foe's moves whenever a foe is out
@@ -2047,6 +2055,8 @@ def switch_in(attacker, defender, battle_array, is_mine, foe_entering=False):
     switch_in_ability(attacker, defender, battle_array, is_mine)
     if foe_traced:
         switch_in_ability(defender, attacker, battle_array, not is_mine)
+    # pokeplatinum SWITCH_IN_CHECK_STATE_FORM_CHANGE, after the weather abilities
+    forecast_actives(battle_array)
     # pokeplatinum SWITCH_IN_CHECK_STATE_FORBIDDEN_STATUS
     recover_status_by_ability(attacker)
     recover_status_by_ability(defender)

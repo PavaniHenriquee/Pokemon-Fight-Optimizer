@@ -26,7 +26,7 @@ from SearchEngine.helper import find_best_terminal_node, prune_dominated
 from Models.idx_const import Pok, Move, Field, Item, ITEM_LEN
 from Models.item import ITEM_TABLE
 from Models.helper import (
-    ActionType, BattlePhase, Status, VolStatus, VolStatus2, SideCondition, Types
+    ActionType, BattlePhase, Status, VolStatus, VolStatus2, SideCondition, Types, Weather
 )
 from Models.constants import _POTIONS_POTION
 from Models.trainer_ai import return_idx
@@ -429,6 +429,9 @@ def test_node_key_death_phase_ignores_my_side(one_v_one):
     ("Toxic Spikes", {Field.OPP_TOXIC_SPIKES: 2}, True),
     ("Rain Dance", {Field.WEATHER: 2}, True),
     ("Rain Dance", {Field.WEATHER: 4}, False),
+    ("Sunny Day", {Field.WEATHER: Weather.SUN}, True),
+    ("Hail", {Field.WEATHER: Weather.HAIL}, True),
+    ("Hail", {Field.WEATHER: Weather.SUN}, False),
     ("Gravity", {}, False),
     ("Gravity", {Field.GRAVITY_TURNS: 3}, True),
     ("Growl", {}, False),

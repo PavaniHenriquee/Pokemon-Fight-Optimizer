@@ -5360,3 +5360,177 @@ def test_heal_block_ends_on_switch_out_and_baton_pass_keeps_it(make_pokemon, mak
     assert new[Pok.VOL_STATUS] & VolStatus.HEAL_BLOCK and new[Pok.HEAL_BLOCK_TURNS] == 3
     engine_helper.reset_switch_out(me)
     assert not me[Pok.VOL_STATUS] & VolStatus.HEAL_BLOCK and me[Pok.HEAL_BLOCK_TURNS] == 0
+
+
+# ── 9.1 Weather: Sunny Day, Hail, Heat Rock, Icy Rock, Weather Ball, Forecast ─
+
+@pytest.mark.parametrize("move, item, weather, left", [
+    ("Sunny Day", None, Weather.SUN, 4),
+    ("Sunny Day", "Heat Rock", Weather.SUN, 7),
+    ("Sunny Day", "Icy Rock", Weather.SUN, 4),
+    ("Hail", None, Weather.HAIL, 4),
+    ("Hail", "Icy Rock", Weather.HAIL, 7),
+    ("Hail", "Heat Rock", Weather.HAIL, 4),
+    ("Rain Dance", "Heat Rock", Weather.RAIN, 4),
+])
+def test_sunny_day_and_hail_with_their_rocks(make_pokemon, make_battle, move, item, weather, left):
+    """5 turns plus the user's matching rock: Heat Rock for sun, Icy Rock for hail (pokeplatinum
+    effect scripts 0137 and 0164, HOLD_EFFECT_EXTEND_SUN / _HAIL, effectParam 3)"""
+    me = make_pokemon("Geodude", 30, "Sturdy", [move], item=item)
+    arr = make_battle([me], [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.WEATHER] == weather and arr[Field.WEATHER_DURATION] == left
+
+
+@pytest.mark.parametrize("move, weather, duration", [
+    ("Sunny Day", Weather.SUN, 0), ("Sunny Day", Weather.SUN, 3),
+    ("Hail", Weather.HAIL, 0), ("Hail", Weather.HAIL, 3),
+])
+def test_weather_move_fails_under_the_same_weather(make_pokemon, make_battle, move, weather, duration):
+    """Under its own weather the move fails, whether a move or an ability set it (Showdown: Hail
+    fails under Snow Warning's hail too)"""
+    me = make_pokemon("Geodude", 30, "Sturdy", [move], item="Icy Rock")
+    arr = make_battle([me], [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    arr[Field.WEATHER] = weather
+    arr[Field.WEATHER_DURATION] = duration
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.WEATHER] == weather
+    assert arr[Field.WEATHER_DURATION] == max(0, duration - 1)
+
+
+def _seen_moves(monkeypatch):
+    """(type, power) of every Weather Ball that reaches the hit check"""
+    seen = []
+    real = battle.calculate_hit_miss
+
+    def spy(mv, *args):
+        if mv[Move.ID] == MoveName.WEATHER_BALL:
+            seen.append((int(mv[Move.TYPE]), int(mv[Move.POWER])))
+        return real(mv, *args)
+    monkeypatch.setattr(battle, "calculate_hit_miss", spy)
+    return seen
+
+
+@pytest.mark.parametrize("ability, weather, expected", [
+    ("Run Away", 0, (Types.NORMAL, 50)),
+    ("Run Away", Weather.SUN, (Types.FIRE, 100)),
+    ("Run Away", Weather.RAIN, (Types.WATER, 100)),
+    ("Run Away", Weather.SANDSTORM, (Types.ROCK, 100)),
+    ("Run Away", Weather.HAIL, (Types.ICE, 100)),
+    ("Cloud Nine", Weather.SUN, (Types.NORMAL, 50)),
+])
+def test_weather_ball_type_and_power(monkeypatch, make_pokemon, make_battle, ability, weather, expected):
+    """Double power and the weather's type, Normal 50 with no weather or under Cloud Nine
+    (pokeplatinum BtlCmd_CalcWeatherBallParams, Showdown effectiveWeather). The slot keeps its data"""
+    seen = _seen_moves(monkeypatch)
+    arr = make_battle([make_pokemon("Psyduck", 30, ability, ["Weather Ball"])],
+                      [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    arr[Field.WEATHER] = weather
+    turn_sim(0, (MOVE, 0), arr)
+    assert seen[0] == expected
+    slot = move_slice(my_active(arr), 0)
+    assert (slot[Move.TYPE], slot[Move.POWER]) == (Types.NORMAL, 50)
+
+
+@pytest.mark.parametrize("ability, weather, hits", [
+    ("Run Away", 0, False), ("Run Away", Weather.SUN, True), ("Normalize", Weather.SUN, False),
+])
+def test_weather_ball_type_reaches_the_type_chart(make_pokemon, make_battle, ability, weather, hits):
+    """In sun Weather Ball is Fire and hits a Ghost, Normalize keeps it Normal"""
+    arr = make_battle([make_pokemon("Rattata", 30, ability, ["Weather Ball"])],
+                      [make_pokemon("Gastly", 30, "Levitate", ["Growl"])])
+    arr[Field.WEATHER] = weather
+    turn_sim(0, (MOVE, 0), arr)
+    foe = opp_active(arr)
+    assert (foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]) == hits
+
+
+def test_weather_ball_into_water_absorb_in_rain(make_pokemon, make_battle):
+    """Its Water type in rain is what Water Absorb takes in"""
+    arr = make_battle([make_pokemon("Rattata", 30, "Run Away", ["Weather Ball"])],
+                      [make_pokemon("Lapras", 30, "Water Absorb", ["Growl"])])
+    arr[Field.WEATHER] = Weather.RAIN
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] -= 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] > foe[Pok.MAX_HP] - 10
+
+
+@pytest.mark.parametrize("weather, shudders", [(0, False), (Weather.RAIN, True), (Weather.SUN, False)])
+def test_anticipation_sees_weather_ball(make_pokemon, weather, shudders):
+    """pokeplatinum CalcMoveType gives Anticipation Weather Ball's weather type"""
+    me = make_pokemon("Geodude", 30, "Anticipation", ["Tackle"]).to_np()
+    foe = make_pokemon("Rattata", 30, "Run Away", ["Weather Ball"]).to_np()
+    assert engine_helper.anticipation_shudders(me, foe, False, weather) == shudders
+
+
+@pytest.mark.parametrize("move, m_type", [
+    ("Sunny Day", Types.FIRE), ("Rain Dance", Types.WATER), ("Hail", Types.ICE),
+    ("Sandstorm", Types.NORMAL),
+])
+def test_forecast_follows_the_move_weather(make_pokemon, make_battle, move, m_type):
+    """Castform turns into the weather's type once the move set it, sand leaves it Normal
+    (pokeplatinum BattleSystem_TriggerFormChange)"""
+    arr = make_battle([make_pokemon("Castform", 30, "Forecast", [move])],
+                      [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    me = my_active(arr)
+    assert (me[Pok.TYPE1], me[Pok.TYPE2]) == (m_type, 0)
+
+
+def test_forecast_back_to_normal_when_the_weather_ends(make_pokemon, make_battle):
+    """The last turn of sun turns it back at the end of the turn"""
+    arr = make_battle([make_pokemon("Castform", 30, "Forecast", ["Splash"])],
+                      [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    arr[Field.WEATHER] = Weather.SUN
+    arr[Field.WEATHER_DURATION] = 2
+    battle.forecast_actives(arr)
+    assert my_active(arr)[Pok.TYPE1] == Types.FIRE
+    end_of_turn(arr)
+    assert my_active(arr)[Pok.TYPE1] == Types.FIRE
+    end_of_turn(arr)
+    assert my_active(arr)[Pok.TYPE1] == Types.NORMAL
+
+
+def test_forecast_on_switch_in_after_drought(make_pokemon, make_battle):
+    """A foe's Drought on entry turns Castform Fire (SWITCH_IN_CHECK_STATE_FORM_CHANGE after the
+    weather abilities)"""
+    arr = make_battle([make_pokemon("Castform", 30, "Forecast", ["Splash"])],
+                      [make_pokemon("Vulpix", 5, "Drought", ["Ember"])])
+    assert my_active(arr)[Pok.TYPE1] == Types.FIRE
+
+
+def test_forecast_under_cloud_nine(make_pokemon, make_battle):
+    """Cloud Nine turns it back to Normal (Showdown effectiveWeather), and it changes again once
+    the holder faints"""
+    arr = make_battle([make_pokemon("Castform", 30, "Forecast", ["Splash"])],
+                      [make_pokemon("Psyduck", 30, "Cloud Nine", ["Tackle"])])
+    arr[Field.WEATHER] = Weather.RAIN
+    battle.forecast_actives(arr)
+    assert my_active(arr)[Pok.TYPE1] == Types.NORMAL
+    opp_active(arr)[Pok.CURRENT_HP] = 0
+    battle.forecast_actives(arr)
+    assert my_active(arr)[Pok.TYPE1] == Types.WATER
+
+
+def test_forecast_reset_on_switch_out_and_not_when_fainted(make_pokemon, make_battle):
+    """It leaves as Normal, and a fainted Castform doesn't change"""
+    arr = make_battle([make_pokemon("Castform", 30, "Forecast", ["Splash"])],
+                      [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    me = my_active(arr)
+    arr[Field.WEATHER] = Weather.HAIL
+    battle.forecast_actives(arr)
+    assert me[Pok.TYPE1] == Types.ICE
+    engine_helper.reset_switch_out(me)
+    assert (me[Pok.TYPE1], me[Pok.TYPE2]) == (Types.NORMAL, 0)
+    me[Pok.CURRENT_HP] = 0
+    battle.forecast_actives(arr)
+    assert me[Pok.TYPE1] == Types.NORMAL
+
+
+def test_forecast_needs_the_ability(make_pokemon, make_battle):
+    """Only a Forecast holder changes (pokeplatinum checks the ability)"""
+    arr = make_battle([make_pokemon("Rattata", 30, "Run Away", ["Sunny Day"])],
+                      [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Pok.TYPE1] == Types.NORMAL

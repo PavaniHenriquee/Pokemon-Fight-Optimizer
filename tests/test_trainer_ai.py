@@ -51,7 +51,7 @@ KIT_STATUS = (
     "Toxic", "Glare", "Spore", "Lovely Kiss", "Dark Void", "Poison Gas", "Teeter Dance", "Rest",
     "Sleep Talk", "Nightmare", "Psycho Shift", "Heal Bell", "Aromatherapy",
     "Milk Drink", "Soft-Boiled", "Slack Off", "Heal Order", "Moonlight", "Morning Sun", "Roost",
-    "Heal Block",
+    "Heal Block", "Sunny Day", "Hail",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -84,7 +84,7 @@ KIT_DAMAGE = (
     "Return", "Frustration", "Last Resort", "Secret Power",
     "Super Fang", "Endeavor", "Metal Burst", "False Swipe",
     "Avalanche", "Revenge", "Payback", "Sucker Punch", "Focus Punch",
-    "Snore", "Dream Eater",
+    "Snore", "Dream Eater", "Weather Ball",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -1271,6 +1271,20 @@ def _basic_field(move, ai_side=0, user_side=0, tspikes=0, bench=1, weather=0,
     ("Rain Dance", {"user_ability": "Hydration", "user_status": Status.BURN}, -8),
     ("Rain Dance", {"user_ability": "Hydration", "user_status": Status.BURN,
                     "ai_ability": "Swift Swim"}, 0),
+    ("Sunny Day", {}, 0),
+    ("Sunny Day", {"weather": Weather.SUN}, -8),
+    ("Sunny Day", {"weather": Weather.RAIN}, 0),
+    ("Sunny Day", {"user_ability": "Hydration", "user_status": Status.BURN}, -10),
+    ("Sunny Day", {"user_ability": "Hydration"}, 0),
+    ("Sunny Day", {"user_ability": "Hydration", "user_status": Status.BURN,
+                   "ai_ability": "Leaf Guard"}, 0),
+    ("Sunny Day", {"user_ability": "Hydration", "user_status": Status.BURN,
+                   "ai_ability": "Solar Power", "weather": Weather.SUN}, -8),
+    ("Hail", {}, 0),
+    ("Hail", {"weather": Weather.HAIL}, -8),
+    ("Hail", {"weather": Weather.SUN}, 0),
+    ("Hail", {"user_ability": "Ice Body"}, -8),
+    ("Hail", {"user_ability": "Ice Body", "ai_ability": "Ice Body"}, 0),
 ])
 def test_basic_side_and_weather_moves(move, kwargs, expected):
     """pokeplatinum Basic checks for screens, Mist, Safeguard, Lucky Chant, hazards, weather"""
@@ -1365,6 +1379,92 @@ def test_expert_rain_dance(poke, ai_level, ai_ability, hp_pct, weather, expected
     ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * hp_pct // 100
     user = poke("Rattata", 20, "Run Away", ["Tackle"])
     assert _expert_field(ai_pok, user, weather=weather) == (expected, [])
+
+
+@pytest.mark.parametrize("ai_ability, hp_pct, status, weather, expected", [
+    ("Run Away", 100, 0, 0, 0),
+    ("Flower Gift", 30, 0, Weather.RAIN, -1),
+    ("Run Away", 100, 0, Weather.HAIL, 1),
+    ("Run Away", 100, 0, Weather.RAIN, 1),
+    ("Run Away", 100, 0, Weather.SUN, 0),
+    ("Flower Gift", 100, 0, 0, 1),
+    ("Flower Gift", 100, 0, Weather.SANDSTORM, 1),   # +1 once
+    ("Leaf Guard", 100, 0, 0, 0),
+    ("Leaf Guard", 100, Status.BURN, 0, 1),           # pokeplatinum's bug: a status counts
+])
+def test_expert_sunny_day(poke, ai_ability, hp_pct, status, weather, expected):
+    """pokeplatinum Expert_SunnyDay"""
+    ai_pok = poke("Cherubi", 30, ai_ability, ["Sunny Day"])
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * hp_pct // 100
+    ai_pok[Pok.STATUS] = status
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert_field(ai_pok, user, weather=weather) == (expected, [])
+
+
+@pytest.mark.parametrize("ai_ability, moves, hp_pct, weather, expected", [
+    ("Run Away", ["Hail"], 100, 0, 0),
+    ("Ice Body", ["Hail", "Blizzard"], 100, 0, 0),    # nothing without one of the other weathers
+    ("Ice Body", ["Hail", "Blizzard"], 30, Weather.RAIN, -1),
+    ("Run Away", ["Hail"], 100, Weather.HAIL, 0),
+    ("Run Away", ["Hail"], 100, Weather.SUN, 1),
+    ("Run Away", ["Hail", "Blizzard"], 100, Weather.RAIN, 3),
+    ("Ice Body", ["Hail"], 100, Weather.SANDSTORM, 3),
+    ("Ice Body", ["Hail", "Blizzard"], 100, Weather.SUN, 5),
+])
+def test_expert_hail(poke, ai_ability, moves, hp_pct, weather, expected):
+    """pokeplatinum Expert_Hail: Blizzard and Ice Body only count after the weather's +1"""
+    ai_pok = poke("Snorunt", 30, ai_ability, moves)
+    ai_pok[Pok.CURRENT_HP] = ai_pok[Pok.MAX_HP] * hp_pct // 100
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert _expert_field(ai_pok, user, weather=weather) == (expected, [])
+
+
+@pytest.mark.parametrize("weather, m_type, power", [
+    (0, Types.NORMAL, 50), (Weather.SUN, Types.FIRE, 100), (Weather.RAIN, Types.WATER, 100),
+    (Weather.SANDSTORM, Types.ROCK, 100), (Weather.HAIL, Types.ICE, 100),
+])
+def test_ai_sees_weather_ball(poke, weather, m_type, power):
+    """Pokemow's damage calc sees Weather Ball's type and power under the weather"""
+    ai_pok = poke("Castform", 30, "Forecast", ["Weather Ball"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    view = ai.ai_move_view(move_slice(ai_pok, 0), ai_pok, user, weather)
+    assert (view[Move.TYPE], view[Move.POWER]) == (m_type, power)
+    assert move_slice(ai_pok, 0)[Move.TYPE] == Types.NORMAL
+
+
+def test_basic_weather_ball_into_water_absorb(poke):
+    """Pokemow Check_VariableType: Weather Ball in rain into Water Absorb is -12"""
+    ai_pok = poke("Castform", 30, "Forecast", ["Weather Ball"])
+    user = poke("Lapras", 30, "Water Absorb", ["Tackle"])
+    scores = []
+    for weather in (0, Weather.RAIN):
+        view = ai.ai_move_view(move_slice(ai_pok, 0), ai_pok, user, weather)
+        scores.append(ai.basic_flag(view, AbilityNames.WATER_ABSORB, ai_pok, user, 1.0, weather, 0, 0, 0, 1))
+    assert scores[0] != -12 and scores[1] == -12
+
+
+def test_party_checks_see_weather_ball(poke):
+    """pokeplatinum TrainerAI_MoveType / Move_CalcVariableType: the bench's Weather Ball is Fire
+    in sun, super effective on my Grass type"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Karate Chop"])
+    party[POK_LEN:2 * POK_LEN] = poke("Castform", 20, "Forecast", ["Weather Ball"])
+    grass = poke("Turtwig", 20, "Overgrow", ["Tackle"])
+    assert 1 not in ai.check_super_ef_move_pty(party, grass, 0)
+    assert 1 in ai.check_super_ef_move_pty(party, grass, 0, False, False, Weather.SUN)
+    assert 1 in ai.check_any_damaging_move_pty(party, grass, 0, False, Weather.SUN)
+
+
+def test_post_ko_switch_sees_weather_ball(poke):
+    """BattleAI_PostKOSwitchIn phase 1 sees Weather Ball's weather type"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Machop", 20, "Guts", ["Karate Chop"])
+    party[:POK_LEN][Pok.CURRENT_HP] = 0
+    party[POK_LEN:2 * POK_LEN] = poke("Rattata", 20, "Run Away", ["Tackle"])
+    party[2 * POK_LEN:3 * POK_LEN] = poke("Castform", 20, "Forecast", ["Weather Ball"])
+    grass = poke("Turtwig", 20, "Overgrow", ["Tackle"])
+    dead = party[:POK_LEN]
+    assert sub_after_death(party, grass, dead, 0, Weather.SUN) == 2
 
 
 @pytest.mark.parametrize("move", ["Mist", "Safeguard", "Sandstorm"])
