@@ -46,7 +46,7 @@ from Models.constants import (
     _MOVENAME_WRING_OUT, _MOVENAME_CRUSH_GRIP, _MOVENAME_PUNISHMENT, _MOVENAME_TRUMP_CARD,
     _MOVENAME_FACADE, _MOVENAME_SMELLING_SALTS, _MOVENAME_WAKE_UP_SLAP, _STATUS_POISON,
     _STATUS_TOXIC, _STATUS_PARALYSIS, _STATUS_SLEEP, _MOVE_PP, _POK_EVASION_STAT_STAGE,
-    _MOVENAME_RETURN, _MOVENAME_FRUSTRATION, _POK_FRIENDSHIP,
+    _MOVENAME_RETURN, _MOVENAME_FRUSTRATION, _POK_FRIENDSHIP, _VOLSTATUS2_ROOST,
 )
 from Models.move import friendship_power
 from Engine.ability_helper import ignorable_ability, normalized_type, grounded_by_item
@@ -134,10 +134,16 @@ def matchup_types(move_type, defender, gravity=False, scrappy=False):
     """
     Defender types the type chart reads. Foresight or the attacker's Scrappy drop the Ghost type
     against Normal and Fighting, Ingrain, Gravity and Iron Ball drop the Flying type against Ground, a
-    dropped type is 0 (neutral)
+    dropped type is 0 (neutral). Roost drops it against every type for the turn (pokeplatinum
+    BasicTypeMulApplies, TURN_FLAG_ROOSTING)
     """
     t1 = defender[_POK_TYPE1]
     t2 = defender[_POK_TYPE2]
+    if defender[_POK_VOL_STATUS2] & _VOLSTATUS2_ROOST:
+        if t1 == _TYPES_FLYING:
+            t1 = 0
+        if t2 == _TYPES_FLYING:
+            t2 = 0
     vol = defender[_POK_VOL_STATUS]
     if (vol & _VOLSTATUS_FORESIGHT or scrappy) and move_type in FORESIGHT_TYPES:
         if t1 == _TYPES_GHOST:

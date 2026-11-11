@@ -5188,3 +5188,175 @@ def test_heal_bell_cures_the_party(make_pokemon, make_battle, move, my_ab, cured
         assert bool(party[0][Pok.AB_KNOWN]) == (move == "Heal Bell")
     if cured[2]:
         assert party[2][Pok.BADLY_POISON] == 0
+
+
+# ── 8.3 healing ──────────────────────────────────────────────────────────────
+
+def test_roost_drops_the_flying_type_for_the_turn(make_pokemon, make_battle):
+    """A faster Pidgey Roosts, the slower foe's Ground move hits it, and it's Flying again at the end
+    of the turn (pokeplatinum BasicTypeMulApplies, TURN_FLAG_ROOSTING)"""
+    arr = make_battle([make_pokemon("Pidgey", 50, "Keen Eye", ["Roost", "Splash"])],
+                      [make_pokemon("Geodude", 5, "Sturdy", ["Mud-Slap"])])
+    me = my_active(arr)
+    me[Pok.CURRENT_HP] -= 30
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert hp < me[Pok.CURRENT_HP] < hp + me[Pok.MAX_HP] // 2
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.ROOST
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.CURRENT_HP] == hp
+
+
+def test_roost_at_full_hp_keeps_the_flying_type(make_pokemon, make_battle):
+    """No heal, no roosting flag (pokeplatinum subscript_roost skips it on MOVE_STATUS_NO_MORE_WORK)"""
+    arr = make_battle([make_pokemon("Pidgey", 50, "Keen Eye", ["Roost"])],
+                      [make_pokemon("Geodude", 5, "Sturdy", ["Mud-Slap"])])
+    me, foe = my_active(arr), opp_active(arr)
+    battle._status_move(me, foe, move_slice(me, 0), True, arr, 0)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.ROOST
+    me[Pok.CURRENT_HP] -= 1
+    battle._status_move(me, foe, move_slice(me, 0), True, arr, 0)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.ROOST
+
+
+def test_roost_ends_on_switch_out(poke):
+    """A turn flag, a switch clears it"""
+    p = poke("Pidgey", 20, "Keen Eye", ["Roost"])
+    p[Pok.VOL_STATUS2] |= VolStatus2.ROOST
+    engine_helper.reset_switch_out(p)
+    assert not p[Pok.VOL_STATUS2] & VolStatus2.ROOST
+
+
+def _heal_block_battle(make_pokemon, make_battle, foe_moves, my_moves=("Heal Block",)):
+    """My faster Abra against a Munchlax with foe_moves, both with a bench"""
+    return make_battle(
+        [make_pokemon("Abra", 50, "Synchronize", list(my_moves)),
+         make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])],
+        [make_pokemon("Munchlax", 20, "Thick Fat", list(foe_moves)),
+         make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])],
+    )
+
+
+def _heal_blocked(pok, turns=5):
+    pok[Pok.VOL_STATUS] |= VolStatus.HEAL_BLOCK
+    pok[Pok.HEAL_BLOCK_TURNS] = turns
+
+
+def test_heal_block_stops_a_move_picked_before_it(make_pokemon, make_battle):
+    """The foe's Recover fails after my faster Heal Block, 5 turns counted down from this turn's end
+    (pokeplatinum subscript_heal_block_start, CHECK_STATUS_STATE_HEAL_BLOCK)"""
+    arr = _heal_block_battle(make_pokemon, make_battle, ["Recover"])
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] = 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS] & VolStatus.HEAL_BLOCK and foe[Pok.HEAL_BLOCK_TURNS] == 4
+    assert foe[Pok.CURRENT_HP] == 10
+    assert engine_helper.move_blocked(foe, 0)
+
+
+def test_heal_block_lasts_five_turns_and_fails_while_up(make_pokemon, make_battle):
+    """A second one doesn't restart the count, it ends after five ends of turn"""
+    arr = _heal_block_battle(make_pokemon, make_battle, ["Splash"])
+    foe = opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.HEAL_BLOCK_TURNS] == 3
+    for _ in range(3):
+        engine_helper.heal_block_count(foe)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.HEAL_BLOCK and foe[Pok.HEAL_BLOCK_TURNS] == 0
+
+
+def test_heal_block_fails_into_a_substitute(make_pokemon, make_battle):
+    """pokeplatinum CheckSubstitute"""
+    arr = _heal_block_battle(make_pokemon, make_battle, ["Splash"])
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.HEAL_BLOCK
+
+
+@pytest.mark.parametrize("move", [
+    "Recover", "Soft-Boiled", "Milk Drink", "Slack Off", "Heal Order", "Roost", "Moonlight",
+    "Morning Sun", "Synthesis", "Rest",
+])
+def test_heal_block_stops_selecting_its_moves(poke, move):
+    """pokeplatinum sMovesAffectedByHealBlock, CHECK_INVALID_HEAL_BLOCK"""
+    p = poke("Abra", 20, "Synchronize", [move, "Tackle"])
+    assert not engine_helper.move_blocked(p, 0)
+    _heal_blocked(p)
+    assert engine_helper.move_blocked(p, 0) and not engine_helper.move_blocked(p, 1)
+
+
+@pytest.mark.parametrize("vol", [VolStatus.INGRAIN, VolStatus.AQUA_RING])
+def test_heal_block_stops_ingrain_and_aqua_ring(make_pokemon, make_battle, vol):
+    """pokeplatinum MON_COND_CHECK_STATE_INGRAIN / AQUA_RING load subscript_cannot_heal"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle"], ["Tackle"])
+    me = my_active(arr)
+    me[Pok.VOL_STATUS] = vol
+    _heal_blocked(me)
+    me[Pok.CURRENT_HP] = 10
+    end_of_turn(arr)
+    assert me[Pok.CURRENT_HP] == 10 and me[Pok.VOL_STATUS] & vol
+    assert me[Pok.HEAL_BLOCK_TURNS] == 4
+
+
+def test_heal_block_stops_the_leech_seed_heal(make_pokemon, make_battle):
+    """The seeded Pokemon still loses its HP (pokeplatinum subscript_leech_seed_effect)"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Tackle"], ["Tackle"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS] = VolStatus.LEECH_SEED
+    _heal_blocked(me)
+    me[Pok.CURRENT_HP] = 10
+    foe_hp = foe[Pok.CURRENT_HP]
+    end_of_turn(arr)
+    assert foe[Pok.CURRENT_HP] == foe_hp - max(1, foe[Pok.MAX_HP] // 8)
+    assert me[Pok.CURRENT_HP] == 10
+
+
+def test_heal_block_stops_the_drain_heal(poke):
+    """The heal is gone, Liquid Ooze still hurts (pokeplatinum subscript_drain_half_damage_dealt)"""
+    a = poke("Oddish", 20, "Chlorophyll", ["Giga Drain"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    _heal_blocked(a)
+    a[Pok.CURRENT_HP] = 10
+    engine_helper.drain(a, d, move_slice(a, 0), 20)
+    assert a[Pok.CURRENT_HP] == 10
+    d[Pok.AB_ID] = AbilityNames.LIQUID_OOZE
+    engine_helper.drain(a, d, move_slice(a, 0), 20)
+    assert a[Pok.CURRENT_HP] < 10
+
+
+def test_heal_block_makes_a_called_heal_move_fail(monkeypatch, make_pokemon, make_battle):
+    """A called move Heal Block stops fails, like Gravity's (Showdown healblock onModifyMove)"""
+    _force_metronome(monkeypatch, MoveName.RECOVER)
+    arr = make_battle([make_pokemon("Munchlax", 20, "Thick Fat", ["Metronome"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"])])
+    me = my_active(arr)
+    _heal_blocked(me)
+    me[Pok.CURRENT_HP] = 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == 10
+
+
+def test_sleep_talk_skips_a_heal_blocked_move(make_pokemon, make_battle):
+    """Through move_blocked: with Recover its only other move, Sleep Talk fails"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Sleep Talk", "Recover"])
+    me = my_active(arr)
+    _asleep(me)
+    _heal_blocked(me)
+    me[Pok.CURRENT_HP] = 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == 10
+
+
+def test_heal_block_ends_on_switch_out_and_baton_pass_keeps_it(make_pokemon, make_battle):
+    """Baton Pass hands it over with its turns (pokeplatinum healBlockTurns), a switch ends it"""
+    arr = _heal_block_battle(make_pokemon, make_battle, ["Splash"])
+    me, new = my_active(arr), pok_slice(arr, 1)
+    _heal_blocked(me, 3)
+    battle._pass_baton(me, new)
+    assert new[Pok.VOL_STATUS] & VolStatus.HEAL_BLOCK and new[Pok.HEAL_BLOCK_TURNS] == 3
+    engine_helper.reset_switch_out(me)
+    assert not me[Pok.VOL_STATUS] & VolStatus.HEAL_BLOCK and me[Pok.HEAL_BLOCK_TURNS] == 0

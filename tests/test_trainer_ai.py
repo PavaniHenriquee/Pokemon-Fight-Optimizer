@@ -50,6 +50,8 @@ KIT_STATUS = (
     "Power Trick",
     "Toxic", "Glare", "Spore", "Lovely Kiss", "Dark Void", "Poison Gas", "Teeter Dance", "Rest",
     "Sleep Talk", "Nightmare", "Psycho Shift", "Heal Bell", "Aromatherapy",
+    "Milk Drink", "Soft-Boiled", "Slack Off", "Heal Order", "Moonlight", "Morning Sun", "Roost",
+    "Heal Block",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -2973,3 +2975,72 @@ def test_teeter_dance_has_no_ai_check(poke):
     user[Pok.VOL_STATUS] |= VolStatus.CONFUSION
     assert _basic(ai_pok, user, AbilityNames.OWN_TEMPO) == 0
     assert _expert(ai_pok, user) == (0, [])
+
+
+# ── 8.3 healing ──────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("move", [
+    "Soft-Boiled", "Milk Drink", "Slack Off", "Heal Order", "Roost", "Moonlight", "Morning Sun",
+])
+def test_basic_recovery_new_moves(poke, move):
+    """Basic_CheckCanRecoverHP for RESTORE_HALF_HP, Roost and HEAL_HALF_MORE_IN_SUN: -8 at full HP"""
+    ai_pok = poke("Bulbasaur", 20, "Overgrow", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -8
+    ai_pok[Pok.CURRENT_HP] -= 1
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+
+
+@pytest.mark.parametrize("move, weather, expected", [
+    ("Roost", Weather.RAIN, (0, [(2, 236)])),
+    ("Slack Off", Weather.HAIL, (0, [(2, 236)])),
+    ("Moonlight", Weather.RAIN, (-2, [(2, 236)])),
+    ("Morning Sun", Weather.SANDSTORM, (-2, [(2, 236)])),
+    ("Moonlight", Weather.SUN, (0, [(2, 236)])),
+])
+def test_expert_recovery_new_moves(monkeypatch, poke, move, weather, expected):
+    """Expert_Recovery for RESTORE_HALF_HP and Roost, Expert_Synthesis's weather -2 for Moonlight and
+    Morning Sun"""
+    monkeypatch.setattr(ai.random, "getrandbits", lambda k: 0)
+    ai_pok = poke("Bulbasaur", 10, "Overgrow", [move])
+    _at_pct(ai_pok, 60)
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert_weather(ai_pok, user, weather) == expected
+
+
+def test_basic_heal_block(poke):
+    """Basic_CheckHealBlock: -10 on a target already under it"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Heal Block"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+    user[Pok.VOL_STATUS] |= VolStatus.HEAL_BLOCK
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+
+
+@pytest.mark.parametrize("user_moves, seen, setup, roll, expected", [
+    (["Recover"], Enemy_AI_Knows.MOVE1, None, 255, (0, [(1, 231)])),
+    (["Giga Drain"], Enemy_AI_Knows.MOVE1, None, 255, (0, [(1, 231)])),
+    (["Recover"], 0, None, 255, (0, [])),               # not seen yet
+    (["Tackle"], 0, None, 95, (0, [(1, 231)])),          # the 96/256 roll
+    (["Tackle"], 0, "ingrain", 255, (0, [(1, 231)])),
+    (["Tackle"], 0, "seeded", 255, (0, [(1, 231)])),
+])
+def test_expert_heal_block(monkeypatch, poke, user_moves, seen, setup, roll, expected):
+    """Pokemow Expert Heal Block: 231/256 of +1 with a seen healing or drain move, the target's
+    Ingrain or Aqua Ring, or the AI seeded; otherwise 96/256, then 231/256"""
+    monkeypatch.setattr(ai.random, "getrandbits", lambda k: roll)
+    ai_pok = poke("Abra", 20, "Synchronize", ["Heal Block"])
+    user = poke("Oddish", 20, "Chlorophyll", user_moves)
+    if setup == "ingrain":
+        user[Pok.VOL_STATUS] |= VolStatus.INGRAIN
+    if setup == "seeded":
+        ai_pok[Pok.VOL_STATUS] |= VolStatus.LEECH_SEED
+    assert _expert_knows(ai_pok, user, seen) == expected
+
+
+@pytest.mark.parametrize("move", ["Soft-Boiled", "Milk Drink", "Slack Off", "Heal Order"])
+def test_expert_protect_sees_every_recover_move(poke, move):
+    """Pokemow Expert Protect's list: Recover, Softboiled, Milk Drink, Slack Off, Heal Order"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Protect"])
+    user = poke("Machop", 20, "Guts", [move])
+    assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE1) == (-2, [])

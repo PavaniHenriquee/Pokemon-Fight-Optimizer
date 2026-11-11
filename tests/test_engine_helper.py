@@ -3594,3 +3594,32 @@ def test_secret_power_move(poke, terrain, field, value):
     if field != Sec.STATUS:
         assert sp[Sec.STATUS] == 0
     assert move_slice(p, 0)[Sec.STATUS] == Status.PARALYSIS
+
+
+# ── 8.3 healing ──────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("move", [
+    MoveName.SOFT_BOILED, MoveName.MILK_DRINK, MoveName.SLACK_OFF, MoveName.HEAL_ORDER,
+    MoveName.ROOST,
+])
+def test_half_heal_moves(poke, move):
+    """pokeplatinum BATTLE_EFFECT_RESTORE_HALF_HP and Roost: 1/2 whatever the weather"""
+    p = poke("Machop", 40, "Guts", ["Tackle"])
+    p[Pok.CURRENT_HP] = 1
+    assert heal_move(p, move, Weather.SUN)
+    assert p[Pok.CURRENT_HP] == 1 + p[Pok.MAX_HP] // 2
+    p[Pok.CURRENT_HP] = p[Pok.MAX_HP]
+    assert not heal_move(p, move, 0)
+
+
+@pytest.mark.parametrize("move", [MoveName.MOONLIGHT, MoveName.MORNING_SUN])
+@pytest.mark.parametrize("weather, num, den", [
+    (0, 1, 2), (Weather.SUN, 20, 30), (Weather.RAIN, 1, 4), (Weather.SANDSTORM, 1, 4),
+    (Weather.HAIL, 1, 4),
+])
+def test_sun_heal_moves(poke, move, weather, num, den):
+    """Synthesis's amounts (pokeplatinum BATTLE_EFFECT_HEAL_HALF_MORE_IN_SUN)"""
+    p = poke("Machop", 40, "Guts", ["Tackle"])
+    p[Pok.CURRENT_HP] = 1
+    heal_move(p, move, weather)
+    assert p[Pok.CURRENT_HP] == 1 + p[Pok.MAX_HP] * num // den

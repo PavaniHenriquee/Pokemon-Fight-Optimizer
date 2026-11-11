@@ -17,7 +17,7 @@ from Models.constants import (
     _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _ITEM_ID, _SEC_TARGET,
     _MOVENAME_SNORE, _MOVENAME_SLEEP_TALK, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE,
     _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _POK_STATUS, _STATUS_SLEEP, _POK_VOL_STATUS,
-    _VOLSTATUS_NIGHTMARE, _POK_AB_ID,
+    _VOLSTATUS_NIGHTMARE, _POK_AB_ID, _MOVENAME_HEAL_BLOCK,
 )
 from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
@@ -27,7 +27,7 @@ from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import (
     calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails,
-    has_substitute
+    has_substitute, heal_blocked
 )
 from Engine.ability_helper import levitates, effective_weather, normalized_type, grounded_by_item
 from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
@@ -144,13 +144,16 @@ def status_move_blocked(move, me, foe, weather):
     """A status move aimed at the foe that its ability makes useless: the status it gives is one
     ability_blocks_status keeps off, or every stat drop it causes is one stat_drop_blocked stops.
     Also one the foe's Substitute stops, and my Substitute when it would fail. Embargo on a foe
-    already under it, Trick and Switcheroo with no item on either side"""
+    already under it, Heal Block on a foe already under it, Trick and Switcheroo with no item on
+    either side"""
     if move[_MOVE_ID] == _MOVENAME_SUBSTITUTE:
         return substitute_fails(me)
     if sub_blocks_move(move, me, foe):
         return True
     if move[_MOVE_ID] == _MOVENAME_EMBARGO:
         return embargoed(foe)
+    if move[_MOVE_ID] == _MOVENAME_HEAL_BLOCK:
+        return heal_blocked(foe)
     if move[_MOVE_ID] == _MOVENAME_TRICK or move[_MOVE_ID] == _MOVENAME_SWITCHEROO:
         return me[_ITEM_ID] == 0 and foe[_ITEM_ID] == 0
     if move[_MOVE_TARGET] in TARGET_SELF_SIDE:

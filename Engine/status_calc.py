@@ -27,6 +27,7 @@ from Models.constants import (
     _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _ABILITYNAMES_CLEAR_BODY,
     _ABILITYNAMES_WHITE_SMOKE, _ABILITYNAMES_HYPER_CUTTER, _ITEM_HOLD_EFFECT,
     _HOLDEFFECT_RECIPROCATE_INFAT, _MOVENAME_CHATTER, _POK_ID, _VOLSTATUS_NIGHTMARE,
+    _VOLSTATUS_HEAL_BLOCK, _POK_HEAL_BLOCK_TURNS,
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from DataBase.PkDB import PokemonName
@@ -44,6 +45,7 @@ SET_ONCE_VOLS = (
 # Mud Sport and Water Sport target the field but the volatile goes on the user
 SELF_VOL_TARGETS = TARGET_SELF_SIDE + (Target.ALL,)
 YAWN_DURATION = 2
+HEAL_BLOCK_DURATION = 5
 # Encore and Disable keep the move slot in the low bits of their counter: turns * SLOT_STEP + slot
 SLOT_STEP = 4
 SLOT_MASK = 3
@@ -385,6 +387,12 @@ def vol_status(move, pok, source, sec=False, side=0, weather=0):
         if not pok[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT:
             pok[_POK_VOL_STATUS] |= _VOLSTATUS_TAUNT
             pok[_POK_TAUNT_TURNS] = random.randint(3, 5)
+
+    # 5 turns, fails on a target already under it (pokeplatinum subscript_heal_block_start)
+    if v_status & _VOLSTATUS_HEAL_BLOCK:
+        if not pok[_POK_VOL_STATUS] & _VOLSTATUS_HEAL_BLOCK:
+            pok[_POK_VOL_STATUS] |= _VOLSTATUS_HEAL_BLOCK
+            pok[_POK_HEAL_BLOCK_TURNS] = HEAL_BLOCK_DURATION
 
     # Both lock onto the target's last move, which needs PP left. Encore 3-7 turns, Disable 3-6
     if v_status & _VOLSTATUS_ENCORE:

@@ -18,6 +18,7 @@ from Engine.engine_helper import (
     has_substitute, hit_substitute, make_substitute, sub_blocks_status_move, takeable_item,
     focus_sash_ready, sticky_barb_transfer, after_move_hit_items, on_hit_berries,
     clear_target_choice_lock, swap_items, embargo, embargo_count, fling_fails, fling_move,
+    heal_blocked, heal_block_stops, heal_block_count,
     fling_throw, fling_hit, _flavor_confuse, kick_hits, record_last_resort, last_resort_works,
     secret_power_move, sucker_punch_fails, lost_focus, turn_order_doubles, confuse_boost_fails,
     stage_move_fails, belly_drum, acupressure, haze, psych_up, swap_stages, power_trick, swap_atk_def,
@@ -102,7 +103,9 @@ from Models.constants import (
     _MOVENAME_HAZE, _MOVENAME_PSYCH_UP, _MOVENAME_POWER_SWAP, _MOVENAME_GUARD_SWAP,
     _MOVENAME_HEART_SWAP, _MOVENAME_POWER_TRICK, _VOLSTATUS2_POWER_TRICK,
     _VOLSTATUS2_DAMAGED_BY_MOVE, _MOVE_SLEEP_USABLE, _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT,
-    _MOVENAME_HEAL_BELL, _MOVENAME_AROMATHERAPY,
+    _MOVENAME_HEAL_BELL, _MOVENAME_AROMATHERAPY, _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK,
+    _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_MOONLIGHT,
+    _MOVENAME_MORNING_SUN, _VOLSTATUS2_ROOST, _POK_HEAL_BLOCK_TURNS,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 from Models.item import refresh_item, raw_item_type
@@ -169,7 +172,13 @@ BATON_PASS_VOLS2 = _VOLSTATUS2_SUBSTITUTE | _VOLSTATUS2_EMBARGO | _VOLSTATUS2_PO
 NO_ACTION = -50
 # Field.OPP_MOVE_RAN: the foe's move slot + 1, plus this for every PP the move paid
 OPP_RAN_PP_STEP = 16
-HEAL_MOVES = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
+HEAL_MOVES = (
+    _MOVENAME_RECOVER, _MOVENAME_SYNTHESIS, _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK,
+    _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_MOONLIGHT,
+    _MOVENAME_MORNING_SUN
+)
+# VOL_STATUS2 bits that last only the turn
+TURN_VOLATILES2 = _VOLSTATUS2_DAMAGED_BY_MOVE | _VOLSTATUS2_ROOST
 RECOIL_IMMUNE_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 # Covet and Thief take the target's item, Bug Bite and Pluck eat its berry
 STEAL_MOVES = (_MOVENAME_COVET, _MOVENAME_THIEF)
@@ -189,6 +198,8 @@ def _pass_baton(old, new):
     new[_POK_PERISH_TURNS] = old[_POK_PERISH_TURNS]
     # Embargo goes on with its turns, now over the new Pokemon's item (pokeplatinum embargoTurns)
     new[_POK_EMBARGO_TURNS] = old[_POK_EMBARGO_TURNS]
+    # Heal Block too (pokeplatinum healBlockTurns)
+    new[_POK_HEAL_BLOCK_TURNS] = old[_POK_HEAL_BLOCK_TURNS]
     # The receiver's own Attack and Defense trade (pokeplatinum BattleSystem_UpdateAfterSwitch)
     if new[_POK_VOL_STATUS2] & _VOLSTATUS2_POWER_TRICK:
         swap_atk_def(new)
@@ -528,7 +539,7 @@ def _present_move(mv):
 def _present_heal(defender):
     """Present's heal: 1/4 of the target's max HP, at least 1, through a Substitute (Showdown
     infiltrates). Heal Block stops it (pokeplatinum subscript_present_heal)"""
-    if defender[_POK_VOL_STATUS] & _VOLSTATUS_HEAL_BLOCK:
+    if heal_blocked(defender):
         return
     max_hp = defender[_POK_MAX_HP]
     defender[_POK_CURRENT_HP] = min(max_hp, defender[_POK_CURRENT_HP] + max(1, max_hp // 4))
@@ -960,7 +971,8 @@ def _execute_move_slot(
         # A called move sees the caller's PP, for Trump Card (pokeplatinum ATTACKER_MOVE_SLOT)
         mv[_MOVE_PP] = caller_pp
         # A called move Gravity stops fails like a selected one (Showdown onModifyMove)
-        if gravity and mv[_FLAGS_GRAVITY]:
+        # Heal Block's moves too, like Gravity's (Showdown healblock onModifyMove)
+        if (gravity and mv[_FLAGS_GRAVITY]) or heal_block_stops(atk, called):
             unlock_move(atk)
             metronome_fail(atk, outer_id)
             return False
@@ -1189,7 +1201,10 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
     elif move_id == _MOVENAME_SUBSTITUTE:
         make_substitute(atk)
     elif move_id in HEAL_MOVES:
-        heal_move(atk, move_id, weather)
+        # Roost drops the Flying type for the rest of the turn, only if it healed (pokeplatinum
+        # subscript_roost, TURN_FLAG_ROOSTING)
+        if heal_move(atk, move_id, weather) and move_id == _MOVENAME_ROOST:
+            atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_ROOST
     elif move_id == _MOVENAME_REFRESH:
         refresh(atk)
     elif move_id == _MOVENAME_RECYCLE:
@@ -1555,7 +1570,9 @@ def _leech_seed_heal(seeder, seeded, dealt, seeded_flag_idx, battle_array):
     """
     dealt = big_root(seeder, dealt)
     if seeded[_POK_AB_ID] != _ABILITYNAMES_LIQUID_OOZE:
-        seeder[_POK_CURRENT_HP] = min(seeder[_POK_MAX_HP], seeder[_POK_CURRENT_HP] + dealt)
+        # Heal Block stops the heal after the Liquid Ooze check
+        if not heal_blocked(seeder):
+            seeder[_POK_CURRENT_HP] = min(seeder[_POK_MAX_HP], seeder[_POK_CURRENT_HP] + dealt)
     elif seeder[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
         reveal_ability(seeder)
         reveal_ability(seeded)
@@ -1584,10 +1601,10 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
     enter_field = battle_array[enter_field_flag_idx]
     is_magic_guard = pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD
 
-    # 1. Ingrain and Aqua Ring
-    if pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN:
+    # 1. Ingrain and Aqua Ring, Heal Block stops their heal
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN and not heal_blocked(pok):
         _residual_heal(pok)
-    if pok[_POK_VOL_STATUS] & _VOLSTATUS_AQUA_RING:
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_AQUA_RING and not heal_blocked(pok):
         _residual_heal(pok)
 
     # 2. Speed Boost
@@ -1720,7 +1737,10 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
         if pok[_POK_TAUNT_TURNS] <= 0:
             pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_TAUNT
 
-    # 11b. Embargo (Magnet Rise and Heal Block will go before it)
+    # 11a. Heal Block
+    heal_block_count(pok)
+
+    # 11b. Embargo (Magnet Rise will go before it)
     embargo_count(pok)
 
     # 12. Yawn
@@ -1912,8 +1932,8 @@ def _finish_turn(battle_array):
 
     current_pokemon[_POK_VOL_STATUS] &= ~TURN_VOLATILES
     current_opp[_POK_VOL_STATUS] &= ~TURN_VOLATILES
-    current_pokemon[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_DAMAGED_BY_MOVE
-    current_opp[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_DAMAGED_BY_MOVE
+    current_pokemon[_POK_VOL_STATUS2] &= ~TURN_VOLATILES2
+    current_opp[_POK_VOL_STATUS2] &= ~TURN_VOLATILES2
     _clear_damage_record(current_pokemon)
     _clear_damage_record(current_opp)
 

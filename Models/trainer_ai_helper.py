@@ -104,6 +104,9 @@ from Models.constants import (
     _MOVENAME_POWER_TRICK, _VOLSTATUS2_POWER_TRICK,
     _MOVENAME_SNORE, _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _MOVENAME_HEAL_BELL,
     _MOVENAME_AROMATHERAPY, _MOVENAME_TEETER_DANCE, _VOLSTATUS_NIGHTMARE,
+    _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER,
+    _MOVENAME_ROOST, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _MOVENAME_HEAL_BLOCK,
+    _VOLSTATUS_HEAL_BLOCK, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -313,10 +316,15 @@ SELF_DROP_HP_M = (
 # pokeplatinum BATTLE_EFFECT_STATUS_CONFUSE, which Expert_Substitute reads off the target's last move
 CONFUSE_EFFECT_M = (_MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS)
 # Moves the Expert AI looks for among the ones it saw the target use. Detect
-# isn't in MoveDB, Recover is the only RESTORE_HALF_HP move there
+# isn't in MoveDB
 PROTECT_LIKE_M = (_MOVENAME_PROTECT,)
 FEINT_LIKE_M = (_MOVENAME_FEINT, _MOVENAME_SHADOW_FORCE)
-RECOVER_DEF_CURL_M = (_MOVENAME_RECOVER, _MOVENAME_DEFENSE_CURL)
+# pokeplatinum BATTLE_EFFECT_RESTORE_HALF_HP (Pokemow Expert Protect's list)
+RESTORE_HALF_M = (
+    _MOVENAME_RECOVER, _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF,
+    _MOVENAME_HEAL_ORDER
+)
+RECOVER_DEF_CURL_M = RESTORE_HALF_M + (_MOVENAME_DEFENSE_CURL,)
 MOVE_ID_SLOTS = (_POK_MOVE1_ID, _POK_MOVE2_ID, _POK_MOVE3_ID, _POK_MOVE4_ID)
 # Side condition and weather moves, scored by basic_field / expert_field
 WEATHER_M = (_MOVENAME_RAIN_DANCE, _MOVENAME_SANDSTORM)
@@ -362,14 +370,21 @@ ENCORE_ENCOURAGED_M = (
     MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
+MOVE_DRAIN_SLOTS = tuple(slot + _MOVE_DRAIN - _MOVE_ID for slot in MOVE_ID_SLOTS)
 # pokeplatinum Basic_SoundproofMoves, the ones in MoveDB. Perish Song and Hyper Voice aren't on it
 SOUNDPROOF_M = (
     MoveName.GROWL, MoveName.ROAR, MoveName.SING, MoveName.SUPERSONIC, MoveName.SCREECH,
     MoveName.UPROAR, MoveName.GRASS_WHISTLE, MoveName.CHATTER, MoveName.BUG_BUZZ,
     MoveName.METAL_SOUND, MoveName.SNORE
 )
-# Recover is the only RESTORE_HALF_HP move in MoveDB, Synthesis the only HEAL_HALF_MORE_IN_SUN one
-HEAL_M = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
+# pokeplatinum BATTLE_EFFECT_HEAL_HALF_MORE_IN_SUN
+SUN_HEAL_M = (_MOVENAME_SYNTHESIS, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN)
+# The RESTORE_HALF_HP moves, Roost (HEAL_HALF_REMOVE_FLYING_TYPE) and the sun ones
+HEAL_M = RESTORE_HALF_M + (_MOVENAME_ROOST,) + SUN_HEAL_M
+# Pokemow List_HealingMoves, the ones in MoveDB that aren't drain moves (those go by their drain)
+HEAL_BLOCK_GOOD_M = HEAL_M + (
+    _MOVENAME_REST, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _MOVENAME_LEECH_SEED
+)
 # Scored by basic_misc / expert_misc
 MISC_BASIC_M = HEAL_M + (
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG
@@ -693,6 +708,10 @@ def basic_move_vol_status(move, ability, user_pok, ai_pok, user_side=0):
     elif vol_status == _VOLSTATUS_DISABLE:
         if user_vol_status & _VOLSTATUS_DISABLE:
             return -8
+    # pokeplatinum Basic_CheckHealBlock
+    elif vol_status == _VOLSTATUS_HEAL_BLOCK:
+        if user_vol_status & _VOLSTATUS_HEAL_BLOCK:
+            return -10
 
     return 0
 
@@ -1409,6 +1428,25 @@ def expert_sleep(move, ai_pok, u_pok, rand, idx, move_first, ai_bench_status):
 
 
 @njit
+def expert_heal_block(ai_pok, u_pok, rand, idx, ai_know):
+    """
+    Pokemow Expert Heal Block (pokeplatinum Expert_HealBlock): 231/256 of +1 if the target was seen
+    using a healing move or a drain move, has Ingrain or Aqua Ring up, or the AI is seeded. Otherwise
+    96/256, then 231/256 of +1 (33.8%)
+    """
+    good = (
+        seen_move(u_pok, ai_know, HEAL_BLOCK_GOOD_M)
+        or ai_pok[_POK_VOL_STATUS] & _VOLSTATUS_LEECH_SEED != 0
+        or u_pok[_POK_VOL_STATUS] & (_VOLSTATUS_AQUA_RING | _VOLSTATUS_INGRAIN) != 0
+    )
+    for i in range(4):
+        if ai_know & AI_KNOWS_MOVE_BITS[i] and u_pok[MOVE_DRAIN_SLOTS[i]]:
+            good = True
+    if good or random.getrandbits(8) < 96:
+        add_adjustment(rand, idx, 1, 231)
+
+
+@njit
 def seen_move(pok, ai_know, move_ids):
     """If the AI saw pok use one of move_ids (Field.AI_KNOWS move bits)"""
     for i in range(4):
@@ -1550,6 +1588,9 @@ def expert_vol_status(
             add_adjustment(rand, idx, 1, 128)
         if hp_pct_ai < 31:
             add_adjustment(rand, idx, 2, 156)
+        return 0
+    if vol_status == _VOLSTATUS_HEAL_BLOCK:
+        expert_heal_block(ai_pok, u_pok, rand, idx, ai_know)
         return 0
     if vol_status == _VOLSTATUS_LEECH_SEED:
         # Pokemow's Toxic check, which Leech Seed shares
@@ -2214,7 +2255,7 @@ def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know=0):
     hp_pct_u = (u_pok[_POK_CURRENT_HP]*100) // u_pok[_POK_MAX_HP]
     if move_id in HEAL_M:
         score = 0
-        if move_id == _MOVENAME_SYNTHESIS and weather in SYNTHESIS_BAD_WEATHER:
+        if move_id in SUN_HEAL_M and weather in SYNTHESIS_BAD_WEATHER:
             score -= 2
         if hp_pct_ai == 100:
             return score - 3

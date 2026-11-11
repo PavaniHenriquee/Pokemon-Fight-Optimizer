@@ -184,6 +184,7 @@ class Pokemon:
             self.nature_minus(),  # The stat the nature lowers, for the confusion berries
             0,   # Choice-locked move slot + 1, 0 means none
             0,   # Embargo turns left
+            0,   # Heal Block turns left
             0,   # Rampage (Thrash) turns left
             0,   # Last Resort: mask of the move slots used since switch-in
             self.friendship,  # Friendship, for a called Return or Frustration

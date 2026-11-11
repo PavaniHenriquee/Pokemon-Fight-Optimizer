@@ -392,6 +392,26 @@ def scenario_power_rules():
     return my, opp, ()
 
 
+def scenario_status_moves():
+    """Phase 8: stat stages (Dragon Dance, Swords Dance, Calm Mind, Belly Drum, Feather Dance, Metal
+    Sound, Captivate, Psych Up, Haze, Guard Swap), status and sleep (Spore, Toxic, Rest, Sleep Talk,
+    Nightmare, Dream Eater, Psycho Shift, Heal Bell) and healing (Roost, Soft-Boiled, Slack Off,
+    Moonlight, Heal Block) both ways"""
+    my = [
+        _p("Gyarados", 40, "Intimidate", ["Dragon Dance", "Waterfall", "Rest", "Sleep Talk"]),
+        _p("Hypno", 40, "Insomnia", ["Dream Eater", "Nightmare", "Heal Block", "Psych Up"]),
+        _p("Staraptor", 40, "Intimidate", ["Roost", "Brave Bird", "Feather Dance", "Close Combat"]),
+        _p("Blissey", 40, "Natural Cure", ["Soft-Boiled", "Heal Bell", "Toxic", "Seismic Toss"]),
+    ]
+    opp = [
+        _p("Breloom", 40, "Effect Spore", ["Spore", "Sky Uppercut", "Swords Dance", "Psycho Shift"]),
+        _p("Slowbro", 40, "Own Tempo", ["Slack Off", "Calm Mind", "Surf", "Psychic"]),
+        _p("Clefable", 40, "Magic Guard", ["Moonlight", "Belly Drum", "Captivate", "Moonblast"]),
+        _p("Bronzong", 40, "Levitate", ["Metal Sound", "Haze", "Guard Swap", "Flash Cannon"]),
+    ]
+    return my, opp, ()
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -406,6 +426,7 @@ SCENARIOS = {
     "damage_moves": scenario_damage_moves,
     "forced_turns": scenario_forced_turns,
     "power_rules": scenario_power_rules,
+    "status_moves": scenario_status_moves,
 }
 
 

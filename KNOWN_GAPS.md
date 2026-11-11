@@ -5,6 +5,8 @@
 - AI: the 8.1 branches (Belly Drum, Acupressure, Captivate, Haze, Psych Up, the swaps, Power Trick,
   the two-stat boosts, Expert Dragon Dance) follow [pp] `trainer_ai/script.s` only: Pokemow's per-move
   panels load with JavaScript and couldn't be fetched, so any place Pokemow differs isn't checked.
+- AI: Expert Heal Block counts every move with `drain` as a drain move ([pp] RECOVER_HALF_DAMAGE_DEALT), so
+  Draining Kiss too; which effect RP gives it is unknown (ROM not read).
 - AI: Expert Gravity reads the target's real ability and skips Magnet Rise;
   `expert_charge_invulnerable` skips the "target's last move isn't always-hit" check;
   pokeplatinum's Expert swaps the EVA_DOWN_2 / ACC_DOWN_2 logic (copy it when a -2
@@ -75,8 +77,12 @@
   Nature Power out, so its Sleep Talk can.
 - Uproar: a Soundproof Pokemon still falls asleep during one, Rest included (`sleep_blocked`, [pp]
   `subscript_rest`, CHECK_STATUS_STATE_SLEEP); [SD gen4]'s uproar stops every sleep.
-- Heal Block (8.3) must also stop Rest ([pp] `Move_HealBlocked`) and Dream Eater's heal ([pp]
-  `subscript_dream_eater`); neither checks it yet.
+- Called moves under Gravity or Heal Block fail ([SD] onModifyMove, my call). [pp] `Move_CanBeMetronomed`
+  rerolls Metronome's pick instead and fails Copycat and Assist.
+- Heal Block: Swallow, Wish, Healing Wish and Lunar Dance go in `HEAL_BLOCK_MOVES` (and Wish's heal checks it,
+  [pp] `subscript_wish_heal`) once they're in MoveDB.
+- Dream Eater runs `drain`, so a Liquid Ooze target hurts it; [pp] `subscript_dream_eater` has no Liquid Ooze
+  check and heals.
 - Metronome item: a failed Trick, Switcheroo or Embargo keeps its count, like the status moves above ([pp] gives
   it back on MOVE_STATUS_FAILED). A failed Fling gives it back.
 - Chatter confuses at [SD gen4]'s 31% whenever a Chatot uses it. [pp] reads the recorded cry's volume (1%, 11% or
@@ -109,8 +115,7 @@
 
 ## MoveDB and tests
 
-- Not in MoveDB yet: Spikes damage, Magnet Rise, U-turn,
-  Heal Block.
+- Not in MoveDB yet: Spikes damage, Magnet Rise, U-turn.
 - MoveDB flags from after Gen IV (`python -m DataBase.add_moves --check` lists them): Absorb and Mega
   Drain have `heal`; Stealth Rock, Foresight and Taunt are `reflectable`; Roar has no `protect`. They matter
   once Magic Coat and Heal Block are in.

@@ -1358,3 +1358,12 @@ def test_node_key_sees_last_resort_working(make_pokemon, make_battle):
     key = node_key(arr)
     opp_active(arr)[Pok.LAST_RESORT] = 0b11
     assert node_key(arr) == key
+
+
+def test_rollout_sees_heal_block_fail(poke):
+    """status_move_blocked: Heal Block on a foe already under it"""
+    me = poke("Abra", 20, "Synchronize", ["Heal Block"])
+    foe = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert not status_move_blocked(move_slice(me, 0), me, foe, 0)
+    foe[Pok.VOL_STATUS] |= VolStatus.HEAL_BLOCK
+    assert status_move_blocked(move_slice(me, 0), me, foe, 0)

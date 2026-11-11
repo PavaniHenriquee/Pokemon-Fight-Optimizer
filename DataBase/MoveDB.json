@@ -2733,6 +2733,33 @@
     "target": "ally_team",
     "type": "Normal"
   },
+  "Heal Block": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "heal_block",
+    "pp": 15,
+    "target": "all_adjacent_foes",
+    "type": "Psychic",
+    "vol_status": "heal_block"
+  },
+  "Heal Order": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "heal_order",
+    "pp": 10,
+    "target": "self",
+    "type": "Bug"
+  },
   "Heart Swap": {
     "accuracy": true,
     "category": "Status",
@@ -3668,6 +3695,19 @@
     "target": "self",
     "type": "Normal"
   },
+  "Milk Drink": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "milk_drink",
+    "pp": 10,
+    "target": "self",
+    "type": "Normal"
+  },
   "Minimize": {
     "accuracy": true,
     "boost_ev": 1,
@@ -3761,6 +3801,32 @@
     },
     "target": "normal",
     "type": "Fairy"
+  },
+  "Moonlight": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "moonlight",
+    "pp": 5,
+    "target": "self",
+    "type": "Fairy"
+  },
+  "Morning Sun": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "morning_sun",
+    "pp": 5,
+    "target": "self",
+    "type": "Normal"
   },
   "Mud Bomb": {
     "accuracy": 85,
@@ -4953,6 +5019,19 @@
     "target": "normal",
     "type": "Rock"
   },
+  "Roost": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "roost",
+    "pp": 10,
+    "target": "self",
+    "type": "Flying"
+  },
   "Sacred Fire": {
     "accuracy": 95,
     "category": "Physical",
@@ -5402,6 +5481,19 @@
     "target": "normal",
     "type": "Fighting"
   },
+  "Slack Off": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "slack_off",
+    "pp": 10,
+    "target": "self",
+    "type": "Normal"
+  },
   "Slam": {
     "accuracy": 75,
     "category": "Physical",
@@ -5568,6 +5660,19 @@
     },
     "sleep_usable": true,
     "target": "normal",
+    "type": "Normal"
+  },
+  "Soft-Boiled": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "soft_boiled",
+    "pp": 10,
+    "target": "self",
     "type": "Normal"
   },
   "Solar Beam": {

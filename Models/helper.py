@@ -91,6 +91,7 @@ class VolStatus2:
     EMBARGO           = 32
     DAMAGED_BY_MOVE   = 64
     POWER_TRICK       = 128
+    ROOST             = 256
 
 
 @dataclass(slots=True)

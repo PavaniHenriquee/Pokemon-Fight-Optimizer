@@ -68,7 +68,8 @@ class Pok:
     NATURE_MINUS              = SUB_HP + 1
     CHOICE_LOCK               = NATURE_MINUS + 1
     EMBARGO_TURNS             = CHOICE_LOCK + 1
-    RAMPAGE_TURNS             = EMBARGO_TURNS + 1
+    HEAL_BLOCK_TURNS          = EMBARGO_TURNS + 1
+    RAMPAGE_TURNS             = HEAL_BLOCK_TURNS + 1
     LAST_RESORT               = RAMPAGE_TURNS + 1
     FRIENDSHIP                = LAST_RESORT + 1
     AB_ID                     = FRIENDSHIP + 1

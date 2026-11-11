@@ -124,7 +124,9 @@ from Models.constants import (
     _POK_CHOICE_LOCK, _HOLDEFFECT_CHOICE_ATK, _HOLDEFFECT_CHOICE_SPATK, _HOLDEFFECT_CHOICE_SPEED,
     _POK_EMBARGO_TURNS, _VOLSTATUS2_EMBARGO, _ITEM_FLING_POWER, _ITEM_FLING_STATUS,
     _ITEM_FLING_VOLATILE, _ITEM_ITEM_TYPE, _ITEMTYPE_BERRY, _SEC_STATUS, _SEC_VOL_STATUS, _SEC_TARGET,
-    _POK_RAMPAGE_TURNS,
+    _POK_RAMPAGE_TURNS, _VOLSTATUS_HEAL_BLOCK, _MOVENAME_RECOVER, _MOVENAME_SOFT_BOILED,
+    _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST,
+    _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _POK_HEAL_BLOCK_TURNS,
 )
 from DataBase.PkDB import PokemonName
 
@@ -174,6 +176,13 @@ PROTECT_COUNT_MAX = 3  # Success chance 1, 1/2, 1/4, then 1/8 from here on
 STEALTH_ROCK_DIV = 8
 # Synthesis heals a quarter of max HP in these weathers
 HEAL_QUARTER_WEATHER = (_WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL)
+# Synthesis's weather-dependent heal (pokeplatinum BATTLE_EFFECT_HEAL_HALF_MORE_IN_SUN)
+SUN_HEAL_MOVES = (_MOVENAME_SYNTHESIS, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN)
+# pokeplatinum sMovesAffectedByHealBlock, the ones in MoveDB
+HEAL_BLOCK_MOVES = SUN_HEAL_MOVES + (
+    _MOVENAME_RECOVER, _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF,
+    _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_REST
+)
 # Refresh cures these, not sleep or freeze
 REFRESH_CURES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 WORRY_SEED_FAILS = (_ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE)
@@ -246,9 +255,12 @@ def unlock_move(pok):
 def move_blocked(pok, slot, gravity=False):
     """
     Disable, Encore or Taunt keep this move slot from being selected, and so does Gravity for
-    its moves and a choice item for every slot but the locked one (PP is checked apart)
+    its moves, Heal Block for its moves and a choice item for every slot but the locked one (PP is
+    checked apart)
     """
     if gravity and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _FLAGS_GRAVITY]:
+        return True
+    if heal_block_stops(pok, pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID]):
         return True
     lock = pok[_POK_CHOICE_LOCK]
     if lock and slot != lock - 1 and pok[_ITEM_HOLD_EFFECT] in CHOICE_EFFECTS:
@@ -1730,6 +1742,7 @@ def reset_switch_out(pok):
     pok[_POK_SUB_HP] = 0
     pok[_POK_CHOICE_LOCK] = 0
     pok[_POK_EMBARGO_TURNS] = 0
+    pok[_POK_HEAL_BLOCK_TURNS] = 0
     pok[_POK_RAMPAGE_TURNS] = 0
     pok[_POK_LAST_RESORT] = 0
     refresh_item(pok)
@@ -2379,6 +2392,10 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
     if gravity and move[_FLAGS_GRAVITY]:
         unlock_move(attacker)
         return True
+    # Heal Block, after Gravity (pokeplatinum CHECK_STATUS_STATE_HEAL_BLOCK)
+    if heal_block_stops(attacker, move[_MOVE_ID]):
+        unlock_move(attacker)
+        return True
     if attacker[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT and move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
         unlock_move(attacker)
         return True
@@ -2653,6 +2670,9 @@ def drain(pok, defender, move, dmg):
         if pok[_POK_AB_ID] != _ABILITYNAMES_MAGIC_GUARD:
             _contact_damage(pok, heal)
         return
+    # Heal Block stops the heal after the Liquid Ooze check
+    if heal_blocked(pok):
+        return
     pok[_POK_CURRENT_HP] = min(pok[_POK_CURRENT_HP]+heal, pok[_POK_MAX_HP])
 
 
@@ -2778,19 +2798,46 @@ def apply_recoil(pok, recoil):
 @njit
 def heal_move(pok, move_id, weather):
     """
-    Recover heals 1/2 of max HP. Synthesis 1/2 with no weather, 2/3 in sun and 1/4 in rain, sand
-    or hail (pokeplatinum BtlCmd_WeatherHPRecovery). Rounded down, at least 1, nothing at full HP
+    Recover, Soft-Boiled, Milk Drink, Slack Off, Heal Order and Roost heal 1/2 of max HP. Synthesis,
+    Moonlight and Morning Sun 1/2 with no weather, 2/3 in sun and 1/4 in rain, sand or hail
+    (pokeplatinum BtlCmd_WeatherHPRecovery). Rounded down, at least 1, nothing at full HP. Returns
+    True if it healed
     """
     max_hp = pok[_POK_MAX_HP]
     if pok[_POK_CURRENT_HP] >= max_hp:
-        return
+        return False
     heal = max_hp // 2
-    if move_id == _MOVENAME_SYNTHESIS:
+    if move_id in SUN_HEAL_MOVES:
         if weather == _WEATHER_SUN:
             heal = max_hp * 20 // 30
         elif weather in HEAL_QUARTER_WEATHER:
             heal = max_hp // 4
     pok[_POK_CURRENT_HP] = min(max_hp, pok[_POK_CURRENT_HP] + max(1, heal))
+    return True
+
+
+@njit
+def heal_blocked(pok):
+    """Heal Block is up: its moves can't be used and drain, Leech Seed, Ingrain, Aqua Ring and
+    Present don't heal (pokeplatinum healBlockTurns)"""
+    return pok[_POK_VOL_STATUS] & _VOLSTATUS_HEAL_BLOCK != 0
+
+
+@njit
+def heal_block_stops(pok, move_id):
+    """Heal Block stops this move (pokeplatinum Move_HealBlocked)"""
+    return heal_blocked(pok) and move_id in HEAL_BLOCK_MOVES
+
+
+@njit
+def heal_block_count(pok):
+    """End of turn: Heal Block counts down (pokeplatinum MON_COND_CHECK_STATE_HEAL_BLOCK)"""
+    if not heal_blocked(pok):
+        return
+    pok[_POK_HEAL_BLOCK_TURNS] -= 1
+    if pok[_POK_HEAL_BLOCK_TURNS] <= 0:
+        pok[_POK_HEAL_BLOCK_TURNS] = 0
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_HEAL_BLOCK
 
 
 @njit

@@ -1543,3 +1543,11 @@ def test_called_return_reads_the_users_friendship(poke):
     a[Pok.FRIENDSHIP] = 200
     assert variable_power(a, d, MOVE_TABLE[MoveName.RETURN].copy()) == 80
     assert variable_power(a, d, MOVE_TABLE[MoveName.FRUSTRATION].copy()) == 22
+
+
+def test_matchup_types_roost(poke):
+    """Roost drops the Flying type against every move type (pokeplatinum BasicTypeMulApplies)"""
+    pidgey = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    pidgey[Pok.VOL_STATUS2] = VolStatus2.ROOST
+    for move_type in (Types.GROUND, Types.ELECTRIC, Types.GRASS):
+        assert matchup_types(move_type, pidgey) == (Types.NORMAL, 0)
