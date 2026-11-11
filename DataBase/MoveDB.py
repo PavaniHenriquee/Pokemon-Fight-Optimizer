@@ -27,7 +27,8 @@ class MoveName:
     ATTRACT         = ATTACK_ORDER + 1
     AURA_SPHERE     = ATTRACT + 1
     AURORA_BEAM     = AURA_SPHERE + 1
-    BARRIER         = AURORA_BEAM + 1
+    AVALANCHE       = AURORA_BEAM + 1
+    BARRIER         = AVALANCHE + 1
     BATON_PASS      = BARRIER + 1
     BEAT_UP         = BATON_PASS + 1
     BIDE            = BEAT_UP + 1
@@ -239,7 +240,8 @@ class MoveName:
     OVERHEAT        = OUTRAGE + 1
     PAIN_SPLIT      = OVERHEAT + 1
     PAY_DAY         = PAIN_SPLIT + 1
-    PECK            = PAY_DAY + 1
+    PAYBACK         = PAY_DAY + 1
+    PECK            = PAYBACK + 1
     PERISH_SONG     = PECK + 1
     PETAL_DANCE     = PERISH_SONG + 1
     PIN_MISSILE     = PETAL_DANCE + 1
@@ -275,7 +277,8 @@ class MoveName:
     REFLECT         = RECYCLE + 1
     REFRESH         = REFLECT + 1
     RETURN          = REFRESH + 1
-    REVERSAL        = RETURN + 1
+    REVENGE         = RETURN + 1
+    REVERSAL        = REVENGE + 1
     ROAR            = REVERSAL + 1
     ROAR_OF_TIME    = ROAR + 1
     ROCK_BLAST      = ROAR_OF_TIME + 1

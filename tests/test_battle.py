@@ -4521,3 +4521,129 @@ def test_false_swipe_leaves_one_hp(make_pokemon, make_battle, always_hit, foe_hp
     turn_sim(0, (MOVE, 0), arr)
     assert foe[Pok.CURRENT_HP] == left
     assert foe[Pok.ITEM_ID] == ItemNames.FOCUS_SASH or foe_hp == foe[Pok.MAX_HP]
+
+
+# ── 7.3 turn order ───────────────────────────────────────────────────────────
+
+def _record_power(monkeypatch, move_id):
+    """calculate_damage returns 10 and keeps the base power each use of move_id saw"""
+    powers = []
+
+    def fake(attacker, defender, move, *rest):
+        if move[Move.ID] == move_id:
+            powers.append(int(move[Move.POWER]))
+        return 10
+    monkeypatch.setattr(battle, "calculate_damage", fake)
+    return powers
+
+
+@pytest.mark.parametrize("move", ["Revenge", "Avalanche"])
+@pytest.mark.parametrize("foe_move, power", [("Tackle", 120), ("Growl", 60)])
+def test_revenge_doubles_after_a_hit(monkeypatch, make_pokemon, make_battle, always_hit, move,
+                                     foe_move, power):
+    """Doubled when the target's damaging move hit the user this turn (pokeplatinum
+    BtlCmd_CalcRevengePowerMul)"""
+    powers = _record_power(monkeypatch, getattr(MoveName, move.upper()))
+    arr = make_battle([make_pokemon("Hariyama", 50, "Thick Fat", [move])],
+                      [make_pokemon("Raticate", 50, "Run Away", [foe_move])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert powers == [power]
+
+
+def test_revenge_after_a_hit_on_the_substitute(monkeypatch, make_pokemon, make_battle, always_hit):
+    """A hit on the Substitute isn't recorded (pokeplatinum BattleControllerPlayer_UpdateHP)"""
+    powers = _record_power(monkeypatch, MoveName.REVENGE)
+    arr = make_battle([make_pokemon("Hariyama", 50, "Thick Fat", ["Revenge"])],
+                      [make_pokemon("Raticate", 50, "Run Away", ["Tackle"])])
+    me = my_active(arr)
+    me[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    me[Pok.SUB_HP] = 50
+    turn_sim(0, (MOVE, 0), arr)
+    assert powers == [60]
+
+
+def test_damaged_by_move_is_cleared_at_turn_end(make_pokemon, make_battle, always_hit):
+    """It only lasts the turn (pokeplatinum turnFlags)"""
+    arr = make_battle([make_pokemon("Hariyama", 50, "Thick Fat", ["Harden"])],
+                      [make_pokemon("Raticate", 50, "Run Away", ["Tackle"])])
+    me = my_active(arr)
+    battle._apply_move_damage(opp_active(arr), me, move_slice(opp_active(arr), 0), 5)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.DAMAGED_BY_MOVE
+    battle._finish_turn(arr)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.DAMAGED_BY_MOVE
+
+
+@pytest.mark.parametrize("mine, theirs, power", [
+    ("Steelix", "Raticate", 100),   # moves second
+    ("Raticate", "Steelix", 50),    # moves first
+])
+def test_payback_doubles_moving_second(monkeypatch, make_pokemon, make_battle, always_hit, mine,
+                                       theirs, power):
+    """pokeplatinum BtlCmd_CalcPaybackPower, Showdown gen4 queue.willMove"""
+    powers = _record_power(monkeypatch, MoveName.PAYBACK)
+    arr = make_battle([make_pokemon(mine, 50, "Sturdy", ["Payback"])],
+                      [make_pokemon(theirs, 50, "Sturdy", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert powers == [power]
+
+
+def test_payback_doubles_into_a_switch_or_an_item(poke):
+    """The target's action was a switch or an item, it already used its turn"""
+    a = poke("Raticate", 50, "Run Away", ["Payback"])
+    assert engine_helper.turn_order_doubles(a, move_slice(a, 0), 1, -1)
+    assert engine_helper.turn_order_doubles(a, move_slice(a, 0), 1, -10)
+    assert not engine_helper.turn_order_doubles(a, move_slice(a, 0), 1, 0)
+
+
+@pytest.mark.parametrize("foe_move, hits", [("Tackle", True), ("Harden", False)])
+def test_sucker_punch_needs_an_attack(make_pokemon, make_battle, always_hit, foe_move, hits):
+    """Fails into a status move, after the PP is spent (pokeplatinum BtlCmd_TrySuckerPunch)"""
+    arr = make_battle([make_pokemon("Raticate", 50, "Run Away", ["Sucker Punch"])],
+                      [make_pokemon("Steelix", 50, "Sturdy", [foe_move])])
+    me, foe = my_active(arr), opp_active(arr)
+    hp, pp = foe[Pok.CURRENT_HP], move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (foe[Pok.CURRENT_HP] < hp) == hits
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+
+
+def test_sucker_punch_fail_cases(poke):
+    """The target already acted (moved first, switched, used an item) or is recharging (Showdown
+    gen4 mustrecharge). Struggle counts as an attack"""
+    a = poke("Raticate", 50, "Run Away", ["Sucker Punch"])
+    d = poke("Steelix", 50, "Sturdy", ["Tackle", "Harden"])
+    sucker = move_slice(a, 0)
+    assert not engine_helper.sucker_punch_fails(d, sucker, 1, 0)
+    assert engine_helper.sucker_punch_fails(d, sucker, 1, 1)
+    assert engine_helper.sucker_punch_fails(d, sucker, 2, 0)
+    assert engine_helper.sucker_punch_fails(d, sucker, 1, -1)
+    assert not engine_helper.sucker_punch_fails(d, sucker, 1, 10)
+    d[Pok.CHARGE_RECHARGE] = -1
+    assert engine_helper.sucker_punch_fails(d, sucker, 1, 0)
+
+
+@pytest.mark.parametrize("foe_move, sub, hits", [
+    ("Tackle", False, False), ("Growl", False, True), ("Tackle", True, True),
+])
+def test_focus_punch_loses_focus_when_hit(make_pokemon, make_battle, always_hit, foe_move, sub, hits):
+    """A damaging hit before it moves makes it fail after the PP is spent, a hit on its Substitute
+    doesn't (pokeplatinum effect 0170)"""
+    arr = make_battle([make_pokemon("Machop", 50, "Guts", ["Focus Punch"])],
+                      [make_pokemon("Raticate", 50, "Run Away", [foe_move])])
+    me, foe = my_active(arr), opp_active(arr)
+    if sub:
+        me[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+        me[Pok.SUB_HP] = 50
+    hp, pp = foe[Pok.CURRENT_HP], move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (foe[Pok.CURRENT_HP] < hp) == hits
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+
+
+def test_focus_punch_user_does_not_flinch(poke):
+    """It loses its focus instead, Steadfast doesn't trigger (Showdown gen4 focuspunch
+    onTryAddVolatile)"""
+    a = poke("Riolu", 50, "Steadfast", ["Focus Punch"])
+    d = poke("Raticate", 50, "Run Away", ["Fake Out"])
+    assert not engine_helper.early_returns(a, d, 2, True, move_slice(a, 0))
+    assert a[Pok.SPEED_STAT_STAGE] == 0

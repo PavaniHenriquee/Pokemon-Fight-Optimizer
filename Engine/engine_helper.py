@@ -26,6 +26,8 @@ from Models.item import ITEM_TABLE, refresh_item, embargoed
 from Models.ability import ABILITY_TABLE
 from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES, MOVE_TABLE
 from Models.constants import (
+    _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH, _MOVENAME_PAYBACK, _MOVENAME_REVENGE,
+    _MOVENAME_AVALANCHE, _VOLSTATUS2_DAMAGED_BY_MOVE,
     _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
     _WEATHER_SUN, _MOVENAME_FAKE_OUT, _MOVENAME_THUNDER, _MOVENAME_LAST_RESORT, _POK_LAST_RESORT,
     _SEC_BOOST_ACC, _SEC_BOOST_ATK, _SEC_BOOST_SPEED, _SEC_BOOST_EV, _VOLSTATUS_FLINCH,
@@ -2087,8 +2089,9 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
     # Recharge, after Truant (pokeplatinum CHECK_STATUS_STATE_RECHARGING)
     if recharging:
         return True
-    # Flinch
-    if flinch and idx >= 2:
+    # Flinch. A Pokemon focusing for Focus Punch can't flinch, it loses its focus instead
+    # (Showdown gen4 focuspunch condition onTryAddVolatile)
+    if flinch and idx >= 2 and move[_MOVE_ID] != _MOVENAME_FOCUS_PUNCH:
         unlock_move(attacker)
         if attacker[_POK_AB_ID] == _ABILITYNAMES_STEADFAST:
             attacker[_POK_SPEED_STAT_STAGE] = min(6, attacker[_POK_SPEED_STAT_STAGE] + 1)
@@ -2161,6 +2164,53 @@ def counter_fails(attacker, move, idx):
         )
         and (idx == 1 or attacker[_POK_DMG_TAKEN] == 0)
     )
+
+
+@njit
+def target_acted(idx, target_action):
+    """The target used its turn before this move: it moved first, or switched or used an item
+    (pokeplatinum DEFENDER_ACTION == BATTLE_CONTROL_MOVE_END, Showdown gen4 queue.willMove)"""
+    return idx >= 2 or target_action < 0
+
+
+@njit
+def sucker_punch_fails(defender, move, idx, target_action):
+    """
+    Sucker Punch fails if the target already acted, picked a status move or is recharging, after the
+    PP is spent (Showdown gen4 onTry, pokeplatinum BtlCmd_TrySuckerPunch). Struggle counts as an attack
+    """
+    if move[_MOVE_ID] != _MOVENAME_SUCKER_PUNCH:
+        return False
+    if target_acted(idx, target_action) or defender[_POK_CHARGE_RECHARGE] < 0:
+        return True
+    if target_action == 10:  # Struggle
+        return False
+    return defender[OFFSET_MOVE + target_action * MOVE_STRIDE + _MOVE_CATEGORY] == _MOVECATEGORY_STATUS
+
+
+@njit
+def lost_focus(attacker, move):
+    """Focus Punch fails if a damaging move hit the user this turn, a hit on its Substitute doesn't
+    count (pokeplatinum effect 0170, BattleControllerPlayer_UpdateHP)"""
+    return (
+        move[_MOVE_ID] == _MOVENAME_FOCUS_PUNCH
+        and attacker[_POK_VOL_STATUS2] & _VOLSTATUS2_DAMAGED_BY_MOVE != 0
+    )
+
+
+@njit
+def turn_order_doubles(attacker, move, idx, target_action):
+    """
+    Payback doubles when the target already acted (pokeplatinum BtlCmd_CalcPaybackPower), Revenge
+    and Avalanche when a damaging move hit the user this turn (BtlCmd_CalcRevengePowerMul). Both
+    double the base power before Charge and Technician
+    """
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_PAYBACK:
+        return target_acted(idx, target_action)
+    if move_id == _MOVENAME_REVENGE or move_id == _MOVENAME_AVALANCHE:
+        return attacker[_POK_VOL_STATUS2] & _VOLSTATUS2_DAMAGED_BY_MOVE != 0
+    return False
 
 
 @njit

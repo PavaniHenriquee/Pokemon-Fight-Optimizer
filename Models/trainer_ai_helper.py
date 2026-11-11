@@ -22,6 +22,7 @@ from Models.constants import (
     _ABILITYNAMES_WATER_ABSORB, _ABILITYNAMES_FLASH_FIRE, _ABILITYNAMES_LEVITATE,
     _ABILITYNAMES_SOUNDPROOF, _ABILITYNAMES_WONDER_GUARD, _MOVENAME_COVET, _MOVENAME_CURSE,
     _MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT, _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH,
+    _MOVENAME_REVENGE, _MOVENAME_AVALANCHE, _MOVENAME_PAYBACK,
     _MOVENAME_FUTURE_SIGHT, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE, _MOVENAME_SWAGGER,
     _MOVENAME_FLATTER, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_LEAF_GUARD, _MOVENAME_GYRO_BALL,
     _ABILITYNAMES_HYDRATION, _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _MOVENAME_FLAIL,
@@ -218,7 +219,12 @@ EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOV
     _MOVENAME_SMELLING_SALTS, _MOVENAME_WAKE_UP_SLAP, _MOVENAME_ERUPTION, _MOVENAME_WATER_SPOUT,
     _MOVENAME_TRUMP_CARD, _MOVENAME_WRING_OUT, _MOVENAME_CRUSH_GRIP, _MOVENAME_PUNISHMENT,
     _MOVENAME_LAST_RESORT, _MOVENAME_METAL_BURST, _MOVENAME_SUPER_FANG, _MOVENAME_ENDEAVOR,
-    _MOVENAME_PAIN_SPLIT)
+    _MOVENAME_PAIN_SPLIT, _MOVENAME_FOCUS_PUNCH, _MOVENAME_REVENGE, _MOVENAME_AVALANCHE,
+    _MOVENAME_PAYBACK, _MOVENAME_SUCKER_PUNCH)
+# Scored by expert_turn_order
+TURN_ORDER_M = (
+    _MOVENAME_FOCUS_PUNCH, _MOVENAME_REVENGE, _MOVENAME_AVALANCHE, _MOVENAME_PAYBACK, _MOVENAME_SUCKER_PUNCH
+)
 # Expert_MetalBurst's -1 when the AI saw the target use one (pokeplatinum DOUBLE_POWER_IF_HIT,
 # HIT_LAST_WHIFF_IF_HIT, PRIORITY_NEG_1_BYPASS_ACCURACY), the ones in MoveDB
 METAL_BURST_BAD_M = tuple(
@@ -1750,10 +1756,51 @@ def expert_moves(
         if ai_hp_pct > 40:
             return 0
         add_adjustment(rand, idx, 1, 156)
+    elif m_id in TURN_ORDER_M:
+        return expert_turn_order(move, u_pok, ai_pok, effectiveness, rand, idx, move_first, ai_hp_pct)
     else:
         return expert_variable_power(move, u_pok, ai_pok, effectiveness, rand, idx, move_first, ability)
 
     return score
+
+
+@njit
+def expert_turn_order(move, u_pok, ai_pok, effectiveness, rand, idx, move_first, ai_hp_pct):
+    """
+    pokeplatinum Expert_FocusPunch, Expert_Revenge (Avalanche shares its effect), Expert_Payback and
+    Expert_SuckerPunch. A roll the script skips below X applies at (256 - X) / 256
+    """
+    m_id = move[_MOVE_ID]
+    resisted = effectiveness <= 0.5
+    if m_id == _MOVENAME_REVENGE or m_id == _MOVENAME_AVALANCHE:
+        if (
+            u_pok[_POK_STATUS] == _STATUS_SLEEP
+            or u_pok[_POK_VOL_STATUS] & (_VOLSTATUS_ATTRACT | _VOLSTATUS_CONFUSION)
+        ):
+            return -2
+        # 180/256 of -2, else +2
+        add_adjustment(rand, idx, 4, 76)
+        return -2
+    if resisted:
+        return -1
+    if m_id == _MOVENAME_FOCUS_PUNCH:
+        if ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_SUBSTITUTE:
+            return 5
+        if u_pok[_POK_STATUS] == _STATUS_SLEEP:
+            return 1
+        if u_pok[_POK_VOL_STATUS] & (_VOLSTATUS_ATTRACT | _VOLSTATUS_CONFUSION):
+            add_adjustment(rand, idx, 1, 156)
+            return 0
+        if ai_pok[_POK_TURNS_ACTIVE] != 1:
+            add_adjustment(rand, idx, 1, 56)
+        return 0
+    if m_id == _MOVENAME_PAYBACK:
+        if not move_first and ai_hp_pct >= 30:
+            add_adjustment(rand, idx, 1, 192)
+        return 0
+    # Sucker Punch
+    add_adjustment(rand, idx, 1, 192)
+    return 0
 
 
 @njit
@@ -2504,7 +2551,6 @@ def expert_flag(
     Belly Drum
     Psych Up
     Facade
-    Focus Punch
     Smelling Salt
     Wake-Up Slap
     Trick, Switcheroo
@@ -2517,7 +2563,6 @@ def expert_flag(
     Pluck
     U-turn
     Close Combat
-    Payback
     Assurance
     Embargo
     Fling
@@ -2533,7 +2578,6 @@ def expert_flag(
     Guard Swap
     Punishment
     Last Resort
-    Sucker Punch
     Heart Swap
     Magnet Rise
     Defog
@@ -2547,7 +2591,6 @@ def expert_flag(
     Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)
     Moves Which Change the User's Ability (Role Play, Skill Swap)
     Moves Which Decrease in Power With Less User HP (Water Spout, Eruption)
-    Double-Power Negative-Priority Moves (Avalanche, Revenge)
     Moves Reducing the User's SpAttack by 2 (e.g., Overheat, Draco Meteor)
 
     --------------Mirror Move------------------

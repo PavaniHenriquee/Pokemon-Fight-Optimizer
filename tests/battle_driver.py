@@ -373,6 +373,25 @@ def scenario_forced_turns():
     return my, opp, ()
 
 
+def scenario_power_rules():
+    """Phase 7: variable power (HP, status, PP, weight, speed, friendship, stat boosts, random), fixed
+    and HP-based damage, and turn order (Payback, Sucker Punch, Revenge / Avalanche, Focus Punch) both
+    ways"""
+    my = [
+        _p("Hariyama", 40, "Guts", ["Revenge", "Facade", "Wake-Up Slap", "Focus Punch"]),
+        _p("Raticate", 40, "Guts", ["Super Fang", "Endeavor", "Sucker Punch", "Return"]),
+        _p("Steelix", 40, "Sturdy", ["Metal Burst", "Payback", "Gyro Ball", "Grass Knot"]),
+        _p("Typhlosion", 40, "Blaze", ["Eruption", "Reversal", "Frustration", "Secret Power"]),
+    ]
+    opp = [
+        _p("Weavile", 40, "Pressure", ["Avalanche", "Sucker Punch", "Punishment", "Payback"]),
+        _p("Machamp", 40, "Guts", ["Focus Punch", "Revenge", "Facade", "Smelling Salts"]),
+        _p("Wailord", 40, "Water Veil", ["Water Spout", "Wring Out", "Endeavor", "Pain Split"]),
+        _p("Ambipom", 40, "Technician", ["Last Resort", "Trump Card", "Beat Up", "Triple Kick"]),
+    ]
+    return my, opp, ()
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -386,6 +405,7 @@ SCENARIOS = {
     "items": scenario_items,
     "damage_moves": scenario_damage_moves,
     "forced_turns": scenario_forced_turns,
+    "power_rules": scenario_power_rules,
 }
 
 

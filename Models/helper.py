@@ -89,6 +89,7 @@ class VolStatus2:
     SUBSTITUTE        = 8
     MICLE             = 16
     EMBARGO           = 32
+    DAMAGED_BY_MOVE   = 64
 
 
 @dataclass(slots=True)

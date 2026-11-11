@@ -40,7 +40,6 @@
 
 ## Engine mechanics
 
-- Sucker Punch (not in yet): [SD gen4] fails it into a recharging target, whose locked slot is a damaging move.
 - The confusion self-hit has no weather, so Flower Gift's sun boost doesn't reach it
   (`early_returns` has no field state).
 - Metronome can call moves whose mechanics aren't in yet; they run as their data says.
@@ -48,8 +47,7 @@
   selected move (`action`'s `record_phy` / `record_sp`), so the caller's turn records nothing. [pp] records
   `lastDamageTaken` on every hit.
 - Substitute: Dream Eater failing against one waits for Dream Eater's batch (8.2, no sleep check yet either).
-  Focus Punch: Expert's +5 behind a Substitute and losing focus when hit aren't in; a hit on the Substitute
-  mustn't break focus. A failed Substitute keeps its Metronome item count (like the status moves above).
+  A failed Substitute keeps its Metronome item count (like the status moves above).
 - Metronome item: a status move that fails inside `calculate_effects` (Thunder Wave on a statused
   foe, a stat move at ±6) doesn't give its count back; [pp] does (MOVE_STATUS_FAILED).
 - Accuracy stages are netted with exact thirds; [pp] `HitRateByStage` is a rounded table (differs
@@ -133,6 +131,9 @@
 - Search: the rollout (`rollout_pref`) runs `calculate_damage` on Super Fang, Endeavor and Metal Burst like on
   any power-0 move (7.2), so it never sees their KO, and a super effective Metal Burst (Steel) gets the bonus
   weight even when it would fail moving first.
+- Search: the rollout (`rollout_pref`) weighs Payback, Revenge and Avalanche at their base power, and Sucker
+  Punch and Focus Punch as if they always hit (7.3): it doesn't see the doubling or the fail (a status move
+  picked, a hit before Focus Punch). Only its move weights are off.
 - Search: `node_key` sees a rampage only through `LOCKED_MOVE`, not `RAMPAGE_TURNS`, so 2 turns left and 1
   left (confusion this turn) share a node.
 - Leppa on the foe (only through a Covet on my Leppa holder) gives back PP that Continue's foe PP arithmetic

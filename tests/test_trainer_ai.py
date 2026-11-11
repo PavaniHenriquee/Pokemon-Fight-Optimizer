@@ -76,6 +76,7 @@ KIT_DAMAGE = (
     "Facade", "Grass Knot", "Smelling Salts", "Wake-Up Slap", "Present", "Triple Kick", "Beat Up",
     "Return", "Frustration", "Last Resort", "Secret Power",
     "Super Fang", "Endeavor", "Metal Burst", "False Swipe",
+    "Avalanche", "Revenge", "Payback", "Sucker Punch", "Focus Punch",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -2437,6 +2438,61 @@ def test_expert_metal_burst(poke):
     assert _expert_burst(ai_pok, user, 0, Enemy_AI_Knows.MOVE1) == (-1, [])
     user[Pok.STATUS] = Status.SLEEP
     assert _expert_burst(ai_pok, user) == (-1, [])
+
+
+def _expert_turn(ai_pok, user, effectiveness=1.0):
+    rand = np.zeros((4, 6, 2), dtype=np.int16)
+    score = ai.expert_flag(ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, effectiveness, 0)
+    return score, [tuple(int(x) for x in rand[0, i]) for i in range(6) if rand[0, i, 1]]
+
+
+@pytest.mark.parametrize("move", ["Revenge", "Avalanche"])
+def test_expert_revenge(poke, move):
+    """pokeplatinum Expert_Revenge, Avalanche shares its effect: -2 into a sleeping, infatuated or
+    confused target, else 180/256 of -2 and 76/256 of +2"""
+    ai_pok = poke("Hariyama", 20, "Thick Fat", [move])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert _expert_turn(ai_pok, user) == (-2, [(4, 76)])
+    user[Pok.VOL_STATUS] = VolStatus.CONFUSION
+    assert _expert_turn(ai_pok, user) == (-2, [])
+
+
+def test_expert_focus_punch(poke):
+    """pokeplatinum Expert_FocusPunch"""
+    ai_pok = poke("Machop", 20, "Guts", ["Focus Punch"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert_turn(ai_pok, user, 0.5) == (-1, [])
+    # First turn in battle: nothing, after it 56/256 of +1
+    ai_pok[Pok.TURNS_ACTIVE] = 1
+    assert _expert_turn(ai_pok, user) == (0, [])
+    ai_pok[Pok.TURNS_ACTIVE] = 2
+    assert _expert_turn(ai_pok, user) == (0, [(1, 56)])
+    user[Pok.VOL_STATUS] = VolStatus.ATTRACT
+    assert _expert_turn(ai_pok, user) == (0, [(1, 156)])
+    user[Pok.STATUS] = Status.SLEEP
+    assert _expert_turn(ai_pok, user) == (1, [])
+    ai_pok[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    assert _expert_turn(ai_pok, user) == (5, [])
+
+
+def test_expert_payback(poke):
+    """pokeplatinum Expert_Payback: slower with 30% HP or more, 192/256 of +1"""
+    slow = poke("Steelix", 20, "Sturdy", ["Payback"])
+    fast = poke("Raticate", 20, "Run Away", ["Payback"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert _expert_turn(slow, user, 0.5) == (-1, [])
+    assert _expert_turn(slow, user) == (0, [(1, 192)])
+    assert _expert_turn(fast, user) == (0, [])
+    _set_hp_pct(slow, 29)
+    assert _expert_turn(slow, user) == (0, [])
+
+
+def test_expert_sucker_punch(poke):
+    """pokeplatinum Expert_SuckerPunch: -1 if resisted, else 192/256 of +1"""
+    ai_pok = poke("Raticate", 20, "Run Away", ["Sucker Punch"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert _expert_turn(ai_pok, user, 0.5) == (-1, [])
+    assert _expert_turn(ai_pok, user) == (0, [(1, 192)])
 
 
 def test_ai_scores_metal_burst_into_a_4x_target(make_pokemon, make_battle):

@@ -16,8 +16,9 @@ Updated only when asked.
   home PC is still to do.
 - Done: 6.1 (recharge), 6.2 (charge turn), 6.3 (semi-invulnerable, and what reaches it), 6.4 (rampage) and 6.5
   (crash damage), and with it Phase 6, 2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
-- Done: 7.1 (variable power) and 7.2 (fixed and HP-based damage), 2026-11-10.
-- Next: 7.3 (turn order).
+- Done: 7.1 (variable power), 7.2 (fixed and HP-based damage) and 7.3 (turn order), and with it Phase 7,
+  2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
+- Next: 8.1 (stat stages).
 
 ## Goal
 
@@ -551,11 +552,11 @@ Fixed damage:
 
 ### 7.3 Turn order
 
-- [ ] Avalanche
-- [ ] Revenge
-- [ ] Payback(E)
-- [ ] Sucker Punch(E) ! (in MoveDB)
-- [ ] Focus Punch(E) ! (in MoveDB)
+- [x] Avalanche
+- [x] Revenge
+- [x] Payback(E)
+- [x] Sucker Punch(E) ! (in MoveDB)
+- [x] Focus Punch(E) ! (in MoveDB)
 
 ## Phase 8: status moves
 

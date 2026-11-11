@@ -312,6 +312,22 @@
     "target": "normal",
     "type": "Ice"
   },
+  "Avalanche": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "avalanche",
+    "power": 60,
+    "pp": 10,
+    "priority": -4,
+    "target": "normal",
+    "type": "Ice"
+  },
   "Barrier": {
     "accuracy": true,
     "boost_def": 2,
@@ -3803,6 +3819,21 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Payback": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "payback",
+    "power": 50,
+    "pp": 10,
+    "target": "normal",
+    "type": "Dark"
+  },
   "Peck": {
     "accuracy": 100,
     "category": "Physical",
@@ -4363,6 +4394,22 @@
     "pp": 20,
     "target": "normal",
     "type": "Normal"
+  },
+  "Revenge": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "revenge",
+    "power": 60,
+    "pp": 10,
+    "priority": -4,
+    "target": "normal",
+    "type": "Fighting"
   },
   "Reversal": {
     "accuracy": 100,

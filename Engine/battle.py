@@ -19,7 +19,7 @@ from Engine.engine_helper import (
     focus_sash_ready, sticky_barb_transfer, after_move_hit_items, on_hit_berries,
     clear_target_choice_lock, swap_items, embargo, embargo_count, fling_fails, fling_move,
     fling_throw, fling_hit, _flavor_confuse, kick_hits, record_last_resort, last_resort_works,
-    secret_power_move,
+    secret_power_move, sucker_punch_fails, lost_focus, turn_order_doubles,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -97,6 +97,7 @@ from Models.constants import (
     _MOVENAME_SOLAR_BEAM, _MOVENAME_SKULL_BASH, _POK_DEFENSE_STAT_STAGE, _MOVENAME_SHADOW_FORCE,
     _MOVE_HAS_CRASH_DAMAGE, _DAMAGESOURCES_HALVE_HP, _DAMAGESOURCES_ENDEAVOR,
     _DAMAGESOURCES_METAL_BURST, _MOVENAME_FALSE_SWIPE, _MOVENAME_PAIN_SPLIT,
+    _VOLSTATUS2_DAMAGED_BY_MOVE,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 from Models.item import refresh_item, raw_item_type
@@ -432,6 +433,8 @@ def _apply_move_damage(attacker, defender, move, damage, crit=False):
     on_hit_abilities. Returns flinch"""
     if damage > 0:
         mark_hurt(defender)
+        # Revenge, Avalanche and Focus Punch see it (pokeplatinum physical/specialDamageAttackerMask)
+        defender[_POK_VOL_STATUS2] |= _VOLSTATUS2_DAMAGED_BY_MOVE
     if damage < defender[_POK_CURRENT_HP]:
         defender[_POK_CURRENT_HP] -= damage
         # Rage builds on every damaging hit the user survives
@@ -1001,10 +1004,17 @@ def _execute_move_slot(
     if mv[_MOVE_ID] in STALL_MOVES:
         try_protect(atk, mv[_MOVE_ID], is_last)
         return False
-    if counter_fails(atk, mv, slot_num) or endeavor_fails(atk, defn, mv):
+    target_action = opp_move if is_mine else current_move
+    if (
+        counter_fails(atk, mv, slot_num) or endeavor_fails(atk, defn, mv)
+        or sucker_punch_fails(defn, mv, slot_num, target_action) or lost_focus(atk, mv)
+    ):
         if counted:
             metronome_fail(atk, outer_id)
         return False
+    if turn_order_doubles(atk, mv, slot_num, target_action):
+        mv = mv.copy()
+        mv[_MOVE_POWER] *= 2
     # Gen IV Feint fails unless the target is protecting, then it lifts the protection
     if mv[_MOVE_ID] == _MOVENAME_FEINT:
         if not defn[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT:
@@ -1854,6 +1864,8 @@ def _finish_turn(battle_array):
 
     current_pokemon[_POK_VOL_STATUS] &= ~TURN_VOLATILES
     current_opp[_POK_VOL_STATUS] &= ~TURN_VOLATILES
+    current_pokemon[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_DAMAGED_BY_MOVE
+    current_opp[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_DAMAGED_BY_MOVE
     _clear_damage_record(current_pokemon)
     _clear_damage_record(current_opp)
 
