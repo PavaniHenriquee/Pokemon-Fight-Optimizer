@@ -156,8 +156,8 @@ def test_unsupported_trainers_lack_something_real():
 def test_trainer_lacks():
     """Moves and held items the databases don't have, NOT_IMPLEMENTED ones, unknown trainer items"""
     foe = {"name": "Squirtle", "level": 5, "ability": "Torrent", "moves": ["Tackle", "Tail Whip", "", ""]}
-    team = [{**foe, "moves": ["Tackle", "U-turn", "Swagger", ""], "item": "Heat Rock"}, {**foe, "ability": "Forecast"}]
-    assert trainer_lacks(team, ["Potion", "X Attack"]) == ["Forecast", "Heat Rock", "Swagger", "U-turn", "X Attack"]
+    team = [{**foe, "moves": ["Tackle", "U-turn", "Trick Room", ""], "item": "Heat Rock"}, {**foe, "ability": "Forecast"}]
+    assert trainer_lacks(team, ["Potion", "X Attack"]) == ["Forecast", "Heat Rock", "Trick Room", "U-turn", "X Attack"]
     assert not trainer_lacks([foe], ["Full Restore"])
 
 

@@ -2,6 +2,9 @@
 
 ## Trainer AI
 
+- AI: the 8.1 branches (Belly Drum, Acupressure, Captivate, Haze, Psych Up, the swaps, Power Trick,
+  the two-stat boosts, Expert Dragon Dance) follow [pp] `trainer_ai/script.s` only: Pokemow's per-move
+  panels load with JavaScript and couldn't be fetched, so any place Pokemow differs isn't checked.
 - AI: Expert Gravity reads the target's real ability and skips Magnet Rise;
   `expert_charge_invulnerable` skips the "target's last move isn't always-hit" check;
   pokeplatinum's Expert swaps the EVA_DOWN_2 / ACC_DOWN_2 logic (copy it when a -2
@@ -122,6 +125,10 @@
 
 ## Search and Continue
 
+- Search: the rollout (`status_move_blocked`) doesn't see the 8.1 fails (`stage_move_fails`: Belly Drum at half
+  HP or less or at +6, Acupressure with every stat at +6 or behind its Substitute, Captivate on Oblivious, the same
+  gender or genderless; `confuse_boost_fails`: Swagger / Flatter at +6 on a confused foe), so it weighs them at 1.
+  `stage_move_fails` reveals Oblivious, so the rollout would need a version without the reveal.
 - Search: the rollout's quick type check (`rollout_pref`) uses `gravity_types`, so it misses Ingrain grounding a
   Flying type (Iron Ball and Gravity reach it).
 - Search: the rollout (`rollout_pref`) doesn't weigh Jump Kick / High Jump Kick's crash (6.5) on a move that could

@@ -18,7 +18,8 @@ Updated only when asked.
   (crash damage), and with it Phase 6, 2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
 - Done: 7.1 (variable power), 7.2 (fixed and HP-based damage) and 7.3 (turn order), and with it Phase 7,
   2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
-- Next: 8.1 (stat stages).
+- Done: 8.1 (stat stages), 2026-11-10.
+- Next: 8.2 (status and sleep).
 
 ## Goal
 
@@ -562,28 +563,28 @@ Fixed damage:
 
 ### 8.1 Stat stages
 
-- [ ] Swords Dance
-- [ ] Calm Mind(B)
-- [ ] Cosmic Power(B)
-- [ ] Acid Armor
-- [ ] Tail Glow \*
-- [ ] Sharpen \*
-- [ ] Defend Order
-- [ ] Feather Dance
-- [ ] Metal Sound
-- [ ] Cotton Spore
-- [ ] Dragon Dance(B/E) (in MoveDB)
-- [ ] Swagger (in MoveDB)
-- [ ] Flatter (in MoveDB)
-- [ ] Belly Drum(B/E) !
-- [ ] Acupressure(B/E) !
-- [ ] Psych Up(E) ! (in MoveDB)
-- [ ] Haze(E)
-- [ ] Power Swap(B/E) \*
-- [ ] Guard Swap(B/E)
-- [ ] Heart Swap(E) \*
-- [ ] Power Trick(B/E) !
-- [ ] Captivate(B/E)
+- [x] Swords Dance
+- [x] Calm Mind(B)
+- [x] Cosmic Power(B)
+- [x] Acid Armor
+- [x] Tail Glow \*
+- [x] Sharpen \*
+- [x] Defend Order
+- [x] Feather Dance
+- [x] Metal Sound
+- [x] Cotton Spore
+- [x] Dragon Dance(B/E) (in MoveDB)
+- [x] Swagger (in MoveDB)
+- [x] Flatter (in MoveDB)
+- [x] Belly Drum(B/E) !
+- [x] Acupressure(B/E) !
+- [x] Psych Up(E) ! (in MoveDB)
+- [x] Haze(E)
+- [x] Power Swap(B/E) \*
+- [x] Guard Swap(B/E)
+- [x] Heart Swap(E) \*
+- [x] Power Trick(B/E) !
+- [x] Captivate(B/E)
 
 ### 8.2 Status and sleep
 

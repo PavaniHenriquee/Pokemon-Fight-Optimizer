@@ -201,6 +201,14 @@ def test_node_key_sees_vol_status2(one_v_one, mine):
     assert node_key(other) != node_key(arr)
 
 
+def test_node_key_sees_power_trick(one_v_one):
+    """Power Trick's VolStatus2 bit is under VOL2_KEY_BITS"""
+    arr = one_v_one()
+    key = node_key(arr)
+    my_active(arr)[Pok.VOL_STATUS2] |= VolStatus2.POWER_TRICK
+    assert node_key(arr) != key
+
+
 @pytest.mark.parametrize("mine", [True, False])
 def test_node_key_sees_changed_ability(one_v_one, mine):
     """An ability Trace or Worry Seed changed splits nodes by which ability it is, the sides

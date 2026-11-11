@@ -3094,6 +3094,32 @@ def test_metronome_item_keeps_the_count_with_no_foe(monkeypatch, make_pokemon, m
     assert me[Pok.METRONOME_COUNT] == (MoveName.TACKLE << 4) + 2
 
 
+@pytest.mark.parametrize("move, stage", [
+    ("Swagger", Pok.ATTACK_STAT_STAGE), ("Flatter", Pok.SPECIAL_ATTACK_STAT_STAGE),
+])
+@pytest.mark.parametrize("confused", [True, False])
+def test_swagger_fails_at_plus_6_on_a_confused_target(monkeypatch, make_pokemon, make_battle, move,
+                                                       stage, confused):
+    """At +6 on a target already confused the move fails and gives back its Metronome count; at +6
+    alone it still confuses (pokeplatinum subscript_swagger, subscript_flatter)"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    arr = make_battle(
+        [make_pokemon("Rattata", 50, "Run Away", [move], item="Metronome")],
+        [make_pokemon("Munchlax", 50, "Thick Fat", ["Harden"])],
+    )
+    me, foe = my_active(arr), opp_active(arr)
+    foe[stage] = 6
+    if confused:
+        foe[Pok.VOL_STATUS] |= VolStatus.CONFUSION
+        foe[Pok.CONFUSION_COUNTER] = 5
+    move_id = getattr(MoveName, move.upper())
+    me[Pok.METRONOME_COUNT] = (move_id << 4) + 2
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[stage] == 6
+    assert foe[Pok.VOL_STATUS] & VolStatus.CONFUSION
+    assert me[Pok.METRONOME_COUNT] == (move_id << 4) + (2 if confused else 3)
+
+
 # ── Phase 3: Substitute ──────────────────────────────────────────────────────
 
 def _sub(pok, hp):
@@ -4647,3 +4673,201 @@ def test_focus_punch_user_does_not_flinch(poke):
     d = poke("Raticate", 50, "Run Away", ["Fake Out"])
     assert not engine_helper.early_returns(a, d, 2, True, move_slice(a, 0))
     assert a[Pok.SPEED_STAT_STAGE] == 0
+
+
+# ── 8.1 stat stages ──────────────────────────────────────────────────────────
+
+def _stage_battle(make_pokemon, make_battle, move, my_ab="Run Away", foe_ab="Thick Fat",
+                  my_gender="Male", foe_gender="Female"):
+    """My Rattata using move against a Munchlax that only Splashes"""
+    return make_battle(
+        [make_pokemon("Rattata", 50, my_ab, [move], gender=my_gender)],
+        [make_pokemon("Munchlax", 50, foe_ab, ["Splash"], gender=foe_gender)],
+    )
+
+
+@pytest.mark.parametrize("hp_cut, stage, works", [(0, 0, True), (0, 6, False), (1, 0, False), (2, 0, True)])
+def test_belly_drum(make_pokemon, make_battle, hp_cut, stage, works):
+    """+6 Attack for half the max HP; fails at +6 or at half HP or less (hp_cut 1: exactly half,
+    2: one above), PP still spent (pokeplatinum subscript_belly_drum)"""
+    arr = _stage_battle(make_pokemon, make_battle, "Belly Drum")
+    me = my_active(arr)
+    half = me[Pok.MAX_HP] // 2
+    if hp_cut:
+        me[Pok.CURRENT_HP] = half + (hp_cut - 1)
+    me[Pok.ATTACK_STAT_STAGE] = stage
+    hp, pp = me[Pok.CURRENT_HP], move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+    assert me[Pok.CURRENT_HP] == (hp - half if works else hp)
+    assert me[Pok.ATTACK_STAT_STAGE] == (6 if works else stage)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.DAMAGED_BY_MOVE
+
+
+def test_acupressure_raises_a_stat_below_plus_6(make_pokemon, make_battle):
+    """+2 to a random stat among those below +6, capped at +6 (BtlCmd_BoostRandomStatBy2)"""
+    arr = _stage_battle(make_pokemon, make_battle, "Acupressure")
+    me = my_active(arr)
+    stages = range(Pok.ATTACK_STAT_STAGE, Pok.EVASION_STAT_STAGE + 1)
+    for idx in stages:
+        me[idx] = 6
+    me[Pok.SPEED_STAT_STAGE] = 5
+    turn_sim(0, (MOVE, 0), arr)
+    assert [me[i] for i in stages] == [6] * 7
+    random.seed(3)
+    for idx in stages:
+        me[idx] = 0
+    for _ in range(3):
+        turn_sim(0, (MOVE, 0), arr)
+    assert sum(me[i] for i in stages) == 6 and all(me[i] % 2 == 0 for i in stages)
+
+
+@pytest.mark.parametrize("setup", ["all_six", "sub"])
+def test_acupressure_fails(make_pokemon, make_battle, setup):
+    """Fails with every stat at +6, or behind the user's own Substitute (effect 226)"""
+    arr = _stage_battle(make_pokemon, make_battle, "Acupressure")
+    me = my_active(arr)
+    if setup == "all_six":
+        for idx in range(Pok.ATTACK_STAT_STAGE, Pok.EVASION_STAT_STAGE + 1):
+            me[idx] = 6
+    else:
+        me[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+        me[Pok.SUB_HP] = 30
+    before = me.copy()
+    turn_sim(0, (MOVE, 0), arr)
+    assert all(me[i] == before[i] for i in range(Pok.ATTACK_STAT_STAGE, Pok.EVASION_STAT_STAGE + 1))
+
+
+@pytest.mark.parametrize("my_ab, foe_ab, my_gender, foe_gender, drop, revealed", [
+    ("Run Away", "Thick Fat", "Male", "Female", -2, False),
+    ("Run Away", "Thick Fat", "Female", "Male", -2, False),
+    ("Run Away", "Thick Fat", "Male", "Male", 0, False),
+    ("Run Away", "Thick Fat", "Genderless", "Female", 0, False),
+    ("Run Away", "Thick Fat", "Male", "Genderless", 0, False),
+    ("Run Away", "Oblivious", "Male", "Female", 0, True),
+    ("Mold Breaker", "Oblivious", "Male", "Female", -2, False),
+    ("Run Away", "Clear Body", "Male", "Female", 0, False),
+])
+def test_captivate(make_pokemon, make_battle, always_hit, my_ab, foe_ab, my_gender, foe_gender,
+                   drop, revealed):
+    """SpAtk -2 on a foe of the other gender; Oblivious stops it with its message unless Mold
+    Breaker, Clear Body like any drop (pokeplatinum effect 265)"""
+    arr = _stage_battle(make_pokemon, make_battle, "Captivate", my_ab, foe_ab, my_gender, foe_gender)
+    foe = opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.SPECIAL_ATTACK_STAT_STAGE] == drop
+    assert bool(foe[Pok.AB_KNOWN]) == revealed
+
+
+def test_captivate_reveals_oblivious_behind_a_substitute(make_pokemon, make_battle, always_hit):
+    """The Oblivious check comes before the stat drop's Substitute check (effect 265)"""
+    arr = _stage_battle(make_pokemon, make_battle, "Captivate", foe_ab="Oblivious")
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 30
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.AB_KNOWN]
+
+
+STAGES = range(Pok.ATTACK_STAT_STAGE, Pok.EVASION_STAT_STAGE + 1)
+
+
+def _set_stages(pok, values):
+    for idx, val in zip(STAGES, values):
+        pok[idx] = val
+
+
+def test_haze_clears_both_sides_and_focus_energy(make_pokemon, make_battle):
+    """Every stage of both actives back to 0, Focus Energy gone on both (pokeplatinum
+    BtlCmd_ResetAllStatChanges, Showdown gen4 haze)"""
+    arr = _stage_battle(make_pokemon, make_battle, "Haze")
+    me, foe = my_active(arr), opp_active(arr)
+    _set_stages(me, [2, -1, 3, 0, 1, -6, 6])
+    _set_stages(foe, [-2, 4, 0, 1, -3, 2, 1])
+    me[Pok.VOL_STATUS] |= VolStatus.FOCUS_ENERGY
+    foe[Pok.VOL_STATUS] |= VolStatus.FOCUS_ENERGY
+    turn_sim(0, (MOVE, 0), arr)
+    assert [me[i] for i in STAGES] == [foe[i] for i in STAGES] == [0] * 7
+    assert not (me[Pok.VOL_STATUS] | foe[Pok.VOL_STATUS]) & VolStatus.FOCUS_ENERGY
+
+
+@pytest.mark.parametrize("foe_sub", [False, True])
+def test_psych_up_copies_the_stages_only(make_pokemon, make_battle, foe_sub):
+    """The user takes all seven stages, through a Substitute; Focus Energy isn't copied in Gen IV,
+    and the user keeps its own (Showdown gen5 psychup)"""
+    arr = _stage_battle(make_pokemon, make_battle, "Psych Up")
+    me, foe = my_active(arr), opp_active(arr)
+    _set_stages(me, [-1, -1, 2, 0, 0, 0, 3])
+    _set_stages(foe, [2, -1, 0, 1, -3, 2, 1])
+    foe[Pok.VOL_STATUS] |= VolStatus.FOCUS_ENERGY
+    if foe_sub:
+        foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+        foe[Pok.SUB_HP] = 30
+    turn_sim(0, (MOVE, 0), arr)
+    assert [me[i] for i in STAGES] == [2, -1, 0, 1, -3, 2, 1]
+    assert [foe[i] for i in STAGES] == [2, -1, 0, 1, -3, 2, 1]
+    assert not me[Pok.VOL_STATUS] & VolStatus.FOCUS_ENERGY
+
+
+@pytest.mark.parametrize("move, swapped", [
+    ("Power Swap", (Pok.ATTACK_STAT_STAGE, Pok.SPECIAL_ATTACK_STAT_STAGE)),
+    ("Guard Swap", (Pok.DEFENSE_STAT_STAGE, Pok.SPECIAL_DEFENSE_STAT_STAGE)),
+    ("Heart Swap", tuple(STAGES)),
+])
+def test_stage_swaps(make_pokemon, make_battle, always_hit, move, swapped):
+    """Power Swap trades Atk and SpAtk stages, Guard Swap Def and SpDef, Heart Swap all seven,
+    through a Substitute; Focus Energy stays where it is (Showdown powerswap, guardswap, heartswap)"""
+    arr = _stage_battle(make_pokemon, make_battle, move)
+    me, foe = my_active(arr), opp_active(arr)
+    mine, theirs = [1, -1, 2, -2, 3, -3, 4], [-4, 5, -5, 6, -6, 0, 2]
+    _set_stages(me, mine)
+    _set_stages(foe, theirs)
+    foe[Pok.VOL_STATUS] |= VolStatus.FOCUS_ENERGY
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 30
+    turn_sim(0, (MOVE, 0), arr)
+    for k, idx in enumerate(STAGES):
+        assert me[idx] == (theirs[k] if idx in swapped else mine[k])
+        assert foe[idx] == (mine[k] if idx in swapped else theirs[k])
+    assert foe[Pok.VOL_STATUS] & VolStatus.FOCUS_ENERGY and not me[Pok.VOL_STATUS] & VolStatus.FOCUS_ENERGY
+
+
+def test_power_trick_swaps_and_swaps_back(make_pokemon, make_battle):
+    """Attack and Defense trade, a second use trades them back (pokeplatinum
+    subscript_user_swap_atk_and_def)"""
+    arr = _stage_battle(make_pokemon, make_battle, "Power Trick")
+    me = my_active(arr)
+    atk, dfn = me[Pok.ATTACK], me[Pok.DEFENSE]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.ATTACK], me[Pok.DEFENSE]) == (dfn, atk)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.POWER_TRICK
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.ATTACK], me[Pok.DEFENSE]) == (atk, dfn)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.POWER_TRICK
+
+
+def test_power_trick_ends_on_switch_out(make_pokemon, make_battle):
+    """Switching out gives the Pokemon its own Attack and Defense back"""
+    arr = _stage_battle(make_pokemon, make_battle, "Power Trick")
+    me = my_active(arr)
+    atk, dfn = me[Pok.ATTACK], me[Pok.DEFENSE]
+    battle.power_trick(me)
+    engine_helper.reset_switch_out(me)
+    assert (me[Pok.ATTACK], me[Pok.DEFENSE]) == (atk, dfn)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.POWER_TRICK
+
+
+def test_baton_pass_hands_over_power_trick(make_pokemon, make_battle):
+    """The receiver gets the effect and its own Attack and Defense trade; the passer gets its own
+    back (pokeplatinum MOVE_EFFECT_BATON_PASSED, BattleSystem_UpdateAfterSwitch)"""
+    arr = _baton_battle(make_pokemon, make_battle, 30, 10)
+    old, new = pok_slice(arr, 0), pok_slice(arr, 1)
+    old_stats, new_stats = (old[Pok.ATTACK], old[Pok.DEFENSE]), (new[Pok.ATTACK], new[Pok.DEFENSE])
+    battle.power_trick(old)
+    battle._pass_baton(old, new)
+    engine_helper.reset_switch_out(old)
+    assert new[Pok.VOL_STATUS2] & VolStatus2.POWER_TRICK
+    assert (new[Pok.ATTACK], new[Pok.DEFENSE]) == new_stats[::-1]
+    assert (old[Pok.ATTACK], old[Pok.DEFENSE]) == old_stats
+    engine_helper.reset_switch_out(new)
+    assert (new[Pok.ATTACK], new[Pok.DEFENSE]) == new_stats

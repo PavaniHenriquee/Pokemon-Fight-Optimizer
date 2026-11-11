@@ -33,6 +33,31 @@
     "target": "all_adjacent_foes",
     "type": "Poison"
   },
+  "Acid Armor": {
+    "accuracy": true,
+    "boost_def": 2,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "acid_armor",
+    "pp": 20,
+    "target": "self",
+    "type": "Poison"
+  },
+  "Acupressure": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "acupressure",
+    "pp": 30,
+    "target": "adjacent_ally_or_self",
+    "type": "Normal"
+  },
   "Aerial Ace": {
     "accuracy": true,
     "category": "Physical",
@@ -367,6 +392,18 @@
     "pp": 10,
     "target": "normal",
     "type": "Dark"
+  },
+  "Belly Drum": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "belly_drum",
+    "pp": 10,
+    "target": "self",
+    "type": "Normal"
   },
   "Bide": {
     "accuracy": true,
@@ -734,6 +771,35 @@
     "target": "normal",
     "type": "Grass"
   },
+  "Calm Mind": {
+    "accuracy": true,
+    "boost_spatk": 1,
+    "boost_spdef": 1,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "calm_mind",
+    "pp": 20,
+    "target": "self",
+    "type": "Psychic"
+  },
+  "Captivate": {
+    "accuracy": 100,
+    "boost_spatk": -2,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "captivate",
+    "pp": 20,
+    "target": "all_adjacent_foes",
+    "type": "Normal"
+  },
   "Charge": {
     "accuracy": true,
     "boost_spdef": 1,
@@ -906,6 +972,36 @@
     "pp": 20,
     "target": "self",
     "type": "Normal"
+  },
+  "Cosmic Power": {
+    "accuracy": true,
+    "boost_def": 1,
+    "boost_spdef": 1,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "cosmic_power",
+    "pp": 20,
+    "target": "self",
+    "type": "Psychic"
+  },
+  "Cotton Spore": {
+    "accuracy": 100,
+    "boost_speed": -2,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "powder": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "cotton_spore",
+    "pp": 40,
+    "target": "normal",
+    "type": "Grass"
   },
   "Counter": {
     "accuracy": 100,
@@ -1110,6 +1206,20 @@
     "pp": 10,
     "target": "all_adjacent_foes",
     "type": "Fairy"
+  },
+  "Defend Order": {
+    "accuracy": true,
+    "boost_def": 1,
+    "boost_spdef": 1,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "defend_order",
+    "pp": 10,
+    "target": "self",
+    "type": "Bug"
   },
   "Defense Curl": {
     "accuracy": true,
@@ -1816,6 +1926,23 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Feather Dance": {
+    "accuracy": 100,
+    "boost_atk": -2,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "dance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "feather_dance",
+    "pp": 15,
+    "target": "normal",
+    "type": "Flying"
+  },
   "Feint": {
     "accuracy": 100,
     "category": "Physical",
@@ -2390,6 +2517,21 @@
     "target": "self",
     "type": "Normal"
   },
+  "Guard Swap": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "bypass_sub": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "guard_swap",
+    "pp": 10,
+    "target": "normal",
+    "type": "Psychic"
+  },
   "Guillotine": {
     "accuracy": 30,
     "category": "Physical",
@@ -2488,6 +2630,18 @@
     "target": "self",
     "type": "Normal"
   },
+  "Haze": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true
+    },
+    "name": "haze",
+    "pp": 30,
+    "target": "all",
+    "type": "Ice"
+  },
   "Head Smash": {
     "accuracy": 80,
     "category": "Physical",
@@ -2522,6 +2676,21 @@
     },
     "target": "normal",
     "type": "Normal"
+  },
+  "Heart Swap": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "bypass_sub": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "heart_swap",
+    "pp": 10,
+    "target": "normal",
+    "type": "Psychic"
   },
   "Heat Wave": {
     "accuracy": 90,
@@ -3375,6 +3544,22 @@
     "target": "normal",
     "type": "Steel"
   },
+  "Metal Sound": {
+    "accuracy": 85,
+    "boost_spdef": -2,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true,
+      "sound": true
+    },
+    "name": "metal_sound",
+    "pp": 40,
+    "target": "normal",
+    "type": "Steel"
+  },
   "Meteor Mash": {
     "accuracy": 90,
     "category": "Physical",
@@ -4070,6 +4255,32 @@
     "pp": 20,
     "target": "normal",
     "type": "Rock"
+  },
+  "Power Swap": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "bypass_sub": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "power_swap",
+    "pp": 10,
+    "target": "normal",
+    "type": "Psychic"
+  },
+  "Power Trick": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true
+    },
+    "name": "power_trick",
+    "pp": 10,
+    "target": "self",
+    "type": "Psychic"
   },
   "Power Whip": {
     "accuracy": 85,
@@ -4922,6 +5133,19 @@
     "target": "normal",
     "type": "Ghost"
   },
+  "Sharpen": {
+    "accuracy": true,
+    "boost_atk": 1,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "sharpen",
+    "pp": 30,
+    "target": "self",
+    "type": "Normal"
+  },
   "Sheer Cold": {
     "accuracy": 30,
     "category": "Special",
@@ -5619,6 +5843,20 @@
     "target": "normal",
     "type": "Dark"
   },
+  "Swords Dance": {
+    "accuracy": true,
+    "boost_atk": 2,
+    "category": "Status",
+    "flags": {
+      "dance": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "swords_dance",
+    "pp": 20,
+    "target": "self",
+    "type": "Normal"
+  },
   "Synthesis": {
     "accuracy": true,
     "category": "Status",
@@ -5646,6 +5884,19 @@
     "pp": 35,
     "target": "normal",
     "type": "Normal"
+  },
+  "Tail Glow": {
+    "accuracy": true,
+    "boost_spatk": 2,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "tail_glow",
+    "pp": 20,
+    "target": "self",
+    "type": "Bug"
   },
   "Tail Whip": {
     "accuracy": 100,

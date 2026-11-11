@@ -98,7 +98,10 @@ from Models.constants import (
     _HOLDEFFECT_HP_RESTORE_SWEET, _HOLDEFFECT_HP_RESTORE_BITTER, _HOLDEFFECT_HP_RESTORE_SOUR,
     _MOVENAME_RAZOR_WIND, _MOVENAME_SKULL_BASH, _MOVENAME_SKY_ATTACK, _MOVENAME_SOLAR_BEAM,
     _ITEMNAMES_SHINY_STONE, _MOVENAME_METAL_BURST, _MOVENAME_SUPER_FANG, _MOVENAME_ENDEAVOR,
-    _MOVENAME_PAIN_SPLIT,
+    _MOVENAME_PAIN_SPLIT, _MOVENAME_COSMIC_POWER, _MOVENAME_DEFEND_ORDER, _MOVENAME_CALM_MIND,
+    _MOVENAME_BELLY_DRUM, _MOVENAME_ACUPRESSURE, _MOVENAME_CAPTIVATE, _GENDER_MALE, _GENDER_FEMALE,
+    _MOVENAME_HAZE, _MOVENAME_POWER_SWAP, _MOVENAME_GUARD_SWAP, _MOVENAME_HEART_SWAP,
+    _MOVENAME_POWER_TRICK, _VOLSTATUS2_POWER_TRICK,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -268,9 +271,23 @@ CHARGE_INVULNERABLE_M = (
 )
 CHARGE_NO_INVULN_M = (_MOVENAME_RAZOR_WIND, _MOVENAME_SKULL_BASH, _MOVENAME_SKY_ATTACK, _MOVENAME_SOLAR_BEAM)
 RECOIL_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
-BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE)
+BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE,
+    _MOVENAME_COSMIC_POWER, _MOVENAME_DEFEND_ORDER, _MOVENAME_CALM_MIND, _MOVENAME_DRAGON_DANCE)
 # Moves Pokemow gives no Basic and no Expert check at all
 NO_AI_CHECK_M = (_MOVENAME_CHARGE,)
+# Scored by basic_stage / expert_stage: stat stage moves with their own effect
+STAGE_M = (
+    _MOVENAME_BELLY_DRUM, _MOVENAME_ACUPRESSURE, _MOVENAME_CAPTIVATE, _MOVENAME_HAZE,
+    _MOVENAME_PSYCH_UP, _MOVENAME_POWER_SWAP, _MOVENAME_GUARD_SWAP, _MOVENAME_HEART_SWAP,
+    _MOVENAME_POWER_TRICK,
+)
+# Basic_CheckStatStageImbalance's moves
+STAGE_IMBALANCE_M = (_MOVENAME_HAZE, _MOVENAME_PSYCH_UP, _MOVENAME_HEART_SWAP)
+# The stats Expert_Haze, Expert_PsychUp and Expert_HeartSwap read: Attack, Defense, SpAtk, SpDef
+FOUR_STAGES = (
+    _POK_ATTACK_STAT_STAGE, _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE,
+    _POK_SPECIAL_DEFENSE_STAT_STAGE,
+)
 SPEED_DOWN_ON_HIT = (_MOVENAME_ICY_WIND, _MOVENAME_ROCK_TOMB, _MOVENAME_MUD_SHOT)
 # Expert_CloseCombat and Expert_Overheat (USER_SP_ATK_DOWN_2) are the same check
 SELF_DROP_HP_M = (
@@ -327,11 +344,12 @@ ENCORE_ENCOURAGED_M = (
     MoveName.AQUA_RING, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
-# pokeplatinum Basic_SoundproofMoves, the ones in MoveDB (Snore and Metal Sound
-# aren't). Perish Song and Hyper Voice aren't on it
+# pokeplatinum Basic_SoundproofMoves, the ones in MoveDB (Snore
+# isn't). Perish Song and Hyper Voice aren't on it
 SOUNDPROOF_M = (
     MoveName.GROWL, MoveName.ROAR, MoveName.SING, MoveName.SUPERSONIC, MoveName.SCREECH,
-    MoveName.UPROAR, MoveName.GRASS_WHISTLE, MoveName.CHATTER, MoveName.BUG_BUZZ
+    MoveName.UPROAR, MoveName.GRASS_WHISTLE, MoveName.CHATTER, MoveName.BUG_BUZZ,
+    MoveName.METAL_SOUND
 )
 # Recover is the only RESTORE_HALF_HP move in MoveDB, Synthesis the only HEAL_HALF_MORE_IN_SUN one
 HEAL_M = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
@@ -780,6 +798,15 @@ def basic_moves(move, ai_pok, user_pok, ability, effectiveness):
                 return -10
             if ai_pok[_POK_DEFENSE_STAT_STAGE] >= 6:
                 return -8
+    elif move_id == _MOVENAME_COSMIC_POWER or move_id == _MOVENAME_DEFEND_ORDER:
+        return _basic_two_stats(ai_pok, _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE)
+    elif move_id == _MOVENAME_CALM_MIND:
+        return _basic_two_stats(
+            ai_pok, _POK_SPECIAL_ATTACK_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE
+        )
+    # TODO: Basic_CheckDragonDance's Trick Room -10 once Trick Room works
+    elif move_id == _MOVENAME_DRAGON_DANCE:
+        return _basic_two_stats(ai_pok, _POK_ATTACK_STAT_STAGE, _POK_SPEED_STAT_STAGE)
     elif move_id == _MOVENAME_TICKLE:
         if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and ability in STAT_AB_IM:
             return -10
@@ -790,6 +817,82 @@ def basic_moves(move, ai_pok, user_pok, ability, effectiveness):
 
     return 0
 
+
+@njit
+def _basic_two_stats(ai_pok, first, second):
+    """pokeplatinum Basic_CheckCosmicPower / CalmMind / DragonDance: with Simple, either stat at +3
+    or more is -10; else the first at +6 is -10, the second at +6 -8"""
+    if ai_pok[_POK_AB_ID] == _ABILITYNAMES_SIMPLE:
+        return -10 if ai_pok[first] >= 3 or ai_pok[second] >= 3 else 0
+    if ai_pok[first] >= 6:
+        return -10
+    return -8 if ai_pok[second] >= 6 else 0
+
+
+
+@njit
+def _any_stage_at(pok, stage):
+    """One of pok's seven stat stages is at stage or more"""
+    for i in range(_POK_ATTACK_STAT_STAGE, _POK_EVASION_STAT_STAGE + 1):
+        if pok[i] >= stage:
+            return True
+    return False
+
+
+@njit
+def _swap_stats(move_id):
+    """The two stat stages Power Swap or Guard Swap trades"""
+    if move_id == _MOVENAME_POWER_SWAP:
+        return _POK_ATTACK_STAT_STAGE, _POK_SPECIAL_ATTACK_STAT_STAGE
+    return _POK_DEFENSE_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE
+
+
+@njit
+def basic_stage(move, ability, ai_pok, user_pok):
+    """
+    pokeplatinum Basic_CheckBellyDrum (-10 below 51% HP, then the Attack +6 check, +3 with
+    Simple), Basic_CheckAcupressure (-10 with any stat at +6, +3 with Simple) and
+    Basic_CheckCaptivate (-10 on Oblivious, Clear Body or White Smoke unless the AI has Mold
+    Breaker, unless one is male and the other female, or with the target's SpAtk at -6).
+    Basic_CheckStatStageImbalance for Haze, Psych Up and Heart Swap: -10 unless one of the AI's
+    stages is below 0 or one of the target's above 0. Basic_CheckPowerSwap / GuardSwap: -10 unless
+    the target is ahead of the AI on one of the two stats. Basic_CheckPowerTrick: -10 if it's
+    already on. ability is the target's
+    """
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_POWER_TRICK:
+        return -10 if ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_POWER_TRICK else 0
+    if move_id in STAGE_IMBALANCE_M:
+        for i in range(_POK_ATTACK_STAT_STAGE, _POK_EVASION_STAT_STAGE + 1):
+            if ai_pok[i] < 0 or user_pok[i] > 0:
+                return 0
+        return -10
+    if move_id == _MOVENAME_POWER_SWAP or move_id == _MOVENAME_GUARD_SWAP:
+        first, second = _swap_stats(move_id)
+        if user_pok[first] - ai_pok[first] < 1 and user_pok[second] - ai_pok[second] < 1:
+            return -10
+        return 0
+    cap = 3 if ai_pok[_POK_AB_ID] == _ABILITYNAMES_SIMPLE else 6
+    if move_id == _MOVENAME_BELLY_DRUM:
+        if (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP] < 51:
+            return -10
+        return -10 if ai_pok[_POK_ATTACK_STAT_STAGE] >= cap else 0
+    if move_id == _MOVENAME_ACUPRESSURE:
+        return -10 if _any_stage_at(ai_pok, cap) else 0
+    if move_id == _MOVENAME_CAPTIVATE:
+        if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and (
+            ability == _ABILITYNAMES_OBLIVIOUS or ability in STAT_AB_IM
+        ):
+            return -10
+        ai_gender = ai_pok[_POK_GENDER]
+        u_gender = user_pok[_POK_GENDER]
+        if not (
+            (ai_gender == _GENDER_MALE and u_gender == _GENDER_FEMALE)
+            or (ai_gender == _GENDER_FEMALE and u_gender == _GENDER_MALE)
+        ):
+            return -10
+        return -10 if user_pok[_POK_SPECIAL_ATTACK_STAT_STAGE] <= -6 else 0
+    return 0
 
 
 @njit
@@ -959,6 +1062,8 @@ def basic_flag(
         )
     if move[_MOVE_ID] in BASIC_SPECIFIC_M:
         return basic_moves(move, ai_pok, user_pok, ability, effectiveness)
+    if move[_MOVE_ID] in STAGE_M:
+        return basic_stage(move, ability, ai_pok, user_pok)
     if move[_MOVE_ID] in MISC_BASIC_M:
         return basic_misc(move, ability, ai_pok, user_pok, ai_know)
     # Basic_CheckCopycat, Pokemow drops pokeplatinum's "and the AI is faster"
@@ -1041,9 +1146,8 @@ def basic_flag(
     Selfdestruct/Explosion
     Nightmare
     Dream Eater
-    Belly Drum
     Reflect / Light Screen / Mist / Safeguard
-    Camouflage / Power Trick / Lucky Chant / Magnet Rise
+    Camouflage / Lucky Chant / Magnet Rise
     Snore / Sleep Talk
     Lock On / Mean Look / Torment / Miracle Eye / Heal Block / Gastro Acid
     Future Sight / Doom Desire
@@ -1052,21 +1156,16 @@ def basic_flag(
     Memento
     Trick / Switcheroo
     Imprison
-    Cosmic Power / Calm Mind / Dragon Dance
     Gravity / Tailwind
     Trick Room
     Healing Wish / Lunar Dance
-    Acupressure
     Embargo
     Fling
     Psycho Shift
     Copycat
-    Power Swap / Guard Swap
     Last Resort
     Defog
-    Captivate
     --------------Effect Moves-----------------
-    Stat Stage Resetting/Copying/Swapping Moves(Example: Haze, Psych Up, Heart Swap)
     Non-Standard Damage and Charge Turn Moves(
     Charge Turn Moves:
         -Razor Wind
@@ -1391,7 +1490,16 @@ def _expert_stat_self(
     move_first, u_pok, hp_pct_u, my_last_move
 ):
     """Handles adjustments for moves targeting self side"""
-    if move[_MOVE_BOOST_DEF]:
+    # Expert_DragonDance (ATK_SPD_UP): slower, 50% of +1; else at 50% HP or less, 72.7% of -1
+    if move[_MOVE_BOOST_ATK] and move[_MOVE_BOOST_SPEED]:
+        if not move_first:
+            add_adjustment(rand, idx, 1, 128)
+        elif hp_pct_ai <= 50:
+            add_adjustment(rand, idx, -1, 186)
+        return 0
+
+    # Cosmic Power and Defend Order (DEF_SPD_UP) are scored as Expert_StatusSpDefenseUp
+    if move[_MOVE_BOOST_DEF] and not move[_MOVE_BOOST_SPDEF]:
         if ai_pok[_POK_DEFENSE_STAT_STAGE] >= 3:
             add_adjustment(rand, idx, -1, 156)
         elif hp_pct_ai == 100:
@@ -1878,6 +1986,119 @@ def expert_variable_power(move, u_pok, ai_pok, effectiveness, rand, idx, move_fi
 
 
 @njit
+def _expert_haze(ai_pok, u_pok, rand, idx):
+    """
+    pokeplatinum Expert_Haze: 80.5% of -3 when the AI has Atk, Def, SpAtk, SpDef or evasion at +3
+    or more, or the target Atk, Def, SpAtk, SpDef or accuracy at -3 or less. Then 80.5% of +3 when
+    the target has one of those five at +3 or more, or the AI Atk, Def, SpAtk, SpDef or accuracy at
+    -3 or less, else 80.5% of -1. The script reads evasion on the high side and accuracy on the low
+    """
+    discourage = ai_pok[_POK_EVASION_STAT_STAGE] >= 3 or u_pok[_POK_ACCURACY_STAT_STAGE] <= -3
+    encourage = u_pok[_POK_EVASION_STAT_STAGE] >= 3 or ai_pok[_POK_ACCURACY_STAT_STAGE] <= -3
+    for i in FOUR_STAGES:
+        discourage = discourage or ai_pok[i] >= 3 or u_pok[i] <= -3
+        encourage = encourage or u_pok[i] >= 3 or ai_pok[i] <= -3
+    if discourage:
+        add_adjustment(rand, idx, -3, 206)
+    add_adjustment(rand, idx, 3 if encourage else -1, 206)
+    return 0
+
+
+@njit
+def _expert_copy_stages(move_id, ai_pok, u_pok, rand, idx):
+    """
+    pokeplatinum Expert_PsychUp / Expert_HeartSwap: -2 unless the target has Atk, Def, SpAtk,
+    SpDef or evasion at +3 or more (Heart Swap: +2 or more, or Focus Energy). Then +1 if the AI
+    has Atk, Def, SpAtk or SpDef at 0 or less, else +2 with evasion at 0 or less, else (Heart Swap)
+    +1 without Focus Energy, else 80.5% of -2
+    """
+    high = 2 if move_id == _MOVENAME_HEART_SWAP else 3
+    worth = u_pok[_POK_EVASION_STAT_STAGE] >= high
+    for i in FOUR_STAGES:
+        worth = worth or u_pok[i] >= high
+    if move_id == _MOVENAME_HEART_SWAP and u_pok[_POK_VOL_STATUS] & _VOLSTATUS_FOCUS_ENERGY:
+        worth = True
+    if not worth:
+        return -2
+    for i in FOUR_STAGES:
+        if ai_pok[i] <= 0:
+            return 1
+    if ai_pok[_POK_EVASION_STAT_STAGE] <= 0:
+        return 2
+    if move_id == _MOVENAME_HEART_SWAP and not ai_pok[_POK_VOL_STATUS] & _VOLSTATUS_FOCUS_ENERGY:
+        return 1
+    add_adjustment(rand, idx, -2, 206)
+    return 0
+
+
+@njit
+def _expert_swap(move_id, ai_pok, u_pok):
+    """
+    pokeplatinum Expert_PowerSwap / Expert_GuardSwap, from how far the target is ahead on each stat
+    (first: Attack / Defense, second: SpAtk / SpDef). The top bonus comes from the first's gap
+    (above 3, above 1, above 0, or 0) and the second's (above 3, above 1, or 0; with the first at
+    0, above 0 instead of 0); then each 50% roll lowers it by one, down to 0
+    """
+    first, second = _swap_stats(move_id)
+    d1 = u_pok[first] - ai_pok[first]
+    d2 = u_pok[second] - ai_pok[second]
+    if d1 > 3:
+        top = 5
+    elif d1 > 1:
+        top = 4
+    elif d1 >= 0:
+        top = 3
+    else:
+        return 0
+    if d2 > 3:
+        pass
+    elif d2 > 1:
+        top -= 1
+    elif (d2 == 0 and d1 > 0) or (d2 > 0 and d1 == 0):
+        top -= 2
+    else:
+        return 0
+    score = top
+    while score > 0 and random.getrandbits(8) < 128:
+        score -= 1
+    return score
+
+
+@njit
+def expert_stage(move, ai_pok, u_pok, rand, idx):
+    """
+    pokeplatinum Expert_BellyDrum (-2 below 90% HP), Expert_Acupressure (-1 at 50% HP or less,
+    above 90% 75% of +1, else 37.5% of +1), Expert_Haze, Expert_PsychUp, Expert_HeartSwap,
+    Expert_PowerSwap, Expert_GuardSwap and Expert_PowerTrick (above 90% HP 62.5% of +1, above 60%
+    50%, above 30% 35.9%, else -2). Captivate has no Expert check
+    """
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_HAZE:
+        return _expert_haze(ai_pok, u_pok, rand, idx)
+    if move_id == _MOVENAME_PSYCH_UP or move_id == _MOVENAME_HEART_SWAP:
+        return _expert_copy_stages(move_id, ai_pok, u_pok, rand, idx)
+    if move_id == _MOVENAME_POWER_SWAP or move_id == _MOVENAME_GUARD_SWAP:
+        return _expert_swap(move_id, ai_pok, u_pok)
+    hp_pct = (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP]
+    if move_id == _MOVENAME_BELLY_DRUM:
+        return -2 if hp_pct < 90 else 0
+    if move_id == _MOVENAME_ACUPRESSURE:
+        if hp_pct < 51:
+            return -1
+        add_adjustment(rand, idx, 1, 192 if hp_pct > 90 else 96)
+    elif move_id == _MOVENAME_POWER_TRICK:
+        if hp_pct > 90:
+            add_adjustment(rand, idx, 1, 160)
+        elif hp_pct > 60:
+            add_adjustment(rand, idx, 1, 128)
+        elif hp_pct > 30:
+            add_adjustment(rand, idx, 1, 92)
+        else:
+            return -2
+    return 0
+
+
+@njit
 def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first):
     """
     pokeplatinum Expert_Recovery and Expert_Synthesis, Expert_Refresh, Expert_KnockOff,
@@ -2349,6 +2570,8 @@ def expert_flag(
         return expert_items(move, ai_pok, u_pok, effectiveness, rand, idx, ai_side, user_side)
     if move[_MOVE_ID] in MISC_EXPERT_M:
         return expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first)
+    if move[_MOVE_ID] in STAGE_M:
+        return expert_stage(move, ai_pok, u_pok, rand, idx)
     if move[_MOVE_ID] in CALL_M:
         return expert_call(move, u_pok, rand, idx, move_first, copycat_beats)
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
@@ -2528,9 +2751,6 @@ def expert_flag(
     Selfdestruct, Explosion, Memento
     Healing Wish, Lunar Dance
     Mirror Move
-    Dragon Dance
-    Acupressure
-    Haze
     Conversion
     Rest
     Toxic
@@ -2548,8 +2768,6 @@ def expert_flag(
     Hail
     Gravity
     Tailwind
-    Belly Drum
-    Psych Up
     Facade
     Smelling Salt
     Wake-Up Slap
@@ -2570,20 +2788,15 @@ def expert_flag(
     Trump Card
     Heal Block
     Wring Out, Crush Grip
-    Power Trick
     Gastro Acid
     Me First
     Copycat
-    Power Swap
-    Guard Swap
     Punishment
     Last Resort
-    Heart Swap
     Magnet Rise
     Defog
     Trick Room
     Blizzard
-    Captivate
 
     --------------Effect Moves-----------------
     Switch-Forcing Moves (Roar, Whirlwind)

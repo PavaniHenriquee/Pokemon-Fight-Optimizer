@@ -90,6 +90,7 @@ class VolStatus2:
     MICLE             = 16
     EMBARGO           = 32
     DAMAGED_BY_MOVE   = 64
+    POWER_TRICK       = 128
 
 
 @dataclass(slots=True)

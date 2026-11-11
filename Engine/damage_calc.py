@@ -843,7 +843,7 @@ def calculate_damage_confusion(pok):
     # Random Multiplier
     damage = (damage * MULTIPLIERS[random.getrandbits(4)]) // 100
     #TODO: Helping Hand
-    #TODO: Power Trick, Power Split, Guard Split
+    #TODO: Power Split, Guard Split
 
     return damage
 

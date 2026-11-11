@@ -44,7 +44,10 @@ def test_expert_flag_routing(monkeypatch, poke, move, expected):
 KIT_STATUS = (
     "Swagger", "Flatter", "Defense Curl", "Thunder Wave", "Poison Powder", "Sleep Powder",
     "Hypnosis", "Will-O-Wisp", "Confuse Ray", "Supersonic", "Trick", "Switcheroo", "Embargo",
-    "Pain Split",
+    "Pain Split", "Swords Dance", "Calm Mind", "Cosmic Power", "Acid Armor", "Tail Glow", "Sharpen",
+    "Defend Order", "Feather Dance", "Metal Sound", "Cotton Spore", "Dragon Dance", "Belly Drum",
+    "Acupressure", "Captivate", "Haze", "Psych Up", "Power Swap", "Guard Swap", "Heart Swap",
+    "Power Trick",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -279,6 +282,288 @@ def test_basic_bulk_up(poke, ai_ability, stages, expected):
     for idx, val in stages.items():
         ai_pok[idx] = val
     assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("move, first, second", [
+    ("Cosmic Power", Pok.DEFENSE_STAT_STAGE, Pok.SPECIAL_DEFENSE_STAT_STAGE),
+    ("Defend Order", Pok.DEFENSE_STAT_STAGE, Pok.SPECIAL_DEFENSE_STAT_STAGE),
+    ("Calm Mind", Pok.SPECIAL_ATTACK_STAT_STAGE, Pok.SPECIAL_DEFENSE_STAT_STAGE),
+    ("Dragon Dance", Pok.ATTACK_STAT_STAGE, Pok.SPEED_STAT_STAGE),
+])
+@pytest.mark.parametrize("ai_ability, stages, expected", [
+    ("Guts", {}, 0),
+    ("Guts", {"first": 6}, -10),
+    ("Guts", {"second": 6}, -8),
+    ("Guts", {"first": 5, "second": 5}, 0),
+    ("Simple", {"first": 3}, -10),
+    ("Simple", {"second": 3}, -10),
+    ("Simple", {"second": 2}, 0),
+])
+def test_basic_two_stat_boosts(poke, move, first, second, ai_ability, stages, expected):
+    """pokeplatinum Basic_CheckCosmicPower / CalmMind / DragonDance, like Bulk Up"""
+    ai_pok = poke("Machop", 20, ai_ability, [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    for key, val in stages.items():
+        ai_pok[first if key == "first" else second] = val
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("move, stage, expected", [
+    ("Swords Dance", Pok.ATTACK_STAT_STAGE, -10), ("Sharpen", Pok.ATTACK_STAT_STAGE, -10),
+    ("Acid Armor", Pok.DEFENSE_STAT_STAGE, -10), ("Tail Glow", Pok.SPECIAL_ATTACK_STAT_STAGE, -10),
+])
+def test_basic_high_stat_stage_new_moves(poke, move, stage, expected):
+    """pokeplatinum Basic_CheckHighStatStage_*: -10 at +6"""
+    ai_pok = poke("Machop", 20, "Guts", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+    ai_pok[stage] = 6
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("move, target_ability, stage, expected", [
+    ("Feather Dance", "Hyper Cutter", None, -10), ("Feather Dance", "Sturdy", Pok.ATTACK_STAT_STAGE, -10),
+    ("Metal Sound", "Soundproof", None, -10), ("Metal Sound", "Sturdy", Pok.SPECIAL_DEFENSE_STAT_STAGE, -10),
+    ("Cotton Spore", "Speed Boost", None, -10), ("Cotton Spore", "Sturdy", Pok.SPEED_STAT_STAGE, -10),
+    ("Feather Dance", "Sturdy", None, 0), ("Metal Sound", "Sturdy", None, 0),
+    ("Cotton Spore", "Sturdy", None, 0),
+])
+def test_basic_new_stat_drops(poke, move, target_ability, stage, expected):
+    """Basic_CheckLowStatStage_* for Feather Dance, Metal Sound, Cotton Spore; Metal Sound is on
+    Basic_SoundproofMoves"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    user = poke("Geodude", 20, target_ability, ["Tackle"])
+    if stage is not None:
+        user[stage] = -6
+    ability = getattr(AbilityNames, target_ability.upper().replace(" ", "_"))
+    assert _basic(ai_pok, user, ability) == expected
+
+
+@pytest.mark.parametrize("move", ["Cosmic Power", "Defend Order", "Calm Mind"])
+def test_expert_def_spdef_moves_score_as_spdef_up(poke, move):
+    """pokeplatinum sends DEF_SPD_UP and SP_ATK_SP_DEF_UP to Expert_StatusSpDefenseUp: at +3 SpDef
+    the first roll is its 61% of -1, the Defense branch would queue its full-HP +2"""
+    ai_pok = poke("Clefairy", 20, "Cute Charm", [move])
+    ai_pok[Pok.SPECIAL_DEFENSE_STAT_STAGE] = 3
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    _, queued = _expert(ai_pok, user)
+    assert queued[0] == (-1, 156)
+
+
+@pytest.mark.parametrize("ai_lv, hp_pct, expected", [
+    (5, 100, [(1, 128)]),   # slower: 50% of +1
+    (5, 20, [(1, 128)]),
+    (50, 100, []),
+    (50, 51, []),
+    (50, 50, [(-1, 186)]),  # faster at half HP or less: 72.7% of -1
+])
+def test_expert_dragon_dance(poke, ai_lv, hp_pct, expected):
+    """pokeplatinum Expert_DragonDance"""
+    ai_pok = poke("Dratini", ai_lv, "Shed Skin", ["Dragon Dance"])
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = hp_pct
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, expected)
+
+
+@pytest.mark.parametrize("ai_ability, hp_pct, atk, expected", [
+    ("Guts", 100, 0, 0), ("Guts", 51, 0, 0), ("Guts", 50, 0, -10),
+    ("Guts", 100, 6, -10), ("Guts", 100, 5, 0), ("Simple", 100, 3, -10), ("Simple", 100, 2, 0),
+])
+def test_basic_belly_drum(poke, ai_ability, hp_pct, atk, expected):
+    """pokeplatinum Basic_CheckBellyDrum, then Basic_CheckHighStatStage_Attack"""
+    ai_pok = poke("Machop", 20, ai_ability, ["Belly Drum"])
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = hp_pct
+    ai_pok[Pok.ATTACK_STAT_STAGE] = atk
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("ai_ability, stage, value, expected", [
+    ("Guts", Pok.EVASION_STAT_STAGE, 6, -10), ("Guts", Pok.ACCURACY_STAT_STAGE, 6, -10),
+    ("Guts", Pok.SPEED_STAT_STAGE, 5, 0), ("Simple", Pok.DEFENSE_STAT_STAGE, 3, -10),
+    ("Simple", Pok.DEFENSE_STAT_STAGE, 2, 0),
+])
+def test_basic_acupressure(poke, ai_ability, stage, value, expected):
+    """pokeplatinum Basic_CheckAcupressure: any of the seven stats at +6, +3 with Simple"""
+    ai_pok = poke("Machop", 20, ai_ability, ["Acupressure"])
+    ai_pok[stage] = value
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("ai_ability, target_ability, ai_gender, target_gender, spa, expected", [
+    ("Run Away", "Sturdy", "Male", "Female", 0, 0),
+    ("Run Away", "Sturdy", "Female", "Male", 0, 0),
+    ("Run Away", "Sturdy", "Male", "Male", 0, -10),
+    ("Run Away", "Sturdy", "Genderless", "Female", 0, -10),
+    ("Run Away", "Sturdy", "Female", "Genderless", 0, -10),
+    ("Run Away", "Oblivious", "Male", "Female", 0, -10),
+    ("Run Away", "Clear Body", "Male", "Female", 0, -10),
+    ("Run Away", "White Smoke", "Male", "Female", 0, -10),
+    ("Run Away", "Hyper Cutter", "Male", "Female", 0, 0),
+    ("Mold Breaker", "Oblivious", "Male", "Female", 0, 0),
+    ("Mold Breaker", "Oblivious", "Male", "Male", 0, -10),
+    ("Run Away", "Sturdy", "Male", "Female", -6, -10),
+    ("Run Away", "Sturdy", "Male", "Female", -5, 0),
+])
+def test_basic_captivate(poke, ai_ability, target_ability, ai_gender, target_gender, spa, expected):
+    """pokeplatinum Basic_CheckCaptivate"""
+    ai_pok = poke("Rattata", 20, ai_ability, ["Captivate"], gender=ai_gender)
+    user = poke("Geodude", 20, target_ability, ["Tackle"], gender=target_gender)
+    user[Pok.SPECIAL_ATTACK_STAT_STAGE] = spa
+    ability = getattr(AbilityNames, target_ability.upper().replace(" ", "_"))
+    assert _basic(ai_pok, user, ability) == expected
+
+
+@pytest.mark.parametrize("move, hp_pct, expected", [
+    ("Belly Drum", 100, (0, [])), ("Belly Drum", 90, (0, [])), ("Belly Drum", 89, (-2, [])),
+    ("Acupressure", 50, (-1, [])), ("Acupressure", 51, (0, [(1, 96)])),
+    ("Acupressure", 90, (0, [(1, 96)])), ("Acupressure", 91, (0, [(1, 192)])),
+    ("Captivate", 100, (0, [])), ("Captivate", 10, (0, [])),
+])
+def test_expert_stage_moves(poke, move, hp_pct, expected):
+    """pokeplatinum Expert_BellyDrum, Expert_Acupressure (37.5% is 128/256 * 192/256), and no
+    Expert check for Captivate"""
+    ai_pok = poke("Machop", 20, "Guts", [move], gender="Male")
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = hp_pct
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"], gender="Female")
+    assert _expert(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("move", ["Haze", "Psych Up", "Heart Swap"])
+@pytest.mark.parametrize("ai_stage, target_stage, expected", [
+    ({}, {}, -10),
+    ({Pok.ATTACK_STAT_STAGE: 2}, {Pok.DEFENSE_STAT_STAGE: -3}, -10),
+    ({Pok.EVASION_STAT_STAGE: -1}, {}, 0),
+    ({}, {Pok.ACCURACY_STAT_STAGE: 1}, 0),
+])
+def test_basic_stat_stage_imbalance(poke, move, ai_stage, target_stage, expected):
+    """pokeplatinum Basic_CheckStatStageImbalance: -10 unless one of the AI's stages is below 0 or
+    one of the target's above 0"""
+    ai_pok = poke("Machop", 20, "Guts", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    for idx, val in ai_stage.items():
+        ai_pok[idx] = val
+    for idx, val in target_stage.items():
+        user[idx] = val
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("move, first, second", [
+    ("Power Swap", Pok.ATTACK_STAT_STAGE, Pok.SPECIAL_ATTACK_STAT_STAGE),
+    ("Guard Swap", Pok.DEFENSE_STAT_STAGE, Pok.SPECIAL_DEFENSE_STAT_STAGE),
+])
+@pytest.mark.parametrize("d1, d2, expected", [(0, 0, -10), (1, 0, 0), (0, 1, 0), (-2, -1, -10), (-1, 2, 0)])
+def test_basic_power_guard_swap(poke, move, first, second, d1, d2, expected):
+    """pokeplatinum Basic_CheckPowerSwap / GuardSwap: -10 unless the target is ahead on one of the
+    two stats (DiffStatStages is the target's stage minus the AI's)"""
+    ai_pok = poke("Machop", 20, "Guts", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    ai_pok[first], ai_pok[second] = 1, 1
+    user[first], user[second] = 1 + d1, 1 + d2
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("ai_stage, target_stage, expected", [
+    ({}, {}, [(-1, 206)]),
+    ({Pok.ATTACK_STAT_STAGE: 3}, {}, [(-3, 206), (-1, 206)]),
+    ({Pok.EVASION_STAT_STAGE: 3}, {}, [(-3, 206), (-1, 206)]),
+    ({Pok.ACCURACY_STAT_STAGE: 3}, {}, [(-1, 206)]),
+    ({}, {Pok.ACCURACY_STAT_STAGE: -3}, [(-3, 206), (-1, 206)]),
+    ({}, {Pok.SPECIAL_DEFENSE_STAT_STAGE: 3}, [(3, 206)]),
+    ({Pok.ACCURACY_STAT_STAGE: -3}, {}, [(3, 206)]),
+    ({Pok.EVASION_STAT_STAGE: -3}, {}, [(-1, 206)]),
+    ({Pok.ATTACK_STAT_STAGE: 4}, {Pok.ATTACK_STAT_STAGE: 4}, [(-3, 206), (3, 206)]),
+])
+def test_expert_haze(poke, ai_stage, target_stage, expected):
+    """pokeplatinum Expert_Haze: evasion on the high side, accuracy on the low"""
+    ai_pok = poke("Machop", 20, "Guts", ["Haze"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    for idx, val in ai_stage.items():
+        ai_pok[idx] = val
+    for idx, val in target_stage.items():
+        user[idx] = val
+    assert _expert(ai_pok, user) == (0, expected)
+
+
+ALL_UP = {i: 1 for i in range(Pok.ATTACK_STAT_STAGE, Pok.EVASION_STAT_STAGE + 1)}
+
+
+@pytest.mark.parametrize("move, ai_stage, target_stage, ai_focus, target_focus, expected", [
+    ("Psych Up", {}, {}, False, False, (-2, [])),
+    ("Psych Up", {}, {Pok.ATTACK_STAT_STAGE: 2}, False, False, (-2, [])),
+    ("Psych Up", {}, {Pok.ATTACK_STAT_STAGE: 3}, False, False, (1, [])),
+    ("Psych Up", {**ALL_UP, Pok.EVASION_STAT_STAGE: 0}, {Pok.EVASION_STAT_STAGE: 3}, False, False, (2, [])),
+    ("Psych Up", ALL_UP, {Pok.EVASION_STAT_STAGE: 3}, False, False, (0, [(-2, 206)])),
+    ("Psych Up", {}, {}, False, True, (-2, [])),
+    ("Heart Swap", {}, {Pok.ATTACK_STAT_STAGE: 2}, False, False, (1, [])),
+    ("Heart Swap", {}, {}, False, True, (1, [])),
+    ("Heart Swap", ALL_UP, {Pok.SPEED_STAT_STAGE: 6}, False, True, (1, [])),
+    ("Heart Swap", ALL_UP, {}, True, True, (0, [(-2, 206)])),
+])
+def test_expert_psych_up_heart_swap(poke, move, ai_stage, target_stage, ai_focus, target_focus, expected):
+    """pokeplatinum Expert_PsychUp / Expert_HeartSwap (Heart Swap: +2 on the target is enough, its
+    Focus Energy counts, the AI lacking it is +1)"""
+    ai_pok = poke("Machop", 20, "Guts", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    for idx, val in ai_stage.items():
+        ai_pok[idx] = val
+    for idx, val in target_stage.items():
+        user[idx] = val
+    if ai_focus:
+        ai_pok[Pok.VOL_STATUS] |= VolStatus.FOCUS_ENERGY
+    if target_focus:
+        user[Pok.VOL_STATUS] |= VolStatus.FOCUS_ENERGY
+    assert _expert(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("move, first, second", [
+    ("Power Swap", Pok.ATTACK_STAT_STAGE, Pok.SPECIAL_ATTACK_STAT_STAGE),
+    ("Guard Swap", Pok.DEFENSE_STAT_STAGE, Pok.SPECIAL_DEFENSE_STAT_STAGE),
+])
+@pytest.mark.parametrize("d1, d2, top", [
+    (4, 4, 5), (4, 2, 4), (4, 0, 3), (4, 1, 0), (4, -1, 0),
+    (2, 4, 4), (2, 2, 3), (2, 0, 2), (2, 1, 0),
+    (1, 4, 3), (1, 2, 2), (1, 0, 1), (1, 1, 0),
+    (0, 4, 3), (0, 2, 2), (0, 1, 1), (0, 0, 0), (0, -1, 0),
+    (-1, 4, 0),
+])
+def test_expert_power_guard_swap(monkeypatch, poke, move, first, second, d1, d2, top):
+    """pokeplatinum Expert_PowerSwap / GuardSwap: the top bonus from the two gaps, then each 50%
+    roll lowers it by one down to 0"""
+    ai_pok = poke("Machop", 20, "Guts", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    ai_pok[first], ai_pok[second] = -2, -2
+    user[first], user[second] = -2 + d1, -2 + d2
+    monkeypatch.setattr(ai.random, "getrandbits", lambda n: 255)  # every roll keeps the bonus
+    assert _expert(ai_pok, user)[0] == top
+    monkeypatch.setattr(ai.random, "getrandbits", lambda n: 0)    # every roll lowers it
+    assert _expert(ai_pok, user)[0] == 0
+
+
+def test_basic_power_trick(poke):
+    """pokeplatinum Basic_CheckPowerTrick: -10 if it's already on"""
+    ai_pok = poke("Shuckle", 20, "Sturdy", ["Power Trick"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+    ai_pok[Pok.VOL_STATUS2] |= VolStatus2.POWER_TRICK
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+
+
+@pytest.mark.parametrize("hp_pct, expected", [
+    (100, (0, [(1, 160)])), (91, (0, [(1, 160)])), (90, (0, [(1, 128)])), (61, (0, [(1, 128)])),
+    (60, (0, [(1, 92)])), (31, (0, [(1, 92)])), (30, (-2, [])),
+])
+def test_expert_power_trick(poke, hp_pct, expected):
+    """pokeplatinum Expert_PowerTrick: 62.5%, 50%, 35.9% of +1 by HP, else -2"""
+    ai_pok = poke("Shuckle", 20, "Sturdy", ["Power Trick"])
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = hp_pct
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == expected
 
 
 @pytest.mark.parametrize("ai_ability, target_ability, stages, expected", [

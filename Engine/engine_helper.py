@@ -102,6 +102,9 @@ from Models.constants import (
     _POK_METRONOME_COUNT, _ABILITYNAMES_LIQUID_OOZE, _HOLDEFFECT_CHARGE_SKIP,
     _POK_SUB_HP, _VOLSTATUS2_SUBSTITUTE, _FLAGS_BYPASS_SUB, _MOVENAME_CURSE, _TYPES_GHOST,
     _MOVENAME_SWAGGER, _MOVENAME_FLATTER, _VOLSTATUS_YAWN, _MOVE_STATUS, _MOVE_VOL_STATUS,
+    _MOVENAME_BELLY_DRUM, _MOVENAME_ACUPRESSURE, _MOVENAME_CAPTIVATE, _POK_GENDER,
+    _MOVENAME_POWER_SWAP, _MOVENAME_GUARD_SWAP, _VOLSTATUS2_POWER_TRICK,
+    _GENDER_GENDERLESS,
     _HOLDEFFECT_CHANSEY_CRITRATE_UP, _HOLDEFFECT_FARFETCHD_CRITRATE_UP, _ITEMNAMES_GRISEOUS_ORB,
     _POK_ID, _HOLDEFFECT_PRIORITY_DOWN, _HOLDEFFECT_ACCURACY_UP, _HOLDEFFECT_ACCURACY_UP_SLOWER,
     _HOLDEFFECT_SOMETIMES_FLINCH, _ITEM_EFFECT_PARAM, _HOLDEFFECT_ENDURE,
@@ -410,8 +413,8 @@ def sub_blocks_move(move, attacker, defender):
 def sub_blocks_status_move(move, attacker, defender, weather):
     """
     sub_blocks_move, and the target's ability that would also stop the status is still revealed:
-    pokeplatinum's status, confusion and Yawn subscripts check it before the Substitute. Swagger
-    and Flatter check the Substitute first
+    pokeplatinum's status, confusion and Yawn subscripts and Captivate check it before the
+    Substitute. Swagger and Flatter check the Substitute first
     """
     if not sub_blocks_move(move, attacker, defender):
         return False
@@ -426,9 +429,145 @@ def sub_blocks_status_move(move, attacker, defender, weather):
         blocked = (
             defender[_POK_AB_ID] == _ABILITYNAMES_OWN_TEMPO and ignorable_ability(defender, attacker)
         )
+    # Captivate's Oblivious check comes before its stat drop's Substitute check (effect 265)
+    elif move[_MOVE_ID] == _MOVENAME_CAPTIVATE:
+        blocked = (
+            defender[_POK_AB_ID] == _ABILITYNAMES_OBLIVIOUS and ignorable_ability(defender, attacker)
+        )
     if blocked:
         reveal_ability(defender)
     return True
+
+
+@njit
+def confuse_boost_fails(move, defender):
+    """Swagger and Flatter fail with their stat at +6 on a target already confused (pokeplatinum
+    subscript_swagger, subscript_flatter)"""
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_SWAGGER:
+        stage = defender[_POK_ATTACK_STAT_STAGE]
+    elif move_id == _MOVENAME_FLATTER:
+        stage = defender[_POK_SPECIAL_ATTACK_STAT_STAGE]
+    else:
+        return False
+    return stage >= 6 and defender[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION != 0
+
+
+@njit
+def stage_move_fails(move, attacker, defender):
+    """
+    Belly Drum at +6 Attack or at half its max HP or less (pokeplatinum subscript_belly_drum),
+    Acupressure behind the user's Substitute or with every stat at +6 (effect 226,
+    BtlCmd_BoostRandomStatBy2), Captivate on an Oblivious target unless Mold Breaker (the ability
+    is revealed), a genderless one or one of the user's gender (effect 265)
+    """
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_BELLY_DRUM:
+        return (
+            attacker[_POK_ATTACK_STAT_STAGE] >= 6
+            or attacker[_POK_CURRENT_HP] <= attacker[_POK_MAX_HP] // 2
+        )
+    if move_id == _MOVENAME_ACUPRESSURE:
+        if has_substitute(attacker):
+            return True
+        for idx in range(_POK_ATTACK_STAT_STAGE, _POK_EVASION_STAT_STAGE + 1):
+            if attacker[idx] < 6:
+                return False
+        return True
+    if move_id == _MOVENAME_CAPTIVATE:
+        if defender[_POK_AB_ID] == _ABILITYNAMES_OBLIVIOUS and ignorable_ability(defender, attacker):
+            reveal_ability(defender)
+            return True
+        atk_gender = attacker[_POK_GENDER]
+        def_gender = defender[_POK_GENDER]
+        return (
+            atk_gender == _GENDER_GENDERLESS or def_gender == _GENDER_GENDERLESS
+            or atk_gender == def_gender
+        )
+    return False
+
+
+@njit
+def haze(atk, defn):
+    """Every stat stage of both actives back to 0, and Focus Energy gone (pokeplatinum
+    BtlCmd_ResetAllStatChanges, Showdown gen4 haze)"""
+    atk[_POK_ATTACK_STAT_STAGE:_POK_EVASION_STAT_STAGE + 1] = 0
+    defn[_POK_ATTACK_STAT_STAGE:_POK_EVASION_STAT_STAGE + 1] = 0
+    atk[_POK_VOL_STATUS] &= ~_VOLSTATUS_FOCUS_ENERGY
+    defn[_POK_VOL_STATUS] &= ~_VOLSTATUS_FOCUS_ENERGY
+
+
+@njit
+def psych_up(atk, defn):
+    """The user takes the target's seven stat stages. Only the stages: copying Focus Energy came in
+    Gen VI (Showdown gen5 psychup)"""
+    atk[_POK_ATTACK_STAT_STAGE:_POK_EVASION_STAT_STAGE + 1] = (
+        defn[_POK_ATTACK_STAT_STAGE:_POK_EVASION_STAT_STAGE + 1]
+    )
+
+
+@njit
+def _swap_stage(atk, defn, idx):
+    """Trade one stat stage"""
+    stage = atk[idx]
+    atk[idx] = defn[idx]
+    defn[idx] = stage
+
+
+@njit
+def swap_stages(atk, defn, move_id):
+    """Power Swap trades the Attack and SpAtk stages, Guard Swap Defense and SpDef, Heart Swap all
+    seven. Focus Energy stays where it is (Showdown powerswap, guardswap, heartswap)"""
+    if move_id == _MOVENAME_POWER_SWAP:
+        _swap_stage(atk, defn, _POK_ATTACK_STAT_STAGE)
+        _swap_stage(atk, defn, _POK_SPECIAL_ATTACK_STAT_STAGE)
+    elif move_id == _MOVENAME_GUARD_SWAP:
+        _swap_stage(atk, defn, _POK_DEFENSE_STAT_STAGE)
+        _swap_stage(atk, defn, _POK_SPECIAL_DEFENSE_STAT_STAGE)
+    else:
+        for idx in range(_POK_ATTACK_STAT_STAGE, _POK_EVASION_STAT_STAGE + 1):
+            _swap_stage(atk, defn, idx)
+
+
+@njit
+def swap_atk_def(pok):
+    """Power Trick's Attack and Defense trade"""
+    attack = pok[_POK_ATTACK]
+    pok[_POK_ATTACK] = pok[_POK_DEFENSE]
+    pok[_POK_DEFENSE] = attack
+
+
+@njit
+def power_trick(pok):
+    """Attack and Defense trade places, using it again trades them back (pokeplatinum
+    subscript_user_swap_atk_and_def). Switch-out trades them back, Baton Pass hands it over"""
+    pok[_POK_VOL_STATUS2] ^= _VOLSTATUS2_POWER_TRICK
+    swap_atk_def(pok)
+
+
+@njit
+def belly_drum(pok):
+    """+6 Attack for half the max HP, which isn't damage, like a Substitute's cost (pokeplatinum
+    subscript_belly_drum). stage_move_fails checks it first"""
+    pok[_POK_ATTACK_STAT_STAGE] = 6
+    pok[_POK_CURRENT_HP] -= pok[_POK_MAX_HP] // 2
+
+
+@njit
+def acupressure(pok):
+    """+2 to one of the stats below +6, at random (pokeplatinum BtlCmd_BoostRandomStatBy2).
+    stage_move_fails checks there is one"""
+    count = 0
+    for idx in range(_POK_ATTACK_STAT_STAGE, _POK_EVASION_STAT_STAGE + 1):
+        if pok[idx] < 6:
+            count += 1
+    pick = random.randrange(count)
+    for idx in range(_POK_ATTACK_STAT_STAGE, _POK_EVASION_STAT_STAGE + 1):
+        if pok[idx] < 6:
+            if pick == 0:
+                pok[idx] = min(6, pok[idx] + 2)
+                return
+            pick -= 1
 
 
 @njit
@@ -1456,6 +1595,9 @@ def reset_switch_out(pok):
     pok[_POK_MIRROR_MOVE] = 0
     pok[_POK_SEMI_INV_MOVE] = 0
     pok[_POK_METRONOME_COUNT] = 0
+    # Power Trick ends: back to its own Attack and Defense
+    if pok[_POK_VOL_STATUS2] & _VOLSTATUS2_POWER_TRICK:
+        swap_atk_def(pok)
     pok[_POK_VOL_STATUS2] = 0
     pok[_POK_SUB_HP] = 0
     pok[_POK_CHOICE_LOCK] = 0

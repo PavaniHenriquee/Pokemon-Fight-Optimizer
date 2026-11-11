@@ -19,7 +19,8 @@ from Engine.engine_helper import (
     focus_sash_ready, sticky_barb_transfer, after_move_hit_items, on_hit_berries,
     clear_target_choice_lock, swap_items, embargo, embargo_count, fling_fails, fling_move,
     fling_throw, fling_hit, _flavor_confuse, kick_hits, record_last_resort, last_resort_works,
-    secret_power_move, sucker_punch_fails, lost_focus, turn_order_doubles,
+    secret_power_move, sucker_punch_fails, lost_focus, turn_order_doubles, confuse_boost_fails,
+    stage_move_fails, belly_drum, acupressure, haze, psych_up, swap_stages, power_trick, swap_atk_def,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -96,7 +97,9 @@ from Models.constants import (
     _MOVENAME_FLING, _VOLSTATUS2_EMBARGO, _POK_EMBARGO_TURNS, _ITEM_ID,
     _MOVENAME_SOLAR_BEAM, _MOVENAME_SKULL_BASH, _POK_DEFENSE_STAT_STAGE, _MOVENAME_SHADOW_FORCE,
     _MOVE_HAS_CRASH_DAMAGE, _DAMAGESOURCES_HALVE_HP, _DAMAGESOURCES_ENDEAVOR,
-    _DAMAGESOURCES_METAL_BURST, _MOVENAME_FALSE_SWIPE, _MOVENAME_PAIN_SPLIT,
+    _DAMAGESOURCES_METAL_BURST, _MOVENAME_FALSE_SWIPE, _MOVENAME_PAIN_SPLIT, _MOVENAME_BELLY_DRUM, _MOVENAME_ACUPRESSURE,
+    _MOVENAME_HAZE, _MOVENAME_PSYCH_UP, _MOVENAME_POWER_SWAP, _MOVENAME_GUARD_SWAP,
+    _MOVENAME_HEART_SWAP, _MOVENAME_POWER_TRICK, _VOLSTATUS2_POWER_TRICK,
     _VOLSTATUS2_DAMAGED_BY_MOVE,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
@@ -149,6 +152,7 @@ WEATHER_MOVES = ((_MOVENAME_RAIN_DANCE, _WEATHER_RAIN), (_MOVENAME_SANDSTORM, _W
 FOE_SIDE_TARGET = Target.FOE_SIDE
 # Self, side and field moves still work against a fainted foe
 NO_FOE_TARGETS = TARGET_SELF_SIDE + SIDE_OR_FIELD_TARGETS
+STAGE_SWAP_MOVES = (_MOVENAME_POWER_SWAP, _MOVENAME_GUARD_SWAP, _MOVENAME_HEART_SWAP)
 # What Baton Pass hands over besides the stat stages (pokeplatinum VOLATILE_CONDITION_BATON_PASSED
 # and MOVE_EFFECT_BATON_PASSED, the ones the engine has)
 BATON_PASS_VOLS = (
@@ -157,8 +161,8 @@ BATON_PASS_VOLS = (
     | _VOLSTATUS_HEAL_BLOCK | _VOLSTATUS_PERISH_SONG
 )
 # Baton Pass also hands over these VOL_STATUS2 bits (the Substitute goes with its HP, Embargo
-# with its turns)
-BATON_PASS_VOLS2 = _VOLSTATUS2_SUBSTITUTE | _VOLSTATUS2_EMBARGO
+# with its turns, Power Trick by trading the receiver's Attack and Defense)
+BATON_PASS_VOLS2 = _VOLSTATUS2_SUBSTITUTE | _VOLSTATUS2_EMBARGO | _VOLSTATUS2_POWER_TRICK
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
 # Field.OPP_MOVE_RAN: the foe's move slot + 1, plus this for every PP the move paid
@@ -183,6 +187,9 @@ def _pass_baton(old, new):
     new[_POK_PERISH_TURNS] = old[_POK_PERISH_TURNS]
     # Embargo goes on with its turns, now over the new Pokemon's item (pokeplatinum embargoTurns)
     new[_POK_EMBARGO_TURNS] = old[_POK_EMBARGO_TURNS]
+    # The receiver's own Attack and Defense trade (pokeplatinum BattleSystem_UpdateAfterSwitch)
+    if new[_POK_VOL_STATUS2] & _VOLSTATUS2_POWER_TRICK:
+        swap_atk_def(new)
     refresh_item(new)
 
 
@@ -1131,7 +1138,10 @@ def _execute_move_slot(
         return flinch
 
     # A status move aimed at a foe behind a Substitute fails, unless it bypasses it
-    if sub_blocks_status_move(mv, atk, defn, weather):
+    if (
+        sub_blocks_status_move(mv, atk, defn, weather) or confuse_boost_fails(mv, defn)
+        or stage_move_fails(mv, atk, defn)
+    ):
         if counted:
             metronome_fail(atk, outer_id)
         return False
@@ -1163,7 +1173,8 @@ def _execute_move_slot(
 @njit
 def _status_move(atk, defn, mv, is_mine, battle_array, weather):
     """Recover, Synthesis, Refresh, Recycle, Worry Seed, Substitute, Trick, Switcheroo, Embargo,
-    Pain Split and Minimize's flag (its boost is data)"""
+    Pain Split, Belly Drum, Acupressure, Haze, Psych Up, Power Swap, Guard Swap, Heart Swap, Power
+    Trick and Minimize's flag (its boost is data)"""
     move_id = mv[_MOVE_ID]
     if move_id == _MOVENAME_MINIMIZE:
         atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_MINIMIZE
@@ -1181,6 +1192,18 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         embargo(defn)
     elif move_id == _MOVENAME_PAIN_SPLIT:
         _pain_split(atk, defn)
+    elif move_id == _MOVENAME_BELLY_DRUM:
+        belly_drum(atk)
+    elif move_id == _MOVENAME_ACUPRESSURE:
+        acupressure(atk)
+    elif move_id == _MOVENAME_HAZE:
+        haze(atk, defn)
+    elif move_id == _MOVENAME_PSYCH_UP:
+        psych_up(atk, defn)
+    elif move_id in STAGE_SWAP_MOVES:
+        swap_stages(atk, defn, move_id)
+    elif move_id == _MOVENAME_POWER_TRICK:
+        power_trick(atk)
     # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
     elif move_id == _MOVENAME_WORRY_SEED and worry_seed(defn) and not is_mine:
         battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY
