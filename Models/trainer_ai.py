@@ -288,6 +288,12 @@ def choose_move(battle_array):
     # The target's living party besides the active (pokeplatinum CountAlivePartyBattlers)
     user_bench = count_party(battle_array[0:(6 * POK_LEN)]) - 1
     ai_bench = count_party(battle_array[(6 * POK_LEN):(12 * POK_LEN)]) - 1
+    # A living bench Pokemon with a status, for Expert Heal Bell (pokeplatinum IfPartyMemberStatus)
+    ai_bench_status = False
+    for j in range(6):
+        base = j * POK_LEN
+        if j != opp_active and ai_pty[base + _POK_CURRENT_HP] > 0 and ai_pty[base + _POK_STATUS]:
+            ai_bench_status = True
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
     # pokeplatinum TrainerAI_ShouldSwitch skips every withdraw check when Ingrain roots the active
@@ -420,7 +426,7 @@ def choose_move(battle_array):
             ai_know, user_side,
             move_id == _MOVENAME_COPYCAT
             and copycat_beats(ai_pok, user_pok, eff_weather, user_side, gravity),
-            claw_guess, eff_weather, ai_side, ability
+            claw_guess, eff_weather, ai_side, ability, ai_bench_status
         )
         score += expert
 

@@ -15,6 +15,9 @@ from Models.constants import (
     _MOVENAME_GRAVITY, _MOVE_OH_KO, _TYPES_GROUND, _MOVE_STATUS, _MOVE_VOL_STATUS,
     _MOVE_BOOST_ACC, _POK_ACCURACY_STAT_STAGE, _MOVENAME_SUBSTITUTE, _MOVENAME_EMBARGO,
     _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _ITEM_ID, _SEC_TARGET,
+    _MOVENAME_SNORE, _MOVENAME_SLEEP_TALK, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE,
+    _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _POK_STATUS, _STATUS_SLEEP, _POK_VOL_STATUS,
+    _VOLSTATUS_NIGHTMARE, _POK_AB_ID,
 )
 from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
@@ -23,11 +26,14 @@ from Models.trainer_ai import return_idx
 from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import (
-    calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails
+    calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails,
+    has_substitute
 )
 from Engine.ability_helper import levitates, effective_weather, normalized_type, grounded_by_item
 from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
-from Engine.status_calc import ability_blocks_status, stat_drop_blocked, STAT_MAPPING
+from Engine.status_calc import (
+    ability_blocks_status, stat_drop_blocked, STAT_MAPPING, sleep_blocked, SLEEP_AB_IM
+)
 from Engine.speed import check_speed
 from Models.item import embargoed
 
@@ -173,6 +179,31 @@ def status_move_blocked(move, me, foe, weather):
     return drops > 0
 
 
+@njit
+def sleep_move_fails(move, me, foe):
+    """The sleep moves that would fail: Snore and Sleep Talk with me awake, Dream Eater and Nightmare
+    on a foe that isn't asleep (Dream Eater also behind its Substitute, Nightmare once it has one),
+    Rest asleep, at full HP, with Insomnia or Vital Spirit or in an uproar, Psycho Shift with no
+    status on me or one on the foe. No ability is revealed"""
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_SNORE or move_id == _MOVENAME_SLEEP_TALK:
+        return me[_POK_STATUS] != _STATUS_SLEEP
+    if move_id == _MOVENAME_DREAM_EATER:
+        return foe[_POK_STATUS] != _STATUS_SLEEP or has_substitute(foe)
+    if move_id == _MOVENAME_NIGHTMARE:
+        return foe[_POK_STATUS] != _STATUS_SLEEP or foe[_POK_VOL_STATUS] & _VOLSTATUS_NIGHTMARE != 0
+    if move_id == _MOVENAME_REST:
+        return (
+            me[_POK_STATUS] == _STATUS_SLEEP
+            or me[_POK_CURRENT_HP] >= me[_POK_MAX_HP]
+            or me[_POK_AB_ID] in SLEEP_AB_IM
+            or sleep_blocked(me, foe)
+        )
+    if move_id == _MOVENAME_PSYCHO_SHIFT:
+        return me[_POK_STATUS] == 0 or foe[_POK_STATUS] != 0
+    return False
+
+
 IMNTY = np.full(6,-1, dtype=np.int16)
 RES   = np.full(6,-1, dtype=np.int16)
 
@@ -247,6 +278,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                 weight = 0 if (
                     field_move_fails(move, battle_array)
                     or status_move_blocked(move, c_pok, o_pok, weather)
+                    or sleep_move_fails(move, c_pok, o_pok)
                 ) else 1
 
             else:
@@ -263,6 +295,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                     eff_ratio == 0
                     or (move_type == _TYPES_GROUND and levitates(o_pok, c_pok, gravity))
                     or ability_immune(move, c_pok, o_pok, gravity)
+                    or sleep_move_fails(move, c_pok, o_pok)
                 ):
                     weight = 0  # immune (type, Levitate, an absorbing ability) — never pick this
                 elif move[_MOVE_ID] in EXPLODE_MOVES:

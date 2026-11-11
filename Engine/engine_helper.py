@@ -28,6 +28,9 @@ from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES, M
 from Models.constants import (
     _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH, _MOVENAME_PAYBACK, _MOVENAME_REVENGE,
     _MOVENAME_AVALANCHE, _VOLSTATUS2_DAMAGED_BY_MOVE,
+    _MOVE_SLEEP_USABLE, _FLAGS_NO_SLEEP_TALK, _MOVE_CHARGE_RECHARGE, _ABILITYNAMES_VITAL_SPIRIT,
+    _VOLSTATUS_NIGHTMARE, _MOVENAME_DREAM_EATER, _MOVENAME_REST, _MOVENAME_NIGHTMARE,
+    _MOVENAME_PSYCHO_SHIFT, _MOVENAME_HEAL_BELL,
     _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
     _WEATHER_SUN, _MOVENAME_FAKE_OUT, _MOVENAME_THUNDER, _MOVENAME_LAST_RESORT, _POK_LAST_RESORT,
     _SEC_BOOST_ACC, _SEC_BOOST_ATK, _SEC_BOOST_SPEED, _SEC_BOOST_EV, _VOLSTATUS_FLINCH,
@@ -191,7 +194,10 @@ ITEM_HOLD_EFFECT_COL = _ITEM_HOLD_EFFECT - _ITEM_ID
 ITEM_EFFECT_PARAM_COL = _ITEM_EFFECT_PARAM - _ITEM_ID
 ITEM_TYPE_COL = _ITEM_ITEM_TYPE - _ITEM_ID
 # Moves that call another move
-CALLER_MOVES = (_MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER)
+CALLER_MOVES = (
+    _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER,
+    _MOVENAME_SLEEP_TALK
+)
 # pokeplatinum Move_IsInvoker (Assist and Me First aren't in MoveDB), Copycat fails on them too
 INVOKER_MOVES = (
     _MOVENAME_SLEEP_TALK, _MOVENAME_COPYCAT, _MOVENAME_MIRROR_MOVE, _MOVENAME_METRONOME
@@ -783,6 +789,122 @@ def item_cure(effect, pok):
         return False
     cure_status(pok)
     return True
+
+
+@njit
+def sleep_talk_move(pok, gravity):
+    """
+    The move Sleep Talk calls at random from the user's slots, 0 if none or if it's awake. It skips
+    the moves [SD] flags nosleeptalk (the callers, Focus Punch, Uproar, Chatter, Bide and most charge
+    moves), every charge move ([pp] Move_IsMultiTurn, Fly too) and the slots move_blocked stops, so
+    a choice lock or Encore makes it fail. PP doesn't matter ([pp] TrySleepTalk skips that check)
+    """
+    if pok[_POK_STATUS] != _STATUS_SLEEP:
+        return 0
+    count = 0
+    for slot in range(4):
+        if _sleep_talk_pick(pok, slot, gravity):
+            count += 1
+    if count == 0:
+        return 0
+    pick = random.randint(0, count - 1)
+    for slot in range(4):
+        if _sleep_talk_pick(pok, slot, gravity):
+            if pick == 0:
+                return pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID]
+            pick -= 1
+    return 0
+
+
+@njit
+def _sleep_talk_pick(pok, slot, gravity):
+    """Sleep Talk can call the move in this slot"""
+    base = OFFSET_MOVE + slot * MOVE_STRIDE
+    return (
+        pok[base + _MOVE_ID] != 0
+        and not pok[base + _FLAGS_NO_SLEEP_TALK]
+        and pok[base + _MOVE_CHARGE_RECHARGE] <= 0
+        and not move_blocked(pok, slot, gravity)
+    )
+
+
+@njit
+def status_move_fails(move, attacker, defender):
+    """
+    Rest on a user already asleep, at full HP, with Insomnia or Vital Spirit (revealed) or in an
+    uproar it isn't Soundproof against; Leaf Guard doesn't stop it ([SD] gen4 rest onTry, Leaf Guard).
+    Nightmare on a target that isn't asleep or already has one. Psycho Shift with no status on the
+    user or one on the target ([pp] CheckCanShareStatus; the Substitute is sub_blocks_status_move's)
+    """
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_REST:
+        if attacker[_POK_STATUS] == _STATUS_SLEEP:
+            return True
+        if attacker[_POK_CURRENT_HP] >= attacker[_POK_MAX_HP]:
+            return True
+        ability = attacker[_POK_AB_ID]
+        if ability == _ABILITYNAMES_INSOMNIA or ability == _ABILITYNAMES_VITAL_SPIRIT:
+            reveal_ability(attacker)
+            return True
+        return sleep_blocked(attacker, defender)
+    if move_id == _MOVENAME_NIGHTMARE:
+        return (
+            defender[_POK_STATUS] != _STATUS_SLEEP
+            or defender[_POK_VOL_STATUS] & _VOLSTATUS_NIGHTMARE != 0
+        )
+    if move_id == _MOVENAME_PSYCHO_SHIFT:
+        return attacker[_POK_STATUS] == 0 or defender[_POK_STATUS] != 0
+    return False
+
+
+@njit
+def rest(pok):
+    """Rest: full HP and 2 turns of sleep (a counter of 3), the old status and its counters gone and
+    a Nightmare ended ([SD] rest onHit, statusState.time = 3; slp onStart)"""
+    cure_status(pok)
+    pok[_POK_STATUS] = _STATUS_SLEEP
+    pok[_POK_SLEEP_COUNTER] = 3
+    pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_NIGHTMARE
+    pok[_POK_CURRENT_HP] = pok[_POK_MAX_HP]
+
+
+@njit
+def psycho_shift(move, attacker, defender, side, weather):
+    """
+    Psycho Shift gives the user's status to the target through the usual checks (types, ability,
+    Safeguard, uproar), as a status move does, so a blocking ability is revealed. Sleep rolls a new
+    count and toxic starts over. The user is cured only once the target has it ([SD] psychoshift).
+    side is the target's Field.SIDE_COND
+    """
+    shifted = move.copy()
+    shifted[_MOVE_STATUS] = attacker[_POK_STATUS]
+    apply_status(shifted, defender, weather, attacker, False, side)
+    if defender[_POK_STATUS] != 0:
+        cure_status(attacker)
+        attacker[_POK_VOL_STATUS] &= ~_VOLSTATUS_NIGHTMARE
+
+
+@njit
+def heal_bell(battle_array, user, move_id, is_mine):
+    """
+    Heal Bell and Aromatherapy cure the user's whole party, a Nightmare included. Heal Bell skips
+    every Soundproof one, on the bench too, unless the user has Mold Breaker ([SD] gen4 healbell,
+    suppressingAbility); the user's own Soundproof is revealed
+    """
+    soundproof_counts = (
+        move_id == _MOVENAME_HEAL_BELL and user[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER
+    )
+    if soundproof_counts and user[_POK_AB_ID] == _ABILITYNAMES_SOUNDPROOF:
+        reveal_ability(user)
+    start = 0 if is_mine else 6
+    for i in range(start, start + 6):
+        pok = battle_array[i * POK_LEN:(i + 1) * POK_LEN]
+        if pok[_POK_CURRENT_HP] <= 0 or pok[_POK_STATUS] == 0:
+            continue
+        if soundproof_counts and pok[_POK_AB_ID] == _ABILITYNAMES_SOUNDPROOF:
+            continue
+        cure_status(pok)
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_NIGHTMARE
 
 
 @njit
@@ -1446,6 +1568,12 @@ def _hit_outcome(move, attacker, defender, weather, gravity=False, target_moved=
         and move[_MOVE_TARGET] not in SIDE_OR_FIELD_TARGETS
     ):
         return _MOVEOUTCOME_SEMI_INVULNERABLE
+    # Dream Eater only affects a sleeping target without a Substitute, before the accuracy roll
+    # ([SD] gen4 onTryImmunity, [pp] effect 8)
+    if move[_MOVE_ID] == _MOVENAME_DREAM_EATER and (
+        defender[_POK_STATUS] != _STATUS_SLEEP or has_substitute(defender)
+    ):
+        return _MOVEOUTCOME_INVULNERABLE
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE or move[_MOVE_ID] == _MOVENAME_BIDE:
         return _MOVEOUTCOME_HIT
     # Sturdy makes OHKO moves fail, Mold Breaker ignores it (pokeplatinum BtlCmd_TryOHKOMove)
@@ -2203,7 +2331,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
         attacker[_POK_STATUS] = 0
         attacker[_POK_SLEEP_COUNTER] = 0
     atker_status = attacker[_POK_STATUS]
-    # Check for Sleep and if the attacker wakes up, TODO: Sleep Talk and Snore
+    # Check for Sleep and if the attacker wakes up
     # The counter drops first and it wakes at 0, so 2-5 sleeps 1-4 turns. Early Bird drops it by 2
     # (pokeplatinum CHECK_STATUS_STATE_SLEEP)
     if atker_status == _STATUS_SLEEP:
@@ -2212,7 +2340,7 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
             unlock_move(attacker)
         attacker[_POK_SLEEP_COUNTER] -= 2 if attacker[_POK_AB_ID] == _ABILITYNAMES_EARLY_BIRD else 1
         if attacker[_POK_SLEEP_COUNTER] > 0:
-            return True
+            return not move[_MOVE_SLEEP_USABLE]
         attacker[_POK_SLEEP_COUNTER] = 0
         attacker[_POK_STATUS] = 0
     # Freeze
@@ -2794,7 +2922,9 @@ def secret_power_move(mv, battle_array):
 
 @njit
 def called_move(pok, move_id, battle_array):
-    """The move Metronome, Mirror Move, Copycat or Nature Power calls, 0 if it fails"""
+    """The move Metronome, Mirror Move, Copycat, Nature Power or Sleep Talk calls, 0 if it fails"""
+    if move_id == _MOVENAME_SLEEP_TALK:
+        return sleep_talk_move(pok, battle_array[_FIELD_GRAVITY_TURNS] > 0)
     if move_id == _MOVENAME_METRONOME:
         return metronome_move(pok)
     if move_id == _MOVENAME_MIRROR_MOVE:

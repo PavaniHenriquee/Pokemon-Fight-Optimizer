@@ -19,7 +19,8 @@ Updated only when asked.
 - Done: 7.1 (variable power), 7.2 (fixed and HP-based damage) and 7.3 (turn order), and with it Phase 7,
   2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
 - Done: 8.1 (stat stages), 2026-11-10.
-- Next: 8.2 (status and sleep).
+- Done: 8.2 (status and sleep), 2026-11-11.
+- Next: 8.3 (healing).
 
 ## Goal
 
@@ -588,21 +589,21 @@ Fixed damage:
 
 ### 8.2 Status and sleep
 
-- [ ] Toxic(E)
-- [ ] Glare
-- [ ] Spore
-- [ ] Lovely Kiss
-- [ ] Dark Void \*
-- [ ] Poison Gas
-- [ ] Teeter Dance
-- [ ] Rest(E) !
-- [ ] Sleep Talk(B/E) ! (in MoveDB)
-- [ ] Snore(B)
-- [ ] Nightmare(B/E) ! (in MoveDB)
-- [ ] Dream Eater ! (in MoveDB)
-- [ ] Psycho Shift(B/E) !
-- [ ] Heal Bell(E) !
-- [ ] Aromatherapy(E) !
+- [x] Toxic(E)
+- [x] Glare
+- [x] Spore
+- [x] Lovely Kiss
+- [x] Dark Void \*
+- [x] Poison Gas
+- [x] Teeter Dance
+- [x] Rest(E) !
+- [x] Sleep Talk(B/E) ! (in MoveDB)
+- [x] Snore(B)
+- [x] Nightmare(B/E) ! (in MoveDB)
+- [x] Dream Eater ! (in MoveDB)
+- [x] Psycho Shift(B/E) !
+- [x] Heal Bell(E) !
+- [x] Aromatherapy(E) !
 
 ### 8.3 Healing
 

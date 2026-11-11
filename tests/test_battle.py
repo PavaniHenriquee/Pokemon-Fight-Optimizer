@@ -4871,3 +4871,320 @@ def test_baton_pass_hands_over_power_trick(make_pokemon, make_battle):
     assert (old[Pok.ATTACK], old[Pok.DEFENSE]) == old_stats
     engine_helper.reset_switch_out(new)
     assert (new[Pok.ATTACK], new[Pok.DEFENSE]) == new_stats
+
+
+# ── 8.2 status and sleep ─────────────────────────────────────────────────────
+
+def _sleep_battle(make_pokemon, make_battle, moves, my_ab="Run Away", foe_ab="Thick Fat",
+                  item=None, bench=(), foe="Munchlax"):
+    """My Rattata with moves (and a bench) against a foe that only Splashes"""
+    return make_battle(
+        [make_pokemon("Rattata", 50, my_ab, moves, item=item)] + list(bench),
+        [make_pokemon(foe, 50, foe_ab, ["Splash"])],
+    )
+
+
+def _asleep(pok, counter=5):
+    pok[Pok.STATUS] = Status.SLEEP
+    pok[Pok.SLEEP_COUNTER] = counter
+
+
+@pytest.mark.parametrize("move, status, vol", [
+    ("Toxic", Status.TOXIC, 0), ("Glare", Status.PARALYSIS, 0), ("Spore", Status.SLEEP, 0),
+    ("Lovely Kiss", Status.SLEEP, 0), ("Dark Void", Status.SLEEP, 0),
+    ("Poison Gas", Status.POISON, 0), ("Teeter Dance", 0, VolStatus.CONFUSION),
+])
+def test_status_moves_from_data(make_pokemon, make_battle, always_hit, move, status, vol):
+    """These run on their MoveDB data alone"""
+    arr = _sleep_battle(make_pokemon, make_battle, [move])
+    foe = opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.STATUS] == status
+    assert foe[Pok.VOL_STATUS] & VolStatus.CONFUSION == vol
+    if status == Status.TOXIC:
+        assert foe[Pok.BADLY_POISON] == 2
+
+
+def test_rest_heals_and_sleeps_two_turns(make_pokemon, make_battle):
+    """Full HP, the toxic and its counter gone, a counter of 3: two turns asleep, it moves on the
+    third ([SD] rest, statusState.time = 3)"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Rest", "Tackle"])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.CURRENT_HP] = me[Pok.MAX_HP] // 2
+    me[Pok.STATUS] = Status.TOXIC
+    me[Pok.BADLY_POISON] = 3
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP]
+    assert (me[Pok.STATUS], me[Pok.SLEEP_COUNTER], me[Pok.BADLY_POISON]) == (Status.SLEEP, 3, 0)
+    for _ in range(2):
+        turn_sim(0, (MOVE, 1), arr)
+        assert me[Pok.STATUS] == Status.SLEEP and foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.STATUS] == 0 and foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("setup, works, revealed", [
+    ("full_hp", False, False), ("insomnia", False, True), ("vital_spirit", False, True),
+    ("uproar", False, False), ("uproar_soundproof", True, False), ("leaf_guard_sun", True, False),
+])
+def test_rest_fails(make_pokemon, make_battle, setup, works, revealed):
+    """Fails at full HP, with Insomnia or Vital Spirit (named) and in an uproar unless Soundproof.
+    Leaf Guard in sun doesn't stop it ([SD] gen4 rest onTry, gen4 Leaf Guard skips Rest)"""
+    abilities = {"insomnia": "Insomnia", "vital_spirit": "Vital Spirit",
+                 "uproar_soundproof": "Soundproof", "leaf_guard_sun": "Leaf Guard"}
+    arr = _sleep_battle(make_pokemon, make_battle, ["Rest"], my_ab=abilities.get(setup, "Run Away"))
+    me, foe = my_active(arr), opp_active(arr)
+    if setup != "full_hp":
+        me[Pok.CURRENT_HP] = me[Pok.MAX_HP] // 2
+    if setup.startswith("uproar"):
+        foe[Pok.VOL_STATUS] |= VolStatus.UPROAR
+        foe[Pok.UPROAR_TURNS] = 5
+    if setup == "leaf_guard_sun":
+        arr[Field.WEATHER] = Weather.SUN
+        arr[Field.WEATHER_DURATION] = 5
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.STATUS] == Status.SLEEP) == works
+    assert me[Pok.CURRENT_HP] == (me[Pok.MAX_HP] if works else hp)
+    assert bool(me[Pok.AB_KNOWN]) == revealed
+
+
+def test_rest_fails_when_already_asleep(make_pokemon, make_battle):
+    """Sleep Talk calling Rest: already asleep, so no heal and the counter goes on"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Sleep Talk", "Rest"])
+    me = my_active(arr)
+    me[Pok.CURRENT_HP] = me[Pok.MAX_HP] // 2
+    _asleep(me)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP] // 2
+    assert me[Pok.SLEEP_COUNTER] == 4
+
+
+@pytest.mark.parametrize("asleep", [True, False])
+def test_snore_only_while_asleep(make_pokemon, make_battle, asleep):
+    """Snore works through sleep and fails awake, PP spent either way ([SD] snore onTry)"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Snore"])
+    me, foe = my_active(arr), opp_active(arr)
+    if asleep:
+        _asleep(me, 3)
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+    assert (foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]) == asleep
+    if asleep:
+        assert me[Pok.SLEEP_COUNTER] == 2
+
+
+def test_snore_fails_on_the_turn_it_wakes(make_pokemon, make_battle):
+    """Waking up this turn, the user isn't asleep when Snore runs"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Snore"])
+    me, foe = my_active(arr), opp_active(arr)
+    _asleep(me, 1)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.STATUS] == 0 and foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+
+
+def test_sleep_talk_calls_another_move(make_pokemon, make_battle):
+    """It calls Tackle without spending Tackle's PP, even at 0 PP ([pp] TrySleepTalk skips PP)"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Sleep Talk", "Tackle"])
+    me, foe = my_active(arr), opp_active(arr)
+    _asleep(me)
+    move_slice(me, 1)[Move.PP] = 0
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert move_slice(me, 0)[Move.PP] == pp - 1 and move_slice(me, 1)[Move.PP] == 0
+
+
+def test_sleep_talk_can_call_snore(make_pokemon, make_battle):
+    """Snore called while asleep works"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Sleep Talk", "Snore"])
+    me, foe = my_active(arr), opp_active(arr)
+    _asleep(me)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("moves, setup", [
+    (["Sleep Talk", "Tackle"], "awake"),
+    (["Sleep Talk", "Fly", "Focus Punch", "Uproar"], "asleep"),
+    (["Sleep Talk", "Tackle"], "choice_lock"),
+    (["Sleep Talk", "Tackle"], "disabled"),
+])
+def test_sleep_talk_fails(make_pokemon, make_battle, moves, setup):
+    """Fails awake, with only uncallable moves (Fly is a charge move with no nosleeptalk flag),
+    under a choice lock and with the only other move disabled (move_blocked)"""
+    item = "Choice Band" if setup == "choice_lock" else None
+    arr = _sleep_battle(make_pokemon, make_battle, moves, item=item)
+    me, foe = my_active(arr), opp_active(arr)
+    if setup != "awake":
+        _asleep(me)
+    if setup == "choice_lock":
+        me[Pok.CHOICE_LOCK] = 1
+    if setup == "disabled":
+        me[Pok.VOL_STATUS] |= VolStatus.DISABLE
+        me[Pok.DISABLE_TURNS] = 4 * 4 + 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    assert not me[Pok.VOL_STATUS] & VolStatus.SEMI_INVULNERABLE
+    assert me[Pok.LOCKED_MOVE] == -1
+
+
+@pytest.mark.parametrize("foe_ab, damage", [("Thick Fat", True), ("Magic Guard", False)])
+def test_nightmare_hurts_a_sleeper(make_pokemon, make_battle, foe_ab, damage):
+    """1/4 of max HP at the end of each turn asleep, none with Magic Guard"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Nightmare"], foe_ab=foe_ab)
+    foe = opp_active(arr)
+    _asleep(foe)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS] & VolStatus.NIGHTMARE
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP] - (max(1, foe[Pok.MAX_HP] // 4) if damage else 0)
+
+
+@pytest.mark.parametrize("setup", ["awake", "already", "substitute"])
+def test_nightmare_fails(make_pokemon, make_battle, setup):
+    """Fails on a foe awake, already in a nightmare or behind a Substitute"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Nightmare"])
+    foe = opp_active(arr)
+    if setup != "awake":
+        _asleep(foe)
+    if setup == "already":
+        foe[Pok.VOL_STATUS] |= VolStatus.NIGHTMARE
+    if setup == "substitute":
+        foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+        foe[Pok.SUB_HP] = 30
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert bool(foe[Pok.VOL_STATUS] & VolStatus.NIGHTMARE) == (setup == "already")
+    assert foe[Pok.CURRENT_HP] == hp - (max(1, foe[Pok.MAX_HP] // 4) if setup == "already" else 0)
+
+
+def test_nightmare_ends_once_awake(make_pokemon, make_battle):
+    """A Nightmare left on an awake Pokemon does nothing and is gone at the end of the turn"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Splash"])
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS] |= VolStatus.NIGHTMARE
+    turn_sim(0, (MOVE, 0), arr)
+    assert not foe[Pok.VOL_STATUS] & VolStatus.NIGHTMARE
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("move", ["Spore", "Rest"])
+def test_a_new_sleep_ends_an_old_nightmare(make_pokemon, make_battle, always_hit, move):
+    """Woken and asleep again in the same turn: the old Nightmare doesn't hurt ([SD] slp onStart)"""
+    arr = _sleep_battle(make_pokemon, make_battle, [move])
+    me, foe = my_active(arr), opp_active(arr)
+    target = foe if move == "Spore" else me
+    target[Pok.VOL_STATUS] |= VolStatus.NIGHTMARE
+    if move == "Rest":
+        me[Pok.CURRENT_HP] = me[Pok.MAX_HP] // 2
+    turn_sim(0, (MOVE, 0), arr)
+    assert target[Pok.STATUS] == Status.SLEEP
+    assert not target[Pok.VOL_STATUS] & VolStatus.NIGHTMARE
+    assert target[Pok.CURRENT_HP] == target[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("setup, hits", [("asleep", True), ("awake", False), ("substitute", False)])
+def test_dream_eater_needs_a_sleeping_target(make_pokemon, make_battle, setup, hits):
+    """Hits and drains a sleeper; an awake one or one behind a Substitute isn't affected ([SD] gen4
+    onTryImmunity)"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Dream Eater"])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.CURRENT_HP] = 1
+    if setup != "awake":
+        _asleep(foe)
+    if setup == "substitute":
+        foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+        foe[Pok.SUB_HP] = 30
+    turn_sim(0, (MOVE, 0), arr)
+    assert (foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]) == hits
+    assert (me[Pok.CURRENT_HP] > 1) == hits
+    if setup == "substitute":
+        assert foe[Pok.SUB_HP] == 30
+
+
+def test_dream_eater_into_liquid_ooze(make_pokemon, make_battle):
+    """Liquid Ooze turns the drain into damage, as for any drain ([SD])"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Dream Eater"], foe_ab="Liquid Ooze")
+    me, foe = my_active(arr), opp_active(arr)
+    _asleep(foe)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP] and me[Pok.CURRENT_HP] < me[Pok.MAX_HP]
+
+
+@pytest.mark.parametrize("status, badly", [(Status.BURN, 0), (Status.PARALYSIS, 0), (Status.TOXIC, 5)])
+def test_psycho_shift_moves_the_status(make_pokemon, make_battle, always_hit, status, badly):
+    """The foe gets the status (toxic starting over) and the user is cured"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Psycho Shift"])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.STATUS] = status
+    me[Pok.BADLY_POISON] = badly
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.STATUS] == 0 and me[Pok.BADLY_POISON] == 0
+    assert foe[Pok.STATUS] == status
+    if status == Status.TOXIC:
+        assert foe[Pok.BADLY_POISON] == 2
+
+
+def test_psycho_shift_gives_sleep_a_new_count(make_pokemon, make_battle, always_hit):
+    """Called by Sleep Talk, the sleep moves with a fresh 2-5 count (the slower foe's own turn
+    asleep then takes one off)"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Sleep Talk", "Psycho Shift"])
+    me, foe = my_active(arr), opp_active(arr)
+    _asleep(me)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.STATUS] == 0 and me[Pok.SLEEP_COUNTER] == 0
+    assert foe[Pok.STATUS] == Status.SLEEP and 1 <= foe[Pok.SLEEP_COUNTER] <= 4
+
+
+@pytest.mark.parametrize("setup, foe, foe_ab, revealed", [
+    ("no_status", "Munchlax", "Thick Fat", False),
+    ("foe_statused", "Munchlax", "Thick Fat", False),
+    ("fire_type", "Ponyta", "Run Away", False),
+    ("limber", "Munchlax", "Limber", True),
+    ("safeguard", "Munchlax", "Thick Fat", False),
+    ("substitute", "Munchlax", "Thick Fat", False),
+])
+def test_psycho_shift_fails(make_pokemon, make_battle, always_hit, setup, foe, foe_ab, revealed):
+    """No status on the user, one on the foe, a foe that can't take it (its ability named), Safeguard
+    or a Substitute: the user keeps its status"""
+    arr = _sleep_battle(make_pokemon, make_battle, ["Psycho Shift"], foe=foe, foe_ab=foe_ab)
+    me, target = my_active(arr), opp_active(arr)
+    status = 0 if setup == "no_status" else (Status.PARALYSIS if setup == "limber" else Status.BURN)
+    me[Pok.STATUS] = status
+    if setup == "foe_statused":
+        target[Pok.STATUS] = Status.POISON
+    if setup == "safeguard":
+        arr[Field.OPP_SIDE_COND] |= SideCondition.SAFEGUARD
+        arr[Field.OPP_SIDE_COND + SIDE_SAFEGUARD_TURNS] = 5
+    if setup == "substitute":
+        target[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+        target[Pok.SUB_HP] = 30
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.STATUS] == status
+    assert target[Pok.STATUS] == (Status.POISON if setup == "foe_statused" else 0)
+    assert bool(target[Pok.AB_KNOWN]) == revealed
+
+
+@pytest.mark.parametrize("move, my_ab, cured", [
+    ("Heal Bell", "Run Away", (True, True, False)),
+    ("Heal Bell", "Mold Breaker", (True, True, True)),
+    ("Heal Bell", "Soundproof", (False, True, False)),
+    ("Aromatherapy", "Soundproof", (True, True, True)),
+])
+def test_heal_bell_cures_the_party(make_pokemon, make_battle, move, my_ab, cured):
+    """The whole party is cured; Heal Bell skips every Soundproof one, the user's named, unless the
+    user has Mold Breaker ([SD] gen4 healbell, suppressingAbility). Aromatherapy cures them all"""
+    bench = [make_pokemon("Pikachu", 50, "Static", ["Tackle"]),
+             make_pokemon("Whismur", 50, "Soundproof", ["Pound"])]
+    arr = _sleep_battle(make_pokemon, make_battle, [move], my_ab=my_ab, bench=bench)
+    party = [pok_slice(arr, i) for i in range(3)]
+    for pok, status in zip(party, (Status.BURN, Status.PARALYSIS, Status.TOXIC)):
+        pok[Pok.STATUS] = status
+    party[2][Pok.BADLY_POISON] = 3
+    turn_sim(0, (MOVE, 0), arr)
+    assert tuple(pok[Pok.STATUS] == 0 for pok in party) == cured
+    if my_ab == "Soundproof":
+        assert bool(party[0][Pok.AB_KNOWN]) == (move == "Heal Bell")
+    if cured[2]:
+        assert party[2][Pok.BADLY_POISON] == 0

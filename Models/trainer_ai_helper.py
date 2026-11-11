@@ -102,6 +102,8 @@ from Models.constants import (
     _MOVENAME_BELLY_DRUM, _MOVENAME_ACUPRESSURE, _MOVENAME_CAPTIVATE, _GENDER_MALE, _GENDER_FEMALE,
     _MOVENAME_HAZE, _MOVENAME_POWER_SWAP, _MOVENAME_GUARD_SWAP, _MOVENAME_HEART_SWAP,
     _MOVENAME_POWER_TRICK, _VOLSTATUS2_POWER_TRICK,
+    _MOVENAME_SNORE, _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _MOVENAME_HEAL_BELL,
+    _MOVENAME_AROMATHERAPY, _MOVENAME_TEETER_DANCE, _VOLSTATUS_NIGHTMARE,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -274,7 +276,21 @@ RECOIL_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 BASIC_SPECIFIC_M  = (_MOVENAME_CURSE, _MOVENAME_FAKE_OUT, _MOVENAME_BULK_UP, _MOVENAME_TICKLE,
     _MOVENAME_COSMIC_POWER, _MOVENAME_DEFEND_ORDER, _MOVENAME_CALM_MIND, _MOVENAME_DRAGON_DANCE)
 # Moves Pokemow gives no Basic and no Expert check at all
-NO_AI_CHECK_M = (_MOVENAME_CHARGE,)
+NO_AI_CHECK_M = (_MOVENAME_CHARGE, _MOVENAME_TEETER_DANCE)
+# Scored by basic_sleep / expert_sleep
+SLEEP_BASIC_M = (
+    _MOVENAME_DREAM_EATER, _MOVENAME_SNORE, _MOVENAME_SLEEP_TALK, _MOVENAME_NIGHTMARE,
+    _MOVENAME_PSYCHO_SHIFT
+)
+SLEEP_EXPERT_M = (
+    _MOVENAME_REST, _MOVENAME_SNORE, _MOVENAME_SLEEP_TALK, _MOVENAME_HEAL_BELL,
+    _MOVENAME_AROMATHERAPY, _MOVENAME_PSYCHO_SHIFT
+)
+REST_M = (_MOVENAME_REST,)
+# Basic_PsychoShift_Poison's target abilities
+PSYCHO_SHIFT_POISON_AB = (
+    _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_MAGIC_GUARD
+)
 # Scored by basic_stage / expert_stage: stat stage moves with their own effect
 STAGE_M = (
     _MOVENAME_BELLY_DRUM, _MOVENAME_ACUPRESSURE, _MOVENAME_CAPTIVATE, _MOVENAME_HAZE,
@@ -341,15 +357,16 @@ ENCORE_ENCOURAGED_M = (
     MoveName.FOLLOW_ME, MoveName.CHARGE, MoveName.INGRAIN, MoveName.RECYCLE, MoveName.KNOCK_OFF,
     MoveName.REFRESH, MoveName.MUD_SPORT, MoveName.WATER_SPORT, MoveName.DRAGON_DANCE,
     MoveName.NATURAL_GIFT, MoveName.FEINT, MoveName.LUCKY_CHANT, MoveName.WORRY_SEED,
-    MoveName.AQUA_RING, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING
+    MoveName.AQUA_RING, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING,
+    MoveName.TOXIC, MoveName.REST, MoveName.POISON_GAS, MoveName.GLARE, MoveName.HEAL_BELL,
+    MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
-# pokeplatinum Basic_SoundproofMoves, the ones in MoveDB (Snore
-# isn't). Perish Song and Hyper Voice aren't on it
+# pokeplatinum Basic_SoundproofMoves, the ones in MoveDB. Perish Song and Hyper Voice aren't on it
 SOUNDPROOF_M = (
     MoveName.GROWL, MoveName.ROAR, MoveName.SING, MoveName.SUPERSONIC, MoveName.SCREECH,
     MoveName.UPROAR, MoveName.GRASS_WHISTLE, MoveName.CHATTER, MoveName.BUG_BUZZ,
-    MoveName.METAL_SOUND
+    MoveName.METAL_SOUND, MoveName.SNORE
 )
 # Recover is the only RESTORE_HALF_HP move in MoveDB, Synthesis the only HEAL_HALF_MORE_IN_SUN one
 HEAL_M = (_MOVENAME_RECOVER, _MOVENAME_SYNTHESIS)
@@ -362,8 +379,7 @@ REFRESH_STATUSES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYS
 WORRY_SEED_BAD_AB = (
     _ABILITYNAMES_TRUANT, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_MULTITYPE
 )
-# Snore isn't in MoveDB
-SLEEP_USABLE_M = (_MOVENAME_SLEEP_TALK,)
+SLEEP_USABLE_M = (_MOVENAME_SLEEP_TALK, _MOVENAME_SNORE)
 SYNTHESIS_BAD_WEATHER = (_WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL)
 # Expert_Recycle_DesirableItems, Starf Berry isn't in ItemDB
 RECYCLE_GOOD_ITEMS = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY)
@@ -920,6 +936,45 @@ def basic_misc(move, ability, ai_pok, user_pok, ai_know):
 
 
 @njit
+def basic_sleep(move, ability, ai_pok, user_pok, user_side):
+    """
+    pokeplatinum Basic_CheckDreamEater, Basic_CheckAttackerAsleep (Snore, Sleep Talk),
+    Basic_CheckNightmare and Basic_CheckCanPsychoShift. The immunity, absorbing abilities and
+    Soundproof are scored before. ability is the target's, Psycho Shift's checks ignore Mold Breaker
+    """
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_DREAM_EATER:
+        return -8 if user_pok[_POK_STATUS] != _STATUS_SLEEP else 0
+    if move_id == _MOVENAME_SNORE or move_id == _MOVENAME_SLEEP_TALK:
+        return -8 if ai_pok[_POK_STATUS] != _STATUS_SLEEP else 0
+    if move_id == _MOVENAME_NIGHTMARE:
+        if user_pok[_POK_VOL_STATUS] & _VOLSTATUS_NIGHTMARE:
+            return -10
+        if user_pok[_POK_STATUS] != _STATUS_SLEEP:
+            return -8
+        return -10 if ability == _ABILITYNAMES_MAGIC_GUARD else 0
+    # Psycho Shift
+    status = ai_pok[_POK_STATUS]
+    if status == 0 or user_pok[_POK_STATUS] != 0 or user_side & _SIDECONDITION_SAFEGUARD:
+        return -10
+    if status == _STATUS_POISON or status == _STATUS_TOXIC:
+        if ai_pok[_POK_AB_ID] == _ABILITYNAMES_POISON_HEAL:
+            return -10
+        if user_pok[_POK_TYPE1] in STEEL_POISON or user_pok[_POK_TYPE2] in STEEL_POISON:
+            return -10
+        if ability in PSYCHO_SHIFT_POISON_AB:
+            return -10
+    elif status == _STATUS_BURN:
+        if user_pok[_POK_TYPE1] == _TYPES_FIRE or user_pok[_POK_TYPE2] == _TYPES_FIRE:
+            return -10
+        if ability == _ABILITYNAMES_MAGIC_GUARD or ability == _ABILITYNAMES_WATER_VEIL:
+            return -10
+    elif status == _STATUS_PARALYSIS:
+        return -10 if ability == _ABILITYNAMES_LIMBER else 0
+    return 0
+
+
+@njit
 def basic_field(move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench):
     """
     pokeplatinum Basic checks for the side condition and weather moves. ability is the target's,
@@ -1086,6 +1141,8 @@ def basic_flag(
         ability_score = basic_ability(move, ability, user_pok, move_category)
         if ability_score:
             return ability_score
+    if move[_MOVE_ID] in SLEEP_BASIC_M:
+        return basic_sleep(move, ability, ai_pok, user_pok, user_side)
     if move[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and ai_pok[_ITEM_NATURAL_GIFT_POWER] == 0:
         return -10
     if move[_MOVE_ID] == _MOVENAME_METAL_BURST:
@@ -1144,11 +1201,8 @@ def basic_flag(
     TODO:
     --------------Specific Moves---------------
     Selfdestruct/Explosion
-    Nightmare
-    Dream Eater
     Reflect / Light Screen / Mist / Safeguard
     Camouflage / Lucky Chant / Magnet Rise
-    Snore / Sleep Talk
     Lock On / Mean Look / Torment / Miracle Eye / Heal Block / Gastro Acid
     Future Sight / Doom Desire
     Stockpile
@@ -1161,7 +1215,6 @@ def basic_flag(
     Healing Wish / Lunar Dance
     Embargo
     Fling
-    Psycho Shift
     Copycat
     Last Resort
     Defog
@@ -1276,8 +1329,8 @@ def expert_status(
         add_adjustment(rand, idx, 3, 236)
         return 0
 
-    # TODO: Badly poison
     if m_status == _STATUS_TOXIC:
+        expert_toxic(ai_pok, hp_pct_ai, hp_pct_u, rand, idx)
         return 0
 
     # Sleep-Inducing
@@ -1293,6 +1346,65 @@ def expert_status(
         add_adjustment(rand, idx, 1, 128)
         return 0
 
+    return 0
+
+
+@njit
+def expert_toxic(ai_pok, hp_pct_ai, hp_pct_u, rand, idx):
+    """
+    Pokemow Expert Toxic, which Leech Seed shares (pokeplatinum Expert_ToxicLeechSeed): with a
+    damaging move, 206/256 of -3 at 50% HP or less, once for each side; knowing Protect or Detect
+    196/256 of +2
+    """
+    if has_damaging_move(ai_pok):
+        if hp_pct_ai < 51:
+            add_adjustment(rand, idx, -3, 206)
+        if hp_pct_u < 51:
+            add_adjustment(rand, idx, -3, 206)
+    for move_id_slot in MOVE_ID_SLOTS:
+        if ai_pok[move_id_slot] in PROTECT_LIKE_M:
+            add_adjustment(rand, idx, 2, 196)
+            break
+
+
+@njit
+def expert_sleep(move, ai_pok, u_pok, rand, idx, move_first, ai_bench_status):
+    """
+    pokeplatinum Expert_Rest, Expert_Nightmare (Snore's effect goes there, Nightmare has no Expert
+    check), Expert_SleepTalk, Expert_HealBell (Aromatherapy too) and Expert_PsychoShift, as Pokemow
+    reads them. ai_bench_status: a living Pokemon on the AI's bench has a status
+    """
+    move_id = move[_MOVE_ID]
+    hp_pct_ai = (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP]
+    if move_id == _MOVENAME_SNORE:
+        return 2
+    if move_id == _MOVENAME_SLEEP_TALK:
+        return 10 if ai_pok[_POK_STATUS] == _STATUS_SLEEP else -5
+    if move_id == _MOVENAME_HEAL_BELL or move_id == _MOVENAME_AROMATHERAPY:
+        return 0 if ai_pok[_POK_STATUS] != 0 or ai_bench_status else -5
+    if move_id == _MOVENAME_PSYCHO_SHIFT:
+        if ai_pok[_POK_STATUS] == 0:
+            return -10
+        if (u_pok[_POK_CURRENT_HP] * 100) // u_pok[_POK_MAX_HP] >= 30:
+            add_adjustment(rand, idx, 1, 128)
+        return 0
+    # Rest: the HP checks end it with -3 (a roll in the middle band), else 246/256 of +3. Snatch
+    # isn't in MoveDB, a target seen using it would make this 12669/16384
+    if move_first:
+        if hp_pct_ai == 100:
+            return -8
+        if hp_pct_ai > 50:
+            return -3
+        # 186/256 of -3 and terminate
+        if hp_pct_ai >= 40 and random.getrandbits(8) >= 70:
+            return -3
+    else:
+        if hp_pct_ai > 70:
+            return -3
+        # 206/256 of -3 and terminate
+        if hp_pct_ai >= 60 and random.getrandbits(8) >= 50:
+            return -3
+    add_adjustment(rand, idx, 3, 246)
     return 0
 
 
@@ -1441,15 +1553,7 @@ def expert_vol_status(
         return 0
     if vol_status == _VOLSTATUS_LEECH_SEED:
         # Pokemow's Toxic check, which Leech Seed shares
-        if has_damaging_move(ai_pok):
-            if hp_pct_ai < 51:
-                add_adjustment(rand, idx, -3, 206)
-            if hp_pct_u < 51:
-                add_adjustment(rand, idx, -3, 206)
-        for move_id_slot in MOVE_ID_SLOTS:
-            if ai_pok[move_id_slot] in PROTECT_LIKE_M:
-                add_adjustment(rand, idx, 2, 196)
-                break
+        expert_toxic(ai_pok, hp_pct_ai, hp_pct_u, rand, idx)
         return 0
     if vol_status == _VOLSTATUS_MUD_SPORT or vol_status == _VOLSTATUS_WATER_SPORT:
         if hp_pct_ai < 50:
@@ -2099,10 +2203,11 @@ def expert_stage(move, ai_pok, u_pok, rand, idx):
 
 
 @njit
-def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first):
+def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know=0):
     """
     pokeplatinum Expert_Recovery and Expert_Synthesis, Expert_Refresh, Expert_KnockOff,
-    Expert_Recycle and Pokemow Worry Seed. Perish Song and Splash have no Expert check
+    Expert_Recycle and Pokemow Worry Seed. Perish Song and Splash have no Expert check.
+    ai_know is Field.AI_KNOWS, Worry Seed reads whether the target was seen using Rest
     """
     move_id = move[_MOVE_ID]
     hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
@@ -2133,11 +2238,12 @@ def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first):
             return 0
         return -2
     if move_id == _MOVENAME_WORRY_SEED:
-        # TODO: +1 when the target knows Rest, once it's in MoveDB
         # Pokemow reads the target's HP here, pokeplatinum the AI's own
+        score = 1 if seen_move(u_pok, ai_know, REST_M) else 0
         if hp_pct_u > 49:
             add_adjustment(rand, idx, 1, 128)
         add_adjustment(rand, idx, 1, 192)
+        return score
     return 0
 
 
@@ -2530,7 +2636,8 @@ def ai_speed_order(ai_pok, u_pok, weather, claw_guess):
 @njit
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
-    user_side=0, copycat_beats=False, claw_guess=0, speed_weather=-1, ai_side=0, ability=-1
+    user_side=0, copycat_beats=False, claw_guess=0, speed_weather=-1, ai_side=0, ability=-1,
+    ai_bench_status=False
 ):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
@@ -2540,7 +2647,8 @@ def expert_flag(
     itself, does more damage than any of the AI's moves. claw_guess: quick_claw_guess.
     weather is the field's, as the script reads it (pokeplatinum AICmd_LoadCurrentWeather ignores
     Cloud Nine); speed_weather is the one the speed compare sees, -1 for the same. ai_side is the
-    AI's Field.SIDE_COND. ability is the target's as the AI sees it, -1 for its real one
+    AI's Field.SIDE_COND. ability is the target's as the AI sees it, -1 for its real one.
+    ai_bench_status: a living Pokemon on the AI's bench has a status (Heal Bell)
     """
     if speed_weather < 0:
         speed_weather = weather
@@ -2561,6 +2669,8 @@ def expert_flag(
     if move[_MOVE_OH_KO]:
         add_adjustment(rand, idx, 1, 64)
         return 0
+    if move[_MOVE_ID] in SLEEP_EXPERT_M:
+        return expert_sleep(move, ai_pok, u_pok, rand, idx, move_first, ai_bench_status)
     if move[_MOVE_ID] in EXPERT_SPECIFIC_M:
         return expert_moves(
             move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first, ability,
@@ -2569,7 +2679,7 @@ def expert_flag(
     if move[_MOVE_ID] in ITEM_EXPERT_M:
         return expert_items(move, ai_pok, u_pok, effectiveness, rand, idx, ai_side, user_side)
     if move[_MOVE_ID] in MISC_EXPERT_M:
-        return expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first)
+        return expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know)
     if move[_MOVE_ID] in STAGE_M:
         return expert_stage(move, ai_pok, u_pok, rand, idx)
     if move[_MOVE_ID] in CALL_M:
@@ -2752,14 +2862,9 @@ def expert_flag(
     Healing Wish, Lunar Dance
     Mirror Move
     Conversion
-    Rest
-    Toxic
     Spit Up
-    Nightmare
     Lock On, Mind Reader
-    Sleep Talk
     Reversal, Flail
-    Heal Bell, Aromatherapy
     Thief, Covet
     Detect
     Spikes
@@ -2784,7 +2889,6 @@ def expert_flag(
     Assurance
     Embargo
     Fling
-    Psycho Shift
     Trump Card
     Heal Block
     Wring Out, Crush Grip

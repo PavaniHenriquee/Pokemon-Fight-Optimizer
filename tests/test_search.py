@@ -16,7 +16,8 @@ from SearchEngine.models import (
 )
 from SearchEngine import models as search_models
 from SearchEngine.mcts_eval import (
-    evaluate_terminal, rollout_arr, rollout_pref, field_move_fails, status_move_blocked
+    evaluate_terminal, rollout_arr, rollout_pref, field_move_fails, status_move_blocked,
+    sleep_move_fails
 )
 from SearchEngine.my_mcts import (
     _select_expand, _backprop, mcts_loop, recursive_backup, print_best_path, wilson_lower_bound,
@@ -1320,6 +1321,28 @@ def test_rollout_sees_embargo_and_trick_fail(poke):
     assert status_move_blocked(move_slice(me, 1), me, foe, 0)
     foe[Item.ID] = ItemNames.LEFTOVERS
     assert not status_move_blocked(move_slice(me, 1), me, foe, 0)
+
+
+def test_rollout_sees_the_sleep_move_fails(poke):
+    """sleep_move_fails: Snore and Sleep Talk awake, Dream Eater and Nightmare on an awake foe, Rest
+    at full HP, Psycho Shift without a status; none of them once they'd work. No ability revealed"""
+    me = poke("Hypno", 30, "Insomnia", ["Snore", "Sleep Talk", "Dream Eater", "Nightmare"])
+    rester = poke("Snorlax", 30, "Insomnia", ["Rest", "Psycho Shift"])
+    foe = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    assert all(sleep_move_fails(move_slice(me, i), me, foe) for i in range(4))
+    assert all(sleep_move_fails(move_slice(rester, i), rester, foe) for i in range(2))
+    me[Pok.STATUS] = foe[Pok.STATUS] = Status.SLEEP
+    assert not any(sleep_move_fails(move_slice(me, i), me, foe) for i in range(4))
+    foe[Pok.VOL_STATUS] |= VolStatus.NIGHTMARE
+    assert sleep_move_fails(move_slice(me, 3), me, foe)
+    rester[Pok.CURRENT_HP] -= 1
+    assert sleep_move_fails(move_slice(rester, 0), rester, foe)    # Insomnia
+    assert not rester[Pok.AB_KNOWN]
+    rester[Pok.AB_ID] = AbilityNames.THICK_FAT
+    rester[Pok.STATUS] = Status.BURN
+    foe[Pok.STATUS] = 0
+    assert not sleep_move_fails(move_slice(rester, 0), rester, foe)
+    assert not sleep_move_fails(move_slice(rester, 1), rester, foe)
 
 
 def test_node_key_sees_last_resort_working(make_pokemon, make_battle):

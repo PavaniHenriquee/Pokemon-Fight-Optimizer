@@ -21,6 +21,7 @@ from Engine.engine_helper import (
     fling_throw, fling_hit, _flavor_confuse, kick_hits, record_last_resort, last_resort_works,
     secret_power_move, sucker_punch_fails, lost_focus, turn_order_doubles, confuse_boost_fails,
     stage_move_fails, belly_drum, acupressure, haze, psych_up, swap_stages, power_trick, swap_atk_def,
+    status_move_fails, rest, psycho_shift, heal_bell,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -100,7 +101,8 @@ from Models.constants import (
     _DAMAGESOURCES_METAL_BURST, _MOVENAME_FALSE_SWIPE, _MOVENAME_PAIN_SPLIT, _MOVENAME_BELLY_DRUM, _MOVENAME_ACUPRESSURE,
     _MOVENAME_HAZE, _MOVENAME_PSYCH_UP, _MOVENAME_POWER_SWAP, _MOVENAME_GUARD_SWAP,
     _MOVENAME_HEART_SWAP, _MOVENAME_POWER_TRICK, _VOLSTATUS2_POWER_TRICK,
-    _VOLSTATUS2_DAMAGED_BY_MOVE,
+    _VOLSTATUS2_DAMAGED_BY_MOVE, _MOVE_SLEEP_USABLE, _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT,
+    _MOVENAME_HEAL_BELL, _MOVENAME_AROMATHERAPY,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 from Models.item import refresh_item, raw_item_type
@@ -965,6 +967,12 @@ def _execute_move_slot(
     else:
         battle_array[_FIELD_LAST_MOVE] = outer_id
     is_called = is_caller and atk[_POK_CALLED_MOVE] != 0
+    # Snore fails unless the user is asleep, a turn it woke up on included (Sleep Talk's is in
+    # called_move, [SD] onTry)
+    if mv[_MOVE_SLEEP_USABLE] and atk[_POK_STATUS] != _STATUS_SLEEP:
+        if counted:
+            metronome_fail(atk, outer_id)
+        return False
 
     # Charge moves are positive so they don't do anything first turn, Power Herb hits right away.
     # Solar Beam skips the charge in sun and keeps the Power Herb (pokeplatinum effect 0151)
@@ -1140,7 +1148,7 @@ def _execute_move_slot(
     # A status move aimed at a foe behind a Substitute fails, unless it bypasses it
     if (
         sub_blocks_status_move(mv, atk, defn, weather) or confuse_boost_fails(mv, defn)
-        or stage_move_fails(mv, atk, defn)
+        or stage_move_fails(mv, atk, defn) or status_move_fails(mv, atk, defn)
     ):
         if counted:
             metronome_fail(atk, outer_id)
@@ -1174,7 +1182,7 @@ def _execute_move_slot(
 def _status_move(atk, defn, mv, is_mine, battle_array, weather):
     """Recover, Synthesis, Refresh, Recycle, Worry Seed, Substitute, Trick, Switcheroo, Embargo,
     Pain Split, Belly Drum, Acupressure, Haze, Psych Up, Power Swap, Guard Swap, Heart Swap, Power
-    Trick and Minimize's flag (its boost is data)"""
+    Trick, Rest, Psycho Shift, Heal Bell, Aromatherapy and Minimize's flag (its boost is data)"""
     move_id = mv[_MOVE_ID]
     if move_id == _MOVENAME_MINIMIZE:
         atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_MINIMIZE
@@ -1204,6 +1212,12 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         swap_stages(atk, defn, move_id)
     elif move_id == _MOVENAME_POWER_TRICK:
         power_trick(atk)
+    elif move_id == _MOVENAME_REST:
+        rest(atk)
+    elif move_id == _MOVENAME_PSYCHO_SHIFT:
+        psycho_shift(mv, atk, defn, battle_array[side_base(not is_mine)], weather)
+    elif move_id == _MOVENAME_HEAL_BELL or move_id == _MOVENAME_AROMATHERAPY:
+        heal_bell(battle_array, atk, move_id, is_mine)
     # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
     elif move_id == _MOVENAME_WORRY_SEED and worry_seed(defn) and not is_mine:
         battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY
@@ -1420,6 +1434,7 @@ def _yawn(pok, foe, weather=0):
     elif pok[_POK_STATUS] == 0 and not sleep_blocked(pok, foe):
         pok[_POK_STATUS] = _STATUS_SLEEP
         pok[_POK_SLEEP_COUNTER] = TURNS_2_5[random.getrandbits(2)]
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_NIGHTMARE
 
 
 @njit
@@ -1625,6 +1640,16 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
             dmg = max(1, pok[_POK_MAX_HP] // 8)
             if pok[_POK_AB_ID] == _ABILITYNAMES_HEATPROOF:
                 dmg = max(1, dmg // 2)
+            if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
+                return
+
+    # 5b. Nightmare, 1/4 at least 1 while asleep. One left on an awake Pokemon is gone, as [SD]
+    # ends it when the sleep ends ([pp] MON_COND_CHECK_STATE_NIGHTMARE, [SD] cureStatus)
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_NIGHTMARE:
+        if pok[_POK_STATUS] != _STATUS_SLEEP:
+            pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_NIGHTMARE
+        elif not is_magic_guard:
+            dmg = max(1, pok[_POK_MAX_HP] // 4)
             if _apply_residual_damage(pok, dmg, enter_field_flag_idx, battle_array, enter_field):
                 return
 

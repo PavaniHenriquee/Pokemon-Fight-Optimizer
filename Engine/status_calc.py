@@ -26,7 +26,7 @@ from Models.constants import (
     _ABILITYNAMES_SHIELD_DUST, _ABILITYNAMES_MAGMA_ARMOR, _ABILITYNAMES_LEAF_GUARD,
     _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _ABILITYNAMES_CLEAR_BODY,
     _ABILITYNAMES_WHITE_SMOKE, _ABILITYNAMES_HYPER_CUTTER, _ITEM_HOLD_EFFECT,
-    _HOLDEFFECT_RECIPROCATE_INFAT, _MOVENAME_CHATTER, _POK_ID,
+    _HOLDEFFECT_RECIPROCATE_INFAT, _MOVENAME_CHATTER, _POK_ID, _VOLSTATUS_NIGHTMARE,
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from DataBase.PkDB import PokemonName
@@ -39,7 +39,7 @@ TURNS_2_5 = (2, 3, 4, 5)
 # Volatiles without extra conditions, set only if the target doesn't have them yet
 SET_ONCE_VOLS = (
     _VOLSTATUS_FORESIGHT, _VOLSTATUS_INGRAIN, _VOLSTATUS_AQUA_RING, _VOLSTATUS_DESTINY_BOND,
-    _VOLSTATUS_CHARGE, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT
+    _VOLSTATUS_CHARGE, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _VOLSTATUS_NIGHTMARE
 )
 # Mud Sport and Water Sport target the field but the volatile goes on the user
 SELF_VOL_TARGETS = TARGET_SELF_SIDE + (Target.ALL,)
@@ -212,6 +212,8 @@ def apply_status(move, pok, weather, source, sec=False, side=0, status=0):
         pok[_POK_BADLY_POISON] = 1
     elif m_status == _STATUS_SLEEP:
         pok[_POK_SLEEP_COUNTER] = TURNS_2_5[random.getrandbits(2)]
+        # A new sleep ends a Nightmare left from the last one ([SD] slp onStart)
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_NIGHTMARE
 
     if m_status in B_P_P:
         synchronize_reflect(pok, m_status, source, weather)

@@ -49,8 +49,7 @@
 - Metal Burst called by Metronome or Copycat always fails: whether the turn records damage is decided from the
   selected move (`action`'s `record_phy` / `record_sp`), so the caller's turn records nothing. [pp] records
   `lastDamageTaken` on every hit.
-- Substitute: Dream Eater failing against one waits for Dream Eater's batch (8.2, no sleep check yet either).
-  A failed Substitute keeps its Metronome item count (like the status moves above).
+- Substitute: a failed Substitute keeps its Metronome item count (like the status moves above).
 - Metronome item: a status move that fails inside `calculate_effects` (Thunder Wave on a statused
   foe, a stat move at ±6) doesn't give its count back; [pp] does (MOVE_STATUS_FAILED).
 - Accuracy stages are netted with exact thirds; [pp] `HitRateByStage` is a rounded table (differs
@@ -72,9 +71,12 @@
   stored (it does nothing without a choice item) until a choice item comes back, which only Trick can do (4.5).
 - Last Resort: Mimic, Sketch and Transform reset its count of moves used ([pp] `lastResortCount = 0`); none of
   them is in yet (12.2).
-- Sleep Talk isn't in yet: its move pool must go through `move_blocked` ([pp] `TrySleepTalk`), so it fails
-  under a choice lock ([SD gen4] agrees). It also skips every charge move ([pp] `Move_IsMultiTurn`): go by the
-  charge flag, since [SD]'s flags leave `nosleeptalk` off Fly.
+- Sleep Talk goes by [SD]'s `nosleeptalk` flag, so it never calls Nature Power; [pp] `Move_IsInvoker` leaves
+  Nature Power out, so its Sleep Talk can.
+- Uproar: a Soundproof Pokemon still falls asleep during one, Rest included (`sleep_blocked`, [pp]
+  `subscript_rest`, CHECK_STATUS_STATE_SLEEP); [SD gen4]'s uproar stops every sleep.
+- Heal Block (8.3) must also stop Rest ([pp] `Move_HealBlocked`) and Dream Eater's heal ([pp]
+  `subscript_dream_eater`); neither checks it yet.
 - Metronome item: a failed Trick, Switcheroo or Embargo keeps its count, like the status moves above ([pp] gives
   it back on MOVE_STATUS_FAILED). A failed Fling gives it back.
 - Chatter confuses at [SD gen4]'s 31% whenever a Chatot uses it. [pp] reads the recorded cry's volume (1%, 11% or
@@ -107,7 +109,7 @@
 
 ## MoveDB and tests
 
-- Not in MoveDB yet: Spikes damage, Magnet Rise, Rest, Snore, U-turn,
+- Not in MoveDB yet: Spikes damage, Magnet Rise, U-turn,
   Heal Block.
 - MoveDB flags from after Gen IV (`python -m DataBase.add_moves --check` lists them): Absorb and Mega
   Drain have `heal`; Stealth Rock, Foresight and Taunt are `reflectable`; Roar has no `protect`. They matter
@@ -129,6 +131,8 @@
   HP or less or at +6, Acupressure with every stat at +6 or behind its Substitute, Captivate on Oblivious, the same
   gender or genderless; `confuse_boost_fails`: Swagger / Flatter at +6 on a confused foe), so it weighs them at 1.
   `stage_move_fails` reveals Oblivious, so the rollout would need a version without the reveal.
+- Search: the rollout (`sleep_move_fails`) sees Sleep Talk fail only while awake, not asleep with nothing it can
+  call (a choice lock, Encore, only uncallable moves, `sleep_talk_move`), so it weighs those at 1.
 - Search: the rollout's quick type check (`rollout_pref`) uses `gravity_types`, so it misses Ingrain grounding a
   Flying type (Iron Ball and Gravity reach it).
 - Search: the rollout (`rollout_pref`) doesn't weigh Jump Kick / High Jump Kick's crash (6.5) on a move that could

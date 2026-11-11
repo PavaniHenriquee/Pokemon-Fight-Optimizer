@@ -48,6 +48,8 @@ KIT_STATUS = (
     "Defend Order", "Feather Dance", "Metal Sound", "Cotton Spore", "Dragon Dance", "Belly Drum",
     "Acupressure", "Captivate", "Haze", "Psych Up", "Power Swap", "Guard Swap", "Heart Swap",
     "Power Trick",
+    "Toxic", "Glare", "Spore", "Lovely Kiss", "Dark Void", "Poison Gas", "Teeter Dance", "Rest",
+    "Sleep Talk", "Nightmare", "Psycho Shift", "Heal Bell", "Aromatherapy",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -80,6 +82,7 @@ KIT_DAMAGE = (
     "Return", "Frustration", "Last Resort", "Secret Power",
     "Super Fang", "Endeavor", "Metal Burst", "False Swipe",
     "Avalanche", "Revenge", "Payback", "Sucker Punch", "Focus Punch",
+    "Snore", "Dream Eater",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -2789,3 +2792,184 @@ def test_ai_scores_metal_burst_into_a_4x_target(make_pokemon, make_battle):
     foe = opp_active(arr)
     foe[Pok.CURRENT_HP] = foe[Pok.MAX_HP] * 3 // 10
     assert all(int(return_idx(arr)) == 0 for _ in range(20))
+
+
+# ── 8.2 status and sleep ─────────────────────────────────────────────────────
+
+def _basic_side(ai_pok, user, ability, user_side=0):
+    """_basic with the target's Field.SIDE_COND"""
+    return ai.basic_flag(move_slice(ai_pok, 0), ability, ai_pok, user, 1.0, 0, 0, user_side)
+
+
+@pytest.mark.parametrize("move, ai_asleep, user_asleep, user_vol, ability, expected", [
+    ("Dream Eater", False, True, 0, "STURDY", 0),
+    ("Dream Eater", False, False, 0, "STURDY", -8),
+    ("Snore", True, False, 0, "STURDY", 0),
+    ("Snore", False, False, 0, "STURDY", -8),
+    ("Snore", True, False, 0, "SOUNDPROOF", -10),
+    ("Sleep Talk", True, False, 0, "STURDY", 0),
+    ("Sleep Talk", False, False, 0, "STURDY", -8),
+    ("Nightmare", False, True, 0, "STURDY", 0),
+    ("Nightmare", False, True, VolStatus.NIGHTMARE, "STURDY", -10),
+    ("Nightmare", False, False, 0, "STURDY", -8),
+    ("Nightmare", False, True, 0, "MAGIC_GUARD", -10),
+])
+def test_basic_sleep_moves(poke, move, ai_asleep, user_asleep, user_vol, ability, expected):
+    """Basic_CheckDreamEater, Basic_CheckAttackerAsleep (Snore after the Soundproof check, Sleep
+    Talk) and Basic_CheckNightmare"""
+    ai_pok = poke("Drowzee", 20, "Insomnia", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    if ai_asleep:
+        ai_pok[Pok.STATUS] = Status.SLEEP
+    if user_asleep:
+        user[Pok.STATUS] = Status.SLEEP
+    user[Pok.VOL_STATUS] |= user_vol
+    assert _basic(ai_pok, user, getattr(AbilityNames, ability)) == expected
+
+
+def test_basic_dream_eater_immune_target(poke):
+    """The type immunity comes first: -10 on a sleeping Dark type"""
+    ai_pok = poke("Drowzee", 20, "Insomnia", ["Dream Eater"])
+    user = poke("Murkrow", 20, "Insomnia", ["Peck"])
+    user[Pok.STATUS] = Status.SLEEP
+    assert ai.basic_flag(move_slice(ai_pok, 0), AbilityNames.INSOMNIA, ai_pok, user, 0.0, 0) == -10
+
+
+@pytest.mark.parametrize("status, user, ai_ab, ability, side, expected", [
+    (0, ("Geodude", "Sturdy"), "Run Away", "STURDY", 0, -10),
+    (Status.BURN, ("Geodude", "Sturdy"), "Run Away", "STURDY", 0, 0),
+    (Status.BURN, ("Geodude", "Sturdy"), "Run Away", "STURDY", SideCondition.SAFEGUARD, -10),
+    (Status.BURN, ("Ponyta", "Run Away"), "Run Away", "RUN_AWAY", 0, -10),
+    (Status.BURN, ("Geodude", "Sturdy"), "Run Away", "WATER_VEIL", 0, -10),
+    (Status.BURN, ("Geodude", "Sturdy"), "Run Away", "MAGIC_GUARD", 0, -10),
+    (Status.POISON, ("Geodude", "Sturdy"), "Run Away", "STURDY", 0, 0),
+    (Status.TOXIC, ("Geodude", "Sturdy"), "Poison Heal", "STURDY", 0, -10),
+    (Status.POISON, ("Magnemite", "Sturdy"), "Run Away", "STURDY", 0, -10),
+    (Status.TOXIC, ("Geodude", "Sturdy"), "Run Away", "IMMUNITY", 0, -10),
+    (Status.PARALYSIS, ("Geodude", "Sturdy"), "Run Away", "LIMBER", 0, -10),
+    (Status.PARALYSIS, ("Geodude", "Sturdy"), "Run Away", "STURDY", 0, 0),
+    (Status.SLEEP, ("Geodude", "Sturdy"), "Run Away", "INSOMNIA", 0, 0),
+])
+def test_basic_psycho_shift(poke, status, user, ai_ab, ability, side, expected):
+    """Basic_CheckCanPsychoShift and its per-status branches (no sleep branch)"""
+    ai_pok = poke("Rattata", 20, ai_ab, ["Psycho Shift"])
+    ai_pok[Pok.STATUS] = status
+    target = poke(user[0], 20, user[1], ["Tackle"])
+    assert _basic_side(ai_pok, target, getattr(AbilityNames, ability), side) == expected
+    target[Pok.STATUS] = Status.POISON
+    assert _basic_side(ai_pok, target, getattr(AbilityNames, ability), side) == -10
+
+
+@pytest.mark.parametrize("move, asleep, expected", [
+    ("Snore", False, (2, [])), ("Snore", True, (2, [])),
+    ("Sleep Talk", True, (10, [])), ("Sleep Talk", False, (-5, [])),
+])
+def test_expert_snore_and_sleep_talk(poke, move, asleep, expected):
+    """Snore's effect goes to Expert_Nightmare (+2), Expert_SleepTalk +10 asleep, else -5"""
+    ai_pok = poke("Snorlax", 20, "Thick Fat", [move])
+    if asleep:
+        ai_pok[Pok.STATUS] = Status.SLEEP
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert _expert(ai_pok, user) == expected
+
+
+def test_expert_nightmare_has_no_check(poke):
+    """Nightmare has a Basic check but no Expert one"""
+    ai_pok = poke("Gastly", 20, "Levitate", ["Nightmare"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    user[Pok.STATUS] = Status.SLEEP
+    assert _expert(ai_pok, user) == (0, [])
+
+
+@pytest.mark.parametrize("move", ["Heal Bell", "Aromatherapy"])
+@pytest.mark.parametrize("own, bench, expected", [
+    (0, False, -5), (Status.BURN, False, 0), (0, True, 0),
+])
+def test_expert_heal_bell(poke, move, own, bench, expected):
+    """Expert_HealBell: -5 unless the AI or a living Pokemon on its bench has a status"""
+    ai_pok = poke("Chansey", 20, "Natural Cure", [move])
+    ai_pok[Pok.STATUS] = own
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0, ai_bench_status=bench
+    )
+    assert score == expected
+
+
+def test_choose_move_sees_a_statused_bench(make_pokemon, make_battle):
+    """Heal Bell is picked for a burned bench Pokemon, not with a healthy one (fainted ones don't
+    count)"""
+    def _battle(status, bench_hp):
+        arr = make_battle([make_pokemon("Machop", 20, "Guts", ["Leer"])],
+                          [make_pokemon("Chansey", 20, "Natural Cure", ["Heal Bell", "Growl"]),
+                           make_pokemon("Rattata", 20, "Run Away", ["Tackle"])])
+        bench = pok_slice(arr, 1, opp=True)
+        bench[Pok.STATUS] = status
+        bench[Pok.CURRENT_HP] = bench_hp
+        return arr
+    assert any(int(return_idx(_battle(Status.BURN, 30))) == 0 for _ in range(10))
+    assert all(int(return_idx(_battle(Status.BURN, 0))) == 1 for _ in range(10))
+    assert all(int(return_idx(_battle(0, 30))) == 1 for _ in range(10))
+
+
+@pytest.mark.parametrize("ai_status, user_hp, expected", [
+    (0, 100, (-10, [])), (Status.BURN, 30, (0, [(1, 128)])), (Status.BURN, 29, (0, [])),
+])
+def test_expert_psycho_shift(poke, ai_status, user_hp, expected):
+    """Expert_PsychoShift: -10 without a status, else 50% of +1 with the target at 30% HP or more"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Psycho Shift"])
+    ai_pok[Pok.STATUS] = ai_status
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    _at_pct(user, user_hp)
+    assert _expert(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("fast, hp_pct, roll, expected", [
+    (True, 100, 0, (-8, [])),
+    (True, 51, 0, (-3, [])),
+    (True, 50, 70, (-3, [])), (True, 50, 69, (0, [(3, 246)])),
+    (True, 40, 70, (-3, [])), (True, 39, 255, (0, [(3, 246)])),
+    (False, 71, 0, (-3, [])),
+    (False, 70, 50, (-3, [])), (False, 70, 49, (0, [(3, 246)])),
+    (False, 59, 255, (0, [(3, 246)])),
+])
+def test_expert_rest(poke, monkeypatch, fast, hp_pct, roll, expected):
+    """Expert_Rest: faster at full HP -8, over 50% -3, 40-50% 186/256 of -3; slower over 70% -3,
+    60-70% 206/256 of -3; otherwise 246/256 of +3 (no Snatch in MoveDB)"""
+    monkeypatch.setattr(ai.random, "getrandbits", lambda n: roll)
+    ai_pok, user = _expert_at(poke, "Rest", fast, hp_pct)
+    assert _expert(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("hp_pct, queued", [
+    (50, [(-3, 206), (-3, 206), (2, 196)]), (51, [(2, 196)]),
+])
+def test_expert_toxic(poke, hp_pct, queued):
+    """Expert_ToxicLeechSeed: with a damaging move 206/256 of -3 for each side at 50% or less,
+    knowing Protect 196/256 of +2"""
+    ai_pok = poke("Gengar", 20, "Levitate", ["Toxic", "Shadow Ball", "Protect"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    _at_pct(ai_pok, hp_pct)
+    _at_pct(user, hp_pct)
+    assert _expert(ai_pok, user) == (0, queued)
+
+
+def test_expert_worry_seed_into_a_known_rest(poke):
+    """Pokemow Worry Seed: +1 more when the target was seen using Rest"""
+    ai_pok = poke("Bulbasaur", 20, "Overgrow", ["Worry Seed"])
+    user = poke("Snorlax", 20, "Thick Fat", ["Tackle", "Rest"])
+    _at_pct(user, 49)
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    args = (ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0)
+    assert ai.expert_flag(*args, Enemy_AI_Knows.MOVE2) == 1
+    assert ai.expert_flag(*args, Enemy_AI_Knows.MOVE1) == 0
+
+
+def test_teeter_dance_has_no_ai_check(poke):
+    """Pokemow and pokeplatinum give Teeter Dance no Basic and no Expert check"""
+    ai_pok = poke("Spinda", 20, "Own Tempo", ["Teeter Dance"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    user[Pok.VOL_STATUS] |= VolStatus.CONFUSION
+    assert _basic(ai_pok, user, AbilityNames.OWN_TEMPO) == 0
+    assert _expert(ai_pok, user) == (0, [])

@@ -237,6 +237,19 @@
     "target": "normal",
     "type": "Fighting"
   },
+  "Aromatherapy": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "distance": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "aromatherapy",
+    "pp": 5,
+    "target": "ally_team",
+    "type": "Grass"
+  },
   "Assurance": {
     "accuracy": 100,
     "category": "Physical",
@@ -1190,6 +1203,21 @@
       "vol_status": "flinch"
     },
     "target": "any",
+    "type": "Dark"
+  },
+  "Dark Void": {
+    "accuracy": 50,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "dark_void",
+    "pp": 10,
+    "status": "sleep",
+    "target": "all_adjacent_foes",
     "type": "Dark"
   },
   "Dazzling Gleam": {
@@ -2445,6 +2473,21 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Glare": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "glare",
+    "pp": 30,
+    "status": "paralysis",
+    "target": "normal",
+    "type": "Normal"
+  },
   "Grass Knot": {
     "accuracy": 100,
     "category": "Special",
@@ -2675,6 +2718,19 @@
       "vol_status": "flinch"
     },
     "target": "normal",
+    "type": "Normal"
+  },
+  "Heal Bell": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true,
+      "sound": true
+    },
+    "name": "heal_bell",
+    "pp": 5,
+    "target": "ally_team",
     "type": "Normal"
   },
   "Heart Swap": {
@@ -3332,6 +3388,21 @@
     "side_condition": "light_screen",
     "target": "ally_side",
     "type": "Psychic"
+  },
+  "Lovely Kiss": {
+    "accuracy": 75,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "lovely_kiss",
+    "pp": 10,
+    "status": "sleep",
+    "target": "normal",
+    "type": "Normal"
   },
   "Low Kick": {
     "accuracy": 100,
@@ -4136,6 +4207,21 @@
     "target": "normal",
     "type": "Poison"
   },
+  "Poison Gas": {
+    "accuracy": 90,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "poison_gas",
+    "pp": 40,
+    "status": "poison",
+    "target": "normal",
+    "type": "Poison"
+  },
   "Poison Jab": {
     "accuracy": 100,
     "category": "Physical",
@@ -4408,6 +4494,19 @@
     "target": "normal",
     "type": "Psychic"
   },
+  "Psycho Shift": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "psycho_shift",
+    "pp": 10,
+    "target": "normal",
+    "type": "Psychic"
+  },
   "Psywave": {
     "accuracy": 100,
     "category": "Special",
@@ -4591,6 +4690,19 @@
     "pp": 20,
     "target": "self",
     "type": "Normal"
+  },
+  "Rest": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "rest",
+    "pp": 10,
+    "target": "self",
+    "type": "Psychic"
   },
   "Return": {
     "accuracy": 100,
@@ -5438,6 +5550,26 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Snore": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "sound": true
+    },
+    "name": "snore",
+    "power": 50,
+    "pp": 15,
+    "secondary": {
+      "chance": 30,
+      "vol_status": "flinch"
+    },
+    "sleep_usable": true,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Solar Beam": {
     "accuracy": 100,
     "category": "Special",
@@ -5530,6 +5662,22 @@
     "pp": 40,
     "target": "self",
     "type": "Normal"
+  },
+  "Spore": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "powder": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "spore",
+    "pp": 15,
+    "status": "sleep",
+    "target": "normal",
+    "type": "Grass"
   },
   "Stealth Rock": {
     "accuracy": true,
@@ -5945,6 +6093,21 @@
     "type": "Dark",
     "vol_status": "taunt"
   },
+  "Teeter Dance": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "dance": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "teeter_dance",
+    "pp": 20,
+    "target": "all_adjacent",
+    "type": "Normal",
+    "vol_status": "confusion"
+  },
   "Teleport": {
     "accuracy": true,
     "category": "Status",
@@ -6117,6 +6280,21 @@
     "pp": 20,
     "target": "normal",
     "type": "Normal"
+  },
+  "Toxic": {
+    "accuracy": 90,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "toxic",
+    "pp": 10,
+    "status": "toxic",
+    "target": "normal",
+    "type": "Poison"
   },
   "Toxic Spikes": {
     "accuracy": true,

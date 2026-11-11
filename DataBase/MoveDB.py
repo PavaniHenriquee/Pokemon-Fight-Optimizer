@@ -23,7 +23,8 @@ class MoveName:
     AQUA_RING       = AQUA_JET + 1
     AQUA_TAIL       = AQUA_RING + 1
     ARM_THRUST      = AQUA_TAIL + 1
-    ASSURANCE       = ARM_THRUST + 1
+    AROMATHERAPY    = ARM_THRUST + 1
+    ASSURANCE       = AROMATHERAPY + 1
     ASTONISH        = ASSURANCE + 1
     ATTACK_ORDER    = ASTONISH + 1
     ATTRACT         = ATTACK_ORDER + 1
@@ -80,7 +81,8 @@ class MoveName:
     CURSE           = CRUSH_GRIP + 1
     CUT             = CURSE + 1
     DARK_PULSE      = CUT + 1
-    DAZZLING_GLEAM  = DARK_PULSE + 1
+    DARK_VOID       = DARK_PULSE + 1
+    DAZZLING_GLEAM  = DARK_VOID + 1
     DEFEND_ORDER    = DAZZLING_GLEAM + 1
     DEFENSE_CURL    = DEFEND_ORDER + 1
     DESTINY_BOND    = DEFENSE_CURL + 1
@@ -156,7 +158,8 @@ class MoveName:
     FUTURE_SIGHT    = FURY_SWIPES + 1
     GIGA_DRAIN      = FUTURE_SIGHT + 1
     GIGA_IMPACT     = GIGA_DRAIN + 1
-    GRASS_KNOT      = GIGA_IMPACT + 1
+    GLARE           = GIGA_IMPACT + 1
+    GRASS_KNOT      = GLARE + 1
     GRASS_WHISTLE   = GRASS_KNOT + 1
     GRAVITY         = GRASS_WHISTLE + 1
     GROWL           = GRAVITY + 1
@@ -171,7 +174,8 @@ class MoveName:
     HAZE            = HARDEN + 1
     HEAD_SMASH      = HAZE + 1
     HEADBUTT        = HEAD_SMASH + 1
-    HEART_SWAP      = HEADBUTT + 1
+    HEAL_BELL       = HEADBUTT + 1
+    HEART_SWAP      = HEAL_BELL + 1
     HEAT_WAVE       = HEART_SWAP + 1
     HELPING_HAND    = HEAT_WAVE + 1
     HIDDEN_POWER    = HELPING_HAND + 1
@@ -211,7 +215,8 @@ class MoveName:
     LEER            = LEECH_SEED + 1
     LICK            = LEER + 1
     LIGHT_SCREEN    = LICK + 1
-    LOW_KICK        = LIGHT_SCREEN + 1
+    LOVELY_KISS     = LIGHT_SCREEN + 1
+    LOW_KICK        = LOVELY_KISS + 1
     LUCKY_CHANT     = LOW_KICK + 1
     MACH_PUNCH      = LUCKY_CHANT + 1
     MAGICAL_LEAF    = MACH_PUNCH + 1
@@ -261,7 +266,8 @@ class MoveName:
     PLAY_ROUGH      = PIN_MISSILE + 1
     PLUCK           = PLAY_ROUGH + 1
     POISON_FANG     = PLUCK + 1
-    POISON_JAB      = POISON_FANG + 1
+    POISON_GAS      = POISON_FANG + 1
+    POISON_JAB      = POISON_GAS + 1
     POISON_POWDER   = POISON_JAB + 1
     POISON_STING    = POISON_POWDER + 1
     POISON_TAIL     = POISON_STING + 1
@@ -278,7 +284,8 @@ class MoveName:
     PSYCHIC         = PSYCH_UP + 1
     PSYCHO_BOOST    = PSYCHIC + 1
     PSYCHO_CUT      = PSYCHO_BOOST + 1
-    PSYWAVE         = PSYCHO_CUT + 1
+    PSYCHO_SHIFT    = PSYCHO_CUT + 1
+    PSYWAVE         = PSYCHO_SHIFT + 1
     PUNISHMENT      = PSYWAVE + 1
     PURSUIT         = PUNISHMENT + 1
     QUICK_ATTACK    = PURSUIT + 1
@@ -291,7 +298,8 @@ class MoveName:
     RECYCLE         = RECOVER + 1
     REFLECT         = RECYCLE + 1
     REFRESH         = REFLECT + 1
-    RETURN          = REFRESH + 1
+    REST            = REFRESH + 1
+    RETURN          = REST + 1
     REVENGE         = RETURN + 1
     REVERSAL        = REVENGE + 1
     ROAR            = REVERSAL + 1
@@ -342,13 +350,15 @@ class MoveName:
     SMELLING_SALTS  = SLUDGE_BOMB + 1
     SMOG            = SMELLING_SALTS + 1
     SMOKESCREEN     = SMOG + 1
-    SOLAR_BEAM      = SMOKESCREEN + 1
+    SNORE           = SMOKESCREEN + 1
+    SOLAR_BEAM      = SNORE + 1
     SONIC_BOOM      = SOLAR_BEAM + 1
     SPACIAL_REND    = SONIC_BOOM + 1
     SPARK           = SPACIAL_REND + 1
     SPIKE_CANNON    = SPARK + 1
     SPLASH          = SPIKE_CANNON + 1
-    STEALTH_ROCK    = SPLASH + 1
+    SPORE           = SPLASH + 1
+    STEALTH_ROCK    = SPORE + 1
     STEEL_WING      = STEALTH_ROCK + 1
     STOMP           = STEEL_WING + 1
     STONE_EDGE      = STOMP + 1
@@ -374,7 +384,8 @@ class MoveName:
     TAIL_WHIP       = TAIL_GLOW + 1
     TAKE_DOWN       = TAIL_WHIP + 1
     TAUNT           = TAKE_DOWN + 1
-    TELEPORT        = TAUNT + 1
+    TEETER_DANCE    = TAUNT + 1
+    TELEPORT        = TEETER_DANCE + 1
     THIEF           = TELEPORT + 1
     THRASH          = THIEF + 1
     THUNDER         = THRASH + 1
@@ -384,7 +395,8 @@ class MoveName:
     THUNDER_WAVE    = THUNDER_SHOCK + 1
     THUNDERBOLT     = THUNDER_WAVE + 1
     TICKLE          = THUNDERBOLT + 1
-    TOXIC_SPIKES    = TICKLE + 1
+    TOXIC           = TICKLE + 1
+    TOXIC_SPIKES    = TOXIC + 1
     TRICK           = TOXIC_SPIKES + 1
     TRICK_ROOM      = TRICK + 1
     TRI_ATTACK      = TRICK_ROOM + 1
