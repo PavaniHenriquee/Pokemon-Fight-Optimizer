@@ -14,7 +14,7 @@ from Engine.engine_helper import (
     update_choice_lock,
     worry_seed, perish_song, perish_count, called_move, mirror_record, CALLER_MOVES, resist_berry,
     damp_blocks, status_item, pressure_pp, truant_loafs, metronome_count, metronome_fail,
-    power_herb, sticky_hold, big_root, recover_status_by_ability, counter_fails,
+    power_herb, sticky_hold, big_root, recover_status_by_ability, counter_fails, endeavor_fails,
     has_substitute, hit_substitute, make_substitute, sub_blocks_status_move, takeable_item,
     focus_sash_ready, sticky_barb_transfer, after_move_hit_items, on_hit_berries,
     clear_target_choice_lock, swap_items, embargo, embargo_count, fling_fails, fling_move,
@@ -95,7 +95,8 @@ from Models.constants import (
     _MOVENAME_THIEF, _MOVENAME_PLUCK, _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _MOVENAME_EMBARGO,
     _MOVENAME_FLING, _VOLSTATUS2_EMBARGO, _POK_EMBARGO_TURNS, _ITEM_ID,
     _MOVENAME_SOLAR_BEAM, _MOVENAME_SKULL_BASH, _POK_DEFENSE_STAT_STAGE, _MOVENAME_SHADOW_FORCE,
-    _MOVE_HAS_CRASH_DAMAGE,
+    _MOVE_HAS_CRASH_DAMAGE, _DAMAGESOURCES_HALVE_HP, _DAMAGESOURCES_ENDEAVOR,
+    _DAMAGESOURCES_METAL_BURST, _MOVENAME_FALSE_SWIPE, _MOVENAME_PAIN_SPLIT,
 )
 from Models.move import STRUGGLE, MOVE_TABLE
 from Models.item import refresh_item, raw_item_type
@@ -411,6 +412,16 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
         dmg = attacker[_POK_DMG_TAKEN]*2
         attacker[_POK_DMG_TAKEN] = 0
         return dmg, False
+    # Super Fang and Endeavor read the target's HP, also behind a Substitute (pokeplatinum
+    # effect 0040, BattleSystem_Divide, and 0189)
+    if move_damage == _DAMAGESOURCES_HALVE_HP:
+        return max(1, defender[_POK_CURRENT_HP] // 2), False
+    if move_damage == _DAMAGESOURCES_ENDEAVOR:
+        return defender[_POK_CURRENT_HP] - attacker[_POK_CURRENT_HP], False
+    if move_damage == _DAMAGESOURCES_METAL_BURST:
+        dmg = attacker[_POK_DMG_TAKEN] * 15 // 10
+        attacker[_POK_DMG_TAKEN] = 0
+        return dmg, False
     # if move damage is a positive int, it means that is a fixed damage so just return it
     return move_damage, False
 
@@ -459,6 +470,10 @@ def _ps_moves_core(attacker, defender, move, weather, def_side=0, gravity=False,
     if has_substitute(defender):
         dealt = hit_substitute(defender, raw_damage)
         return False, dealt, dealt, True, sash
+    # False Swipe leaves 1 HP, before Endure and the focus items (pokeplatinum
+    # BattleControllerPlayer_UpdateHP)
+    if move[_MOVE_ID] == _MOVENAME_FALSE_SWIPE and raw_damage >= defender[_POK_CURRENT_HP]:
+        raw_damage = defender[_POK_CURRENT_HP] - 1
     sash = sash or focus_sash_ready(defender)
     damage = endure_damage(defender, raw_damage, sash)
     dealt = min(damage, defender[_POK_CURRENT_HP])
@@ -986,7 +1001,7 @@ def _execute_move_slot(
     if mv[_MOVE_ID] in STALL_MOVES:
         try_protect(atk, mv[_MOVE_ID], is_last)
         return False
-    if counter_fails(atk, mv, slot_num):
+    if counter_fails(atk, mv, slot_num) or endeavor_fails(atk, defn, mv):
         if counted:
             metronome_fail(atk, outer_id)
         return False
@@ -1137,8 +1152,8 @@ def _execute_move_slot(
 
 @njit
 def _status_move(atk, defn, mv, is_mine, battle_array, weather):
-    """Recover, Synthesis, Refresh, Recycle, Worry Seed, Substitute, Trick, Switcheroo, Embargo
-    and Minimize's flag (its boost is data)"""
+    """Recover, Synthesis, Refresh, Recycle, Worry Seed, Substitute, Trick, Switcheroo, Embargo,
+    Pain Split and Minimize's flag (its boost is data)"""
     move_id = mv[_MOVE_ID]
     if move_id == _MOVENAME_MINIMIZE:
         atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_MINIMIZE
@@ -1154,9 +1169,29 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         swap_items(atk, defn)
     elif move_id == _MOVENAME_EMBARGO:
         embargo(defn)
+    elif move_id == _MOVENAME_PAIN_SPLIT:
+        _pain_split(atk, defn)
     # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
     elif move_id == _MOVENAME_WORRY_SEED and worry_seed(defn) and not is_mine:
         battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY
+
+
+@njit
+def _pain_split(atk, defn):
+    """Both go to the average of their HP, capped at max HP. It isn't damage, but the one that
+    loses HP counts as hurt for Assurance (pokeplatinum subscript_pain_split, subscript_update_hp,
+    BtlCmd_UpdateHealthBarValue)"""
+    average = (atk[_POK_CURRENT_HP] + defn[_POK_CURRENT_HP]) // 2
+    _set_split_hp(atk, average)
+    _set_split_hp(defn, average)
+
+
+@njit
+def _set_split_hp(pok, average):
+    """Pain Split's HP for one side"""
+    if average < pok[_POK_CURRENT_HP]:
+        mark_hurt(pok)
+    pok[_POK_CURRENT_HP] = min(average, pok[_POK_MAX_HP])
 
 
 @njit
@@ -1238,8 +1273,10 @@ def action(current_move, opp_move, battle_array):
         record_phy = False
         record_sp  = False
     else:
-        record_phy = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER
-        record_sp  = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT
+        # Metal Burst takes either kind of hit (pokeplatinum lastDamageTaken)
+        burst = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_METAL_BURST
+        record_phy = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER or burst
+        record_sp  = mv2[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT or burst
 
     my_before = battle_array[_FIELD_MY_POK]
     opp_before = battle_array[_FIELD_OPP_POK]
@@ -1795,6 +1832,14 @@ def turn_sim(opp_move, current_action, battle_array):
 
 
 @njit
+def _clear_damage_record(pok):
+    """Counter, Mirror Coat and Metal Burst only see the damage of this turn (pokeplatinum
+    turnFlags), a charging Bide keeps adding up across turns"""
+    if not pok[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+        pok[_POK_DMG_TAKEN] = 0
+
+
+@njit
 def _finish_turn(battle_array):
     """End of turn and the turn counters, returns (phase, opp_idx) like turn_sim"""
     opp_idx = end_of_turn(battle_array)
@@ -1809,6 +1854,8 @@ def _finish_turn(battle_array):
 
     current_pokemon[_POK_VOL_STATUS] &= ~TURN_VOLATILES
     current_opp[_POK_VOL_STATUS] &= ~TURN_VOLATILES
+    _clear_damage_record(current_pokemon)
+    _clear_damage_record(current_opp)
 
     if opp_idx == -1:
         opp_idx = battle_array[_FIELD_OPP_POK]

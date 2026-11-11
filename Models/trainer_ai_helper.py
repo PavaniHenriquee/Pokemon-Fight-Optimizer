@@ -96,6 +96,8 @@ from Models.constants import (
     _HOLDEFFECT_BRN_USER, _HOLDEFFECT_HP_RESTORE_SPICY, _HOLDEFFECT_HP_RESTORE_DRY,
     _HOLDEFFECT_HP_RESTORE_SWEET, _HOLDEFFECT_HP_RESTORE_BITTER, _HOLDEFFECT_HP_RESTORE_SOUR,
     _MOVENAME_RAZOR_WIND, _MOVENAME_SKULL_BASH, _MOVENAME_SKY_ATTACK, _MOVENAME_SOLAR_BEAM,
+    _ITEMNAMES_SHINY_STONE, _MOVENAME_METAL_BURST, _MOVENAME_SUPER_FANG, _MOVENAME_ENDEAVOR,
+    _MOVENAME_PAIN_SPLIT,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -215,7 +217,14 @@ EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOV
     _MOVENAME_THIEF, _MOVENAME_PLUCK, _MOVENAME_REVERSAL, _MOVENAME_FACADE,
     _MOVENAME_SMELLING_SALTS, _MOVENAME_WAKE_UP_SLAP, _MOVENAME_ERUPTION, _MOVENAME_WATER_SPOUT,
     _MOVENAME_TRUMP_CARD, _MOVENAME_WRING_OUT, _MOVENAME_CRUSH_GRIP, _MOVENAME_PUNISHMENT,
-    _MOVENAME_LAST_RESORT)
+    _MOVENAME_LAST_RESORT, _MOVENAME_METAL_BURST, _MOVENAME_SUPER_FANG, _MOVENAME_ENDEAVOR,
+    _MOVENAME_PAIN_SPLIT)
+# Expert_MetalBurst's -1 when the AI saw the target use one (pokeplatinum DOUBLE_POWER_IF_HIT,
+# HIT_LAST_WHIFF_IF_HIT, PRIORITY_NEG_1_BYPASS_ACCURACY), the ones in MoveDB
+METAL_BURST_BAD_M = tuple(
+    getattr(MoveName, name) for name in ('REVENGE', 'AVALANCHE', 'FOCUS_PUNCH', 'VITAL_THROW')
+    if hasattr(MoveName, name)
+)
 # pokeplatinum MON_CONDITION_FACADE_BOOST, read on the target by Expert_Facade
 FACADE_BOOST_STATUSES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 # Basic_CheckCanRemoveItem: Knock Off, Trick and Switcheroo
@@ -298,7 +307,8 @@ DAMAGING_CATEGORIES = (_MOVECATEGORY_PHYSICAL, _MOVECATEGORY_SPECIAL)
 # Pokemow List_Encore: last moves of the target that Expert Encore likes, the ones in MoveDB
 ENCORE_ENCOURAGED_M = (
     MoveName.DREAM_EATER, MoveName.MEDITATE, MoveName.HOWL, MoveName.HARDEN, MoveName.WITHDRAW,
-    MoveName.GROWTH, MoveName.WHIRLWIND, MoveName.ROAR, MoveName.LIGHT_SCREEN, MoveName.AMNESIA,
+    MoveName.GROWTH, MoveName.WHIRLWIND, MoveName.ROAR, MoveName.LIGHT_SCREEN, MoveName.SUPER_FANG,
+    MoveName.AMNESIA,
     MoveName.SUPERSONIC, MoveName.CONFUSE_RAY, MoveName.SWEET_KISS, MoveName.POISON_POWDER,
     MoveName.STUN_SPORE, MoveName.THUNDER_WAVE, MoveName.LEECH_SEED, MoveName.SPLASH,
     MoveName.ENCORE, MoveName.NIGHTMARE, MoveName.PROTECT, MoveName.FORESIGHT,
@@ -403,7 +413,7 @@ def ai_move_view(move, ai_pok, user_pok, weather=0):
 @njit
 def add_adjustment(arr, move_id, delta, chance):
     """Add a [delta, chance] pair to the first free slot (slot is free when chance == 0)."""
-    for i in range(5):
+    for i in range(6):
         if arr[move_id, i, 1] == 0:   # chance == 0 means slot unused
             arr[move_id, i, 0] = delta
             arr[move_id, i, 1] = chance
@@ -905,17 +915,35 @@ def basic_switch(move, ability, ai_pok, user_bench, ai_bench):
 
 
 @njit
+def basic_metal_burst(ability, ai_pok, user_pok, speed_weather, claw_guess):
+    """
+    pokeplatinum Basic_CheckMetalBurst, after the immunity and Wonder Guard checks (Pokemow): a
+    Stall target or one holding a Shiny Stone is -10, an AI with either skips the rest, else -10 if
+    the AI is faster. The Shiny Stone is [pp]'s bug for Lagging Tail, copied. ability is the target's
+    """
+    if ability == _ABILITYNAMES_STALL or user_pok[_POK_ITEM_ID] == _ITEMNAMES_SHINY_STONE:
+        return -10
+    if ai_pok[_POK_AB_ID] == _ABILITYNAMES_STALL or ai_pok[_POK_ITEM_ID] == _ITEMNAMES_SHINY_STONE:
+        return 0
+    order = ai_speed_order(ai_pok, user_pok, speed_weather, claw_guess)
+    if order > 0 or (order == 0 and random.getrandbits(1)):
+        return -10
+    return 0
+
+
+@njit
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
             weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1, ai_know=0,
-            turn=0, gravity=False
+            turn=0, gravity=False, claw_guess=0, speed_weather=-1
     ):
     """
     Basic Flag, every trainer has this,
     it discourages moves that would have no effect or that would make no sense.
     ai_side and user_side are both Field.SIDE_COND, user_tspikes the Toxic Spikes layers on the
     target's side and user_bench how many Pokemon it has alive besides the active, ai_bench the
-    same for the AI. ai_know is Field.AI_KNOWS, turn is Field.TURN, gravity if Gravity is up
+    same for the AI. ai_know is Field.AI_KNOWS, turn is Field.TURN, gravity if Gravity is up.
+    claw_guess and speed_weather are expert_flag's, for the speed compare
     """
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
@@ -949,6 +977,10 @@ def basic_flag(
             return ability_score
     if move[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and ai_pok[_ITEM_NATURAL_GIFT_POWER] == 0:
         return -10
+    if move[_MOVE_ID] == _MOVENAME_METAL_BURST:
+        return basic_metal_burst(
+            ability, ai_pok, user_pok, weather if speed_weather < 0 else speed_weather, claw_guess
+        )
     # Basic_CheckLastResort
     if move[_MOVE_ID] == _MOVENAME_LAST_RESORT:
         return 0 if last_resort_works(ai_pok) else -10
@@ -1019,7 +1051,6 @@ def basic_flag(
     Trick Room
     Healing Wish / Lunar Dance
     Acupressure
-    Metal Burst
     Embargo
     Fling
     Psycho Shift
@@ -1046,7 +1077,6 @@ def basic_flag(
         -Superpower (for some reason)
     Variable Power / Flat Damage Moves:
         -Bide
-        -Super Fang
         -Dragon Rage
         -Night Shade
         -Seismic Toss
@@ -1060,7 +1090,6 @@ def basic_flag(
         -Sonic Boom
         -Hidden Power
         -Mirror Coat
-        -Endeavor
         -Low Kick
         -Grass Knot
         -Gyro Ball
@@ -1551,12 +1580,39 @@ def expert_stat(
 
 
 @njit
+def expert_metal_burst(u_pok, ai_hp_pct, rand, idx, ml_move, ai_know):
+    """
+    pokeplatinum Expert_MetalBurst (Pokemow agrees): -1 into a sleeping, infatuated or confused
+    target, or one the AI saw use Revenge, Avalanche, Focus Punch or Vital Throw. Else -1 at 246/256
+    with 30% HP or less, -1 at 156/256 with 50% or less, +1 at 64/256, and against a Taunted target
+    +1 at 156/256 if its last move deals damage and +1 at 156/256 again
+    """
+    if (
+        u_pok[_POK_STATUS] == _STATUS_SLEEP
+        or u_pok[_POK_VOL_STATUS] & _VOLSTATUS_CONFUSION
+        or u_pok[_POK_VOL_STATUS] & _VOLSTATUS_ATTRACT
+        or seen_move(u_pok, ai_know, METAL_BURST_BAD_M)
+    ):
+        return -1
+    if ai_hp_pct <= 30:
+        add_adjustment(rand, idx, -1, 246)
+    if ai_hp_pct <= 50:
+        add_adjustment(rand, idx, -1, 156)
+    add_adjustment(rand, idx, 1, 64)
+    if u_pok[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT:
+        if ml_move == -1 or ml_move in PHYSICAL or ml_move in SPECIAL:
+            add_adjustment(rand, idx, 1, 156)
+        add_adjustment(rand, idx, 1, 156)
+    return 0
+
+
+@njit
 def expert_moves(
-    move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, move_first, ability=-1
+    move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, move_first, ability=-1, ai_know=0
 ):
     """
     Expert moves that have specific logic. ability is the target's as the AI sees it, -1 for its
-    real one
+    real one. ai_know is Field.AI_KNOWS
     """
     if ability < 0:
         ability = u_pok[_POK_AB_ID]
@@ -1623,6 +1679,21 @@ def expert_moves(
             pass
         else:
             add_adjustment(rand, idx, 4, 126)
+    elif m_id == _MOVENAME_METAL_BURST:
+        return expert_metal_burst(u_pok, ai_hp_pct, rand, idx, ml_move, ai_know)
+    # Expert_SuperFang: -1 at 50% HP or less
+    elif m_id == _MOVENAME_SUPER_FANG:
+        if (u_pok[_POK_CURRENT_HP] * 100) // u_pok[_POK_MAX_HP] <= 50:
+            return -1
+    # Expert_Endeavor and Expert_PainSplit: -1 below 70% / 80% target HP, else -1 above 50% / 60%
+    # of the AI's HP if slower, above 40% if faster, +1 otherwise
+    elif m_id == _MOVENAME_ENDEAVOR or m_id == _MOVENAME_PAIN_SPLIT:
+        endeavor = m_id == _MOVENAME_ENDEAVOR
+        if (u_pok[_POK_CURRENT_HP] * 100) // u_pok[_POK_MAX_HP] < (70 if endeavor else 80):
+            return -1
+        if ai_hp_pct > (40 if move_first else (50 if endeavor else 60)):
+            return -1
+        return 1
     elif m_id == _MOVENAME_ASSURANCE:
         if effectiveness <= 0.5:
             return -1
@@ -2224,7 +2295,8 @@ def expert_flag(
         return 0
     if move[_MOVE_ID] in EXPERT_SPECIFIC_M:
         return expert_moves(
-            move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first, ability
+            move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first, ability,
+            ai_know
         )
     if move[_MOVE_ID] in ITEM_EXPERT_M:
         return expert_items(move, ai_pok, u_pok, effectiveness, rand, idx, ai_side, user_side)
@@ -2416,9 +2488,6 @@ def expert_flag(
     Rest
     Toxic
     Spit Up
-    Super Fang
-    Metal Burst
-    Pain Split
     Nightmare
     Lock On, Mind Reader
     Sleep Talk
@@ -2441,7 +2510,6 @@ def expert_flag(
     Trick, Switcheroo
     Superpower
     Magic Coat
-    Endeavor
     Imprison
     Snatch
     Hammer Arm

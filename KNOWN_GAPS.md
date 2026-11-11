@@ -14,8 +14,8 @@
 - AI: Superpower and the recharge moves have no Basic branch of their own ([pp]
   `Basic_CheckNonStandardDamageOrChargeTurn`): the general checks cover them, with Pokemow's -12 into Wonder
   Guard where [pp]'s script gives -10.
-- AI: `MOVE_EXCEP` still lacks moves [pp] `sNoDamageCalcMoveEffects` and Pokemow's excluded list leave out of the
-  damage compare: Spit Up, Super Fang, Endeavor, Metal Burst. Add each in its batch.
+- AI: `MOVE_EXCEP` still lacks a move [pp] `sNoDamageCalcMoveEffects` and Pokemow's excluded list leave out of the
+  damage compare: Spit Up. Add it in its batch.
 - AI: `PROTECT_LIKE_M` (the "saw the target use Protect" checks) holds only Protect. Detect goes in once it's in
   MoveDB ([pp] `IfMoveEffectKnown BATTLE_EFFECT_PROTECT` covers both).
 - AI: `ai_move_damage` uses the raw base power except for the semi-invulnerable doublings (6.3). Pokemow's
@@ -44,6 +44,9 @@
 - The confusion self-hit has no weather, so Flower Gift's sun boost doesn't reach it
   (`early_returns` has no field state).
 - Metronome can call moves whose mechanics aren't in yet; they run as their data says.
+- Metal Burst called by Metronome or Copycat always fails: whether the turn records damage is decided from the
+  selected move (`action`'s `record_phy` / `record_sp`), so the caller's turn records nothing. [pp] records
+  `lastDamageTaken` on every hit.
 - Substitute: Dream Eater failing against one waits for Dream Eater's batch (8.2, no sleep check yet either).
   Focus Punch: Expert's +5 behind a Substitute and losing focus when hit aren't in; a hit on the Substitute
   mustn't break focus. A failed Substitute keeps its Metronome item count (like the status moves above).
@@ -127,6 +130,9 @@
   miss or hit an immune target (a Ghost: no damage and no crash in [pp]).
 - Search: the rollout's damage estimate (`mcts_eval.py`) sees Present at power 0 and Triple Kick / Beat Up as one
   10-power hit (7.1), only its move weights are off.
+- Search: the rollout (`rollout_pref`) runs `calculate_damage` on Super Fang, Endeavor and Metal Burst like on
+  any power-0 move (7.2), so it never sees their KO, and a super effective Metal Burst (Steel) gets the bonus
+  weight even when it would fail moving first.
 - Search: `node_key` sees a rampage only through `LOCKED_MOVE`, not `RAMPAGE_TURNS`, so 2 turns left and 1
   left (confusion this turn) share a node.
 - Leppa on the foe (only through a Covet on my Leppa holder) gives back PP that Continue's foe PP arithmetic

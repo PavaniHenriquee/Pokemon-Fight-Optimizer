@@ -1622,6 +1622,22 @@
     "type": "Normal",
     "vol_status": "encore"
   },
+  "Endeavor": {
+    "accuracy": 100,
+    "category": "Physical",
+    "damage": "endeavor",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "no_parental_bond": true,
+      "protect": true
+    },
+    "name": "endeavor",
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Endure": {
     "accuracy": true,
     "category": "Status",
@@ -1768,6 +1784,21 @@
     "pp": 20,
     "target": "normal",
     "type": "Dark"
+  },
+  "False Swipe": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "false_swipe",
+    "power": 40,
+    "pp": 40,
+    "target": "normal",
+    "type": "Normal"
   },
   "Feint": {
     "accuracy": 100,
@@ -3294,6 +3325,20 @@
     "target": "normal",
     "type": "Bug"
   },
+  "Metal Burst": {
+    "accuracy": 100,
+    "category": "Physical",
+    "damage": "metal_burst",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "metal_burst",
+    "pp": 10,
+    "target": "scripted",
+    "type": "Steel"
+  },
   "Metal Claw": {
     "accuracy": 95,
     "category": "Physical",
@@ -3729,6 +3774,20 @@
     },
     "target": "normal",
     "type": "Fire"
+  },
+  "Pain Split": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "pain_split",
+    "pp": 20,
+    "target": "normal",
+    "type": "Normal"
   },
   "Pay Day": {
     "accuracy": 100,
@@ -5369,6 +5428,21 @@
     "priority": 1,
     "target": "normal",
     "type": "Dark"
+  },
+  "Super Fang": {
+    "accuracy": 90,
+    "category": "Physical",
+    "damage": "halve_hp",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "super_fang",
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
   },
   "Superpower": {
     "accuracy": 100,

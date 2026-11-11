@@ -418,3 +418,6 @@ class DamageSources:
     MAGIC_COAT = -3
     LEVEL      = -4
     PSYWAVE    = -5
+    HALVE_HP    = -6
+    ENDEAVOR    = -7
+    METAL_BURST = -8

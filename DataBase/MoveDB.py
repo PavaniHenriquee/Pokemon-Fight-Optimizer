@@ -105,7 +105,8 @@ class MoveName:
     EMBARGO         = EGG_BOMB + 1
     EMBER           = EMBARGO + 1
     ENCORE          = EMBER + 1
-    ENDURE          = ENCORE + 1
+    ENDEAVOR        = ENCORE + 1
+    ENDURE          = ENDEAVOR + 1
     ENERGY_BALL     = ENDURE + 1
     ERUPTION        = ENERGY_BALL + 1
     EXPLOSION       = ERUPTION + 1
@@ -114,7 +115,8 @@ class MoveName:
     FACADE          = EXTREME_SPEED + 1
     FAKE_OUT        = FACADE + 1
     FAKE_TEARS      = FAKE_OUT + 1
-    FEINT           = FAKE_TEARS + 1
+    FALSE_SWIPE     = FAKE_TEARS + 1
+    FEINT           = FALSE_SWIPE + 1
     FEINT_ATTACK    = FEINT + 1
     FIRE_BLAST      = FEINT_ATTACK + 1
     FIRE_FANG       = FIRE_BLAST + 1
@@ -208,7 +210,8 @@ class MoveName:
     MEGA_KICK       = MEGA_DRAIN + 1
     MEGA_PUNCH      = MEGA_KICK + 1
     MEGAHORN        = MEGA_PUNCH + 1
-    METAL_CLAW      = MEGAHORN + 1
+    METAL_BURST     = MEGAHORN + 1
+    METAL_CLAW      = METAL_BURST + 1
     METEOR_MASH     = METAL_CLAW + 1
     METRONOME       = METEOR_MASH + 1
     MINIMIZE        = METRONOME + 1
@@ -234,7 +237,8 @@ class MoveName:
     OMINOUS_WIND    = ODOR_SLEUTH + 1
     OUTRAGE         = OMINOUS_WIND + 1
     OVERHEAT        = OUTRAGE + 1
-    PAY_DAY         = OVERHEAT + 1
+    PAIN_SPLIT      = OVERHEAT + 1
+    PAY_DAY         = PAIN_SPLIT + 1
     PECK            = PAY_DAY + 1
     PERISH_SONG     = PECK + 1
     PETAL_DANCE     = PERISH_SONG + 1
@@ -335,7 +339,8 @@ class MoveName:
     STUN_SPORE      = STRUGGLE + 1
     SUBSTITUTE      = STUN_SPORE + 1
     SUCKER_PUNCH    = SUBSTITUTE + 1
-    SUPERPOWER      = SUCKER_PUNCH + 1
+    SUPER_FANG      = SUCKER_PUNCH + 1
+    SUPERPOWER      = SUPER_FANG + 1
     SUPERSONIC      = SUPERPOWER + 1
     SURF            = SUPERSONIC + 1
     SWAGGER         = SURF + 1

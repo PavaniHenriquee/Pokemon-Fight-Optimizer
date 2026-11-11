@@ -41,7 +41,7 @@ def batch_independent_score_from_rand(rand, idx):
     percentage of chance of it adding it or not to the return
     """
     total = 0
-    for i in range(5):
+    for i in range(6):
         chance = rand[idx, i, 1]
         if chance == 0:
             break

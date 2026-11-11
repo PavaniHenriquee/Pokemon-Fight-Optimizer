@@ -4366,3 +4366,158 @@ def test_pursuit_before_a_switch_counts_for_last_resort(monkeypatch, make_pokemo
     foe = opp_active(arr)
     assert battle._pursuit(foe, my_active(arr), 1, False, arr)
     assert foe[Pok.LAST_RESORT] == 0b10
+
+
+# ── 7.2 fixed and HP-based damage ─────────────────────────────────────────────
+
+@pytest.fixture(name="always_hit")
+def fixture_always_hit(monkeypatch):
+    """Every move hits"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+
+
+@pytest.mark.parametrize("foe_hp, left", [(51, 26), (2, 1), (1, 0)])
+def test_super_fang_halves_current_hp(make_pokemon, make_battle, always_hit, foe_hp, left):
+    """Half the target's HP rounded down, at least 1 (pokeplatinum effect 0040, BattleSystem_Divide)"""
+    arr = make_battle([make_pokemon("Raticate", 50, "Run Away", ["Super Fang"])],
+                      [make_pokemon("Steelix", 50, "Sturdy", ["Harden"])])
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] = foe_hp
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == left
+
+
+def test_super_fang_misses_a_ghost(make_pokemon, make_battle):
+    """No type multiplier, but the Ghost immunity stays (pokeplatinum ApplyTypeChart)"""
+    arr = make_battle([make_pokemon("Raticate", 50, "Run Away", ["Super Fang"])],
+                      [make_pokemon("Gastly", 50, "Levitate", ["Lick"])])
+    hp = opp_active(arr)[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.CURRENT_HP] == hp
+
+
+def test_super_fang_on_a_substitute_reads_the_targets_hp(make_pokemon, make_battle, always_hit):
+    """The damage comes from the Pokemon's HP, the Substitute takes it"""
+    arr = make_battle([make_pokemon("Raticate", 50, "Run Away", ["Super Fang"])],
+                      [make_pokemon("Steelix", 50, "Sturdy", ["Harden"])])
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] = 100
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 80
+    turn_sim(0, (MOVE, 0), arr)
+    assert (foe[Pok.CURRENT_HP], foe[Pok.SUB_HP]) == (100, 30)
+
+
+@pytest.mark.parametrize("my_hp, foe_hp, left", [(10, 80, 10), (80, 80, 80), (90, 80, 80)])
+def test_endeavor(make_pokemon, make_battle, my_hp, foe_hp, left):
+    """The target drops to the user's HP, it fails unless the target has more (pokeplatinum
+    effect 0189)"""
+    arr = make_battle([make_pokemon("Raticate", 50, "Run Away", ["Endeavor"])],
+                      [make_pokemon("Steelix", 50, "Sturdy", ["Harden"])])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.CURRENT_HP], foe[Pok.CURRENT_HP] = my_hp, foe_hp
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == left
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+
+
+@pytest.mark.parametrize("foe_move", ["Water Gun", "Tackle"])
+def test_metal_burst_returns_one_and_a_half(make_pokemon, make_battle, foe_move):
+    """1.5x the last hit taken this turn, physical or special (pokeplatinum BtlCmd_TryMetalBurst)"""
+    arr = make_battle([make_pokemon("Steelix", 50, "Sturdy", ["Metal Burst"])],
+                      [make_pokemon("Squirtle", 50, "Torrent", [foe_move])])
+    me, foe = my_active(arr), opp_active(arr)
+    my_hp, foe_hp = me[Pok.CURRENT_HP], foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    taken = my_hp - me[Pok.CURRENT_HP]
+    assert taken > 0
+    assert foe_hp - foe[Pok.CURRENT_HP] == taken * 15 // 10
+
+
+def test_metal_burst_fails_moving_first(make_pokemon, make_battle):
+    """Nothing taken yet this turn"""
+    arr = make_battle([make_pokemon("Raticate", 50, "Run Away", ["Metal Burst"])],
+                      [make_pokemon("Steelix", 50, "Sturdy", ["Tackle"])])
+    hp = opp_active(arr)[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.CURRENT_HP] == hp
+
+
+@pytest.mark.parametrize("move", ["Counter", "Metal Burst"])
+def test_damage_record_is_cleared_at_turn_end(make_pokemon, make_battle, move):
+    """A record left from a turn the move didn't run in (full paralysis, a flinch) doesn't reach
+    the next turn (pokeplatinum turnFlags)"""
+    arr = make_battle([make_pokemon("Steelix", 50, "Sturdy", [move])],
+                      [make_pokemon("Raticate", 50, "Run Away", ["Growl"])])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.DMG_TAKEN] = 30
+    battle._finish_turn(arr)
+    assert me[Pok.DMG_TAKEN] == 0
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == hp
+
+
+def test_charging_bide_keeps_its_damage_record(make_pokemon, make_battle):
+    """Bide adds up its damage across turns"""
+    arr = make_battle([make_pokemon("Steelix", 50, "Sturdy", ["Bide"])],
+                      [make_pokemon("Raticate", 50, "Run Away", ["Tackle"])])
+    me = my_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS] & VolStatus.BIDE
+    assert me[Pok.DMG_TAKEN] == hp - me[Pok.CURRENT_HP] > 0
+
+
+@pytest.mark.parametrize("my_hp, foe_hp, mine, theirs", [
+    (20, 101, 60, 60),    # odd sum rounds down
+    (150, 10, 80, 50),    # the foe's max HP (50) caps its share
+])
+def test_pain_split(make_pokemon, make_battle, my_hp, foe_hp, mine, theirs):
+    """Both go to the average, capped at max HP (pokeplatinum subscript_pain_split,
+    BtlCmd_UpdateHealthBarValue). It isn't damage: nothing recorded"""
+    arr = make_battle([make_pokemon("Wobbuffet", 50, "Shadow Tag", ["Pain Split"])],
+                      [make_pokemon("Raticate", 50, "Run Away", ["Harden"])])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.MAX_HP], foe[Pok.MAX_HP] = 160, max(foe_hp, 50)
+    me[Pok.CURRENT_HP], foe[Pok.CURRENT_HP] = my_hp, foe_hp
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.CURRENT_HP], foe[Pok.CURRENT_HP]) == (mine, theirs)
+    assert me[Pok.DMG_TAKEN] == 0 == foe[Pok.DMG_TAKEN]
+
+
+def test_pain_split_hurts_the_one_losing_hp(poke):
+    """The side losing HP counts as hurt for Assurance (pokeplatinum subscript_update_hp)"""
+    a = poke("Wobbuffet", 50, "Shadow Tag", ["Pain Split"])
+    d = poke("Raticate", 50, "Run Away", ["Harden"])
+    a[Pok.CURRENT_HP] = 10
+    battle._pain_split(a, d)
+    assert d[Pok.VOL_STATUS] & VolStatus.HURT_THIS_TURN
+    assert not a[Pok.VOL_STATUS] & VolStatus.HURT_THIS_TURN
+
+
+def test_pain_split_fails_into_a_substitute(make_pokemon, make_battle):
+    """pokeplatinum subscript_pain_split checks the Substitute first"""
+    arr = make_battle([make_pokemon("Wobbuffet", 50, "Shadow Tag", ["Pain Split"])],
+                      [make_pokemon("Raticate", 50, "Run Away", ["Harden"])])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.CURRENT_HP] = 10
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 20
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.CURRENT_HP], foe[Pok.CURRENT_HP]) == (10, hp)
+
+
+@pytest.mark.parametrize("foe_hp, left", [(5, 1), (1, 1)])
+def test_false_swipe_leaves_one_hp(make_pokemon, make_battle, always_hit, foe_hp, left):
+    """A lethal hit leaves 1 HP, at 1 HP it deals nothing (pokeplatinum
+    BattleControllerPlayer_UpdateHP)"""
+    arr = make_battle([make_pokemon("Raticate", 50, "Run Away", ["False Swipe"])],
+                      [make_pokemon("Rattata", 5, "Run Away", ["Growl"], item="Focus Sash")])
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] = foe_hp
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == left
+    assert foe[Pok.ITEM_ID] == ItemNames.FOCUS_SASH or foe_hp == foe[Pok.MAX_HP]

@@ -16,8 +16,8 @@ Updated only when asked.
   home PC is still to do.
 - Done: 6.1 (recharge), 6.2 (charge turn), 6.3 (semi-invulnerable, and what reaches it), 6.4 (rampage) and 6.5
   (crash damage), and with it Phase 6, 2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
-- Done: 7.1 (variable power), 2026-11-10.
-- Next: 7.2 (fixed and HP-based damage).
+- Done: 7.1 (variable power) and 7.2 (fixed and HP-based damage), 2026-11-10.
+- Next: 7.3 (turn order).
 
 ## Goal
 
@@ -543,11 +543,11 @@ Fixed damage:
 
 ### 7.2 Fixed and HP-based damage
 
-- [ ] Super Fang(E)
-- [ ] Endeavor(E)
-- [ ] Pain Split(E)
-- [ ] Metal Burst(B/E)
-- [ ] False Swipe
+- [x] Super Fang(E)
+- [x] Endeavor(E)
+- [x] Pain Split(E)
+- [x] Metal Burst(B/E)
+- [x] False Swipe
 
 ### 7.3 Turn order
 

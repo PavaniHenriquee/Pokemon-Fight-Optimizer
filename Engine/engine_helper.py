@@ -50,6 +50,7 @@ from Models.constants import (
     _POTIONS_FULL_RESTORE, _POTIONS_HYPER_POTION, _POTIONS_POTION, _POTIONS_SUPER_POTION,
     _POTIONS_X_DEFEND, _POTIONS_X_SPECIAL, _POTIONS_X_SPEED,
     _ABILITYNAMES_WATER_ABSORB, _MOVE_DAMAGE, _DAMAGESOURCES_COUNTER, _DAMAGESOURCES_MAGIC_COAT,
+    _DAMAGESOURCES_METAL_BURST, _DAMAGESOURCES_ENDEAVOR,
     _TYPES_WATER, _ABILITYACTIVATION_ON_CRITICAL, _MOVE_DRAIN, _POK_DMG_TAKEN,
     _POK_CHARGE_RECHARGE, _POK_LOCKED_MOVE, _ITEM_HOLD_EFFECT,
     _ITEM_ID, _ITEM_EFFECT_PARAM, _MOVENAME_BIDE, _VOLSTATUS_BIDE, _VOLSTATUS_FOCUS_ENERGY, _MOVE_CRIT_RATIO,
@@ -2148,13 +2149,27 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
 @njit
 def counter_fails(attacker, move, idx):
     """
-    Counter and Mirror Coat fail when the user moved first or took no damage this turn. Checked
-    after the PP is spent, like a move that fails (pokeplatinum BEFORE_MOVE_STATE_DECREMENT_PP
-    runs before the move's script)
+    Counter, Mirror Coat and Metal Burst fail when the user moved first or took no damage this
+    turn. Checked after the PP is spent, like a move that fails (pokeplatinum
+    BEFORE_MOVE_STATE_DECREMENT_PP runs before the move's script, BtlCmd_TryMetalBurst)
     """
     return (
-        (move[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER or move[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT)
+        (
+            move[_MOVE_DAMAGE] == _DAMAGESOURCES_COUNTER
+            or move[_MOVE_DAMAGE] == _DAMAGESOURCES_MAGIC_COAT
+            or move[_MOVE_DAMAGE] == _DAMAGESOURCES_METAL_BURST
+        )
         and (idx == 1 or attacker[_POK_DMG_TAKEN] == 0)
+    )
+
+
+@njit
+def endeavor_fails(attacker, defender, move):
+    """Endeavor fails unless the target has more HP than the user, before the hit check
+    (pokeplatinum effect 0189, Showdown gen4 onTry)"""
+    return (
+        move[_MOVE_DAMAGE] == _DAMAGESOURCES_ENDEAVOR
+        and attacker[_POK_CURRENT_HP] >= defender[_POK_CURRENT_HP]
     )
 
 

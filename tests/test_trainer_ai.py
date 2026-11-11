@@ -12,7 +12,7 @@ from Models.helper import (
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.ItemDB import ItemNames
 from DataBase.MoveDB import MoveName
-from battle_driver import move_slice, pok_slice, _p, opp_active
+from battle_driver import move_slice, pok_slice, _p, opp_active, my_active
 
 # Status moves that carry both a volatile and a stat boost are the tricky ones
 ROUTING = [
@@ -44,6 +44,7 @@ def test_expert_flag_routing(monkeypatch, poke, move, expected):
 KIT_STATUS = (
     "Swagger", "Flatter", "Defense Curl", "Thunder Wave", "Poison Powder", "Sleep Powder",
     "Hypnosis", "Will-O-Wisp", "Confuse Ray", "Supersonic", "Trick", "Switcheroo", "Embargo",
+    "Pain Split",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -74,6 +75,7 @@ KIT_DAMAGE = (
     "Eruption", "Water Spout", "Wring Out", "Crush Grip", "Reversal", "Punishment", "Trump Card",
     "Facade", "Grass Knot", "Smelling Salts", "Wake-Up Slap", "Present", "Triple Kick", "Beat Up",
     "Return", "Frustration", "Last Resort", "Secret Power",
+    "Super Fang", "Endeavor", "Metal Burst", "False Swipe",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -2330,3 +2332,119 @@ def test_expert_last_resort(poke, used, effectiveness, expected):
     ai_pok[Pok.LAST_RESORT] = used << 1
     user = poke("Geodude", 30, "Sturdy", ["Tackle"])
     assert _expert(ai_pok, user, effectiveness) == expected
+
+
+# ── 7.2 fixed and HP-based damage ─────────────────────────────────────────────
+
+def _set_hp_pct(pok, pct):
+    """pct% of a 100 max HP"""
+    pok[Pok.MAX_HP] = 100
+    pok[Pok.CURRENT_HP] = pct
+
+
+def test_fixed_damage_moves_skip_the_damage_compare():
+    """pokeplatinum power 1 and Pokemow's excluded moves: Super Fang, Endeavor, Metal Burst"""
+    assert {MoveName.SUPER_FANG, MoveName.ENDEAVOR, MoveName.METAL_BURST} <= set(MOVE_EXCEP)
+
+
+def test_encore_likes_super_fang():
+    """Pokemow List_Encore (pokeplatinum Expert_Encore_EncouragedMoveEffects BATTLE_EFFECT_HALVE_HP)"""
+    assert MoveName.SUPER_FANG in ai.ENCORE_ENCOURAGED_M
+
+
+@pytest.mark.parametrize("move", ["Super Fang", "Endeavor", "Metal Burst"])
+@pytest.mark.parametrize("ability, effectiveness, expected", [
+    (AbilityNames.LEVITATE, 0.0, -10),     # a Ghost: immune
+    (AbilityNames.WONDER_GUARD, 1.0, -12),
+])
+def test_basic_fixed_damage_immunity_and_wonder_guard(poke, move, ability, effectiveness, expected):
+    """Pokemow Check_DamageImmunity and Check_WonderGuard"""
+    ai_pok = poke("Steelix", 5, "Sturdy", [move])
+    user = poke("Raticate", 30, "Run Away", ["Tackle"])
+    assert ai.basic_flag(move_slice(ai_pok, 0), ability, ai_pok, user, effectiveness, 0) == expected
+
+
+@pytest.mark.parametrize("ai_level, ai_ability, ai_item, user_ability, user_item, expected", [
+    (5, "Sturdy", None, AbilityNames.RUN_AWAY, 0, 0),                          # AI slower
+    (50, "Sturdy", None, AbilityNames.RUN_AWAY, 0, -10),                       # AI faster
+    (5, "Sturdy", None, AbilityNames.STALL, 0, -10),                           # Stall target
+    (5, "Sturdy", None, AbilityNames.RUN_AWAY, ItemNames.SHINY_STONE, -10),    # [pp] bug, copied
+    (50, "Sturdy", "Shiny Stone", AbilityNames.RUN_AWAY, 0, 0),                # AI's own: no check
+])
+def test_basic_metal_burst(make_pokemon, poke, ai_level, ai_ability, ai_item, user_ability,
+                           user_item, expected):
+    """pokeplatinum Basic_CheckMetalBurst"""
+    ai_pok = make_pokemon("Steelix", ai_level, ai_ability, ["Metal Burst"], item=ai_item).to_np()
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    user[Pok.ITEM_ID] = user_item
+    assert ai.basic_flag(move_slice(ai_pok, 0), user_ability, ai_pok, user, 1.0, 0) == expected
+
+
+@pytest.mark.parametrize("target_pct, expected", [(50, (-1, [])), (51, (0, []))])
+def test_expert_super_fang(poke, target_pct, expected):
+    """pokeplatinum Expert_SuperFang: -1 at 50% HP or less"""
+    ai_pok = poke("Raticate", 20, "Run Away", ["Super Fang"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    _set_hp_pct(user, target_pct)
+    assert _expert(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("move, faster, target_pct, ai_pct, expected", [
+    ("Endeavor", True, 69, 10, -1),     # target under 70%
+    ("Endeavor", True, 100, 41, -1),    # faster: above 40%
+    ("Endeavor", True, 100, 40, 1),
+    ("Endeavor", False, 100, 51, -1),   # slower: above 50%
+    ("Endeavor", False, 100, 50, 1),
+    ("Pain Split", True, 79, 10, -1),   # target under 80%
+    ("Pain Split", True, 100, 41, -1),
+    ("Pain Split", True, 100, 40, 1),
+    ("Pain Split", False, 100, 61, -1),  # slower: above 60%
+    ("Pain Split", False, 100, 60, 1),
+])
+def test_expert_endeavor_pain_split(poke, move, faster, target_pct, ai_pct, expected):
+    """pokeplatinum Expert_Endeavor / Expert_PainSplit, Pokemow agrees"""
+    ai_pok = poke("Raticate" if faster else "Wobbuffet", 20, "Run Away", [move])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    _set_hp_pct(user, target_pct)
+    _set_hp_pct(ai_pok, ai_pct)
+    assert _expert(ai_pok, user) == (expected, [])
+
+
+def _expert_burst(ai_pok, user, my_last_move=0, ai_know=0):
+    rand = np.zeros((4, 6, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, my_last_move, 1.0, 0, ai_know
+    )
+    return score, [tuple(int(x) for x in rand[0, i]) for i in range(6) if rand[0, i, 1]]
+
+
+def test_expert_metal_burst(poke):
+    """pokeplatinum Expert_MetalBurst, Pokemow agrees"""
+    ai_pok = poke("Steelix", 20, "Sturdy", ["Metal Burst"])
+    user = poke("Machop", 20, "Guts", ["Focus Punch", "Tackle"])
+    assert _expert_burst(ai_pok, user) == (0, [(1, 64)])
+    _set_hp_pct(ai_pok, 50)
+    assert _expert_burst(ai_pok, user) == (0, [(-1, 156), (1, 64)])
+    _set_hp_pct(ai_pok, 30)
+    assert _expert_burst(ai_pok, user) == (0, [(-1, 246), (-1, 156), (1, 64)])
+    user[Pok.VOL_STATUS] = VolStatus.TAUNT
+    # Taunted: +1 more if its last move deals damage, and +1 again
+    assert _expert_burst(ai_pok, user, MoveName.TACKLE) == (
+        0, [(-1, 246), (-1, 156), (1, 64), (1, 156), (1, 156)])
+    assert _expert_burst(ai_pok, user, MoveName.GROWL) == (
+        0, [(-1, 246), (-1, 156), (1, 64), (1, 156)])
+    # Seen using Focus Punch, or asleep: -1
+    assert _expert_burst(ai_pok, user, 0, Enemy_AI_Knows.MOVE1) == (-1, [])
+    user[Pok.STATUS] = Status.SLEEP
+    assert _expert_burst(ai_pok, user) == (-1, [])
+
+
+def test_ai_scores_metal_burst_into_a_4x_target(make_pokemon, make_battle):
+    """6 queued rolls (the 4x bonus plus every Metal Burst one) fit in the roll slots"""
+    arr = make_battle([make_pokemon("Glalie", 20, "Inner Focus", ["Tackle"])],
+                      [make_pokemon("Steelix", 20, "Sturdy", ["Metal Burst"])])
+    my_active(arr)[Pok.VOL_STATUS] = VolStatus.TAUNT
+    arr[Field.MY_LAST_MOVE] = MoveName.TACKLE
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] = foe[Pok.MAX_HP] * 3 // 10
+    assert all(int(return_idx(arr)) == 0 for _ in range(20))

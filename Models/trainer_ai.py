@@ -58,6 +58,7 @@ MOVE_EXCEP = (
     MoveName.RAZOR_WIND, MoveName.SKY_ATTACK, MoveName.SKULL_BASH, MoveName.SOLAR_BEAM,
     # Power 1 in pokeplatinum and not an alt power move: never compared
     MoveName.COUNTER, MoveName.BIDE, MoveName.MIRROR_COAT, MoveName.FLAIL, MoveName.MAGNITUDE,
+    MoveName.SUPER_FANG, MoveName.ENDEAVOR, MoveName.METAL_BURST,
     # OHKO moves: Basic_Main skips Fissure's damage scoring, Guillotine and Sheer Cold are power 1
     MoveName.FISSURE, MoveName.GUILLOTINE, MoveName.SHEER_COLD,
     # Pokemow's excluded moves
@@ -363,7 +364,7 @@ def choose_move(battle_array):
 
     max_damage = 0
 
-    _rand = np.zeros((4, 5, 2), dtype=np.int16)
+    _rand = np.zeros((4, 6, 2), dtype=np.int16)
     _eff4x = np.zeros(4, dtype=np.bool_)
     s_e = False
     can_hit = False
@@ -411,7 +412,7 @@ def choose_move(battle_array):
         )
         score = eval_atk + basic_flag(
             move, ability, ai_pok, user_pok, effectiveness, weather, ai_side, user_side,
-            user_tspikes, user_bench, ai_bench, ai_know, turn, gravity
+            user_tspikes, user_bench, ai_bench, ai_know, turn, gravity, claw_guess, eff_weather
         )
 
         expert = expert_flag(

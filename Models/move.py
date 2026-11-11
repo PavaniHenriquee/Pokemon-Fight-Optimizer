@@ -54,6 +54,12 @@ class Moves():
             dmg_result = DamageSources.MAGIC_COAT
         elif dmg_val == 'psywave':
             dmg_result = DamageSources.PSYWAVE
+        elif dmg_val == 'halve_hp':
+            dmg_result = DamageSources.HALVE_HP
+        elif dmg_val == 'endeavor':
+            dmg_result = DamageSources.ENDEAVOR
+        elif dmg_val == 'metal_burst':
+            dmg_result = DamageSources.METAL_BURST
         else:
             dmg_result = 0
 
