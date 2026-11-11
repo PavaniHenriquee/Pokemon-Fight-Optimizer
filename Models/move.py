@@ -12,6 +12,8 @@ from Models.helper import (
 )
 from DataBase.MoveDB import MoveName
 from DataBase.loader import moveDB
+from Utils.jit import njit
+from Models.constants import _MOVENAME_RETURN, _MOVENAME_FRUSTRATION
 
 
 
@@ -299,3 +301,14 @@ for _name, _idx in vars(MoveName).items():
 for _move in moveDB.values():
     if _move.get('kings_rock'):
         KINGS_ROCK_MOVES[getattr(MoveName, _move['name'].upper())] = True
+
+
+@njit
+def friendship_power(move_id, friendship):
+    """Return's power is friendship * 10 / 25, Frustration's (255 - friendship) * 10 / 25, at least 1
+    (pokeplatinum effects 0121 and 0123; a 0 falls back on the data power, 1). Any other move: 0"""
+    if move_id == _MOVENAME_RETURN:
+        return max(1, friendship * 10 // 25)
+    if move_id == _MOVENAME_FRUSTRATION:
+        return max(1, (255 - friendship) * 10 // 25)
+    return 0

@@ -561,3 +561,11 @@ for pk_id, name in PokIdToName.items():
         _pool_np[pk_id, i] = ab_id
 
 POKEMON_ABILITY_POOL = _pool_np
+
+# Base Attack and Defense by species id, for Beat Up
+POKEMON_BASE_ATK = np.zeros(POKEMON_LENGTH + 1, dtype=np.int32)
+POKEMON_BASE_DEF = np.zeros(POKEMON_LENGTH + 1, dtype=np.int32)
+for pk_id, name in PokIdToName.items():
+    _stats = pkDB[name.capitalize()]["base stats"]
+    POKEMON_BASE_ATK[pk_id] = _stats["Attack"]
+    POKEMON_BASE_DEF[pk_id] = _stats["Defense"]

@@ -71,6 +71,9 @@ KIT_DAMAGE = (
     "Rock Wrecker", "Solar Beam", "Skull Bash", "Sky Attack", "Razor Wind",
     "Fly", "Dive", "Shadow Force", "Sky Uppercut", "Surf", "Thunder", "Hurricane",
     "Thrash", "Outrage", "Petal Dance", "Jump Kick", "High Jump Kick",
+    "Eruption", "Water Spout", "Wring Out", "Crush Grip", "Reversal", "Punishment", "Trump Card",
+    "Facade", "Grass Knot", "Smelling Salts", "Wake-Up Slap", "Present", "Triple Kick", "Beat Up",
+    "Return", "Frustration", "Last Resort", "Secret Power",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -1861,7 +1864,7 @@ def test_ai_script_reads_weather_through_cloud_nine(monkeypatch, make_pokemon, m
 
     def spy(*args):
         script.append(args[6])
-        speed.append(args[-1])
+        speed.append(args[14])
         return real_expert(*args)
     monkeypatch.setattr(trainer_ai, "expert_flag", spy)
     return_idx(arr)
@@ -2185,3 +2188,145 @@ def test_encore_likes_the_item_moves():
     """Pokemow List_Encore has Trick, Switcheroo and Fling"""
     for move in (MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING):
         assert move in ai.ENCORE_ENCOURAGED_M
+
+
+# ── Phase 7.1: variable power ────────────────────────────────────────────────
+
+@pytest.mark.parametrize("fast, hp_pct, expected", [
+    (True, 34, (-1, [])), (True, 21, (0, [])), (True, 8, (0, [(1, 156)])),
+    (True, 7, (1, [(1, 156)])), (False, 61, (-1, [])), (False, 41, (0, [])),
+    (False, 40, (0, [(1, 156)])),
+])
+def test_expert_reversal_is_flails(poke, fast, hp_pct, expected):
+    """pokeplatinum Expert_Reversal covers both moves"""
+    ai_pok, user = _expert_at(poke, "Reversal", fast, hp_pct)
+    assert _expert(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("status, expected", [
+    (0, 0), (Status.BURN, 1), (Status.POISON, 1), (Status.TOXIC, 1), (Status.PARALYSIS, 1),
+    (Status.SLEEP, 0),
+])
+def test_expert_facade_reads_the_targets_status(poke, status, expected):
+    """pokeplatinum Expert_Facade's quirk: the target's status, the AI's own doesn't count"""
+    ai_pok = poke("Purugly", 30, "Thick Fat", ["Facade"])
+    ai_pok[Pok.STATUS] = Status.BURN if not status else 0
+    user = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    user[Pok.STATUS] = status
+    assert _expert(ai_pok, user, 0.5) == (expected, [])
+
+
+def test_expert_smelling_salts(poke):
+    """pokeplatinum Expert_SmellingSalts: +1 on a paralyzed target, no resist check"""
+    ai_pok = poke("Hariyama", 30, "Thick Fat", ["Smelling Salts"])
+    user = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, [])
+    user[Pok.STATUS] = Status.PARALYSIS
+    assert _expert(ai_pok, user, 0.5) == (1, [])
+
+
+def test_expert_wake_up_slap(poke):
+    """pokeplatinum Expert_WakeUpSlap: -1 resisted, +1 on a sleeping target"""
+    ai_pok = poke("Machoke", 30, "Guts", ["Wake-Up Slap"])
+    user = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, [])
+    user[Pok.STATUS] = Status.SLEEP
+    assert _expert(ai_pok, user) == (1, [])
+    assert _expert(ai_pok, user, 0.5) == (-1, [])
+
+
+@pytest.mark.parametrize("move", ["Eruption", "Water Spout"])
+@pytest.mark.parametrize("fast, target_pct, effectiveness, expected", [
+    (True, 100, 0.5, -1), (True, 51, 1.0, 0), (True, 50, 1.0, -1),
+    (False, 71, 1.0, 0), (False, 70, 1.0, -1),
+])
+def test_expert_water_spout_reads_the_targets_hp(poke, move, fast, target_pct, effectiveness, expected):
+    """pokeplatinum Expert_WaterSpout's quirk: the target's HP, not the user's"""
+    ai_pok, user = _expert_at(poke, move, fast, 1)
+    user[Pok.MAX_HP] = 100
+    user[Pok.CURRENT_HP] = target_pct
+    assert _expert(ai_pok, user, effectiveness) == (expected, [])
+
+
+@pytest.mark.parametrize("pp_left, ability, acc, ev, expected", [
+    (1, "Sturdy", 0, 0, (3, [])),
+    (2, "Sturdy", 0, 0, (1, [(1, 156)])),
+    (3, "Sturdy", 0, 0, (0, [(1, 156)])),
+    (5, "Sturdy", 0, 0, (0, [])),
+    (5, "Pressure", 0, 0, (0, [(1, 226)])),
+    (5, "Sturdy", 0, 3, (0, [(1, 156)])),
+    (5, "Sturdy", -5, 0, (1, [(1, 156)])),
+    (5, "Pressure", 0, 5, (1, [(1, 226), (1, 156)])),
+])
+def test_expert_trump_card(poke, pp_left, ability, acc, ev, expected):
+    """pokeplatinum Expert_TrumpCard"""
+    ai_pok = poke("Slowking", 30, "Oblivious", ["Trump Card"])
+    move_slice(ai_pok, 0)[Move.PP] = pp_left
+    ai_pok[Pok.ACCURACY_STAT_STAGE] = acc
+    user = poke("Geodude", 30, ability, ["Tackle"])
+    user[Pok.EVASION_STAT_STAGE] = ev
+    assert _expert(ai_pok, user) == expected
+    assert _expert(ai_pok, user, 0.5) == (-1, [])
+
+
+def test_expert_trump_card_uses_the_guessed_ability(poke):
+    """The Pressure check reads the ability the AI sees"""
+    ai_pok = poke("Slowking", 30, "Oblivious", ["Trump Card"])
+    user = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    ai.expert_flag(ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0,
+                   ability=AbilityNames.PRESSURE)
+    assert tuple(rand[0, 0]) == (1, 226)
+
+
+@pytest.mark.parametrize("move", ["Wring Out", "Crush Grip"])
+@pytest.mark.parametrize("fast, target_pct, effectiveness, expected", [
+    (True, 100, 0.5, (-1, [])), (True, 49, 1.0, (-1, [])), (True, 50, 1.0, (0, [])),
+    (True, 85, 1.0, (0, [])), (True, 86, 1.0, (0, [(1, 231)])),
+    (True, 100, 1.0, (2, [(1, 231)])), (False, 100, 1.0, (1, [(1, 231)])),
+])
+def test_expert_wring_out(poke, move, fast, target_pct, effectiveness, expected):
+    """pokeplatinum Expert_WringOut"""
+    ai_pok, user = _expert_at(poke, move, fast, 100)
+    user[Pok.MAX_HP] = 100
+    user[Pok.CURRENT_HP] = target_pct
+    assert _expert(ai_pok, user, effectiveness) == expected
+
+
+@pytest.mark.parametrize("stages, queued", [
+    ({Pok.ATTACK_STAT_STAGE: 2}, []),
+    ({Pok.ATTACK_STAT_STAGE: 3}, [(1, 128)]),
+    ({Pok.ATTACK_STAT_STAGE: 4}, [(1, 128)]),
+    ({Pok.ATTACK_STAT_STAGE: 5}, [(2, 128), (1, 128)]),
+    ({Pok.ATTACK_STAT_STAGE: 6}, [(3, 128), (2, 128), (1, 128)]),
+    ({Pok.ATTACK_STAT_STAGE: 6, Pok.EVASION_STAT_STAGE: 1}, [(4, 128), (3, 128), (2, 128), (1, 128)]),
+    ({Pok.ATTACK_STAT_STAGE: 6, Pok.DEFENSE_STAT_STAGE: -6}, [(3, 128), (2, 128), (1, 128)]),
+])
+def test_expert_punishment(poke, stages, queued):
+    """pokeplatinum Expert_Punishment: each step falls through to the next, independent 50% rolls"""
+    ai_pok = poke("Sneasel", 30, "Inner Focus", ["Punishment"])
+    user = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    for stat, stage in stages.items():
+        user[stat] = stage
+    assert _expert(ai_pok, user) == (0, queued)
+    assert _expert(ai_pok, user, 0.5) == (0, [])
+
+
+@pytest.mark.parametrize("used, expected", [(0b001, -10), (0b011, 0)])
+def test_basic_last_resort(poke, used, expected):
+    """pokeplatinum Basic_CheckLastResort: -10 until it would work"""
+    ai_pok = poke("Vaporeon", 30, "Water Absorb", ["Tackle", "Growl", "Last Resort"])
+    ai_pok[Pok.LAST_RESORT] = used
+    user = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    assert ai.basic_flag(move_slice(ai_pok, 2), AbilityNames.STURDY, ai_pok, user, 1.0, 0) == expected
+
+
+@pytest.mark.parametrize("used, effectiveness, expected", [
+    (0b001, 1.0, (0, [])), (0b011, 1.0, (1, [])), (0b011, 0.5, (-1, [])),
+])
+def test_expert_last_resort(poke, used, effectiveness, expected):
+    """pokeplatinum Expert_LastResort: -1 resisted, +1 when it would work"""
+    ai_pok = poke("Vaporeon", 30, "Water Absorb", ["Last Resort", "Tackle", "Growl"])
+    ai_pok[Pok.LAST_RESORT] = used << 1
+    user = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user, effectiveness) == expected

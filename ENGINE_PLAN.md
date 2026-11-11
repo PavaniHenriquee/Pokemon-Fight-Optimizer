@@ -16,7 +16,8 @@ Updated only when asked.
   home PC is still to do.
 - Done: 6.1 (recharge), 6.2 (charge turn), 6.3 (semi-invulnerable, and what reaches it), 6.4 (rampage) and 6.5
   (crash damage), and with it Phase 6, 2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
-- Next: 7.1 (variable power).
+- Done: 7.1 (variable power), 2026-11-10.
+- Next: 7.2 (fixed and HP-based damage).
 
 ## Goal
 
@@ -521,24 +522,24 @@ Fixed damage:
 
 ### 7.1 Variable power
 
-- [ ] Eruption
-- [ ] Water Spout
-- [ ] Wring Out(E)
-- [ ] Crush Grip(E) \*
-- [ ] Reversal(E)
-- [ ] Punishment(E)
-- [ ] Trump Card(E)
-- [ ] Facade(E)
-- [ ] Smelling Salts(E)
-- [ ] Wake-Up Slap(E)
-- [ ] Grass Knot
-- [ ] Return !! (where friendship comes from)
-- [ ] Frustration !! (same)
-- [ ] Present !
-- [ ] Triple Kick !
-- [ ] Beat Up !!
-- [ ] Last Resort(B/E)
-- [ ] Secret Power \* !
+- [x] Eruption
+- [x] Water Spout
+- [x] Wring Out(E)
+- [x] Crush Grip(E) \*
+- [x] Reversal(E)
+- [x] Punishment(E)
+- [x] Trump Card(E)
+- [x] Facade(E)
+- [x] Smelling Salts(E)
+- [x] Wake-Up Slap(E)
+- [x] Grass Knot
+- [x] Return !! (where friendship comes from)
+- [x] Frustration !! (same)
+- [x] Present !
+- [x] Triple Kick !
+- [x] Beat Up !!
+- [x] Last Resort(B/E)
+- [x] Secret Power \* !
 
 ### 7.2 Fixed and HP-based damage
 

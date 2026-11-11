@@ -173,6 +173,9 @@ const DEFAULT_IVS: IVs = {
   Speed: 31,
 };
 
+// A Pokémon's friendship when the box doesn't say: the most Return gets (backend MY_FRIENDSHIP)
+export const MAX_FRIENDSHIP = 255;
+
 export function makeBlank(): Omit<BoxEntry, "id"> {
   return {
     name: "",
@@ -182,6 +185,7 @@ export function makeBlank(): Omit<BoxEntry, "id"> {
     level: 5,
     moves: ["", "", "", ""],
     ivs: { ...DEFAULT_IVS },
+    friendship: MAX_FRIENDSHIP,
   };
 }
 
@@ -290,6 +294,7 @@ export function partyAfterEdit(
           moves: [...entry.moves],
           ivs: { ...entry.ivs },
           item: entry.item ?? undefined,
+          friendship: entry.friendship,
         }
       : member,
   );
@@ -311,6 +316,7 @@ export function boxAfterPartyEdit(box: BoxEntry[], member: PokemonConfig): BoxEn
           moves: [...member.moves],
           ivs: member.ivs ? { ...member.ivs } : entry.ivs,
           item: member.item ?? null,
+          friendship: member.friendship ?? entry.friendship,
         }
       : entry,
   );

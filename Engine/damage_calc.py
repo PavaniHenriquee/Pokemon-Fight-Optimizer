@@ -4,7 +4,7 @@ import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
 from Engine.speed import check_speed, slow_start_active
-from DataBase.PkDB import PokemonName
+from DataBase.PkDB import PokemonName, POKEMON_BASE_ATK, POKEMON_BASE_DEF
 from Models.constants import (
     _ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW,
     _POK_AB_ID, _ABILITYNAMES_GUTS, _POK_STATUS, _ABILITYNAMES_HUGE_POWER,
@@ -42,7 +42,13 @@ from Models.constants import (
     _HOLDEFFECT_HP_DRAIN_ON_ATK, _WEATHER_HAIL, _MOVENAME_SOLAR_BEAM,
     _MOVENAME_FLY, _MOVENAME_DIVE, _MOVENAME_SHADOW_FORCE, _MOVENAME_HURRICANE,
     _MOVENAME_SKY_UPPERCUT, _MOVENAME_THUNDER, _MOVENAME_SURF, _MOVENAME_WHIRLPOOL,
+    _MOVENAME_REVERSAL, _MOVENAME_GRASS_KNOT, _MOVENAME_ERUPTION, _MOVENAME_WATER_SPOUT,
+    _MOVENAME_WRING_OUT, _MOVENAME_CRUSH_GRIP, _MOVENAME_PUNISHMENT, _MOVENAME_TRUMP_CARD,
+    _MOVENAME_FACADE, _MOVENAME_SMELLING_SALTS, _MOVENAME_WAKE_UP_SLAP, _STATUS_POISON,
+    _STATUS_TOXIC, _STATUS_PARALYSIS, _STATUS_SLEEP, _MOVE_PP, _POK_EVASION_STAT_STAGE,
+    _MOVENAME_RETURN, _MOVENAME_FRUSTRATION, _POK_FRIENDSHIP,
 )
+from Models.move import friendship_power
 from Engine.ability_helper import ignorable_ability, normalized_type, grounded_by_item
 
 # ==========================================
@@ -82,6 +88,15 @@ HITS_AIRBORNE = (_MOVENAME_GUST, _MOVENAME_HURRICANE, _MOVENAME_SKY_UPPERCUT, _M
 HITS_UNDERGROUND = (_MOVENAME_EARTHQUAKE, _MOVENAME_MAGNITUDE)
 HITS_UNDERWATER = (_MOVENAME_SURF, _MOVENAME_WHIRLPOOL)
 DOUBLES_AIRBORNE = (_MOVENAME_GUST, _MOVENAME_HURRICANE)
+# Power drops with the user's HP / grows with the target's HP
+HP_FALLOFF_MOVES = (_MOVENAME_ERUPTION, _MOVENAME_WATER_SPOUT)
+WRING_OUT_MOVES = (_MOVENAME_WRING_OUT, _MOVENAME_CRUSH_GRIP)
+# pokeplatinum BtlCmd_BeatUp reads the move's power, 10
+BEAT_UP_POWER = 10
+# Triple Kick's kicks are 10, 20 and 30 (pokeplatinum effect 0104 adds 10 per kick)
+TRIPLE_KICK_STEP = 10
+# pokeplatinum MON_CONDITION_FACADE_BOOST
+FACADE_STATUSES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 # Gen IV: only Stomp doubles against a minimized target
 MINIMIZE_DOUBLES = (_MOVENAME_STOMP,)
 # They faint the user and, in Gen IV, halve the target's Defense
@@ -434,6 +449,20 @@ def crit_multiplier(attacker):
 
 
 @njit
+def beat_up_damage(attacker, member, defender, crit):
+    """One Beat Up hit from a party member: its base Attack and level against the target's base
+    Defense, power 10, then the crit and the roll. Typeless, no stage, item, ability, weather or
+    screen (pokeplatinum BtlCmd_BeatUp)"""
+    damage = (
+        POKEMON_BASE_ATK[member[_POK_ID]] * BEAT_UP_POWER * (member[_POK_LEVEL] * 2 // 5 + 2)
+        // POKEMON_BASE_DEF[defender[_POK_ID]] // 50 + 2
+    )
+    if crit:
+        damage *= crit_multiplier(attacker)
+    return damage * MULTIPLIERS[random.getrandbits(4)] // 100
+
+
+@njit
 def life_orb_damage(attacker, damage):
     """Life Orb x(100+30)/100 after the crit, before the Metronome item (pokeplatinum
     BtlCmd_CalcDamage). Not in the AI's estimate, TrainerAI_CalcDamage skips it.
@@ -583,20 +612,49 @@ def multipliers(
 @njit
 def flail(attacker):
     """
-    Calculates flail power
+    Flail and Reversal power from the user's HP bar in 64 pixels, at least 1 while it has HP
+    (pokeplatinum BtlCmd_CalcFlailPower, App_PixelCount; Showdown gen4)
     """
-    hp_pct = attacker[_POK_CURRENT_HP]*48//attacker[_POK_MAX_HP]
-    if hp_pct <= 1:
+    pixels = attacker[_POK_CURRENT_HP] * 64 // attacker[_POK_MAX_HP]
+    if pixels == 0 and attacker[_POK_CURRENT_HP] > 0:
+        pixels = 1
+    if pixels <= 1:
         return 200
-    if hp_pct <= 4:
+    if pixels <= 5:
         return 150
-    if hp_pct <= 9:
+    if pixels <= 12:
         return 100
-    if hp_pct <= 16:
+    if pixels <= 21:
         return 80
-    if hp_pct <= 32:
+    if pixels <= 42:
         return 40
     return 20
+
+
+@njit
+def punishment_power(defender):
+    """60 plus 20 per positive stage of the target, at most 200 (pokeplatinum
+    BtlCmd_CalcPunishmentPower)"""
+    boosts = 0
+    for stat in range(_POK_ATTACK_STAT_STAGE, _POK_EVASION_STAT_STAGE + 1):
+        if defender[stat] > 0:
+            boosts += defender[stat]
+    return min(60 + 20 * boosts, 200)
+
+
+@njit
+def trump_card_power(pp_left):
+    """Trump Card power from the PP left after paying for it (pokeplatinum
+    BtlCmd_CalcTrumpCardPower)"""
+    if pp_left <= 0:
+        return 200
+    if pp_left == 1:
+        return 80
+    if pp_left == 2:
+        return 60
+    if pp_left == 3:
+        return 50
+    return 40
 
 
 @njit
@@ -654,10 +712,27 @@ def variable_power(attacker, defender, move, weather=0):
     power = move[_MOVE_POWER]
     if move_id == _MOVENAME_GYRO_BALL:
         return gyro_ball_power(attacker, defender, weather)
-    if move_id == _MOVENAME_FLAIL:
+    if move_id == _MOVENAME_FLAIL or move_id == _MOVENAME_REVERSAL:
         return flail(attacker)
-    if move_id == _MOVENAME_LOW_KICK:
+    if move_id == _MOVENAME_LOW_KICK or move_id == _MOVENAME_GRASS_KNOT:
         return weight_power(defender)
+    if move_id in HP_FALLOFF_MOVES:
+        return max(power * attacker[_POK_CURRENT_HP] // attacker[_POK_MAX_HP], 1)
+    if move_id in WRING_OUT_MOVES:
+        return 1 + 120 * defender[_POK_CURRENT_HP] // defender[_POK_MAX_HP]
+    if move_id == _MOVENAME_PUNISHMENT:
+        return punishment_power(defender)
+    if move_id == _MOVENAME_TRUMP_CARD:
+        return trump_card_power(move[_MOVE_PP])
+    # The user's friendship, so a called Return or Frustration has its own power too
+    if move_id == _MOVENAME_RETURN or move_id == _MOVENAME_FRUSTRATION:
+        return friendship_power(move_id, attacker[_POK_FRIENDSHIP])
+    if move_id == _MOVENAME_FACADE and attacker[_POK_STATUS] in FACADE_STATUSES:
+        return power * 2
+    if move_id == _MOVENAME_SMELLING_SALTS and defender[_POK_STATUS] == _STATUS_PARALYSIS:
+        return power * 2
+    if move_id == _MOVENAME_WAKE_UP_SLAP and defender[_POK_STATUS] == _STATUS_SLEEP:
+        return power * 2
     if move_id == _MOVENAME_MAGNITUDE:
         return semi_inv_power(defender, move_id, magnitude_power())
     if move_id in DOUBLES_AIRBORNE or move_id in HITS_UNDERGROUND or move_id in HITS_UNDERWATER:

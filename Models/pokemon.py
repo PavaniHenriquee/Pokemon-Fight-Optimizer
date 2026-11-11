@@ -7,7 +7,7 @@ from DataBase.PkDB import PokemonName
 from DataBase.MoveDB import MoveName
 from Models.idx_const import Move as MoveIdx
 from Models.helper import type_to_number, Status, gender_to_number
-from Models.move import Moves
+from Models.move import Moves, friendship_power
 from Models.ability import ability_to_np
 from Models.item import item_to_np
 
@@ -25,7 +25,8 @@ class Pokemon:
             ivs: dict=None,
             evs: dict=None,
             status: str=0,
-            item: str=None
+            item: str=None,
+            friendship: int=None
     ):
         self.name = name
         self.base_data = pkDB[name]
@@ -34,6 +35,8 @@ class Pokemon:
         self.level = level
         self.ability = abDB[ability]
         self.item = itemDB[item] if item else None
+        # A trainer's Pokemon has its species' base friendship ([pp] trainer_data.c), mine come from the box
+        self.friendship = self.base_data["base friendship"] if friendship is None else friendship
         self.move1 = moveDB[moves[0]] if len(moves) > 0 else None
         self.move2 = moveDB[moves[1]] if len(moves) > 1 else None
         self.move3 = moveDB[moves[2]] if len(moves) > 2 else None
@@ -182,6 +185,8 @@ class Pokemon:
             0,   # Choice-locked move slot + 1, 0 means none
             0,   # Embargo turns left
             0,   # Rampage (Thrash) turns left
+            0,   # Last Resort: mask of the move slots used since switch-in
+            self.friendship,  # Friendship, for a called Return or Frustration
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 
@@ -196,6 +201,8 @@ class Pokemon:
         for move in (move1, move2, move3, move4):
             if move[MoveIdx.ID] == MoveName.HIDDEN_POWER:
                 move[MoveIdx.TYPE], move[MoveIdx.POWER] = self.hidden_power()
+            elif move[MoveIdx.ID] in (MoveName.RETURN, MoveName.FRUSTRATION):
+                move[MoveIdx.POWER] = friendship_power(move[MoveIdx.ID], self.friendship)
 
         item = item_to_np(self.item)
 

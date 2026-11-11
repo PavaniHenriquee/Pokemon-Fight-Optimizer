@@ -127,3 +127,22 @@ def test_nature_minus(make_pokemon, nature, minus):
     """The stat the nature lowers, in stat stage order, for the confusion berries"""
     arr = make_pokemon("Charmander", 50, "Blaze", ["Scratch"], nature=nature).to_np()
     assert arr[Pok.NATURE_MINUS] == minus
+
+
+def test_friendship_defaults_to_the_species_base(make_pokemon):
+    """A trainer's Pokemon battles with its species' base friendship ([pp] trainer_data.c)"""
+    lopunny = make_pokemon("Lopunny", 30, "Cute Charm", ["Return"])
+    assert lopunny.friendship == 140 and lopunny.to_np()[Pok.FRIENDSHIP] == 140
+    assert lopunny.to_np()[Pok.LAST_RESORT] == 0
+
+
+@pytest.mark.parametrize("friendship, ret, frus", [(255, 102, 1), (0, 1, 102), (140, 56, 46), (70, 28, 74)])
+def test_return_and_frustration_power_baked_into_the_move(friendship, ret, frus):
+    """friendship * 10 / 25 and (255 - friendship) * 10 / 25, at least 1"""
+    p = Pokemon("Lopunny", "Female", 30, "Cute Charm", "Hardy", ["Return", "Frustration", "Tackle"],
+                friendship=friendship)
+    arr = p.to_np()
+    assert arr[Pok.FRIENDSHIP] == friendship
+    assert arr[Pok.MOVE1_ID + Move.POWER] == ret
+    assert arr[Pok.MOVE1_ID + MOVE_STRIDE + Move.POWER] == frus
+    assert arr[Pok.MOVE1_ID + 2 * MOVE_STRIDE + Move.POWER] == moveDB["Tackle"]["power"]

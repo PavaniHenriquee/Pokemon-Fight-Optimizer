@@ -18,7 +18,8 @@ from Engine.engine_helper import (
     has_substitute, hit_substitute, make_substitute, sub_blocks_status_move, takeable_item,
     focus_sash_ready, sticky_barb_transfer, after_move_hit_items, on_hit_berries,
     clear_target_choice_lock, swap_items, embargo, embargo_count, fling_fails, fling_move,
-    fling_throw, fling_hit, _flavor_confuse,
+    fling_throw, fling_hit, _flavor_confuse, kick_hits, record_last_resort, last_resort_works,
+    secret_power_move,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -27,7 +28,7 @@ from Engine.status_calc import (
 from Engine.ability_helper import reveal_ability, effective_weather, normalized_type
 from Engine.damage_calc import (
     calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, EXPLODE_MOVES, SEMI_INVULNERABLE_MOVES,
-    NO_WEATHER_MOVES,
+    NO_WEATHER_MOVES, beat_up_damage, TRIPLE_KICK_STEP,
 )
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
@@ -43,6 +44,8 @@ from Models.constants import (
     _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS, _MOVECATEGORY_SPECIAL,
     _ABILITYACTIVATION_ON_RESIDUAL, _DAMAGESOURCES_COUNTER, _POK_TURNS_ACTIVE,
     _MOVE_ID, _MOVE_PP, _MOVENAME_COVET,
+    _MOVENAME_SMELLING_SALTS, _MOVENAME_WAKE_UP_SLAP, _STATUS_PARALYSIS, _MOVENAME_PRESENT,
+    _MOVENAME_TRIPLE_KICK, _MOVENAME_BEAT_UP, _MOVENAME_LAST_RESORT, _MOVENAME_SECRET_POWER,
     _POK_RAMPAGE_TURNS, _MOVENAME_THRASH, _MOVENAME_OUTRAGE, _MOVENAME_PETAL_DANCE,
     _MOVE_CATEGORY, _MOVE_TYPE, _SEC_CHANCE, _SEC_VOL_STATUS, _MOVENAME_STRUGGLE, _MOVEOUTCOME_HIT,
     _SEC_VOL_STATUS2,
@@ -346,6 +349,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
     # The switching Pressure holder costs one more (pokeplatinum, Pursuit before a switch)
     pressure_pp(mv, defn)
     atk[_POK_LAST_MOVE_ID] = mv[_MOVE_ID]
+    record_last_resort(atk, slot, mv[_MOVE_ID])
     battle_array[_FIELD_LAST_MOVE] = mv[_MOVE_ID]
     if is_mine:
         battle_array[_FIELD_MY_LAST_MOVE] = mv[_MOVE_ID]
@@ -463,6 +467,109 @@ def _ps_moves_core(attacker, defender, move, weather, def_side=0, gravity=False,
 
 
 @njit
+def _cure_on_hit(defender, move):
+    """Smelling Salts cures the paralysis and Wake-Up Slap the sleep of a target that survived the
+    hit (pokeplatinum subscript_heal_target_paralysis / _sleep)"""
+    if defender[_POK_CURRENT_HP] <= 0:
+        return
+    move_id = move[_MOVE_ID]
+    if (
+        (move_id == _MOVENAME_SMELLING_SALTS and defender[_POK_STATUS] == _STATUS_PARALYSIS)
+        or (move_id == _MOVENAME_WAKE_UP_SLAP and defender[_POK_STATUS] == _STATUS_SLEEP)
+    ):
+        cure_status(defender)
+
+
+@njit
+def _present_move(mv):
+    """Present rolls before the hit check: 20% heal, else power 40, 80 or 120 at 40%, 30% and
+    10% (Showdown onModifyMove). Power 0 is the heal"""
+    roll = random.randint(0, 9)
+    present = mv.copy()
+    if roll < 2:
+        present[_MOVE_POWER] = 0
+    elif roll < 6:
+        present[_MOVE_POWER] = 40
+    elif roll < 9:
+        present[_MOVE_POWER] = 80
+    else:
+        present[_MOVE_POWER] = 120
+    return present
+
+
+@njit
+def _present_heal(defender):
+    """Present's heal: 1/4 of the target's max HP, at least 1, through a Substitute (Showdown
+    infiltrates). Heal Block stops it (pokeplatinum subscript_present_heal)"""
+    if defender[_POK_VOL_STATUS] & _VOLSTATUS_HEAL_BLOCK:
+        return
+    max_hp = defender[_POK_MAX_HP]
+    defender[_POK_CURRENT_HP] = min(max_hp, defender[_POK_CURRENT_HP] + max(1, max_hp // 4))
+
+
+@njit
+def _beat_up_side(is_mine):
+    """First Pokemon block of the user's side"""
+    return 0 if is_mine else 6 * POK_LEN
+
+
+@njit
+def _beat_up_members(battle_array, is_mine):
+    """How many Pokemon hit with Beat Up: the user and its party alive with no status (Showdown
+    gen4 allies)"""
+    first = _beat_up_side(is_mine)
+    count = 0
+    for i in range(6):
+        off = first + i * POK_LEN
+        if battle_array[off + _POK_CURRENT_HP] > 0 and battle_array[off + _POK_STATUS] == 0:
+            count += 1
+    return count
+
+
+@njit
+def _beat_up(attacker, defender, move, battle_array, is_mine, weather, rec_p, def_side, gravity):
+    """
+    One hit per Pokemon of the user's side alive with no status, in party order, each with its
+    own base Attack and level (pokeplatinum BtlCmd_BeatUp). A crit roll per hit. Returns the
+    flinch, whether a hit reached the Pokemon and the HP it took off, like ps_moves_multihit
+    """
+    first = _beat_up_side(is_mine)
+    flinch = False
+    hit_pok = False
+    sash = False
+    dealt_total = 0
+    damage = 0
+    for i in range(6):
+        if defender[_POK_CURRENT_HP] <= 0 or attacker[_POK_CURRENT_HP] <= 0:
+            break
+        member = battle_array[first + i * POK_LEN:first + (i + 1) * POK_LEN]
+        if member[_POK_CURRENT_HP] <= 0 or member[_POK_STATUS] != 0:
+            continue
+        crit = calculate_crit(attacker, defender, move, def_side)
+        raw_damage = beat_up_damage(attacker, member, defender, crit)
+        if has_substitute(defender):
+            dealt_total += hit_substitute(defender, raw_damage)
+            continue
+        sash = sash or focus_sash_ready(defender)
+        damage = endure_damage(defender, raw_damage, sash)
+        dealt = min(damage, defender[_POK_CURRENT_HP])
+        if _apply_move_damage(attacker, defender, move, damage, crit):
+            flinch = True
+        dealt_total += dealt
+        hit_pok = True
+        on_hit_abilities(attacker, defender, move, dealt, weather)
+        sticky_barb_transfer(attacker, defender, move, dealt)
+        on_hit_berries(attacker, defender, move, dealt, gravity)
+
+    # The last hit on the Pokemon is the one recorded, as in ps_moves_multihit
+    if hit_pok and defender[_POK_VOL_STATUS] & _VOLSTATUS_BIDE:
+        defender[_POK_DMG_TAKEN] += damage
+    if hit_pok and rec_p:
+        defender[_POK_DMG_TAKEN] = damage
+    return flinch, hit_pok, dealt_total
+
+
+@njit
 def _sec_reaches(move, sub_hit):
     """A hit on the Substitute keeps the secondary effects off the target, not the user's own"""
     return not (sub_hit and move[_SEC_TARGET] in TARGET_OPP_SIDE)
@@ -493,8 +600,13 @@ def _crash(attacker, defender, move, weather, def_side=0, gravity=False):
 
 
 @njit
-def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravity=False):
-    """Physical or Special multihit moves, where I need to calculate damage and secondary effects"""
+def ps_moves_multihit(
+        attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravity=False,
+        target_moved=False
+):
+    """Physical or Special multihit moves, where I need to calculate damage and secondary effects.
+    Triple Kick's kicks are 10, 20 and 30 power and each one after the first rolls accuracy, the
+    first miss ends it. target_moved: the target already acted this turn (Zoom Lens)"""
     mult_hit_min = move[_MOVE_MULTI_HIT_MIN]
     mult_hit_max = move[_MOVE_MULTI_HIT_MAX]
     dmg = 0
@@ -512,12 +624,19 @@ def ps_moves_multihit(attacker, defender, move, weather, rec_p, rec_s, def_side=
         multhit = mult_hit_min
     else:
         raise ValueError("Moves that are variable and not 2-5 shouldn't exit, check DB")
+    kick = move[_MOVE_ID] == _MOVENAME_TRIPLE_KICK
+    hit_mv = move
     for i in range(multhit):
         # Rough Skin can knock the user out mid-sequence
         if i and (defender[_POK_CURRENT_HP] <= 0 or attacker[_POK_CURRENT_HP] <= 0):
             break
+        if kick:
+            if i and not kick_hits(move, attacker, defender, weather, gravity, target_moved):
+                break
+            hit_mv = move.copy()
+            hit_mv[_MOVE_POWER] = TRIPLE_KICK_STEP * (i + 1)
         flinch_c, damage, dealt, sub_hit, sash = _ps_moves_core(
-            attacker, defender, move, weather, def_side, gravity, sash
+            attacker, defender, hit_mv, weather, def_side, gravity, sash
         )
         if flinch_c:
             flinch = True
@@ -578,6 +697,7 @@ def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravit
     # item moves (pokeplatinum TriggerAbilityOnHit, PluckBerry, subscript_knock_off and co.)
     if sub_hit:
         return flinch, False, dealt
+    _cure_on_hit(defender, move)
     # After recoil, drain and the secondary effect (pokeplatinum after-move order)
     on_hit_abilities(attacker, defender, move, dealt, weather)
     sticky_barb_transfer(attacker, defender, move, dealt)
@@ -776,6 +896,7 @@ def _execute_move_slot(
         atk[_POK_LAST_MOVE_ID] = 0
         return False
     atk[_POK_LAST_MOVE_ID] = outer_id
+    record_last_resort(atk, current_move if is_mine else opp_move, outer_id)
     if mv[_MOVE_ID] not in STALL_MOVES:
         atk[_POK_PROTECT_COUNT] = 0
     # The Metronome item counts the selected move on turns it isn't locked into. A move aimed at a
@@ -807,7 +928,10 @@ def _execute_move_slot(
             metronome_fail(atk, outer_id)
             return False
         atk[_POK_CALLED_MOVE] = called
+        caller_pp = mv[_MOVE_PP]
         mv = _called_move_array(atk, called)
+        # A called move sees the caller's PP, for Trump Card (pokeplatinum ATTACKER_MOVE_SLOT)
+        mv[_MOVE_PP] = caller_pp
         # A called move Gravity stops fails like a selected one (Showdown onModifyMove)
         if gravity and mv[_FLAGS_GRAVITY]:
             unlock_move(atk)
@@ -882,6 +1006,20 @@ def _execute_move_slot(
     # immune target still costs it. Damp stops the whole move (Showdown gen4 useMoveInner)
     if mv[_MOVE_ID] in EXPLODE_MOVES and not damp_blocks(atk, defn):
         atk[_POK_CURRENT_HP] = 0
+    # Beat Up fails with nobody to hit (Showdown gen4, no allies)
+    if mv[_MOVE_ID] == _MOVENAME_BEAT_UP and _beat_up_members(battle_array, is_mine) == 0:
+        if counted:
+            metronome_fail(atk, outer_id)
+        return False
+    # Last Resort fails until the user used its other moves (pokeplatinum effect 0246, before the hit)
+    if mv[_MOVE_ID] == _MOVENAME_LAST_RESORT and not last_resort_works(atk):
+        if counted:
+            metronome_fail(atk, outer_id)
+        return False
+    if mv[_MOVE_ID] == _MOVENAME_PRESENT:
+        mv = _present_move(mv)
+    elif mv[_MOVE_ID] == _MOVENAME_SECRET_POWER:
+        mv = secret_power_move(mv, battle_array)
     move_hit = calculate_hit_miss(mv, atk, defn, weather, gravity, is_last)
     if move_hit != _MOVEOUTCOME_HIT:
         if mv[_MOVE_ID] == _MOVENAME_FLING:
@@ -900,14 +1038,22 @@ def _execute_move_slot(
         defn[_POK_VOL_STATUS] &= ~_VOLSTATUS_PROTECT
     if mv[_MOVE_TARGET] not in NO_FOE_TARGETS:
         mirror_record(mv, defn, is_called)
+    if mv[_MOVE_ID] == _MOVENAME_PRESENT and mv[_MOVE_POWER] == 0:
+        _present_heal(defn)
+        return False
 
     atk_side = side_base(is_mine)
     def_side = side_base(not is_mine)
     if mv[_MOVE_CATEGORY] in PHYSICAL_SPECIAL:
         _consec_on_hit(atk, mv)
-        if mv[_MOVE_MULTI_HIT_MIN]:
+        if mv[_MOVE_ID] == _MOVENAME_BEAT_UP:
+            flinch, hit_pok, dealt = _beat_up(
+                atk, defn, mv, battle_array, is_mine, weather, rec_p,
+                battle_array[def_side], gravity
+            )
+        elif mv[_MOVE_MULTI_HIT_MIN]:
             flinch, hit_pok, dealt = ps_moves_multihit(
-                atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity
+                atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity, is_last
             )
         else:
             flinch, hit_pok, dealt = ps_moves(

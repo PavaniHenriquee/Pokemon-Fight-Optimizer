@@ -15,12 +15,11 @@
   `Basic_CheckNonStandardDamageOrChargeTurn`): the general checks cover them, with Pokemow's -12 into Wonder
   Guard where [pp]'s script gives -10.
 - AI: `MOVE_EXCEP` still lacks moves [pp] `sNoDamageCalcMoveEffects` and Pokemow's excluded list leave out of the
-  damage compare: Spit Up, Eruption, Water Spout, Super Fang,
-  Reversal, Present, Endeavor, Metal Burst, Trump Card, Wring Out, Punishment, Crush Grip. Add each in its batch.
+  damage compare: Spit Up, Super Fang, Endeavor, Metal Burst. Add each in its batch.
 - AI: `PROTECT_LIKE_M` (the "saw the target use Protect" checks) holds only Protect. Detect goes in once it's in
   MoveDB ([pp] `IfMoveEffectKnown BATTLE_EFFECT_PROTECT` covers both).
 - AI: `ai_move_damage` uses the raw base power except for the semi-invulnerable doublings (6.3). Pokemow's
-  damage calc also sees Stomp vs Minimize, Facade, SmellingSalt, Wake-Up Slap, Brine, Rollout / Fury Cutter
+  damage calc also sees Stomp vs Minimize, Brine, Rollout / Fury Cutter
   streaks and Weather Ball (7.1).
 - AI: `ai_move_damage` doesn't weigh Jump Kick / High Jump Kick's crash (6.5) when the move could miss or hit an
   immune target. [pp] `script.s` has no branch for BATTLE_EFFECT_CRASH_ON_MISS, so this only matters past the script.
@@ -67,6 +66,8 @@
 - Choice lock: a locked move that leaves the moveset ends the lock in [pp] (`CheckInvalidMoves`); it needs Mimic or
   Transform (12.2). [pp] also clears the lock of a Pokemon hit while holding no choice item; the engine keeps it
   stored (it does nothing without a choice item) until a choice item comes back, which only Trick can do (4.5).
+- Last Resort: Mimic, Sketch and Transform reset its count of moves used ([pp] `lastResortCount = 0`); none of
+  them is in yet (12.2).
 - Sleep Talk isn't in yet: its move pool must go through `move_blocked` ([pp] `TrySleepTalk`), so it fails
   under a choice lock ([SD gen4] agrees). It also skips every charge move ([pp] `Move_IsMultiTurn`): go by the
   charge flag, since [SD]'s flags leave `nosleeptalk` off Fly.
@@ -124,6 +125,8 @@
   Flying type (Iron Ball and Gravity reach it).
 - Search: the rollout (`rollout_pref`) doesn't weigh Jump Kick / High Jump Kick's crash (6.5) on a move that could
   miss or hit an immune target (a Ghost: no damage and no crash in [pp]).
+- Search: the rollout's damage estimate (`mcts_eval.py`) sees Present at power 0 and Triple Kick / Beat Up as one
+  10-power hit (7.1), only its move weights are off.
 - Search: `node_key` sees a rampage only through `LOCKED_MOVE`, not `RAMPAGE_TURNS`, so 2 turns left and 1
   left (confusion this turn) share a node.
 - Leppa on the foe (only through a Covet on my Leppa holder) gives back PP that Continue's foe PP arithmetic

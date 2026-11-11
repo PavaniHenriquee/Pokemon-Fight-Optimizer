@@ -3537,3 +3537,60 @@ def test_jaboca_magic_guard(poke):
     d = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Jaboca Berry")
     engine_helper.on_hit_berries(a, d, move_slice(a, 0), 5)
     assert a[Pok.CURRENT_HP] == a[Pok.MAX_HP] and d[Item.ID] == ItemNames.JABOCA_BERRY
+
+
+# ── Phase 7.1: Last Resort and Secret Power ──────────────────────────────────
+
+def test_record_last_resort(poke):
+    """Each slot once, Last Resort itself and Struggle aren't counted"""
+    p = poke("Eevee", 30, "Run Away", ["Tackle", "Last Resort", "Growl"])
+    engine_helper.record_last_resort(p, 0, MoveName.TACKLE)
+    engine_helper.record_last_resort(p, 0, MoveName.TACKLE)
+    engine_helper.record_last_resort(p, 1, MoveName.LAST_RESORT)
+    engine_helper.record_last_resort(p, 10, MoveName.STRUGGLE)
+    assert p[Pok.LAST_RESORT] == 0b001
+    engine_helper.record_last_resort(p, 2, MoveName.GROWL)
+    assert p[Pok.LAST_RESORT] == 0b101
+
+
+@pytest.mark.parametrize("moves, used, works", [
+    (["Tackle", "Last Resort", "Growl"], 0b001, False),
+    (["Tackle", "Last Resort", "Growl"], 0b101, True),
+    (["Last Resort"], 0, False),                          # it alone never works
+    (["Last Resort", "Tackle"], 0b10, True),
+    (["Tackle", "Growl", "Quick Attack"], 0b011, True),     # called: every move but one
+    (["Tackle", "Growl", "Quick Attack"], 0b001, False),
+])
+def test_last_resort_works(poke, moves, used, works):
+    """pokeplatinum BtlCmd_TryLastResort: 2 known moves or more, all but one used"""
+    p = poke("Eevee", 30, "Run Away", moves)
+    p[Pok.LAST_RESORT] = used
+    assert engine_helper.last_resort_works(p) == works
+
+
+def test_reset_switch_out_clears_last_resort(poke):
+    p = poke("Eevee", 30, "Run Away", ["Tackle", "Last Resort"])
+    p[Pok.LAST_RESORT] = 0b1
+    reset_switch_out(p)
+    assert p[Pok.LAST_RESORT] == 0
+
+
+@pytest.mark.parametrize("terrain, field, value", [
+    (Terrain.PLAIN, Sec.BOOST_ACC, -1), (Terrain.SAND, Sec.BOOST_ACC, -1),
+    (Terrain.GRASS, Sec.STATUS, Status.SLEEP), (Terrain.PUDDLE, Sec.STATUS, Status.SLEEP),
+    (Terrain.MOUNTAIN, Sec.VOL_STATUS, VolStatus.FLINCH), (Terrain.CAVE, Sec.VOL_STATUS, VolStatus.FLINCH),
+    (Terrain.SNOW, Sec.STATUS, Status.FREEZE), (Terrain.ICE, Sec.STATUS, Status.FREEZE),
+    (Terrain.WATER, Sec.BOOST_ATK, -1), (Terrain.BUILDING, Sec.STATUS, Status.PARALYSIS),
+    (Terrain.GREAT_MARSH, Sec.BOOST_SPEED, -1), (Terrain.BRIDGE, Sec.BOOST_EV, -1),
+    (Terrain.SPECIAL, Sec.STATUS, Status.PARALYSIS),
+])
+def test_secret_power_move(poke, terrain, field, value):
+    """pokeplatinum sTerrainSideEffect, 30% each, the slot keeps its data"""
+    arr = empty_field()
+    arr[Field.TERRAIN] = terrain
+    p = poke("Linoone", 30, "Pickup", ["Secret Power"])
+    sp = engine_helper.secret_power_move(move_slice(p, 0), arr)
+    assert sp[field] == value and sp[Sec.CHANCE] == 30
+    if field != Sec.STATUS:
+        assert sp[Sec.STATUS] == 0
+    assert move_slice(p, 0)[Sec.STATUS] == Status.PARALYSIS

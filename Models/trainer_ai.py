@@ -62,6 +62,9 @@ MOVE_EXCEP = (
     MoveName.FISSURE, MoveName.GUILLOTINE, MoveName.SHEER_COLD,
     # Pokemow's excluded moves
     MoveName.FLING,
+    # Variable power (pokeplatinum sNoDamageCalcMoveEffects or power 1, Pokemow's excluded moves)
+    MoveName.ERUPTION, MoveName.WATER_SPOUT, MoveName.REVERSAL, MoveName.WRING_OUT,
+    MoveName.CRUSH_GRIP, MoveName.PUNISHMENT, MoveName.TRUMP_CARD, MoveName.PRESENT,
 )
 
 
@@ -416,7 +419,7 @@ def choose_move(battle_array):
             ai_know, user_side,
             move_id == _MOVENAME_COPYCAT
             and copycat_beats(ai_pok, user_pok, eff_weather, user_side, gravity),
-            claw_guess, eff_weather, ai_side
+            claw_guess, eff_weather, ai_side, ability
         )
         score += expert
 

@@ -9,6 +9,7 @@
       "Special Defense": 65,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Overgrow"],
     "learnset": [
       [1, "Tackle"],
@@ -49,6 +50,7 @@
       "Special Defense": 80,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Overgrow"],
     "learnset": [
       [1, "Tackle"],
@@ -90,6 +92,7 @@
       "Special Defense": 100,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Overgrow"],
     "learnset": [
       [1, "Power Whip"],
@@ -136,6 +139,7 @@
       "Special Defense": 50,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Solar Power", "Blaze"],
     "learnset": [
       [1, "Scratch"],
@@ -176,6 +180,7 @@
       "Special Defense": 65,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Solar Power", "Blaze"],
     "learnset": [
       [1, "Scratch"],
@@ -217,6 +222,7 @@
       "Special Defense": 85,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Blaze"],
     "learnset": [
       [1, "Dragon Claw"],
@@ -268,6 +274,7 @@
       "Special Defense": 64,
       "Speed": 43
     },
+    "base friendship": 70,
     "abilities": ["Rain Dish", "Torrent"],
     "learnset": [
       [1, "Tackle"],
@@ -310,6 +317,7 @@
       "Special Defense": 80,
       "Speed": 58
     },
+    "base friendship": 70,
     "abilities": ["Rain Dish", "Torrent"],
     "learnset": [
       [1, "Tackle"],
@@ -353,6 +361,7 @@
       "Special Defense": 105,
       "Speed": 78
     },
+    "base friendship": 70,
     "abilities": ["Drizzle", "Torrent"],
     "learnset": [
       [1, "Flash Cannon"],
@@ -403,6 +412,7 @@
       "Special Defense": 20,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Run Away", "Shield Dust"],
     "learnset": [
       [1, "Tackle"],
@@ -422,6 +432,7 @@
       "Special Defense": 25,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Shed Skin", "Shed Skin"],
     "learnset": [
       [1, "Harden"],
@@ -441,6 +452,7 @@
       "Special Defense": 100,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Tinted Lens", "Compound Eyes"],
     "learnset": [
       [1, "Confusion"],
@@ -483,6 +495,7 @@
       "Special Defense": 20,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Run Away", "Shed Skin"],
     "learnset": [
       [1, "Poison Sting"],
@@ -502,6 +515,7 @@
       "Special Defense": 25,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Shed Skin", "Shed Skin"],
     "learnset": [
       [1, "Harden"],
@@ -521,6 +535,7 @@
       "Special Defense": 95,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Adaptability", "Swarm"],
     "learnset": [
       [1, "Fury Attack"],
@@ -563,6 +578,7 @@
       "Special Defense": 35,
       "Speed": 56
     },
+    "base friendship": 70,
     "abilities": ["Keen Eye", "Tangled Feet"],
     "learnset": [
       [1, "Tackle"],
@@ -605,6 +621,7 @@
       "Special Defense": 50,
       "Speed": 71
     },
+    "base friendship": 70,
     "abilities": ["Keen Eye", "Tangled Feet"],
     "learnset": [
       [1, "Tackle"],
@@ -647,6 +664,7 @@
       "Special Defense": 70,
       "Speed": 101
     },
+    "base friendship": 70,
     "abilities": ["No Guard", "Tangled Feet"],
     "learnset": [
       [1, "Brave Bird"],
@@ -693,6 +711,7 @@
       "Special Defense": 35,
       "Speed": 72
     },
+    "base friendship": 70,
     "abilities": ["Hustle", "Guts"],
     "learnset": [
       [1, "Tackle"],
@@ -734,6 +753,7 @@
       "Special Defense": 70,
       "Speed": 113
     },
+    "base friendship": 70,
     "abilities": ["Hustle", "Guts"],
     "learnset": [
       [1, "Swords Dance"],
@@ -778,6 +798,7 @@
       "Special Defense": 31,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Keen Eye", "Sniper"],
     "learnset": [
       [1, "Peck"],
@@ -819,6 +840,7 @@
       "Special Defense": 61,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Keen Eye", "Sniper"],
     "learnset": [
       [1, "Brave Bird"],
@@ -863,6 +885,7 @@
       "Special Defense": 54,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Shed Skin"],
     "learnset": [
       [1, "Wrap"],
@@ -903,6 +926,7 @@
       "Special Defense": 80,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Shed Skin"],
     "learnset": [
       [1, "Ice Fang"],
@@ -947,6 +971,7 @@
       "Special Defense": 50,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Static", "Lightning Rod"],
     "learnset": [
       [1, "Thunder Shock"],
@@ -990,6 +1015,7 @@
       "Special Defense": 80,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Static", "Lightning Rod"],
     "learnset": [
       [1, "Thunder Punch"],
@@ -1024,6 +1050,7 @@
       "Special Defense": 30,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Sand Veil", "Sand Veil"],
     "learnset": [
       [1, "Scratch"],
@@ -1068,6 +1095,7 @@
       "Special Defense": 55,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Sand Veil", "Sand Veil"],
     "learnset": [
       [1, "Scratch"],
@@ -1113,6 +1141,7 @@
       "Special Defense": 40,
       "Speed": 41
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Rivalry"],
     "learnset": [
       [1, "Growl"],
@@ -1145,6 +1174,7 @@
       "Special Defense": 55,
       "Speed": 56
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Rivalry"],
     "learnset": [
       [1, "Growl"],
@@ -1177,6 +1207,7 @@
       "Special Defense": 85,
       "Speed": 76
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Rivalry"],
     "learnset": [
       [1, "Superpower"],
@@ -1217,6 +1248,7 @@
       "Special Defense": 40,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Rivalry"],
     "learnset": [
       [1, "Leer"],
@@ -1249,6 +1281,7 @@
       "Special Defense": 55,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Rivalry"],
     "learnset": [
       [1, "Leer"],
@@ -1281,6 +1314,7 @@
       "Special Defense": 75,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Rivalry"],
     "learnset": [
       [1, "Megahorn"],
@@ -1322,6 +1356,7 @@
       "Special Defense": 65,
       "Speed": 35
     },
+    "base friendship": 140,
     "abilities": ["Cute Charm", "Magic Guard"],
     "learnset": [
       [1, "Pound"],
@@ -1375,6 +1410,7 @@
       "Special Defense": 90,
       "Speed": 60
     },
+    "base friendship": 140,
     "abilities": ["Cute Charm", "Magic Guard"],
     "learnset": [
       [1, "Soft-Boiled"],
@@ -1414,6 +1450,7 @@
       "Special Defense": 65,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Drought", "Flash Fire"],
     "learnset": [
       [1, "Ember"],
@@ -1456,6 +1493,7 @@
       "Special Defense": 100,
       "Speed": 109
     },
+    "base friendship": 70,
     "abilities": ["Drought", "Flash Fire"],
     "learnset": [
       [1, "Moonblast"],
@@ -1486,6 +1524,7 @@
       "Special Defense": 35,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Cute Charm", "Magic Guard"],
     "learnset": [
       [1, "Sing"],
@@ -1536,6 +1575,7 @@
       "Special Defense": 60,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Cute Charm", "Magic Guard"],
     "learnset": [
       [1, "Play Rough"],
@@ -1574,6 +1614,7 @@
       "Special Defense": 40,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Inner Focus", "Inner Focus"],
     "learnset": [
       [1, "Absorb"],
@@ -1616,6 +1657,7 @@
       "Special Defense": 75,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Inner Focus", "Inner Focus"],
     "learnset": [
       [1, "Screech"],
@@ -1660,6 +1702,7 @@
       "Special Defense": 65,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Run Away"],
     "learnset": [
       [1, "Absorb"],
@@ -1693,6 +1736,7 @@
       "Special Defense": 75,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Stench"],
     "learnset": [
       [1, "Absorb"],
@@ -1726,6 +1770,7 @@
       "Special Defense": 90,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Effect Spore"],
     "learnset": [
       [1, "Moonblast"],
@@ -1752,6 +1797,7 @@
       "Special Defense": 55,
       "Speed": 25
     },
+    "base friendship": 70,
     "abilities": ["Effect Spore", "Dry Skin"],
     "learnset": [
       [1, "Scratch"],
@@ -1785,6 +1831,7 @@
       "Special Defense": 90,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Effect Spore", "Dry Skin"],
     "learnset": [
       [1, "Leech Seed"],
@@ -1819,6 +1866,7 @@
       "Special Defense": 55,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Tinted Lens", "Compound Eyes"],
     "learnset": [
       [1, "Tackle"],
@@ -1852,6 +1900,7 @@
       "Special Defense": 75,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Tinted Lens", "Shield Dust"],
     "learnset": [
       [1, "Silver Wind"],
@@ -1896,6 +1945,7 @@
       "Special Defense": 45,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Sand Veil", "Arena Trap"],
     "learnset": [
       [1, "Sand Attack"],
@@ -1929,6 +1979,7 @@
       "Special Defense": 70,
       "Speed": 120
     },
+    "base friendship": 70,
     "abilities": ["Sand Veil", "Arena Trap"],
     "learnset": [
       [1, "Sand Attack"],
@@ -1964,6 +2015,7 @@
       "Special Defense": 40,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Pickup"],
     "learnset": [
       [1, "Scratch"],
@@ -2010,6 +2062,7 @@
       "Special Defense": 65,
       "Speed": 115
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Limber"],
     "learnset": [
       [1, "Switcheroo"],
@@ -2058,6 +2111,7 @@
       "Special Defense": 50,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Damp", "Cloud Nine"],
     "learnset": [
       [1, "Water Sport"],
@@ -2102,6 +2156,7 @@
       "Special Defense": 80,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Damp", "Cloud Nine"],
     "learnset": [
       [1, "Me First"],
@@ -2150,6 +2205,7 @@
       "Special Defense": 45,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Vital Spirit", "Anger Point"],
     "learnset": [
       [1, "Scratch"],
@@ -2200,6 +2256,7 @@
       "Special Defense": 70,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Vital Spirit", "Anger Point"],
     "learnset": [
       [1, "Scratch"],
@@ -2251,6 +2308,7 @@
       "Special Defense": 50,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Flash Fire"],
     "learnset": [
       [1, "Bite"],
@@ -2285,6 +2343,7 @@
       "Special Defense": 80,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Flash Fire"],
     "learnset": [
       [1, "Morning Sun"],
@@ -2318,6 +2377,7 @@
       "Special Defense": 40,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Water Absorb", "Damp"],
     "learnset": [
       [1, "Pound"],
@@ -2349,6 +2409,7 @@
       "Special Defense": 50,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Water Absorb", "Damp"],
     "learnset": [
       [1, "Pound"],
@@ -2387,6 +2448,7 @@
       "Special Defense": 90,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Water Absorb", "Damp"],
     "learnset": [
       [1, "Vacuum Wave"],
@@ -2423,6 +2485,7 @@
       "Special Defense": 55,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Magic Guard", "Synchronize"],
     "learnset": [[1, "Teleport"]],
     "tutor": [
@@ -2447,6 +2510,7 @@
       "Special Defense": 70,
       "Speed": 105
     },
+    "base friendship": 70,
     "abilities": ["Magic Guard", "Synchronize"],
     "learnset": [
       [1, "Flash"],
@@ -2489,6 +2553,7 @@
       "Special Defense": 95,
       "Speed": 120
     },
+    "base friendship": 70,
     "abilities": ["Magic Guard", "Synchronize"],
     "learnset": [
       [1, "Encore"],
@@ -2534,6 +2599,7 @@
       "Special Defense": 35,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Guts", "No Guard"],
     "learnset": [
       [1, "Low Kick"],
@@ -2578,6 +2644,7 @@
       "Special Defense": 60,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Guts", "No Guard"],
     "learnset": [
       [1, "Low Kick"],
@@ -2622,6 +2689,7 @@
       "Special Defense": 85,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Guts", "No Guard"],
     "learnset": [
       [1, "Close Combat"],
@@ -2668,6 +2736,7 @@
       "Special Defense": 30,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Gluttony"],
     "learnset": [
       [1, "Vine Whip"],
@@ -2708,6 +2777,7 @@
       "Special Defense": 45,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Gluttony"],
     "learnset": [
       [1, "Vine Whip"],
@@ -2748,6 +2818,7 @@
       "Special Defense": 70,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Gluttony"],
     "learnset": [
       [1, "Weather Ball"],
@@ -2784,6 +2855,7 @@
       "Special Defense": 100,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Clear Body", "Liquid Ooze"],
     "learnset": [
       [1, "Poison Sting"],
@@ -2816,6 +2888,7 @@
       "Special Defense": 120,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Clear Body", "Liquid Ooze"],
     "learnset": [
       [1, "Poison Sting"],
@@ -2848,6 +2921,7 @@
       "Special Defense": 30,
       "Speed": 20
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Tackle"],
@@ -2891,6 +2965,7 @@
       "Special Defense": 45,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Tackle"],
@@ -2935,6 +3010,7 @@
       "Special Defense": 65,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Fire Punch"],
@@ -2984,6 +3060,7 @@
       "Special Defense": 65,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Flame Body", "Flash Fire"],
     "learnset": [
       [1, "Tackle"],
@@ -3017,6 +3094,7 @@
       "Special Defense": 80,
       "Speed": 105
     },
+    "base friendship": 70,
     "abilities": ["Flame Body", "Flash Fire"],
     "learnset": [
       [1, "Poison Jab"],
@@ -3054,6 +3132,7 @@
       "Special Defense": 40,
       "Speed": 15
     },
+    "base friendship": 70,
     "abilities": ["Oblivious", "Own Tempo"],
     "learnset": [
       [1, "Curse"],
@@ -3098,6 +3177,7 @@
       "Special Defense": 80,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Oblivious", "Own Tempo"],
     "learnset": [
       [1, "Curse"],
@@ -3146,6 +3226,7 @@
       "Special Defense": 55,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Magnet Pull", "Sturdy"],
     "genderless": true,
     "learnset": [
@@ -3189,6 +3270,7 @@
       "Special Defense": 70,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Magnet Pull", "Sturdy"],
     "genderless": true,
     "learnset": [
@@ -3233,6 +3315,7 @@
       "Special Defense": 60,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Super Luck", "Keen Eye"],
     "learnset": [
       [1, "Peck"],
@@ -3282,6 +3365,7 @@
       "Special Defense": 35,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Tangled Feet", "Early Bird"],
     "learnset": [
       [1, "Peck"],
@@ -3324,6 +3408,7 @@
       "Special Defense": 60,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Tangled Feet", "Early Bird"],
     "learnset": [
       [1, "High Jump Kick"],
@@ -3369,6 +3454,7 @@
       "Special Defense": 70,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Hydration"],
     "learnset": [
       [1, "Headbutt"],
@@ -3405,6 +3491,7 @@
       "Special Defense": 95,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Hydration"],
     "learnset": [
       [1, "Headbutt"],
@@ -3442,6 +3529,7 @@
       "Special Defense": 50,
       "Speed": 25
     },
+    "base friendship": 70,
     "abilities": ["Stench", "Sticky Hold"],
     "learnset": [
       [1, "Curse"],
@@ -3483,6 +3571,7 @@
       "Special Defense": 100,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Stench", "Sticky Hold"],
     "learnset": [
       [1, "Moonblast"],
@@ -3526,6 +3615,7 @@
       "Special Defense": 25,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Skill Link", "Shell Armor"],
     "learnset": [
       [1, "Tackle"],
@@ -3558,6 +3648,7 @@
       "Special Defense": 45,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Skill Link", "Shell Armor"],
     "learnset": [
       [1, "Hydro Pump"],
@@ -3592,6 +3683,7 @@
       "Special Defense": 35,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Poison Gas"],
@@ -3638,6 +3730,7 @@
       "Special Defense": 55,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Poison Gas"],
@@ -3685,6 +3778,7 @@
       "Special Defense": 75,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Poison Gas"],
@@ -3733,6 +3827,7 @@
       "Special Defense": 45,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Mud Sport"],
@@ -3775,6 +3870,7 @@
       "Special Defense": 90,
       "Speed": 42
     },
+    "base friendship": 70,
     "abilities": ["Insomnia", "Forewarn"],
     "learnset": [
       [1, "Dream Eater"],
@@ -3817,6 +3913,7 @@
       "Special Defense": 115,
       "Speed": 67
     },
+    "base friendship": 70,
     "abilities": ["Insomnia", "Forewarn"],
     "learnset": [
       [1, "Nightmare"],
@@ -3861,6 +3958,7 @@
       "Special Defense": 25,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Hyper Cutter", "Shell Armor"],
     "learnset": [
       [1, "Bubble"],
@@ -3904,6 +4002,7 @@
       "Special Defense": 50,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Hyper Cutter", "Shell Armor"],
     "learnset": [
       [1, "Superpower"],
@@ -3951,6 +4050,7 @@
       "Special Defense": 55,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Soundproof", "Static"],
     "genderless": true,
     "learnset": [
@@ -3993,6 +4093,7 @@
       "Special Defense": 80,
       "Speed": 150
     },
+    "base friendship": 70,
     "abilities": ["Soundproof", "Static"],
     "genderless": true,
     "learnset": [
@@ -4035,6 +4136,7 @@
       "Special Defense": 45,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Chlorophyll"],
     "learnset": [
       [1, "Egg Bomb"],
@@ -4076,6 +4178,7 @@
       "Special Defense": 75,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Chlorophyll"],
     "learnset": [
       [1, "Power Whip"],
@@ -4108,6 +4211,7 @@
       "Special Defense": 50,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Lightning Rod"],
     "learnset": [
       [1, "Growl"],
@@ -4155,6 +4259,7 @@
       "Special Defense": 80,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Lightning Rod"],
     "learnset": [
       [1, "Growl"],
@@ -4204,6 +4309,7 @@
       "Special Defense": 110,
       "Speed": 87
     },
+    "base friendship": 70,
     "abilities": ["Reckless", "Limber"],
     "learnset": [
       [1, "Revenge"],
@@ -4247,6 +4353,7 @@
       "Special Defense": 110,
       "Speed": 76
     },
+    "base friendship": 70,
     "abilities": ["Iron Fist", "Keen Eye"],
     "learnset": [
       [1, "Revenge"],
@@ -4290,6 +4397,7 @@
       "Special Defense": 75,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Own Tempo", "Oblivious"],
     "learnset": [
       [1, "Lick"],
@@ -4337,6 +4445,7 @@
       "Special Defense": 45,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Tackle"],
@@ -4370,6 +4479,7 @@
       "Special Defense": 70,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Psybeam"],
@@ -4405,6 +4515,7 @@
       "Special Defense": 30,
       "Speed": 25
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Reckless"],
     "learnset": [
       [1, "Horn Attack"],
@@ -4451,6 +4562,7 @@
       "Special Defense": 45,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Reckless"],
     "learnset": [
       [1, "Thunder Fang"],
@@ -4504,6 +4616,7 @@
       "Special Defense": 105,
       "Speed": 50
     },
+    "base friendship": 140,
     "abilities": ["Serene Grace", "Natural Cure"],
     "learnset": [
       [1, "Double-Edge"],
@@ -4553,6 +4666,7 @@
       "Special Defense": 40,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Leaf Guard"],
     "learnset": [
       [1, "Absorb"],
@@ -4588,6 +4702,7 @@
       "Special Defense": 80,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Scrappy", "Early Bird"],
     "learnset": [
       [1, "Comet Punch"],
@@ -4637,6 +4752,7 @@
       "Special Defense": 25,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Sniper"],
     "learnset": [
       [1, "Bubble"],
@@ -4679,6 +4795,7 @@
       "Special Defense": 45,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Sniper"],
     "learnset": [
       [1, "Disable"],
@@ -4722,6 +4839,7 @@
       "Special Defense": 50,
       "Speed": 73
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Water Veil"],
     "learnset": [
       [1, "Peck"],
@@ -4767,6 +4885,7 @@
       "Special Defense": 80,
       "Speed": 78
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Water Veil"],
     "learnset": [
       [1, "Poison Jab"],
@@ -4813,6 +4932,7 @@
       "Special Defense": 55,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Illuminate", "Natural Cure"],
     "genderless": true,
     "learnset": [
@@ -4856,6 +4976,7 @@
       "Special Defense": 85,
       "Speed": 115
     },
+    "base friendship": 70,
     "abilities": ["Illuminate", "Natural Cure"],
     "genderless": true,
     "learnset": [
@@ -4889,6 +5010,7 @@
       "Special Defense": 120,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Filter", "Technician"],
     "learnset": [
       [1, "Magical Leaf"],
@@ -4937,6 +5059,7 @@
       "Special Defense": 80,
       "Speed": 105
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Swarm"],
     "learnset": [
       [1, "Vacuum Wave"],
@@ -4974,6 +5097,7 @@
       "Special Defense": 95,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Dry Skin", "Forewarn"],
     "learnset": [
       [1, "Draining Kiss"],
@@ -5020,6 +5144,7 @@
       "Special Defense": 85,
       "Speed": 105
     },
+    "base friendship": 70,
     "abilities": ["Static", "Vital Spirit"],
     "learnset": [
       [1, "Quick Attack"],
@@ -5063,6 +5188,7 @@
       "Special Defense": 85,
       "Speed": 93
     },
+    "base friendship": 70,
     "abilities": ["Flame Body", "Vital Spirit"],
     "learnset": [
       [1, "Smog"],
@@ -5103,6 +5229,7 @@
       "Special Defense": 70,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Hyper Cutter", "Mold Breaker"],
     "learnset": [
       [1, "Vice Grip"],
@@ -5144,6 +5271,7 @@
       "Special Defense": 70,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Anger Point"],
     "learnset": [
       [1, "Tackle"],
@@ -5190,6 +5318,7 @@
       "Special Defense": 20,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Swift Swim"],
     "learnset": [
       [1, "Splash"],
@@ -5210,6 +5339,7 @@
       "Special Defense": 100,
       "Speed": 81
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Intimidate"],
     "learnset": [
       [1, "Thrash"],
@@ -5253,6 +5383,7 @@
       "Special Defense": 95,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Water Absorb", "Shell Armor"],
     "learnset": [
       [1, "Sing"],
@@ -5300,6 +5431,7 @@
       "Special Defense": 48,
       "Speed": 48
     },
+    "base friendship": 70,
     "abilities": ["Limber", "Limber"],
     "genderless": true,
     "learnset": [[1, "Transform"]],
@@ -5316,6 +5448,7 @@
       "Special Defense": 65,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Run Away", "Adaptability"],
     "learnset": [
       [1, "Helping Hand"],
@@ -5351,6 +5484,7 @@
       "Special Defense": 95,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Water Absorb", "Water Absorb"],
     "learnset": [
       [1, "Helping Hand"],
@@ -5396,6 +5530,7 @@
       "Special Defense": 95,
       "Speed": 130
     },
+    "base friendship": 70,
     "abilities": ["Volt Absorb", "Volt Absorb"],
     "learnset": [
       [1, "Helping Hand"],
@@ -5439,6 +5574,7 @@
       "Special Defense": 65,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Flash Fire", "Flash Fire"],
     "learnset": [
       [1, "Helping Hand"],
@@ -5482,6 +5618,7 @@
       "Special Defense": 75,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Trace", "Download"],
     "genderless": true,
     "learnset": [
@@ -5527,6 +5664,7 @@
       "Special Defense": 55,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Shell Armor"],
     "learnset": [
       [1, "Water Gun"],
@@ -5569,6 +5707,7 @@
       "Special Defense": 70,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Shell Armor"],
     "learnset": [
       [1, "Spikes"],
@@ -5614,6 +5753,7 @@
       "Special Defense": 45,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Battle Armor"],
     "learnset": [
       [1, "Scratch"],
@@ -5656,6 +5796,7 @@
       "Special Defense": 70,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Battle Armor"],
     "learnset": [
       [1, "Feint"],
@@ -5706,6 +5847,7 @@
       "Special Defense": 75,
       "Speed": 130
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Pressure"],
     "learnset": [
       [1, "Ice Fang"],
@@ -5754,6 +5896,7 @@
       "Special Defense": 110,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Immunity"],
     "learnset": [
       [1, "Slack Off"],
@@ -5805,6 +5948,7 @@
       "Special Defense": 125,
       "Speed": 85
     },
+    "base friendship": 35,
     "abilities": ["Pressure", "Snow Cloak"],
     "genderless": true,
     "learnset": [
@@ -5848,6 +5992,7 @@
       "Special Defense": 90,
       "Speed": 100
     },
+    "base friendship": 35,
     "abilities": ["Pressure", "Static"],
     "genderless": true,
     "learnset": [
@@ -5891,6 +6036,7 @@
       "Special Defense": 85,
       "Speed": 90
     },
+    "base friendship": 35,
     "abilities": ["Pressure", "Flame Body"],
     "genderless": true,
     "learnset": [
@@ -5933,6 +6079,7 @@
       "Special Defense": 50,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Marvel Scale", "Shed Skin"],
     "learnset": [
       [1, "Wrap"],
@@ -5973,6 +6120,7 @@
       "Special Defense": 70,
       "Speed": 70
     },
+    "base friendship": 35,
     "abilities": ["Marvel Scale", "Shed Skin"],
     "learnset": [
       [1, "Wrap"],
@@ -6013,6 +6161,7 @@
       "Special Defense": 100,
       "Speed": 80
     },
+    "base friendship": 35,
     "abilities": ["Marvel Scale", "Inner Focus"],
     "learnset": [
       [1, "Fire Punch"],
@@ -6069,6 +6218,7 @@
       "Special Defense": 90,
       "Speed": 130
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -6117,6 +6267,7 @@
       "Special Defense": 100,
       "Speed": 100
     },
+    "base friendship": 100,
     "abilities": ["Synchronize", "Synchronize"],
     "genderless": true,
     "learnset": [
@@ -6193,6 +6344,7 @@
       "Special Defense": 65,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Serene Grace", "Overgrow"],
     "learnset": [
       [1, "Tackle"],
@@ -6233,6 +6385,7 @@
       "Special Defense": 80,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Serene Grace", "Overgrow"],
     "learnset": [
       [1, "Tackle"],
@@ -6274,6 +6427,7 @@
       "Special Defense": 100,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Serene Grace", "Overgrow"],
     "learnset": [
       [1, "Earth Power"],
@@ -6320,6 +6474,7 @@
       "Special Defense": 50,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Adaptability", "Blaze"],
     "learnset": [
       [1, "Tackle"],
@@ -6352,6 +6507,7 @@
       "Special Defense": 65,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Adaptability", "Blaze"],
     "learnset": [
       [1, "Tackle"],
@@ -6392,6 +6548,7 @@
       "Special Defense": 80,
       "Speed": 101
     },
+    "base friendship": 70,
     "abilities": ["Adaptability", "Blaze"],
     "learnset": [
       [1, "Fire Punch"],
@@ -6439,6 +6596,7 @@
       "Special Defense": 48,
       "Speed": 43
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Torrent"],
     "learnset": [
       [1, "Scratch"],
@@ -6483,6 +6641,7 @@
       "Special Defense": 63,
       "Speed": 58
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Torrent"],
     "learnset": [
       [1, "Scratch"],
@@ -6529,6 +6688,7 @@
       "Special Defense": 83,
       "Speed": 78
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Torrent"],
     "learnset": [
       [1, "Low Kick"],
@@ -6580,6 +6740,7 @@
       "Special Defense": 45,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Run Away", "Keen Eye"],
     "learnset": [
       [1, "Scratch"],
@@ -6629,6 +6790,7 @@
       "Special Defense": 55,
       "Speed": 105
     },
+    "base friendship": 70,
     "abilities": ["Scrappy", "Run Away"],
     "learnset": [
       [1, "Extreme Speed"],
@@ -6680,6 +6842,7 @@
       "Special Defense": 56,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Tinted Lens", "Insomnia"],
     "learnset": [
       [1, "Tackle"],
@@ -6723,6 +6886,7 @@
       "Special Defense": 116,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Tinted Lens", "Insomnia"],
     "learnset": [
       [1, "Sky Attack"],
@@ -6769,6 +6933,7 @@
       "Special Defense": 80,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Iron Fist"],
     "learnset": [
       [1, "Tackle"],
@@ -6814,6 +6979,7 @@
       "Special Defense": 110,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Iron Fist"],
     "learnset": [
       [1, "Ice Punch"],
@@ -6861,6 +7027,7 @@
       "Special Defense": 40,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Swarm", "Insomnia"],
     "learnset": [
       [1, "Poison Sting"],
@@ -6896,6 +7063,7 @@
       "Special Defense": 70,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Swarm", "Insomnia"],
     "learnset": [
       [1, "Focus Energy"],
@@ -6933,6 +7101,7 @@
       "Special Defense": 80,
       "Speed": 130
     },
+    "base friendship": 70,
     "abilities": ["Inner Focus", "Inner Focus"],
     "learnset": [
       [1, "Cross Poison"],
@@ -6978,6 +7147,7 @@
       "Special Defense": 56,
       "Speed": 67
     },
+    "base friendship": 70,
     "abilities": ["Volt Absorb", "Water Absorb"],
     "learnset": [
       [1, "Bubble"],
@@ -7018,6 +7188,7 @@
       "Special Defense": 76,
       "Speed": 67
     },
+    "base friendship": 70,
     "abilities": ["Volt Absorb", "Water Absorb"],
     "learnset": [
       [1, "Bubble"],
@@ -7059,6 +7230,7 @@
       "Special Defense": 35,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Static", "Lightning Rod"],
     "learnset": [
       [1, "Thunder Shock"],
@@ -7092,6 +7264,7 @@
       "Special Defense": 55,
       "Speed": 15
     },
+    "base friendship": 140,
     "abilities": ["Cute Charm", "Magic Guard"],
     "learnset": [
       [1, "Pound"],
@@ -7129,6 +7302,7 @@
       "Special Defense": 20,
       "Speed": 15
     },
+    "base friendship": 70,
     "abilities": ["Cute Charm", "Magic Guard"],
     "learnset": [
       [1, "Sing"],
@@ -7160,6 +7334,7 @@
       "Special Defense": 65,
       "Speed": 20
     },
+    "base friendship": 70,
     "abilities": ["Serene Grace", "Super Luck"],
     "learnset": [
       [1, "Growl"],
@@ -7207,6 +7382,7 @@
       "Special Defense": 105,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Serene Grace", "Super Luck"],
     "learnset": [
       [1, "Magical Leaf"],
@@ -7259,6 +7435,7 @@
       "Special Defense": 45,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Synchronize", "Early Bird"],
     "learnset": [
       [1, "Peck"],
@@ -7303,6 +7480,7 @@
       "Special Defense": 70,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Synchronize", "Early Bird"],
     "learnset": [
       [1, "Tailwind"],
@@ -7350,6 +7528,7 @@
       "Special Defense": 45,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Static", "Static"],
     "learnset": [
       [1, "Tackle"],
@@ -7382,6 +7561,7 @@
       "Special Defense": 60,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Static", "Static"],
     "learnset": [
       [1, "Tackle"],
@@ -7421,6 +7601,7 @@
       "Special Defense": 90,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Static", "Static"],
     "learnset": [
       [1, "Tail Glow"],
@@ -7467,6 +7648,7 @@
       "Special Defense": 100,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Own Tempo"],
     "learnset": [
       [1, "Moonblast"],
@@ -7496,6 +7678,7 @@
       "Special Defense": 50,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Huge Power", "Thick Fat"],
     "learnset": [
       [1, "Tackle"],
@@ -7542,6 +7725,7 @@
       "Special Defense": 80,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Huge Power", "Thick Fat"],
     "learnset": [
       [1, "Hydro Pump"],
@@ -7591,6 +7775,7 @@
       "Special Defense": 75,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Wood Hammer"],
@@ -7637,6 +7822,7 @@
       "Special Defense": 100,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Drizzle", "Damp"],
     "learnset": [
       [1, "Encore"],
@@ -7669,6 +7855,7 @@
       "Special Defense": 55,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Leaf Guard"],
     "learnset": [
       [1, "Splash"],
@@ -7706,6 +7893,7 @@
       "Special Defense": 65,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Leaf Guard"],
     "learnset": [
       [1, "Splash"],
@@ -7743,6 +7931,7 @@
       "Special Defense": 95,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Leaf Guard"],
     "learnset": [
       [1, "Splash"],
@@ -7780,6 +7969,7 @@
       "Special Defense": 55,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Run Away", "Pickup"],
     "learnset": [
       [1, "Scratch"],
@@ -7830,6 +8020,7 @@
       "Special Defense": 30,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Solar Power"],
     "learnset": [
       [1, "Absorb"],
@@ -7873,6 +8064,7 @@
       "Special Defense": 95,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Solar Power"],
     "learnset": [
       [1, "Absorb"],
@@ -7917,6 +8109,7 @@
       "Special Defense": 45,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Speed Boost", "Compound Eyes"],
     "learnset": [
       [1, "Tackle"],
@@ -7960,6 +8153,7 @@
       "Special Defense": 25,
       "Speed": 15
     },
+    "base friendship": 70,
     "abilities": ["Water Absorb", "Unaware"],
     "learnset": [
       [1, "Water Gun"],
@@ -8005,6 +8199,7 @@
       "Special Defense": 65,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Water Absorb", "Unaware"],
     "learnset": [
       [1, "Water Gun"],
@@ -8050,6 +8245,7 @@
       "Special Defense": 95,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Synchronize", "Synchronize"],
     "learnset": [
       [1, "Helping Hand"],
@@ -8094,6 +8290,7 @@
       "Special Defense": 130,
       "Speed": 65
     },
+    "base friendship": 35,
     "abilities": ["Synchronize", "Synchronize"],
     "learnset": [
       [1, "Helping Hand"],
@@ -8137,6 +8334,7 @@
       "Special Defense": 42,
       "Speed": 91
     },
+    "base friendship": 35,
     "abilities": ["Super Luck", "Insomnia"],
     "learnset": [
       [1, "Peck"],
@@ -8180,6 +8378,7 @@
       "Special Defense": 110,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Oblivious", "Own Tempo"],
     "learnset": [
       [1, "Power Gem"],
@@ -8230,6 +8429,7 @@
       "Special Defense": 85,
       "Speed": 85
     },
+    "base friendship": 35,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Psywave"],
@@ -8275,6 +8475,7 @@
       "Special Defense": 54,
       "Speed": 54
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -8298,6 +8499,7 @@
       "Special Defense": 58,
       "Speed": 33
     },
+    "base friendship": 70,
     "abilities": ["Shadow Tag", "Shadow Tag"],
     "learnset": [
       [1, "Splash"],
@@ -8321,6 +8523,7 @@
       "Special Defense": 65,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Inner Focus", "Early Bird"],
     "learnset": [
       [1, "Power Swap"],
@@ -8366,6 +8569,7 @@
       "Special Defense": 35,
       "Speed": 15
     },
+    "base friendship": 70,
     "abilities": ["Sturdy", "Sturdy"],
     "learnset": [
       [1, "Revenge"],
@@ -8400,6 +8604,7 @@
       "Special Defense": 60,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Sturdy", "Sturdy"],
     "learnset": [
       [1, "Power Trick"],
@@ -8437,6 +8642,7 @@
       "Special Defense": 55,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Serene Grace", "Run Away"],
     "learnset": [
       [1, "Rage"],
@@ -8484,6 +8690,7 @@
       "Special Defense": 65,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Immunity", "Hyper Cutter"],
     "learnset": [
       [1, "Poison Sting"],
@@ -8525,6 +8732,7 @@
       "Special Defense": 65,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Thunder Fang"],
@@ -8572,6 +8780,7 @@
       "Special Defense": 40,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Run Away"],
     "learnset": [
       [1, "Lovely Kiss"],
@@ -8616,6 +8825,7 @@
       "Special Defense": 60,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Quick Feet"],
     "learnset": [
       [1, "Lovely Kiss"],
@@ -8661,6 +8871,7 @@
       "Special Defense": 55,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Swift Swim"],
     "learnset": [
       [1, "Water Gun"],
@@ -8706,6 +8917,7 @@
       "Special Defense": 80,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Swarm"],
     "learnset": [
       [1, "Bullet Punch"],
@@ -8752,6 +8964,7 @@
       "Special Defense": 230,
       "Speed": 5
     },
+    "base friendship": 70,
     "abilities": ["Sturdy", "Gluttony"],
     "learnset": [
       [1, "Bide"],
@@ -8794,6 +9007,7 @@
       "Special Defense": 95,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Guts", "Skill Link"],
     "learnset": [
       [1, "Arm Thrust"],
@@ -8837,6 +9051,7 @@
       "Special Defense": 75,
       "Speed": 115
     },
+    "base friendship": 35,
     "abilities": ["Technician", "Inner Focus"],
     "learnset": [
       [1, "Scratch"],
@@ -8879,6 +9094,7 @@
       "Special Defense": 50,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Pickup", "Quick Feet"],
     "learnset": [
       [1, "Scratch"],
@@ -8929,6 +9145,7 @@
       "Special Defense": 75,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Guts", "Quick Feet"],
     "learnset": [
       [1, "Scratch"],
@@ -8980,6 +9197,7 @@
       "Special Defense": 50,
       "Speed": 20
     },
+    "base friendship": 70,
     "abilities": ["Magma Armor", "Flame Body"],
     "learnset": [
       [1, "Yawn"],
@@ -9022,6 +9240,7 @@
       "Special Defense": 100,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Solid Rock", "Flame Body"],
     "learnset": [
       [1, "Yawn"],
@@ -9064,6 +9283,7 @@
       "Special Defense": 30,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Snow Cloak"],
     "learnset": [
       [1, "Tackle"],
@@ -9106,6 +9326,7 @@
       "Special Defense": 60,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Snow Cloak"],
     "learnset": [
       [1, "Ancient Power"],
@@ -9150,6 +9371,7 @@
       "Special Defense": 115,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Hustle", "Natural Cure"],
     "learnset": [
       [1, "Tackle"],
@@ -9195,6 +9417,7 @@
       "Special Defense": 35,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Hustle", "Sniper"],
     "learnset": [
       [1, "Water Gun"],
@@ -9238,6 +9461,7 @@
       "Special Defense": 75,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Suction Cups", "Sniper"],
     "learnset": [
       [1, "Rock Blast"],
@@ -9285,6 +9509,7 @@
       "Special Defense": 50,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Hustle"],
     "learnset": [
       [1, "Fake Out"],
@@ -9329,6 +9554,7 @@
       "Special Defense": 140,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Water Absorb"],
     "learnset": [
       [1, "Psybeam"],
@@ -9380,6 +9606,7 @@
       "Special Defense": 70,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Keen Eye", "Sturdy"],
     "learnset": [
       [1, "Brave Bird"],
@@ -9427,6 +9654,7 @@
       "Special Defense": 50,
       "Speed": 65
     },
+    "base friendship": 35,
     "abilities": ["Intimidate", "Flash Fire"],
     "learnset": [
       [1, "Ember"],
@@ -9467,6 +9695,7 @@
       "Special Defense": 80,
       "Speed": 95
     },
+    "base friendship": 35,
     "abilities": ["Intimidate", "Flash Fire"],
     "learnset": [
       [1, "Nasty Plot"],
@@ -9508,6 +9737,7 @@
       "Special Defense": 95,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Sniper"],
     "learnset": [
       [1, "Yawn"],
@@ -9555,6 +9785,7 @@
       "Special Defense": 40,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Sand Veil", "Pickup"],
     "learnset": [
       [1, "Odor Sleuth"],
@@ -9601,6 +9832,7 @@
       "Special Defense": 60,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Sand Veil", "Sturdy"],
     "learnset": [
       [1, "Fire Fang"],
@@ -9651,6 +9883,7 @@
       "Special Defense": 95,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Trace", "Download"],
     "genderless": true,
     "learnset": [
@@ -9696,6 +9929,7 @@
       "Special Defense": 65,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Frisk"],
     "learnset": [
       [1, "Me First"],
@@ -9743,6 +9977,7 @@
       "Special Defense": 45,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Own Tempo"],
     "learnset": [
       [1, "Sketch"],
@@ -9779,6 +10014,7 @@
       "Special Defense": 35,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Steadfast", "Guts"],
     "learnset": [
       [1, "Tackle"],
@@ -9809,6 +10045,7 @@
       "Special Defense": 110,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Intimidate"],
     "learnset": [
       [1, "Revenge"],
@@ -9852,6 +10089,7 @@
       "Special Defense": 65,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Hydration", "Forewarn"],
     "learnset": [
       [1, "Pound"],
@@ -9897,6 +10135,7 @@
       "Special Defense": 55,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Static", "Vital Spirit"],
     "learnset": [
       [1, "Quick Attack"],
@@ -9941,6 +10180,7 @@
       "Special Defense": 55,
       "Speed": 83
     },
+    "base friendship": 70,
     "abilities": ["Flame Body", "Vital Spirit"],
     "learnset": [
       [1, "Smog"],
@@ -9982,6 +10222,7 @@
       "Special Defense": 70,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Scrappy"],
     "learnset": [
       [1, "Tackle"],
@@ -10024,6 +10265,7 @@
       "Special Defense": 135,
       "Speed": 55
     },
+    "base friendship": 140,
     "abilities": ["Serene Grace", "Natural Cure"],
     "learnset": [
       [1, "Double-Edge"],
@@ -10073,6 +10315,7 @@
       "Special Defense": 100,
       "Speed": 115
     },
+    "base friendship": 35,
     "abilities": ["Pressure", "Inner Focus"],
     "genderless": true,
     "learnset": [
@@ -10114,6 +10357,7 @@
       "Special Defense": 75,
       "Speed": 100
     },
+    "base friendship": 35,
     "abilities": ["Pressure", "Inner Focus"],
     "genderless": true,
     "learnset": [
@@ -10148,6 +10392,7 @@
       "Special Defense": 115,
       "Speed": 85
     },
+    "base friendship": 35,
     "abilities": ["Pressure", "Inner Focus"],
     "genderless": true,
     "learnset": [
@@ -10191,6 +10436,7 @@
       "Special Defense": 50,
       "Speed": 41
     },
+    "base friendship": 35,
     "abilities": ["Guts", "Guts"],
     "learnset": [
       [1, "Leer"],
@@ -10233,6 +10479,7 @@
       "Special Defense": 70,
       "Speed": 51
     },
+    "base friendship": 35,
     "abilities": ["Shed Skin", "Shed Skin"],
     "learnset": [
       [1, "Leer"],
@@ -10276,6 +10523,7 @@
       "Special Defense": 100,
       "Speed": 61
     },
+    "base friendship": 35,
     "abilities": ["Sand Stream", "Sand Stream"],
     "learnset": [
       [1, "Thunder Fang"],
@@ -10328,6 +10576,7 @@
       "Special Defense": 154,
       "Speed": 110
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -10377,6 +10626,7 @@
       "Special Defense": 154,
       "Speed": 90
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -10423,6 +10673,7 @@
       "Special Defense": 100,
       "Speed": 100
     },
+    "base friendship": 100,
     "abilities": ["Natural Cure", "Natural Cure"],
     "genderless": true,
     "learnset": [
@@ -10471,6 +10722,7 @@
       "Special Defense": 55,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Unburden", "Overgrow"],
     "learnset": [
       [1, "Pound"],
@@ -10512,6 +10764,7 @@
       "Special Defense": 65,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Unburden", "Overgrow"],
     "learnset": [
       [1, "Pound"],
@@ -10554,6 +10807,7 @@
       "Special Defense": 80,
       "Speed": 120
     },
+    "base friendship": 70,
     "abilities": ["Unburden", "Overgrow"],
     "learnset": [
       [1, "Grass Whistle"],
@@ -10603,6 +10857,7 @@
       "Special Defense": 50,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Speed Boost", "Blaze"],
     "learnset": [
       [1, "Scratch"],
@@ -10644,6 +10899,7 @@
       "Special Defense": 60,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Speed Boost", "Blaze"],
     "learnset": [
       [1, "Scratch"],
@@ -10690,6 +10946,7 @@
       "Special Defense": 70,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Speed Boost", "Blaze"],
     "learnset": [
       [1, "High Jump Kick"],
@@ -10742,6 +10999,7 @@
       "Special Defense": 50,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Torrent", "Damp"],
     "learnset": [
       [1, "Tackle"],
@@ -10784,6 +11042,7 @@
       "Special Defense": 70,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Torrent", "Damp"],
     "learnset": [
       [1, "Mud Shot"],
@@ -10830,6 +11089,7 @@
       "Special Defense": 90,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Torrent", "Damp"],
     "learnset": [
       [1, "Avalanche"],
@@ -10881,6 +11141,7 @@
       "Special Defense": 30,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Run Away", "Quick Feet"],
     "learnset": [
       [1, "Tackle"],
@@ -10913,6 +11174,7 @@
       "Special Defense": 60,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Quick Feet"],
     "learnset": [
       [1, "Sucker Punch"],
@@ -10950,6 +11212,7 @@
       "Special Defense": 41,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Pickup", "Gluttony"],
     "learnset": [
       [1, "Tackle"],
@@ -10994,6 +11257,7 @@
       "Special Defense": 60,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Pickup", "Gluttony"],
     "learnset": [
       [1, "Extreme Speed"],
@@ -11042,6 +11306,7 @@
       "Special Defense": 30,
       "Speed": 20
     },
+    "base friendship": 70,
     "abilities": ["Shield Dust", "Run Away"],
     "learnset": [
       [1, "Tackle"],
@@ -11062,6 +11327,7 @@
       "Special Defense": 25,
       "Speed": 15
     },
+    "base friendship": 70,
     "abilities": ["Shed Skin", "Shed Skin"],
     "learnset": [
       [1, "Harden"],
@@ -11081,6 +11347,7 @@
       "Special Defense": 60,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Swarm", "Rivalry"],
     "learnset": [
       [1, "Absorb"],
@@ -11119,6 +11386,7 @@
       "Special Defense": 25,
       "Speed": 15
     },
+    "base friendship": 70,
     "abilities": ["Shed Skin", "Shed Skin"],
     "learnset": [
       [1, "Harden"],
@@ -11138,6 +11406,7 @@
       "Special Defense": 115,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Shield Dust", "Compound Eyes"],
     "learnset": [
       [1, "Confusion"],
@@ -11176,6 +11445,7 @@
       "Special Defense": 50,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Rain Dish"],
     "learnset": [
       [1, "Astonish"],
@@ -11212,6 +11482,7 @@
       "Special Defense": 70,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Rain Dish"],
     "learnset": [
       [1, "Water Sport"],
@@ -11256,6 +11527,7 @@
       "Special Defense": 100,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Rain Dish"],
     "learnset": [
       [1, "Astonish"],
@@ -11290,6 +11562,7 @@
       "Special Defense": 30,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Early Bird"],
     "learnset": [
       [1, "Bide"],
@@ -11315,6 +11588,7 @@
       "Special Defense": 40,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Early Bird"],
     "learnset": [
       [1, "Pound"],
@@ -11353,6 +11627,7 @@
       "Special Defense": 60,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Early Bird"],
     "learnset": [
       [1, "Ominous Wind"],
@@ -11393,6 +11668,7 @@
       "Special Defense": 30,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Guts", "Scrappy"],
     "learnset": [
       [1, "Peck"],
@@ -11432,6 +11708,7 @@
       "Special Defense": 50,
       "Speed": 125
     },
+    "base friendship": 70,
     "abilities": ["Guts", "Scrappy"],
     "learnset": [
       [1, "Extreme Speed"],
@@ -11473,6 +11750,7 @@
       "Special Defense": 30,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Hydration", "Keen Eye"],
     "learnset": [
       [1, "Water Gun"],
@@ -11515,6 +11793,7 @@
       "Special Defense": 80,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Drizzle", "Keen Eye"],
     "learnset": [
       [1, "Hurricane"],
@@ -11564,6 +11843,7 @@
       "Special Defense": 55,
       "Speed": 40
     },
+    "base friendship": 35,
     "abilities": ["Synchronize", "Trace"],
     "learnset": [
       [1, "Teleport"],
@@ -11609,6 +11889,7 @@
       "Special Defense": 85,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Synchronize", "Trace"],
     "learnset": [
       [1, "Teleport"],
@@ -11654,6 +11935,7 @@
       "Special Defense": 115,
       "Speed": 80
     },
+    "base friendship": 35,
     "abilities": ["Synchronize", "Trace"],
     "learnset": [
       [1, "Aura Sphere"],
@@ -11701,6 +11983,7 @@
       "Special Defense": 55,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Swift Swim"],
     "learnset": [
       [1, "Bubble"],
@@ -11732,6 +12015,7 @@
       "Special Defense": 100,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Intimidate"],
     "learnset": [
       [1, "Bug Buzz"],
@@ -11777,6 +12061,7 @@
       "Special Defense": 60,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Poison Heal"],
     "learnset": [
       [1, "Absorb"],
@@ -11810,6 +12095,7 @@
       "Special Defense": 60,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Poison Heal"],
     "learnset": [
       [1, "Feint"],
@@ -11855,6 +12141,7 @@
       "Special Defense": 35,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Truant", "Truant"],
     "learnset": [
       [1, "Scratch"],
@@ -11894,6 +12181,7 @@
       "Special Defense": 55,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Vital Spirit", "Vital Spirit"],
     "learnset": [
       [1, "Scratch"],
@@ -11934,6 +12222,7 @@
       "Special Defense": 65,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Truant", "Truant"],
     "learnset": [
       [1, "Scratch"],
@@ -11977,6 +12266,7 @@
       "Special Defense": 30,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Compound Eyes", "Compound Eyes"],
     "learnset": [
       [1, "Scratch"],
@@ -12007,6 +12297,7 @@
       "Special Defense": 50,
       "Speed": 160
     },
+    "base friendship": 70,
     "abilities": ["Speed Boost", "Speed Boost"],
     "learnset": [
       [1, "Scratch"],
@@ -12053,6 +12344,7 @@
       "Special Defense": 30,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Wonder Guard", "Wonder Guard"],
     "genderless": true,
     "learnset": [
@@ -12092,6 +12384,7 @@
       "Special Defense": 23,
       "Speed": 28
     },
+    "base friendship": 70,
     "abilities": ["Soundproof", "Scrappy"],
     "learnset": [
       [1, "Pound"],
@@ -12134,6 +12427,7 @@
       "Special Defense": 43,
       "Speed": 48
     },
+    "base friendship": 70,
     "abilities": ["Soundproof", "Scrappy"],
     "learnset": [
       [1, "Pound"],
@@ -12176,6 +12470,7 @@
       "Special Defense": 73,
       "Speed": 68
     },
+    "base friendship": 70,
     "abilities": ["Soundproof", "Scrappy"],
     "learnset": [
       [1, "Ice Fang"],
@@ -12224,6 +12519,7 @@
       "Special Defense": 30,
       "Speed": 25
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Guts"],
     "learnset": [
       [1, "Tackle"],
@@ -12269,6 +12565,7 @@
       "Special Defense": 60,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Guts"],
     "learnset": [
       [1, "Bullet Punch"],
@@ -12316,6 +12613,7 @@
       "Special Defense": 40,
       "Speed": 20
     },
+    "base friendship": 70,
     "abilities": ["Huge Power", "Thick Fat"],
     "learnset": [
       [1, "Splash"],
@@ -12351,6 +12649,7 @@
       "Special Defense": 90,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Sturdy", "Magnet Pull"],
     "learnset": [
       [1, "Tackle"],
@@ -12396,6 +12695,7 @@
       "Special Defense": 40,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Cute Charm", "Normalize"],
     "learnset": [
       [1, "Tail Whip"],
@@ -12443,6 +12743,7 @@
       "Special Defense": 55,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Cute Charm", "Normalize"],
     "learnset": [
       [1, "Last Resort"],
@@ -12477,6 +12778,7 @@
       "Special Defense": 85,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Magic Guard", "Stall"],
     "learnset": [
       [1, "Scratch"],
@@ -12529,6 +12831,7 @@
       "Special Defense": 85,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Huge Power", "Intimidate"],
     "learnset": [
       [1, "Taunt"],
@@ -12578,6 +12881,7 @@
       "Special Defense": 40,
       "Speed": 30
     },
+    "base friendship": 35,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Tackle"],
@@ -12626,6 +12930,7 @@
       "Special Defense": 50,
       "Speed": 40
     },
+    "base friendship": 35,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Tackle"],
@@ -12674,6 +12979,7 @@
       "Special Defense": 60,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Metal Burst"],
@@ -12731,6 +13037,7 @@
       "Special Defense": 55,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Pure Power", "Pure Power"],
     "learnset": [
       [1, "Bide"],
@@ -12777,6 +13084,7 @@
       "Special Defense": 80,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Pure Power", "Pure Power"],
     "learnset": [
       [1, "Fire Punch"],
@@ -12826,6 +13134,7 @@
       "Special Defense": 40,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Static", "Lightning Rod"],
     "learnset": [
       [1, "Tackle"],
@@ -12861,6 +13170,7 @@
       "Special Defense": 60,
       "Speed": 105
     },
+    "base friendship": 70,
     "abilities": ["Static", "Lightning Rod"],
     "learnset": [
       [1, "Tackle"],
@@ -12896,6 +13206,7 @@
       "Special Defense": 85,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Plus", "Lightning Rod"],
     "learnset": [
       [1, "Growl"],
@@ -12942,6 +13253,7 @@
       "Special Defense": 95,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Minus", "Volt Absorb"],
     "learnset": [
       [1, "Growl"],
@@ -12988,6 +13300,7 @@
       "Special Defense": 85,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Swarm", "Illuminate"],
     "learnset": [
       [1, "Flash"],
@@ -13034,6 +13347,7 @@
       "Special Defense": 85,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Tinted Lens", "Oblivious"],
     "learnset": [
       [1, "Trick"],
@@ -13079,6 +13393,7 @@
       "Special Defense": 80,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Natural Cure"],
     "learnset": [
       [1, "Absorb"],
@@ -13123,6 +13438,7 @@
       "Special Defense": 53,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Liquid Ooze", "Sticky Hold"],
     "learnset": [
       [1, "Pound"],
@@ -13166,6 +13482,7 @@
       "Special Defense": 83,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Liquid Ooze", "Sticky Hold"],
     "learnset": [
       [1, "Gunk Shot"],
@@ -13212,6 +13529,7 @@
       "Special Defense": 20,
       "Speed": 65
     },
+    "base friendship": 35,
     "abilities": ["Speed Boost", "Rough Skin"],
     "learnset": [
       [1, "Leer"],
@@ -13257,6 +13575,7 @@
       "Special Defense": 40,
       "Speed": 95
     },
+    "base friendship": 35,
     "abilities": ["Speed Boost", "Rough Skin"],
     "learnset": [
       [1, "Feint"],
@@ -13306,6 +13625,7 @@
       "Special Defense": 35,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Water Veil", "Oblivious"],
     "learnset": [
       [1, "Curse"],
@@ -13342,6 +13662,7 @@
       "Special Defense": 45,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Water Veil", "Oblivious"],
     "learnset": [
       [1, "Curse"],
@@ -13378,6 +13699,7 @@
       "Special Defense": 45,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Simple", "Oblivious"],
     "learnset": [
       [1, "Growl"],
@@ -13409,6 +13731,7 @@
       "Special Defense": 75,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Solid Rock", "Magma Armor"],
     "learnset": [
       [1, "Growl"],
@@ -13450,6 +13773,7 @@
       "Special Defense": 70,
       "Speed": 20
     },
+    "base friendship": 70,
     "abilities": ["Drought", "White Smoke"],
     "learnset": [
       [1, "Ember"],
@@ -13491,6 +13815,7 @@
       "Special Defense": 80,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Own Tempo"],
     "learnset": [
       [1, "Splash"],
@@ -13534,6 +13859,7 @@
       "Special Defense": 110,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Own Tempo"],
     "learnset": [
       [1, "Splash"],
@@ -13582,6 +13908,7 @@
       "Special Defense": 75,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Own Tempo", "Tangled Feet"],
     "learnset": [
       [1, "Psycho Boost"],
@@ -13633,6 +13960,7 @@
       "Special Defense": 45,
       "Speed": 10
     },
+    "base friendship": 70,
     "abilities": ["Hyper Cutter", "Arena Trap"],
     "learnset": [
       [1, "Bite"],
@@ -13667,6 +13995,7 @@
       "Special Defense": 55,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Compound Eyes", "Levitate"],
     "learnset": [
       [1, "Sand Attack"],
@@ -13713,6 +14042,7 @@
       "Special Defense": 85,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Compound Eyes", "Levitate"],
     "learnset": [
       [1, "Dragon Dance"],
@@ -13764,6 +14094,7 @@
       "Special Defense": 40,
       "Speed": 35
     },
+    "base friendship": 35,
     "abilities": ["Water Absorb", "Sand Veil"],
     "learnset": [
       [1, "Poison Sting"],
@@ -13809,6 +14140,7 @@
       "Special Defense": 60,
       "Speed": 55
     },
+    "base friendship": 35,
     "abilities": ["Water Absorb", "Sand Veil"],
     "learnset": [
       [1, "Poison Sting"],
@@ -13856,6 +14188,7 @@
       "Special Defense": 75,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Cloud Nine", "Natural Cure"],
     "learnset": [
       [1, "Peck"],
@@ -13900,6 +14233,7 @@
       "Special Defense": 105,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Cloud Nine", "Natural Cure"],
     "learnset": [
       [1, "Play Rough"],
@@ -13948,6 +14282,7 @@
       "Special Defense": 60,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Immunity", "Immunity"],
     "learnset": [
       [1, "Scratch"],
@@ -13996,6 +14331,7 @@
       "Special Defense": 60,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Shed Skin", "Shed Skin"],
     "learnset": [
       [1, "Wrap"],
@@ -14038,6 +14374,7 @@
       "Special Defense": 85,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -14083,6 +14420,7 @@
       "Special Defense": 65,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -14128,6 +14466,7 @@
       "Special Defense": 41,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Oblivious", "Anticipation"],
     "learnset": [
       [1, "Mud-Slap"],
@@ -14170,6 +14509,7 @@
       "Special Defense": 71,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Oblivious", "Anticipation"],
     "learnset": [
       [1, "Zen Headbutt"],
@@ -14216,6 +14556,7 @@
       "Special Defense": 35,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Adaptability", "Hyper Cutter"],
     "learnset": [
       [1, "Bubble"],
@@ -14262,6 +14603,7 @@
       "Special Defense": 55,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Adaptability", "Hyper Cutter"],
     "learnset": [
       [1, "Bubble"],
@@ -14311,6 +14653,7 @@
       "Special Defense": 70,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -14354,6 +14697,7 @@
       "Special Defense": 120,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -14400,6 +14744,7 @@
       "Special Defense": 87,
       "Speed": 23
     },
+    "base friendship": 70,
     "abilities": ["Suction Cups", "Storm Drain"],
     "learnset": [
       [1, "Astonish"],
@@ -14442,6 +14787,7 @@
       "Special Defense": 107,
       "Speed": 43
     },
+    "base friendship": 70,
     "abilities": ["Suction Cups", "Storm Drain"],
     "learnset": [
       [1, "Power Whip"],
@@ -14485,6 +14831,7 @@
       "Special Defense": 50,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Battle Armor", "Swift Swim"],
     "learnset": [
       [1, "Scratch"],
@@ -14526,6 +14873,7 @@
       "Special Defense": 80,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Battle Armor", "Swift Swim"],
     "learnset": [
       [1, "Cross Poison"],
@@ -14571,6 +14919,7 @@
       "Special Defense": 55,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Adaptability"],
     "learnset": [
       [1, "Splash"],
@@ -14591,6 +14940,7 @@
       "Special Defense": 125,
       "Speed": 81
     },
+    "base friendship": 70,
     "abilities": ["Marvel Scale", "Cute Charm"],
     "learnset": [
       [1, "Wrap"],
@@ -14636,6 +14986,7 @@
       "Special Defense": 70,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Forecast", "Forecast"],
     "learnset": [
       [1, "Tackle"],
@@ -14665,6 +15016,7 @@
       "Special Defense": 120,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Color Change", "Color Change"],
     "learnset": [
       [1, "Thief"],
@@ -14718,6 +15070,7 @@
       "Special Defense": 33,
       "Speed": 45
     },
+    "base friendship": 35,
     "abilities": ["Insomnia", "Frisk"],
     "learnset": [
       [1, "Knock Off"],
@@ -14759,6 +15112,7 @@
       "Special Defense": 63,
       "Speed": 65
     },
+    "base friendship": 35,
     "abilities": ["Insomnia", "Frisk"],
     "learnset": [
       [1, "Knock Off"],
@@ -14802,6 +15156,7 @@
       "Special Defense": 90,
       "Speed": 25
     },
+    "base friendship": 35,
     "abilities": ["Frisk", "Levitate"],
     "learnset": [
       [1, "Leer"],
@@ -14840,6 +15195,7 @@
       "Special Defense": 130,
       "Speed": 25
     },
+    "base friendship": 35,
     "abilities": ["Frisk", "Pressure"],
     "learnset": [
       [1, "Fire Punch"],
@@ -14888,6 +15244,7 @@
       "Special Defense": 95,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Solar Power"],
     "learnset": [
       [1, "Leer"],
@@ -14934,6 +15291,7 @@
       "Special Defense": 100,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Healing Wish"],
@@ -14980,6 +15338,7 @@
       "Special Defense": 60,
       "Speed": 85
     },
+    "base friendship": 35,
     "abilities": ["Super Luck", "Pressure"],
     "learnset": [
       [1, "Knock Off"],
@@ -15029,6 +15388,7 @@
       "Special Defense": 48,
       "Speed": 23
     },
+    "base friendship": 70,
     "abilities": ["Shadow Tag", "Shadow Tag"],
     "learnset": [
       [1, "Splash"],
@@ -15052,6 +15412,7 @@
       "Special Defense": 50,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Inner Focus", "Ice Body"],
     "learnset": [
       [1, "Powder Snow"],
@@ -15084,6 +15445,7 @@
       "Special Defense": 60,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Ice Body"],
     "learnset": [
       [1, "Explosion"],
@@ -15128,6 +15490,7 @@
       "Special Defense": 50,
       "Speed": 25
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Ice Body"],
     "learnset": [
       [1, "Defense Curl"],
@@ -15170,6 +15533,7 @@
       "Special Defense": 70,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Ice Body"],
     "learnset": [
       [1, "Defense Curl"],
@@ -15213,6 +15577,7 @@
       "Special Defense": 90,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Ice Body"],
     "learnset": [
       [1, "Ice Fang"],
@@ -15260,6 +15625,7 @@
       "Special Defense": 55,
       "Speed": 32
     },
+    "base friendship": 70,
     "abilities": ["Shell Armor", "Battle Armor"],
     "learnset": [
       [1, "Clamp"],
@@ -15282,6 +15648,7 @@
       "Special Defense": 75,
       "Speed": 52
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Water Veil"],
     "learnset": [
       [1, "Whirlpool"],
@@ -15323,6 +15690,7 @@
       "Special Defense": 75,
       "Speed": 52
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Hydration"],
     "learnset": [
       [1, "Whirlpool"],
@@ -15364,6 +15732,7 @@
       "Special Defense": 65,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Swift Swim"],
     "learnset": [
       [1, "Tackle"],
@@ -15410,6 +15779,7 @@
       "Special Defense": 75,
       "Speed": 125
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Hydration"],
     "learnset": [
       [1, "Tackle"],
@@ -15444,6 +15814,7 @@
       "Special Defense": 30,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Rock Head", "Rock Head"],
     "learnset": [
       [1, "Dragon Breath"],
@@ -15486,6 +15857,7 @@
       "Special Defense": 50,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Rock Head", "Rock Head"],
     "learnset": [
       [1, "Rage"],
@@ -15530,6 +15902,7 @@
       "Special Defense": 80,
       "Speed": 100
     },
+    "base friendship": 35,
     "abilities": ["Intimidate", "Intimidate"],
     "learnset": [
       [1, "Fire Fang"],
@@ -15581,6 +15954,7 @@
       "Special Defense": 60,
       "Speed": 30
     },
+    "base friendship": 35,
     "abilities": ["Rock Head", "Clear Body"],
     "genderless": true,
     "learnset": [
@@ -15602,6 +15976,7 @@
       "Special Defense": 80,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Iron Fist", "Clear Body"],
     "genderless": true,
     "learnset": [
@@ -15651,6 +16026,7 @@
       "Special Defense": 90,
       "Speed": 70
     },
+    "base friendship": 35,
     "abilities": ["Iron Fist", "Clear Body"],
     "genderless": true,
     "learnset": [
@@ -15703,6 +16079,7 @@
       "Special Defense": 100,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Clear Body", "Clear Body"],
     "genderless": true,
     "learnset": [
@@ -15747,6 +16124,7 @@
       "Special Defense": 200,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Clear Body", "Clear Body"],
     "genderless": true,
     "learnset": [
@@ -15791,6 +16169,7 @@
       "Special Defense": 150,
       "Speed": 50
     },
+    "base friendship": 35,
     "abilities": ["Clear Body", "Clear Body"],
     "genderless": true,
     "learnset": [
@@ -15836,6 +16215,7 @@
       "Special Defense": 130,
       "Speed": 110
     },
+    "base friendship": 90,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Healing Wish"],
@@ -15883,6 +16263,7 @@
       "Special Defense": 110,
       "Speed": 110
     },
+    "base friendship": 90,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Memento"],
@@ -15929,6 +16310,7 @@
       "Special Defense": 140,
       "Speed": 90
     },
+    "base friendship": 0,
     "abilities": ["Drizzle", "Drizzle"],
     "genderless": true,
     "learnset": [
@@ -15971,6 +16353,7 @@
       "Special Defense": 90,
       "Speed": 90
     },
+    "base friendship": 0,
     "abilities": ["Drought", "Drought"],
     "genderless": true,
     "learnset": [
@@ -16014,6 +16397,7 @@
       "Special Defense": 90,
       "Speed": 95
     },
+    "base friendship": 0,
     "abilities": ["Air Lock", "Air Lock"],
     "genderless": true,
     "learnset": [
@@ -16059,6 +16443,7 @@
       "Special Defense": 100,
       "Speed": 100
     },
+    "base friendship": 100,
     "abilities": ["Serene Grace", "Serene Grace"],
     "genderless": true,
     "learnset": [
@@ -16111,6 +16496,7 @@
       "Special Defense": 50,
       "Speed": 150
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -16154,6 +16540,7 @@
       "Special Defense": 20,
       "Speed": 150
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -16192,6 +16579,7 @@
       "Special Defense": 160,
       "Speed": 90
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -16233,6 +16621,7 @@
       "Special Defense": 90,
       "Speed": 180
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -16272,6 +16661,7 @@
       "Special Defense": 55,
       "Speed": 31
     },
+    "base friendship": 70,
     "abilities": ["Overgrow", "Shell Armor"],
     "learnset": [
       [1, "Tackle"],
@@ -16310,6 +16700,7 @@
       "Special Defense": 65,
       "Speed": 36
     },
+    "base friendship": 70,
     "abilities": ["Overgrow", "Shell Armor"],
     "learnset": [
       [1, "Tackle"],
@@ -16349,6 +16740,7 @@
       "Special Defense": 85,
       "Speed": 56
     },
+    "base friendship": 70,
     "abilities": ["Overgrow", "Shell Armor"],
     "learnset": [
       [1, "Wood Hammer"],
@@ -16395,6 +16787,7 @@
       "Special Defense": 44,
       "Speed": 61
     },
+    "base friendship": 70,
     "abilities": ["Iron Fist", "Blaze"],
     "learnset": [
       [1, "Scratch"],
@@ -16439,6 +16832,7 @@
       "Special Defense": 52,
       "Speed": 81
     },
+    "base friendship": 70,
     "abilities": ["Iron Fist", "Blaze"],
     "learnset": [
       [1, "Scratch"],
@@ -16483,6 +16877,7 @@
       "Special Defense": 71,
       "Speed": 109
     },
+    "base friendship": 70,
     "abilities": ["Iron Fist", "Blaze"],
     "learnset": [
       [1, "Fire Punch"],
@@ -16531,6 +16926,7 @@
       "Special Defense": 56,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Torrent", "Vital Spirit"],
     "learnset": [
       [1, "Pound"],
@@ -16562,6 +16958,7 @@
       "Special Defense": 76,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Torrent", "Vital Spirit"],
     "learnset": [
       [1, "Tackle"],
@@ -16594,6 +16991,7 @@
       "Special Defense": 101,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Torrent", "Vital Spirit"],
     "learnset": [
       [1, "Feather Dance"],
@@ -16640,6 +17038,7 @@
       "Special Defense": 30,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Reckless", "Keen Eye"],
     "learnset": [
       [1, "Tackle"],
@@ -16680,6 +17079,7 @@
       "Special Defense": 40,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Reckless", "Intimidate"],
     "learnset": [
       [1, "Tackle"],
@@ -16720,6 +17120,7 @@
       "Special Defense": 60,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Reckless", "Intimidate"],
     "learnset": [
       [1, "Double-Edge"],
@@ -16763,6 +17164,7 @@
       "Special Defense": 40,
       "Speed": 31
     },
+    "base friendship": 70,
     "abilities": ["Simple", "Unaware"],
     "learnset": [
       [1, "Tackle"],
@@ -16805,6 +17207,7 @@
       "Special Defense": 65,
       "Speed": 71
     },
+    "base friendship": 70,
     "abilities": ["Simple", "Unaware"],
     "learnset": [
       [1, "Water Gun"],
@@ -16850,6 +17253,7 @@
       "Special Defense": 41,
       "Speed": 25
     },
+    "base friendship": 70,
     "abilities": ["Run Away", "Shed Skin"],
     "learnset": [
       [1, "Growl"],
@@ -16870,6 +17274,7 @@
       "Special Defense": 70,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Swarm"],
     "learnset": [
       [1, "Perish Song"],
@@ -16914,6 +17319,7 @@
       "Special Defense": 34,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Guts"],
     "learnset": [
       [1, "Tackle"],
@@ -16955,6 +17361,7 @@
       "Special Defense": 49,
       "Speed": 60
     },
+    "base friendship": 100,
     "abilities": ["Intimidate", "Guts"],
     "learnset": [
       [1, "Tackle"],
@@ -16996,6 +17403,7 @@
       "Special Defense": 79,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Guts"],
     "learnset": [
       [1, "Superpower"],
@@ -17039,6 +17447,7 @@
       "Special Defense": 70,
       "Speed": 55
     },
+    "base friendship": 70,
     "abilities": ["Poison Point", "Natural Cure"],
     "learnset": [
       [1, "Absorb"],
@@ -17063,6 +17472,7 @@
       "Special Defense": 105,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Technician", "Natural Cure"],
     "learnset": [
       [1, "Weather Ball"],
@@ -17092,6 +17502,7 @@
       "Special Defense": 30,
       "Speed": 58
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Mold Breaker"],
     "learnset": [
       [1, "Headbutt"],
@@ -17138,6 +17549,7 @@
       "Special Defense": 50,
       "Speed": 58
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Mold Breaker"],
     "learnset": [
       [1, "Superpower"],
@@ -17187,6 +17599,7 @@
       "Special Defense": 88,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Soundproof", "Sturdy"],
     "learnset": [
       [1, "Tackle"],
@@ -17228,6 +17641,7 @@
       "Special Defense": 138,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Soundproof", "Sturdy"],
     "learnset": [
       [1, "Fissure"],
@@ -17272,6 +17686,7 @@
       "Special Defense": 45,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Battle Armor", "Shed Skin"],
     "learnset": [
       [1, "Protect"],
@@ -17292,6 +17707,7 @@
       "Special Defense": 110,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Battle Armor", "Anticipation"],
     "learnset": [
       [1, "Leaf Storm"],
@@ -17333,6 +17749,7 @@
       "Special Defense": 90,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Battle Armor", "Anticipation"],
     "learnset": [
       [1, "Fissure"],
@@ -17375,6 +17792,7 @@
       "Special Defense": 100,
       "Speed": 30
     },
+    "base friendship": 70,
     "abilities": ["Battle Armor", "Anticipation"],
     "learnset": [
       [1, "Iron Head"],
@@ -17419,6 +17837,7 @@
       "Special Defense": 50,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Tinted Lens", "Swarm"],
     "learnset": [
       [1, "Hurricane"],
@@ -17459,6 +17878,7 @@
       "Special Defense": 42,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Hustle", "Honey Gather"],
     "learnset": [
       [1, "Sweet Scent"],
@@ -17486,6 +17906,7 @@
       "Special Defense": 102,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Intimidate", "Pressure"],
     "learnset": [
       [1, "Sweet Scent"],
@@ -17531,6 +17952,7 @@
       "Special Defense": 90,
       "Speed": 95
     },
+    "base friendship": 100,
     "abilities": ["Volt Absorb", "Pickup"],
     "learnset": [
       [1, "Growl"],
@@ -17577,6 +17999,7 @@
       "Special Defense": 30,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Water Veil"],
     "learnset": [
       [1, "Sonic Boom"],
@@ -17608,6 +18031,7 @@
       "Special Defense": 50,
       "Speed": 115
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Water Veil"],
     "learnset": [
       [1, "Sonic Boom"],
@@ -17648,6 +18072,7 @@
       "Special Defense": 53,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Chlorophyll"],
     "learnset": [
       [1, "Morning Sun"],
@@ -17679,6 +18104,7 @@
       "Special Defense": 83,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Flower Gift", "Flower Gift"],
     "learnset": [
       [1, "Morning Sun"],
@@ -17712,6 +18138,7 @@
       "Special Defense": 62,
       "Speed": 34
     },
+    "base friendship": 70,
     "abilities": ["Sticky Hold", "Storm Drain"],
     "learnset": [
       [1, "Mud-Slap"],
@@ -17745,6 +18172,7 @@
       "Special Defense": 82,
       "Speed": 39
     },
+    "base friendship": 70,
     "abilities": ["Sticky Hold", "Storm Drain"],
     "learnset": [
       [1, "Mud-Slap"],
@@ -17786,6 +18214,7 @@
       "Special Defense": 66,
       "Speed": 115
     },
+    "base friendship": 100,
     "abilities": ["Technician", "Pickup"],
     "learnset": [
       [1, "Scratch"],
@@ -17836,6 +18265,7 @@
       "Special Defense": 44,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Unburden", "Aftermath"],
     "learnset": [
       [1, "Astonish"],
@@ -17882,6 +18312,7 @@
       "Special Defense": 54,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Unburden", "Aftermath"],
     "learnset": [
       [1, "Destiny Bond"],
@@ -17929,6 +18360,7 @@
       "Special Defense": 56,
       "Speed": 85
     },
+    "base friendship": 0,
     "abilities": ["Limber", "Run Away"],
     "learnset": [
       [1, "Splash"],
@@ -17972,6 +18404,7 @@
       "Special Defense": 96,
       "Speed": 105
     },
+    "base friendship": 140,
     "abilities": ["Scrappy", "Cute Charm"],
     "learnset": [
       [1, "Mega Kick"],
@@ -18022,6 +18455,7 @@
       "Special Defense": 105,
       "Speed": 105
     },
+    "base friendship": 35,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Nasty Plot"],
@@ -18057,6 +18491,7 @@
       "Special Defense": 52,
       "Speed": 71
     },
+    "base friendship": 35,
     "abilities": ["Super Luck", "Insomnia"],
     "learnset": [
       [1, "Sucker Punch"],
@@ -18094,6 +18529,7 @@
       "Special Defense": 40,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Limber", "Own Tempo"],
     "learnset": [
       [1, "Fake Out"],
@@ -18137,6 +18573,7 @@
       "Special Defense": 60,
       "Speed": 115
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Own Tempo"],
     "learnset": [
       [1, "Fake Out"],
@@ -18182,6 +18619,7 @@
       "Special Defense": 60,
       "Speed": 45
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Confusion"],
@@ -18219,6 +18657,7 @@
       "Special Defense": 40,
       "Speed": 75
     },
+    "base friendship": 70,
     "abilities": ["Aftermath", "Stench"],
     "learnset": [
       [1, "Scratch"],
@@ -18255,6 +18694,7 @@
       "Special Defense": 60,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Aftermath", "Stench"],
     "learnset": [
       [1, "Scratch"],
@@ -18292,6 +18732,7 @@
       "Special Defense": 86,
       "Speed": 23
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Heatproof"],
     "genderless": true,
     "learnset": [
@@ -18326,6 +18767,7 @@
       "Special Defense": 116,
       "Speed": 33
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Heatproof"],
     "genderless": true,
     "learnset": [
@@ -18371,6 +18813,7 @@
       "Special Defense": 55,
       "Speed": 10
     },
+    "base friendship": 70,
     "abilities": ["Rock Head", "Sturdy"],
     "learnset": [
       [1, "Fake Tears"],
@@ -18410,6 +18853,7 @@
       "Special Defense": 90,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Filter", "Technician"],
     "learnset": [
       [1, "Tickle"],
@@ -18453,6 +18897,7 @@
       "Special Defense": 65,
       "Speed": 30
     },
+    "base friendship": 140,
     "abilities": ["Serene Grace", "Natural Cure"],
     "learnset": [
       [1, "Pound"],
@@ -18485,6 +18930,7 @@
       "Special Defense": 55,
       "Speed": 110
     },
+    "base friendship": 35,
     "abilities": ["Soundproof", "Tangled Feet"],
     "learnset": [
       [1, "Taunt"],
@@ -18527,6 +18973,7 @@
       "Special Defense": 108,
       "Speed": 35
     },
+    "base friendship": 70,
     "abilities": ["Pressure", "Pressure"],
     "learnset": [
       [1, "Pursuit"],
@@ -18569,6 +19016,7 @@
       "Special Defense": 45,
       "Speed": 42
     },
+    "base friendship": 70,
     "abilities": ["Rough Skin", "Sand Veil"],
     "learnset": [
       [1, "Dragon Breath"],
@@ -18613,6 +19061,7 @@
       "Special Defense": 55,
       "Speed": 82
     },
+    "base friendship": 70,
     "abilities": ["Rough Skin", "Sand Veil"],
     "learnset": [
       [1, "Tackle"],
@@ -18656,6 +19105,7 @@
       "Special Defense": 85,
       "Speed": 102
     },
+    "base friendship": 70,
     "abilities": ["Rough Skin", "Sand Veil"],
     "learnset": [
       [1, "Fire Fang"],
@@ -18703,6 +19153,7 @@
       "Special Defense": 85,
       "Speed": 5
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Pickup"],
     "learnset": [
       [1, "Metronome"],
@@ -18752,6 +19203,7 @@
       "Special Defense": 40,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Steadfast", "Inner Focus"],
     "learnset": [
       [1, "Quick Attack"],
@@ -18794,6 +19246,7 @@
       "Special Defense": 70,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Adaptability", "Inner Focus"],
     "learnset": [
       [1, "Bullet Punch"],
@@ -18843,6 +19296,7 @@
       "Special Defense": 42,
       "Speed": 32
     },
+    "base friendship": 70,
     "abilities": ["Sand Stream", "Sand Stream"],
     "learnset": [
       [1, "Curse"],
@@ -18875,6 +19329,7 @@
       "Special Defense": 72,
       "Speed": 47
     },
+    "base friendship": 70,
     "abilities": ["Sand Stream", "Sand Stream"],
     "learnset": [
       [1, "Ice Fang"],
@@ -18910,6 +19365,7 @@
       "Special Defense": 55,
       "Speed": 65
     },
+    "base friendship": 70,
     "abilities": ["Sniper", "Battle Armor"],
     "learnset": [
       [1, "Bite"],
@@ -18943,6 +19399,7 @@
       "Special Defense": 75,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Sniper", "Battle Armor"],
     "learnset": [
       [1, "Thunder Fang"],
@@ -18979,6 +19436,7 @@
       "Special Defense": 40,
       "Speed": 50
     },
+    "base friendship": 100,
     "abilities": ["Dry Skin", "Anticipation"],
     "learnset": [
       [1, "Astonish"],
@@ -19027,6 +19485,7 @@
       "Special Defense": 65,
       "Speed": 85
     },
+    "base friendship": 70,
     "abilities": ["Dry Skin", "Anticipation"],
     "learnset": [
       [1, "Vacuum Wave"],
@@ -19077,6 +19536,7 @@
       "Special Defense": 72,
       "Speed": 36
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Bind"],
@@ -19121,6 +19581,7 @@
       "Special Defense": 60,
       "Speed": 70
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Storm Drain"],
     "learnset": [
       [1, "Pound"],
@@ -19164,6 +19625,7 @@
       "Special Defense": 90,
       "Speed": 105
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Storm Drain"],
     "learnset": [
       [1, "Hydro Pump"],
@@ -19210,6 +19672,7 @@
       "Special Defense": 120,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Swift Swim", "Water Absorb"],
     "learnset": [
       [1, "Tackle"],
@@ -19253,6 +19716,7 @@
       "Special Defense": 60,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Snow Warning", "Soundproof"],
     "learnset": [
       [1, "Powder Snow"],
@@ -19293,6 +19757,7 @@
       "Special Defense": 85,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Snow Warning", "Soundproof"],
     "learnset": [
       [1, "Ice Punch"],
@@ -19334,6 +19799,7 @@
       "Special Defense": 85,
       "Speed": 125
     },
+    "base friendship": 35,
     "abilities": ["Technician", "Pressure"],
     "learnset": [
       [1, "Embargo"],
@@ -19380,6 +19846,7 @@
       "Special Defense": 90,
       "Speed": 60
     },
+    "base friendship": 70,
     "abilities": ["Magnet Pull", "Sturdy"],
     "genderless": true,
     "learnset": [
@@ -19426,6 +19893,7 @@
       "Special Defense": 95,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Own Tempo", "Oblivious"],
     "learnset": [
       [1, "Lick"],
@@ -19474,6 +19942,7 @@
       "Special Defense": 55,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Solid Rock", "Reckless"],
     "learnset": [
       [1, "Thunder Fang"],
@@ -19529,6 +19998,7 @@
       "Special Defense": 50,
       "Speed": 50
     },
+    "base friendship": 70,
     "abilities": ["Chlorophyll", "Leaf Guard"],
     "learnset": [
       [1, "Block"],
@@ -19572,6 +20042,7 @@
       "Special Defense": 85,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Motor Drive", "Vital Spirit"],
     "learnset": [
       [1, "Hammer Arm"],
@@ -19619,6 +20090,7 @@
       "Special Defense": 95,
       "Speed": 83
     },
+    "base friendship": 70,
     "abilities": ["Flame Body", "Vital Spirit"],
     "learnset": [
       [1, "Thunder Punch"],
@@ -19662,6 +20134,7 @@
       "Special Defense": 115,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Serene Grace", "Super Luck"],
     "learnset": [
       [1, "Heat Wave"],
@@ -19699,6 +20172,7 @@
       "Special Defense": 56,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Speed Boost", "Tinted Lens"],
     "learnset": [
       [1, "Night Slash"],
@@ -19745,6 +20219,7 @@
       "Special Defense": 65,
       "Speed": 95
     },
+    "base friendship": 35,
     "abilities": ["Leaf Guard", "Leaf Guard"],
     "learnset": [
       [1, "Sunny Day"],
@@ -19791,6 +20266,7 @@
       "Special Defense": 65,
       "Speed": 95
     },
+    "base friendship": 35,
     "abilities": ["Snow Cloak", "Snow Cloak"],
     "learnset": [
       [1, "Hail"],
@@ -19836,6 +20312,7 @@
       "Special Defense": 75,
       "Speed": 95
     },
+    "base friendship": 70,
     "abilities": ["Poison Heal", "Hyper Cutter"],
     "learnset": [
       [1, "Thunder Fang"],
@@ -19881,6 +20358,7 @@
       "Special Defense": 60,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Thick Fat", "Snow Cloak"],
     "learnset": [
       [1, "Fury Attack"],
@@ -19928,6 +20406,7 @@
       "Special Defense": 75,
       "Speed": 90
     },
+    "base friendship": 70,
     "abilities": ["Adaptability", "Download"],
     "genderless": true,
     "learnset": [
@@ -19975,6 +20454,7 @@
       "Special Defense": 115,
       "Speed": 80
     },
+    "base friendship": 35,
     "abilities": ["Steadfast", "Steadfast"],
     "learnset": [
       [1, "Leaf Blade"],
@@ -20023,6 +20503,7 @@
       "Special Defense": 150,
       "Speed": 40
     },
+    "base friendship": 70,
     "abilities": ["Sturdy", "Magnet Pull"],
     "learnset": [
       [1, "Tri Attack"],
@@ -20072,6 +20553,7 @@
       "Special Defense": 135,
       "Speed": 45
     },
+    "base friendship": 35,
     "abilities": ["Iron Fist", "Pressure"],
     "learnset": [
       [1, "Fire Punch"],
@@ -20120,6 +20602,7 @@
       "Special Defense": 70,
       "Speed": 110
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Snow Cloak"],
     "learnset": [
       [1, "Weather Ball"],
@@ -20167,6 +20650,7 @@
       "Special Defense": 77,
       "Speed": 101
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -20213,6 +20697,7 @@
       "Special Defense": 107,
       "Speed": 86
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -20260,6 +20745,7 @@
       "Special Defense": 107,
       "Speed": 86
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -20307,6 +20793,7 @@
       "Special Defense": 107,
       "Speed": 86
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -20354,6 +20841,7 @@
       "Special Defense": 107,
       "Speed": 86
     },
+    "base friendship": 70,
     "abilities": ["Motor Drive", "Motor Drive"],
     "genderless": true,
     "learnset": [
@@ -20401,6 +20889,7 @@
       "Special Defense": 107,
       "Speed": 86
     },
+    "base friendship": 70,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -20448,6 +20937,7 @@
       "Special Defense": 130,
       "Speed": 95
     },
+    "base friendship": 140,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -20492,6 +20982,7 @@
       "Special Defense": 105,
       "Speed": 80
     },
+    "base friendship": 140,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -20536,6 +21027,7 @@
       "Special Defense": 70,
       "Speed": 115
     },
+    "base friendship": 140,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -20582,6 +21074,7 @@
       "Special Defense": 100,
       "Speed": 90
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -20626,6 +21119,7 @@
       "Special Defense": 120,
       "Speed": 100
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -20669,6 +21163,7 @@
       "Special Defense": 106,
       "Speed": 77
     },
+    "base friendship": 100,
     "abilities": ["Flash Fire", "Flame Body"],
     "learnset": [
       [1, "Eruption"],
@@ -20708,6 +21203,7 @@
       "Special Defense": 110,
       "Speed": 100
     },
+    "base friendship": 0,
     "abilities": ["Slow Start", "Slow Start"],
     "genderless": true,
     "learnset": [
@@ -20753,6 +21249,7 @@
       "Special Defense": 120,
       "Speed": 90
     },
+    "base friendship": 0,
     "abilities": ["Pressure", "Pressure"],
     "genderless": true,
     "learnset": [
@@ -20800,6 +21297,7 @@
       "Special Defense": 100,
       "Speed": 90
     },
+    "base friendship": 0,
     "abilities": ["Levitate", "Levitate"],
     "genderless": true,
     "learnset": [
@@ -20847,6 +21345,7 @@
       "Special Defense": 130,
       "Speed": 85
     },
+    "base friendship": 100,
     "abilities": ["Levitate", "Levitate"],
     "learnset": [
       [1, "Confusion"],
@@ -20888,6 +21387,7 @@
       "Special Defense": 80,
       "Speed": 80
     },
+    "base friendship": 70,
     "abilities": ["Hydration", "Hydration"],
     "genderless": true,
     "learnset": [
@@ -20932,6 +21432,7 @@
       "Special Defense": 100,
       "Speed": 100
     },
+    "base friendship": 70,
     "abilities": ["Hydration", "Hydration"],
     "genderless": true,
     "learnset": [
@@ -20978,6 +21479,7 @@
       "Special Defense": 90,
       "Speed": 125
     },
+    "base friendship": 0,
     "abilities": ["Bad Dreams", "Bad Dreams"],
     "genderless": true,
     "learnset": [
@@ -21023,6 +21525,7 @@
       "Special Defense": 100,
       "Speed": 100
     },
+    "base friendship": 100,
     "abilities": ["Natural Cure", "Natural Cure"],
     "genderless": true,
     "learnset": [
@@ -21064,6 +21567,7 @@
       "Special Defense": 75,
       "Speed": 127
     },
+    "base friendship": 100,
     "abilities": ["Serene Grace", "Serene Grace"],
     "genderless": true,
     "learnset": [
@@ -21105,6 +21609,7 @@
       "Special Defense": 120,
       "Speed": 120
     },
+    "base friendship": 0,
     "abilities": ["Multitype", "Multitype"],
     "genderless": true,
     "learnset": [

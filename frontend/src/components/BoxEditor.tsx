@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { battleSprite, pokIcon } from "@/lib/sprites";
 import { displayName, typeColor } from "@/lib/format";
 import { hiddenPower, moveInfoFor } from "@/lib/hiddenPower";
-import { genderFor, startingMoves } from "@/lib/nuzlocke";
+import { MAX_FRIENDSHIP, genderFor, startingMoves } from "@/lib/nuzlocke";
 import type { BoxEntry, Evolution, IVs, PokemonData } from "../types";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
@@ -585,6 +585,12 @@ function StatsPage({
     patch({ ivs: { ...draft.ivs, [s]: Math.max(0, Math.min(31, v)) } });
   const setAll = (v: number) =>
     patch({ ivs: Object.fromEntries(STAT_KEYS.map((k) => [k, v])) as unknown as IVs });
+  const friendship = draft.friendship ?? MAX_FRIENDSHIP;
+  const setFriendship = (v: number) =>
+    patch({ friendship: Math.max(0, Math.min(MAX_FRIENDSHIP, Number.isNaN(v) ? 0 : v)) });
+  // [pp] effects 0121 / 0123, at least 1
+  const returnPower = Math.max(1, Math.floor((friendship * 10) / 25));
+  const frustrationPower = Math.max(1, Math.floor(((MAX_FRIENDSHIP - friendship) * 10) / 25));
 
   return (
     <div className="space-y-4">
@@ -654,6 +660,31 @@ function StatsPage({
         Hidden Power from these IVs:
         <TypeBadge type={hp.type} height={14} />
         <span className="num font-semibold text-foreground">{hp.power}</span> BP
+      </div>
+
+      <div className="flex items-center gap-3 rounded-lg bg-foreground/4 px-3 py-2 text-xs text-muted-foreground ring-1 ring-foreground/8">
+        <span className="shrink-0">Friendship</span>
+        <input
+          type="range"
+          min={0}
+          max={MAX_FRIENDSHIP}
+          value={friendship}
+          onChange={(e) => setFriendship(parseInt(e.target.value))}
+          className="min-w-0 flex-1 cursor-pointer accent-(--primary)"
+          aria-label="Friendship"
+        />
+        <input
+          type="number"
+          min={0}
+          max={MAX_FRIENDSHIP}
+          value={friendship}
+          onChange={(e) => setFriendship(parseInt(e.target.value))}
+          className="num h-7 w-14 rounded-md border border-input bg-input/30 text-center text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        />
+        <span className="shrink-0">
+          Return <span className="num font-semibold text-foreground">{returnPower}</span> · Frustration{" "}
+          <span className="num font-semibold text-foreground">{frustrationPower}</span> BP
+        </span>
       </div>
     </div>
   );

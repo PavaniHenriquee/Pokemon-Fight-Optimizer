@@ -137,6 +137,10 @@ _session: Session | None = None
 _warmup_running = False  # True while the startup warm-up compiles / loads the engine
 
 # ─── battle builder ──────────────────────────────────────────────────────────
+# My Pokemon's friendship when the box doesn't say, the most Return gets
+MY_FRIENDSHIP = 255
+
+
 class BoxEntry(BaseModel):
     """Persisted Pokémon in the player's box."""
     id: str
@@ -148,6 +152,7 @@ class BoxEntry(BaseModel):
     moves: list[str] = Field(default_factory=list)
     ivs: dict = Field(default_factory=lambda: dict(_DEFAULT_IVS))
     item: Optional[str] = None
+    friendship: int = MY_FRIENDSHIP  # for Return and Frustration
     dead: bool = False  # in the death box: can't join the party, still counts for the species clause
 
 
@@ -178,6 +183,7 @@ class PokemonConfig(BaseModel):
     moves: list[str]  # empty strings filtered out before building
     ivs: Optional[dict] = None
     item: Optional[str] = None
+    friendship: Optional[int] = None  # None: mine MY_FRIENDSHIP, a trainer's its species' base one
 
 class BattleConfig(BaseModel):
     """
@@ -361,7 +367,7 @@ def _giratina_form(name: str, item: str | None, ability: str) -> tuple[str, str]
 
 def _build_battle(config: BattleConfig) -> np.ndarray:
     """Battle array for a config: both parties, start of battle, trainer items, terrain"""
-    def make_pokemon(p: PokemonConfig) -> Pokemon:
+    def make_pokemon(p: PokemonConfig, friendship: int | None = None) -> Pokemon:
         moves = [m for m in p.moves if m]
         name, ability = _giratina_form(p.name, p.item, p.ability)
         # A box saved before PkDB knew it can still say Male
@@ -370,9 +376,10 @@ def _build_battle(config: BattleConfig) -> np.ndarray:
             name, gender, p.level, ability, p.nature, moves,
             ivs=p.ivs,
             item=p.item if p.item else None,
+            friendship=p.friendship if p.friendship is not None else friendship,
         )
 
-    my_party  = [make_pokemon(p) for p in config.my_team]
+    my_party  = [make_pokemon(p, MY_FRIENDSHIP) for p in config.my_team]
     opp_party = [make_pokemon(p) for p in config.opp_team]
     battle    = to_battle_array(my_party, opp_party)
 

@@ -16,6 +16,7 @@ from Models.helper import (
     Types, Status, Weather, VolStatus, VolStatus2, SideCondition, MoveCategory, Gender,
 )
 from DataBase.MoveDB import MoveName
+from DataBase.AbilitiesDB import AbilityNames
 from battle_driver import move_slice
 
 
@@ -71,15 +72,123 @@ def test_type_chart(atk, d1, d2, expected):
     assert num / den == expected
 
 
-@pytest.mark.parametrize("hp_48ths, power", [
-    (1, 200), (4, 150), (9, 100), (16, 80), (32, 40), (48, 20),
+@pytest.mark.parametrize("hp_64ths, power", [
+    (1, 200), (2, 150), (5, 150), (6, 100), (12, 100), (13, 80), (21, 80), (22, 40), (42, 40),
+    (43, 20), (64, 20),
 ])
-def test_flail_power_bands(poke, hp_48ths, power):
-    """Flail power from HP*48/max thresholds"""
+def test_flail_power_bands(poke, hp_64ths, power):
+    """Flail power from the 64-pixel HP bar (pokeplatinum BtlCmd_CalcFlailPower, Showdown gen4)"""
     p = poke("Magikarp", 100, "Swift Swim", ["Flail"])
-    p[Pok.MAX_HP] = 48
-    p[Pok.CURRENT_HP] = hp_48ths
+    p[Pok.MAX_HP] = 64
+    p[Pok.CURRENT_HP] = hp_64ths
     assert flail(p) == power
+
+
+def test_flail_counts_a_sliver_of_hp_as_one_pixel(poke):
+    """App_PixelCount rounds 0 pixels up to 1 while the user has HP"""
+    p = poke("Magikarp", 100, "Swift Swim", ["Flail"])
+    p[Pok.MAX_HP] = 300
+    p[Pok.CURRENT_HP] = 1
+    assert flail(p) == 200
+
+
+def _power(attacker, defender, slot=0):
+    return variable_power(attacker, defender, move_slice(attacker, slot))
+
+
+def test_reversal_is_flail(poke):
+    """Reversal shares Flail's power table"""
+    a = poke("Lucario", 50, "Steadfast", ["Reversal"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    a[Pok.MAX_HP] = 64
+    a[Pok.CURRENT_HP] = 10
+    assert _power(a, d) == 100
+
+
+@pytest.mark.parametrize("move", ["Eruption", "Water Spout"])
+@pytest.mark.parametrize("hp, power", [(100, 150), (50, 75), (33, 49), (1, 1)])
+def test_eruption_power_falls_with_user_hp(poke, move, hp, power):
+    """150 * HP / max HP, at least 1 (pokeplatinum BtlCmd_CalcHPFalloffPower)"""
+    a = poke("Typhlosion", 50, "Blaze", [move])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    a[Pok.MAX_HP] = 100
+    a[Pok.CURRENT_HP] = hp
+    assert _power(a, d) == power
+
+
+@pytest.mark.parametrize("move", ["Wring Out", "Crush Grip"])
+@pytest.mark.parametrize("hp, power", [(100, 121), (50, 61), (1, 2)])
+def test_wring_out_power_grows_with_target_hp(poke, move, hp, power):
+    """1 + 120 * target HP / max HP (pokeplatinum BtlCmd_CalcWringOutPower)"""
+    a = poke("Tentacruel", 50, "Clear Body", [move])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    d[Pok.MAX_HP] = 100
+    d[Pok.CURRENT_HP] = hp
+    assert _power(a, d) == power
+
+
+@pytest.mark.parametrize("stages, power", [
+    ({}, 60), ({Pok.ATTACK_STAT_STAGE: 2}, 100),
+    ({Pok.ATTACK_STAT_STAGE: 2, Pok.DEFENSE_STAT_STAGE: -3}, 100),   # drops don't count
+    ({Pok.ACCURACY_STAT_STAGE: 1, Pok.EVASION_STAT_STAGE: 1}, 100),   # accuracy and evasion do
+    ({Pok.ATTACK_STAT_STAGE: 6, Pok.SPEED_STAT_STAGE: 2}, 200),       # capped
+])
+def test_punishment_power(poke, stages, power):
+    """60 + 20 per positive stage of the target, at most 200"""
+    a = poke("Sneasel", 50, "Inner Focus", ["Punishment"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    for stat, stage in stages.items():
+        d[stat] = stage
+    assert _power(a, d) == power
+
+
+@pytest.mark.parametrize("pp_left, power", [(0, 200), (1, 80), (2, 60), (3, 50), (4, 40), (5, 40)])
+def test_trump_card_power(poke, pp_left, power):
+    """Power from the PP left after paying (pokeplatinum BtlCmd_CalcTrumpCardPower)"""
+    a = poke("Slowking", 50, "Oblivious", ["Trump Card"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    move_slice(a, 0)[Move.PP] = pp_left
+    assert _power(a, d) == power
+
+
+@pytest.mark.parametrize("status, power", [
+    (0, 70), (Status.BURN, 140), (Status.POISON, 140), (Status.TOXIC, 140),
+    (Status.PARALYSIS, 140), (Status.SLEEP, 70), (Status.FREEZE, 70),
+])
+def test_facade_doubles_with_user_status(poke, status, power):
+    """pokeplatinum MON_CONDITION_FACADE_BOOST: burn, poison and paralysis, not sleep"""
+    a = poke("Purugly", 50, "Thick Fat", ["Facade"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    a[Pok.STATUS] = status
+    assert _power(a, d) == power
+
+
+@pytest.mark.parametrize("move, status, power", [
+    ("Smelling Salts", Status.PARALYSIS, 140), ("Smelling Salts", Status.SLEEP, 70),
+    ("Wake-Up Slap", Status.SLEEP, 140), ("Wake-Up Slap", Status.PARALYSIS, 70),
+    ("Wake-Up Slap", 0, 70),
+])
+def test_status_doubling_on_target(poke, move, status, power):
+    """Smelling Salts doubles on a paralyzed target, Wake-Up Slap on a sleeping one"""
+    a = poke("Hariyama", 50, "Thick Fat", [move])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    d[Pok.STATUS] = status
+    assert _power(a, d) == power
+
+
+def test_grass_knot_uses_low_kicks_weight_table(poke):
+    """Grass Knot and Low Kick read the same table"""
+    a = poke("Bellossom", 50, "Chlorophyll", ["Grass Knot", "Low Kick"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    assert _power(a, d) == _power(a, d, 1) == weight_power(d)
+
+
+def test_facade_double_comes_before_technician(poke):
+    """The doubling is pokeplatinum's powerMul, before Technician: a doubled Facade isn't boosted"""
+    a = poke("Purugly", 50, "Technician", ["Facade"])
+    d = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    a[Pok.STATUS] = Status.BURN
+    assert technician_power(a, move_slice(a, 0), _power(a, d)) == 140
 
 
 # ── Full damage formula ──────────────────────────────────────────────────────
@@ -1403,3 +1512,34 @@ def test_life_orb_boosts_struggle(monkeypatch, poke):
     held = poke("Rattata", 50, "Run Away", ["Tackle"], item="Life Orb")
     d = poke("Rattata", 50, "Run Away", ["Tackle"])
     assert struggle_damage(held, d, False) == struggle_damage(plain, d, False) * 130 // 100
+
+
+def test_beat_up_damage_formula(monkeypatch, poke):
+    """baseAtk(member) * 10 * (2 * level / 5 + 2) / baseDef(target) / 50 + 2, crit, roll; the
+    user's own stats, stages and STAB don't count (pokeplatinum BtlCmd_BeatUp)"""
+    from Engine import damage_calc
+    from DataBase.PkDB import POKEMON_BASE_ATK, POKEMON_BASE_DEF
+    monkeypatch.setattr(damage_calc.random, "getrandbits", lambda n: 15)   # roll 100
+    user = poke("Houndour", 30, "Early Bird", ["Beat Up"])
+    member = poke("Rattata", 20, "Run Away", ["Tackle"])
+    target = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    user[Pok.ATTACK_STAT_STAGE] = 6
+    expected = (
+        POKEMON_BASE_ATK[member[Pok.ID]] * 10 * (20 * 2 // 5 + 2)
+        // POKEMON_BASE_DEF[target[Pok.ID]] // 50 + 2
+    )
+    assert damage_calc.beat_up_damage(user, member, target, False) == expected
+    assert damage_calc.beat_up_damage(user, member, target, True) == expected * 2
+    user[Pok.AB_ID] = AbilityNames.SNIPER
+    assert damage_calc.beat_up_damage(user, member, target, True) == expected * 3
+
+
+def test_called_return_reads_the_users_friendship(poke):
+    """variable_power takes Return and Frustration from Pok.FRIENDSHIP, so a called one (data power
+    0) gets the caller's"""
+    from Models.move import MOVE_TABLE
+    a = poke("Togepi", 30, "Hustle", ["Metronome"])
+    d = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    a[Pok.FRIENDSHIP] = 200
+    assert variable_power(a, d, MOVE_TABLE[MoveName.RETURN].copy()) == 80
+    assert variable_power(a, d, MOVE_TABLE[MoveName.FRUSTRATION].copy()) == 22

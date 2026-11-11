@@ -11,6 +11,7 @@ from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
 from Engine.speed import check_speed, quick_claw, custap_ready
+from Engine.engine_helper import last_resort_works
 from Models.item import raw_hold_effect, embargoed
 from Models.idx_const import POK_LEN
 from Models.helper import TARGET_SELF_SIDE, TARGET_OPP_SIDE, STEEL_POISON
@@ -82,6 +83,10 @@ from Models.constants import (
     _MOVENAME_FIRE_FANG, _MOVENAME_SUBSTITUTE, _POK_VOL_STATUS2, _VOLSTATUS2_SUBSTITUTE,
     _MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS, _MOVENAME_LEECH_SEED,
     _ITEM_HOLD_EFFECT, _HOLDEFFECT_PRIORITY_DOWN,
+    _ABILITYNAMES_PRESSURE, _MOVE_PP, _MOVENAME_GRASS_KNOT, _MOVENAME_REVERSAL, _MOVENAME_FACADE,
+    _MOVENAME_SMELLING_SALTS, _MOVENAME_WAKE_UP_SLAP, _MOVENAME_ERUPTION, _MOVENAME_WATER_SPOUT,
+    _MOVENAME_TRUMP_CARD, _MOVENAME_WRING_OUT, _MOVENAME_CRUSH_GRIP, _MOVENAME_PUNISHMENT,
+    _MOVENAME_LAST_RESORT,
     _MOVENAME_THIEF, _MOVENAME_PLUCK, _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _MOVENAME_EMBARGO,
     _MOVENAME_FLING, _ITEM_FLING_POWER, _ABILITYNAMES_GUTS, _ITEMNAMES_FLAME_ORB,
     _ITEMNAMES_KINGS_ROCK, _ITEMNAMES_POISON_BARB, _ITEMNAMES_RAZOR_FANG, _ITEMNAMES_TOXIC_ORB,
@@ -207,7 +212,12 @@ ITEMS_STEAL = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY, _ITEMNAMES_BERRY_J
 #--------------Move tuples-----------------------------
 EXPERT_SPECIFIC_M = (_MOVENAME_BIDE, _MOVENAME_BUG_BITE, _MOVENAME_COUNTER, _MOVENAME_COVET, _MOVENAME_CURSE,
     _MOVENAME_FAKE_OUT, _MOVENAME_FLAIL, _MOVENAME_MIRROR_COAT, _MOVENAME_ASSURANCE,
-    _MOVENAME_THIEF, _MOVENAME_PLUCK)
+    _MOVENAME_THIEF, _MOVENAME_PLUCK, _MOVENAME_REVERSAL, _MOVENAME_FACADE,
+    _MOVENAME_SMELLING_SALTS, _MOVENAME_WAKE_UP_SLAP, _MOVENAME_ERUPTION, _MOVENAME_WATER_SPOUT,
+    _MOVENAME_TRUMP_CARD, _MOVENAME_WRING_OUT, _MOVENAME_CRUSH_GRIP, _MOVENAME_PUNISHMENT,
+    _MOVENAME_LAST_RESORT)
+# pokeplatinum MON_CONDITION_FACADE_BOOST, read on the target by Expert_Facade
+FACADE_BOOST_STATUSES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 # Basic_CheckCanRemoveItem: Knock Off, Trick and Switcheroo
 REMOVE_ITEM_M = (_MOVENAME_KNOCK_OFF, _MOVENAME_TRICK, _MOVENAME_SWITCHEROO)
 # Scored by expert_items
@@ -368,9 +378,9 @@ def knows_move(pok, move_id):
 @njit
 def ai_move_view(move, ai_pok, user_pok, weather=0):
     """
-    The AI damage calc sees Natural Gift's berry type and power, Low Kick's weight power and
-    Gyro Ball's speed power (pokeplatinum TrainerAI_CalcDamage), every other move is returned
-    as is
+    The AI damage calc sees Natural Gift's berry type and power, Low Kick's and Grass Knot's
+    weight power and Gyro Ball's speed power (pokeplatinum TrainerAI_CalcDamage), every other
+    move is returned as is
     """
     move_id = move[_MOVE_ID]
     if move_id == _MOVENAME_NATURAL_GIFT:
@@ -379,7 +389,7 @@ def ai_move_view(move, ai_pok, user_pok, weather=0):
         view[_MOVE_POWER] = power
         view[_MOVE_TYPE] = ai_pok[_ITEM_NATURAL_GIFT_TYPE] if power else _TYPES_NORMAL
         return view
-    if move_id == _MOVENAME_LOW_KICK:
+    if move_id == _MOVENAME_LOW_KICK or move_id == _MOVENAME_GRASS_KNOT:
         view = move.copy()
         view[_MOVE_POWER] = weight_power(user_pok)
         return view
@@ -939,6 +949,9 @@ def basic_flag(
             return ability_score
     if move[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and ai_pok[_ITEM_NATURAL_GIFT_POWER] == 0:
         return -10
+    # Basic_CheckLastResort
+    if move[_MOVE_ID] == _MOVENAME_LAST_RESORT:
+        return 0 if last_resort_works(ai_pok) else -10
     # Basic_CheckCannotExplode, the immunity is checked above: Damp unless the AI has Mold
     # Breaker, then the AI's last Pokemon only explodes into the target's last one (-1)
     if move[_MOVE_ID] in EXPLODE_MOVES:
@@ -1538,10 +1551,15 @@ def expert_stat(
 
 
 @njit
-def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, move_first):
+def expert_moves(
+    move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, move_first, ability=-1
+):
     """
-    Expert moves that have specific logic
+    Expert moves that have specific logic. ability is the target's as the AI sees it, -1 for its
+    real one
     """
+    if ability < 0:
+        ability = u_pok[_POK_AB_ID]
     score = 0
     ai_hp_pct = (ai_pok[_POK_CURRENT_HP]*100)//ai_pok[_POK_MAX_HP]
     m_id = move[_MOVE_ID]
@@ -1646,7 +1664,7 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
                 add_adjustment(rand, idx, 1, 128)
     elif m_id == _MOVENAME_FAKE_OUT:
         return 2
-    elif m_id == _MOVENAME_FLAIL:
+    elif m_id == _MOVENAME_FLAIL or m_id == _MOVENAME_REVERSAL:
         if move_first:
             if ai_hp_pct > 33:
                 return -1
@@ -1661,8 +1679,84 @@ def expert_moves(move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, ml_move, 
         if ai_hp_pct > 40:
             return 0
         add_adjustment(rand, idx, 1, 156)
+    else:
+        return expert_variable_power(move, u_pok, ai_pok, effectiveness, rand, idx, move_first, ability)
 
     return score
+
+
+@njit
+def expert_variable_power(move, u_pok, ai_pok, effectiveness, rand, idx, move_first, ability):
+    """pokeplatinum Expert_Facade, _SmellingSalts, _WakeUpSlap, _WaterSpout, _TrumpCard, _WringOut,
+    _Punishment and _LastResort. ability is the target's as the AI sees it"""
+    m_id = move[_MOVE_ID]
+    resisted = effectiveness <= 0.5
+    u_hp_pct = (u_pok[_POK_CURRENT_HP]*100)//u_pok[_POK_MAX_HP]
+    # The script reads the target's status, not the user's (pokeplatinum and Pokemow quirk)
+    if m_id == _MOVENAME_FACADE:
+        return 1 if u_pok[_POK_STATUS] in FACADE_BOOST_STATUSES else 0
+    if m_id == _MOVENAME_SMELLING_SALTS:
+        return 1 if u_pok[_POK_STATUS] == _STATUS_PARALYSIS else 0
+    if m_id == _MOVENAME_WAKE_UP_SLAP:
+        if resisted:
+            return -1
+        return 1 if u_pok[_POK_STATUS] == _STATUS_SLEEP else 0
+    # Eruption shares it, and it reads the target's HP, not the user's (pokeplatinum quirk)
+    if m_id == _MOVENAME_ERUPTION or m_id == _MOVENAME_WATER_SPOUT:
+        if resisted:
+            return -1
+        return 0 if u_hp_pct > (50 if move_first else 70) else -1
+    if m_id == _MOVENAME_TRUMP_CARD:
+        if resisted:
+            return -1
+        pp_left = move[_MOVE_PP]
+        if pp_left == 1:
+            return 3
+        if pp_left == 2:
+            add_adjustment(rand, idx, 1, 156)
+            return 1
+        if pp_left == 3:
+            add_adjustment(rand, idx, 1, 156)
+            return 0
+        score = 0
+        if ability == _ABILITYNAMES_PRESSURE:
+            add_adjustment(rand, idx, 1, 226)
+        ai_acc = ai_pok[_POK_ACCURACY_STAT_STAGE]
+        u_ev = u_pok[_POK_EVASION_STAT_STAGE]
+        if u_ev >= 5 or ai_acc <= -5:
+            score += 1
+        if u_ev >= 3 or ai_acc <= -3:
+            add_adjustment(rand, idx, 1, 156)
+        return score
+    # Crush Grip shares it
+    if m_id == _MOVENAME_WRING_OUT or m_id == _MOVENAME_CRUSH_GRIP:
+        if resisted or u_hp_pct < 50:
+            return -1
+        score = 0
+        if u_hp_pct == 100:
+            score = 1 if not move_first else 2
+        elif u_hp_pct <= 85:
+            return 0
+        add_adjustment(rand, idx, 1, 231)
+        return score
+    if m_id == _MOVENAME_PUNISHMENT:
+        if resisted:
+            return 0
+        boosts = 0
+        for stat in range(_POK_ATTACK_STAT_STAGE, _POK_EVASION_STAT_STAGE + 1):
+            if u_pok[stat] > 0:
+                boosts += u_pok[stat]
+        # Each step falls through to the next one: independent 50% rolls (the script's code, its
+        # comment reads them as a ladder)
+        top = 4 if boosts > 6 else 3 if boosts > 5 else 2 if boosts > 4 else 1 if boosts > 2 else 0
+        for bonus in range(top, 0, -1):
+            add_adjustment(rand, idx, bonus, 128)
+        return 0
+    if m_id == _MOVENAME_LAST_RESORT:
+        if resisted:
+            return -1
+        return 1 if last_resort_works(ai_pok) else 0
+    return 0
 
 
 @njit
@@ -2097,7 +2191,7 @@ def ai_speed_order(ai_pok, u_pok, weather, claw_guess):
 @njit
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
-    user_side=0, copycat_beats=False, claw_guess=0, speed_weather=-1, ai_side=0
+    user_side=0, copycat_beats=False, claw_guess=0, speed_weather=-1, ai_side=0, ability=-1
 ):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
@@ -2107,7 +2201,7 @@ def expert_flag(
     itself, does more damage than any of the AI's moves. claw_guess: quick_claw_guess.
     weather is the field's, as the script reads it (pokeplatinum AICmd_LoadCurrentWeather ignores
     Cloud Nine); speed_weather is the one the speed compare sees, -1 for the same. ai_side is the
-    AI's Field.SIDE_COND
+    AI's Field.SIDE_COND. ability is the target's as the AI sees it, -1 for its real one
     """
     if speed_weather < 0:
         speed_weather = weather
@@ -2130,7 +2224,7 @@ def expert_flag(
         return 0
     if move[_MOVE_ID] in EXPERT_SPECIFIC_M:
         return expert_moves(
-            move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first
+            move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first, ability
         )
     if move[_MOVE_ID] in ITEM_EXPERT_M:
         return expert_items(move, ai_pok, u_pok, effectiveness, rand, idx, ai_side, user_side)

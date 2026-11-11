@@ -249,3 +249,30 @@ def test_power_1_moves_not_compared(make_pokemon, make_battle, move):
                   ("Mudkip", 10, "Torrent", ["Water Gun", move]))
     rows = choose_move(arr)
     assert rows[1, 3] == 0 and rows[0, 1] == 0
+
+
+@pytest.mark.parametrize("move", [
+    "Eruption", "Water Spout", "Reversal", "Wring Out", "Crush Grip", "Punishment", "Trump Card",
+    "Present",
+])
+def test_variable_power_moves_not_compared(make_pokemon, make_battle, move):
+    """pokeplatinum sNoDamageCalcMoveEffects or power 1, Pokemow's excluded moves: no kill check
+    and no 'not the strongest' -1"""
+    arr = _battle(make_pokemon, make_battle,
+                  ("Charmeleon", 15, "Blaze", ["Scratch"]),
+                  ("Mudkip", 10, "Torrent", ["Water Gun", move]))
+    rows = choose_move(arr)
+    assert rows[1, 3] == 0 and rows[0, 1] == 0
+
+
+def test_ai_sees_grass_knots_weight_power(make_pokemon, make_battle):
+    """Grass Knot's damage uses the target's weight, like Low Kick (pokeplatinum TrainerAI_CalcDamage)"""
+    from battle_driver import my_active
+    light = _battle(make_pokemon, make_battle, ("Pidgey", 30, "Keen Eye", ["Tackle"]),
+                    ("Bellossom", 30, "Chlorophyll", ["Grass Knot"]))
+    heavy = _battle(make_pokemon, make_battle, ("Onix", 30, "Sturdy", ["Tackle"]),
+                    ("Bellossom", 30, "Chlorophyll", ["Grass Knot"]))
+    assert int(choose_move(light)[0, 2]) > 0
+    view_light = ai.ai_move_view(move_slice(opp_active(light), 0), opp_active(light), my_active(light))
+    view_heavy = ai.ai_move_view(move_slice(opp_active(heavy), 0), opp_active(heavy), my_active(heavy))
+    assert view_light[Move.POWER] == 20 and view_heavy[Move.POWER] == 120

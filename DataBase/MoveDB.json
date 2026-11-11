@@ -337,6 +337,21 @@
     "target": "self",
     "type": "Normal"
   },
+  "Beat Up": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "allyanim": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "beat_up",
+    "power": 10,
+    "pp": 10,
+    "target": "normal",
+    "type": "Dark"
+  },
   "Bide": {
     "accuracy": true,
     "category": "Physical",
@@ -1002,6 +1017,20 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Crush Grip": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "crush_grip",
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Curse": {
     "accuracy": true,
     "category": "Status",
@@ -1626,6 +1655,20 @@
     "target": "normal",
     "type": "Grass"
   },
+  "Eruption": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "eruption",
+    "power": 150,
+    "pp": 5,
+    "target": "all_adjacent_foes",
+    "type": "Fire"
+  },
   "Explosion": {
     "accuracy": 100,
     "category": "Physical",
@@ -1672,6 +1715,21 @@
     "power": 80,
     "pp": 5,
     "priority": 1,
+    "target": "normal",
+    "type": "Normal"
+  },
+  "Facade": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "facade",
+    "power": 70,
+    "pp": 20,
     "target": "normal",
     "type": "Normal"
   },
@@ -2105,6 +2163,20 @@
     "target": "normal",
     "type": "Grass"
   },
+  "Frustration": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "frustration",
+    "pp": 20,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Fury Attack": {
     "accuracy": 85,
     "category": "Physical",
@@ -2198,6 +2270,21 @@
     "recharge": 1,
     "target": "normal",
     "type": "Normal"
+  },
+  "Grass Knot": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "non_sky": true,
+      "protect": true
+    },
+    "name": "grass_knot",
+    "pp": 20,
+    "target": "normal",
+    "type": "Grass"
   },
   "Grass Whistle": {
     "accuracy": 55,
@@ -2882,6 +2969,21 @@
     "pp": 20,
     "target": "normal",
     "type": "Dark"
+  },
+  "Last Resort": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "last_resort",
+    "power": 140,
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
   },
   "Lava Plume": {
     "accuracy": 100,
@@ -3894,6 +3996,19 @@
     "target": "normal",
     "type": "Grass"
   },
+  "Present": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "present",
+    "pp": 15,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Protect": {
     "accuracy": true,
     "category": "Status",
@@ -4005,6 +4120,20 @@
     "pp": 15,
     "target": "normal",
     "type": "Psychic"
+  },
+  "Punishment": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "punishment",
+    "pp": 5,
+    "target": "normal",
+    "type": "Dark"
   },
   "Pursuit": {
     "accuracy": 100,
@@ -4161,6 +4290,34 @@
     "pp": 20,
     "target": "self",
     "type": "Normal"
+  },
+  "Return": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "return",
+    "pp": 20,
+    "target": "normal",
+    "type": "Normal"
+  },
+  "Reversal": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "reversal",
+    "pp": 15,
+    "target": "normal",
+    "type": "Fighting"
   },
   "Roar": {
     "accuracy": true,
@@ -4490,6 +4647,24 @@
     },
     "name": "screech",
     "pp": 40,
+    "target": "normal",
+    "type": "Normal"
+  },
+  "Secret Power": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "secret_power",
+    "power": 70,
+    "pp": 20,
+    "secondary": {
+      "chance": 30,
+      "status": "paralysis"
+    },
     "target": "normal",
     "type": "Normal"
   },
@@ -4884,6 +5059,21 @@
     },
     "target": "normal",
     "type": "Poison"
+  },
+  "Smelling Salts": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "smelling_salts",
+    "power": 70,
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
   },
   "Smog": {
     "accuracy": 70,
@@ -5614,6 +5804,36 @@
     "target": "all",
     "type": "Psychic"
   },
+  "Triple Kick": {
+    "accuracy": 90,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "multi_hit": [3, 3],
+    "name": "triple_kick",
+    "power": 10,
+    "pp": 10,
+    "target": "normal",
+    "type": "Fighting"
+  },
+  "Trump Card": {
+    "accuracy": true,
+    "category": "Special",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "trump_card",
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Twineedle": {
     "accuracy": 100,
     "category": "Physical",
@@ -5711,6 +5931,21 @@
     "target": "normal",
     "type": "Fighting"
   },
+  "Wake-Up Slap": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "wake_up_slap",
+    "power": 70,
+    "pp": 10,
+    "target": "normal",
+    "type": "Fighting"
+  },
   "Water Gun": {
     "accuracy": 100,
     "category": "Special",
@@ -5757,6 +5992,20 @@
     "target": "all",
     "type": "Water",
     "vol_status": "water_sport"
+  },
+  "Water Spout": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "water_spout",
+    "power": 150,
+    "pp": 5,
+    "target": "all_adjacent_foes",
+    "type": "Water"
   },
   "Waterfall": {
     "accuracy": 100,
@@ -5915,6 +6164,20 @@
     "target": "normal",
     "type": "Normal",
     "vol_status": "partially_trapped"
+  },
+  "Wring Out": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "wring_out",
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
   },
   "X-Scissor": {
     "accuracy": 100,

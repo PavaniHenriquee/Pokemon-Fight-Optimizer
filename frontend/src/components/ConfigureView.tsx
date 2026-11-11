@@ -576,6 +576,7 @@ export default function ConfigureView({
         moves: [...entry.moves],
         ivs: { ...entry.ivs },
         item: entry.item ?? undefined,
+        friendship: entry.friendship,
       },
       ...myTeam.slice(slot),
     ]);

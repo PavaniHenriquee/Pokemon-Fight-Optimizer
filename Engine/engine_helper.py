@@ -27,7 +27,10 @@ from Models.ability import ABILITY_TABLE
 from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES, MOVE_TABLE
 from Models.constants import (
     _POK_STATUS, _STATUS_PARALYSIS, _POK_SPEED_STAT_STAGE, _POK_AB_WHEN,
-    _WEATHER_SUN, _MOVENAME_FAKE_OUT, _MOVENAME_THUNDER,
+    _WEATHER_SUN, _MOVENAME_FAKE_OUT, _MOVENAME_THUNDER, _MOVENAME_LAST_RESORT, _POK_LAST_RESORT,
+    _SEC_BOOST_ACC, _SEC_BOOST_ATK, _SEC_BOOST_SPEED, _SEC_BOOST_EV, _VOLSTATUS_FLINCH,
+    _TERRAIN_PLAIN, _TERRAIN_SAND, _TERRAIN_GRASS, _TERRAIN_PUDDLE, _TERRAIN_MOUNTAIN, _TERRAIN_CAVE,
+    _TERRAIN_SNOW, _TERRAIN_ICE, _TERRAIN_WATER, _TERRAIN_GREAT_MARSH, _TERRAIN_BRIDGE,
     _POK_AB_ID, _MOVE_PRIORITY, _MOVE_ID, _MOVEOUTCOME_HIT, _MOVEOUTCOME_INVULNERABLE,
     _MOVEOUTCOME_MISS, _TYPES_ROCK, _TYPES_GROUND, _TYPES_STEEL, _TYPES_FIRE, _TYPES_ICE,
     _MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT, _MOVENAME_STRUGGLE, _WEATHER_RAIN,
@@ -1252,6 +1255,41 @@ def calculate_hit_miss(move, attacker, defender, weather, gravity=False, target_
 
 
 @njit
+def record_last_resort(pok, slot, move_id):
+    """Last Resort counts each move slot used since switch-in once its move got past the can't-move
+    checks, a miss included. Last Resort itself and Struggle don't count (pokeplatinum
+    BattleSystem_UpdateLastResort)"""
+    if move_id != _MOVENAME_LAST_RESORT and move_id != _MOVENAME_STRUGGLE and 0 <= slot < 4:
+        pok[_POK_LAST_RESORT] |= 1 << slot
+
+
+@njit
+def last_resort_works(pok):
+    """It needs at least 2 known moves and every one but one used: Last Resort itself when the user
+    knows it (pokeplatinum BtlCmd_TryLastResort, AICmd_IfCanUseLastResort)"""
+    known = 0
+    used = 0
+    for slot in range(4):
+        if pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID] != 0:
+            known += 1
+            if pok[_POK_LAST_RESORT] & (1 << slot):
+                used += 1
+    return known >= 2 and used >= known - 1
+
+
+@njit
+def kick_hits(move, attacker, defender, weather, gravity=False, target_moved=False):
+    """Triple Kick rolls accuracy again for each kick after the first, nothing else (pokeplatinum
+    SetMultiHit without SKIP_ACCURACY_CHECK, Showdown multiaccuracy). No Guard always hits"""
+    if no_guard(attacker, defender):
+        return True
+    accuracy = move_accuracy(
+        move, attacker, defender, move[_MOVE_ACCURACY], weather, gravity, target_moved
+    )
+    return accuracy == 100 or random.randint(1, 100) <= accuracy
+
+
+@njit
 def _hit_outcome(move, attacker, defender, weather, gravity=False, target_moved=False):
     '''Protect, semi-invulnerability, type immunities and the accuracy roll'''
     guard = no_guard(attacker, defender)
@@ -1420,6 +1458,7 @@ def reset_switch_out(pok):
     pok[_POK_CHOICE_LOCK] = 0
     pok[_POK_EMBARGO_TURNS] = 0
     pok[_POK_RAMPAGE_TURNS] = 0
+    pok[_POK_LAST_RESORT] = 0
     refresh_item(pok)
     pok[_POK_AB_KNOWN] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
@@ -2517,6 +2556,33 @@ def copycat_move(battle_array):
 def nature_power_move(battle_array):
     """The battle terrain's move (pokeplatinum BtlCmd_GetTerrainMove)"""
     return NATURE_POWER_MOVES[min(battle_array[_FIELD_TERRAIN], _TERRAIN_SPECIAL)]
+
+
+@njit
+def secret_power_move(mv, battle_array):
+    """Secret Power's 30% secondary from the battle terrain (pokeplatinum sTerrainSideEffect): plain or
+    sand accuracy -1, grass or puddle sleep, mountain or cave flinch, snow or ice freeze, water Attack
+    -1, building or special paralysis, Great Marsh Speed -1, bridge evasion -1"""
+    terrain = min(battle_array[_FIELD_TERRAIN], _TERRAIN_SPECIAL)
+    sp = mv.copy()
+    sp[_SEC_STATUS] = 0
+    if terrain == _TERRAIN_PLAIN or terrain == _TERRAIN_SAND:
+        sp[_SEC_BOOST_ACC] = -1
+    elif terrain == _TERRAIN_GRASS or terrain == _TERRAIN_PUDDLE:
+        sp[_SEC_STATUS] = _STATUS_SLEEP
+    elif terrain == _TERRAIN_MOUNTAIN or terrain == _TERRAIN_CAVE:
+        sp[_SEC_VOL_STATUS] = _VOLSTATUS_FLINCH
+    elif terrain == _TERRAIN_SNOW or terrain == _TERRAIN_ICE:
+        sp[_SEC_STATUS] = _STATUS_FREEZE
+    elif terrain == _TERRAIN_WATER:
+        sp[_SEC_BOOST_ATK] = -1
+    elif terrain == _TERRAIN_GREAT_MARSH:
+        sp[_SEC_BOOST_SPEED] = -1
+    elif terrain == _TERRAIN_BRIDGE:
+        sp[_SEC_BOOST_EV] = -1
+    else:
+        sp[_SEC_STATUS] = _STATUS_PARALYSIS
+    return sp
 
 
 @njit

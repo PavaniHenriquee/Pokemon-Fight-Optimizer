@@ -18,6 +18,7 @@ from Models.idx_const import Item
 from DataBase.ItemDB import ItemNames
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.MoveDB import MoveName
+from DataBase.PkDB import PokemonName
 from Engine import engine_helper
 from Models.helper import Terrain
 from Models.move import STRUGGLE
@@ -4103,3 +4104,265 @@ def test_crash_can_knock_the_user_out(monkeypatch, make_pokemon, make_battle):
     me[Pok.CURRENT_HP] = 1
     turn_sim(0, (MOVE, 0), arr)
     assert me[Pok.CURRENT_HP] == 0
+
+
+# ── Phase 7.1: variable power ────────────────────────────────────────────────
+
+@pytest.mark.parametrize("move, status", [
+    ("Smelling Salts", Status.PARALYSIS), ("Wake-Up Slap", Status.SLEEP),
+])
+def test_status_cure_on_hit(monkeypatch, poke, move, status):
+    """The target that survives is cured (pokeplatinum subscript_heal_target_*)"""
+    monkeypatch.setattr(battle, "calculate_damage", lambda *a: 10)
+    a = poke("Hariyama", 50, "Thick Fat", [move])
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    d[Pok.STATUS] = status
+    d[Pok.SLEEP_COUNTER] = 3 if status == Status.SLEEP else 0
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.STATUS] == 0 and d[Pok.SLEEP_COUNTER] == 0
+
+
+@pytest.mark.parametrize("move, status", [
+    ("Smelling Salts", Status.SLEEP), ("Wake-Up Slap", Status.PARALYSIS),
+])
+def test_status_cure_only_its_own_status(monkeypatch, poke, move, status):
+    monkeypatch.setattr(battle, "calculate_damage", lambda *a: 10)
+    a = poke("Hariyama", 50, "Thick Fat", [move])
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    d[Pok.STATUS] = status
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.STATUS] == status
+
+
+def test_status_cure_not_on_a_ko_or_a_substitute(monkeypatch, poke):
+    """A fainted target isn't cured, nor one whose Substitute took the hit"""
+    monkeypatch.setattr(battle, "calculate_damage", lambda *a: 10_000)
+    a = poke("Hariyama", 50, "Thick Fat", ["Wake-Up Slap"])
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    d[Pok.STATUS] = Status.SLEEP
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.CURRENT_HP] == 0 and d[Pok.STATUS] == Status.SLEEP
+    monkeypatch.setattr(battle, "calculate_damage", lambda *a: 10)
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    d[Pok.STATUS] = Status.SLEEP
+    d[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    d[Pok.SUB_HP] = 200
+    battle.ps_moves(a, d, move_slice(a, 0), 0, False, False)
+    assert d[Pok.STATUS] == Status.SLEEP
+
+
+def test_called_trump_card_reads_the_callers_pp(monkeypatch, make_pokemon, make_battle):
+    """A called Trump Card's power comes from Metronome's PP (pokeplatinum ATTACKER_MOVE_SLOT)"""
+    _force_metronome(monkeypatch, MoveName.TRUMP_CARD)
+    seen = []
+    monkeypatch.setattr(battle, "calculate_damage", lambda a, d, mv, *r: seen.append(int(mv[Move.PP])) or 1)
+    arr = make_battle([make_pokemon("Munchlax", 20, "Thick Fat", ["Metronome"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"])])
+    me = my_active(arr)
+    move_slice(me, 0)[Move.PP] = 2
+    turn_sim(0, (MOVE, 0), arr)
+    assert seen == [1]
+
+
+@pytest.mark.parametrize("roll, power", [(0, 0), (1, 0), (2, 40), (5, 40), (6, 80), (8, 80), (9, 120)])
+def test_present_rolls(monkeypatch, poke, roll, power):
+    """Showdown Present: 20% heal (power 0), 40% 40, 30% 80, 10% 120"""
+    monkeypatch.setattr(battle.random, "randint", lambda a, b: roll)
+    a = poke("Delibird", 30, "Hustle", ["Present"])
+    present = battle._present_move(move_slice(a, 0))
+    assert present[Move.POWER] == power
+    assert move_slice(a, 0)[Move.POWER] == 0           # the slot keeps its data
+
+
+def test_present_heal(poke):
+    """1/4 of the target's max HP, capped at the max, Heal Block stops it"""
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    d[Pok.CURRENT_HP] = 10
+    battle._present_heal(d)
+    assert d[Pok.CURRENT_HP] == 10 + d[Pok.MAX_HP] // 4
+    d[Pok.CURRENT_HP] = d[Pok.MAX_HP] - 1
+    battle._present_heal(d)
+    assert d[Pok.CURRENT_HP] == d[Pok.MAX_HP]
+    d[Pok.CURRENT_HP] = 10
+    d[Pok.VOL_STATUS] |= VolStatus.HEAL_BLOCK
+    battle._present_heal(d)
+    assert d[Pok.CURRENT_HP] == 10
+
+
+def test_present_heal_turn_reaches_behind_a_substitute(monkeypatch, make_pokemon, make_battle):
+    """A heal roll heals the target instead of hitting it, through its Substitute"""
+    monkeypatch.setattr(battle.random, "randint", lambda a, b: a)    # heal roll, accuracy hits
+    arr = make_battle([make_pokemon("Delibird", 30, "Hustle", ["Present"])],
+                      [make_pokemon("Snorlax", 30, "Thick Fat", ["Harden"])])
+    foe = opp_active(arr)
+    foe[Pok.CURRENT_HP] = 20
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 30
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == 20 + foe[Pok.MAX_HP] // 4 and foe[Pok.SUB_HP] == 30
+
+
+def _kick_powers(monkeypatch, kicks):
+    """Records each hit's power, kick_hits answers from kicks in order"""
+    powers = []
+    monkeypatch.setattr(battle, "calculate_damage", lambda a, d, mv, *r: powers.append(int(mv[Move.POWER])) or 1)
+    answers = iter(kicks)
+    monkeypatch.setattr(battle, "kick_hits", lambda *a: next(answers))
+    return powers
+
+
+@pytest.mark.parametrize("kicks, expected", [
+    ((True, True), [10, 20, 30]), ((False,), [10]), ((True, False), [10, 20]),
+])
+def test_triple_kick_ramps_and_stops_at_a_miss(monkeypatch, poke, kicks, expected):
+    """10, 20 and 30 power, a missed kick ends the move"""
+    powers = _kick_powers(monkeypatch, kicks)
+    a = poke("Hitmontop", 30, "Intimidate", ["Triple Kick"])
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+    assert powers == expected
+    assert move_slice(a, 0)[Move.POWER] == 10
+
+
+def test_triple_kick_ignores_skill_link(monkeypatch, poke):
+    powers = _kick_powers(monkeypatch, (True, True, True, True))
+    a = poke("Hitmontop", 30, "Skill Link", ["Triple Kick"])
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    battle.ps_moves_multihit(a, d, move_slice(a, 0), 0, False, False)
+    assert powers == [10, 20, 30]
+
+
+def test_kick_hits_rolls_accuracy(monkeypatch, poke):
+    """Each later kick rolls the move's accuracy, No Guard skips it"""
+    a = poke("Hitmontop", 30, "Intimidate", ["Triple Kick"])
+    d = poke("Snorlax", 50, "Thick Fat", ["Tackle"])
+    mv = move_slice(a, 0)
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: 90)
+    assert engine_helper.kick_hits(mv, a, d, 0)
+    monkeypatch.setattr(engine_helper.random, "randint", lambda lo, hi: 91)
+    assert not engine_helper.kick_hits(mv, a, d, 0)
+    a[Pok.AB_ID] = AbilityNames.NO_GUARD
+    assert engine_helper.kick_hits(mv, a, d, 0)
+
+
+def _beat_up_battle(make_pokemon, make_battle, monkeypatch):
+    """Houndour leads, the hits are recorded by member species and do 1 each"""
+    seen = []
+    monkeypatch.setattr(battle, "beat_up_damage", lambda a, m, d, c: seen.append(int(m[Pok.ID])) or 1)
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    arr = make_battle(
+        [make_pokemon("Houndour", 20, "Early Bird", ["Beat Up"]),
+         make_pokemon("Poochyena", 20, "Run Away", ["Tackle"]),
+         make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+         make_pokemon("Zubat", 20, "Inner Focus", ["Tackle"])],
+        [make_pokemon("Snorlax", 50, "Thick Fat", ["Harden"])])
+    return arr, seen
+
+
+def test_beat_up_hits_once_per_healthy_member(monkeypatch, make_pokemon, make_battle):
+    """In party order, a fainted or statused member doesn't hit"""
+    arr, seen = _beat_up_battle(make_pokemon, make_battle, monkeypatch)
+    pok_slice(arr, 1)[Pok.STATUS] = Status.PARALYSIS
+    pok_slice(arr, 2)[Pok.CURRENT_HP] = 0
+    foe = opp_active(arr)
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert seen == [PokemonName.HOUNDOUR, PokemonName.ZUBAT]
+    assert foe[Pok.CURRENT_HP] == hp - 2
+
+
+def test_beat_up_skips_a_statused_user(monkeypatch, make_pokemon, make_battle):
+    """The user only hits when it has no status either (Showdown gen4 allies)"""
+    arr, seen = _beat_up_battle(make_pokemon, make_battle, monkeypatch)
+    my_active(arr)[Pok.STATUS] = Status.BURN
+    turn_sim(0, (MOVE, 0), arr)
+    assert seen == [PokemonName.POOCHYENA, PokemonName.RATTATA, PokemonName.ZUBAT]
+
+
+def test_beat_up_fails_with_nobody_to_hit(monkeypatch, make_pokemon, make_battle):
+    arr, seen = _beat_up_battle(make_pokemon, make_battle, monkeypatch)
+    my_active(arr)[Pok.STATUS] = Status.BURN
+    for slot in (1, 2, 3):
+        pok_slice(arr, slot)[Pok.CURRENT_HP] = 0
+    me, foe = my_active(arr), opp_active(arr)
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert seen == [] and foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    assert move_slice(me, 0)[Move.PP] == pp - 1
+
+
+def test_beat_up_stops_at_a_ko(monkeypatch, make_pokemon, make_battle):
+    arr, seen = _beat_up_battle(make_pokemon, make_battle, monkeypatch)
+    opp_active(arr)[Pok.CURRENT_HP] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert seen == [PokemonName.HOUNDOUR]
+
+
+def test_beat_up_hits_a_substitute(monkeypatch, make_pokemon, make_battle):
+    """The hits go to the Substitute, the ones after it breaks reach the Pokemon"""
+    arr, seen = _beat_up_battle(make_pokemon, make_battle, monkeypatch)
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 2
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert len(seen) == 4 and foe[Pok.CURRENT_HP] == hp - 2
+
+
+def test_last_resort_fails_until_the_other_moves_were_used(monkeypatch, make_pokemon, make_battle):
+    """It fails before its hit check while a move is still unused, PP spent, then it works"""
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    arr = make_battle([make_pokemon("Eevee", 30, "Run Away", ["Last Resort", "Tackle", "Growl"])],
+                      [make_pokemon("Snorlax", 50, "Thick Fat", ["Harden"])])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = move_slice(me, 0)[Move.PP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP] and move_slice(me, 0)[Move.PP] == pp - 1
+    turn_sim(0, (MOVE, 1), arr)
+    turn_sim(0, (MOVE, 2), arr)
+    assert me[Pok.LAST_RESORT] == 0b110
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < hp
+
+
+def test_secret_power_in_a_grass_battle_puts_to_sleep(monkeypatch, make_pokemon, make_battle):
+    """The terrain picks the 30% effect: sleep on grass"""
+    monkeypatch.setattr(battle, "calculate_damage", lambda *a: 1)
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.HIT)
+    from Engine import status_calc
+    monkeypatch.setattr(status_calc.random, "randint", lambda a, b: a)
+    arr = make_battle([make_pokemon("Linoone", 30, "Pickup", ["Secret Power"])],
+                      [make_pokemon("Snorlax", 50, "Thick Fat", ["Harden"])])
+    arr[Field.TERRAIN] = Terrain.GRASS
+    turn_sim(0, (MOVE, 0), arr)
+    assert opp_active(arr)[Pok.STATUS] == Status.SLEEP
+
+
+def test_called_return_uses_the_callers_friendship(monkeypatch, make_pokemon, make_battle):
+    """A Return Metronome calls has the caller's friendship power"""
+    _force_metronome(monkeypatch, MoveName.RETURN)
+    powers = []
+    real = battle.calculate_damage
+
+    def spy(a, d, mv, *rest):
+        from Engine.damage_calc import variable_power
+        powers.append(int(variable_power(a, d, mv)))
+        return real(a, d, mv, *rest)
+    monkeypatch.setattr(battle, "calculate_damage", spy)
+    arr = make_battle([make_pokemon("Togepi", 20, "Hustle", ["Metronome"])],
+                      [make_pokemon("Machop", 20, "Guts", ["Leer"])])
+    my_active(arr)[Pok.FRIENDSHIP] = 100
+    turn_sim(0, (MOVE, 0), arr)
+    assert powers == [40]
+
+
+def test_pursuit_before_a_switch_counts_for_last_resort(monkeypatch, make_pokemon, make_battle):
+    """A Pursuit used on a switch is a used move like any other (pokeplatinum UpdateLastResort)"""
+    _spy_power(monkeypatch)
+    mine = [make_pokemon("Rattata", 20, "Run Away", ["Tackle"]),
+            make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Murkrow", 20, "Insomnia", ["Last Resort", "Pursuit"])])
+    foe = opp_active(arr)
+    assert battle._pursuit(foe, my_active(arr), 1, False, arr)
+    assert foe[Pok.LAST_RESORT] == 0b10

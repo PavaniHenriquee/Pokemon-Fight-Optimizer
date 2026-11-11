@@ -1312,3 +1312,18 @@ def test_rollout_sees_embargo_and_trick_fail(poke):
     assert status_move_blocked(move_slice(me, 1), me, foe, 0)
     foe[Item.ID] = ItemNames.LEFTOVERS
     assert not status_move_blocked(move_slice(me, 1), me, foe, 0)
+
+
+def test_node_key_sees_last_resort_working(make_pokemon, make_battle):
+    """One bit, set while the active knows Last Resort and it would work; the other slots used
+    don't split nodes for a Pokemon without it"""
+    arr = make_battle([make_pokemon("Eevee", 30, "Run Away", ["Tackle", "Last Resort", "Growl"])],
+                      [make_pokemon("Snorlax", 50, "Thick Fat", ["Tackle", "Harden"])])
+    key = node_key(arr)
+    my_active(arr)[Pok.LAST_RESORT] = 0b001
+    assert node_key(arr) == key
+    my_active(arr)[Pok.LAST_RESORT] = 0b101
+    assert node_key(arr) != key
+    key = node_key(arr)
+    opp_active(arr)[Pok.LAST_RESORT] = 0b11
+    assert node_key(arr) == key

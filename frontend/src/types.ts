@@ -118,6 +118,7 @@ export interface BoxEntry {
   moves: string[];
   ivs: IVs;
   item?: string | null; // set from the party, the box has no field for it
+  friendship?: number; // 0-255, for Return and Frustration; missing means 255
   dead?: boolean; // in the death box: can't join the party, still counts for the species clause
 }
 
@@ -130,6 +131,7 @@ export interface PokemonConfig {
   moves: string[]; // up to 4, empty string = unused slot
   ivs?: IVs;
   item?: string;
+  friendship?: number; // missing: 255 for mine, the species' base friendship for a trainer's
 }
 
 export interface BaseStats {

@@ -565,3 +565,20 @@ def test_exit_when_parent_closes(monkeypatch):
     main._exit_when_parent_closes(read_fd)  # pylint: disable=protected-access
     os.close(read_fd)
     assert exits == [0]
+
+
+def test_build_battle_friendship():
+    """Mine default to 255, a trainer's to its species' base friendship, a given value wins"""
+    def config(name, friendship=None):
+        return main.PokemonConfig(name=name, ability="Cute Charm", moves=["Return"], friendship=friendship)
+    battle = main._build_battle(main.BattleConfig(  # pylint: disable=protected-access
+        my_team=[config("Lopunny"), config("Lopunny", 10)], opp_team=[config("Lopunny")],
+    ))
+    assert battle[Pok.FRIENDSHIP] == 255
+    assert battle[POK_LEN + Pok.FRIENDSHIP] == 10
+    assert battle[6 * POK_LEN + Pok.FRIENDSHIP] == 140
+
+
+def test_box_entry_friendship_defaults_to_255():
+    entry = main.BoxEntry(id="a", name="Lopunny")
+    assert entry.friendship == 255
