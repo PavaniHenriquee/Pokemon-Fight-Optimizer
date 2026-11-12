@@ -39,7 +39,7 @@ export interface SnapshotData {
   field?: FieldState;
 }
 
-// A side condition that's up: timed ones carry turns left, Toxic Spikes its layers
+// A side condition that's up: timed ones carry turns left, Spikes and Toxic Spikes their layers
 export interface SideEffect {
   name: string;
   turns?: number;

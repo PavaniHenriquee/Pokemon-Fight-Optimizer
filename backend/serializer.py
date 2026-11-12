@@ -5,7 +5,7 @@ import sys
 from Models.idx_const import (
     Pok, Move, Item, MOVE_STRIDE, POK_LEN, Field as FieldIdx, SIDE_REFLECT_TURNS,
     SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS,
-    SIDE_TOXIC_SPIKES, SIDE_TAILWIND_TURNS,
+    SIDE_TOXIC_SPIKES, SIDE_TAILWIND_TURNS, SIDE_SPIKES,
 )
 from Models.helper import (
     BattlePhase, Gender, VolStatus, VolStatus2, SideCondition, Weather, Types, MoveCategory,
@@ -219,7 +219,7 @@ def _pok(arr) -> dict | None:
 
 
 def _side(field_block, side_cond) -> list[dict]:
-    """Side conditions up on one side: timed ones with turns left, Toxic Spikes with layers"""
+    """Side conditions up on one side: timed ones with turns left, Spikes and Toxic Spikes with layers"""
     base = side_cond - _FLD_BASE
     mask = int(field_block[base])
     out = []
@@ -231,6 +231,8 @@ def _side(field_block, side_cond) -> list[dict]:
             entry = {"name": name}
             if bit == SideCondition.TOXIC_SPIKES:
                 entry["layers"] = int(field_block[base + SIDE_TOXIC_SPIKES])
+            elif bit == SideCondition.SPIKES:
+                entry["layers"] = int(field_block[base + SIDE_SPIKES])
             out.append(entry)
     return out
 

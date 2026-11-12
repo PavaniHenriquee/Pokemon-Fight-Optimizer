@@ -236,6 +236,9 @@ CURSE_BOOST[Move.BOOST_SPEED]=-1
 CURSE_BOOST[Move.BOOST_ATK]=1
 CURSE_BOOST[Move.BOOST_DEF]=1
 CURSE_BOOST[Move.TARGET]=Target.SELF
+# -------Defog's evasion drop, the part of the move stat_changes runs
+DEFOG_DROP = Moves(moveDB['Defog']).to_array()
+DEFOG_DROP[Move.BOOST_EV]=-1
 
 
 def _move_table():

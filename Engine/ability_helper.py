@@ -9,6 +9,7 @@ from Models.constants import (
     _ITEM_HOLD_EFFECT, _HOLDEFFECT_SPEED_DOWN_GROUNDED, _MOVENAME_WEATHER_BALL, _MOVE_POWER,
     _WEATHER_SUN, _WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL, _TYPES_FIRE, _TYPES_WATER,
     _TYPES_ROCK, _TYPES_ICE, _ABILITYNAMES_FORECAST, _POK_TYPE1, _POK_TYPE2,
+    _POK_MAGNET_RISE_TURNS,
 )
 
 # Abilities that switch the weather's effects off while their holder is out
@@ -109,6 +110,19 @@ def grounded_by_item(pok):
     (pokeplatinum HOLD_EFFECT_SPEED_DOWN_GROUNDED)
     """
     return pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_SPEED_DOWN_GROUNDED
+
+
+@njit
+def magnet_risen(pok):
+    """
+    Magnet Rise keeps Ground moves off while its turns last, unless Ingrain or an Iron Ball
+    ground the Pokemon (pokeplatinum BattleSystem_ApplyTypeChart). Gravity ends it
+    """
+    return (
+        pok[_POK_MAGNET_RISE_TURNS] > 0
+        and not pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN
+        and not grounded_by_item(pok)
+    )
 
 
 @njit

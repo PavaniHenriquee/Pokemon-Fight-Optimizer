@@ -18,9 +18,11 @@ from Engine.damage_calc import (
 )
 from Engine.ability_helper import (
     ignorable_ability, levitates, reveal_ability, effective_weather, normalized_type,
-    grounded_by_item, slot_move_type, forecast_actives,
+    grounded_by_item, slot_move_type, forecast_actives, magnet_risen,
 )
-from Models.idx_const import ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN
+from Models.idx_const import (
+    ITEM_LEN, POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_TOXIC_SPIKES, AB_LEN, SIDE_SPIKES
+)
 from Models.helper import TARGET_SELF_SIDE, Target
 from Models.item import ITEM_TABLE, refresh_item, embargoed
 from Models.ability import ABILITY_TABLE
@@ -128,6 +130,8 @@ from Models.constants import (
     _POK_RAMPAGE_TURNS, _VOLSTATUS_HEAL_BLOCK, _MOVENAME_RECOVER, _MOVENAME_SOFT_BOILED,
     _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST,
     _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _POK_HEAL_BLOCK_TURNS,
+    _SIDECONDITION_SPIKES, _POK_MAGNET_RISE_TURNS, _VOLSTATUS2_MAGNET_RISE, _ABILITYNAMES_LEVITATE,
+    _MOVENAME_MAGNET_RISE,
 )
 from DataBase.PkDB import PokemonName
 
@@ -197,6 +201,7 @@ WEATHER_ABILITIES = (
 )
 PERISH_SONG_TURNS = 3
 EMBARGO_TURNS = 5
+MAGNET_RISE_TURNS = 5
 # A flung item's status or flinch goes to the target
 FLING_SEC_TARGET = Target.NORMAL
 # Columns of an ITEM_TABLE row
@@ -847,7 +852,8 @@ def status_move_fails(move, attacker, defender):
     Rest on a user already asleep, at full HP, with Insomnia or Vital Spirit (revealed) or in an
     uproar it isn't Soundproof against; Leaf Guard doesn't stop it ([SD] gen4 rest onTry, Leaf Guard).
     Nightmare on a target that isn't asleep or already has one. Psycho Shift with no status on the
-    user or one on the target ([pp] CheckCanShareStatus; the Substitute is sub_blocks_status_move's)
+    user or one on the target ([pp] CheckCanShareStatus; the Substitute is sub_blocks_status_move's).
+    Magnet Rise while up, with Levitate or under Ingrain
     """
     move_id = move[_MOVE_ID]
     if move_id == _MOVENAME_REST:
@@ -867,6 +873,8 @@ def status_move_fails(move, attacker, defender):
         )
     if move_id == _MOVENAME_PSYCHO_SHIFT:
         return attacker[_POK_STATUS] == 0 or defender[_POK_STATUS] != 0
+    if move_id == _MOVENAME_MAGNET_RISE:
+        return magnet_rise_fails(attacker)
     return False
 
 
@@ -1162,6 +1170,43 @@ def embargo_count(pok):
         pok[_POK_EMBARGO_TURNS] = 0
         pok[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_EMBARGO
         refresh_item(pok)
+
+
+@njit
+def magnet_rise_fails(pok):
+    """Magnet Rise fails while up, with Levitate or under Ingrain (pokeplatinum effect_script_0252).
+    Gravity stops it before it runs (its gravity flag)"""
+    return (
+        pok[_POK_MAGNET_RISE_TURNS] > 0
+        or pok[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
+        or (pok[_POK_VOL_STATUS] & _VOLSTATUS_INGRAIN) != 0
+    )
+
+
+@njit
+def start_magnet_rise(pok):
+    """Magnet Rise: 5 turns of Ground immunity. Returns True if it started"""
+    if magnet_rise_fails(pok):
+        return False
+    pok[_POK_VOL_STATUS2] |= _VOLSTATUS2_MAGNET_RISE
+    pok[_POK_MAGNET_RISE_TURNS] = MAGNET_RISE_TURNS
+    return True
+
+
+@njit
+def end_magnet_rise(pok):
+    """Magnet Rise wears off, or Gravity brings the Pokemon down"""
+    pok[_POK_MAGNET_RISE_TURNS] = 0
+    pok[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_MAGNET_RISE
+
+
+@njit
+def magnet_rise_count(pok):
+    """End of turn: Magnet Rise counts down (pokeplatinum MON_COND_CHECK_STATE_MAGNET_RISE)"""
+    if pok[_POK_MAGNET_RISE_TURNS] > 0:
+        pok[_POK_MAGNET_RISE_TURNS] -= 1
+        if pok[_POK_MAGNET_RISE_TURNS] == 0:
+            end_magnet_rise(pok)
 
 
 @njit
@@ -1626,6 +1671,8 @@ def _hit_outcome(move, attacker, defender, weather, gravity=False, target_moved=
         if m_type == _TYPES_GROUND and levitates(defender, attacker, gravity):
             reveal_ability(defender)
             return _MOVEOUTCOME_INVULNERABLE
+        if m_type == _TYPES_GROUND and magnet_risen(defender):
+            return _MOVEOUTCOME_INVULNERABLE
 
     # OHKO moves hit on accuracy + the level difference out of 100 and always fail from a lower
     # level. Stat stages, Gravity and the accuracy abilities don't apply (pokeplatinum
@@ -1746,6 +1793,7 @@ def reset_switch_out(pok):
     pok[_POK_CHOICE_LOCK] = 0
     pok[_POK_EMBARGO_TURNS] = 0
     pok[_POK_HEAL_BLOCK_TURNS] = 0
+    pok[_POK_MAGNET_RISE_TURNS] = 0
     pok[_POK_RAMPAGE_TURNS] = 0
     pok[_POK_LAST_RESORT] = 0
     refresh_item(pok)
@@ -1785,13 +1833,14 @@ def pressure_pp(mv, defender):
 @njit
 def is_grounded(pok, gravity=False):
     """Spikes and Toxic Spikes only reach a grounded Pokemon, Ingrain switches Levitate off (not the
-    Flying type, pokeplatinum BattlerIsGrounded). TODO: Magnet Rise"""
+    Flying type, pokeplatinum BattlerIsGrounded). Magnet Rise keeps it up even under Ingrain"""
     if gravity or grounded_by_item(pok):
         return True
     return not (
         pok[_POK_TYPE1] == _TYPES_FLYING
         or pok[_POK_TYPE2] == _TYPES_FLYING
         or levitates(pok, pok)
+        or pok[_POK_MAGNET_RISE_TURNS] > 0
     )
 
 
@@ -1857,26 +1906,42 @@ def stealth_rock_damage(pok):
 
 
 @njit
+def spikes_damage(pok, layers):
+    """Max HP / 8, / 6 or / 4 for 1, 2 or 3 layers, at least 1 (pokeplatinum BtlCmd_CheckSpikes)"""
+    return max(1, pok[_POK_MAX_HP] // ((5 - layers) * 2))
+
+
+@njit
+def _hazard_hit(pok, dmg):
+    """A hazard's damage. Returns True if it fainted pok"""
+    mark_hurt(pok)
+    if dmg >= pok[_POK_CURRENT_HP]:
+        pok[_POK_CURRENT_HP] = 0
+        return True
+    pok[_POK_CURRENT_HP] -= dmg
+    if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+        item_on_rdmg(pok)
+    return False
+
+
+@njit
 def apply_hazards(pok, battle_array, side):
     """
     Entry hazards of the side pok just came into (pokeplatinum subscript_hazards_check):
-    Toxic Spikes, then Stealth Rock. Magic Guard skips them all, only the spikes need the
-    Pokemon grounded. TODO: Spikes damage once the move is in MoveDB
+    Toxic Spikes, Spikes, then Stealth Rock. Magic Guard skips them all, only the spikes need the
+    Pokemon grounded
     """
     cond = battle_array[side]
     if cond == 0 or pok[_POK_AB_ID] == _ABILITYNAMES_MAGIC_GUARD:
         return
-    if cond & _SIDECONDITION_TOXIC_SPIKES and is_grounded(pok, battle_array[_FIELD_GRAVITY_TURNS] > 0):
+    grounded = is_grounded(pok, battle_array[_FIELD_GRAVITY_TURNS] > 0)
+    if cond & _SIDECONDITION_TOXIC_SPIKES and grounded:
         _toxic_spikes(pok, battle_array, side, effective_weather(battle_array))
-    if cond & _SIDECONDITION_STEALTH_ROCK:
-        dmg = stealth_rock_damage(pok)
-        mark_hurt(pok)
-        if dmg >= pok[_POK_CURRENT_HP]:
-            pok[_POK_CURRENT_HP] = 0
+    if cond & _SIDECONDITION_SPIKES and grounded:
+        if _hazard_hit(pok, spikes_damage(pok, battle_array[side + SIDE_SPIKES])):
             return
-        pok[_POK_CURRENT_HP] -= dmg
-        if pok[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
-            item_on_rdmg(pok)
+    if cond & _SIDECONDITION_STEALTH_ROCK:
+        _hazard_hit(pok, stealth_rock_damage(pok))
 
 
 @njit

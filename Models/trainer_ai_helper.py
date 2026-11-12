@@ -102,7 +102,9 @@ from Models.constants import (
     _MOVENAME_PAIN_SPLIT, _MOVENAME_COSMIC_POWER, _MOVENAME_DEFEND_ORDER, _MOVENAME_CALM_MIND,
     _MOVENAME_BELLY_DRUM, _MOVENAME_ACUPRESSURE, _MOVENAME_CAPTIVATE, _GENDER_MALE, _GENDER_FEMALE,
     _MOVENAME_HAZE, _MOVENAME_POWER_SWAP, _MOVENAME_GUARD_SWAP, _MOVENAME_HEART_SWAP,
-    _MOVENAME_POWER_TRICK, _VOLSTATUS2_POWER_TRICK,
+    _MOVENAME_POWER_TRICK, _VOLSTATUS2_POWER_TRICK, _MOVENAME_SPIKES, _MOVENAME_DEFOG,
+    _MOVENAME_MAGNET_RISE, _VOLSTATUS2_MAGNET_RISE, _MOVENAME_EARTHQUAKE, _MOVENAME_EARTH_POWER,
+    _MOVENAME_FISSURE,
     _MOVENAME_SNORE, _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _MOVENAME_HEAL_BELL,
     _MOVENAME_AROMATHERAPY, _MOVENAME_TEETER_DANCE, _VOLSTATUS_NIGHTMARE,
     _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER,
@@ -116,7 +118,8 @@ from Engine.damage_calc import (
     FORESIGHT_TYPES
 )
 from Engine.ability_helper import (
-    ignorable_ability, levitates, normalized_type, grounded_by_item, slot_move_type, weather_ball_move
+    ignorable_ability, levitates, normalized_type, grounded_by_item, slot_move_type, weather_ball_move,
+    magnet_risen,
 )
 
 COUNTER_EX_TYPES = (
@@ -340,7 +343,7 @@ SCREEN_MIST_SAFEGUARD = (
     _SIDECONDITION_SAFEGUARD
 )
 SCREENS = _SIDECONDITION_REFLECT | _SIDECONDITION_LIGHT_SCREEN
-HAZARD_M = (_MOVENAME_TOXIC_SPIKES, _MOVENAME_STEALTH_ROCK)
+HAZARD_M = (_MOVENAME_TOXIC_SPIKES, _MOVENAME_STEALTH_ROCK, _MOVENAME_SPIKES)
 FORCE_SWITCH_M = (_MOVENAME_ROAR, _MOVENAME_WHIRLWIND)
 SWITCH_EXPERT_M = (_MOVENAME_BATON_PASS, _MOVENAME_PURSUIT, _MOVENAME_TELEPORT)
 TARGET_HAZARDS = _SIDECONDITION_SPIKES | _SIDECONDITION_STEALTH_ROCK | _SIDECONDITION_TOXIC_SPIKES
@@ -355,6 +358,9 @@ HAIL_GOOD_WEATHER = (_WEATHER_SUN, _WEATHER_RAIN, _WEATHER_SANDSTORM)
 # Basic_CheckSunnyDay: the AI's abilities that skip the target's Hydration check
 SUN_ABILITIES = (_ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_LEAF_GUARD, _ABILITYNAMES_SOLAR_POWER)
 TOXIC_SPIKES_MAX = 2
+SPIKES_MAX = 3
+# The foe's moves Expert Magnet Rise looks for
+GROUND_HIT_M = (_MOVENAME_EARTHQUAKE, _MOVENAME_EARTH_POWER, _MOVENAME_FISSURE)
 AI_KNOWS_MOVE_BITS = (
     _ENEMY_AI_KNOWS_MOVE1, _ENEMY_AI_KNOWS_MOVE2, _ENEMY_AI_KNOWS_MOVE3, _ENEMY_AI_KNOWS_MOVE4
 )
@@ -378,7 +384,7 @@ ENCORE_ENCOURAGED_M = (
     MoveName.AQUA_RING, MoveName.TAILWIND, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING,
     MoveName.TOXIC, MoveName.REST, MoveName.POISON_GAS, MoveName.GLARE, MoveName.HEAL_BELL,
     MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT, MoveName.SUNNY_DAY,
-    MoveName.HAIL
+    MoveName.HAIL, MoveName.MAGNET_RISE
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 MOVE_DRAIN_SLOTS = tuple(slot + _MOVE_DRAIN - _MOVE_ID for slot in MOVE_ID_SLOTS)
@@ -518,7 +524,7 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok, gravity=False):
 
     # Common type effectiveness
     # TODO: Gastro Acid, Miracle Eye, Iron Ball
-    # Magnet Rise, more...
+    # more...
     s_e = False
     ef_t1 = TYPE_CHART[(move_type*19)+user_type1] / 2
     effectiveness *= ef_t1
@@ -534,6 +540,9 @@ def trainer_ai_effectiveness(move, ai_pok, user_pok, gravity=False):
     # super effective) make it immune. MoveIsOnDamagingTurn is false outside the move's last
     # turn, so charge moves and Fire Fang get past Wonder Guard here
     if move_type == _TYPES_GROUND and levitates(user_pok, ai_pok, gravity):
+        return 0.0, False
+    # Magnet Rise too (ApplyTypeChart). The bench check, party_effectiveness, doesn't see it
+    if move_type == _TYPES_GROUND and magnet_risen(user_pok):
         return 0.0, False
     if (
         user_pok[_POK_AB_ID] == _ABILITYNAMES_WONDER_GUARD
@@ -1024,12 +1033,13 @@ def basic_sleep(move, ability, ai_pok, user_pok, user_side):
 @njit
 def basic_field(
         move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench,
-        trick_room=False
+        trick_room=False, user_spikes=0
 ):
     """
     pokeplatinum Basic checks for the side condition and weather moves. ability is the target's,
-    user_bench how many Pokemon the target has alive besides the active. Basic_CheckTailwind: -10
-    under Trick Room or with Tailwind up on the AI's side
+    user_bench how many Pokemon the target has alive besides the active, user_spikes the Spikes
+    layers on its side. Basic_CheckTailwind: -10 under Trick Room or with Tailwind up on the AI's
+    side
     """
     cond = move[_MOVE_SIDE_CONDITION]
     if cond == _SIDECONDITION_TAILWIND:
@@ -1040,6 +1050,8 @@ def basic_field(
         return -8 if ai_side & cond else 0
     if cond == _SIDECONDITION_TOXIC_SPIKES:
         return -10 if user_tspikes >= TOXIC_SPIKES_MAX or user_bench <= 0 else 0
+    if cond == _SIDECONDITION_SPIKES:
+        return -10 if user_spikes >= SPIKES_MAX or user_bench <= 0 else 0
     if cond == _SIDECONDITION_STEALTH_ROCK:
         return -10 if user_side & cond or user_bench <= 0 else 0
     move_id = move[_MOVE_ID]
@@ -1166,10 +1178,36 @@ def basic_metal_burst(
 
 
 @njit
+def basic_magnet_rise(ai_pok):
+    """Basic_CheckMagnetRise: -10 if the AI is already under it, has Levitate or is Flying type"""
+    if (
+        ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_MAGNET_RISE
+        or ai_pok[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
+        or ai_pok[_POK_TYPE1] == _TYPES_FLYING
+        or ai_pok[_POK_TYPE2] == _TYPES_FLYING
+    ):
+        return -10
+    return 0
+
+
+@njit
+def basic_defog(user_pok, user_side, user_bench):
+    """
+    Basic_CheckDefog: only a target at -6 evasion with no screens on its side gets checked (no deep
+    fog in battle), then -10 if it's on its last Pokemon or its side has no hazards
+    """
+    if user_pok[_POK_EVASION_STAT_STAGE] != -6 or user_side & SCREENS:
+        return 0
+    if user_bench <= 0 or not user_side & TARGET_HAZARDS:
+        return -10
+    return 0
+
+
+@njit
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
             weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1, ai_know=0,
-            turn=0, gravity=False, claw_guess=0, speed_weather=-1, trick_room=False
+            turn=0, gravity=False, claw_guess=0, speed_weather=-1, trick_room=False, user_spikes=0
     ):
     """
     Basic Flag, every trainer has this,
@@ -1178,14 +1216,14 @@ def basic_flag(
     target's side and user_bench how many Pokemon it has alive besides the active, ai_bench the
     same for the AI. ai_know is Field.AI_KNOWS, turn is Field.TURN, gravity if Gravity is up.
     claw_guess and speed_weather are expert_flag's, for the speed compare, trick_room if Trick
-    Room is up
+    Room is up, user_spikes the Spikes layers on the target's side
     """
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
     if move[_MOVE_SIDE_CONDITION] or move[_MOVE_ID] in WEATHER_M:
         return basic_field(
             move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench,
-            trick_room
+            trick_room, user_spikes
         )
     if move[_MOVE_ID] in BASIC_SPECIFIC_M:
         return basic_moves(move, ai_pok, user_pok, ability, effectiveness, trick_room)
@@ -1199,6 +1237,10 @@ def basic_flag(
     # Basic_CheckGravityActive
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
         return -10 if gravity else 0
+    if move[_MOVE_ID] == _MOVENAME_MAGNET_RISE:
+        return basic_magnet_rise(ai_pok)
+    if move[_MOVE_ID] == _MOVENAME_DEFOG:
+        return basic_defog(user_pok, user_side, user_bench)
     # Pokemow Basic TrickRoom: -10 if the AI moves first, half the time on a speed tie
     if move[_MOVE_ID] == _MOVENAME_TRICK_ROOM:
         order = ai_speed_order(
@@ -1282,7 +1324,7 @@ def basic_flag(
     --------------Specific Moves---------------
     Selfdestruct/Explosion
     Reflect / Light Screen / Mist / Safeguard
-    Camouflage / Lucky Chant / Magnet Rise
+    Camouflage / Lucky Chant
     Lock On / Mean Look / Torment / Miracle Eye / Heal Block / Gastro Acid
     Future Sight / Doom Desire
     Stockpile
@@ -1297,7 +1339,6 @@ def basic_flag(
     Fling
     Copycat
     Last Resort
-    Defog
     --------------Effect Moves-----------------
     Non-Standard Damage and Charge Turn Moves(
     Charge Turn Moves:
@@ -1339,7 +1380,7 @@ def basic_flag(
     )
     Force Switches(Example moves: Roar, Whirlwind)
     Recovery Moves(Example moves: Roost)
-    Hazard-Setting Moves (Spikes, Toxic Spikes, Stealth Rock)
+    Hazard-Setting Moves (Toxic Spikes, Stealth Rock)
     Weather-Setting Moves (Sandstorm, Rain Dance, Sunny Day, Hail)
     '''
 
@@ -2528,11 +2569,12 @@ def expert_charge_invulnerable(
 @njit
 def expert_gravity(ai_pok, u_pok, rand, idx):
     """
-    pokeplatinum Expert_Gravity: 75% chance of +1 against a Levitate or Flying target (Magnet
-    Rise isn't in the engine), else 37.5% chance of +1 when the AI has at least 60% HP
+    pokeplatinum Expert_Gravity: 75% chance of +1 against a Levitate, Magnet Rise or Flying target,
+    else 37.5% chance of +1 when the AI has at least 60% HP
     """
     if (
         u_pok[_POK_AB_ID] == _ABILITYNAMES_LEVITATE
+        or u_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_MAGNET_RISE
         or u_pok[_POK_TYPE1] == _TYPES_FLYING
         or u_pok[_POK_TYPE2] == _TYPES_FLYING
     ):
@@ -2540,6 +2582,54 @@ def expert_gravity(ai_pok, u_pok, rand, idx):
     elif (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP] >= 60:
         add_adjustment(rand, idx, 1, 96)
     return 0
+
+
+@njit
+def expert_magnet_rise(ai_pok, u_pok, rand, idx, ai_know):
+    """
+    Pokemow Expert MagnetRise: nothing under 50% HP, else +1 if the AI saw the foe use
+    Earthquake, Earth Power or Fissure, and 50% chance of +1 against a Ground type ([pp] gives a
+    Ground type a sure +1 and any other foe the 50%)
+    """
+    if (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP] < 50:
+        return 0
+    score = 1 if seen_move(u_pok, ai_know, GROUND_HIT_M) else 0
+    if u_pok[_POK_TYPE1] == _TYPES_GROUND or u_pok[_POK_TYPE2] == _TYPES_GROUND:
+        add_adjustment(rand, idx, 1, 128)
+    return score
+
+
+@njit
+def expert_defog(ai_pok, u_pok, rand, idx, user_side, ai_bench):
+    """
+    Pokemow Expert Defog, which differs from [pp]'s script: against screens, +1 above 30% HP and
+    nothing else if the AI is on its last Pokemon; at 30% HP or less on its last Pokemon, -2
+    against a foe under 71% HP and 80.5% chance of -2, nothing else; otherwise 50% chance of -1 if
+    the foe's side has hazards too. Hazards without screens: -2. Then 80.5% chance of -2 under 70%
+    HP or against a foe at -3 evasion or lower, and -2 against a foe under 71% HP
+    """
+    ai_hp = (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP]
+    u_hp = (u_pok[_POK_CURRENT_HP] * 100) // u_pok[_POK_MAX_HP]
+    score = 0
+    if user_side & SCREENS:
+        if ai_hp > 30:
+            score += 1
+            if ai_bench <= 0:
+                return score
+        elif ai_bench <= 0:
+            if u_hp < 71:
+                score -= 2
+            add_adjustment(rand, idx, -2, 206)
+            return score
+        if user_side & TARGET_HAZARDS:
+            add_adjustment(rand, idx, -1, 128)
+    elif user_side & TARGET_HAZARDS:
+        score -= 2
+    if ai_hp < 70 or u_pok[_POK_EVASION_STAT_STAGE] <= -3:
+        add_adjustment(rand, idx, -2, 206)
+    if u_hp < 71:
+        score -= 2
+    return score
 
 
 @njit
@@ -2844,6 +2934,10 @@ def expert_flag(
         return expert_call(move, u_pok, rand, idx, move_first, copycat_beats)
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
         return expert_gravity(ai_pok, u_pok, rand, idx)
+    if move[_MOVE_ID] == _MOVENAME_MAGNET_RISE:
+        return expert_magnet_rise(ai_pok, u_pok, rand, idx, ai_know)
+    if move[_MOVE_ID] == _MOVENAME_DEFOG:
+        return expert_defog(ai_pok, u_pok, rand, idx, user_side, ai_bench)
     if move[_MOVE_ID] == _MOVENAME_TAILWIND:
         return expert_tailwind(ai_pok, rand, idx, move_first)
     if move[_MOVE_ID] == _MOVENAME_TRICK_ROOM:
@@ -3029,7 +3123,6 @@ def expert_flag(
     Reversal, Flail
     Thief, Covet
     Detect
-    Spikes
     Miracle Eye
     Sunny Day
     Hail
@@ -3059,8 +3152,6 @@ def expert_flag(
     Copycat
     Punishment
     Last Resort
-    Magnet Rise
-    Defog
     Trick Room
     Blizzard
 

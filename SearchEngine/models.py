@@ -14,6 +14,7 @@ from Models.constants import (
     _POK_STATUS, _POK_VOL_STATUS, _POK_ATTACK_STAT_STAGE, _FIELD_MY_POK, _FIELD_OPP_POK,
     _FIELD_PHASE, _BATTLEPHASE_DEATH_END_OF_TURN, _ACTIONTYPE_MOVE, _FIELD_WEATHER, _FIELD_MY_SIDE_COND,
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
+    _FIELD_MY_SPIKES, _FIELD_OPP_SPIKES,
     _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID, _POK_AB_ID,
     _POK_METRONOME_COUNT, _POK_BASE_AB_ID, _FIELD_OPP_MOVE_RAN, _FIELD_PENDING_OPP_MOVE,
     _POK_TYPE1, _POK_TYPE2, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _VOLSTATUS_ENCORE,
@@ -309,9 +310,11 @@ def _vol_key(pok):
 
 
 @njit
-def _hold_key(pok, side_cond):
-    """One side's half of k6: its side conditions above k1's, the active's item, types and lock"""
+def _hold_key(pok, side_cond, spikes):
+    """One side's half of k6: its side conditions above k1's, its Spikes layers, the active's item,
+    types and lock"""
     packed = np.int64(side_cond >> SIDE_COND_K1_BITS)
+    packed |= np.int64(spikes) << SPIKES_KEY_SHIFT
     packed |= np.int64(pok[_ITEM_ID]) << ITEM_KEY_SHIFT
     packed |= np.int64(pok[_POK_TYPE1]) << TYPE_KEY_SHIFT
     packed |= np.int64(pok[_POK_TYPE2]) << TYPE_KEY_SHIFT + TYPE_KEY_BITS
@@ -329,7 +332,7 @@ def node_key(battle_array):
     phase, opp slot, status, every vol status bit (both bitmaps), HP bracket and stat stages of
     both actives, whether each active holds an item, an ability Trace or Worry Seed changed (it
     depends on the history), Truant's loaf turn or an active Slow Start, the weather, Gravity, each
-    side's conditions and Toxic Spikes layers
+    side's conditions, Toxic Spikes and Spikes layers
     (not the turns left), my active slot (Roar picks it at random), the Baton Pass phase, each
     active's Metronome item move and count (k4, opp low 32 bits, mine high), Trick Room, and per
     side (k5, k6) the choice-locked slot, the Encore and Disable slots, the active's item id, types
@@ -355,7 +358,7 @@ def node_key(battle_array):
     k1 |= (np.int64(battle_array[_FIELD_OPP_SIDE_COND]) & SIDE_COND_K1_MASK) << 35
     k1 |= np.int64(battle_array[_FIELD_OPP_TOXIC_SPIKES]) << 45
     k5 = _vol_key(opp)
-    k6 = _hold_key(opp, battle_array[_FIELD_OPP_SIDE_COND])
+    k6 = _hold_key(opp, battle_array[_FIELD_OPP_SIDE_COND], battle_array[_FIELD_OPP_SPIKES])
 
     if not is_death:
         my_idx = battle_array[_FIELD_MY_POK]
@@ -377,7 +380,9 @@ def node_key(battle_array):
         if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
             k1 |= np.int64(1) << 62
         k5 |= _vol_key(me) << SIDE_KEY_SHIFT
-        k6 |= _hold_key(me, battle_array[_FIELD_MY_SIDE_COND]) << SIDE_KEY_SHIFT
+        k6 |= _hold_key(
+            me, battle_array[_FIELD_MY_SIDE_COND], battle_array[_FIELD_MY_SPIKES]
+        ) << SIDE_KEY_SHIFT
     else:
         k2 = k2 << 28
     if battle_array[_FIELD_GRAVITY_TURNS] > 0:

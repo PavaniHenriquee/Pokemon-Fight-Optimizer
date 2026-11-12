@@ -4,7 +4,7 @@ import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
 from Models.idx_const import(
-    Pok, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, SIDE_TOXIC_SPIKES
+    Pok, POK_LEN, OFFSET_MOVE, MOVE_STRIDE, SIDE_TOXIC_SPIKES, SIDE_SPIKES
 )
 from Models.constants import (
     _FIELD_MY_POK, _FIELD_OPP_POK, _FIELD_WEATHER, _POK_CURRENT_HP, _POK_MAX_HP,
@@ -17,7 +17,8 @@ from Models.constants import (
     _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _ITEM_ID, _SEC_TARGET,
     _MOVENAME_SNORE, _MOVENAME_SLEEP_TALK, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE,
     _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _POK_STATUS, _STATUS_SLEEP, _POK_VOL_STATUS,
-    _VOLSTATUS_NIGHTMARE, _POK_AB_ID, _MOVENAME_HEAL_BLOCK,
+    _VOLSTATUS_NIGHTMARE, _POK_AB_ID, _MOVENAME_HEAL_BLOCK, _SIDECONDITION_SPIKES,
+    _MOVENAME_MAGNET_RISE,
 )
 from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
@@ -27,12 +28,12 @@ from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import (
     calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails,
-    has_substitute, heal_blocked
+    has_substitute, heal_blocked, magnet_rise_fails
 )
 from Engine.ability_helper import (
-    levitates, effective_weather, normalized_type, grounded_by_item, weather_ball_move
+    levitates, effective_weather, normalized_type, grounded_by_item, weather_ball_move, magnet_risen
 )
-from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
+from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX, SPIKES_MAX
 from Engine.status_calc import (
     ability_blocks_status, stat_drop_blocked, STAT_MAPPING, sleep_blocked, SLEEP_AB_IM
 )
@@ -127,8 +128,8 @@ def _weighted_choice(act_types, act_idxs, weights, n):
 
 @njit
 def field_move_fails(move, battle_array):
-    """My side or weather move that would do nothing: already up, Toxic Spikes at max layers,
-    the same weather, or Gravity already up"""
+    """My side or weather move that would do nothing: already up, Toxic Spikes or Spikes at max
+    layers, the same weather, or Gravity already up"""
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
         return battle_array[_FIELD_GRAVITY_TURNS] > 0
     cond = move[_MOVE_SIDE_CONDITION]
@@ -136,6 +137,8 @@ def field_move_fails(move, battle_array):
         side = _FIELD_OPP_SIDE_COND if move[_MOVE_TARGET] == FOE_SIDE_TARGET else _FIELD_MY_SIDE_COND
         if cond == _SIDECONDITION_TOXIC_SPIKES:
             return battle_array[side + SIDE_TOXIC_SPIKES] >= TOXIC_SPIKES_MAX
+        if cond == _SIDECONDITION_SPIKES:
+            return battle_array[side + SIDE_SPIKES] >= SPIKES_MAX
         return (battle_array[side] & cond) != 0
     move_weather = _move_weather(move[_MOVE_ID])
     return move_weather != 0 and move_weather == battle_array[_FIELD_WEATHER]
@@ -147,7 +150,7 @@ def status_move_blocked(move, me, foe, weather):
     ability_blocks_status keeps off, or every stat drop it causes is one stat_drop_blocked stops.
     Also one the foe's Substitute stops, and my Substitute when it would fail. Embargo on a foe
     already under it, Heal Block on a foe already under it, Trick and Switcheroo with no item on
-    either side"""
+    either side, a Magnet Rise that would fail"""
     if move[_MOVE_ID] == _MOVENAME_SUBSTITUTE:
         return substitute_fails(me)
     if sub_blocks_move(move, me, foe):
@@ -158,6 +161,8 @@ def status_move_blocked(move, me, foe, weather):
         return heal_blocked(foe)
     if move[_MOVE_ID] == _MOVENAME_TRICK or move[_MOVE_ID] == _MOVENAME_SWITCHEROO:
         return me[_ITEM_ID] == 0 and foe[_ITEM_ID] == 0
+    if move[_MOVE_ID] == _MOVENAME_MAGNET_RISE:
+        return magnet_rise_fails(me)
     if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
         return False
     status = move[_MOVE_STATUS]
@@ -305,6 +310,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                 if (
                     eff_ratio == 0
                     or (move_type == _TYPES_GROUND and levitates(o_pok, c_pok, gravity))
+                    or (move_type == _TYPES_GROUND and magnet_risen(o_pok))
                     or ability_immune(move, c_pok, o_pok, gravity)
                     or sleep_move_fails(move, c_pok, o_pok)
                 ):

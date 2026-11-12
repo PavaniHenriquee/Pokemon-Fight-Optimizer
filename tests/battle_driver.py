@@ -6,7 +6,7 @@ SearchEngine/, so the golden engine snapshots don't move when the search changes
 import random
 import numpy as np
 from Models.pokemon import Pokemon
-from Models.idx_const import POK_LEN, Pok, Move, MOVE_STRIDE, Field, Item
+from Models.idx_const import POK_LEN, Pok, Move, MOVE_STRIDE, Field, Item, Flags
 from Models.helper import ActionType, BattlePhase, VolStatus, MoveCategory, Types, HoldEffect
 from DataBase.AbilitiesDB import AbilityNames
 from Models.constants import _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_FULL_HEAL
@@ -53,9 +53,11 @@ def is_over(arr):
 _CHOICE_ITEMS = (HoldEffect.CHOICE_ATK, HoldEffect.CHOICE_SPATK, HoldEffect.CHOICE_SPEED)
 
 
-def _blocked(active, i, mv):
-    """Disable, Encore and Taunt (the slot is packed as turns * 4 + slot), and a choice item's
-    lock (slot + 1)"""
+def _blocked(active, i, mv, gravity=False):
+    """Disable, Encore and Taunt (the slot is packed as turns * 4 + slot), a choice item's
+    lock (slot + 1) and Gravity for the moves it grounds"""
+    if gravity and mv[Flags.GRAVITY]:
+        return True
     lock = active[Pok.CHOICE_LOCK]
     if lock and i != lock - 1 and active[Item.HOLD_EFFECT] in _CHOICE_ITEMS:
         return True
@@ -101,7 +103,7 @@ def legal_actions(arr):
         mv = move_slice(active, i)
         if mv[Move.ID] == 0:
             break
-        if mv[Move.PP] > 0 and not _blocked(active, i, mv):
+        if mv[Move.PP] > 0 and not _blocked(active, i, mv, arr[Field.GRAVITY_TURNS] > 0):
             moves.append((ActionType.MOVE, i))
     if not moves:
         moves = [(ActionType.MOVE, 10)]
@@ -412,6 +414,27 @@ def scenario_status_moves():
     return my, opp, ()
 
 
+
+def scenario_field_hazards():
+    """Phase 9: weather (Sunny Day, Hail, Weather Ball, Heat Rock, Icy Rock, Forecast), field
+    (Trick Room, Tailwind, Gravity) and hazards (Spikes, Toxic Spikes, Stealth Rock, Rapid Spin,
+    Defog, Magnet Rise) both ways"""
+    my = [
+        _p("Castform", 40, "Forecast", ["Weather Ball", "Sunny Day", "Hail", "Thunderbolt"],
+           item="Icy Rock"),
+        _p("Forretress", 40, "Sturdy", ["Spikes", "Rapid Spin", "Gyro Ball", "Toxic Spikes"]),
+        _p("Magnezone", 40, "Magnet Pull", ["Magnet Rise", "Thunderbolt", "Flash Cannon", "Trick Room"]),
+        _p("Togekiss", 40, "Serene Grace", ["Defog", "Tailwind", "Air Slash", "Roost"]),
+    ]
+    opp = [
+        _p("Skarmory", 40, "Keen Eye", ["Spikes", "Whirlwind", "Drill Peck", "Steel Wing"]),
+        _p("Magneton", 40, "Sturdy", ["Magnet Rise", "Thunderbolt", "Flash Cannon", "Thunder Wave"]),
+        _p("Bronzong", 40, "Levitate", ["Trick Room", "Gravity", "Gyro Ball", "Stealth Rock"]),
+        _p("Abomasnow", 40, "Snow Warning", ["Blizzard", "Ice Shard", "Wood Hammer", "Earthquake"]),
+    ]
+    return my, opp, ()
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -427,6 +450,7 @@ SCENARIOS = {
     "forced_turns": scenario_forced_turns,
     "power_rules": scenario_power_rules,
     "status_moves": scenario_status_moves,
+    "field_hazards": scenario_field_hazards,
 }
 
 

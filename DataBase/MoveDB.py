@@ -85,7 +85,8 @@ class MoveName:
     DAZZLING_GLEAM  = DARK_VOID + 1
     DEFEND_ORDER    = DAZZLING_GLEAM + 1
     DEFENSE_CURL    = DEFEND_ORDER + 1
-    DESTINY_BOND    = DEFENSE_CURL + 1
+    DEFOG           = DEFENSE_CURL + 1
+    DESTINY_BOND    = DEFOG + 1
     DIG             = DESTINY_BOND + 1
     DISABLE         = DIG + 1
     DISARMING_VOICE = DISABLE + 1
@@ -225,7 +226,8 @@ class MoveName:
     MAGICAL_LEAF    = MACH_PUNCH + 1
     MAGMA_STORM     = MAGICAL_LEAF + 1
     MAGNET_BOMB     = MAGMA_STORM + 1
-    MAGNITUDE       = MAGNET_BOMB + 1
+    MAGNET_RISE     = MAGNET_BOMB + 1
+    MAGNITUDE       = MAGNET_RISE + 1
     MEDITATE        = MAGNITUDE + 1
     MEGA_DRAIN      = MEDITATE + 1
     MEGA_KICK       = MEGA_DRAIN + 1
@@ -365,7 +367,8 @@ class MoveName:
     SPACIAL_REND    = SONIC_BOOM + 1
     SPARK           = SPACIAL_REND + 1
     SPIKE_CANNON    = SPARK + 1
-    SPLASH          = SPIKE_CANNON + 1
+    SPIKES          = SPIKE_CANNON + 1
+    SPLASH          = SPIKES + 1
     SPORE           = SPLASH + 1
     STEALTH_ROCK    = SPORE + 1
     STEEL_WING      = STEALTH_ROCK + 1

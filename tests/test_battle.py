@@ -7,7 +7,7 @@ from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
 from Engine.status_calc import vol_status
 from Models.idx_const import (
     Pok, Move, Sec, Field, POK_LEN, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS,
-    SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, FIELD_LEN,
+    SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, FIELD_LEN, SIDE_SPIKES,
 )
 from Models.helper import (
     ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, VolStatus2, Types, SideCondition,
@@ -5612,3 +5612,112 @@ def test_forecast_needs_the_ability(make_pokemon, make_battle):
                       [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
     turn_sim(0, (MOVE, 0), arr)
     assert my_active(arr)[Pok.TYPE1] == Types.NORMAL
+
+
+# ── 9.3 Spikes, Defog, Rapid Spin, Magnet Rise ───────────────────────────────
+
+SPIKES = SideCondition.SPIKES
+
+
+def test_spikes_stack_to_three(one_v_one):
+    """A fourth Spikes fails (pokeplatinum BtlCmd_TrySpikes)"""
+    arr = one_v_one()
+    for _ in range(4):
+        battle._set_side_condition(SPIKES, arr, OPP_SIDE)
+    assert arr[OPP_SIDE] == SPIKES and arr[OPP_SIDE + SIDE_SPIKES] == 3
+
+
+def test_spikes_go_on_the_foes_side(make_pokemon, make_battle):
+    arr = _phase5_battle(make_pokemon, make_battle, ["Spikes"])
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[OPP_SIDE] == SPIKES and arr[OPP_SIDE + SIDE_SPIKES] == 1
+    assert arr[MY_SIDE] == 0
+
+
+def test_rapid_spin_clears_spikes_layers(make_pokemon, make_battle):
+    arr = _phase5_battle(make_pokemon, make_battle, ["Rapid Spin"])
+    arr[MY_SIDE] = SPIKES
+    arr[MY_SIDE + SIDE_SPIKES] = 3
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[MY_SIDE] == 0 and arr[MY_SIDE + SIDE_SPIKES] == 0
+
+
+def _defog_battle(make_pokemon, make_battle):
+    arr = make_battle([make_pokemon("Pidgey", 20, "Keen Eye", ["Defog"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Tail Whip"])])
+    arr[OPP_SIDE] = (
+        SideCondition.REFLECT | SideCondition.LIGHT_SCREEN | SideCondition.SAFEGUARD | SPIKES
+        | SideCondition.TOXIC_SPIKES | SR | SideCondition.TAILWIND
+    )
+    arr[OPP_SIDE + SIDE_REFLECT_TURNS] = arr[OPP_SIDE + SIDE_LIGHT_SCREEN_TURNS] = 4
+    arr[OPP_SIDE + SIDE_SAFEGUARD_TURNS] = 4
+    arr[OPP_SIDE + SIDE_SPIKES] = 2
+    arr[OPP_SIDE + SIDE_TOXIC_SPIKES] = 1
+    arr[MY_SIDE] = SR | SPIKES
+    arr[MY_SIDE + SIDE_SPIKES] = 1
+    return arr
+
+
+def test_defog_clears_the_targets_side_and_drops_evasion(make_pokemon, make_battle):
+    """Screens, Safeguard and hazards go from the target's side, Tailwind and the user's side stay
+    (pokeplatinum subscript_defog)"""
+    arr = _defog_battle(make_pokemon, make_battle)
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[OPP_SIDE] & ~SideCondition.TAILWIND == 0
+    assert arr[OPP_SIDE + SIDE_SPIKES] == arr[OPP_SIDE + SIDE_TOXIC_SPIKES] == 0
+    assert arr[OPP_SIDE + SIDE_REFLECT_TURNS] == arr[OPP_SIDE + SIDE_SAFEGUARD_TURNS] == 0
+    assert arr[MY_SIDE] == SR | SPIKES and arr[MY_SIDE + SIDE_SPIKES] == 1
+    assert opp_active(arr)[Pok.EVASION_STAT_STAGE] == -1
+
+
+def test_defog_into_mist_clears_it_without_the_drop(make_pokemon, make_battle):
+    """The drop comes first, so Mist still blocks it"""
+    arr = _defog_battle(make_pokemon, make_battle)
+    arr[OPP_SIDE] |= SideCondition.MIST
+    arr[OPP_SIDE + SIDE_MIST_TURNS] = 4
+    turn_sim(0, (MOVE, 0), arr)
+    assert not arr[OPP_SIDE] & SideCondition.MIST
+    assert opp_active(arr)[Pok.EVASION_STAT_STAGE] == 0
+
+
+def test_defog_into_a_substitute_clears_without_the_drop(make_pokemon, make_battle):
+    """Showdown gen5 defog onHit (bypasssub)"""
+    arr = _defog_battle(make_pokemon, make_battle)
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert not arr[OPP_SIDE] & (SPIKES | SR)
+    assert foe[Pok.EVASION_STAT_STAGE] == 0
+
+
+def test_magnet_rise_dodges_earthquake(make_pokemon, make_battle):
+    """Up for the turn it's used in plus 4"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Magnet Rise"])],
+                      [make_pokemon("Geodude", 20, "Sturdy", ["Earthquake"])])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == me[Pok.MAX_HP]
+    assert me[Pok.VOL_STATUS2] & VolStatus2.MAGNET_RISE and me[Pok.MAGNET_RISE_TURNS] == 4
+
+
+def test_gravity_ends_magnet_rise_and_blocks_it(make_pokemon, make_battle):
+    """subscript_gravity_start clears it, Magnet Rise can't be picked under Gravity"""
+    arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Harden", "Magnet Rise"])],
+                      [make_pokemon("Abra", 20, "Synchronize", ["Gravity"])])
+    me = my_active(arr)
+    engine_helper.start_magnet_rise(me)
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.GRAVITY_TURNS] > 0
+    assert me[Pok.MAGNET_RISE_TURNS] == 0 and not me[Pok.VOL_STATUS2] & VolStatus2.MAGNET_RISE
+    assert engine_helper.move_blocked(me, 1, True)
+
+
+def test_baton_pass_passes_magnet_rise(make_pokemon):
+    """With its turns (pokeplatinum magnetRiseTurns)"""
+    old = make_pokemon("Rattata", 20, "Run Away", ["Magnet Rise"]).to_np()
+    new = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"]).to_np()
+    engine_helper.start_magnet_rise(old)
+    engine_helper.magnet_rise_count(old)
+    battle._pass_baton(old, new)
+    assert new[Pok.VOL_STATUS2] & VolStatus2.MAGNET_RISE and new[Pok.MAGNET_RISE_TURNS] == 4

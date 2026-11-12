@@ -608,3 +608,15 @@ def test_field_shows_trick_room_and_tailwind():
     assert field["trick_room_turns"] == 4
     assert {"name": "Tailwind", "turns": 2} in field["opp_side"]
     assert not field["my_side"]
+
+
+def test_field_shows_spikes_layers():
+    """Spikes carry their layers, like Toxic Spikes"""
+    from backend.serializer import _field  # pylint: disable=import-outside-toplevel
+    from Models.helper import SideCondition  # pylint: disable=import-outside-toplevel
+    from Models.idx_const import Field  # pylint: disable=import-outside-toplevel
+    arr = build_scenario("starters")
+    arr[Field.MY_SIDE_COND] |= SideCondition.SPIKES
+    arr[Field.MY_SPIKES] = 3
+    field = _field(arr[Field.MY_POK:])
+    assert {"name": "Spikes", "layers": 3} in field["my_side"]

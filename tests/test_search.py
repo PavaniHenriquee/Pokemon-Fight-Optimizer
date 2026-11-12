@@ -442,6 +442,9 @@ def test_node_key_death_phase_ignores_my_side(one_v_one):
     ("Stealth Rock", {Field.MY_SIDE_COND: SideCondition.STEALTH_ROCK}, False),
     ("Toxic Spikes", {Field.OPP_TOXIC_SPIKES: 1}, False),
     ("Toxic Spikes", {Field.OPP_TOXIC_SPIKES: 2}, True),
+    ("Spikes", {Field.OPP_SPIKES: 2}, False),
+    ("Spikes", {Field.OPP_SPIKES: 3}, True),
+    ("Spikes", {Field.MY_SPIKES: 3}, False),
     ("Rain Dance", {Field.WEATHER: 2}, True),
     ("Rain Dance", {Field.WEATHER: 4}, False),
     ("Sunny Day", {Field.WEATHER: Weather.SUN}, True),
@@ -1385,3 +1388,57 @@ def test_rollout_sees_heal_block_fail(poke):
     assert not status_move_blocked(move_slice(me, 0), me, foe, 0)
     foe[Pok.VOL_STATUS] |= VolStatus.HEAL_BLOCK
     assert status_move_blocked(move_slice(me, 0), me, foe, 0)
+
+
+# ── 9.3 Spikes, Magnet Rise ──────────────────────────────────────────────────
+
+@pytest.mark.parametrize("slot", [Field.MY_SPIKES, Field.OPP_SPIKES])
+def test_node_key_sees_spikes_layers(one_v_one, slot):
+    """Each side's Spikes layers split nodes, and the two sides don't collide"""
+    arr = one_v_one()
+    keys = set()
+    for layers in range(4):
+        other = arr.copy()
+        other[slot] = layers
+        keys.add(node_key(other))
+    assert len(keys) == 4
+    mine = arr.copy()
+    mine[Field.MY_SPIKES] = 1
+    opp = arr.copy()
+    opp[Field.OPP_SPIKES] = 1
+    assert node_key(mine) != node_key(opp)
+
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_magnet_rise_not_its_turns(one_v_one, mine):
+    arr = one_v_one()
+    key = node_key(arr)
+    pok = my_active(arr) if mine else opp_active(arr)
+    pok[Pok.VOL_STATUS2] |= VolStatus2.MAGNET_RISE
+    pok[Pok.MAGNET_RISE_TURNS] = 5
+    risen = node_key(arr)
+    assert risen != key
+    pok[Pok.MAGNET_RISE_TURNS] = 2
+    assert node_key(arr) == risen
+
+
+def test_rollout_skips_ground_moves_into_magnet_rise(make_pokemon, make_battle):
+    """A risen foe is immune to Ground moves, so the rollout gives them weight 0"""
+    me = make_pokemon("Geodude", 20, "Sturdy", ["Earthquake", "Harden"])
+    arr = make_battle([me], [make_pokemon("Pikachu", 20, "Static", ["Tackle"])])
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
+    assert 0 in {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)}
+    opp_active(arr)[Pok.MAGNET_RISE_TURNS] = 3
+    assert {int(rollout_pref(arr, 0, actions)[1]) for _ in range(100)} == {1}
+
+
+def test_rollout_sees_magnet_rise_fail(poke):
+    """status_move_blocked: Magnet Rise while up, with Levitate or under Ingrain"""
+    me = poke("Magnemite", 20, "Sturdy", ["Magnet Rise"])
+    foe = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert not status_move_blocked(move_slice(me, 0), me, foe, 0)
+    me[Pok.MAGNET_RISE_TURNS] = 2
+    assert status_move_blocked(move_slice(me, 0), me, foe, 0)
+    gastly = poke("Gastly", 20, "Levitate", ["Magnet Rise"])
+    assert status_move_blocked(move_slice(gastly, 0), gastly, foe, 0)

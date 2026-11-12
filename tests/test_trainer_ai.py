@@ -51,7 +51,7 @@ KIT_STATUS = (
     "Toxic", "Glare", "Spore", "Lovely Kiss", "Dark Void", "Poison Gas", "Teeter Dance", "Rest",
     "Sleep Talk", "Nightmare", "Psycho Shift", "Heal Bell", "Aromatherapy",
     "Milk Drink", "Soft-Boiled", "Slack Off", "Heal Order", "Moonlight", "Morning Sun", "Roost",
-    "Heal Block", "Sunny Day", "Hail", "Tailwind", "Trick Room",
+    "Heal Block", "Sunny Day", "Hail", "Tailwind", "Trick Room", "Spikes", "Defog", "Magnet Rise",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -1351,7 +1351,7 @@ def test_expert_lucky_chant(poke):
     assert _expert_field(ai_pok, user) == (-1, [])
 
 
-@pytest.mark.parametrize("move", ["Stealth Rock", "Toxic Spikes"])
+@pytest.mark.parametrize("move", ["Stealth Rock", "Toxic Spikes", "Spikes"])
 @pytest.mark.parametrize("skip, roar, expected", [
     (1, False, (0, [])),
     (0, False, (1, [])),
@@ -3275,3 +3275,131 @@ def test_expert_protect_sees_every_recover_move(poke, move):
     ai_pok = poke("Rattata", 20, "Run Away", ["Protect"])
     user = poke("Machop", 20, "Guts", [move])
     assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE1) == (-2, [])
+
+
+# ── 9.3 Spikes, Defog, Magnet Rise ───────────────────────────────────────────
+
+@pytest.mark.parametrize("spikes, bench, expected", [(0, 1, 0), (2, 1, 0), (3, 1, -10), (0, 0, -10)])
+def test_basic_spikes(poke, spikes, bench, expected):
+    """pokeplatinum Basic_CheckSpikes: 3 layers or the target's last Pokemon"""
+    ai_pok = poke("Geodude", 20, "Sturdy", ["Spikes"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    score = ai.basic_flag(
+        move_slice(ai_pok, 0), AbilityNames.RUN_AWAY, ai_pok, user, 1.0, 0,
+        user_side=SideCondition.SPIKES if spikes else 0, user_bench=bench, user_spikes=spikes
+    )
+    assert score == expected
+
+
+@pytest.mark.parametrize("species, ability, risen, expected", [
+    ("Magnemite", "Sturdy", False, 0),
+    ("Magnemite", "Sturdy", True, -10),
+    ("Gastly", "Levitate", False, -10),
+    ("Pidgey", "Keen Eye", False, -10),
+])
+def test_basic_magnet_rise(poke, species, ability, risen, expected):
+    """pokeplatinum Basic_CheckMagnetRise"""
+    ai_pok = poke(species, 20, ability, ["Magnet Rise"])
+    if risen:
+        ai_pok[Pok.VOL_STATUS2] |= VolStatus2.MAGNET_RISE
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    score = ai.basic_flag(move_slice(ai_pok, 0), AbilityNames.RUN_AWAY, ai_pok, user, 1.0, 0)
+    assert score == expected
+
+
+@pytest.mark.parametrize("evasion, user_side, bench, expected", [
+    (0, 0, 1, 0),                                       # evasion not at -6: no check
+    (-6, SideCondition.REFLECT, 0, 0),                  # screens: no check
+    (-6, 0, 1, -10),                                    # no hazards
+    (-6, SideCondition.SPIKES, 1, 0),
+    (-6, SideCondition.SPIKES, 0, -10),                 # last Pokemon
+])
+def test_basic_defog(poke, evasion, user_side, bench, expected):
+    """pokeplatinum Basic_CheckDefog, Pokemow agrees"""
+    ai_pok = poke("Pidgey", 20, "Keen Eye", ["Defog"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    user[Pok.EVASION_STAT_STAGE] = evasion
+    score = ai.basic_flag(
+        move_slice(ai_pok, 0), AbilityNames.RUN_AWAY, ai_pok, user, 1.0, 0,
+        user_side=user_side, user_bench=bench
+    )
+    assert score == expected
+
+
+@pytest.mark.parametrize("target, ai_hp, seen, expected", [
+    ("Rattata", 100, 0, (0, [])),
+    ("Rattata", 100, Enemy_AI_Knows.MOVE1, (1, [])),       # saw Earthquake
+    ("Geodude", 100, 0, (0, [(1, 128)])),                 # Ground type: 50%
+    ("Geodude", 100, Enemy_AI_Knows.MOVE1, (1, [(1, 128)])),
+    ("Geodude", 49, Enemy_AI_Knows.MOVE1, (0, [])),       # under 50% HP
+])
+def test_expert_magnet_rise(poke, target, ai_hp, seen, expected):
+    """Pokemow Expert MagnetRise"""
+    ai_pok = poke("Magnemite", 20, "Sturdy", ["Magnet Rise"])
+    ai_pok[Pok.MAX_HP], ai_pok[Pok.CURRENT_HP] = 100, ai_hp
+    user = poke(target, 20, "Sturdy" if target == "Geodude" else "Run Away", ["Earthquake"])
+    assert _expert_knows(ai_pok, user, seen) == expected
+
+
+def _expert_defog(ai_hp, u_hp, user_side, ai_bench=1, evasion=0):
+    ai_pok = poke_np("Pidgey", 20, "Keen Eye", ["Defog"])
+    user = poke_np("Rattata", 20, "Run Away", ["Tackle"])
+    ai_pok[Pok.MAX_HP], ai_pok[Pok.CURRENT_HP] = 100, ai_hp
+    user[Pok.MAX_HP], user[Pok.CURRENT_HP] = 100, u_hp
+    user[Pok.EVASION_STAT_STAGE] = evasion
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0, 0, user_side,
+        ai_bench=ai_bench
+    )
+    queued = [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+    return score, queued
+
+
+REF = SideCondition.REFLECT
+SPK = SideCondition.SPIKES
+
+
+@pytest.mark.parametrize("args, expected", [
+    ((100, 100, 0), (0, [])),
+    ((100, 100, SPK), (-2, [])),                          # hazards, no screens
+    ((60, 70, SPK), (-4, [(-2, 206)])),                   # low HP and a hurt foe
+    ((100, 100, 0, 1, -3), (0, [(-2, 206)])),             # foe at -3 evasion
+    ((100, 100, REF), (1, [])),                           # screens: +1
+    ((100, 100, REF, 0), (1, [])),                        # +1, then stops on the last Pokemon
+    ((100, 100, REF | SPK), (1, [(-1, 128)])),
+    ((30, 70, REF, 0), (-2, [(-2, 206)])),                # 30% HP on the last Pokemon
+    ((30, 100, REF, 1), (0, [(-2, 206)])),                # 30% HP with a bench: no +1
+])
+def test_expert_defog(args, expected):
+    """Pokemow Expert Defog"""
+    assert _expert_defog(*args) == expected
+
+
+def test_expert_gravity_against_magnet_rise(poke):
+    """pokeplatinum Expert_Gravity: 75% of +1 against a Magnet Rise target"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Gravity"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    user[Pok.VOL_STATUS2] |= VolStatus2.MAGNET_RISE
+    user[Pok.MAGNET_RISE_TURNS] = 3
+    assert _expert(ai_pok, user) == (0, [(1, 192)])
+
+
+def test_ai_sees_magnet_rise(poke):
+    """Ground moves into Magnet Rise are immune for the AI's type check (ApplyTypeChart) and
+    score -10, the bench check doesn't see it (CalcEffectiveness)"""
+    ai_pok = poke("Geodude", 20, "Sturdy", ["Earthquake"])
+    user = poke("Pikachu", 20, "Static", ["Tackle"])
+    mv = move_slice(ai_pok, 0)
+    assert ai.trainer_ai_effectiveness(mv, ai_pok, user)[0] == 2.0
+    user[Pok.MAGNET_RISE_TURNS] = 3
+    user[Pok.VOL_STATUS2] |= VolStatus2.MAGNET_RISE
+    eff, _ = ai.trainer_ai_effectiveness(mv, ai_pok, user)
+    assert eff == 0.0
+    assert ai.basic_flag(mv, AbilityNames.STATIC, ai_pok, user, eff, 0) == -10
+    assert ai.party_super_effective(Types.GROUND, ai_pok, user)
+
+
+def test_magnet_rise_is_an_encore_target():
+    """pokeplatinum Expert_Encore_EncouragedMoveEffects lists GIVE_GROUND_IMMUNITY"""
+    assert MoveName.MAGNET_RISE in ai.ENCORE_ENCOURAGED_M

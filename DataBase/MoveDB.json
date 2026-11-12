@@ -1263,6 +1263,20 @@
     "type": "Normal",
     "vol_status": "defense_curl"
   },
+  "Defog": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "defog",
+    "pp": 15,
+    "target": "normal",
+    "type": "Flying"
+  },
   "Destiny Bond": {
     "accuracy": true,
     "category": "Status",
@@ -3530,6 +3544,18 @@
     "target": "normal",
     "type": "Steel"
   },
+  "Magnet Rise": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "gravity": true,
+      "metronome": true
+    },
+    "name": "magnet_rise",
+    "pp": 10,
+    "target": "self",
+    "type": "Electric"
+  },
   "Magnitude": {
     "accuracy": 100,
     "category": "Physical",
@@ -5766,6 +5792,19 @@
     "pp": 15,
     "target": "normal",
     "type": "Normal"
+  },
+  "Spikes": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "must_pressure": true
+    },
+    "name": "spikes",
+    "pp": 20,
+    "side_condition": "spikes",
+    "target": "foe_side",
+    "type": "Ground"
   },
   "Splash": {
     "accuracy": true,

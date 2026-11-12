@@ -22,11 +22,12 @@ from Engine.engine_helper import (
     fling_throw, fling_hit, _flavor_confuse, kick_hits, record_last_resort, last_resort_works,
     secret_power_move, sucker_punch_fails, lost_focus, turn_order_doubles, confuse_boost_fails,
     stage_move_fails, belly_drum, acupressure, haze, psych_up, swap_stages, power_trick, swap_atk_def,
-    status_move_fails, rest, psycho_shift, heal_bell,
+    status_move_fails, rest, psycho_shift, heal_bell, start_magnet_rise, end_magnet_rise,
+    magnet_rise_count,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
-    ability_blocks_status, cure_status,
+    ability_blocks_status, cure_status, stat_changes,
 )
 from Engine.ability_helper import (
     reveal_ability, effective_weather, normalized_type, weather_ball_move, forecast_actives
@@ -38,7 +39,8 @@ from Engine.damage_calc import (
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
     POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS,
-    SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, SIDE_TAILWIND_TURNS
+    SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, SIDE_TAILWIND_TURNS,
+    SIDE_SPIKES,
 )
 from Models.helper import (
     count_party, PHYSICAL_SPECIAL, Target, TARGET_SELF_SIDE, TARGET_OPP_SIDE
@@ -108,9 +110,10 @@ from Models.constants import (
     _VOLSTATUS2_DAMAGED_BY_MOVE, _MOVE_SLEEP_USABLE, _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT,
     _MOVENAME_HEAL_BELL, _MOVENAME_AROMATHERAPY, _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK,
     _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_MOONLIGHT,
-    _MOVENAME_MORNING_SUN, _VOLSTATUS2_ROOST, _POK_HEAL_BLOCK_TURNS,
+    _MOVENAME_MORNING_SUN, _VOLSTATUS2_ROOST, _POK_HEAL_BLOCK_TURNS, _POK_MAGNET_RISE_TURNS,
+    _VOLSTATUS2_MAGNET_RISE, _MOVENAME_MAGNET_RISE, _MOVENAME_DEFOG,
 )
-from Models.move import STRUGGLE, MOVE_TABLE
+from Models.move import STRUGGLE, MOVE_TABLE, DEFOG_DROP
 from Models.item import refresh_item, raw_item_type
 
 
@@ -151,11 +154,14 @@ TIMED_SIDE_MASK = (
     | _SIDECONDITION_SAFEGUARD | _SIDECONDITION_LUCKY_CHANT | _SIDECONDITION_TAILWIND
 )
 RAPID_SPIN_CLEARS = _SIDECONDITION_STEALTH_ROCK | _SIDECONDITION_SPIKES | _SIDECONDITION_TOXIC_SPIKES
+# Defog clears these from the target's side (pokeplatinum subscript_defog)
+DEFOG_CLEARS = SCREENS | _SIDECONDITION_MIST | _SIDECONDITION_SAFEGUARD | RAPID_SPIN_CLEARS
 # Screens, Mist, Safeguard, Lucky Chant and move weather
 FIELD_EFFECT_TURNS = 5
 # Tailwind, counting the turn it's used in (pokeplatinum subscript_tailwind_start, SIDE_CONDITION_TAILWIND)
 TAILWIND_TURNS = 3
 TOXIC_SPIKES_MAX = 2
+SPIKES_MAX = 3
 # Leftovers, and Black Sludge on a Poison type
 GRADUAL_HEAL_EFFECTS = (_HOLDEFFECT_HP_RESTORE_GRADUAL, _HOLDEFFECT_HP_RESTORE_PSN_TYPE)
 WEATHER_MOVES = (
@@ -181,7 +187,9 @@ BATON_PASS_VOLS = (
 )
 # Baton Pass also hands over these VOL_STATUS2 bits (the Substitute goes with its HP, Embargo
 # with its turns, Power Trick by trading the receiver's Attack and Defense)
-BATON_PASS_VOLS2 = _VOLSTATUS2_SUBSTITUTE | _VOLSTATUS2_EMBARGO | _VOLSTATUS2_POWER_TRICK
+BATON_PASS_VOLS2 = (
+    _VOLSTATUS2_SUBSTITUTE | _VOLSTATUS2_EMBARGO | _VOLSTATUS2_POWER_TRICK | _VOLSTATUS2_MAGNET_RISE
+)
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
 # Field.OPP_MOVE_RAN: the foe's move slot + 1, plus this for every PP the move paid
@@ -214,6 +222,8 @@ def _pass_baton(old, new):
     new[_POK_EMBARGO_TURNS] = old[_POK_EMBARGO_TURNS]
     # Heal Block too (pokeplatinum healBlockTurns)
     new[_POK_HEAL_BLOCK_TURNS] = old[_POK_HEAL_BLOCK_TURNS]
+    # Magnet Rise too (pokeplatinum magnetRiseTurns)
+    new[_POK_MAGNET_RISE_TURNS] = old[_POK_MAGNET_RISE_TURNS]
     # The receiver's own Attack and Defense trade (pokeplatinum BattleSystem_UpdateAfterSwitch)
     if new[_POK_VOL_STATUS2] & _VOLSTATUS2_POWER_TRICK:
         swap_atk_def(new)
@@ -832,13 +842,16 @@ def _held_extension(pok, effect):
 def _set_side_condition(cond, battle_array, side, screen_bonus=0):
     """
     Screens, Mist, Safeguard and Lucky Chant last 5 turns and Tailwind 3, all fail while up, Stealth
-    Rock fails if already set and Toxic Spikes stacks up to 2 layers. side is that side's Field.SIDE_COND.
-    screen_bonus is the user's Light Clay turns, only screens get them
+    Rock fails if already set, Toxic Spikes stacks up to 2 layers and Spikes up to 3 (pokeplatinum
+    BtlCmd_TrySpikes). side is that side's Field.SIDE_COND. screen_bonus is the user's Light Clay
+    turns, only screens get them
     """
-    if cond == _SIDECONDITION_TOXIC_SPIKES:
-        layers = battle_array[side + SIDE_TOXIC_SPIKES]
-        if layers < TOXIC_SPIKES_MAX:
-            battle_array[side + SIDE_TOXIC_SPIKES] = layers + 1
+    if cond == _SIDECONDITION_TOXIC_SPIKES or cond == _SIDECONDITION_SPIKES:
+        slot = SIDE_TOXIC_SPIKES if cond == _SIDECONDITION_TOXIC_SPIKES else SIDE_SPIKES
+        cap = TOXIC_SPIKES_MAX if cond == _SIDECONDITION_TOXIC_SPIKES else SPIKES_MAX
+        layers = battle_array[side + slot]
+        if layers < cap:
+            battle_array[side + slot] = layers + 1
             battle_array[side] |= cond
         return
     if battle_array[side] & cond:
@@ -880,7 +893,7 @@ def _set_weather(battle_array, weather, user):
 def _set_gravity(battle_array, atk, defn):
     """
     Gravity fails while up, else it lasts 5 turns and brings down a Pokemon in the air (Bounce),
-    whose attack doesn't happen
+    whose attack doesn't happen, and ends Magnet Rise (pokeplatinum subscript_gravity_start)
     """
     if battle_array[_FIELD_GRAVITY_TURNS] > 0:
         return
@@ -888,6 +901,7 @@ def _set_gravity(battle_array, atk, defn):
     for pok in (atk, defn):
         if pok[_POK_SEMI_INV_MOVE] in AIRBORNE_MOVES:
             unlock_move(pok)
+        end_magnet_rise(pok)
 
 
 @njit
@@ -898,13 +912,27 @@ def _set_trick_room(battle_array):
 
 @njit
 def _clear_side(battle_array, side, conds):
-    """Removes these side conditions with their turn counters and Toxic Spikes layers"""
+    """Removes these side conditions with their turn counters and spikes layers"""
     battle_array[side] &= ~conds
     for bit, turns in TIMED_SIDE_CONDITIONS:
         if bit & conds:
             battle_array[side + turns] = 0
     if conds & _SIDECONDITION_TOXIC_SPIKES:
         battle_array[side + SIDE_TOXIC_SPIKES] = 0
+    if conds & _SIDECONDITION_SPIKES:
+        battle_array[side + SIDE_SPIKES] = 0
+
+
+@njit
+def _defog(atk, defn, battle_array, def_side):
+    """
+    Defog: the target's evasion -1, then its side loses its screens, Mist, Safeguard and hazards
+    (pokeplatinum subscript_defog, so Mist still blocks the drop). Behind a Substitute only the
+    drop is skipped (Showdown gen5 defog onHit)
+    """
+    if not has_substitute(defn):
+        stat_changes(DEFOG_DROP, atk, defn, False, battle_array[def_side])
+    _clear_side(battle_array, def_side, DEFOG_CLEARS)
 
 
 @njit
@@ -1218,6 +1246,9 @@ def _execute_move_slot(
     if mv[_MOVE_ID] == _MOVENAME_TRICK_ROOM:
         _set_trick_room(battle_array)
         return False
+    if mv[_MOVE_ID] == _MOVENAME_DEFOG:
+        _defog(atk, defn, battle_array, def_side)
+        return False
     _status_move(atk, defn, mv, is_mine, battle_array, weather)
     calculate_effects(atk, defn, mv, weather, battle_array[def_side])
     return False
@@ -1227,7 +1258,8 @@ def _execute_move_slot(
 def _status_move(atk, defn, mv, is_mine, battle_array, weather):
     """Recover, Synthesis, Refresh, Recycle, Worry Seed, Substitute, Trick, Switcheroo, Embargo,
     Pain Split, Belly Drum, Acupressure, Haze, Psych Up, Power Swap, Guard Swap, Heart Swap, Power
-    Trick, Rest, Psycho Shift, Heal Bell, Aromatherapy and Minimize's flag (its boost is data)"""
+    Trick, Rest, Psycho Shift, Heal Bell, Aromatherapy, Magnet Rise and Minimize's flag (its boost
+    is data)"""
     move_id = mv[_MOVE_ID]
     if move_id == _MOVENAME_MINIMIZE:
         atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_MINIMIZE
@@ -1246,6 +1278,8 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         swap_items(atk, defn)
     elif move_id == _MOVENAME_EMBARGO:
         embargo(defn)
+    elif move_id == _MOVENAME_MAGNET_RISE:
+        start_magnet_rise(atk)
     elif move_id == _MOVENAME_PAIN_SPLIT:
         _pain_split(atk, defn)
     elif move_id == _MOVENAME_BELLY_DRUM:
@@ -1775,10 +1809,13 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
         if pok[_POK_TAUNT_TURNS] <= 0:
             pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_TAUNT
 
-    # 11a. Heal Block
+    # 11a. Magnet Rise
+    magnet_rise_count(pok)
+
+    # 11b. Heal Block
     heal_block_count(pok)
 
-    # 11b. Embargo (Magnet Rise will go before it)
+    # 11c. Embargo
     embargo_count(pok)
 
     # 12. Yawn

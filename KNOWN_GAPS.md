@@ -7,7 +7,7 @@
   panels load with JavaScript and couldn't be fetched, so any place Pokemow differs isn't checked.
 - AI: Expert Heal Block counts every move with `drain` as a drain move ([pp] RECOVER_HALF_DAMAGE_DEALT), so
   Draining Kiss too; which effect RP gives it is unknown (ROM not read).
-- AI: Expert Gravity reads the target's real ability and skips Magnet Rise;
+- AI: Expert Gravity reads the target's real ability;
   `expert_charge_invulnerable` skips the "target's last move isn't always-hit" check;
   pokeplatinum's Expert swaps the EVA_DOWN_2 / ACC_DOWN_2 logic (copy it when a -2
   accuracy/evasion move lands).
@@ -19,6 +19,9 @@
 - AI: `sub_after_death` phase 2 gives Weather Ball the weather's type for the whole damage calc; [pp]
   `BattleAI_PostKOSwitchIn` passes only the type chart the variable type, `CalcMoveDamage` keeps the data type
   (Normal), so [pp] adds no sun / rain boost there. Rounding only.
+- AI: `sub_after_death` phase 2 scores a Ground move into my Levitate or Magnet Rise by its damage; [pp]
+  `BattleAI_PostKOSwitchIn` runs `ApplyTypeChart` after `CalcMoveDamage` and scores it 0 (`MOVE_STATUS_IMMUNE`
+  includes `LEVITATED` and `MAGNET_RISE`). `calculate_damage` has neither check.
 - AI: Superpower and the recharge moves have no Basic branch of their own ([pp]
   `Basic_CheckNonStandardDamageOrChargeTurn`): the general checks cover them, with Pokemow's -12 into Wonder
   Guard where [pp]'s script gives -10.
@@ -111,7 +114,7 @@
   Griseous Orb boost for a transformed Giratina. [pp] also skips Trace for a Griseous Orb holder (unreachable,
   only Giratina can hold it).
 - Two actives both holding Lagging Tail / Full Incense: [pp] lets the slower go first, the engine goes by speed
-  (Showdown). Unreachable, only my side can have them. Iron Ball ending Magnet Rise waits for Magnet Rise.
+  (Showdown). Unreachable, only my side can have them.
 - Switcheroo and Embargo also fail on a target whose Quick Claw or Custap activated this turn in [pp]
   (`subscript_exchange_items`, `subscript_embargo_start`); not handled, like Covet / Thief, Knock Off and Trick.
 - Sticky Hold stopping Covet, Thief, Bug Bite or Pluck doesn't reveal the ability; [pp]'s "made ineffective"
@@ -123,11 +126,13 @@
 
 ## MoveDB and tests
 
-- Not in MoveDB yet: Spikes damage, Magnet Rise, U-turn.
+- Not in MoveDB yet: U-turn.
 - MoveDB flags from after Gen IV (`python -m DataBase.add_moves --check` lists them): Absorb and Mega
   Drain have `heal`; Stealth Rock, Foresight and Taunt are `reflectable`; Roar has no `protect`. They matter
   once Magic Coat and Heal Block are in.
 - MoveDB: Earthquake's flag is spelled `nonsky`, every other move's `non_sky`. Nothing reads it yet.
+- `battle_driver.py`'s `_blocked` (the independent `legal_actions`) has Gravity but not Heal Block; no scenario
+  gives my side a healing move under Heal Block yet.
 - MoveDB order: `SHOCK_WAVE` sits before `SCRATCH` in `MoveName` and Nightmare before Night Shade in
   MoveDB.json. `add_moves` leaves existing lines alone, so a new move next to them can land a step off
   (Night Slash would go before Nightmare).

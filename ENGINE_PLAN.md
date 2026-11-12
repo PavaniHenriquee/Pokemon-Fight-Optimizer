@@ -10,19 +10,18 @@ Updated only when asked.
 - Done: Phase 3 (Substitute and its audit), 2026-11-08.
 - Done: 4.1 (simple held items), 4.2 (items with their own rules) and 4.3 (berries), 2026-11-08.
 - Done: 4.4 (choice items), 2026-11-09.
-- Done: 4.5 (item moves), and with it Phase 4, 2026-11-09. Its `benchmarks.run quick` on the home PC is still to do.
+- Done: 4.5 (item moves), and with it Phase 4, 2026-11-09.
 - Done: 5.1 (status, flinch or confusion chance) and 5.2 (stat changes on hit), 2026-11-09.
-- Done: 5.3 (everything else in this phase), and with it Phase 5, 2026-11-09. Its `benchmarks.run quick` on the
-  home PC is still to do.
+- Done: 5.3 (everything else in this phase), and with it Phase 5, 2026-11-09.
 - Done: 6.1 (recharge), 6.2 (charge turn), 6.3 (semi-invulnerable, and what reaches it), 6.4 (rampage) and 6.5
-  (crash damage), and with it Phase 6, 2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
+  (crash damage), and with it Phase 6, 2026-11-10.
 - Done: 7.1 (variable power), 7.2 (fixed and HP-based damage) and 7.3 (turn order), and with it Phase 7,
-  2026-11-10. Its `benchmarks.run quick` on the home PC is still to do.
+  2026-11-10.
 - Done: 8.1 (stat stages), 2026-11-10.
-- Done: 8.2 (status and sleep) and 8.3 (healing), and with it Phase 8, 2026-11-11. Its `benchmarks.run quick`
-  on the home PC is still to do.
+- Done: 8.2 (status and sleep) and 8.3 (healing), and with it Phase 8, 2026-11-11.
 - Done: 9.1 (weather) and 9.2 (field), 2026-11-11.
-- Next: 9.3 (hazards and grounding).
+- Done: 9.3 (hazards and grounding), and with it Phase 9, 2026-11-11.
+- Next: 10.1 (delayed effects).
 
 ## Goal
 
@@ -636,10 +635,10 @@ Fixed damage:
 
 ### 9.3 Hazards and grounding
 
-- [ ] Spikes(E) !
-- [ ] Defog(B/E) \* !
-- [ ] Rapid Spin clears Spikes too
-- [ ] Magnet Rise(B/E) !
+- [x] Spikes(E) !
+- [x] Defog(B/E) \* !
+- [x] Rapid Spin clears Spikes too
+- [x] Magnet Rise(B/E) !
 
 ## Phase 10: delayed effects, sacrifice and self-switch
 

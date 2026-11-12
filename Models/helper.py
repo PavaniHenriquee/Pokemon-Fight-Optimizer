@@ -92,6 +92,7 @@ class VolStatus2:
     DAMAGED_BY_MOVE   = 64
     POWER_TRICK       = 128
     ROOST             = 256
+    MAGNET_RISE       = 512
 
 
 @dataclass(slots=True)

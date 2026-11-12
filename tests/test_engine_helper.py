@@ -28,7 +28,7 @@ from Engine.engine_helper import (
 from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN
 from Models.helper import Terrain
 from DataBase.MoveDB import MoveName
-from Models.idx_const import Pok, Move, Item, Sec, Field, SIDE_TOXIC_SPIKES, FIELD_LEN
+from Models.idx_const import Pok, Move, Item, Sec, Field, SIDE_TOXIC_SPIKES, FIELD_LEN, SIDE_SPIKES
 from Models.helper import (
     Status, Weather, VolStatus, VolStatus2, Potions, MoveOutcome, Types, SideCondition, Gender,
 )
@@ -1897,6 +1897,130 @@ def test_rock_faint_skips_switch_in_ability(poke):
     me[Pok.CURRENT_HP] = 1
     switch_in(me, foe, _field(SR), True)
     assert me[Pok.CURRENT_HP] == 0 and foe[Pok.ATTACK_STAT_STAGE] == 0
+
+
+# ── 9.3 Spikes, Magnet Rise ──────────────────────────────────────────────────
+
+SPIKES = SideCondition.SPIKES
+
+
+def _spikes_field(layers, cond=SPIKES):
+    arr = empty_field()
+    arr[MY_SIDE] = cond
+    arr[MY_SIDE + SIDE_SPIKES] = layers
+    return arr
+
+
+@pytest.mark.parametrize("layers, divisor", [(1, 8), (2, 6), (3, 4)])
+def test_spikes_damage(poke, layers, divisor):
+    """Max HP / 8, / 6, / 4 by layers (pokeplatinum BtlCmd_CheckSpikes)"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"])
+    apply_hazards(p, _spikes_field(layers), MY_SIDE)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] - p[Pok.MAX_HP] // divisor
+
+
+def test_spikes_damage_is_at_least_one(poke):
+    """BattleSystem_Divide"""
+    p = poke("Rattata", 2, "Run Away", ["Tackle"])
+    p[Pok.MAX_HP] = p[Pok.CURRENT_HP] = 7
+    apply_hazards(p, _spikes_field(1), MY_SIDE)
+    assert p[Pok.CURRENT_HP] == 6
+
+
+@pytest.mark.parametrize("species, ability, item", [
+    ("Pidgey", "Keen Eye", None), ("Gastly", "Levitate", None), ("Clefairy", "Magic Guard", None),
+])
+def test_spikes_miss_airborne_and_magic_guard(poke, species, ability, item):
+    """Flying, Levitate and Magic Guard take no Spikes damage"""
+    p = poke(species, 20, ability, ["Tackle"], item=item)
+    apply_hazards(p, _spikes_field(3), MY_SIDE)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP]
+
+
+def test_spikes_hit_a_flying_iron_ball_holder_and_under_gravity(poke):
+    """Iron Ball and Gravity ground the Pokemon"""
+    p = poke("Pidgey", 20, "Keen Eye", ["Tackle"], item="Iron Ball")
+    apply_hazards(p, _spikes_field(1), MY_SIDE)
+    assert p[Pok.CURRENT_HP] < p[Pok.MAX_HP]
+    q = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    arr = _spikes_field(1)
+    arr[Field.GRAVITY_TURNS] = 3
+    apply_hazards(q, arr, MY_SIDE)
+    assert q[Pok.CURRENT_HP] < q[Pok.MAX_HP]
+
+
+def test_hazards_go_toxic_spikes_spikes_rocks(poke):
+    """All three land in order, a faint to Spikes skips the rocks"""
+    p = poke("Rattata", 50, "Run Away", ["Tackle"])
+    arr = _spikes_field(1, SPIKES | TSPIKES | SR)
+    arr[MY_SIDE + SIDE_TOXIC_SPIKES] = 1
+    apply_hazards(p, arr, MY_SIDE)
+    assert p[Pok.STATUS] == Status.POISON
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] - p[Pok.MAX_HP] // 8 - stealth_rock_damage(p)
+    q = poke("Rattata", 50, "Run Away", ["Tackle"], item="Oran Berry")
+    q[Pok.CURRENT_HP] = 1
+    apply_hazards(q, _spikes_field(1, SPIKES | SR), MY_SIDE)
+    assert q[Pok.CURRENT_HP] == 0
+
+
+def test_magnet_rise_keeps_off_spikes_even_under_ingrain(poke):
+    """pokeplatinum subscript_hazards_check reads the turns, not Ingrain"""
+    p = poke("Rattata", 20, "Run Away", ["Tackle"])
+    p[Pok.MAGNET_RISE_TURNS] = 3
+    p[Pok.VOL_STATUS] |= VolStatus.INGRAIN
+    assert not is_grounded(p)
+    apply_hazards(p, _spikes_field(3), MY_SIDE)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP]
+    assert is_grounded(p, True)
+
+
+@pytest.mark.parametrize("ingrain, item, immune", [
+    (False, None, True), (True, None, False), (False, "Iron Ball", False),
+])
+def test_magnet_rise_ground_immunity(poke, ingrain, item, immune):
+    """Ground moves miss a risen Pokemon unless Ingrain or an Iron Ball ground it (pokeplatinum
+    BattleSystem_ApplyTypeChart)"""
+    a = poke("Geodude", 20, "Sturdy", ["Mud-Slap"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"], item=item)
+    d[Pok.MAGNET_RISE_TURNS] = 3
+    if ingrain:
+        d[Pok.VOL_STATUS] |= VolStatus.INGRAIN
+    assert engine_helper.magnet_risen(d) == immune
+    outcome = calculate_hit_miss(move_slice(a, 0), a, d, 0)
+    assert (outcome == MoveOutcome.INVULNERABLE) == immune
+
+
+@pytest.mark.parametrize("ability, ingrain, up, fails", [
+    ("Run Away", False, False, False), ("Levitate", False, False, True),
+    ("Run Away", True, False, True), ("Run Away", False, True, True),
+])
+def test_magnet_rise_fails(poke, ability, ingrain, up, fails):
+    """Up already, Levitate or Ingrain (pokeplatinum effect_script_0252)"""
+    p = poke("Rattata", 20, ability, ["Magnet Rise"])
+    if ingrain:
+        p[Pok.VOL_STATUS] |= VolStatus.INGRAIN
+    if up:
+        p[Pok.MAGNET_RISE_TURNS] = 2
+    assert engine_helper.start_magnet_rise(p) != fails
+
+
+def test_magnet_rise_lasts_five_turns(poke):
+    """Counted down at every end of turn, the flag goes with the last turn"""
+    p = poke("Rattata", 20, "Run Away", ["Magnet Rise"])
+    assert engine_helper.start_magnet_rise(p)
+    assert p[Pok.VOL_STATUS2] & VolStatus2.MAGNET_RISE and p[Pok.MAGNET_RISE_TURNS] == 5
+    for left in (4, 3, 2, 1):
+        engine_helper.magnet_rise_count(p)
+        assert p[Pok.MAGNET_RISE_TURNS] == left and p[Pok.VOL_STATUS2] & VolStatus2.MAGNET_RISE
+    engine_helper.magnet_rise_count(p)
+    assert p[Pok.MAGNET_RISE_TURNS] == 0 and not p[Pok.VOL_STATUS2] & VolStatus2.MAGNET_RISE
+
+
+def test_magnet_rise_ends_on_switch_out(poke):
+    p = poke("Rattata", 20, "Run Away", ["Magnet Rise"])
+    engine_helper.start_magnet_rise(p)
+    reset_switch_out(p)
+    assert p[Pok.MAGNET_RISE_TURNS] == 0 and not p[Pok.VOL_STATUS2] & VolStatus2.MAGNET_RISE
 
 
 def test_mist_blocks_intimidate(poke):
