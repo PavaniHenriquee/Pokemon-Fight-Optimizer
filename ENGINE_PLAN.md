@@ -22,7 +22,8 @@ Updated only when asked.
 - Done: 9.1 (weather) and 9.2 (field), 2026-11-11.
 - Done: 9.3 (hazards and grounding), and with it Phase 9, 2026-11-11.
 - Done: 10.1 (delayed effects) and 10.2 (sacrifice), 2026-11-12.
-- Next: 10.3 (self-switch).
+- Done: 10.3 (self-switch), and with it Phase 10, 2026-11-12.
+- Next: 11.1 (restriction and trapping).
 
 ## Goal
 
@@ -660,7 +661,7 @@ Fixed damage:
 
 ### 10.3 Self-switch
 
-- [ ] U-turn(E) !! (my mid-turn pick reuses the Baton Pass phase; the AI uses its post-KO pick)
+- [x] U-turn(E) !! (my mid-turn pick reuses the Baton Pass phase; the AI uses its post-KO pick)
 
 ## Phase 11: restriction, trapping and protection
 

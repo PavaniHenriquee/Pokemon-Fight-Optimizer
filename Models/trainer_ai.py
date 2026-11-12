@@ -29,6 +29,7 @@ from Models.constants import (
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_MY_SPIKES, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
     _MOVENAME_COPYCAT, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_ARENA_TRAP, _ABILITYNAMES_MAGNET_PULL,
     _TYPES_STEEL, _MOVE_POWER, _MOVENAME_HIDDEN_POWER, _MOVENAME_HEALING_WISH, _POK_VOL_STATUS2,
+    _MOVENAME_U_TURN,
     _VOLSTATUS2_EMBARGO, _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER
 )
 from Models.trainer_ai_helper import (
@@ -441,11 +442,11 @@ def choose_move(battle_array):
         ability = pool_row[random.getrandbits(1)]
 
     max_damage = 0
-    # Expert Healing Wish's two checks, only worked out when the active has it
+    # Expert Healing Wish's and U-turn's two checks, only worked out when the active has one
     has_se = False
     bench_more = False
     for i in range(4):
-        if moves[i][_MOVE_ID] == _MOVENAME_HEALING_WISH:
+        if moves[i][_MOVE_ID] == _MOVENAME_HEALING_WISH or moves[i][_MOVE_ID] == _MOVENAME_U_TURN:
             has_se = ai_has_se_move(ai_pok, user_pok, eff_weather, ai_side, user_side, gravity)
             bench_more = bench_deals_more(
                 battle_array, ai_pok, user_pok, eff_weather, ai_side, user_side, gravity

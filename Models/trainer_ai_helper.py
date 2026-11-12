@@ -113,7 +113,7 @@ from Models.constants import (
     _MOVENAME_ROOST, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _MOVENAME_HEAL_BLOCK,
     _VOLSTATUS_HEAL_BLOCK, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _ABILITYNAMES_ICE_BODY,
     _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SOLAR_POWER, _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL,
-    _MOVENAME_WEATHER_BALL, _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH,
+    _MOVENAME_WEATHER_BALL, _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_U_TURN,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -2820,8 +2820,11 @@ def max_switch_stage(pok):
 
 
 @njit
-def expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first):
-    """pokeplatinum Expert_ForceSwitch, Expert_BatonPass and Expert_Pursuit, none for Teleport"""
+def expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first, ai_know=0):
+    """
+    pokeplatinum Expert_ForceSwitch, Expert_BatonPass and Expert_Pursuit, none for Teleport.
+    ai_know is Field.AI_KNOWS: Pursuit's U-turn check needs the AI to have seen it
+    """
     if move[_MOVE_FORCE_SWITCH]:
         # The target's turn count is TURNS_ACTIVE - 1, a 75% +2 that falls into the 50% +2
         if u_pok[_POK_TURNS_ACTIVE] - 1 > 3:
@@ -2847,12 +2850,14 @@ def expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first):
             return 0 if ai_hp_pct < 70 else -2
         return -2
     if move_id == _MOVENAME_PURSUIT:
-        # TODO: +1 50% when the target knows U-turn, once it's in MoveDB
         if (
             ai_pok[_POK_TURNS_ACTIVE] == 1
             or u_pok[_POK_TYPE1] == _TYPES_GHOST or u_pok[_POK_TYPE1] == _TYPES_PSYCHIC
             or u_pok[_POK_TYPE2] == _TYPES_GHOST or u_pok[_POK_TYPE2] == _TYPES_PSYCHIC
         ):
+            add_adjustment(rand, idx, 1, 128)
+        # pokeplatinum IfMoveNotKnown reads the moves the AI saw (battlerMoves)
+        if seen_move(u_pok, ai_know, (_MOVENAME_U_TURN,)):
             add_adjustment(rand, idx, 1, 128)
     return 0
 
@@ -2905,6 +2910,36 @@ def expert_healing_wish(ai_pok, rand, idx, slower, has_se, bench_more):
     if ai_hp_pct <= 30:
         add_adjustment(rand, idx, 1, 128)
     return score
+
+
+@njit
+def expert_u_turn(ai_pok, rand, idx, effectiveness, move_first, ai_bench, has_se, bench_more):
+    """
+    Pokemow Expert UTurn and its effectiveness pre-check: resisted or immune -1. Nobody else alive,
+    nothing. A super-effective move 75% of -2; no bench Pokemon dealing more damage 75% of -2 and
+    stop. The AI's own HP (Pokemow; pokeplatinum's code reads the target's): above 70% 75% of +1
+    and 50% of +1, above 30% 50% of +1, else 25% of +1. Then +1 moving first, else 50% of +1
+    """
+    if effectiveness <= 0.5:
+        return -1
+    if ai_bench == 0:
+        return 0
+    if has_se:
+        add_adjustment(rand, idx, -2, 192)
+    if not bench_more and random.getrandbits(8) >= 64:
+        return -2
+    ai_hp_pct = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+    if ai_hp_pct > 70:
+        add_adjustment(rand, idx, 1, 192)
+        add_adjustment(rand, idx, 1, 128)
+    elif ai_hp_pct > 30:
+        add_adjustment(rand, idx, 1, 128)
+    else:
+        add_adjustment(rand, idx, 1, 64)
+    if move_first:
+        return 1
+    add_adjustment(rand, idx, 1, 128)
+    return 0
 
 
 @njit
@@ -2964,7 +2999,7 @@ def expert_flag(
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it.
     has_se: one of the AI's moves is super effective on the target (pokeplatinum
-    IfHasSuperEffectiveMove), bench_more: bench_deals_more. Both only for Healing Wish.
+    IfHasSuperEffectiveMove), bench_more: bench_deals_more. Both only for Healing Wish and U-turn.
     ai_know is Field.AI_KNOWS, its move bits are the target's moves the AI saw.
     user_side is the target's Field.SIDE_COND. copycat_beats: the target's last move, used on
     itself, does more damage than any of the AI's moves. claw_guess: quick_claw_guess.
@@ -2992,6 +3027,8 @@ def expert_flag(
         return expert_explosion(ai_pok, u_pok, rand, idx, order < 0)
     if move[_MOVE_ID] == _MOVENAME_HEALING_WISH:
         return expert_healing_wish(ai_pok, rand, idx, order < 0, has_se, bench_more)
+    if move[_MOVE_ID] == _MOVENAME_U_TURN:
+        return expert_u_turn(ai_pok, rand, idx, effectiveness, move_first, ai_bench, has_se, bench_more)
     # Expert_OHKOMove: 25% chance of +1
     if move[_MOVE_OH_KO]:
         add_adjustment(rand, idx, 1, 64)
@@ -3037,7 +3074,7 @@ def expert_flag(
             add_adjustment(rand, idx, 2, 176)
         return 0
     if move[_MOVE_FORCE_SWITCH] or move[_MOVE_ID] in SWITCH_EXPERT_M:
-        return expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first)
+        return expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first, ai_know)
     if move[_MOVE_SIDE_CONDITION] or move[_MOVE_ID] in FIELD_EXPERT_M:
         return expert_field(
             move, ai_pok, u_pok, rand, idx, weather, my_last_move, ai_know, user_side, move_first

@@ -87,7 +87,7 @@ from Models.constants import (
     _POK_EVASION_STAT_STAGE, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _VOLSTATUS_HEAL_BLOCK,
     _BATTLEPHASE_BATON_PASS, _FIELD_PENDING_OPP_MOVE, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
     _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_GRUDGE, _VOLSTATUS2_GRUDGE,
-    _SIDECONDITION_HEALING_WISH,
+    _SIDECONDITION_HEALING_WISH, _VOLSTATUS2_U_TURN,
     _MOVENAME_KNOCK_OFF, _POK_ITEM_KNOCKED_OFF, _MOVENAME_RECOVER, _MOVENAME_SYNTHESIS,
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
     _ENEMY_AI_KNOWS_ABILITY, _POK_CALLED_MOVE, _FIELD_LAST_MOVE, _MOVENAME_HIDDEN_POWER,
@@ -204,6 +204,8 @@ BATON_PASS_VOLS2 = (
 NO_ACTION = -50
 # Field.OPP_MOVE_RAN: the foe's move slot + 1, plus this for every PP the move paid
 OPP_RAN_PP_STEP = 16
+# Field.PENDING_OPP_MOVE: added to the slot + 1 when my move made the foe flinch (U-turn with King's Rock)
+PENDING_FLINCH = 16
 HEAL_MOVES = (
     _MOVENAME_RECOVER, _MOVENAME_SYNTHESIS, _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK,
     _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_MOONLIGHT,
@@ -1325,6 +1327,8 @@ def _execute_move_slot(
         # Substitute (Showdown frz onDamagingHit)
         if hit_pok and defn[_POK_STATUS] == _STATUS_FREEZE:
             thaw(atk, mv, defn)
+        if mv[_MOVE_SELF_SWITCH]:
+            _u_turn_start(atk, defn, battle_array, is_mine)
         return flinch
 
     # A status move aimed at a foe behind a Substitute fails, unless it bypasses it
@@ -1511,6 +1515,41 @@ def _healing_wish(atk, defn, battle_array, is_mine):
 
 
 @njit
+def _u_turn_start(atk, defn, battle_array, is_mine):
+    """
+    U-turn hit, a Substitute included (an on-hit side effect): the user leaves unless it fainted
+    (Rough Skin, Life Orb, Destiny Bond), its bench is empty or the target's whole side is out
+    (pokeplatinum subscript_attack_then_switch_out). Marks it, _u_turn_switch does the switch
+    """
+    if atk[_POK_CURRENT_HP] <= 0 or _bench_alive(battle_array, is_mine) == 0:
+        return
+    if defn[_POK_CURRENT_HP] <= 0 and _bench_alive(battle_array, not is_mine) == 0:
+        return
+    atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_U_TURN
+
+
+@njit
+def _u_turn_switch(atk, defn, battle_array, is_mine):
+    """
+    The marked U-turn user leaves with a plain switch, unless a Pursuit KOed it first. Mine waits
+    in the Baton Pass phase for my pick (the mark tells baton_pass_action not to pass anything),
+    the AI picks right away with its post-KO logic
+    """
+    if atk[_POK_CURRENT_HP] <= 0:
+        atk[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_U_TURN
+        return
+    if is_mine:
+        battle_array[_FIELD_PHASE] = _BATTLEPHASE_BATON_PASS
+        return
+    i = sub_after_death(
+        battle_array[(6 * POK_LEN):(12 * POK_LEN)], defn, atk, battle_array[_FIELD_MY_SIDE_COND],
+        effective_weather(battle_array), battle_array[_FIELD_OPP_POK],
+        battle_array[_FIELD_GRAVITY_TURNS] > 0
+    )
+    _switch_opp_side(battle_array, atk, defn, i)
+
+
+@njit
 def _encore_slot(pok, slot):
     """Encore forces the encored move when the Pokemon acts, also on the turn Encore lands"""
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_ENCORE and 0 <= slot < 4:
@@ -1587,12 +1626,18 @@ def action(current_move, opp_move, battle_array):
         update_choice_lock(atk1, mv1_slot)
         clear_target_choice_lock(def1, atk1)
         _clear_charge(atk1, mv1)
+        if atk1[_POK_VOL_STATUS2] & _VOLSTATUS2_U_TURN:
+            # A slower Pursuit hits the U-turn user on its way out and uses up its turn
+            # (pokeplatinum BATTLE_SUBSCRIPT_PURSUIT)
+            if count >= 2 and _pursuit(atk2, atk1, mv2_slot, not first_is_mine, battle_array):
+                count = 1
+            _u_turn_switch(atk1, def1, battle_array, first_is_mine)
         _after_move_items(battle_array)
 
     # My Baton Pass: the turn waits for my pick, the slower opponent's move runs after it
     if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
         if count >= 2:
-            battle_array[_FIELD_PENDING_OPP_MOVE] = mv2_slot + 1
+            battle_array[_FIELD_PENDING_OPP_MOVE] = mv2_slot + 1 + (PENDING_FLINCH if flinch else 0)
         return
     if count >= 2:
         # Roar or Whirlwind dragged the slower Pokemon out, the one coming in doesn't move
@@ -1600,7 +1645,7 @@ def action(current_move, opp_move, battle_array):
             opp_before if first_is_mine else my_before
         ):
             return
-        # The AI Baton Passed first, my move goes into the one it sent
+        # The AI Baton Passed or U-turned first, my move goes into the one it sent
         if not first_is_mine and battle_array[_FIELD_OPP_POK] != opp_before:
             def2 = battle_array[
                 ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
@@ -1623,6 +1668,8 @@ def action(current_move, opp_move, battle_array):
         update_choice_lock(atk2, mv2_slot)
         clear_target_choice_lock(def2, atk2)
         _clear_charge(atk2, mv2)
+        if atk2[_POK_VOL_STATUS2] & _VOLSTATUS2_U_TURN:
+            _u_turn_switch(atk2, def2, battle_array, not first_is_mine)
         _after_move_items(battle_array)
 
 
@@ -2315,7 +2362,7 @@ def baton_pass_action(battle_array, switch_idx: int):
     """
     My pick for Baton Pass: switch with the stages and volatiles, run the opponent's move if it
     was slower, then the rest of the turn. Returns the phase, also stored in Field.PHASE.
-    Healing Wish's pick is a plain switch, and one the hazards KO is picked again before the foe moves
+    Healing Wish's and U-turn's picks are plain switches, and one the hazards KO is picked again before the foe moves
     """
     battle_array[_FIELD_OPP_MOVE_RAN] = 0
     current_pokemon = battle_array[
@@ -2325,12 +2372,16 @@ def baton_pass_action(battle_array, switch_idx: int):
         ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
     ]
     healing_wish = battle_array[_FIELD_MY_SIDE_COND] & _SIDECONDITION_HEALING_WISH != 0
+    u_turn = current_pokemon[_POK_VOL_STATUS2] & _VOLSTATUS2_U_TURN != 0
     current_pokemon = _switch_my_side(
-        battle_array, current_pokemon, current_opp, switch_idx, not healing_wish
+        battle_array, current_pokemon, current_opp, switch_idx, not healing_wish and not u_turn
     )
     if healing_wish and current_pokemon[_POK_CURRENT_HP] <= 0 and _bench_alive(battle_array, True) > 0:
         return _BATTLEPHASE_BATON_PASS
     pending = battle_array[_FIELD_PENDING_OPP_MOVE] - 1
+    flinch = pending >= PENDING_FLINCH
+    if flinch:
+        pending -= PENDING_FLINCH
     battle_array[_FIELD_PENDING_OPP_MOVE] = 0
     battle_array[_FIELD_PHASE] = _BATTLEPHASE_TURN_START
     if pending >= 0:
@@ -2338,12 +2389,14 @@ def baton_pass_action(battle_array, switch_idx: int):
         mv = (current_opp[OFFSET_MOVE + slot * MOVE_STRIDE : OFFSET_MOVE + (slot + 1) * MOVE_STRIDE]
               if slot != 10 else STRUGGLE.copy())
         _execute_move_slot(
-            current_opp, current_pokemon, mv, False, -1, slot, False, 2, True, battle_array,
+            current_opp, current_pokemon, mv, False, -1, slot, flinch, 2, True, battle_array,
             effective_weather(battle_array)
         )
         update_choice_lock(current_opp, slot)
         clear_target_choice_lock(current_pokemon, current_opp)
         _clear_charge(current_opp, mv)
+        if current_opp[_POK_VOL_STATUS2] & _VOLSTATUS2_U_TURN:
+            _u_turn_switch(current_opp, current_pokemon, battle_array, False)
         _after_move_items(battle_array)
     phase, _opp_idx = _finish_turn(battle_array)
     battle_array[_FIELD_PHASE] = phase

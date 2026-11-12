@@ -104,6 +104,10 @@
   recoil, high crit, and no branch for Strength's Attack raise (like Meteor Mash).
 - Future Sight / Doom Desire: a Lock-On by the attacking side's active should make the hit land ([pp]
   `CheckMoveHitOverrides`, `MON_IS_LOCKED_ONTO`). `future_hit_lands` gets it with Lock-On (11.2).
+- The AI's U-turn or Baton Pass replacement that faints to the hazards mid-turn stays in until the end of the
+  turn: my slower move goes into it and fails. What [pp] does there wasn't checked.
+- My U-turn: `_after_move_items` runs while the user is still in, before my pick (like Baton Pass). [pp] switches
+  it out inside `subscript_attack_then_switch_out`, so a status berry can fire a step early here.
 
 ## Items
 
@@ -128,7 +132,6 @@
 
 ## MoveDB and tests
 
-- Not in MoveDB yet: U-turn.
 - MoveDB flags from after Gen IV (`python -m DataBase.add_moves --check` lists them): Absorb and Mega
   Drain have `heal`; Stealth Rock, Foresight and Taunt are `reflectable`; Roar has no `protect`. They matter
   once Magic Coat and Heal Block are in.
@@ -138,7 +141,6 @@
 - MoveDB order: `SHOCK_WAVE` sits before `SCRATCH` in `MoveName` and Nightmare before Night Shade in
   MoveDB.json. `add_moves` leaves existing lines alone, so a new move next to them can land a step off
   (Night Slash would go before Nightmare).
-- `test_trainer_lacks` (`test_database.py`) uses U-turn as its missing move: swap it once U-turn is added.
 - MoveDB: Cut's `crit_ratio`, Strength's Attack raise and Hurricane's missing confusion are hand edits (RP effect
   changes, which `add_moves` only prints), so `add_moves --check` should list all three as different. Not run to
   confirm.

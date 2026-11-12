@@ -6177,3 +6177,174 @@ def test_grudge_needs_a_ko_and_a_standing_attacker(poke, case):
     pp = _pp(atk, 0)
     battle._grudge(atk, defn, 10 if case == "struggle" else 0)
     assert _pp(atk, 0) == pp
+
+
+
+def _u_turn_battle(make_pokemon, make_battle, bench=True, foe_moves=("Tackle",), foe="Rattata",
+                   foe_ability="Run Away", foe_bench=False):
+    """My faster Scyther with U-turn, a Geodude on the bench, against a bulky foe"""
+    mine = [make_pokemon("Scyther", 30, "Swarm", ["U-turn", "Tackle"])]
+    if bench:
+        mine.append(make_pokemon("Geodude", 30, "Sturdy", ["Tackle"]))
+    opp = [make_pokemon(foe, 30, foe_ability, list(foe_moves))]
+    if foe_bench:
+        opp.append(make_pokemon("Machop", 30, "Guts", ["Tackle"]))
+    arr = make_battle(mine, opp)
+    my_active(arr)[Pok.SPEED] = 200
+    opp_active(arr)[Pok.SPEED] = 10
+    opp_active(arr)[Pok.MAX_HP] = opp_active(arr)[Pok.CURRENT_HP] = 500
+    return arr
+
+
+def test_my_u_turn_pauses_for_a_plain_switch(make_pokemon, make_battle):
+    """The hit lands, the turn waits for my pick, nothing is passed; the slower foe hits who came in"""
+    arr = _u_turn_battle(make_pokemon, make_battle)
+    scyther = my_active(arr)
+    scyther[Pok.ATTACK_STAT_STAGE] = 2
+    scyther[Pok.VOL_STATUS] = VolStatus.FOCUS_ENERGY
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert phase == BattlePhase.BATON_PASS and arr[Field.PENDING_OPP_MOVE] == 1
+    assert opp_active(arr)[Pok.CURRENT_HP] < 500 and scyther[Pok.VOL_STATUS2] & VolStatus2.U_TURN
+    pp = _pp(opp_active(arr), 0)
+    assert battle.baton_pass_action(arr, 1) == BattlePhase.TURN_START
+    geodude = my_active(arr)
+    assert arr[Field.MY_POK] == 1 and not scyther[Pok.VOL_STATUS2] & VolStatus2.U_TURN
+    assert geodude[Pok.ATTACK_STAT_STAGE] == 0 and not geodude[Pok.VOL_STATUS] & VolStatus.FOCUS_ENERGY
+    assert not geodude[Pok.VOL_STATUS2] & VolStatus2.U_TURN
+    assert _pp(opp_active(arr), 0) == pp - 1 and geodude[Pok.CURRENT_HP] < geodude[Pok.MAX_HP]
+
+
+def test_slower_u_turn_has_nothing_pending(make_pokemon, make_battle):
+    """The foe already moved, the pick just finishes the turn"""
+    arr = _u_turn_battle(make_pokemon, make_battle)
+    my_active(arr)[Pok.SPEED] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.PHASE] == BattlePhase.BATON_PASS and arr[Field.PENDING_OPP_MOVE] == 0
+    assert battle.baton_pass_action(arr, 1) == BattlePhase.TURN_START and arr[Field.MY_POK] == 1
+
+
+@pytest.mark.parametrize("case", ["no bench", "protect", "rough skin"])
+def test_u_turn_stays_in(make_pokemon, make_battle, case):
+    """No switch with an empty bench, after Protect, or when Rough Skin KOs the user (pokeplatinum
+    subscript_attack_then_switch_out)"""
+    arr = _u_turn_battle(
+        make_pokemon, make_battle, bench=case != "no bench",
+        foe_moves=("Protect",) if case == "protect" else ("Tackle",),
+        foe="Carvanha" if case == "rough skin" else "Rattata",
+        foe_ability="Rough Skin" if case == "rough skin" else "Run Away",
+    )
+    if case == "rough skin":
+        my_active(arr)[Pok.CURRENT_HP] = 1
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert phase != BattlePhase.BATON_PASS and arr[Field.MY_POK] == 0
+    assert not pok_slice(arr, 0)[Pok.VOL_STATUS2] & VolStatus2.U_TURN
+    if case == "rough skin":
+        assert phase == BattlePhase.DEATH_END_OF_TURN
+
+
+def test_u_turn_into_a_substitute_still_switches(make_pokemon, make_battle):
+    """An on-hit side effect, not a CHECK_SUBSTITUTE one (pokeplatinum effect 0228)"""
+    arr = _u_turn_battle(make_pokemon, make_battle)
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 400
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.PHASE] == BattlePhase.BATON_PASS and foe[Pok.CURRENT_HP] == 500
+    assert foe[Pok.SUB_HP] < 400
+
+
+@pytest.mark.parametrize("foe_bench", [True, False])
+def test_u_turn_ko(make_pokemon, make_battle, foe_bench):
+    """A KO still switches while the foe has a bench, not on its last Pokemon (CheckBlackOut)"""
+    arr = _u_turn_battle(make_pokemon, make_battle, foe_bench=foe_bench)
+    opp_active(arr)[Pok.CURRENT_HP] = 1
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert (phase == BattlePhase.BATON_PASS) == foe_bench
+    if foe_bench:
+        battle.baton_pass_action(arr, 1)
+        assert arr[Field.MY_POK] == 1 and arr[Field.OPP_POK] == 1
+
+
+def test_pursuit_hits_my_u_turn_on_its_way_out(make_pokemon, make_battle):
+    """The slower Pursuit hits at double power before the switch and uses up the foe's turn"""
+    arr = _u_turn_battle(make_pokemon, make_battle, foe="Poochyena", foe_moves=("Pursuit",))
+    scyther = my_active(arr)
+    pp = _pp(opp_active(arr), 0)
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert phase == BattlePhase.BATON_PASS and arr[Field.PENDING_OPP_MOVE] == 0
+    assert scyther[Pok.CURRENT_HP] < scyther[Pok.MAX_HP] and _pp(opp_active(arr), 0) == pp - 1
+    battle.baton_pass_action(arr, 1)
+    geodude = my_active(arr)
+    assert geodude[Pok.CURRENT_HP] == geodude[Pok.MAX_HP] and _pp(opp_active(arr), 0) == pp - 1
+
+
+def test_pursuit_ko_stops_my_u_turn(make_pokemon, make_battle):
+    """KOed on the way out: no pick mid-turn, the usual replacement at the end of the turn"""
+    arr = _u_turn_battle(make_pokemon, make_battle, foe="Poochyena", foe_moves=("Pursuit",))
+    my_active(arr)[Pok.CURRENT_HP] = 1
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert phase == BattlePhase.DEATH_END_OF_TURN
+    assert not pok_slice(arr, 0)[Pok.VOL_STATUS2] & VolStatus2.U_TURN
+
+
+def test_flinch_from_my_u_turn_reaches_the_pending_move(make_pokemon, make_battle):
+    """A King's Rock flinch carries over the pick in Field.PENDING_OPP_MOVE"""
+    arr = _u_turn_battle(make_pokemon, make_battle)
+    turn_sim(0, (MOVE, 0), arr)
+    arr[Field.PENDING_OPP_MOVE] += battle.PENDING_FLINCH
+    pp = _pp(opp_active(arr), 0)
+    battle.baton_pass_action(arr, 1)
+    geodude = my_active(arr)
+    assert _pp(opp_active(arr), 0) == pp and geodude[Pok.CURRENT_HP] == geodude[Pok.MAX_HP]
+
+
+def _ai_u_turn_battle(make_pokemon, make_battle, my_moves=("Tackle",)):
+    """The AI's faster Scyther with U-turn and a Machop on its bench, against my bulky Rattata"""
+    arr = make_battle(
+        [make_pokemon("Rattata", 30, "Run Away", list(my_moves))],
+        [make_pokemon("Scyther", 30, "Swarm", ["U-turn"]),
+         make_pokemon("Machop", 30, "Guts", ["Tackle"])],
+    )
+    opp_active(arr)[Pok.SPEED] = 200
+    my_active(arr)[Pok.SPEED] = 10
+    my_active(arr)[Pok.MAX_HP] = my_active(arr)[Pok.CURRENT_HP] = 500
+    return arr
+
+
+def test_ai_u_turn_switches_right_away(make_pokemon, make_battle):
+    """The AI picks with its post-KO logic, my slower move hits who it sent"""
+    arr = _ai_u_turn_battle(make_pokemon, make_battle)
+    scyther = opp_active(arr)
+    scyther[Pok.ATTACK_STAT_STAGE] = 2
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    machop = opp_active(arr)
+    assert phase == BattlePhase.TURN_START and arr[Field.OPP_POK] == 1
+    assert my_active(arr)[Pok.CURRENT_HP] < 500 and machop[Pok.CURRENT_HP] < machop[Pok.MAX_HP]
+    assert machop[Pok.ATTACK_STAT_STAGE] == 0 and scyther[Pok.ATTACK_STAT_STAGE] == 0
+    assert not scyther[Pok.VOL_STATUS2] & VolStatus2.U_TURN
+
+
+def test_my_pursuit_hits_the_ai_u_turn(make_pokemon, make_battle):
+    """My slower Pursuit hits the Scyther before it leaves and is my turn"""
+    arr = _ai_u_turn_battle(make_pokemon, make_battle, my_moves=("Pursuit",))
+    scyther = opp_active(arr)
+    pp = _pp(my_active(arr), 0)
+    turn_sim(0, (MOVE, 0), arr)
+    machop = opp_active(arr)
+    assert arr[Field.OPP_POK] == 1 and scyther[Pok.CURRENT_HP] < scyther[Pok.MAX_HP]
+    assert machop[Pok.CURRENT_HP] == machop[Pok.MAX_HP] and _pp(my_active(arr), 0) == pp - 1
+
+
+def test_ai_u_turn_after_my_baton_pass(make_pokemon, make_battle):
+    """The AI's slower U-turn waits for my Baton Pass pick, then it switches too"""
+    arr = make_battle(
+        [make_pokemon("Rattata", 30, "Run Away", ["Baton Pass"]),
+         make_pokemon("Geodude", 30, "Sturdy", ["Tackle"])],
+        [make_pokemon("Scyther", 30, "Swarm", ["U-turn"]),
+         make_pokemon("Machop", 30, "Guts", ["Tackle"])],
+    )
+    my_active(arr)[Pok.SPEED] = 200
+    opp_active(arr)[Pok.SPEED] = 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert battle.baton_pass_action(arr, 1) == BattlePhase.TURN_START
+    assert arr[Field.MY_POK] == 1 and arr[Field.OPP_POK] == 1

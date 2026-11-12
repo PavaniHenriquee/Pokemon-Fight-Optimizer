@@ -86,7 +86,7 @@ KIT_DAMAGE = (
     "Return", "Frustration", "Last Resort", "Secret Power",
     "Super Fang", "Endeavor", "Metal Burst", "False Swipe",
     "Avalanche", "Revenge", "Payback", "Sucker Punch", "Focus Punch",
-    "Snore", "Dream Eater", "Weather Ball", "Future Sight", "Doom Desire", "Spit Up",
+    "Snore", "Dream Eater", "Weather Ball", "Future Sight", "Doom Desire", "Spit Up", "U-turn",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -1567,6 +1567,16 @@ def test_expert_pursuit(poke, turns_active, target, expected):
     assert _expert_field(ai_pok, user) == (0, expected)
 
 
+@pytest.mark.parametrize("seen, expected", [(True, [(1, 128)]), (False, [])])
+def test_expert_pursuit_against_a_seen_u_turn(poke, seen, expected):
+    """50% +1 once the AI saw the target use U-turn (pokeplatinum IfMoveNotKnown reads battlerMoves)"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Pursuit"])
+    ai_pok[Pok.TURNS_ACTIVE] = 2
+    user = poke("Geodude", 20, "Sturdy", ["Tackle", "U-turn"])
+    know = Enemy_AI_Knows.MOVE2 if seen else Enemy_AI_Knows.MOVE1
+    assert _expert_field(ai_pok, user, ai_know=know) == (0, expected)
+
+
 def test_sub_after_death_skips_the_excluded_slot(poke):
     """Baton Pass: the passer is alive but can't be picked"""
     party = np.zeros(6 * POK_LEN, dtype=np.int32)
@@ -2204,6 +2214,35 @@ def test_expert_healing_wish(monkeypatch, poke, hp_pct, faster, roll, has_se, be
     rand = np.zeros((4, 5, 2), dtype=np.int16)
     score = ai.expert_flag(
         ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0, has_se=has_se,
+        bench_more=bench_more
+    )
+    queued = [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+    assert (score, queued) == expected
+
+
+@pytest.mark.parametrize("eff, bench, hp_pct, faster, roll, has_se, bench_more, expected", [
+    (0.5, 1, 100, True, 0, False, True, (-1, [])),                  # resisted: -1 and stop
+    (0.0, 1, 100, True, 0, False, True, (-1, [])),
+    (1.0, 0, 100, True, 0, True, False, (0, [])),                    # nobody else alive
+    (1.0, 1, 100, True, 0, True, True, (1, [(-2, 192), (1, 192), (1, 128)])),
+    (1.0, 1, 100, True, 64, True, False, (-2, [(-2, 192)])),         # no stronger bench: 75% -2, stop
+    (1.0, 1, 50, False, 63, False, False, (0, [(1, 128), (1, 128)])),
+    (1.0, 1, 71, False, 0, False, True, (0, [(1, 192), (1, 128), (1, 128)])),
+    (1.0, 1, 30, True, 0, False, True, (1, [(1, 64)])),               # the AI's own HP, Pokemow
+])
+def test_expert_u_turn(monkeypatch, poke, eff, bench, hp_pct, faster, roll, has_se, bench_more, expected):
+    """Pokemow Expert UTurn with its effectiveness pre-check"""
+    monkeypatch.setattr(ai.random, "getrandbits", lambda k: roll)
+    ai_pok = poke("Yanmega", 40, "Speed Boost", ["U-turn"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = hp_pct
+    user[Pok.MAX_HP] = 100
+    user[Pok.CURRENT_HP] = 100 - hp_pct + 1     # the target's HP mustn't matter
+    ai_pok[Pok.SPEED], user[Pok.SPEED] = (200, 10) if faster else (10, 200)
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, eff, 0, ai_bench=bench, has_se=has_se,
         bench_more=bench_more
     )
     queued = [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]

@@ -94,6 +94,7 @@ class VolStatus2:
     ROOST             = 256
     MAGNET_RISE       = 512
     GRUDGE            = 1024
+    U_TURN            = 2048
 
 
 @dataclass(slots=True)

@@ -277,7 +277,7 @@ class Field:
     MY_LAST_MOVE       = AI_ITEM4 + 1
     AI_TOOK_DMG_LAST_TURN = MY_LAST_MOVE + 1
     AI_KNOWS           = AI_TOOK_DMG_LAST_TURN + 1
-    PENDING_OPP_MOVE   = AI_KNOWS + 1  # Baton Pass phase: opp move slot + 1 still to run, 0 none
+    PENDING_OPP_MOVE   = AI_KNOWS + 1  # Baton Pass phase: opp move slot + 1 still to run (+16 flinched), 0 none
     OPP_MOVE_RAN       = PENDING_OPP_MOVE + 1  # This turn: opp move slot + 1 + 16 * PP paid, 0 it didn't move
 
 # Last one minus first one +1 because idx 0

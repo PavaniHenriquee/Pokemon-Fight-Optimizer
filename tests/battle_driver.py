@@ -435,6 +435,24 @@ def scenario_field_hazards():
     return my, opp, ()
 
 
+def scenario_delayed_sacrifice():
+    """Phase 10: delayed effects (Future Sight, Doom Desire, Wish, Stockpile, Spit Up, Swallow),
+    sacrifice (Memento, Healing Wish, Grudge) and self-switch (U-turn, Pursuit on it) both ways"""
+    my = [
+        _p("Jirachi", 40, "Serene Grace", ["Doom Desire", "Wish", "U-turn", "Psychic"]),
+        _p("Scizor", 40, "Technician", ["U-turn", "Bullet Punch", "X-Scissor", "Pursuit"]),
+        _p("Swalot", 40, "Liquid Ooze", ["Stockpile", "Spit Up", "Swallow", "Sludge Bomb"]),
+        _p("Misdreavus", 40, "Levitate", ["Grudge", "Memento", "Healing Wish", "Shadow Ball"]),
+    ]
+    opp = [
+        _p("Yanmega", 40, "Speed Boost", ["U-turn", "Bug Buzz", "Air Slash", "Pursuit"]),
+        _p("Xatu", 40, "Synchronize", ["Future Sight", "Wish", "U-turn", "Psychic"]),
+        _p("Clefable", 40, "Magic Guard", ["Healing Wish", "Memento", "Moonblast", "Stockpile"]),
+        _p("Houndoom", 40, "Flash Fire", ["Pursuit", "Flamethrower", "Crunch", "Swallow"]),
+    ]
+    return my, opp, ()
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -451,6 +469,7 @@ SCENARIOS = {
     "power_rules": scenario_power_rules,
     "status_moves": scenario_status_moves,
     "field_hazards": scenario_field_hazards,
+    "delayed_sacrifice": scenario_delayed_sacrifice,
 }
 
 

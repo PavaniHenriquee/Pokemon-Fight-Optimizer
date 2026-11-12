@@ -6672,6 +6672,22 @@
     "target": "normal",
     "type": "Bug"
   },
+  "U-turn": {
+    "accuracy": 100,
+    "category": "Physical",
+    "flags": {
+      "contact": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "u_turn",
+    "power": 70,
+    "pp": 20,
+    "self_switch": true,
+    "target": "normal",
+    "type": "Bug"
+  },
   "Uproar": {
     "accuracy": 100,
     "category": "Special",

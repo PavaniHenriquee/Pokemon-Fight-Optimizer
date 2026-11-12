@@ -424,7 +424,8 @@ class MoveName:
     TRIPLE_KICK     = TRI_ATTACK + 1
     TRUMP_CARD      = TRIPLE_KICK + 1
     TWINEEDLE       = TRUMP_CARD + 1
-    UPROAR          = TWINEEDLE + 1
+    U_TURN          = TWINEEDLE + 1
+    UPROAR          = U_TURN + 1
     VACUUM_WAVE     = UPROAR + 1
     VICE_GRIP       = VACUUM_WAVE + 1
     VINE_WHIP       = VICE_GRIP + 1

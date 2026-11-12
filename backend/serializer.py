@@ -32,6 +32,7 @@ if _ROOT not in sys.path:
 STATUS = {0: "", 1: "SLP", 2: "FRZ", 3: "PAR", 4: "BRN", 5: "PSN", 6: "TOX"}
 _VOL_DISPLAY_OVERRIDES = {
     "CONFUSION": "Confused",
+    "U_TURN": "U-turn",
 }
 VOL_BITS = {
     v: _VOL_DISPLAY_OVERRIDES.get(k, k.replace("_", " ").title())
@@ -39,7 +40,7 @@ VOL_BITS = {
     if k.isupper() and isinstance(v, int)
 }
 VOL2_BITS = {
-    v: k.replace("_", " ").title()
+    v: _VOL_DISPLAY_OVERRIDES.get(k, k.replace("_", " ").title())
     for k, v in vars(VolStatus2).items()
     if k.isupper() and isinstance(v, int)
 }

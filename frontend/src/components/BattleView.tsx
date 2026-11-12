@@ -88,6 +88,7 @@ function EventLines({ snapshot, oppMove }: { snapshot: SnapshotData; oppMove?: s
   const isDeath = snapshot.phase === "DEATH" && !snapshot.terminal;
   const isBatonPass = snapshot.phase === "BATON_PASS" && !snapshot.terminal;
   const healingWish = snapshot.field?.my_side?.some((s) => s.name === "Healing Wish") ?? false;
+  const uTurn = snapshot.my?.vol_status.includes("U-turn") ?? false;
   if (!isDeath && !isBatonPass && !oppMove) return null;
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -100,7 +101,11 @@ function EventLines({ snapshot, oppMove }: { snapshot: SnapshotData; oppMove?: s
       {isBatonPass && (
         <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-1.5 text-xs text-primary ring-1 ring-primary/25 ring-inset">
           <ArrowRightLeft className="size-3.5" />
-          {healingWish ? "Healing Wish" : "Baton Pass"}: choose who receives it below.
+          {healingWish
+            ? "Healing Wish: choose who receives it below."
+            : uTurn
+              ? "U-turn: choose who comes in below."
+              : "Baton Pass: choose who receives it below."}
         </div>
       )}
       {oppMove && (
