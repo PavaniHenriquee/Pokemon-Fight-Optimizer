@@ -50,6 +50,7 @@ export interface FieldState {
   weather: string; // "" | "Rain" | "Sandstorm" | "Sun" | "Hail"
   weather_turns: number; // 0 = permanent
   gravity_turns: number; // 0 = no Gravity
+  trick_room_turns: number; // 0 = no Trick Room
   my_side: SideEffect[];
   opp_side: SideEffect[];
 }

@@ -2,7 +2,7 @@
 end of turn and repeat"""
 import random
 from Utils.jit import njit
-from Engine.speed import check_speed
+from Engine.speed import field_speeds, trick_room_up, goes_first, has_tailwind
 from Engine.engine_helper import (
     move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     flinch_checker, kings_rock, thaw, early_returns, switch_in, SIDE_OR_FIELD_TARGETS,
@@ -38,7 +38,7 @@ from Engine.damage_calc import (
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
     POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS,
-    SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES
+    SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, SIDE_TAILWIND_TURNS
 )
 from Models.helper import (
     count_party, PHYSICAL_SPECIAL, Target, TARGET_SELF_SIDE, TARGET_OPP_SIDE
@@ -86,7 +86,7 @@ from Models.constants import (
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
     _ENEMY_AI_KNOWS_ABILITY, _POK_CALLED_MOVE, _FIELD_LAST_MOVE, _MOVENAME_HIDDEN_POWER,
     _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _POK_SEMI_INV_MOVE, _FIELD_GRAVITY_TURNS,
-    _MOVENAME_GRAVITY, _MOVENAME_MINIMIZE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _FLAGS_GRAVITY,
+    _MOVENAME_GRAVITY, _SIDECONDITION_TAILWIND, _FIELD_TRICKROOM, _MOVENAME_TRICK_ROOM, _MOVENAME_MINIMIZE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _FLAGS_GRAVITY,
     _ITEM_HOLD_EFFECT, _ITEM_EFFECT_PARAM, _HOLDEFFECT_EXTEND_SCREENS, _HOLDEFFECT_EXTEND_SANDSTORM,
     _HOLDEFFECT_EXTEND_RAIN, _HOLDEFFECT_EXTEND_TRAPPING, _HOLDEFFECT_EXTEND_SUN, _HOLDEFFECT_EXTEND_HAIL,
     _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL, _WEATHER_HAIL, _MOVENAME_WEATHER_BALL,
@@ -142,16 +142,19 @@ TIMED_SIDE_CONDITIONS = (
     (_SIDECONDITION_LIGHT_SCREEN, SIDE_LIGHT_SCREEN_TURNS),
     (_SIDECONDITION_MIST, SIDE_MIST_TURNS),
     (_SIDECONDITION_SAFEGUARD, SIDE_SAFEGUARD_TURNS),
+    (_SIDECONDITION_TAILWIND, SIDE_TAILWIND_TURNS),
     (_SIDECONDITION_LUCKY_CHANT, SIDE_LUCKY_CHANT_TURNS),
 )
 SCREENS = _SIDECONDITION_REFLECT | _SIDECONDITION_LIGHT_SCREEN
 TIMED_SIDE_MASK = (
     _SIDECONDITION_REFLECT | _SIDECONDITION_LIGHT_SCREEN | _SIDECONDITION_MIST
-    | _SIDECONDITION_SAFEGUARD | _SIDECONDITION_LUCKY_CHANT
+    | _SIDECONDITION_SAFEGUARD | _SIDECONDITION_LUCKY_CHANT | _SIDECONDITION_TAILWIND
 )
 RAPID_SPIN_CLEARS = _SIDECONDITION_STEALTH_ROCK | _SIDECONDITION_SPIKES | _SIDECONDITION_TOXIC_SPIKES
 # Screens, Mist, Safeguard, Lucky Chant and move weather
 FIELD_EFFECT_TURNS = 5
+# Tailwind, counting the turn it's used in (pokeplatinum subscript_tailwind_start, SIDE_CONDITION_TAILWIND)
+TAILWIND_TURNS = 3
 TOXIC_SPIKES_MAX = 2
 # Leftovers, and Black Sludge on a Poison type
 GRADUAL_HEAL_EFFECTS = (_HOLDEFFECT_HP_RESTORE_GRADUAL, _HOLDEFFECT_HP_RESTORE_PSN_TYPE)
@@ -335,11 +338,10 @@ def start_of_turn(opp_move, switch_idx, battle_array, current_move=-1):
             opp_switch = opp_move + 6 #Before I subtracted -6 from idx that's why +6 so it's 0..5
 
     if switch_idx >= 0 and opp_switch >= 0:
-        my_s, opp_s = check_speed(
-            current_pokemon, current_opp, effective_weather(battle_array)
+        my_s, opp_s = field_speeds(
+            battle_array, current_pokemon, current_opp, effective_weather(battle_array)
         )
-        speed_tie = my_s == opp_s and random.getrandbits(1)
-        if my_s > opp_s or speed_tie:
+        if goes_first(my_s, opp_s, trick_room_up(battle_array)):
             current_pokemon = _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx)
             _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch)
         else:
@@ -411,9 +413,9 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
 
 
 @njit
-def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=False):
+def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=False, atk_side=0):
     """Figure out how much damage this hit does, independent of applying it, and whether it
-    was a critical hit. def_side is the defender's Field.SIDE_COND"""
+    was a critical hit. def_side is the defender's Field.SIDE_COND, atk_side the attacker's"""
     if move[_MOVE_ID] == _MOVENAME_STRUGGLE:
         crit = calculate_crit(attacker, defender, None, def_side)
         return struggle_damage(attacker, defender, crit, def_side, weather), crit
@@ -426,7 +428,9 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
     move_damage = move[_MOVE_DAMAGE]
     if not move_damage:
         crit = calculate_crit(attacker, defender, move, def_side)
-        damage = calculate_damage(attacker, defender, move, weather, crit, None, def_side, gravity)
+        damage = calculate_damage(
+            attacker, defender, move, weather, crit, None, def_side, gravity, atk_side
+        )
         return resist_berry(attacker, defender, move, damage, gravity), crit
     if move_damage == _DAMAGESOURCES_LEVEL:
         return attacker[_POK_LEVEL], False
@@ -493,14 +497,18 @@ def _apply_move_damage(attacker, defender, move, damage, crit=False):
 
 
 @njit
-def _ps_moves_core(attacker, defender, move, weather, def_side=0, gravity=False, sash=False):
+def _ps_moves_core(
+        attacker, defender, move, weather, def_side=0, gravity=False, sash=False, atk_side=0
+):
     """
     Checks for damage and for flinch. Also returns the HP the defender actually lost, and whether
     its Substitute took the hit instead: then dealt is what the Substitute lost and nothing on the
     defender's side happens (no flinch, Focus Band, Rage, on-damage item or hurt flag). sash: a
     Focus Sash already found the defender at full HP earlier in this move, returned updated
     """
-    raw_damage, crit = _resolve_move_damage(attacker, defender, move, weather, def_side, gravity)
+    raw_damage, crit = _resolve_move_damage(
+        attacker, defender, move, weather, def_side, gravity, atk_side
+    )
     if has_substitute(defender):
         dealt = hit_substitute(defender, raw_damage)
         return False, dealt, dealt, True, sash
@@ -723,12 +731,12 @@ def ps_moves_multihit(
 
 
 @njit
-def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravity=False):
+def ps_moves(attacker, defender, move, weather, rec_p, rec_s, def_side=0, gravity=False, atk_side=0):
     """Physical or Special moves, where I need to calculate damage and secondary effects.
-    def_side is the defender's Field.SIDE_COND. Returns the flinch, whether the hit reached
+    def_side is the defender's Field.SIDE_COND, atk_side the attacker's (Gyro Ball's Tailwind). Returns the flinch, whether the hit reached
     the Pokemon, not its Substitute, and the HP it took off"""
     flinch, damage, dealt, sub_hit, _ = _ps_moves_core(
-        attacker, defender, move, weather, def_side, gravity
+        attacker, defender, move, weather, def_side, gravity, False, atk_side
     )
     # The flung item still boosted the hit, then it's gone (pokeplatinum CalcDamage runs before
     # RemoveItem, Showdown's fling volatile drops it after)
@@ -823,8 +831,8 @@ def _held_extension(pok, effect):
 @njit
 def _set_side_condition(cond, battle_array, side, screen_bonus=0):
     """
-    Screens, Mist, Safeguard and Lucky Chant last 5 turns and fail while up, Stealth Rock fails if
-    already set and Toxic Spikes stacks up to 2 layers. side is that side's Field.SIDE_COND.
+    Screens, Mist, Safeguard and Lucky Chant last 5 turns and Tailwind 3, all fail while up, Stealth
+    Rock fails if already set and Toxic Spikes stacks up to 2 layers. side is that side's Field.SIDE_COND.
     screen_bonus is the user's Light Clay turns, only screens get them
     """
     if cond == _SIDECONDITION_TOXIC_SPIKES:
@@ -838,7 +846,9 @@ def _set_side_condition(cond, battle_array, side, screen_bonus=0):
     battle_array[side] |= cond
     for bit, turns in TIMED_SIDE_CONDITIONS:
         if bit == cond:
-            battle_array[side + turns] = FIELD_EFFECT_TURNS
+            battle_array[side + turns] = (
+                TAILWIND_TURNS if cond == _SIDECONDITION_TAILWIND else FIELD_EFFECT_TURNS
+            )
             if cond & SCREENS:
                 battle_array[side + turns] += screen_bonus
 
@@ -878,6 +888,12 @@ def _set_gravity(battle_array, atk, defn):
     for pok in (atk, defn):
         if pok[_POK_SEMI_INV_MOVE] in AIRBORNE_MOVES:
             unlock_move(pok)
+
+
+@njit
+def _set_trick_room(battle_array):
+    """Trick Room lasts 5 turns, and used while up it ends instead (pokeplatinum effect_script_0259)"""
+    battle_array[_FIELD_TRICKROOM] = 0 if battle_array[_FIELD_TRICKROOM] > 0 else FIELD_EFFECT_TURNS
 
 
 @njit
@@ -1122,7 +1138,8 @@ def _execute_move_slot(
             )
         else:
             flinch, hit_pok, dealt = ps_moves(
-                atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity
+                atk, defn, mv, weather, rec_p, rec_s, battle_array[def_side], gravity,
+                battle_array[atk_side]
             )
         _after_hit_field(atk, mv, battle_array, atk_side, def_side)
         # Hyper Beam and co. recharge after any hit, a KO or a Substitute hit included (pokeplatinum
@@ -1197,6 +1214,9 @@ def _execute_move_slot(
         return False
     if mv[_MOVE_ID] == _MOVENAME_GRAVITY:
         _set_gravity(battle_array, atk, defn)
+        return False
+    if mv[_MOVE_ID] == _MOVENAME_TRICK_ROOM:
+        _set_trick_room(battle_array)
         return False
     _status_move(atk, defn, mv, is_mine, battle_array, weather)
     calculate_effects(atk, defn, mv, weather, battle_array[def_side])
@@ -1327,7 +1347,10 @@ def action(current_move, opp_move, battle_array):
         opp_move,
         p1_switch,
         p2_switch,
-        weather
+        weather,
+        has_tailwind(battle_array[_FIELD_MY_SIDE_COND]),
+        has_tailwind(battle_array[_FIELD_OPP_SIDE_COND]),
+        trick_room_up(battle_array),
     )
     if count == 0:
         return
@@ -1783,7 +1806,7 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
 def _count_down_field(battle_array):
     """
     pokeplatinum CheckFieldConditions, before any Pokemon's residual: Reflect, Light Screen, Mist,
-    Safeguard and Lucky Chant of both sides, then the weather, then Gravity. Each one counts the
+    Safeguard, Tailwind and Lucky Chant of both sides, then the weather, then Gravity. Each one counts the
     turn it was set in, and a weather that ends does nothing this turn. A weather with no turns
     left set is permanent. Returns the weather for the rest of the turn
     """
@@ -1852,8 +1875,8 @@ def end_of_turn(battle_array):
 
     # Gen IV re-sorts by speed before the end of the turn, then weather hits everyone before the
     # per-Pokemon residuals
-    my_s, opp_s = check_speed(current_pokemon, current_opp, weather)
-    if my_s > opp_s or (my_s == opp_s and random.getrandbits(1)):
+    my_s, opp_s = field_speeds(battle_array, current_pokemon, current_opp, weather)
+    if goes_first(my_s, opp_s, trick_room_up(battle_array)):
         first, second = current_pokemon, current_opp
         first_flag, second_flag = _FIELD_MY_ENTER_FIELD, _FIELD_OPP_ENTER_FIELD
     else:
@@ -1866,6 +1889,9 @@ def end_of_turn(battle_array):
     # pokeplatinum CheckSideConditions, after every Pokemon's residuals
     perish_count(first)
     perish_count(second)
+    # Then Trick Room (pokeplatinum SIDE_COND_CHECK_STATE_TRICK_ROOM)
+    if battle_array[_FIELD_TRICKROOM] > 0:
+        battle_array[_FIELD_TRICKROOM] -= 1
     # A sleeper's rampage ends without confusion (pokeplatinum SetupNextTurn, nothing in between
     # puts a Pokemon to sleep)
     _sleep_ends_rampage(first)
@@ -1993,15 +2019,10 @@ def switch_in_action(battle_array, switch_idx: int):
 
         # I actually don't know if when both are switching in the order matters, but its better be safe
         # than sorry
-        my_s, opp_s = check_speed(
-            my_switch, opp_switch, effective_weather(battle_array)
+        my_s, opp_s = field_speeds(
+            battle_array, my_switch, opp_switch, effective_weather(battle_array)
         )
-        speed_tie= False
-        if my_s == opp_s:
-            if random.getrandbits(1):
-                speed_tie = True
-
-        if my_s > opp_s or speed_tie:
+        if goes_first(my_s, opp_s, trick_room_up(battle_array)):
             # My Pokemon
             battle_array[_FIELD_MY_POK] = switch_idx
             battle_array[_FIELD_AI_KNOWS] = 0

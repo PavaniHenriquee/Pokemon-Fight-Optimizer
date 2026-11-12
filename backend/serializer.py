@@ -5,7 +5,7 @@ import sys
 from Models.idx_const import (
     Pok, Move, Item, MOVE_STRIDE, POK_LEN, Field as FieldIdx, SIDE_REFLECT_TURNS,
     SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS,
-    SIDE_TOXIC_SPIKES,
+    SIDE_TOXIC_SPIKES, SIDE_TAILWIND_TURNS,
 )
 from Models.helper import (
     BattlePhase, Gender, VolStatus, VolStatus2, SideCondition, Weather, Types, MoveCategory,
@@ -90,6 +90,7 @@ _SIDE_TIMERS = (
     (SideCondition.LIGHT_SCREEN, "Light Screen", SIDE_LIGHT_SCREEN_TURNS),
     (SideCondition.MIST, "Mist", SIDE_MIST_TURNS),
     (SideCondition.SAFEGUARD, "Safeguard", SIDE_SAFEGUARD_TURNS),
+    (SideCondition.TAILWIND, "Tailwind", SIDE_TAILWIND_TURNS),
     (SideCondition.LUCKY_CHANT, "Lucky Chant", SIDE_LUCKY_CHANT_TURNS),
 )
 _HAZARDS = (
@@ -235,11 +236,13 @@ def _side(field_block, side_cond) -> list[dict]:
 
 
 def _field(field_block) -> dict:
-    """Weather (0 turns left means permanent), Gravity's turns left and both sides' conditions"""
+    """Weather (0 turns left means permanent), Gravity's and Trick Room's turns left and both sides'
+    conditions"""
     return {
         "weather":       _WEATHER_NAMES.get(int(field_block[FieldIdx.WEATHER - _FLD_BASE]), ""),
         "weather_turns": int(field_block[FieldIdx.WEATHER_DURATION - _FLD_BASE]),
         "gravity_turns": int(field_block[FieldIdx.GRAVITY_TURNS - _FLD_BASE]),
+        "trick_room_turns": int(field_block[FieldIdx.TRICKROOM - _FLD_BASE]),
         "my_side":       _side(field_block, FieldIdx.MY_SIDE_COND),
         "opp_side":      _side(field_block, FieldIdx.OPP_SIDE_COND),
     }

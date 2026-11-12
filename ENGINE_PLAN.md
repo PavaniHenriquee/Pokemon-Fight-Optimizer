@@ -21,8 +21,8 @@ Updated only when asked.
 - Done: 8.1 (stat stages), 2026-11-10.
 - Done: 8.2 (status and sleep) and 8.3 (healing), and with it Phase 8, 2026-11-11. Its `benchmarks.run quick`
   on the home PC is still to do.
-- Done: 9.1 (weather), 2026-11-11.
-- Next: 9.2 (field).
+- Done: 9.1 (weather) and 9.2 (field), 2026-11-11.
+- Next: 9.3 (hazards and grounding).
 
 ## Goal
 
@@ -631,8 +631,8 @@ Fixed damage:
 
 ### 9.2 Field
 
-- [ ] Trick Room(B/E) ! (in MoveDB)
-- [ ] Tailwind(B/E) !
+- [x] Trick Room(B/E) ! (in MoveDB)
+- [x] Tailwind(B/E) !
 
 ### 9.3 Hazards and grounding
 

@@ -3,6 +3,7 @@ import {
   CloudHail,
   CloudRain,
   CornerDownRight,
+  FlipHorizontal2,
   Orbit,
   Skull,
   Sun,
@@ -35,7 +36,7 @@ const WEATHER_ICON: Record<string, typeof Sun> = {
   Sandstorm: Wind,
 };
 
-// ── Field strip: turn, weather, Gravity, trainer items ────────────────────────
+// ── Field strip: turn, weather, Gravity, Trick Room, trainer items ────────────
 function FieldStrip({ snapshot }: { snapshot: SnapshotData }) {
   const field = snapshot.field;
   const WeatherIcon = field?.weather ? WEATHER_ICON[field.weather] : undefined;
@@ -59,6 +60,12 @@ function FieldStrip({ snapshot }: { snapshot: SnapshotData }) {
         <Chip tone="primary" title={`${field.gravity_turns} turn(s) left`}>
           <Orbit className="size-3" />
           Gravity <span className="opacity-70">· {field.gravity_turns}</span>
+        </Chip>
+      )}
+      {!!field?.trick_room_turns && (
+        <Chip tone="primary" title={`${field.trick_room_turns} turn(s) left`}>
+          <FlipHorizontal2 className="size-3" />
+          Trick Room <span className="opacity-70">· {field.trick_room_turns}</span>
         </Chip>
       )}
       {snapshot.terminal && <Chip tone="warn">Terminal</Chip>}

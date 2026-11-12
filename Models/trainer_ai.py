@@ -20,7 +20,7 @@ from Models.constants import (
     _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD, _POK_STATUS, _MOVENAME_WEATHER_BALL,
     _STATUS_SLEEP, _ABILITYNAMES_NATURAL_CURE, _POK_MAX_HP, _POK_ATTACK_STAT_STAGE,
     _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
-    _FIELD_GRAVITY_TURNS,
+    _FIELD_GRAVITY_TURNS, _FIELD_TRICKROOM,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1,
     _FIELD_AI_ITEM4, _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_HYPER_POTION,
     _POTIONS_FULL_RESTORE, _POTIONS_FULL_HEAL, _POK_LOCKED_MOVE, _MOVE_DAMAGE,
@@ -207,10 +207,11 @@ def ai_move_damage(move, effectiveness, ai_pok, user_pok, weather, user_side, gr
 
 
 @njit
-def copycat_beats(ai_pok, user_pok, weather, user_side, gravity=False):
+def copycat_beats(ai_pok, user_pok, weather, user_side, gravity=False, ai_side=0):
     """
     pokeplatinum IfBattlerDealsMoreDamage for Expert_Copycat: the target's last move, used by the
-    target on itself, does more than every damaging move of the AI
+    target on itself, does more than every damaging move of the AI. user_side / ai_side are both
+    Field.SIDE_COND
     """
     slot = last_move_slot(user_pok)
     if slot < 0:
@@ -225,7 +226,7 @@ def copycat_beats(ai_pok, user_pok, weather, user_side, gravity=False):
         mv = ai_pok[_POK_MOVE1_ID + i * MOVE_STRIDE:_POK_MOVE1_ID + (i + 1) * MOVE_STRIDE]
         if mv[_MOVE_ID] == 0 or mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
             continue
-        view = ai_move_view(mv, ai_pok, user_pok, weather)
+        view = ai_move_view(mv, ai_pok, user_pok, weather, ai_side, user_side)
         eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok, gravity)
         if ai_move_damage(view, eff, ai_pok, user_pok, weather, user_side, gravity) >= copied:
             return False
@@ -285,6 +286,7 @@ def choose_move(battle_array):
     weather = battle_array[_FIELD_WEATHER]
     eff_weather = effective_weather(battle_array)
     gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
+    trick_room = battle_array[_FIELD_TRICKROOM] > 0
     ai_know = battle_array[_FIELD_AI_KNOWS]
     my_last_move = battle_array[_FIELD_MY_LAST_MOVE]
     took_dmg = battle_array[_FIELD_AI_TOOK_DMG_LAST_TURN]
@@ -398,13 +400,13 @@ def choose_move(battle_array):
         # damage still counts as the one to beat (pokeplatinum TrainerAI_CalcAllDamage)
         if move[_MOVE_PP] < 1 or move_blocked(ai_pok, i, gravity):
             if is_damaging:
-                view = ai_move_view(move, ai_pok, user_pok, eff_weather)
+                view = ai_move_view(move, ai_pok, user_pok, eff_weather, ai_side, user_side)
                 eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok, gravity)
                 dmg = ai_move_damage(view, eff, ai_pok, user_pok, eff_weather, user_side, gravity)
                 if dmg > max_damage:
                     max_damage = dmg
             continue
-        move = ai_move_view(move, ai_pok, user_pok, eff_weather)
+        move = ai_move_view(move, ai_pok, user_pok, eff_weather, ai_side, user_side)
 
         effectiveness, s_e_check = trainer_ai_effectiveness(move, ai_pok, user_pok, gravity)
 
@@ -426,15 +428,16 @@ def choose_move(battle_array):
         )
         score = eval_atk + basic_flag(
             move, ability, ai_pok, user_pok, effectiveness, weather, ai_side, user_side,
-            user_tspikes, user_bench, ai_bench, ai_know, turn, gravity, claw_guess, eff_weather
+            user_tspikes, user_bench, ai_bench, ai_know, turn, gravity, claw_guess, eff_weather,
+            trick_room
         )
 
         expert = expert_flag(
             ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg,
             ai_know, user_side,
             move_id == _MOVENAME_COPYCAT
-            and copycat_beats(ai_pok, user_pok, eff_weather, user_side, gravity),
-            claw_guess, eff_weather, ai_side, ability, ai_bench_status
+            and copycat_beats(ai_pok, user_pok, eff_weather, user_side, gravity, ai_side),
+            claw_guess, eff_weather, ai_side, ability, ai_bench_status, ai_bench, trick_room
         )
         score += expert
 

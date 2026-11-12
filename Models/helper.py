@@ -107,6 +107,7 @@ class SideCondition:
     MIST = 128
     SAFEGUARD = 256
     LUCKY_CHANT = 512
+    TAILWIND = 1024
 
 
 @dataclass(slots=True)

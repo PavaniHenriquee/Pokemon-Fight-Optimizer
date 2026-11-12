@@ -10,7 +10,7 @@ from DataBase.PkDB import POKEMON_ABILITY_POOL, POKEMON_LENGTH
 from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC_MOVES, MoveName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
-from Engine.speed import check_speed, quick_claw, custap_ready
+from Engine.speed import check_speed, quick_claw, custap_ready, has_tailwind
 from Engine.engine_helper import last_resort_works
 from Models.item import raw_hold_effect, embargoed
 from Models.idx_const import POK_LEN
@@ -70,7 +70,8 @@ from Models.constants import (
     _MOVECATEGORY_PHYSICAL, _MOVECATEGORY_SPECIAL, _MOVENAME_CHARGE, _VOLSTATUS_TAUNT,
     _VOLSTATUS_ENCORE, _VOLSTATUS_DISABLE, _VOLSTATUS_PARTIALLY_TRAPPED, _POK_LAST_MOVE_ID,
     _MOVENAME_WHIRLPOOL, _MOVE_SIDE_CONDITION, _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN,
-    _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _SIDECONDITION_LUCKY_CHANT,
+    _SIDECONDITION_MIST, _SIDECONDITION_SAFEGUARD, _SIDECONDITION_LUCKY_CHANT, _SIDECONDITION_TAILWIND,
+    _MOVENAME_TAILWIND,
     _SIDECONDITION_TOXIC_SPIKES, _SIDECONDITION_STEALTH_ROCK, _MOVENAME_RAIN_DANCE,
     _MOVENAME_SANDSTORM, _MOVENAME_BRICK_BREAK, _MOVENAME_REFLECT, _MOVENAME_LIGHT_SCREEN,
     _MOVENAME_LUCKY_CHANT, _MOVENAME_TOXIC_SPIKES, _MOVENAME_STEALTH_ROCK, _MOVENAME_ROAR,
@@ -374,7 +375,7 @@ ENCORE_ENCOURAGED_M = (
     MoveName.FOLLOW_ME, MoveName.CHARGE, MoveName.INGRAIN, MoveName.RECYCLE, MoveName.KNOCK_OFF,
     MoveName.REFRESH, MoveName.MUD_SPORT, MoveName.WATER_SPORT, MoveName.DRAGON_DANCE,
     MoveName.NATURAL_GIFT, MoveName.FEINT, MoveName.LUCKY_CHANT, MoveName.WORRY_SEED,
-    MoveName.AQUA_RING, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING,
+    MoveName.AQUA_RING, MoveName.TAILWIND, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING,
     MoveName.TOXIC, MoveName.REST, MoveName.POISON_GAS, MoveName.GLARE, MoveName.HEAL_BELL,
     MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT, MoveName.SUNNY_DAY,
     MoveName.HAIL
@@ -451,12 +452,13 @@ def knows_move(pok, move_id):
 
 
 @njit
-def ai_move_view(move, ai_pok, user_pok, weather=0):
+def ai_move_view(move, ai_pok, user_pok, weather=0, ai_side=0, user_side=0):
     """
     The AI damage calc sees Natural Gift's berry type and power, Low Kick's and Grass Knot's
     weight power and Gyro Ball's speed power (pokeplatinum TrainerAI_CalcDamage), and Weather
     Ball's type and power (Pokemow; pokeplatinum's damage calc keeps it Normal 50, its type checks
-    see the weather type). weather is the effective one. Every other move is returned as is
+    see the weather type). weather is the effective one. ai_side / user_side are the user's and
+    the target's Field.SIDE_COND (Gyro Ball's Tailwind). Every other move is returned as is
     """
     move_id = move[_MOVE_ID]
     if move_id == _MOVENAME_NATURAL_GIFT:
@@ -471,7 +473,7 @@ def ai_move_view(move, ai_pok, user_pok, weather=0):
         return view
     if move_id == _MOVENAME_GYRO_BALL:
         view = move.copy()
-        view[_MOVE_POWER] = gyro_ball_power(ai_pok, user_pok, weather)
+        view[_MOVE_POWER] = gyro_ball_power(ai_pok, user_pok, weather, ai_side, user_side)
         return view
     if move_id == _MOVENAME_WEATHER_BALL:
         return weather_ball_move(move, weather)
@@ -730,12 +732,24 @@ def basic_move_vol_status(move, ability, user_pok, ai_pok, user_side=0):
 
 
 @njit
-def basic_stat_change(move, ability, user_pok, ai_pok) -> bool:
+def _speed_only(move):
+    """A stat move whose only stage change is Speed"""
+    return move[_MOVE_BOOST_SPEED] != 0 and not (
+        move[_MOVE_BOOST_ATK] or move[_MOVE_BOOST_DEF] or move[_MOVE_BOOST_SPATK]
+        or move[_MOVE_BOOST_SPDEF] or move[_MOVE_BOOST_ACC] or move[_MOVE_BOOST_EV]
+    )
+
+
+@njit
+def basic_stat_change(move, ability, user_pok, ai_pok, trick_room=False) -> bool:
     """
     Checks to see if any of the bad uses for a buff or debuff stat move
-    happens and returns the check if the do
+    happens and returns the check if the do. A move that only raises the AI's Speed or only
+    lowers the target's is -10 under Trick Room first (Pokemow Check_TrickRoom, pokeplatinum
+    Basic_CheckHighStatStage_Speed / Basic_CheckLowStatStage_Speed)
     """
-    # TODO: Trick room
+    if trick_room and _speed_only(move):
+        return True
     b_atk   = move[_MOVE_BOOST_ATK]
     b_def   = move[_MOVE_BOOST_DEF]
     b_spatk = move[_MOVE_BOOST_SPATK]
@@ -802,7 +816,7 @@ def basic_stat_change(move, ability, user_pok, ai_pok) -> bool:
 
 
 @njit
-def basic_moves(move, ai_pok, user_pok, ability, effectiveness):
+def basic_moves(move, ai_pok, user_pok, ability, effectiveness, trick_room=False):
     """
     Moves that triggers a special condition on the basic flag
     """
@@ -852,8 +866,9 @@ def basic_moves(move, ai_pok, user_pok, ability, effectiveness):
         return _basic_two_stats(
             ai_pok, _POK_SPECIAL_ATTACK_STAT_STAGE, _POK_SPECIAL_DEFENSE_STAT_STAGE
         )
-    # TODO: Basic_CheckDragonDance's Trick Room -10 once Trick Room works
     elif move_id == _MOVENAME_DRAGON_DANCE:
+        if trick_room:
+            return -10
         return _basic_two_stats(ai_pok, _POK_ATTACK_STAT_STAGE, _POK_SPEED_STAT_STAGE)
     elif move_id == _MOVENAME_TICKLE:
         if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and ability in STAT_AB_IM:
@@ -1007,12 +1022,18 @@ def basic_sleep(move, ability, ai_pok, user_pok, user_side):
 
 
 @njit
-def basic_field(move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench):
+def basic_field(
+        move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench,
+        trick_room=False
+):
     """
     pokeplatinum Basic checks for the side condition and weather moves. ability is the target's,
-    user_bench how many Pokemon the target has alive besides the active
+    user_bench how many Pokemon the target has alive besides the active. Basic_CheckTailwind: -10
+    under Trick Room or with Tailwind up on the AI's side
     """
     cond = move[_MOVE_SIDE_CONDITION]
+    if cond == _SIDECONDITION_TAILWIND:
+        return -10 if trick_room or ai_side & cond else 0
     if cond == _SIDECONDITION_LUCKY_CHANT:
         return -10 if ai_side & cond else 0
     if cond in SCREEN_MIST_SAFEGUARD:
@@ -1126,7 +1147,9 @@ def basic_switch(move, ability, ai_pok, user_bench, ai_bench):
 
 
 @njit
-def basic_metal_burst(ability, ai_pok, user_pok, speed_weather, claw_guess):
+def basic_metal_burst(
+        ability, ai_pok, user_pok, speed_weather, claw_guess, ai_side=0, user_side=0, trick_room=False
+):
     """
     pokeplatinum Basic_CheckMetalBurst, after the immunity and Wonder Guard checks (Pokemow): a
     Stall target or one holding a Shiny Stone is -10, an AI with either skips the rest, else -10 if
@@ -1136,7 +1159,7 @@ def basic_metal_burst(ability, ai_pok, user_pok, speed_weather, claw_guess):
         return -10
     if ai_pok[_POK_AB_ID] == _ABILITYNAMES_STALL or ai_pok[_POK_ITEM_ID] == _ITEMNAMES_SHINY_STONE:
         return 0
-    order = ai_speed_order(ai_pok, user_pok, speed_weather, claw_guess)
+    order = ai_speed_order(ai_pok, user_pok, speed_weather, claw_guess, ai_side, user_side, trick_room)
     if order > 0 or (order == 0 and random.getrandbits(1)):
         return -10
     return 0
@@ -1146,7 +1169,7 @@ def basic_metal_burst(ability, ai_pok, user_pok, speed_weather, claw_guess):
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
             weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1, ai_know=0,
-            turn=0, gravity=False, claw_guess=0, speed_weather=-1
+            turn=0, gravity=False, claw_guess=0, speed_weather=-1, trick_room=False
     ):
     """
     Basic Flag, every trainer has this,
@@ -1154,16 +1177,18 @@ def basic_flag(
     ai_side and user_side are both Field.SIDE_COND, user_tspikes the Toxic Spikes layers on the
     target's side and user_bench how many Pokemon it has alive besides the active, ai_bench the
     same for the AI. ai_know is Field.AI_KNOWS, turn is Field.TURN, gravity if Gravity is up.
-    claw_guess and speed_weather are expert_flag's, for the speed compare
+    claw_guess and speed_weather are expert_flag's, for the speed compare, trick_room if Trick
+    Room is up
     """
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
     if move[_MOVE_SIDE_CONDITION] or move[_MOVE_ID] in WEATHER_M:
         return basic_field(
-            move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench
+            move, ability, ai_pok, user_pok, weather, ai_side, user_side, user_tspikes, user_bench,
+            trick_room
         )
     if move[_MOVE_ID] in BASIC_SPECIFIC_M:
-        return basic_moves(move, ai_pok, user_pok, ability, effectiveness)
+        return basic_moves(move, ai_pok, user_pok, ability, effectiveness, trick_room)
     if move[_MOVE_ID] in STAGE_M:
         return basic_stage(move, ability, ai_pok, user_pok)
     if move[_MOVE_ID] in MISC_BASIC_M:
@@ -1174,6 +1199,13 @@ def basic_flag(
     # Basic_CheckGravityActive
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
         return -10 if gravity else 0
+    # Pokemow Basic TrickRoom: -10 if the AI moves first, half the time on a speed tie
+    if move[_MOVE_ID] == _MOVENAME_TRICK_ROOM:
+        order = ai_speed_order(
+            ai_pok, user_pok, weather if speed_weather < 0 else speed_weather, claw_guess, ai_side,
+            user_side, trick_room
+        )
+        return -10 if order > 0 or (order == 0 and random.getrandbits(1)) else 0
     # Basic_CheckCannotSubstitute
     if move[_MOVE_ID] == _MOVENAME_SUBSTITUTE:
         if ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_SUBSTITUTE:
@@ -1194,7 +1226,8 @@ def basic_flag(
         return -10
     if move[_MOVE_ID] == _MOVENAME_METAL_BURST:
         return basic_metal_burst(
-            ability, ai_pok, user_pok, weather if speed_weather < 0 else speed_weather, claw_guess
+            ability, ai_pok, user_pok, weather if speed_weather < 0 else speed_weather, claw_guess,
+            ai_side, user_side, trick_room
         )
     # Basic_CheckLastResort
     if move[_MOVE_ID] == _MOVENAME_LAST_RESORT:
@@ -1241,7 +1274,7 @@ def basic_flag(
             or move[_MOVE_BOOST_ACC]
             or move[_MOVE_BOOST_EV]
         ):
-            if basic_stat_change(move, ability, user_pok, ai_pok):
+            if basic_stat_change(move, ability, user_pok, ai_pok, trick_room):
                 return -10
 
     '''
@@ -2510,6 +2543,36 @@ def expert_gravity(ai_pok, u_pok, rand, idx):
 
 
 @njit
+def expert_tailwind(ai_pok, rand, idx, move_first):
+    """
+    Pokemow / pokeplatinum Expert_Tailwind: 25% chance of nothing, else -1 if the AI moves first or
+    has 30% HP or less, +1 above 75% HP, else 75% chance of +1
+    """
+    hp_pct = (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP]
+    if move_first or hp_pct < 31:
+        add_adjustment(rand, idx, -1, 192)
+    elif hp_pct > 75:
+        add_adjustment(rand, idx, 1, 192)
+    else:
+        add_adjustment(rand, idx, 1, 144)
+    return 0
+
+
+@njit
+def expert_trick_room(ai_pok, rand, idx, slower, ai_bench):
+    """
+    Pokemow / pokeplatinum Expert_TrickRoom (singles): nothing with 30% HP or less and no living
+    bench, else a slower AI has a 75% chance of +3 and any other -1 (a speed tie isn't slower)
+    """
+    if (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP] <= 30 and ai_bench <= 0:
+        return 0
+    if slower:
+        add_adjustment(rand, idx, 3, 192)
+        return 0
+    return -1
+
+
+@njit
 def last_move_category(u_pok, my_last_move):
     """
     Category of the target's last move. No move yet (0) reads as Physical like pokeplatinum's
@@ -2693,14 +2756,16 @@ def quick_claw_guess(ai_pok, u_pok):
 
 
 @njit
-def ai_speed_order(ai_pok, u_pok, weather, claw_guess):
+def ai_speed_order(ai_pok, u_pok, weather, claw_guess, ai_side=0, user_side=0, trick_room=False):
     """
     1 if the AI moves first, -1 if the target does, 0 on a speed tie. pokeplatinum
     BattleSystem_CompareBattlerSpeed as the AI calls it (move priority ignored): a lone guessed
     Quick Claw goes first, then a lone Lagging Tail / Full Incense holder last (both: the slower
-    first), then a lone Stall holder last, both Stalls the slower first, then speed
+    first), then a lone Stall holder last, both Stalls the slower first, then speed, the slower
+    first under Trick Room. Both guessed Quick Claws go by speed, Trick Room or not. ai_side and
+    user_side are both Field.SIDE_COND, for Tailwind
     """
-    ai_s, u_s = check_speed(ai_pok, u_pok, weather)
+    ai_s, u_s = check_speed(ai_pok, u_pok, weather, has_tailwind(ai_side), has_tailwind(user_side))
     ai_claw = (claw_guess & 1) != 0
     u_claw = (claw_guess & 2) != 0
     if ai_claw != u_claw:
@@ -2716,7 +2781,7 @@ def ai_speed_order(ai_pok, u_pok, weather, claw_guess):
         u_stall = u_pok[_POK_AB_ID] == _ABILITYNAMES_STALL
         if ai_stall != u_stall:
             return -1 if ai_stall else 1
-        if ai_stall:
+        if ai_stall or trick_room:
             ai_s, u_s = u_s, ai_s
     if ai_s > u_s:
         return 1
@@ -2729,7 +2794,7 @@ def ai_speed_order(ai_pok, u_pok, weather, claw_guess):
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
     user_side=0, copycat_beats=False, claw_guess=0, speed_weather=-1, ai_side=0, ability=-1,
-    ai_bench_status=False
+    ai_bench_status=False, ai_bench=1, trick_room=False
 ):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
@@ -2740,12 +2805,13 @@ def expert_flag(
     weather is the field's, as the script reads it (pokeplatinum AICmd_LoadCurrentWeather ignores
     Cloud Nine); speed_weather is the one the speed compare sees, -1 for the same. ai_side is the
     AI's Field.SIDE_COND. ability is the target's as the AI sees it, -1 for its real one.
-    ai_bench_status: a living Pokemon on the AI's bench has a status (Heal Bell)
+    ai_bench_status: a living Pokemon on the AI's bench has a status (Heal Bell). ai_bench: how
+    many Pokemon the AI has alive besides the active. trick_room if Trick Room is up
     """
     if speed_weather < 0:
         speed_weather = weather
-    # Check if move first (TODO add Trick room logic here)
-    order = ai_speed_order(ai_pok, u_pok, speed_weather, claw_guess)
+    # Check if move first
+    order = ai_speed_order(ai_pok, u_pok, speed_weather, claw_guess, ai_side, user_side, trick_room)
     if order > 0:
         move_first = True
     elif order == 0:
@@ -2778,6 +2844,10 @@ def expert_flag(
         return expert_call(move, u_pok, rand, idx, move_first, copycat_beats)
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
         return expert_gravity(ai_pok, u_pok, rand, idx)
+    if move[_MOVE_ID] == _MOVENAME_TAILWIND:
+        return expert_tailwind(ai_pok, rand, idx, move_first)
+    if move[_MOVE_ID] == _MOVENAME_TRICK_ROOM:
+        return expert_trick_room(ai_pok, rand, idx, order < 0, ai_bench)
     if move[_MOVE_ID] == _MOVENAME_SUBSTITUTE:
         return expert_substitute(ai_pok, u_pok, rand, idx, move_first, my_last_move)
     # Pokemow Expert Blizzard, the roll ends the check either way

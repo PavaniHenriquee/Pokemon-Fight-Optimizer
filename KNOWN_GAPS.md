@@ -137,6 +137,8 @@
   confirm.
 - Tests that seed Metronome (`test_choice_item_locks_metronome_into_itself`, the `move_calling` golden scenario)
   call a different move each time `METRONOME_POOL` grows, so a MoveDB batch can move them.
+- `Models/battlefield.py` (`Battlefield`) isn't used anywhere, and its `to_np` writes Trick Room and its turns at
+  indices 5 and 6, which aren't today's `Field` layout. Left alone (9.2).
 
 ## Search and Continue
 
@@ -158,6 +160,8 @@
 - Search: the rollout (`rollout_pref`) weighs Payback, Revenge and Avalanche at their base power, and Sucker
   Punch and Focus Punch as if they always hit (7.3): it doesn't see the doubling or the fail (a status move
   picked, a hit before Focus Punch). Only its move weights are off.
+- Search: the rollout weighs Trick Room at 1 like any status move (9.2), also when it's up and helps me (a second
+  one ends it). `field_move_fails` only catches Tailwind already up.
 - Search: `node_key` sees a rampage only through `LOCKED_MOVE`, not `RAMPAGE_TURNS`, so 2 turns left and 1
   left (confusion this turn) share a node.
 - Leppa on the foe (only through a Covet on my Leppa holder) gives back PP that Continue's foe PP arithmetic

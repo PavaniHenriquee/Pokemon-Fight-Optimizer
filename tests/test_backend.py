@@ -246,9 +246,9 @@ def test_start_rejects_bad_config(client):
 
 def test_start_refuses_what_the_engine_lacks(client):
     """An opponent with a move the engine can't run is refused before the running search is touched"""
-    foe = {**OPP_MEMBER, "moves": ["Tackle", "Trick Room"]}
+    foe = {**OPP_MEMBER, "moves": ["Tackle", "Future Sight"]}
     res = client.post("/start", json={"my_team": [TEAM_MEMBER], "opp_team": [foe], "iterations": 10}).json()
-    assert res == {"status": "error", "error": "Not supported yet: Trick Room"}
+    assert res == {"status": "error", "error": "Not supported yet: Future Sight"}
 
 
 def test_start_node_info_and_continue(client):
@@ -593,3 +593,18 @@ def test_castform_sprite_follows_its_form(make_pokemon, m_type, sprite):
     arr[Pok.TYPE1] = m_type
     assert battle_sprite(arr) == sprite
     assert battle_sprite(make_pokemon("Charmander", 30, "Blaze", ["Ember"]).to_np()) == PokemonName.CHARMANDER
+
+
+def test_field_shows_trick_room_and_tailwind():
+    """The battle view gets Trick Room's turns left and Tailwind among a side's timed conditions"""
+    from backend.serializer import _field  # pylint: disable=import-outside-toplevel
+    from Models.helper import SideCondition  # pylint: disable=import-outside-toplevel
+    from Models.idx_const import Field  # pylint: disable=import-outside-toplevel
+    arr = build_scenario("starters")
+    arr[Field.TRICKROOM] = 4
+    arr[Field.OPP_SIDE_COND] |= SideCondition.TAILWIND
+    arr[Field.OPP_TAILWIND_TURNS] = 2
+    field = _field(arr[Field.MY_POK:])
+    assert field["trick_room_turns"] == 4
+    assert {"name": "Tailwind", "turns": 2} in field["opp_side"]
+    assert not field["my_side"]

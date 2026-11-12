@@ -407,6 +407,21 @@ def test_node_key_sees_new_side_conditions_in_k6(one_v_one, side):
     assert node_key(other) != new
 
 
+@pytest.mark.parametrize("side, turns", [
+    (Field.MY_SIDE_COND, Field.MY_TAILWIND_TURNS), (Field.OPP_SIDE_COND, Field.OPP_TAILWIND_TURNS),
+])
+def test_node_key_sees_tailwind_but_not_its_turns(one_v_one, side, turns):
+    """Tailwind lands in k6's side conditions: it splits nodes, its turns left don't"""
+    arr = one_v_one()
+    key = node_key(arr)
+    arr[side] |= SideCondition.TAILWIND
+    arr[turns] = 3
+    key_tw = node_key(arr)
+    assert key_tw != key
+    arr[turns] = 1
+    assert node_key(arr) == key_tw
+
+
 def test_node_key_death_phase_ignores_my_side(one_v_one):
     """In the death phase my fainted active's item, types and lock don't split nodes"""
     arr = one_v_one()

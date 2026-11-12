@@ -3,7 +3,7 @@ import random
 import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
-from Engine.speed import check_speed, slow_start_active
+from Engine.speed import check_speed, slow_start_active, has_tailwind
 from DataBase.PkDB import PokemonName, POKEMON_BASE_ATK, POKEMON_BASE_DEF
 from Models.constants import (
     _ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW,
@@ -684,9 +684,13 @@ def magnitude_power():
 
 
 @njit
-def gyro_ball_power(attacker, defender, weather):
-    """1 + 25 * target speed / user speed, up to 150, with both effective speeds"""
-    user_speed, target_speed = check_speed(attacker, defender, weather)
+def gyro_ball_power(attacker, defender, weather, atk_side=0, def_side=0):
+    """1 + 25 * target speed / user speed, up to 150, with both effective speeds, Tailwind
+    included, Trick Room not (pokeplatinum monSpeedValues). atk_side / def_side are the user's and
+    the target's Field.SIDE_COND"""
+    user_speed, target_speed = check_speed(
+        attacker, defender, weather, has_tailwind(atk_side), has_tailwind(def_side)
+    )
     if user_speed < 1:
         return 1
     return min(150, 1 + 25 * target_speed // user_speed)
@@ -709,7 +713,7 @@ def semi_inv_power(defender, move_id, power):
 
 
 @njit
-def variable_power(attacker, defender, move, weather=0):
+def variable_power(attacker, defender, move, weather=0, atk_side=0, def_side=0):
     """
     Base power for moves whose power depends on the battle state. Counters are only read here,
     the battle flow updates them
@@ -717,7 +721,7 @@ def variable_power(attacker, defender, move, weather=0):
     move_id = move[_MOVE_ID]
     power = move[_MOVE_POWER]
     if move_id == _MOVENAME_GYRO_BALL:
-        return gyro_ball_power(attacker, defender, weather)
+        return gyro_ball_power(attacker, defender, weather, atk_side, def_side)
     if move_id == _MOVENAME_FLAIL or move_id == _MOVENAME_REVERSAL:
         return flail(attacker)
     if move_id == _MOVENAME_LOW_KICK or move_id == _MOVENAME_GRASS_KNOT:
@@ -785,13 +789,14 @@ def sport_power(attacker, defender, move, power):
 def calculate_damage(
         attacker: np.ndarray, defender: np.ndarray, move: np.ndarray,
         weather: int=0, crit: bool=False, roll_multiplier: int=None, def_side: int=0,
-        gravity: bool=False,
+        gravity: bool=False, atk_side: int=0,
 ) -> int:
-    """Standard damage calculation"""
+    """Standard damage calculation. def_side / atk_side are the defender's and the attacker's
+    Field.SIDE_COND"""
 
     attack, defense = raw_atk_def(move, attacker, defender, weather, crit)
 
-    power = charge_power(attacker, move, variable_power(attacker, defender, move, weather))
+    power = charge_power(attacker, move, variable_power(attacker, defender, move, weather, atk_side, def_side))
     power = technician_power(attacker, move, power)
     power = item_power(attacker, normalized_type(attacker, move), move[_MOVE_CATEGORY], power)
     power = base_power_ability(attacker, defender, move, power)

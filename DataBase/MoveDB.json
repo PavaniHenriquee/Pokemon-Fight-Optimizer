@@ -6188,6 +6188,20 @@
     "target": "all_adjacent_foes",
     "type": "Normal"
   },
+  "Tailwind": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true,
+      "wind": true
+    },
+    "name": "tailwind",
+    "pp": 15,
+    "side_condition": "tailwind",
+    "target": "ally_side",
+    "type": "Flying"
+  },
   "Take Down": {
     "accuracy": 85,
     "category": "Physical",

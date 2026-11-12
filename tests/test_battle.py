@@ -20,6 +20,7 @@ from DataBase.AbilitiesDB import AbilityNames
 from DataBase.MoveDB import MoveName
 from DataBase.PkDB import PokemonName
 from Engine import engine_helper
+from Engine.speed import check_speed
 from Models.helper import Terrain
 from Models.move import STRUGGLE
 from Models.constants import _ENEMY_AI_KNOWS_MOVE2
@@ -2330,6 +2331,83 @@ def test_gravity_brings_down_a_bouncing_pokemon(make_pokemon, make_battle):
     assert me[Pok.SEMI_INV_MOVE] == 0
 
 
+# ── Trick Room, Tailwind ─────────────────────────────────────────────────────
+
+def test_tailwind_lasts_three_turns_and_fails_while_up(make_pokemon, make_battle):
+    """Tailwind counts the turn it was set in, a second one doesn't reset it (pokeplatinum
+    subscript_tailwind_start, SIDE_CONDITION_TAILWIND)"""
+    arr = make_battle([make_pokemon("Pidgey", 20, "Keen Eye", ["Tailwind"])],
+                      [make_pokemon("Geodude", 20, "Sturdy", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.MY_SIDE_COND] & SideCondition.TAILWIND
+    assert arr[Field.MY_TAILWIND_TURNS] == 2
+    assert not arr[Field.OPP_SIDE_COND] & SideCondition.TAILWIND
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.MY_TAILWIND_TURNS] == 1
+    end_of_turn(arr)
+    assert not arr[Field.MY_SIDE_COND] & SideCondition.TAILWIND
+    assert arr[Field.MY_TAILWIND_TURNS] == 0
+
+
+def test_trick_room_lasts_five_turns_and_a_second_one_ends_it(make_pokemon, make_battle):
+    """pokeplatinum effect_script_0259: Trick Room used while up ends it"""
+    arr = make_battle([make_pokemon("Abra", 20, "Synchronize", ["Trick Room"])],
+                      [make_pokemon("Geodude", 20, "Sturdy", ["Harden"])])
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.TRICKROOM] == 4
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.TRICKROOM] == 0
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.TRICKROOM] == 4
+    for _ in range(4):
+        end_of_turn(arr)
+    assert arr[Field.TRICKROOM] == 0
+
+
+@pytest.mark.parametrize("tailwind, trick_room, me_first", [
+    (False, False, False),
+    (True, False, True),     # 30 * 2 > 50
+    (False, True, True),     # the slower first
+    (True, True, False),     # 60 is faster now, so second
+])
+def test_tailwind_and_trick_room_set_the_turn_order(make_pokemon, make_battle, tailwind, trick_room,
+                                                    me_first):
+    """My Tackle KOs a 1 HP foe only if I move first, else its Tackle hits me"""
+    arr = make_battle([make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Tackle"])])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.SPEED], foe[Pok.SPEED] = 30, 50
+    foe[Pok.CURRENT_HP] = 1
+    if tailwind:
+        arr[Field.MY_SIDE_COND] |= SideCondition.TAILWIND
+        arr[Field.MY_TAILWIND_TURNS] = 3
+    arr[Field.TRICKROOM] = 5 if trick_room else 0
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.CURRENT_HP] == me[Pok.MAX_HP]) == me_first
+
+
+def test_trick_room_flips_the_end_of_turn_order(monkeypatch, make_pokemon, make_battle):
+    """The end of turn sorts by speed through the same compare, so Trick Room flips it"""
+    arr = make_battle([make_pokemon("Geodude", 20, "Sturdy", ["Harden"])],
+                      [make_pokemon("Rattata", 20, "Run Away", ["Harden"])])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.SPEED], foe[Pok.SPEED] = 30, 50
+    order = []
+    real = battle._residual_weather
+
+    def spy(pok, weather, flag, battle_array):
+        order.append(flag)
+        return real(pok, weather, flag, battle_array)
+
+    monkeypatch.setattr(battle, "_residual_weather", spy)
+    end_of_turn(arr)
+    arr[Field.TRICKROOM] = 5
+    end_of_turn(arr)
+    assert order == [
+        Field.OPP_ENTER_FIELD, Field.MY_ENTER_FIELD, Field.MY_ENTER_FIELD, Field.OPP_ENTER_FIELD
+    ]
+
+
 def test_minimize_sets_flag_and_one_evasion_stage(make_pokemon, make_battle):
     """Gen IV Minimize raises evasion by 1 and marks the user as minimized"""
     arr = make_battle([make_pokemon("Rattata", 20, "Run Away", ["Minimize"])],
@@ -3843,7 +3921,7 @@ def test_embargo_and_speed_items(make_pokemon, make_battle, item, halved):
     _, me = _embargo_battle(make_pokemon, make_battle, my_item=item)
     engine_helper.embargo(me)
     speed = me[Pok.SPEED]
-    assert battle.check_speed(me, me, 0)[0] == (speed // 2 if halved else speed)
+    assert check_speed(me, me, 0)[0] == (speed // 2 if halved else speed)
 
 
 def test_natural_gift_fails_under_embargo(make_pokemon, make_battle):

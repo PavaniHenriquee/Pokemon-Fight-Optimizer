@@ -3,7 +3,7 @@ import random
 import numpy as np
 import pytest
 from Engine import engine_helper
-from Engine.speed import check_speed
+from Engine.speed import check_speed, goes_first
 from Engine.engine_helper import (
     move_order, calculate_hit_miss, calculate_crit, reset_switch_out,
     switch_in, trainer_ai_items, eat_berry, eat_berry_bug_bite, item_on_rdmg, drain, weather_dmg,
@@ -317,6 +317,45 @@ def test_two_lagging_tails_and_quick_claw(monkeypatch, poke):
     claw = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Quick Claw")
     _claw(monkeypatch, True)
     assert move_order(fast, 0, claw, 0, False, False, 0)[3] is False
+
+
+def test_tailwind_doubles_speed_last(poke):
+    """Tailwind is the last step, after paralysis (pokeplatinum CompareBattlerSpeed)"""
+    a = poke("Rattata", 50, "Run Away", ["Tackle"])
+    a[Pok.SPEED] = 101
+    a[Pok.STATUS] = Status.PARALYSIS
+    assert check_speed(a, a, 0, True, False) == (50, 25)
+
+
+def test_trick_room_flips_speed_not_priority(monkeypatch, poke):
+    """Under Trick Room the slower goes first, a higher priority, an activated Quick Claw or a
+    lone Lagging Tail still win before speed (pokeplatinum CompareBattlerSpeed)"""
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle", "Quick Attack"])
+    fast = poke("Rattata", 50, "Run Away", ["Tackle", "Quick Attack"])
+    assert move_order(slow, 0, fast, 0, False, False, 0, trick_room=True)[3] is True
+    assert move_order(fast, 0, slow, 0, False, False, 0, trick_room=True)[3] is False
+    assert move_order(fast, 1, slow, 0, False, False, 0, trick_room=True)[3] is True
+    lag = poke("Geodude", 50, "Sturdy", ["Tackle"], item="Lagging Tail")
+    assert move_order(lag, 0, fast, 0, False, False, 0, trick_room=True)[3] is False
+    claw = poke("Rattata", 50, "Run Away", ["Tackle"], item="Quick Claw")
+    _claw(monkeypatch, True)
+    assert move_order(claw, 0, slow, 0, False, False, 0, trick_room=True)[3] is True
+
+
+def test_tailwind_in_move_order(poke):
+    """Tailwind on the slower side's flag puts it first, Trick Room flips that back"""
+    slow = poke("Geodude", 50, "Sturdy", ["Tackle"])
+    fast = poke("Rattata", 50, "Run Away", ["Tackle"])
+    slow[Pok.SPEED], fast[Pok.SPEED] = 30, 50
+    assert move_order(slow, 0, fast, 0, False, False, 0, True, False)[3] is True
+    assert move_order(slow, 0, fast, 0, False, False, 0, True, False, True)[3] is False
+
+
+def test_goes_first_tie_is_a_coin_flip_under_trick_room():
+    """goes_first: a tie stays a coin flip whatever Trick Room does"""
+    assert goes_first(30, 50, True) and not goes_first(50, 30, True)
+    assert goes_first(50, 30) and not goes_first(30, 50)
+    assert {goes_first(40, 40, True) for _ in range(100)} == {True, False}
 
 
 @pytest.mark.parametrize("turns_active, loafs", [(1, False), (2, True), (3, False), (4, True)])

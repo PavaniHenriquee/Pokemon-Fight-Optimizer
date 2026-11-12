@@ -11,7 +11,8 @@ from Models.constants import (
     _HOLDEFFECT_SOMETIMES_PRIORITY, _HOLDEFFECT_DITTO_SPEED_UP, _POK_ID,
     _HOLDEFFECT_EVS_UP_SPEED_DOWN, _HOLDEFFECT_LVLUP_EV_UP, _HOLDEFFECT_SPEED_DOWN_GROUNDED,
     _POK_CURRENT_HP, _POK_MAX_HP, _ABILITYNAMES_GLUTTONY, _HOLDEFFECT_PINCH_PRIORITY,
-    _HOLDEFFECT_CHOICE_SPEED,
+    _HOLDEFFECT_CHOICE_SPEED, _FIELD_MY_SIDE_COND, _FIELD_OPP_SIDE_COND, _SIDECONDITION_TAILWIND,
+    _FIELD_TRICKROOM,
 )
 from Models.item import raw_hold_effect
 from DataBase.PkDB import PokemonName
@@ -64,11 +65,11 @@ def slow_start_active(pok):
 
 
 @njit
-def _speed(pok, weather):
+def _speed(pok, weather, tailwind=False):
     """
     One Pokemon's speed in pokeplatinum BattleSystem_CompareBattlerSpeed order: stages (Simple
     doubles them) -> Swift Swim / Chlorophyll -> items -> Quick Feet or paralysis -> Slow Start ->
-    Unburden -> Tailwind
+    Unburden -> Tailwind. tailwind: Tailwind is up on its side
     """
     speed = pok[_POK_SPEED]
     ab = pok[_POK_AB_ID]
@@ -104,14 +105,48 @@ def _speed(pok, weather):
             and not pok[_ITEM_ID]
         ):
             speed *= 2
-    # TODO: Tailwind ×2 goes here, last.
+    if tailwind:
+        speed *= 2
     return speed
 
 
 @njit
-def check_speed(p1, p2, weather):
+def check_speed(p1, p2, weather, tail1=False, tail2=False):
     """Gives speed after modifications of stages, abilities, and paralysis (Showdown/Smogon-DP
     confirmed order: stat stage -> ability modifier -> item modifiers ->
-    paralysis -> tailwind (not yet implemented). Paralysis is applied last, to the already-
-    truncated result of the earlier steps, not multiplied in alongside them.)"""
-    return _speed(p1, weather), _speed(p2, weather)
+    paralysis -> tailwind. Paralysis is applied last, to the already-
+    truncated result of the earlier steps, not multiplied in alongside them.) tail1 / tail2:
+    Tailwind is up on that Pokemon's side"""
+    return _speed(p1, weather, tail1), _speed(p2, weather, tail2)
+
+
+@njit
+def has_tailwind(side_cond):
+    """Tailwind is up in this Field.SIDE_COND value"""
+    return (side_cond & _SIDECONDITION_TAILWIND) != 0
+
+
+@njit
+def field_speeds(battle_array, mine, opp, weather):
+    """check_speed for my Pokemon and the foe's, each with its side's Tailwind"""
+    return check_speed(
+        mine, opp, weather, has_tailwind(battle_array[_FIELD_MY_SIDE_COND]),
+        has_tailwind(battle_array[_FIELD_OPP_SIDE_COND])
+    )
+
+
+@njit
+def trick_room_up(battle_array):
+    """Trick Room is up"""
+    return battle_array[_FIELD_TRICKROOM] > 0
+
+
+@njit
+def goes_first(s1, s2, trick_room=False):
+    """
+    The one with speed s1 goes before s2: the faster, the slower under Trick Room, a coin flip on a
+    tie (pokeplatinum BattleSystem_CompareBattlerSpeed, its last branch)
+    """
+    if s1 == s2:
+        return random.getrandbits(1) == 1
+    return s1 < s2 if trick_room else s1 > s2

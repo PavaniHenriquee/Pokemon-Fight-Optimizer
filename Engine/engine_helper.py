@@ -3,7 +3,7 @@ import random
 import numpy as np
 from Utils.jit import njit
 from Utils.helper import get_type_effectiveness
-from Engine.speed import check_speed, slow_start_active, quick_claw, pinch_hp, custap_ready
+from Engine.speed import check_speed, slow_start_active, quick_claw, pinch_hp, custap_ready, goes_first
 from Engine.status_calc import  freeze, paralysis, sleep_blocked, SLOT_MASK, TURNS_2_5
 from Engine.status_calc import (
     apply_status, infatuate, cure_status, ability_blocks_status, ability_forbids_status,
@@ -1243,9 +1243,14 @@ def truant_loafs(pok):
 
 
 @njit
-def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
+def move_order(
+        p1, my_move, p2, opp_move, p1_switch, p2_switch, weather, tail1=False, tail2=False,
+        trick_room=False
+):
     """
-    Calculates who acts first this turn.
+    Calculates who acts first this turn. tail1 / tail2: Tailwind is up on that side. Trick Room
+    flips the speed compare, after priority, Quick Claw, Lagging Tail and Stall (Showdown: both
+    activated Quick Claws are flipped too, pokeplatinum doesn't)
     Returns (mv1_slot, mv2_slot, count, first_is_mine):
       mv1_slot / mv2_slot — move index for whoever acts in that position
                             (-1 = switch, dummy value if count < 2)
@@ -1260,7 +1265,7 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
     if p2_switch:
         return my_move, -1, 1, True
 
-    p1_speed, p2_speed = check_speed(p1, p2, weather)
+    p1_speed, p2_speed = check_speed(p1, p2, weather, tail1, tail2)
     custap1 = custap(p1)
     custap2 = custap(p2)
 
@@ -1297,10 +1302,7 @@ def move_order(p1, my_move, p2, opp_move, p1_switch, p2_switch, weather):
         if stall2:
             return my_move, opp_move, 2, True
         return opp_move, my_move, 2, False
-    speed_t = False
-    if p1_speed == p2_speed and random.getrandbits(1):
-        speed_t = True
-    if p1_speed > p2_speed or speed_t:
+    if goes_first(p1_speed, p2_speed, trick_room):
         return my_move, opp_move, 2, True
     return opp_move, my_move, 2, False
 

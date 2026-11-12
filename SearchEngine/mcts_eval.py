@@ -36,7 +36,7 @@ from Engine.battle import _move_weather, FOE_SIDE_TARGET, TOXIC_SPIKES_MAX
 from Engine.status_calc import (
     ability_blocks_status, stat_drop_blocked, STAT_MAPPING, sleep_blocked, SLEEP_AB_IM
 )
-from Engine.speed import check_speed
+from Engine.speed import check_speed, has_tailwind, trick_room_up
 from Models.item import embargoed
 
 
@@ -251,7 +251,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
         else:
             o_dmg = calculate_damage(
                 o_pok, c_pok, o_move, weather, calculate_crit(o_pok, c_pok, o_move, my_side), None,
-                my_side, gravity
+                my_side, gravity, opp_side
             )
         o_mv_type = normalized_type(o_pok, o_move)
         imnty = check_immunity_pty(my_pty, o_pok, o_mv_type, my_idx, gravity, weather)
@@ -261,8 +261,8 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
     else:
         o_dmg = struggle(o_pok, c_pok, False, my_side, weather)
     opp_hp_ratio = o_pok[_POK_CURRENT_HP] * 4 // o_pok[_POK_MAX_HP]
-    my_speed, opp_speed = check_speed(c_pok, o_pok, weather)
-    faster = my_speed > opp_speed
+    my_speed, opp_speed = check_speed(c_pok, o_pok, weather, has_tailwind(my_side), has_tailwind(opp_side))
+    faster = my_speed < opp_speed if trick_room_up(battle_array) else my_speed > opp_speed
     can_survive = o_dmg < c_pok[_POK_CURRENT_HP]
     act_types = np.empty(10, dtype=np.int16)
     act_idxs  = np.empty(10, dtype=np.int16)
@@ -330,7 +330,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
 
                     if likely_strong:
                         dmg = calculate_damage(
-                            c_pok, o_pok, move, weather, False, None, opp_side, gravity
+                            c_pok, o_pok, move, weather, False, None, opp_side, gravity, my_side
                         )
                         if dmg >= o_pok[_POK_CURRENT_HP] and (faster or can_survive):
                             weight = 100  # KO when safe to do so

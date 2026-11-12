@@ -51,7 +51,7 @@ KIT_STATUS = (
     "Toxic", "Glare", "Spore", "Lovely Kiss", "Dark Void", "Poison Gas", "Teeter Dance", "Rest",
     "Sleep Talk", "Nightmare", "Psycho Shift", "Heal Bell", "Aromatherapy",
     "Milk Drink", "Soft-Boiled", "Slack Off", "Heal Order", "Moonlight", "Morning Sun", "Roost",
-    "Heal Block", "Sunny Day", "Hail",
+    "Heal Block", "Sunny Day", "Hail", "Tailwind", "Trick Room",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -2302,6 +2302,137 @@ def test_ai_speed_order_sees_quick_feet(poke):
     user = poke("Geodude", 20, "Sturdy", ["Tackle"])
     ai_pok[Pok.STATUS] = user[Pok.STATUS] = Status.PARALYSIS
     assert ai.ai_speed_order(ai_pok, user, 0, 0) == 1
+
+
+@pytest.mark.parametrize("ai_side, user_side, trick_room, claw_guess, expected", [
+    (0, 0, False, 0, -1),                                    # Geodude 30 under Rattata 50
+    (SideCondition.TAILWIND, 0, False, 0, 1),                # 60 over 50
+    (0, SideCondition.TAILWIND, False, 0, -1),
+    (0, 0, True, 0, 1),                                      # the slower first
+    (SideCondition.TAILWIND, 0, True, 0, -1),
+    (0, 0, True, 3, -1),                                     # both guessed Quick Claws: speed
+])
+def test_ai_speed_order_sees_tailwind_and_trick_room(poke, ai_side, user_side, trick_room, claw_guess,
+                                                     expected):
+    """pokeplatinum CompareBattlerSpeed as the AI calls it: Tailwind doubles, Trick Room flips the
+    last branch only"""
+    ai_pok = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    ai_pok[Pok.SPEED], user[Pok.SPEED] = 30, 50
+    assert ai.ai_speed_order(ai_pok, user, 0, claw_guess, ai_side, user_side, trick_room) == expected
+
+
+def _tr_pair(poke, move, ai_fast):
+    """An AI faster (50 over 30) or slower than its target, holding move"""
+    ai_pok = poke("Abra", 20, "Synchronize", [move])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    ai_pok[Pok.SPEED], user[Pok.SPEED] = (50, 30) if ai_fast else (30, 50)
+    return ai_pok, user
+
+
+def _basic_tr(ai_pok, user, **kwargs):
+    return ai.basic_flag(move_slice(ai_pok, 0), AbilityNames.RUN_AWAY, ai_pok, user, 1.0, 0, **kwargs)
+
+
+@pytest.mark.parametrize("trick_room, ai_side, expected", [
+    (False, 0, 0),
+    (True, 0, -10),
+    (False, SideCondition.TAILWIND, -10),
+    (False, SideCondition.REFLECT, 0),
+])
+def test_basic_tailwind(poke, trick_room, ai_side, expected):
+    """Pokemow Basic Tailwind and Check_TrickRoom (pokeplatinum Basic_CheckTailwind)"""
+    ai_pok, user = _tr_pair(poke, "Tailwind", False)
+    assert _basic_tr(ai_pok, user, ai_side=ai_side, trick_room=trick_room) == expected
+
+
+@pytest.mark.parametrize("ai_fast, trick_room, expected", [
+    (True, False, -10),
+    (False, False, 0),
+    (False, True, -10),     # it already moves first: Trick Room again would end it
+    (True, True, 0),
+])
+def test_basic_trick_room(poke, ai_fast, trick_room, expected):
+    """Pokemow Basic TrickRoom: -10 if the AI moves first"""
+    ai_pok, user = _tr_pair(poke, "Trick Room", ai_fast)
+    assert _basic_tr(ai_pok, user, trick_room=trick_room) == expected
+
+
+def test_basic_trick_room_speed_tie_is_half(poke):
+    """Pokemow Basic TrickRoom: a speed tie is -10 half the time"""
+    ai_pok, user = _tr_pair(poke, "Trick Room", True)
+    user[Pok.SPEED] = ai_pok[Pok.SPEED]
+    assert {_basic_tr(ai_pok, user) for _ in range(100)} == {0, -10}
+
+
+@pytest.mark.parametrize("move, expected", [
+    ("Agility", -10), ("Rock Polish", -10), ("Cotton Spore", -10), ("Scary Face", -10),
+    ("String Shot", -10), ("Dragon Dance", -10), ("Swords Dance", 0), ("Growl", 0),
+])
+def test_basic_speed_moves_under_trick_room(poke, move, expected):
+    """Pokemow Check_TrickRoom on the moves that only raise the AI's Speed or only lower the
+    target's, and Dragon Dance"""
+    ai_pok, user = _tr_pair(poke, move, False)
+    assert _basic_tr(ai_pok, user, trick_room=True) == expected
+    assert _basic_tr(ai_pok, user) == 0
+
+
+def _expert_tr(ai_pok, user, trick_room=False, ai_bench=1):
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0, ai_bench=ai_bench,
+        trick_room=trick_room
+    )
+    return score, [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+
+
+@pytest.mark.parametrize("ai_fast, hp_pct, expected", [
+    (True, 100, (0, [(-1, 192)])),
+    (False, 30, (0, [(-1, 192)])),
+    (False, 31, (0, [(1, 144)])),
+    (False, 75, (0, [(1, 144)])),
+    (False, 76, (0, [(1, 192)])),
+])
+def test_expert_tailwind(poke, ai_fast, hp_pct, expected):
+    """Pokemow / pokeplatinum Expert_Tailwind, its 25% of nothing folded into each chance"""
+    ai_pok, user = _tr_pair(poke, "Tailwind", ai_fast)
+    _set_hp_pct(ai_pok, hp_pct)
+    assert _expert_tr(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("ai_fast, hp_pct, ai_bench, trick_room, expected", [
+    (False, 100, 1, False, (0, [(3, 192)])),
+    (True, 100, 1, False, (-1, [])),
+    (True, 100, 1, True, (0, [(3, 192)])),    # under Trick Room the faster one is second
+    (False, 30, 0, False, (0, [])),
+    (False, 30, 1, False, (0, [(3, 192)])),
+    (True, 31, 0, False, (-1, [])),
+])
+def test_expert_trick_room(poke, ai_fast, hp_pct, ai_bench, trick_room, expected):
+    """Pokemow / pokeplatinum Expert_TrickRoom"""
+    ai_pok, user = _tr_pair(poke, "Trick Room", ai_fast)
+    _set_hp_pct(ai_pok, hp_pct)
+    assert _expert_tr(ai_pok, user, trick_room, ai_bench) == expected
+
+
+def test_ai_move_view_gyro_ball_sees_tailwind(poke):
+    """The AI's Gyro Ball power reads monSpeedValues, Tailwind included (pokeplatinum)"""
+    gyro = poke("Bronzor", 20, "Levitate", ["Gyro Ball"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    gyro[Pok.SPEED], user[Pok.SPEED] = 20, 40
+    mv = move_slice(gyro, 0)
+    assert ai.ai_move_view(mv, gyro, user)[Move.POWER] == 51
+    assert ai.ai_move_view(mv, gyro, user, 0, 0, SideCondition.TAILWIND)[Move.POWER] == 101
+    assert ai.ai_move_view(mv, gyro, user, 0, SideCondition.TAILWIND, 0)[Move.POWER] == 26
+
+
+def test_ai_reads_trick_room_from_the_field(make_pokemon, make_battle):
+    """return_idx passes Trick Room on: a slower Abra under it never picks Trick Room (-10)"""
+    arr = make_battle([make_pokemon("Rattata", 30, "Run Away", ["Tackle"])],
+                      [make_pokemon("Geodude", 10, "Sturdy", ["Trick Room", "Tackle"])])
+    arr[Field.TRICKROOM] = 3
+    for _ in range(20):
+        assert return_idx(arr) == 1
 
 
 def test_quick_claw_guess(monkeypatch, poke):

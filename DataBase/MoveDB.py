@@ -392,7 +392,8 @@ class MoveName:
     TACKLE          = SYNTHESIS + 1
     TAIL_GLOW       = TACKLE + 1
     TAIL_WHIP       = TAIL_GLOW + 1
-    TAKE_DOWN       = TAIL_WHIP + 1
+    TAILWIND        = TAIL_WHIP + 1
+    TAKE_DOWN       = TAILWIND + 1
     TAUNT           = TAKE_DOWN + 1
     TEETER_DANCE    = TAUNT + 1
     TELEPORT        = TEETER_DANCE + 1

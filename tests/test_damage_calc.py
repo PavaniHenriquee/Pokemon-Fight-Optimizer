@@ -458,6 +458,20 @@ def test_gyro_ball_uses_weather_speed(poke):
     assert variable_power(a, d, move_slice(a, 0), Weather.RAIN) == 101
 
 
+def test_gyro_ball_sees_both_tailwinds(poke):
+    """Gyro Ball reads monSpeedValues, Tailwind included (pokeplatinum battle_script.c)"""
+    a = poke("Bronzor", 20, "Levitate", ["Gyro Ball"])
+    d = poke("Rattata", 20, "Run Away", ["Tackle"])
+    a[Pok.SPEED], d[Pok.SPEED] = 20, 40
+    mv = move_slice(a, 0)
+    tail = SideCondition.TAILWIND
+    assert variable_power(a, d, mv, 0, 0, tail) == 101
+    assert variable_power(a, d, mv, 0, tail, 0) == 26
+    assert variable_power(a, d, mv, 0, tail, tail) == 51
+    assert (calculate_damage(a, d, mv, 0, False, 100, tail)
+            > calculate_damage(a, d, mv, 0, False, 100, tail, False, tail))
+
+
 def test_reckless_matches_gen4_rounding(poke):
     """Gen IV Reckless is power * 12 // 10 (effect script 0048), Take Down 90 -> 108"""
     a = poke("Starly", 20, "Reckless", ["Take Down"])
