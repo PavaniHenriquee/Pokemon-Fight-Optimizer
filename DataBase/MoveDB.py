@@ -93,7 +93,8 @@ class MoveName:
     DISCHARGE       = DISARMING_VOICE + 1
     DIVE            = DISCHARGE + 1
     DIZZY_PUNCH     = DIVE + 1
-    DOUBLE_HIT      = DIZZY_PUNCH + 1
+    DOOM_DESIRE     = DIZZY_PUNCH + 1
+    DOUBLE_HIT      = DOOM_DESIRE + 1
     DOUBLE_KICK     = DOUBLE_HIT + 1
     DOUBLE_SLAP     = DOUBLE_KICK + 1
     DOUBLE_TEAM     = DOUBLE_SLAP + 1
@@ -368,11 +369,13 @@ class MoveName:
     SPARK           = SPACIAL_REND + 1
     SPIKE_CANNON    = SPARK + 1
     SPIKES          = SPIKE_CANNON + 1
-    SPLASH          = SPIKES + 1
+    SPIT_UP         = SPIKES + 1
+    SPLASH          = SPIT_UP + 1
     SPORE           = SPLASH + 1
     STEALTH_ROCK    = SPORE + 1
     STEEL_WING      = STEALTH_ROCK + 1
-    STOMP           = STEEL_WING + 1
+    STOCKPILE       = STEEL_WING + 1
+    STOMP           = STOCKPILE + 1
     STONE_EDGE      = STOMP + 1
     STRENGTH        = STONE_EDGE + 1
     STRING_SHOT     = STRENGTH + 1
@@ -386,7 +389,8 @@ class MoveName:
     SUPERSONIC      = SUPERPOWER + 1
     SURF            = SUPERSONIC + 1
     SWAGGER         = SURF + 1
-    SWEET_KISS      = SWAGGER + 1
+    SWALLOW         = SWAGGER + 1
+    SWEET_KISS      = SWALLOW + 1
     SWEET_SCENT     = SWEET_KISS + 1
     SWIFT           = SWEET_SCENT + 1
     SWITCHEROO      = SWIFT + 1
@@ -434,7 +438,8 @@ class MoveName:
     WILD_CHARGE     = WHIRLWIND + 1
     WILL_O_WISP     = WILD_CHARGE + 1
     WING_ATTACK     = WILL_O_WISP + 1
-    WITHDRAW        = WING_ATTACK + 1
+    WISH            = WING_ATTACK + 1
+    WITHDRAW        = WISH + 1
     WOOD_HAMMER     = WITHDRAW + 1
     WORRY_SEED      = WOOD_HAMMER + 1
     WRAP            = WORRY_SEED + 1

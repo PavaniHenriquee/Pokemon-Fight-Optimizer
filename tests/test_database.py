@@ -157,11 +157,11 @@ def test_trainer_lacks():
     """Moves and held items the databases don't have, NOT_IMPLEMENTED ones, unknown trainer items"""
     foe = {"name": "Squirtle", "level": 5, "ability": "Torrent", "moves": ["Tackle", "Tail Whip", "", ""]}
     team = [
-        {**foe, "moves": ["Tackle", "U-turn", "Future Sight", ""], "item": "Rocky Helmet"},
+        {**foe, "moves": ["Tackle", "U-turn", "", ""], "item": "Rocky Helmet"},
         {**foe, "ability": "Color Change"},
     ]
     assert trainer_lacks(team, ["Potion", "X Attack"]) == [
-        "Color Change", "Future Sight", "Rocky Helmet", "U-turn", "X Attack"
+        "Color Change", "Rocky Helmet", "U-turn", "X Attack"
     ]
     assert not trainer_lacks([foe], ["Full Restore"])
 

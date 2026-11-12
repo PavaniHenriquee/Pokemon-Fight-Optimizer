@@ -11,11 +11,13 @@ from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
 from Engine.speed import check_speed, quick_claw, custap_ready, has_tailwind
-from Engine.engine_helper import last_resort_works
+from Engine.engine_helper import last_resort_works, stockpile_count, STOCKPILE_MAX
 from Models.item import raw_hold_effect, embargoed
 from Models.idx_const import POK_LEN
 from Models.helper import TARGET_SELF_SIDE, TARGET_OPP_SIDE, STEEL_POISON
 from Models.constants import (
+    _FLAGS_FUTURE_MOVE, _MOVENAME_DOOM_DESIRE, _MOVENAME_SPIT_UP, _MOVENAME_STOCKPILE, _MOVENAME_SWALLOW,
+    _SIDECONDITION_FUTURE_SIGHT,
     _ABILITYNAMES_STALL, _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_MOTOR_DRIVE, _ABILITYNAMES_IMMUNITY,
     _ABILITYNAMES_MAGIC_GUARD, _ABILITYNAMES_POISON_POINT, _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_LIMBER,
     _ABILITYNAMES_WATER_VEIL, _ABILITYNAMES_CLEAR_BODY, _ABILITYNAMES_WHITE_SMOKE,
@@ -145,7 +147,7 @@ ABSORB_ABI = (
     _ABILITYNAMES_WATER_ABSORB, _ABILITYNAMES_VOLT_ABSORB, _ABILITYNAMES_FLASH_FIRE
 )
 
-FUTURE_ATTACK_MOVES = (_MOVENAME_FUTURE_SIGHT,)
+FUTURE_ATTACK_MOVES = (_MOVENAME_FUTURE_SIGHT, _MOVENAME_DOOM_DESIRE)
 MAYBE_BAD_MOVES = (
     _MOVENAME_SUCKER_PUNCH,
     _MOVENAME_FOCUS_PUNCH,
@@ -384,7 +386,8 @@ ENCORE_ENCOURAGED_M = (
     MoveName.AQUA_RING, MoveName.TAILWIND, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING,
     MoveName.TOXIC, MoveName.REST, MoveName.POISON_GAS, MoveName.GLARE, MoveName.HEAL_BELL,
     MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT, MoveName.SUNNY_DAY,
-    MoveName.HAIL, MoveName.MAGNET_RISE
+    MoveName.HAIL, MoveName.MAGNET_RISE, MoveName.DOOM_DESIRE, MoveName.STOCKPILE, MoveName.SPIT_UP,
+    MoveName.SWALLOW
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 MOVE_DRAIN_SLOTS = tuple(slot + _MOVE_DRAIN - _MOVE_ID for slot in MOVE_ID_SLOTS)
@@ -400,13 +403,15 @@ SUN_HEAL_M = (_MOVENAME_SYNTHESIS, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN)
 HEAL_M = RESTORE_HALF_M + (_MOVENAME_ROOST,) + SUN_HEAL_M
 # Pokemow List_HealingMoves, the ones in MoveDB that aren't drain moves (those go by their drain)
 HEAL_BLOCK_GOOD_M = HEAL_M + (
-    _MOVENAME_REST, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _MOVENAME_LEECH_SEED
+    _MOVENAME_REST, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _MOVENAME_LEECH_SEED, _MOVENAME_SWALLOW
 )
 # Scored by basic_misc / expert_misc
 MISC_BASIC_M = HEAL_M + (
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG
 )
-MISC_EXPERT_M = MISC_BASIC_M + (_MOVENAME_KNOCK_OFF, _MOVENAME_SPLASH)
+MISC_EXPERT_M = MISC_BASIC_M + (_MOVENAME_KNOCK_OFF, _MOVENAME_SPLASH, _MOVENAME_SWALLOW)
+# Expert_Recovery's moves, Swallow included (pokeplatinum script.s)
+RECOVERY_EXPERT_M = HEAL_M + (_MOVENAME_SWALLOW,)
 REFRESH_STATUSES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 WORRY_SEED_BAD_AB = (
     _ABILITYNAMES_TRUANT, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_MULTITYPE
@@ -1264,6 +1269,20 @@ def basic_flag(
             return ability_score
     if move[_MOVE_ID] in SLEEP_BASIC_M:
         return basic_sleep(move, ability, ai_pok, user_pok, user_side)
+    # Basic_CheckFutureSight: -12 while one is waiting on either side
+    if move[_FLAGS_FUTURE_MOVE]:
+        return -12 if (ai_side | user_side) & _SIDECONDITION_FUTURE_SIGHT else 0
+    # Basic_CheckMaxStockpile
+    if move[_MOVE_ID] == _MOVENAME_STOCKPILE:
+        return -10 if stockpile_count(ai_pok) >= STOCKPILE_MAX else 0
+    # Basic_CheckCanSpitUpOrSwallow: -10 with nothing stockpiled or into a type immune to the move,
+    # Swallow too (a quirk), then Swallow is a recovery move (Basic_CheckCanRecoverHP)
+    if move[_MOVE_ID] == _MOVENAME_SPIT_UP or move[_MOVE_ID] == _MOVENAME_SWALLOW:
+        if effectiveness == 0 or stockpile_count(ai_pok) == 0:
+            return -10
+        if move[_MOVE_ID] == _MOVENAME_SWALLOW and ai_pok[_POK_CURRENT_HP] == ai_pok[_POK_MAX_HP]:
+            return -8
+        return 0
     if move[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and ai_pok[_ITEM_NATURAL_GIFT_POWER] == 0:
         return -10
     if move[_MOVE_ID] == _MOVENAME_METAL_BURST:
@@ -1326,9 +1345,6 @@ def basic_flag(
     Reflect / Light Screen / Mist / Safeguard
     Camouflage / Lucky Chant
     Lock On / Mean Look / Torment / Miracle Eye / Heal Block / Gastro Acid
-    Future Sight / Doom Desire
-    Stockpile
-    Spit Up / Swallow
     Memento
     Trick / Switcheroo
     Imprison
@@ -2348,14 +2364,14 @@ def expert_stage(move, ai_pok, u_pok, rand, idx):
 @njit
 def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know=0):
     """
-    pokeplatinum Expert_Recovery and Expert_Synthesis, Expert_Refresh, Expert_KnockOff,
+    pokeplatinum Expert_Recovery (Swallow's too) and Expert_Synthesis, Expert_Refresh, Expert_KnockOff,
     Expert_Recycle and Pokemow Worry Seed. Perish Song and Splash have no Expert check.
     ai_know is Field.AI_KNOWS, Worry Seed reads whether the target was seen using Rest
     """
     move_id = move[_MOVE_ID]
     hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
     hp_pct_u = (u_pok[_POK_CURRENT_HP]*100) // u_pok[_POK_MAX_HP]
-    if move_id in HEAL_M:
+    if move_id in RECOVERY_EXPERT_M:
         score = 0
         if move_id in SUN_HEAL_M and weather in SYNTHESIS_BAD_WEATHER:
             score -= 2
@@ -2952,6 +2968,11 @@ def expert_flag(
         return 1 if weather == _WEATHER_HAIL else 0
     if move[_MOVE_ID] == _MOVENAME_FEINT:
         return expert_feint(ai_pok, u_pok, rand, idx, ai_know)
+    # Expert_SpitUp: 176/256 of +2 with 2 or more stockpiled
+    if move[_MOVE_ID] == _MOVENAME_SPIT_UP:
+        if stockpile_count(ai_pok) >= 2:
+            add_adjustment(rand, idx, 2, 176)
+        return 0
     if move[_MOVE_FORCE_SWITCH] or move[_MOVE_ID] in SWITCH_EXPERT_M:
         return expert_switch(move, ai_pok, u_pok, rand, idx, user_side, move_first)
     if move[_MOVE_SIDE_CONDITION] or move[_MOVE_ID] in FIELD_EXPERT_M:

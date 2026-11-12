@@ -21,7 +21,8 @@ Updated only when asked.
 - Done: 8.2 (status and sleep) and 8.3 (healing), and with it Phase 8, 2026-11-11.
 - Done: 9.1 (weather) and 9.2 (field), 2026-11-11.
 - Done: 9.3 (hazards and grounding), and with it Phase 9, 2026-11-11.
-- Next: 10.1 (delayed effects).
+- Done: 10.1 (delayed effects), 2026-11-12.
+- Next: 10.2 (sacrifice).
 
 ## Goal
 
@@ -644,12 +645,12 @@ Fixed damage:
 
 ### 10.1 Delayed effects
 
-- [ ] Future Sight(B) !! (in MoveDB)
-- [ ] Doom Desire(B) !!
-- [ ] Wish !
-- [ ] Stockpile(B)
-- [ ] Spit Up(B/E)
-- [ ] Swallow(B)
+- [x] Future Sight(B) !! (in MoveDB)
+- [x] Doom Desire(B) !!
+- [x] Wish !
+- [x] Stockpile(B)
+- [x] Spit Up(B/E)
+- [x] Swallow(B)
 
 ### 10.2 Sacrifice
 

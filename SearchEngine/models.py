@@ -24,7 +24,7 @@ from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action, baton_pass_action, OPP_RAN_PP_STEP
 from Engine.engine_helper import (
-    move_blocked, truant_loafs, is_trapped, CHOICE_EFFECTS, last_resort_works,
+    move_blocked, truant_loafs, is_trapped, CHOICE_EFFECTS, last_resort_works, stockpile_count,
 )
 from Engine.speed import slow_start_active
 from Engine.status_calc import SLOT_MASK
@@ -300,6 +300,7 @@ def _vol_key(pok):
     packed = np.int64(pok[_POK_VOL_STATUS2])
     if pok[_ITEM_HOLD_EFFECT] in CHOICE_EFFECTS:
         packed |= np.int64(pok[_POK_CHOICE_LOCK]) << CHOICE_KEY_SHIFT
+    packed |= np.int64(stockpile_count(pok)) << STOCKPILE_KEY_SHIFT
     if _knows_last_resort(pok) and last_resort_works(pok):
         packed |= np.int64(1) << LAST_RESORT_KEY_BIT
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_ENCORE:

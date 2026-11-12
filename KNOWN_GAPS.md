@@ -5,6 +5,8 @@
 - AI: the 8.1 branches (Belly Drum, Acupressure, Captivate, Haze, Psych Up, the swaps, Power Trick,
   the two-stat boosts, Expert Dragon Dance) follow [pp] `trainer_ai/script.s` only: Pokemow's per-move
   panels load with JavaScript and couldn't be fetched, so any place Pokemow differs isn't checked.
+- AI: the 10.1 branches (Basic Future Sight / Doom Desire, Stockpile, Spit Up / Swallow, Expert Spit Up, Swallow
+  in Expert_Recovery, the Encore and Heal Block lists) follow [pp] `trainer_ai/script.s` only, for the same reason.
 - AI: Expert Heal Block counts every move with `drain` as a drain move ([pp] RECOVER_HALF_DAMAGE_DEALT), so
   Draining Kiss too; which effect RP gives it is unknown (ROM not read).
 - AI: Expert Gravity reads the target's real ability;
@@ -25,8 +27,6 @@
 - AI: Superpower and the recharge moves have no Basic branch of their own ([pp]
   `Basic_CheckNonStandardDamageOrChargeTurn`): the general checks cover them, with Pokemow's -12 into Wonder
   Guard where [pp]'s script gives -10.
-- AI: `MOVE_EXCEP` still lacks a move [pp] `sNoDamageCalcMoveEffects` and Pokemow's excluded list leave out of the
-  damage compare: Spit Up. Add it in its batch.
 - AI: `PROTECT_LIKE_M` (the "saw the target use Protect" checks) holds only Protect. Detect goes in once it's in
   MoveDB ([pp] `IfMoveEffectKnown BATTLE_EFFECT_PROTECT` covers both).
 - AI: `ai_move_damage` uses the raw base power except for the semi-invulnerable doublings (6.3). Pokemow's
@@ -90,8 +90,7 @@
   `subscript_rest`, CHECK_STATUS_STATE_SLEEP); [SD gen4]'s uproar stops every sleep.
 - Called moves under Gravity or Heal Block fail ([SD] onModifyMove, my call). [pp] `Move_CanBeMetronomed`
   rerolls Metronome's pick instead and fails Copycat and Assist.
-- Heal Block: Swallow, Wish, Healing Wish and Lunar Dance go in `HEAL_BLOCK_MOVES` (and Wish's heal checks it,
-  [pp] `subscript_wish_heal`) once they're in MoveDB.
+- Heal Block: Healing Wish and Lunar Dance go in `HEAL_BLOCK_MOVES` once they're in MoveDB.
 - Dream Eater runs `drain`, so a Liquid Ooze target hurts it; [pp] `subscript_dream_eater` has no Liquid Ooze
   check and heals.
 - Metronome item: a failed Trick, Switcheroo or Embargo keeps its count, like the status moves above ([pp] gives
@@ -102,6 +101,8 @@
 - Scald: which [pp] effect RP gives it is unknown (ROM not read). No AI branch reads the burn-hit effects yet.
 - Wild Charge, Cut and Strength: which [pp] effect RP gives them is unknown too. The AI goes by their data:
   recoil, high crit, and no branch for Strength's Attack raise (like Meteor Mash).
+- Future Sight / Doom Desire: a Lock-On by the attacking side's active should make the hit land ([pp]
+  `CheckMoveHitOverrides`, `MON_IS_LOCKED_ONTO`). `future_hit_lands` gets it with Lock-On (11.2).
 
 ## Items
 
@@ -147,6 +148,9 @@
 
 ## Search and Continue
 
+- Search: in the death phase `node_key` leaves out my whole side, my side conditions included, so a Future Sight
+  the foe set on my side this turn doesn't split nodes there (nor Spikes / Toxic Spikes it set). Rare: my active
+  has to faint the same turn.
 - Search: the rollout (`status_move_blocked`) doesn't see the 8.1 fails (`stage_move_fails`: Belly Drum at half
   HP or less or at +6, Acupressure with every stat at +6 or behind its Substitute, Captivate on Oblivious, the same
   gender or genderless; `confuse_boost_fails`: Swagger / Flatter at +6 on a confused foe), so it weighs them at 1.

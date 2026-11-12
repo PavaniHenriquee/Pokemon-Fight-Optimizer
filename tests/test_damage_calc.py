@@ -6,7 +6,7 @@ from Engine.damage_calc import (
     weight_power, magnitude_power, variable_power, base_power_ability, charge_power,
     sport_power, matchup_types, calculate_ai_logic_damage, item_power, item_attack, raw_atk_def,
     technician_power, rivalry_power, filter_damage, crit_multiplier, MULTIPLIERS,
-    METRONOME_MOVE_SHIFT,
+    METRONOME_MOVE_SHIFT, future_damage,
 )
 from Engine.engine_helper import struggle, struggle_damage
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
@@ -1565,3 +1565,35 @@ def test_matchup_types_roost(poke):
     pidgey[Pok.VOL_STATUS2] = VolStatus2.ROOST
     for move_type in (Types.GROUND, Types.ELECTRIC, Types.GRASS):
         assert matchup_types(move_type, pidgey) == (Types.NORMAL, 0)
+
+
+def test_future_damage_is_the_base_formula_with_the_roll(poke):
+    """No STAB and no type chart: the same as a non-STAB neutral hit with the same roll, against a Dark
+    target too (pokeplatinum BtlCmd_TryFutureSight)"""
+    abra = poke("Abra", 30, "Synchronize", ["Future Sight"])
+    foe = poke("Umbreon", 30, "Synchronize", ["Tackle"])
+    mv = move_slice(abra, 0)
+    random.seed(3)
+    roll = MULTIPLIERS[random.getrandbits(4)]
+    random.seed(3)
+    stored = future_damage(abra, foe, mv)
+    plain = abra.copy()
+    plain[Pok.TYPE1] = Types.NORMAL
+    plain[Pok.TYPE2] = 0
+    neutral = foe.copy()
+    neutral[Pok.TYPE1] = Types.NORMAL
+    neutral[Pok.TYPE2] = 0
+    assert stored == calculate_damage(plain, neutral, mv, 0, False, roll)
+    assert stored > 0
+
+
+def test_future_damage_takes_the_screens_up_when_used(poke):
+    """Light Screen on the target's side when it's used halves it, not one put up later"""
+    abra = poke("Abra", 30, "Synchronize", ["Future Sight"])
+    foe = poke("Umbreon", 30, "Synchronize", ["Tackle"])
+    mv = move_slice(abra, 0)
+    random.seed(4)
+    open_hit = future_damage(abra, foe, mv)
+    random.seed(4)
+    screened = future_damage(abra, foe, mv, 0, SideCondition.LIGHT_SCREEN)
+    assert screened < open_hit

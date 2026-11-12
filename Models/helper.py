@@ -109,6 +109,8 @@ class SideCondition:
     SAFEGUARD = 256
     LUCKY_CHANT = 512
     TAILWIND = 1024
+    WISH = 2048
+    FUTURE_SIGHT = 4096
 
 
 @dataclass(slots=True)

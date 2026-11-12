@@ -28,6 +28,7 @@ from Models.item import ITEM_TABLE, refresh_item, embargoed
 from Models.ability import ABILITY_TABLE
 from Models.move import METRONOME_POOL, METRONOME_FORBIDDEN, KINGS_ROCK_MOVES, MOVE_TABLE
 from Models.constants import (
+    _MOVENAME_SWALLOW, _MOVENAME_WISH, _POK_STOCKPILE, _MOVENAME_SPIT_UP,
     _TYPES_NORMAL,
     _MOVENAME_SUCKER_PUNCH, _MOVENAME_FOCUS_PUNCH, _MOVENAME_PAYBACK, _MOVENAME_REVENGE,
     _MOVENAME_AVALANCHE, _VOLSTATUS2_DAMAGED_BY_MOVE,
@@ -186,8 +187,16 @@ SUN_HEAL_MOVES = (_MOVENAME_SYNTHESIS, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SU
 # pokeplatinum sMovesAffectedByHealBlock, the ones in MoveDB
 HEAL_BLOCK_MOVES = SUN_HEAL_MOVES + (
     _MOVENAME_RECOVER, _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF,
-    _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_REST
+    _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_REST, _MOVENAME_SWALLOW, _MOVENAME_WISH
 )
+# Pok.STOCKPILE packs the count with the Defense and Sp. Def stages it gave (pokeplatinum
+# stockpileCount, stockpileDefBoosts, stockpileSpDefBoosts)
+STOCKPILE_MAX = 3
+STOCKPILE_COUNT_MASK = 3
+STOCKPILE_DEF_STEP = 4
+STOCKPILE_SPDEF_STEP = 16
+# Spit Up's power per stockpile (pokeplatinum effect 0161)
+SPIT_UP_POWER = 100
 # Refresh cures these, not sleep or freeze
 REFRESH_CURES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 WORRY_SEED_FAILS = (_ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE)
@@ -1796,6 +1805,7 @@ def reset_switch_out(pok):
     pok[_POK_MAGNET_RISE_TURNS] = 0
     pok[_POK_RAMPAGE_TURNS] = 0
     pok[_POK_LAST_RESORT] = 0
+    pok[_POK_STOCKPILE] = 0
     refresh_item(pok)
     pok[_POK_AB_KNOWN] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
@@ -2891,6 +2901,85 @@ def heal_move(pok, move_id, weather):
             heal = max_hp // 4
     pok[_POK_CURRENT_HP] = min(max_hp, pok[_POK_CURRENT_HP] + max(1, heal))
     return True
+
+
+@njit
+def stockpile_count(pok):
+    """How many times pok stockpiled since it came in"""
+    return pok[_POK_STOCKPILE] & STOCKPILE_COUNT_MASK
+
+
+@njit
+def stockpile(pok):
+    """
+    Stockpile fails at 3. Otherwise the count goes up, even with both stats at +6, then Defense and
+    Sp. Def +1, each remembered only if it went up (pokeplatinum subscript_stockpile)
+    """
+    if stockpile_count(pok) >= STOCKPILE_MAX:
+        return
+    pok[_POK_STOCKPILE] += 1
+    if pok[_POK_DEFENSE_STAT_STAGE] < 6:
+        pok[_POK_DEFENSE_STAT_STAGE] += 1
+        pok[_POK_STOCKPILE] += STOCKPILE_DEF_STEP
+    if pok[_POK_SPECIAL_DEFENSE_STAT_STAGE] < 6:
+        pok[_POK_SPECIAL_DEFENSE_STAT_STAGE] += 1
+        pok[_POK_STOCKPILE] += STOCKPILE_SPDEF_STEP
+
+
+@njit
+def release_stockpile(pok):
+    """
+    Spit Up and Swallow empty the stockpile and take back the stages it gave, down to -6 at most
+    (pokeplatinum effects 0161 and 0162, OPCODE_SUB_TO_ZERO). Returns the count it had
+    """
+    packed = pok[_POK_STOCKPILE]
+    count = packed & STOCKPILE_COUNT_MASK
+    def_gained = (packed // STOCKPILE_DEF_STEP) & STOCKPILE_COUNT_MASK
+    spdef_gained = (packed // STOCKPILE_SPDEF_STEP) & STOCKPILE_COUNT_MASK
+    pok[_POK_DEFENSE_STAT_STAGE] = max(-6, pok[_POK_DEFENSE_STAT_STAGE] - def_gained)
+    pok[_POK_SPECIAL_DEFENSE_STAT_STAGE] = max(-6, pok[_POK_SPECIAL_DEFENSE_STAT_STAGE] - spdef_gained)
+    pok[_POK_STOCKPILE] = 0
+    return count
+
+
+@njit
+def spit_up_move(move, pok):
+    """Spit Up with the power pok's stockpile would give it, every other move as is (for the
+    rollout's estimates)"""
+    if move[_MOVE_ID] != _MOVENAME_SPIT_UP:
+        return move
+    mv = move.copy()
+    mv[_MOVE_POWER] = SPIT_UP_POWER * stockpile_count(pok)
+    return mv
+
+
+@njit
+def swallow(pok):
+    """
+    Swallow fails with nothing stockpiled. Otherwise it empties the stockpile first, then heals
+    max HP / 4, / 2 or all of it for 1, 2 or 3, at least 1, nothing at full HP (pokeplatinum effect
+    0162, subscript_recover_hp)
+    """
+    count = release_stockpile(pok)
+    if count == 0 or pok[_POK_CURRENT_HP] >= pok[_POK_MAX_HP]:
+        return
+    heal = max(1, pok[_POK_MAX_HP] // (1 << (STOCKPILE_MAX - count)))
+    pok[_POK_CURRENT_HP] = min(pok[_POK_MAX_HP], pok[_POK_CURRENT_HP] + heal)
+
+
+@njit
+def future_hit_lands(move, attacker, defender, weather, gravity=False):
+    """
+    The Future Sight / Doom Desire hit at the end of the turn: No Guard always hits, a
+    semi-invulnerable target dodges, else the accuracy roll with the attacking side's active's
+    stages. No Protect, type or ability check (pokeplatinum subscript_future_sight_damage,
+    CheckMoveHit)
+    """
+    if no_guard(attacker, defender):
+        return True
+    if defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE:
+        return False
+    return kick_hits(move, attacker, defender, weather, gravity)
 
 
 @njit

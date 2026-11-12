@@ -23,7 +23,7 @@ from Engine.engine_helper import (
     secret_power_move, sucker_punch_fails, lost_focus, turn_order_doubles, confuse_boost_fails,
     stage_move_fails, belly_drum, acupressure, haze, psych_up, swap_stages, power_trick, swap_atk_def,
     status_move_fails, rest, psycho_shift, heal_bell, start_magnet_rise, end_magnet_rise,
-    magnet_rise_count,
+    magnet_rise_count, stockpile, release_stockpile, swallow, future_hit_lands, SPIT_UP_POWER,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -34,18 +34,20 @@ from Engine.ability_helper import (
 )
 from Engine.damage_calc import (
     calculate_damage, ROLLOUT_MOVES, AIRBORNE_MOVES, EXPLODE_MOVES, SEMI_INVULNERABLE_MOVES,
-    NO_WEATHER_MOVES, beat_up_damage, TRIPLE_KICK_STEP,
+    NO_WEATHER_MOVES, beat_up_damage, TRIPLE_KICK_STEP, future_damage,
 )
 from Models.trainer_ai import sub_after_death
 from Models.idx_const import (
     POK_LEN, MOVE_STRIDE, OFFSET_MOVE, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS,
     SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, SIDE_TAILWIND_TURNS,
-    SIDE_SPIKES,
+    SIDE_SPIKES, SIDE_WISH_TURNS, SIDE_FUTURE_TURNS, SIDE_FUTURE_DAMAGE, SIDE_FUTURE_MOVE,
 )
 from Models.helper import (
     count_party, PHYSICAL_SPECIAL, Target, TARGET_SELF_SIDE, TARGET_OPP_SIDE
 )
 from Models.constants import (
+    _FLAGS_FUTURE_MOVE, _MOVENAME_SPIT_UP, _MOVENAME_STOCKPILE, _MOVENAME_SWALLOW, _MOVENAME_WISH,
+    _SIDECONDITION_FUTURE_SIGHT, _SIDECONDITION_WISH,
     _FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_AI_TOOK_DMG_LAST_TURN, _FIELD_AI_ITEM1, _FIELD_WEATHER,
     _FIELD_AI_KNOWS, _FIELD_MY_LAST_MOVE, _FIELD_OPP_ENTER_FIELD, _FIELD_TURN,
     _POK_AB_WHEN, _POK_CURRENT_HP, _POK_AB_ID, _POK_MAX_HP, _POK_STATUS, _POK_TURNS, _MOVECATEGORY_SPECIAL,
@@ -160,6 +162,12 @@ DEFOG_CLEARS = SCREENS | _SIDECONDITION_MIST | _SIDECONDITION_SAFEGUARD | RAPID_
 FIELD_EFFECT_TURNS = 5
 # Tailwind, counting the turn it's used in (pokeplatinum subscript_tailwind_start, SIDE_CONDITION_TAILWIND)
 TAILWIND_TURNS = 3
+# Future Sight / Doom Desire hit at the end of the turn after next, Wish heals at the end of the next
+# turn, both counting the turn they're used in (pokeplatinum BtlCmd_TryFutureSight, BtlCmd_TryWish)
+FUTURE_ATTACK_TURNS = 3
+WISH_TURNS = 2
+# The top damage roll, for Spit Up
+MAX_ROLL = 100
 TOXIC_SPIKES_MAX = 2
 SPIKES_MAX = 3
 # Leftovers, and Black Sludge on a Poison type
@@ -438,8 +446,10 @@ def _resolve_move_damage(attacker, defender, move, weather, def_side=0, gravity=
     move_damage = move[_MOVE_DAMAGE]
     if not move_damage:
         crit = calculate_crit(attacker, defender, move, def_side)
+        # Spit Up has no roll (pokeplatinum effect 0161, CalcMaxDamage)
+        roll = MAX_ROLL if move[_MOVE_ID] == _MOVENAME_SPIT_UP else None
         damage = calculate_damage(
-            attacker, defender, move, weather, crit, None, def_side, gravity, atk_side
+            attacker, defender, move, weather, crit, roll, def_side, gravity, atk_side
         )
         return resist_berry(attacker, defender, move, damage, gravity), crit
     if move_damage == _DAMAGESOURCES_LEVEL:
@@ -867,6 +877,89 @@ def _set_side_condition(cond, battle_array, side, screen_bonus=0):
 
 
 @njit
+def _set_future_attack(atk, defn, mv, battle_array, side, weather):
+    """
+    Future Sight and Doom Desire on the target's side, side its Field.SIDE_COND: they fail while one
+    is waiting there, else the hit comes at the end of the turn after next with the damage fixed
+    now (pokeplatinum BtlCmd_TryFutureSight). Returns True if it was set up
+    """
+    if battle_array[side] & _SIDECONDITION_FUTURE_SIGHT:
+        return False
+    battle_array[side] |= _SIDECONDITION_FUTURE_SIGHT
+    battle_array[side + SIDE_FUTURE_TURNS] = FUTURE_ATTACK_TURNS
+    battle_array[side + SIDE_FUTURE_MOVE] = mv[_MOVE_ID]
+    battle_array[side + SIDE_FUTURE_DAMAGE] = future_damage(atk, defn, mv, weather, battle_array[side])
+    return True
+
+
+@njit
+def _set_wish(battle_array, side):
+    """Wish on the user's side, side its Field.SIDE_COND: it fails while one is waiting there, else it
+    heals at the end of the next turn (pokeplatinum BtlCmd_TryWish)"""
+    if battle_array[side] & _SIDECONDITION_WISH:
+        return
+    battle_array[side] |= _SIDECONDITION_WISH
+    battle_array[side + SIDE_WISH_TURNS] = WISH_TURNS
+
+
+@njit
+def _wish_heal(battle_array, side, pok):
+    """
+    The Wish on side counts down, and when it comes true it heals half of max HP of whoever is
+    there now, at least 1. Nothing for a fainted, Heal Blocked or full HP one (pokeplatinum
+    FIELD_COND_CHECK_STATE_WISH, subscript_wish_heal)
+    """
+    if not battle_array[side] & _SIDECONDITION_WISH:
+        return
+    battle_array[side + SIDE_WISH_TURNS] -= 1
+    if battle_array[side + SIDE_WISH_TURNS] > 0:
+        return
+    battle_array[side] &= ~_SIDECONDITION_WISH
+    battle_array[side + SIDE_WISH_TURNS] = 0
+    if pok[_POK_CURRENT_HP] <= 0 or heal_blocked(pok) or pok[_POK_CURRENT_HP] >= pok[_POK_MAX_HP]:
+        return
+    pok[_POK_CURRENT_HP] = min(pok[_POK_MAX_HP], pok[_POK_CURRENT_HP] + max(1, pok[_POK_MAX_HP] // 2))
+
+
+@njit
+def _future_attack_hit(battle_array, side, target, foe, weather, gravity):
+    """
+    The Future Sight on side counts down, and when it's due it hits whoever is there now, unless it
+    fainted. Its Substitute takes it, Endure and the focus items hold on, Rage builds. No contact,
+    on-hit ability or damage record. The HP berries check right after, like a move hit ([SD]
+    futuremove runs the hit as a move) (pokeplatinum SIDE_COND_CHECK_STATE_FUTURE_SIGHT,
+    subscript_future_sight_damage)
+    """
+    if not battle_array[side] & _SIDECONDITION_FUTURE_SIGHT:
+        return
+    battle_array[side + SIDE_FUTURE_TURNS] -= 1
+    if battle_array[side + SIDE_FUTURE_TURNS] > 0:
+        return
+    damage = battle_array[side + SIDE_FUTURE_DAMAGE]
+    move_id = battle_array[side + SIDE_FUTURE_MOVE]
+    battle_array[side] &= ~_SIDECONDITION_FUTURE_SIGHT
+    battle_array[side + SIDE_FUTURE_TURNS] = 0
+    battle_array[side + SIDE_FUTURE_DAMAGE] = 0
+    battle_array[side + SIDE_FUTURE_MOVE] = 0
+    if target[_POK_CURRENT_HP] <= 0:
+        return
+    if not future_hit_lands(MOVE_TABLE[move_id], foe, target, weather, gravity):
+        return
+    if has_substitute(target):
+        hit_substitute(target, damage)
+        return
+    damage = endure_damage(target, damage, focus_sash_ready(target))
+    if damage >= target[_POK_CURRENT_HP]:
+        target[_POK_CURRENT_HP] = 0
+        return
+    target[_POK_CURRENT_HP] -= damage
+    if target[_POK_VOL_STATUS] & _VOLSTATUS_RAGE and damage > 0:
+        target[_POK_ATTACK_STAT_STAGE] = min(6, target[_POK_ATTACK_STAT_STAGE] + 1)
+    if target[_ITEM_WHEN] & _ITEMACTIVATION_ON_RECEIVE_DAMAGE:
+        item_on_rdmg(target)
+
+
+@njit
 def _move_weather(move_id):
     """Weather the move sets, 0 if it isn't a weather move"""
     for weather_move, weather in WEATHER_MOVES:
@@ -1108,6 +1201,21 @@ def _execute_move_slot(
     if mv[_MOVE_ID] == _MOVENAME_PERISH_SONG:
         perish_song(atk, defn)
         return False
+    # Future Sight and Doom Desire have no hit check when used, they only set up the hit
+    if mv[_FLAGS_FUTURE_MOVE]:
+        set_up = _set_future_attack(atk, defn, mv, battle_array, side_base(not is_mine), weather)
+        if not set_up and counted:
+            metronome_fail(atk, outer_id)
+        return False
+    # Spit Up empties the stockpile before the hit check, a miss loses it too (pokeplatinum effect 0161)
+    if mv[_MOVE_ID] == _MOVENAME_SPIT_UP:
+        count = release_stockpile(atk)
+        if count == 0:
+            if counted:
+                metronome_fail(atk, outer_id)
+            return False
+        mv = mv.copy()
+        mv[_MOVE_POWER] = SPIT_UP_POWER * count
 
     # Explosion and Selfdestruct faint the user before the hit check, so a miss, Protect or an
     # immune target still costs it. Damp stops the whole move (Showdown gen4 useMoveInner)
@@ -1300,6 +1408,12 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         psycho_shift(mv, atk, defn, battle_array[side_base(not is_mine)], weather)
     elif move_id == _MOVENAME_HEAL_BELL or move_id == _MOVENAME_AROMATHERAPY:
         heal_bell(battle_array, atk, move_id, is_mine)
+    elif move_id == _MOVENAME_STOCKPILE:
+        stockpile(atk)
+    elif move_id == _MOVENAME_SWALLOW:
+        swallow(atk)
+    elif move_id == _MOVENAME_WISH:
+        _set_wish(battle_array, side_base(is_mine))
     # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
     elif move_id == _MOVENAME_WORRY_SEED and worry_seed(defn) and not is_mine:
         battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY
@@ -1907,6 +2021,10 @@ def end_of_turn(battle_array):
     weather = battle_array[_FIELD_WEATHER]
 
     _count_down_field(battle_array)
+    # Wish right after the side timers (pokeplatinum FIELD_COND_CHECK_STATE_WISH), the two heals
+    # don't depend on each other or on the weather
+    _wish_heal(battle_array, _FIELD_MY_SIDE_COND, current_pokemon)
+    _wish_heal(battle_array, _FIELD_OPP_SIDE_COND, current_opp)
     forecast_actives(battle_array)
     weather = effective_weather(battle_array)
 
@@ -1919,11 +2037,16 @@ def end_of_turn(battle_array):
     else:
         first, second = current_opp, current_pokemon
         first_flag, second_flag = _FIELD_OPP_ENTER_FIELD, _FIELD_MY_ENTER_FIELD
+    first_side = _FIELD_MY_SIDE_COND if first_flag == _FIELD_MY_ENTER_FIELD else _FIELD_OPP_SIDE_COND
+    second_side = _FIELD_OPP_SIDE_COND if first_side == _FIELD_MY_SIDE_COND else _FIELD_MY_SIDE_COND
     _residual_weather(first, weather, first_flag, battle_array)
     _residual_weather(second, weather, second_flag, battle_array)
     _apply_residual(first, second, first_flag, battle_array)
     _apply_residual(second, first, second_flag, battle_array)
-    # pokeplatinum CheckSideConditions, after every Pokemon's residuals
+    # pokeplatinum CheckSideConditions, after every Pokemon's residuals: Future Sight in speed order
+    gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
+    _future_attack_hit(battle_array, first_side, first, second, weather, gravity)
+    _future_attack_hit(battle_array, second_side, second, first, weather, gravity)
     perish_count(first)
     perish_count(second)
     # Then Trick Room (pokeplatinum SIDE_COND_CHECK_STATE_TRICK_ROOM)

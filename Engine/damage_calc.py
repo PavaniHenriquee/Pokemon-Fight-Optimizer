@@ -6,6 +6,7 @@ from Utils.helper import get_type_effectiveness
 from Engine.speed import check_speed, slow_start_active, has_tailwind
 from DataBase.PkDB import PokemonName, POKEMON_BASE_ATK, POKEMON_BASE_DEF
 from Models.constants import (
+    _MOVE_TYPE,
     _ABILITYNAMES_BLAZE, _ABILITYNAMES_TORRENT, _ABILITYNAMES_OVERGROW,
     _POK_AB_ID, _ABILITYNAMES_GUTS, _POK_STATUS, _ABILITYNAMES_HUGE_POWER,
     _ABILITYNAMES_HUSTLE, _MOVE_OH_KO, _MOVE_CATEGORY, _MOVECATEGORY_PHYSICAL,
@@ -471,9 +472,7 @@ def beat_up_damage(attacker, member, defender, crit):
 @njit
 def life_orb_damage(attacker, damage):
     """Life Orb x(100+30)/100 after the crit, before the Metronome item (pokeplatinum
-    BtlCmd_CalcDamage). Not in the AI's estimate, TrainerAI_CalcDamage skips it.
-    TODO: Future Sight and Doom Desire don't get it ([SD gen4] futuremove), skip them here once
-    they're implemented"""
+    BtlCmd_CalcDamage). Not in the AI's estimate, TrainerAI_CalcDamage skips it."""
     if attacker[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_HP_DRAIN_ON_ATK:
         return damage * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
     return damage
@@ -809,6 +808,35 @@ def calculate_damage(
     return multipliers(
         move, attacker, defender, weather, crit, roll_multiplier, damage, def_side, gravity
     )
+
+
+@njit
+def future_damage(attacker, defender, move, weather=0, def_side=0):
+    """
+    Future Sight and Doom Desire's damage, fixed when the move is used: the base formula with the
+    power chain, the target's screens, the weather, +2 and the roll. No crit, STAB, type chart,
+    Life Orb, Metronome item, Filter, Expert Belt, Tinted Lens or resist berry (pokeplatinum
+    BtlCmd_TryFutureSight: CalcMoveDamage with the data type, then CalcDamageVariance)
+    """
+    attack, defense = raw_atk_def(move, attacker, defender, weather, False)
+    power = charge_power(attacker, move, variable_power(attacker, defender, move, weather, 0, def_side))
+    power = technician_power(attacker, move, power)
+    power = item_power(attacker, move[_MOVE_TYPE], move[_MOVE_CATEGORY], power)
+    power = base_power_ability(attacker, defender, move, power)
+    damage = attack * power * (attacker[_POK_LEVEL] * 2 // 5 + 2) // defense // 50
+    damage = screen_damage(move[_MOVE_CATEGORY], move[_MOVE_ID], def_side, False, damage)
+    if weather == _WEATHER_SUN:
+        if move[_MOVE_TYPE] == _TYPES_FIRE:
+            damage = damage * 3 // 2
+        elif move[_MOVE_TYPE] == _TYPES_WATER:
+            damage //= 2
+    elif weather == _WEATHER_RAIN:
+        if move[_MOVE_TYPE] == _TYPES_WATER:
+            damage = damage * 3 // 2
+        elif move[_MOVE_TYPE] == _TYPES_FIRE:
+            damage //= 2
+    damage += 2
+    return damage * MULTIPLIERS[random.getrandbits(4)] // 100
 
 
 @njit

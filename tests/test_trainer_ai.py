@@ -4,6 +4,7 @@ import random
 import numpy as np
 import pytest
 from Models import trainer_ai_helper as ai
+from Engine import engine_helper
 from Models.trainer_ai import return_idx, sub_after_death, MOVE_EXCEP
 from Models.idx_const import Pok, Move, POK_LEN, Field, Item
 from Models.helper import (
@@ -52,6 +53,7 @@ KIT_STATUS = (
     "Sleep Talk", "Nightmare", "Psycho Shift", "Heal Bell", "Aromatherapy",
     "Milk Drink", "Soft-Boiled", "Slack Off", "Heal Order", "Moonlight", "Morning Sun", "Roost",
     "Heal Block", "Sunny Day", "Hail", "Tailwind", "Trick Room", "Spikes", "Defog", "Magnet Rise",
+    "Wish", "Stockpile", "Swallow",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -84,7 +86,7 @@ KIT_DAMAGE = (
     "Return", "Frustration", "Last Resort", "Secret Power",
     "Super Fang", "Endeavor", "Metal Burst", "False Swipe",
     "Avalanche", "Revenge", "Payback", "Sucker Punch", "Focus Punch",
-    "Snore", "Dream Eater", "Weather Ball",
+    "Snore", "Dream Eater", "Weather Ball", "Future Sight", "Doom Desire", "Spit Up",
 )
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
@@ -3403,3 +3405,84 @@ def test_ai_sees_magnet_rise(poke):
 def test_magnet_rise_is_an_encore_target():
     """pokeplatinum Expert_Encore_EncouragedMoveEffects lists GIVE_GROUND_IMMUNITY"""
     assert MoveName.MAGNET_RISE in ai.ENCORE_ENCOURAGED_M
+
+
+# ── 10.1 delayed effects ────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("move", ["Future Sight", "Doom Desire"])
+@pytest.mark.parametrize("ai_side, user_side, expected", [
+    (0, 0, 0), (SideCondition.FUTURE_SIGHT, 0, -12), (0, SideCondition.FUTURE_SIGHT, -12),
+])
+def test_basic_future_sight(poke, move, ai_side, user_side, expected):
+    """pokeplatinum Basic_CheckFutureSight: -12 while one is waiting on either side"""
+    ai_pok = poke("Abra", 20, "Synchronize", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert ai.basic_flag(
+        move_slice(ai_pok, 0), AbilityNames.STURDY, ai_pok, user, 1.0, 0, ai_side, user_side
+    ) == expected
+
+
+def test_basic_future_sight_into_dark_is_immune(poke):
+    """The general immunity check comes first (Basic_CheckForImmunity), the hit itself is typeless"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Future Sight"])
+    user = poke("Murkrow", 20, "Insomnia", ["Peck"])
+    eff, _ = ai.trainer_ai_effectiveness(move_slice(ai_pok, 0), ai_pok, user)
+    assert eff == 0.0
+    assert ai.basic_flag(move_slice(ai_pok, 0), AbilityNames.INSOMNIA, ai_pok, user, eff, 0) == -10
+
+
+@pytest.mark.parametrize("count, expected", [(0, 0), (2, 0), (3, -10)])
+def test_basic_stockpile(poke, count, expected):
+    """pokeplatinum Basic_CheckMaxStockpile: -10 at 3"""
+    ai_pok = poke("Swalot", 30, "Sticky Hold", ["Stockpile"])
+    ai_pok[Pok.STOCKPILE] = count
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("move, count, full_hp, ghost, expected", [
+    ("Spit Up", 0, False, False, -10), ("Spit Up", 1, False, False, 0), ("Spit Up", 1, False, True, -10),
+    ("Swallow", 0, False, False, -10), ("Swallow", 1, False, False, 0), ("Swallow", 1, True, False, -8),
+    ("Swallow", 2, False, True, -10),
+])
+def test_basic_spit_up_swallow(poke, move, count, full_hp, ghost, expected):
+    """pokeplatinum Basic_CheckCanSpitUpOrSwallow: -10 with nothing stockpiled or into a type immune to the
+    move (Swallow too, a quirk), then Swallow's recovery check: -8 at full HP"""
+    ai_pok = poke("Swalot", 30, "Sticky Hold", [move])
+    ai_pok[Pok.STOCKPILE] = count
+    if not full_hp:
+        ai_pok[Pok.CURRENT_HP] -= 1
+    user = poke("Gastly" if ghost else "Geodude", 20, "Levitate" if ghost else "Sturdy", ["Tackle"])
+    ability = AbilityNames.LEVITATE if ghost else AbilityNames.STURDY
+    eff, _ = ai.trainer_ai_effectiveness(move_slice(ai_pok, 0), ai_pok, user)
+    assert ai.basic_flag(move_slice(ai_pok, 0), ability, ai_pok, user, eff, 0) == expected
+
+
+@pytest.mark.parametrize("count, queued", [(1, []), (2, [(2, 176)]), (3, [(2, 176)])])
+def test_expert_spit_up(poke, count, queued):
+    """pokeplatinum Expert_SpitUp: 176/256 of +2 with 2 or more stockpiled"""
+    ai_pok = poke("Swalot", 30, "Sticky Hold", ["Spit Up"])
+    ai_pok[Pok.STOCKPILE] = count
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, queued)
+
+
+def test_expert_swallow_is_a_recovery_move(poke):
+    """pokeplatinum Expert_Recovery scores Swallow: -3 at full HP"""
+    ai_pok = poke("Swalot", 30, "Sticky Hold", ["Swallow"])
+    ai_pok[Pok.STOCKPILE] = 1
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (-3, [])
+
+
+def test_delayed_effect_tables():
+    """Doom Desire shares Future Sight's kill bonus, Spit Up is out of the damage compare, Swallow and Wish
+    are Heal Block moves, and Expert Encore and Expert Heal Block see them (pokeplatinum script.s,
+    sMovesAffectedByHealBlock)"""
+    assert MoveName.DOOM_DESIRE in ai.FUTURE_ATTACK_MOVES
+    assert MoveName.SPIT_UP in MOVE_EXCEP
+    assert {MoveName.SWALLOW, MoveName.WISH} <= set(engine_helper.HEAL_BLOCK_MOVES)
+    assert {MoveName.DOOM_DESIRE, MoveName.STOCKPILE, MoveName.SPIT_UP, MoveName.SWALLOW} <= set(
+        ai.ENCORE_ENCOURAGED_M
+    )
+    assert MoveName.SWALLOW in ai.HEAL_BLOCK_GOOD_M

@@ -66,6 +66,7 @@ MOVE_EXCEP = (
     # Variable power (pokeplatinum sNoDamageCalcMoveEffects or power 1, Pokemow's excluded moves)
     MoveName.ERUPTION, MoveName.WATER_SPOUT, MoveName.REVERSAL, MoveName.WRING_OUT,
     MoveName.CRUSH_GRIP, MoveName.PUNISHMENT, MoveName.TRUMP_CARD, MoveName.PRESENT,
+    MoveName.SPIT_UP,
 )
 
 

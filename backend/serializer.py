@@ -5,13 +5,14 @@ import sys
 from Models.idx_const import (
     Pok, Move, Item, MOVE_STRIDE, POK_LEN, Field as FieldIdx, SIDE_REFLECT_TURNS,
     SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS, SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS,
-    SIDE_TOXIC_SPIKES, SIDE_TAILWIND_TURNS, SIDE_SPIKES,
+    SIDE_TOXIC_SPIKES, SIDE_TAILWIND_TURNS, SIDE_SPIKES, SIDE_WISH_TURNS, SIDE_FUTURE_TURNS,
+    SIDE_FUTURE_MOVE,
 )
 from Models.helper import (
     BattlePhase, Gender, VolStatus, VolStatus2, SideCondition, Weather, Types, MoveCategory,
 )
 from DataBase.PkDB import PokIdToName, battle_sprite_id
-from Engine.engine_helper import CHOICE_EFFECTS
+from Engine.engine_helper import CHOICE_EFFECTS, stockpile_count
 from DataBase.MoveDB import MoveIdToName, MoveName
 from DataBase.ItemDB import ItemNames as _ItemNameEnum
 from DataBase.AbilitiesDB import AbilityNames
@@ -92,6 +93,7 @@ _SIDE_TIMERS = (
     (SideCondition.SAFEGUARD, "Safeguard", SIDE_SAFEGUARD_TURNS),
     (SideCondition.TAILWIND, "Tailwind", SIDE_TAILWIND_TURNS),
     (SideCondition.LUCKY_CHANT, "Lucky Chant", SIDE_LUCKY_CHANT_TURNS),
+    (SideCondition.WISH, "Wish", SIDE_WISH_TURNS),
 )
 _HAZARDS = (
     (SideCondition.STEALTH_ROCK, "Stealth Rock"),
@@ -190,6 +192,12 @@ def _choice_chip(arr) -> list[str]:
     return [f"Choice: {MoveIdToName.get(move_id, f'Move#{move_id}').replace('_', ' ').title()}"]
 
 
+def _stockpile_chip(arr) -> list[str]:
+    """'Stockpile <count>' while the Pokemon has something stockpiled"""
+    count = int(stockpile_count(arr))
+    return [f"Stockpile {count}"] if count else []
+
+
 def _pok(arr) -> dict | None:
     """Serialize the key display fields from one Pokemon's array slice."""
     if arr is None or len(arr) == 0:
@@ -209,7 +217,8 @@ def _pok(arr) -> dict | None:
                        if int(arr[Pok.VOL_STATUS]) & bit]
                       + [name for bit, name in VOL2_BITS.items()
                          if int(arr[Pok.VOL_STATUS2]) & bit]
-                      + _choice_chip(arr),
+                      + _choice_chip(arr)
+                      + _stockpile_chip(arr),
         "stages":     {STAGE_NAMES[i]: int(arr[Pok.ATTACK_STAT_STAGE + i])
                        for i in range(7)
                        if int(arr[Pok.ATTACK_STAT_STAGE + i]) != 0},
@@ -226,6 +235,13 @@ def _side(field_block, side_cond) -> list[dict]:
     for bit, name, turns in _SIDE_TIMERS:
         if mask & bit:
             out.append({"name": name, "turns": int(field_block[base + turns])})
+    # Future Sight or Doom Desire waiting to hit this side, named by the move
+    if mask & SideCondition.FUTURE_SIGHT:
+        move_id = int(field_block[base + SIDE_FUTURE_MOVE])
+        out.append({
+            "name": MoveIdToName.get(move_id, f"Move#{move_id}").replace("_", " ").title(),
+            "turns": int(field_block[base + SIDE_FUTURE_TURNS]),
+        })
     for bit, name in _HAZARDS:
         if mask & bit:
             entry = {"name": name}

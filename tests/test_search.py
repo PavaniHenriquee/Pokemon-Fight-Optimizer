@@ -23,7 +23,9 @@ from SearchEngine.my_mcts import (
     _select_expand, _backprop, mcts_loop, recursive_backup, print_best_path, wilson_lower_bound,
 )
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
-from Models.idx_const import Pok, Move, Field, Item, ITEM_LEN
+from Models.idx_const import (
+    Pok, Move, Field, Item, ITEM_LEN, SIDE_WISH_TURNS, SIDE_FUTURE_TURNS, SIDE_FUTURE_DAMAGE,
+)
 from Models.item import ITEM_TABLE
 from Models.helper import (
     ActionType, BattlePhase, Status, VolStatus, VolStatus2, SideCondition, Types, Weather
@@ -1442,3 +1444,83 @@ def test_rollout_sees_magnet_rise_fail(poke):
     assert status_move_blocked(move_slice(me, 0), me, foe, 0)
     gastly = poke("Gastly", 20, "Levitate", ["Magnet Rise"])
     assert status_move_blocked(move_slice(gastly, 0), gastly, foe, 0)
+
+
+
+# ── 10.1 delayed effects ────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_stockpile_count(one_v_one, mine):
+    """The count splits nodes, not the stages it remembers"""
+    arr = one_v_one()
+    key = node_key(arr)
+    pok = my_active(arr) if mine else opp_active(arr)
+    pok[Pok.STOCKPILE] = 1
+    one = node_key(arr)
+    assert one != key
+    pok[Pok.STOCKPILE] = 1 + 4
+    assert node_key(arr) == one
+    pok[Pok.STOCKPILE] = 2
+    assert node_key(arr) not in (key, one)
+
+
+@pytest.mark.parametrize("side", [Field.MY_SIDE_COND, Field.OPP_SIDE_COND])
+@pytest.mark.parametrize("cond", [SideCondition.WISH, SideCondition.FUTURE_SIGHT])
+def test_node_key_sees_wish_and_future_sight(one_v_one, side, cond):
+    """Whether one is waiting splits nodes, not its turns left or stored damage"""
+    arr = one_v_one()
+    key = node_key(arr)
+    arr[side] |= cond
+    up = node_key(arr)
+    assert up != key
+    arr[side + SIDE_WISH_TURNS] = 1
+    arr[side + SIDE_FUTURE_TURNS] = 2
+    arr[side + SIDE_FUTURE_DAMAGE] = 30
+    assert node_key(arr) == up
+
+
+@pytest.mark.parametrize("move, field, fails", [
+    ("Wish", {}, False),
+    ("Wish", {Field.MY_SIDE_COND: SideCondition.WISH}, True),
+    ("Wish", {Field.OPP_SIDE_COND: SideCondition.WISH}, False),
+])
+def test_rollout_skips_a_waiting_wish(make_pokemon, make_battle, move, field, fails):
+    """Wish fails while one waits on my side"""
+    pok = make_pokemon("Togepi", 20, "Hustle", [move])
+    arr = make_battle([pok], [make_pokemon("Rattata", 20, "Run Away", ["Tackle"])])
+    for slot, value in field.items():
+        arr[slot] = value
+    assert field_move_fails(move_slice(my_active(arr), 0), arr) == fails
+
+
+def test_rollout_sees_stockpile_fail(poke):
+    """status_move_blocked: Stockpile at 3, Swallow with nothing stockpiled"""
+    me = poke("Swalot", 30, "Sticky Hold", ["Stockpile", "Swallow"])
+    foe = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert not status_move_blocked(move_slice(me, 0), me, foe, 0)
+    assert status_move_blocked(move_slice(me, 1), me, foe, 0)
+    me[Pok.STOCKPILE] = 3
+    assert status_move_blocked(move_slice(me, 0), me, foe, 0)
+    assert not status_move_blocked(move_slice(me, 1), me, foe, 0)
+
+
+@pytest.mark.parametrize("move, setup, picked", [
+    ("Future Sight", {}, True),
+    ("Future Sight", {Field.OPP_SIDE_COND: SideCondition.FUTURE_SIGHT}, False),  # one already waits
+    ("Spit Up", {}, False),                                                      # nothing stockpiled
+    ("Spit Up", {"stockpile": 2}, True),
+])
+def test_rollout_future_sight_and_spit_up(make_pokemon, make_battle, move, setup, picked):
+    """A Future Sight that would fail, or a Spit Up with nothing to spit up, gets weight 0"""
+    me = make_pokemon("Swalot", 30, "Sticky Hold", ["Tackle", move])
+    foe = make_pokemon("Rattata", 20, "Run Away", ["Tackle"])
+    arr = make_battle([me], [foe])
+    for slot, value in setup.items():
+        if slot == "stockpile":
+            my_active(arr)[Pok.STOCKPILE] = value
+        else:
+            arr[slot] = value
+    random.seed(1)
+    actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
+    picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(200)}
+    assert (1 in picks) == picked

@@ -9,8 +9,6 @@ from Models.constants import (
 # In MoveDB / AbilitiesDB but with no mechanics yet (ENGINE_PLAN.md's "in MoveDB" moves). It only shrinks:
 # drop an entry in the batch that implements it
 NOT_IMPLEMENTED = frozenset({
-    # moves
-    "Future Sight",
     # abilities
     "Color Change",
 })

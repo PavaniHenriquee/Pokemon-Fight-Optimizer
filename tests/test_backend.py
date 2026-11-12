@@ -246,9 +246,9 @@ def test_start_rejects_bad_config(client):
 
 def test_start_refuses_what_the_engine_lacks(client):
     """An opponent with a move the engine can't run is refused before the running search is touched"""
-    foe = {**OPP_MEMBER, "moves": ["Tackle", "Future Sight"]}
+    foe = {**OPP_MEMBER, "moves": ["Tackle", "U-turn"]}
     res = client.post("/start", json={"my_team": [TEAM_MEMBER], "opp_team": [foe], "iterations": 10}).json()
-    assert res == {"status": "error", "error": "Not supported yet: Future Sight"}
+    assert res == {"status": "error", "error": "Not supported yet: U-turn"}
 
 
 def test_start_node_info_and_continue(client):
@@ -620,3 +620,25 @@ def test_field_shows_spikes_layers():
     arr[Field.MY_SPIKES] = 3
     field = _field(arr[Field.MY_POK:])
     assert {"name": "Spikes", "layers": 3} in field["my_side"]
+
+
+
+def test_field_shows_wish_future_sight_and_stockpile():
+    """Wish and Future Sight / Doom Desire show with their turns left, named by the move, and the
+    stockpile count as a chip"""
+    from backend.serializer import _field, _pok  # pylint: disable=import-outside-toplevel
+    from Models.helper import SideCondition  # pylint: disable=import-outside-toplevel
+    from Models.idx_const import Field, Pok, POK_LEN  # pylint: disable=import-outside-toplevel
+    from DataBase.MoveDB import MoveName  # pylint: disable=import-outside-toplevel
+    arr = build_scenario("starters")
+    arr[Field.MY_SIDE_COND] |= SideCondition.WISH
+    arr[Field.MY_WISH_TURNS] = 1
+    arr[Field.OPP_SIDE_COND] |= SideCondition.FUTURE_SIGHT
+    arr[Field.OPP_FUTURE_TURNS] = 2
+    arr[Field.OPP_FUTURE_MOVE] = MoveName.DOOM_DESIRE
+    field = _field(arr[Field.MY_POK:])
+    assert {"name": "Wish", "turns": 1} in field["my_side"]
+    assert {"name": "Doom Desire", "turns": 2} in field["opp_side"]
+    mine = arr[0:POK_LEN]
+    mine[Pok.STOCKPILE] = 2 + 4 * 2
+    assert "Stockpile 2" in _pok(mine)["vol_status"]

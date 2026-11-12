@@ -18,7 +18,8 @@ from Models.constants import (
     _MOVENAME_SNORE, _MOVENAME_SLEEP_TALK, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE,
     _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _POK_STATUS, _STATUS_SLEEP, _POK_VOL_STATUS,
     _VOLSTATUS_NIGHTMARE, _POK_AB_ID, _MOVENAME_HEAL_BLOCK, _SIDECONDITION_SPIKES,
-    _MOVENAME_MAGNET_RISE,
+    _MOVENAME_MAGNET_RISE, _FLAGS_FUTURE_MOVE, _SIDECONDITION_FUTURE_SIGHT, _SIDECONDITION_WISH,
+    _MOVENAME_WISH, _MOVENAME_STOCKPILE, _MOVENAME_SWALLOW, _MOVENAME_SPIT_UP,
 )
 from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
@@ -28,7 +29,7 @@ from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import (
     calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails,
-    has_substitute, heal_blocked, magnet_rise_fails
+    has_substitute, heal_blocked, magnet_rise_fails, stockpile_count, spit_up_move, STOCKPILE_MAX
 )
 from Engine.ability_helper import (
     levitates, effective_weather, normalized_type, grounded_by_item, weather_ball_move, magnet_risen
@@ -132,6 +133,8 @@ def field_move_fails(move, battle_array):
     layers, the same weather, or Gravity already up"""
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
         return battle_array[_FIELD_GRAVITY_TURNS] > 0
+    if move[_MOVE_ID] == _MOVENAME_WISH:
+        return (battle_array[_FIELD_MY_SIDE_COND] & _SIDECONDITION_WISH) != 0
     cond = move[_MOVE_SIDE_CONDITION]
     if cond:
         side = _FIELD_OPP_SIDE_COND if move[_MOVE_TARGET] == FOE_SIDE_TARGET else _FIELD_MY_SIDE_COND
@@ -163,6 +166,10 @@ def status_move_blocked(move, me, foe, weather):
         return me[_ITEM_ID] == 0 and foe[_ITEM_ID] == 0
     if move[_MOVE_ID] == _MOVENAME_MAGNET_RISE:
         return magnet_rise_fails(me)
+    if move[_MOVE_ID] == _MOVENAME_STOCKPILE:
+        return stockpile_count(me) >= STOCKPILE_MAX
+    if move[_MOVE_ID] == _MOVENAME_SWALLOW:
+        return stockpile_count(me) == 0
     if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
         return False
     status = move[_MOVE_STATUS]
@@ -250,9 +257,13 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
             o_pok[OFFSET_MOVE + opp_choice * MOVE_STRIDE: OFFSET_MOVE + (opp_choice + 1) * MOVE_STRIDE],
             weather
         )
+        o_move = spit_up_move(o_move, o_pok)
         if o_move[_MOVE_OH_KO]:
             # Counted as a KO whenever it can work, so the safer path stays in mind
             o_dmg = 0 if ohko_fails(o_pok, c_pok) else c_pok[_POK_CURRENT_HP]
+        elif o_move[_FLAGS_FUTURE_MOVE]:
+            # Future Sight hits two turns later, not this one
+            o_dmg = 0
         else:
             o_dmg = calculate_damage(
                 o_pok, c_pok, o_move, weather, calculate_crit(o_pok, c_pok, o_move, my_side), None,
@@ -286,6 +297,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
             move = weather_ball_move(
                 c_pok[OFFSET_MOVE + a_idx * MOVE_STRIDE: OFFSET_MOVE + (a_idx + 1) * MOVE_STRIDE], weather
             )
+            move = spit_up_move(move, c_pok)
             cat = move[_MOVE_CATEGORY]
 
             if cat == _MOVECATEGORY_STATUS:
@@ -315,6 +327,11 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                     or sleep_move_fails(move, c_pok, o_pok)
                 ):
                     weight = 0  # immune (type, Levitate, an absorbing ability) — never pick this
+                elif move[_FLAGS_FUTURE_MOVE]:
+                    # Hits two turns later, typeless: no damage calc, it fails while one is waiting
+                    weight = 0 if opp_side & _SIDECONDITION_FUTURE_SIGHT else 1
+                elif move[_MOVE_ID] == _MOVENAME_SPIT_UP and stockpile_count(c_pok) == 0:
+                    weight = 0
                 elif move[_MOVE_ID] in EXPLODE_MOVES:
                     # Kills the user: kept out of the damage calc like the trainer AI's
                     # MOVE_EXCEP, so it never gets a KO or effectiveness bonus

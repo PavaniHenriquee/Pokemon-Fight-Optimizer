@@ -1398,6 +1398,19 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Doom Desire": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "future_move": true,
+      "metronome": true
+    },
+    "name": "doom_desire",
+    "power": 140,
+    "pp": 5,
+    "target": "normal",
+    "type": "Steel"
+  },
   "Double Hit": {
     "accuracy": 90,
     "category": "Physical",
@@ -5806,6 +5819,18 @@
     "target": "foe_side",
     "type": "Ground"
   },
+  "Spit Up": {
+    "accuracy": 100,
+    "category": "Special",
+    "flags": {
+      "metronome": true,
+      "protect": true
+    },
+    "name": "spit_up",
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Splash": {
     "accuracy": true,
     "category": "Status",
@@ -5867,6 +5892,18 @@
     },
     "target": "normal",
     "type": "Steel"
+  },
+  "Stockpile": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "stockpile",
+    "pp": 20,
+    "target": "self",
+    "type": "Normal"
   },
   "Stomp": {
     "accuracy": 100,
@@ -6097,6 +6134,19 @@
     "target": "normal",
     "type": "Normal",
     "vol_status": "confusion"
+  },
+  "Swallow": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "swallow",
+    "pp": 10,
+    "target": "self",
+    "type": "Normal"
   },
   "Sweet Kiss": {
     "accuracy": 75,
@@ -6849,6 +6899,18 @@
     "pp": 35,
     "target": "any",
     "type": "Flying"
+  },
+  "Wish": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true
+    },
+    "name": "wish",
+    "pp": 10,
+    "target": "self",
+    "type": "Normal"
   },
   "Withdraw": {
     "accuracy": true,

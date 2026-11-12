@@ -189,6 +189,7 @@ class Pokemon:
             0,   # Rampage (Thrash) turns left
             0,   # Last Resort: mask of the move slots used since switch-in
             self.friendship,  # Friendship, for a called Return or Frustration
+            0,   # Stockpile: count + 4 * Defense stages it gave + 16 * Sp. Def stages it gave
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 

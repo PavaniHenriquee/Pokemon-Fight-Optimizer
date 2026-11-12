@@ -8,6 +8,7 @@ from Engine.status_calc import vol_status
 from Models.idx_const import (
     Pok, Move, Sec, Field, POK_LEN, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS,
     SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, FIELD_LEN, SIDE_SPIKES,
+    SIDE_FUTURE_TURNS, SIDE_FUTURE_DAMAGE, SIDE_FUTURE_MOVE,
 )
 from Models.helper import (
     ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, VolStatus2, Types, SideCondition,
@@ -5721,3 +5722,252 @@ def test_baton_pass_passes_magnet_rise(make_pokemon):
     engine_helper.magnet_rise_count(old)
     battle._pass_baton(old, new)
     assert new[Pok.VOL_STATUS2] & VolStatus2.MAGNET_RISE and new[Pok.MAGNET_RISE_TURNS] == 4
+
+
+# ── 10.1 delayed effects: Future Sight, Doom Desire, Wish, Stockpile, Spit Up, Swallow ────────────
+
+def _delayed_battle(make_pokemon, make_battle, my_moves, foe_moves=("Splash",), foe="Umbreon", foe_item=None):
+    """My Abra with my_moves against a level 50 foe with foe_moves, both with a Geodude on the bench"""
+    return make_battle(
+        [make_pokemon("Abra", 30, "Synchronize", list(my_moves)),
+         make_pokemon("Geodude", 30, "Sturdy", ["Tackle"])],
+        [make_pokemon(foe, 50, "Synchronize", list(foe_moves), item=foe_item),
+         make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])],
+    )
+
+
+def _future_pending(arr, side, damage, turns=1, move=MoveName.FUTURE_SIGHT):
+    arr[side] |= SideCondition.FUTURE_SIGHT
+    arr[side + SIDE_FUTURE_TURNS] = turns
+    arr[side + SIDE_FUTURE_DAMAGE] = damage
+    arr[side + SIDE_FUTURE_MOVE] = move
+
+
+def _future_cleared(arr, side):
+    return not arr[side] & SideCondition.FUTURE_SIGHT and arr[side + SIDE_FUTURE_TURNS] == 0 and (
+        arr[side + SIDE_FUTURE_DAMAGE] == 0 and arr[side + SIDE_FUTURE_MOVE] == 0
+    )
+
+
+def test_future_sight_hits_at_the_end_of_the_turn_after_next(make_pokemon, make_battle):
+    """The damage is fixed when it's used and the hit is typeless, so a Dark type takes it. A second one fails
+    while it waits (pokeplatinum BtlCmd_TryFutureSight, SIDE_COND_CHECK_STATE_FUTURE_SIGHT)"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Future Sight"])
+    foe = opp_active(arr)
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    damage = arr[Field.OPP_FUTURE_DAMAGE]
+    assert arr[Field.OPP_SIDE_COND] & SideCondition.FUTURE_SIGHT and arr[Field.OPP_FUTURE_TURNS] == 2
+    assert arr[Field.OPP_FUTURE_MOVE] == MoveName.FUTURE_SIGHT and 0 < damage < hp
+    assert foe[Pok.CURRENT_HP] == hp
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.OPP_FUTURE_TURNS] == 1 and arr[Field.OPP_FUTURE_DAMAGE] == damage
+    assert foe[Pok.CURRENT_HP] == hp
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == hp - damage
+    assert _future_cleared(arr, Field.OPP_SIDE_COND)
+
+
+def test_future_sight_goes_through_protect(make_pokemon, make_battle):
+    """It has no hit check when used and no protect flag"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Doom Desire"], foe_moves=("Protect",))
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.OPP_SIDE_COND] & SideCondition.FUTURE_SIGHT
+    assert arr[Field.OPP_FUTURE_MOVE] == MoveName.DOOM_DESIRE
+
+
+def test_future_sight_hits_the_switch_in(make_pokemon, make_battle):
+    """It's stored for the side, so whoever is there when it's due takes it"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Splash"])
+    _future_pending(arr, Field.MY_SIDE_COND, 20)
+    turn_sim(0, (SWITCH, 1), arr)
+    geodude = my_active(arr)
+    assert geodude[Pok.ID] == PokemonName.GEODUDE
+    assert geodude[Pok.MAX_HP] - geodude[Pok.CURRENT_HP] == 20
+    assert _future_cleared(arr, Field.MY_SIDE_COND)
+
+
+@pytest.mark.parametrize("case", ["fainted", "semi_invulnerable"])
+def test_future_sight_is_lost(make_pokemon, make_battle, case):
+    """A fainted target takes nothing and a semi-invulnerable one dodges it, both use it up"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Splash"])
+    foe, me = opp_active(arr), my_active(arr)
+    _future_pending(arr, Field.OPP_SIDE_COND, 20)
+    if case == "fainted":
+        foe[Pok.CURRENT_HP] = 0
+    else:
+        foe[Pok.VOL_STATUS] |= VolStatus.SEMI_INVULNERABLE
+        foe[Pok.SEMI_INV_MOVE] = MoveName.FLY
+    hp = foe[Pok.CURRENT_HP]
+    battle._future_attack_hit(arr, Field.OPP_SIDE_COND, foe, me, 0, False)
+    assert foe[Pok.CURRENT_HP] == hp
+    assert _future_cleared(arr, Field.OPP_SIDE_COND)
+
+
+def test_future_sight_no_guard_reaches_semi_invulnerable(make_pokemon, make_battle):
+    """No Guard on the attacking side skips the roll and the semi-invulnerable check"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Splash"])
+    foe, me = opp_active(arr), my_active(arr)
+    me[Pok.AB_ID] = AbilityNames.NO_GUARD
+    foe[Pok.VOL_STATUS] |= VolStatus.SEMI_INVULNERABLE
+    foe[Pok.SEMI_INV_MOVE] = MoveName.FLY
+    _future_pending(arr, Field.OPP_SIDE_COND, 20)
+    hp = foe[Pok.CURRENT_HP]
+    battle._future_attack_hit(arr, Field.OPP_SIDE_COND, foe, me, 0, False)
+    assert foe[Pok.CURRENT_HP] == hp - 20
+
+
+def test_future_sight_hit_substitute_sash_rage(make_pokemon, make_battle):
+    """A Substitute takes it, a Focus Sash at full HP holds on at 1, Rage builds"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Splash"], foe_item="Focus Sash")
+    foe, me = opp_active(arr), my_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 30
+    _future_pending(arr, Field.OPP_SIDE_COND, 20)
+    hp = foe[Pok.CURRENT_HP]
+    battle._future_attack_hit(arr, Field.OPP_SIDE_COND, foe, me, 0, False)
+    assert foe[Pok.SUB_HP] == 10 and foe[Pok.CURRENT_HP] == hp
+    foe[Pok.VOL_STATUS2] &= ~VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 0
+    _future_pending(arr, Field.OPP_SIDE_COND, 999)
+    battle._future_attack_hit(arr, Field.OPP_SIDE_COND, foe, me, 0, False)
+    assert foe[Pok.CURRENT_HP] == 1 and foe[Item.ID] == 0
+    foe[Pok.CURRENT_HP] = 100
+    foe[Pok.VOL_STATUS] |= VolStatus.RAGE
+    _future_pending(arr, Field.OPP_SIDE_COND, 20)
+    battle._future_attack_hit(arr, Field.OPP_SIDE_COND, foe, me, 0, False)
+    assert foe[Pok.CURRENT_HP] == 80 and foe[Pok.ATTACK_STAT_STAGE] == 1
+
+
+def test_future_sight_hit_triggers_sitrus(make_pokemon, make_battle):
+    """The HP berries check right after the hit, like a move hit ([SD] futuremove)"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Splash"], foe_item="Sitrus Berry")
+    foe, me = opp_active(arr), my_active(arr)
+    max_hp = foe[Pok.MAX_HP]
+    _future_pending(arr, Field.OPP_SIDE_COND, max_hp // 2 + 5)
+    battle._future_attack_hit(arr, Field.OPP_SIDE_COND, foe, me, 0, False)
+    assert foe[Item.ID] == 0
+    assert foe[Pok.CURRENT_HP] == max_hp - (max_hp // 2 + 5) + max_hp // 4
+
+
+def test_wish_heals_at_the_end_of_the_next_turn(make_pokemon, make_battle):
+    """Half of max HP at the end of the next turn, and a second Wish fails while one waits (pokeplatinum
+    BtlCmd_TryWish, FIELD_COND_CHECK_STATE_WISH)"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Wish"])
+    me = my_active(arr)
+    me[Pok.CURRENT_HP] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert arr[Field.MY_SIDE_COND] & SideCondition.WISH and arr[Field.MY_WISH_TURNS] == 1
+    assert me[Pok.CURRENT_HP] == 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == 1 + me[Pok.MAX_HP] // 2
+    assert not arr[Field.MY_SIDE_COND] & SideCondition.WISH and arr[Field.MY_WISH_TURNS] == 0
+
+
+def test_wish_heals_the_switch_in_by_its_own_max_hp(make_pokemon, make_battle):
+    """It heals whoever is there when it comes true, half of that one's max HP"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Splash"])
+    arr[Field.MY_SIDE_COND] |= SideCondition.WISH
+    arr[Field.MY_WISH_TURNS] = 1
+    arr[1 * POK_LEN + Pok.CURRENT_HP] = 1
+    turn_sim(0, (SWITCH, 1), arr)
+    geodude = my_active(arr)
+    assert geodude[Pok.CURRENT_HP] == 1 + geodude[Pok.MAX_HP] // 2
+
+
+def test_heal_block_stops_wish(make_pokemon, make_battle):
+    """The Wish still comes true and is gone, it just doesn't heal (pokeplatinum subscript_wish_heal)"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Splash"])
+    me = my_active(arr)
+    me[Pok.CURRENT_HP] = 1
+    _heal_blocked(me)
+    arr[Field.MY_SIDE_COND] |= SideCondition.WISH
+    arr[Field.MY_WISH_TURNS] = 1
+    battle._wish_heal(arr, Field.MY_SIDE_COND, me)
+    assert me[Pok.CURRENT_HP] == 1 and not arr[Field.MY_SIDE_COND] & SideCondition.WISH
+    assert engine_helper.heal_block_stops(me, MoveName.WISH)
+    assert engine_helper.heal_block_stops(me, MoveName.SWALLOW)
+
+
+def test_stockpile_counts_and_remembers_the_stages_it_gave(poke):
+    """Up to 3, Defense and Sp. Def +1 each, a stage already at +6 isn't remembered (pokeplatinum
+    subscript_stockpile)"""
+    p = poke("Swalot", 30, "Sticky Hold", ["Stockpile"])
+    p[Pok.DEFENSE_STAT_STAGE] = 5
+    for _ in range(4):
+        engine_helper.stockpile(p)
+    assert engine_helper.stockpile_count(p) == 3
+    assert p[Pok.DEFENSE_STAT_STAGE] == 6 and p[Pok.SPECIAL_DEFENSE_STAT_STAGE] == 3
+    p[Pok.DEFENSE_STAT_STAGE] = 0
+    p[Pok.SPECIAL_DEFENSE_STAT_STAGE] = -5
+    assert engine_helper.release_stockpile(p) == 3
+    assert p[Pok.DEFENSE_STAT_STAGE] == -1 and p[Pok.SPECIAL_DEFENSE_STAT_STAGE] == -6
+    assert p[Pok.STOCKPILE] == 0
+
+
+def test_switch_out_clears_stockpile(poke):
+    """The count is per stay on the field, Baton Pass doesn't pass it"""
+    p = poke("Swalot", 30, "Sticky Hold", ["Stockpile"])
+    engine_helper.stockpile(p)
+    engine_helper.reset_switch_out(p)
+    assert p[Pok.STOCKPILE] == 0
+
+
+def _stockpiled(pok, count):
+    for _ in range(count):
+        engine_helper.stockpile(pok)
+
+
+@pytest.mark.parametrize("seed", [1, 2])
+def test_spit_up_power_and_no_roll(make_pokemon, make_battle, seed):
+    """100 power per stockpile and no damage roll, the stockpile and its stages are gone after (pokeplatinum
+    effect 0161, CalcMaxDamage)"""
+    random.seed(seed)
+    arr = _delayed_battle(make_pokemon, make_battle, ["Spit Up"])
+    me, foe = my_active(arr), opp_active(arr)
+    _stockpiled(me, 2)
+    mv = move_slice(me, 0).copy()
+    mv[Move.POWER] = 200
+    expected = battle.calculate_damage(me, foe, mv, 0, False, 100)
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert hp - foe[Pok.CURRENT_HP] == expected
+    assert me[Pok.STOCKPILE] == 0 and me[Pok.DEFENSE_STAT_STAGE] == 0 and me[Pok.SPECIAL_DEFENSE_STAT_STAGE] == 0
+
+
+def test_spit_up_protected_still_loses_the_stockpile(make_pokemon, make_battle):
+    """The stockpile goes before the hit check"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Spit Up"], foe_moves=("Protect",))
+    me, foe = my_active(arr), opp_active(arr)
+    _stockpiled(me, 1)
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == hp and me[Pok.STOCKPILE] == 0 and me[Pok.DEFENSE_STAT_STAGE] == 0
+
+
+def test_spit_up_fails_with_nothing_stockpiled(make_pokemon, make_battle):
+    """Nothing stockpiled, nothing to spit up"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Spit Up"])
+    foe = opp_active(arr)
+    hp = foe[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == hp
+
+
+@pytest.mark.parametrize("count, divisor", [(1, 4), (2, 2), (3, 1)])
+def test_swallow_heals_by_the_stockpile(poke, count, divisor):
+    """Max HP / 4, / 2 or all of it (pokeplatinum effect 0162)"""
+    p = poke("Swalot", 30, "Sticky Hold", ["Swallow"])
+    _stockpiled(p, count)
+    p[Pok.CURRENT_HP] = 1
+    engine_helper.swallow(p)
+    assert p[Pok.CURRENT_HP] == min(p[Pok.MAX_HP], 1 + p[Pok.MAX_HP] // divisor)
+    assert p[Pok.STOCKPILE] == 0 and p[Pok.DEFENSE_STAT_STAGE] == 0
+
+
+def test_swallow_at_full_hp_still_empties_the_stockpile(poke):
+    """The stockpile goes before the full HP check (pokeplatinum effect 0162, subscript_recover_hp)"""
+    p = poke("Swalot", 30, "Sticky Hold", ["Swallow"])
+    _stockpiled(p, 2)
+    engine_helper.swallow(p)
+    assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] and p[Pok.STOCKPILE] == 0 and p[Pok.DEFENSE_STAT_STAGE] == 0

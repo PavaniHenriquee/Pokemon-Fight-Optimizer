@@ -72,9 +72,9 @@ def _data(**changes):
             "Mew": {"abilities": ["Synchronize"], "learnset": [[1, "Transform"]], "tutor": []},
             "Sketcher": {"abilities": ["Own Tempo"], "learnset": [[1, "Sketch"]], "tutor": []},
         },
-        "moves": {"Tackle", "Cut", "Future Sight"},
+        "moves": {"Tackle", "Cut"},
         "items": {"Life Orb"},
-        "abilities": {"Sturdy", "Overgrow", "Synchronize", "Own Tempo"},
+        "abilities": {"Sturdy", "Overgrow", "Synchronize", "Own Tempo", "Color Change"},
     }
     data.update(changes)
     return data
@@ -111,7 +111,7 @@ def test_supported():
     data = _data()
     assert coverage.supported("move", "Tackle", data)
     assert not coverage.supported("move", "Crunch", data)
-    assert not coverage.supported("move", "Future Sight", data)  # NOT_IMPLEMENTED
+    assert not coverage.supported("ability", "Color Change", data)  # NOT_IMPLEMENTED
     assert coverage.supported("trainer item", "Potion", data)
     assert not coverage.supported("trainer item", "X Attack", data)
 
