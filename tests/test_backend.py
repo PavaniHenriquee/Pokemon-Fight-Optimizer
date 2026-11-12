@@ -13,7 +13,7 @@ from SearchEngine.models import (
 from SearchEngine.my_mcts import mcts_loop
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.PkDB import PokemonName
-from Models.helper import Gender, Types
+from Models.helper import Gender, Types, ActionType
 from Models.idx_const import Pok, POK_LEN, Move
 from battle_driver import build_scenario, pok_slice, move_slice
 
@@ -642,3 +642,48 @@ def test_field_shows_wish_future_sight_and_stockpile():
     mine = arr[0:POK_LEN]
     mine[Pok.STOCKPILE] = 2 + 4 * 2
     assert "Stockpile 2" in _pok(mine)["vol_status"]
+
+
+def _spite_node(client, my_moves=("Spite", "Scratch", "", "")):
+    """A finished tiny search and the outcome node of my first move, made to look like the foe used
+    Tackle there"""
+    client.post("/start", json={
+        "my_team": [{**TEAM_MEMBER, "moves": list(my_moves)}], "opp_team": [OPP_MEMBER],
+        "iterations": 60,
+    })
+    sess = main._session  # pylint: disable=protected-access
+    _wait(sess)
+    action, children = next((a, c) for a, c in sess.root.children.items() if tuple(a) == (ActionType.MOVE, 0))
+    node = children[0]
+    node.opp_moves = {TACKLE: 1}
+    node.snapshot.opp_move_idx = TACKLE
+    return sess, node, action
+
+
+def test_spite_pp_suggests_four_less_on_the_move_used_that_turn(client):
+    """After my Spite the foe's Tackle shows what it paid plus Spite's 4, Tail Whip the root's"""
+    sess, node, _ = _spite_node(client)
+    tackle, tail_whip = _foe_pp(sess.battle_array)
+    path = [{"node_id": str(id(node)), "opp_move": "Tackle"}]
+    rows = client.post("/spite_pp", json={"node_id": str(id(node)), "path": path}).json()["rows"]
+    assert [r["slot"] for r in rows] == [0] and rows[0]["name"] == "Squirtle"
+    assert [(m["move_slot"], m["name"], m["pp"]) for m in rows[0]["moves"]] == [
+        (0, "Tackle", tackle - 5), (1, "Tail Whip", tail_whip)
+    ]
+
+
+def test_spite_pp_is_empty_without_my_spite(client):
+    """Continue asks nothing when no step of the path is a Spite"""
+    _, node, _ = _spite_node(client, ("Scratch", "Growl", "", ""))
+    path = [{"node_id": str(id(node)), "opp_move": "Tackle"}]
+    assert client.post("/spite_pp", json={"node_id": str(id(node)), "path": path}).json() == {
+        "rows": []
+    }
+
+
+def test_continue_takes_the_pp_i_set(client):
+    """opp_pp overrides the arithmetic for that move only"""
+    sess, node, _ = _spite_node(client)
+    tackle, _tail_whip = _foe_pp(sess.battle_array)
+    path = [{"node_id": str(id(node)), "opp_move": "Tackle"}]
+    assert _continue_foe_pp(client, sess, node, path=path, opp_pp={"0:1": 0}) == [tackle - 1, 0]

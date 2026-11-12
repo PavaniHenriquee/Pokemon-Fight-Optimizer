@@ -53,7 +53,8 @@ KIT_STATUS = (
     "Sleep Talk", "Nightmare", "Psycho Shift", "Heal Bell", "Aromatherapy",
     "Milk Drink", "Soft-Boiled", "Slack Off", "Heal Order", "Moonlight", "Morning Sun", "Roost",
     "Heal Block", "Sunny Day", "Hail", "Tailwind", "Trick Room", "Spikes", "Defog", "Magnet Rise",
-    "Wish", "Stockpile", "Swallow", "Memento", "Healing Wish", "Grudge",
+    "Wish", "Stockpile", "Swallow", "Memento", "Healing Wish", "Grudge", "Torment", "Imprison", "Spite",
+    "Mean Look", "Block", "Spider Web",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -3623,3 +3624,111 @@ def test_delayed_effect_tables():
         ai.ENCORE_ENCOURAGED_M
     )
     assert MoveName.SWALLOW in ai.HEAL_BLOCK_GOOD_M
+
+
+# ── Restriction and trapping ─────────────────────────────────────────────────
+
+@pytest.mark.parametrize("move", ["Mean Look", "Block", "Spider Web"])
+def test_basic_mean_look(poke, move):
+    """Basic_CheckMeanLook: -10 on a target already under it, a bind doesn't count"""
+    ai_pok = poke("Gastly", 20, "Levitate", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    user[Pok.VOL_STATUS] = VolStatus.PARTIALLY_TRAPPED
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+    user[Pok.VOL_STATUS2] = VolStatus2.MEAN_LOOK
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+
+
+def test_basic_torment(poke):
+    """Basic_CheckTorment: -10 on a target already under it"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Torment"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+    user[Pok.VOL_STATUS2] = VolStatus2.TORMENT
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+
+
+def test_basic_imprison(poke):
+    """Basic_CheckCanImprison: -10 while the AI already has it up. The target's
+    MOVE_EFFECT_IMPRISONED half isn't kept, so no shared move still scores 0"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Imprison"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+    ai_pok[Pok.VOL_STATUS2] = VolStatus2.IMPRISON
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+
+
+@pytest.mark.parametrize("turns_active, expected", [(2, [(2, 156)]), (1, [])])
+def test_expert_imprison(poke, turns_active, expected):
+    """Expert_Imprison: 156/256 of +2 when it isn't the AI's first turn"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Imprison"])
+    ai_pok[Pok.TURNS_ACTIVE] = turns_active
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, expected)
+
+
+@pytest.mark.parametrize("move", ["Mean Look", "Block", "Spider Web"])
+@pytest.mark.parametrize("status, vol, expected", [
+    (0, 0, []), (Status.TOXIC, 0, [(1, 128)]), (0, VolStatus.CURSE, [(1, 128)]),
+    (0, VolStatus.ATTRACT, [(1, 128)]), (0, VolStatus.PERISH_SONG, [(1, 128)]),
+    (Status.POISON, 0, []),
+])
+def test_expert_mean_look(poke, move, status, vol, expected):
+    """Expert_BindingMove: 50% +1 on a target badly poisoned, Cursed, attracted or under Perish
+    Song"""
+    ai_pok = poke("Gastly", 20, "Levitate", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    user[Pok.STATUS] = status
+    user[Pok.VOL_STATUS] = vol
+    assert _expert(ai_pok, user) == (0, expected)
+
+
+@pytest.mark.parametrize("move", ["Torment", "Spite"])
+def test_expert_torment_and_spite_score_nothing(poke, move):
+    """No Expert check of their own"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, [])
+
+
+@pytest.mark.parametrize("move", ["Mean Look", "Block", "Spider Web", "Torment", "Imprison"])
+def test_expert_encore_likes_the_restricting_moves(poke, move):
+    """They're on Pokemow List_Encore (pokeplatinum Expert_Encore_EncouragedMoveEffects)"""
+    user = poke("Rattata", 30, "Run Away", ["Tackle", move])
+    fast_ai = poke("Rattata", 60, "Run Away", ["Encore"])
+    user[Pok.LAST_MOVE_ID] = move_slice(user, 1)[Move.ID]
+    assert _expert(fast_ai, user) == (0, [(3, 226)])
+
+
+def test_ai_never_picks_a_sealed_move(make_pokemon, make_battle):
+    """My Imprison makes its Tackle invalid (CheckInvalidMoves in the AI's move loop)"""
+    arr = make_battle(
+        [make_pokemon("Murkrow", 20, "Insomnia", ["Imprison", "Tackle"])],
+        [make_pokemon("Rattata", 20, "Run Away", ["Tackle", "Quick Attack"])],
+    )
+    my_active(arr)[Pok.VOL_STATUS2] = VolStatus2.IMPRISON
+    random.seed(1)
+    assert {return_idx(arr) for _ in range(30)} == {1}
+
+
+def test_ai_never_picks_its_tormented_move(make_pokemon, make_battle):
+    """Torment keeps its last move out of the loop"""
+    arr = make_battle(
+        [make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])],
+        [make_pokemon("Rattata", 20, "Run Away", ["Tackle", "Quick Attack"])],
+    )
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS2] = VolStatus2.TORMENT
+    foe[Pok.LAST_MOVE_ID] = MoveName.QUICK_ATTACK
+    random.seed(1)
+    assert {return_idx(arr) for _ in range(30)} == {0}
+
+
+def test_mean_looked_ai_never_switches(make_pokemon, make_battle):
+    """TrainerAI_ShouldSwitch skips the withdraws for VOLATILE_CONDITION_TRAPPED, Mean Look too"""
+    me = make_pokemon("Gastly", 20, "Levitate", ["Lick"])
+    opp = [make_pokemon("Rattata", 20, "Run Away", ["Tackle", "Quick Attack"]),
+           make_pokemon("Pikachu", 20, "Static", ["Thunder Shock"])]
+    arr = make_battle([me], opp)
+    pok_slice(arr, 0, opp=True)[Pok.VOL_STATUS2] = VolStatus2.MEAN_LOOK
+    assert all(return_idx(arr) in (0, 1) for _ in range(30))

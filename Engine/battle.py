@@ -24,6 +24,7 @@ from Engine.engine_helper import (
     stage_move_fails, belly_drum, acupressure, haze, psych_up, swap_stages, power_trick, swap_atk_def,
     status_move_fails, rest, psycho_shift, heal_bell, start_magnet_rise, end_magnet_rise,
     magnet_rise_count, stockpile, release_stockpile, swallow, future_hit_lands, SPIT_UP_POWER,
+    spite, TRAP_MOVES,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -87,7 +88,8 @@ from Models.constants import (
     _POK_EVASION_STAT_STAGE, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _VOLSTATUS_HEAL_BLOCK,
     _BATTLEPHASE_BATON_PASS, _FIELD_PENDING_OPP_MOVE, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
     _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_GRUDGE, _VOLSTATUS2_GRUDGE,
-    _SIDECONDITION_HEALING_WISH, _VOLSTATUS2_U_TURN,
+    _SIDECONDITION_HEALING_WISH, _VOLSTATUS2_U_TURN, _VOLSTATUS2_TORMENT, _VOLSTATUS2_IMPRISON,
+    _VOLSTATUS2_MEAN_LOOK, _MOVENAME_TORMENT, _MOVENAME_IMPRISON, _MOVENAME_SPITE,
     _MOVENAME_KNOCK_OFF, _POK_ITEM_KNOCKED_OFF, _MOVENAME_RECOVER, _MOVENAME_SYNTHESIS,
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
     _ENEMY_AI_KNOWS_ABILITY, _POK_CALLED_MOVE, _FIELD_LAST_MOVE, _MOVENAME_HIDDEN_POWER,
@@ -199,6 +201,7 @@ BATON_PASS_VOLS = (
 # with its turns, Power Trick by trading the receiver's Attack and Defense)
 BATON_PASS_VOLS2 = (
     _VOLSTATUS2_SUBSTITUTE | _VOLSTATUS2_EMBARGO | _VOLSTATUS2_POWER_TRICK | _VOLSTATUS2_MAGNET_RISE
+    | _VOLSTATUS2_MEAN_LOOK
 )
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
@@ -301,6 +304,9 @@ def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx, bato
     """Perform my-side switch-in bookkeeping, return the new active slice"""
     if baton:
         _pass_baton(current_pokemon, battle_array[(switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)])
+    else:
+        # The trapper leaving frees the one it trapped (pokeplatinum BattleSystem_UpdateAfterSwitch)
+        current_opp[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_MEAN_LOOK
     reset_switch_out(current_pokemon)
     battle_array[_FIELD_MY_POK] = switch_idx
     battle_array[_FIELD_AI_KNOWS] = 0
@@ -321,6 +327,8 @@ def _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch, bat
         _pass_baton(
             current_opp, battle_array[((opp_switch+6) * POK_LEN):((opp_switch+7) * POK_LEN)]
         )
+    else:
+        current_pokemon[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_MEAN_LOOK
     reset_switch_out(current_opp)
     battle_array[_FIELD_OPP_POK] = opp_switch
     battle_array[_FIELD_OPP_ENTER_FIELD] = 1
@@ -1086,6 +1094,11 @@ def _execute_move_slot(
         atk[_POK_PROTECT_COUNT] = 0
         atk[_POK_LAST_MOVE_ID] = 0
         return False
+    # A Spite before it moved took its last PP: no PP left for the move, it fails and leaves no
+    # last move (pokeplatinum BattleControllerPlayer_DecrementPP, MOVE_STATUS_NO_PP)
+    if atk[_POK_LOCKED_MOVE] == -1 and mv[_MOVE_ID] != _MOVENAME_STRUGGLE and mv[_MOVE_PP] <= 0:
+        atk[_POK_LAST_MOVE_ID] = 0
+        return False
     atk[_POK_LAST_MOVE_ID] = outer_id
     record_last_resort(atk, current_move if is_mine else opp_move, outer_id)
     if mv[_MOVE_ID] not in STALL_MOVES:
@@ -1113,7 +1126,7 @@ def _execute_move_slot(
 
     # The called move runs in the caller's turn, the caller is the last move for everything else
     if is_caller and atk[_POK_CALLED_MOVE] == 0:
-        called = called_move(atk, outer_id, battle_array)
+        called = called_move(atk, defn, outer_id, battle_array)
         battle_array[_FIELD_LAST_MOVE] = outer_id
         if called == 0:
             metronome_fail(atk, outer_id)
@@ -1382,8 +1395,8 @@ def _execute_move_slot(
 def _status_move(atk, defn, mv, is_mine, battle_array, weather):
     """Recover, Synthesis, Refresh, Recycle, Worry Seed, Substitute, Trick, Switcheroo, Embargo,
     Pain Split, Belly Drum, Acupressure, Haze, Psych Up, Power Swap, Guard Swap, Heart Swap, Power
-    Trick, Rest, Psycho Shift, Heal Bell, Aromatherapy, Magnet Rise and Minimize's flag (its boost
-    is data)"""
+    Trick, Rest, Psycho Shift, Heal Bell, Aromatherapy, Magnet Rise, Torment, Imprison, Mean Look,
+    Block, Spider Web, Spite and Minimize's flag (its boost is data)"""
     move_id = mv[_MOVE_ID]
     if move_id == _MOVENAME_MINIMIZE:
         atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_MINIMIZE
@@ -1432,6 +1445,14 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         _set_wish(battle_array, side_base(is_mine))
     elif move_id == _MOVENAME_GRUDGE:
         atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_GRUDGE
+    elif move_id == _MOVENAME_TORMENT:
+        defn[_POK_VOL_STATUS2] |= _VOLSTATUS2_TORMENT
+    elif move_id == _MOVENAME_IMPRISON:
+        atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_IMPRISON
+    elif move_id in TRAP_MOVES:
+        defn[_POK_VOL_STATUS2] |= _VOLSTATUS2_MEAN_LOOK
+    elif move_id == _MOVENAME_SPITE:
+        spite(defn)
     # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
     elif move_id == _MOVENAME_WORRY_SEED and worry_seed(defn) and not is_mine:
         battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY

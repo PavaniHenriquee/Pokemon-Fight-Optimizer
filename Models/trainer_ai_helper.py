@@ -10,8 +10,6 @@ from DataBase.PkDB import POKEMON_ABILITY_POOL, POKEMON_LENGTH
 from DataBase.MoveDB import PHYSICAL, SPECIAL, FIRE_MOVES, WATER_MOVES, ELECTRIC_MOVES, MoveName
 from DataBase.AbilitiesDB import AbilityNames
 from DataBase.loader import abDB
-from Engine.speed import check_speed, quick_claw, custap_ready, has_tailwind
-from Engine.engine_helper import last_resort_works, stockpile_count, STOCKPILE_MAX
 from Models.item import raw_hold_effect, embargoed
 from Models.idx_const import POK_LEN
 from Models.helper import TARGET_SELF_SIDE, TARGET_OPP_SIDE, STEEL_POISON
@@ -110,7 +108,8 @@ from Models.constants import (
     _MOVENAME_SNORE, _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _MOVENAME_HEAL_BELL,
     _MOVENAME_AROMATHERAPY, _MOVENAME_TEETER_DANCE, _VOLSTATUS_NIGHTMARE,
     _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER,
-    _MOVENAME_ROOST, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _MOVENAME_HEAL_BLOCK,
+    _MOVENAME_ROOST, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _MOVENAME_TORMENT,
+    _MOVENAME_IMPRISON, _VOLSTATUS2_TORMENT, _VOLSTATUS2_IMPRISON, _VOLSTATUS2_MEAN_LOOK,
     _VOLSTATUS_HEAL_BLOCK, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _ABILITYNAMES_ICE_BODY,
     _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SOLAR_POWER, _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL,
     _MOVENAME_WEATHER_BALL, _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_U_TURN,
@@ -119,6 +118,8 @@ from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
     FORESIGHT_TYPES
 )
+from Engine.speed import check_speed, quick_claw, custap_ready, has_tailwind
+from Engine.engine_helper import last_resort_works, stockpile_count, STOCKPILE_MAX, TRAP_MOVES
 from Engine.ability_helper import (
     ignorable_ability, levitates, normalized_type, grounded_by_item, slot_move_type, weather_ball_move,
     magnet_risen,
@@ -383,11 +384,13 @@ ENCORE_ENCOURAGED_M = (
     MoveName.FOLLOW_ME, MoveName.CHARGE, MoveName.INGRAIN, MoveName.RECYCLE, MoveName.KNOCK_OFF,
     MoveName.REFRESH, MoveName.MUD_SPORT, MoveName.WATER_SPORT, MoveName.DRAGON_DANCE,
     MoveName.NATURAL_GIFT, MoveName.FEINT, MoveName.LUCKY_CHANT, MoveName.WORRY_SEED,
-    MoveName.AQUA_RING, MoveName.TAILWIND, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO, MoveName.FLING,
+    MoveName.AQUA_RING, MoveName.TAILWIND, MoveName.TRICK_ROOM, MoveName.TRICK, MoveName.SWITCHEROO,
+    MoveName.FLING,
     MoveName.TOXIC, MoveName.REST, MoveName.POISON_GAS, MoveName.GLARE, MoveName.HEAL_BELL,
     MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT, MoveName.SUNNY_DAY,
     MoveName.HAIL, MoveName.MAGNET_RISE, MoveName.DOOM_DESIRE, MoveName.STOCKPILE, MoveName.SPIT_UP,
-    MoveName.SWALLOW, MoveName.GRUDGE, MoveName.HEALING_WISH
+    MoveName.SWALLOW, MoveName.GRUDGE, MoveName.HEALING_WISH, MoveName.SPIDER_WEB, MoveName.MEAN_LOOK,
+    MoveName.BLOCK, MoveName.TORMENT, MoveName.IMPRISON
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 MOVE_DRAIN_SLOTS = tuple(slot + _MOVE_DRAIN - _MOVE_ID for slot in MOVE_ID_SLOTS)
@@ -408,8 +411,9 @@ HEAL_BLOCK_GOOD_M = HEAL_M + (
 )
 # Scored by basic_misc / expert_misc
 MISC_BASIC_M = HEAL_M + (
-    _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG
-)
+    _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
+    _MOVENAME_TORMENT, _MOVENAME_IMPRISON
+) + TRAP_MOVES
 MISC_EXPERT_M = MISC_BASIC_M + (_MOVENAME_KNOCK_OFF, _MOVENAME_SPLASH, _MOVENAME_SWALLOW)
 # Expert_Recovery's moves, Swallow included (pokeplatinum script.s)
 RECOVERY_EXPERT_M = HEAL_M + (_MOVENAME_SWALLOW,)
@@ -977,7 +981,9 @@ def basic_stage(move, ability, ai_pok, user_pok):
 def basic_misc(move, ability, ai_pok, user_pok, ai_know):
     """
     pokeplatinum Basic_CheckCanRecoverHP, Basic_CheckCanRefreshStatus, Basic_CheckCanRecycle,
-    Basic_CheckWorrySeed and Basic_CheckPerishSong. ability is the target's
+    Basic_CheckWorrySeed, Basic_CheckPerishSong, Basic_CheckTorment, Basic_CheckMeanLook and
+    Basic_CheckCanImprison (only the AI's own Imprison, the target's MOVE_EFFECT_IMPRISONED is left
+    out). ability is the target's
     """
     move_id = move[_MOVE_ID]
     if move_id in HEAL_M:
@@ -994,6 +1000,12 @@ def basic_misc(move, ability, ai_pok, user_pok, ai_know):
         return 0
     if move_id == _MOVENAME_PERISH_SONG:
         return -10 if user_pok[_POK_VOL_STATUS] & _VOLSTATUS_PERISH_SONG else 0
+    if move_id == _MOVENAME_TORMENT:
+        return -10 if user_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_TORMENT else 0
+    if move_id in TRAP_MOVES:
+        return -10 if user_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_MEAN_LOOK else 0
+    if move_id == _MOVENAME_IMPRISON:
+        return -10 if ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_IMPRISON else 0
     return 0
 
 
@@ -2397,7 +2409,8 @@ def expert_stage(move, ai_pok, u_pok, rand, idx):
 def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know=0):
     """
     pokeplatinum Expert_Recovery (Swallow's too) and Expert_Synthesis, Expert_Refresh, Expert_KnockOff,
-    Expert_Recycle and Pokemow Worry Seed. Perish Song and Splash have no Expert check.
+    Expert_Recycle, Expert_Imprison, Expert_BindingMove for Mean Look, Block and Spider Web and
+    Pokemow Worry Seed. Perish Song, Splash and Torment have no Expert check.
     ai_know is Field.AI_KNOWS, Worry Seed reads whether the target was seen using Rest
     """
     move_id = move[_MOVE_ID]
@@ -2435,6 +2448,19 @@ def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know=0):
             add_adjustment(rand, idx, 1, 128)
         add_adjustment(rand, idx, 1, 192)
         return score
+    # 156/256 of +2 when it's not the AI's first turn
+    if move_id == _MOVENAME_IMPRISON:
+        if ai_pok[_POK_TURNS_ACTIVE] != 1:
+            add_adjustment(rand, idx, 2, 156)
+        return 0
+    # Half the time +1 on a target badly poisoned, Cursed, attracted or under Perish Song
+    if move_id in TRAP_MOVES:
+        if (
+            u_pok[_POK_STATUS] == _STATUS_TOXIC
+            or u_pok[_POK_VOL_STATUS] & (_VOLSTATUS_CURSE | _VOLSTATUS_ATTRACT | _VOLSTATUS_PERISH_SONG)
+        ):
+            add_adjustment(rand, idx, 1, 128)
+        return 0
     return 0
 
 

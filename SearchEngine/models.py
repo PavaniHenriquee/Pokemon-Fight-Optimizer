@@ -19,12 +19,14 @@ from Models.constants import (
     _POK_METRONOME_COUNT, _POK_BASE_AB_ID, _FIELD_OPP_MOVE_RAN, _FIELD_PENDING_OPP_MOVE,
     _POK_TYPE1, _POK_TYPE2, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _VOLSTATUS_ENCORE,
     _VOLSTATUS_DISABLE, _FIELD_TRICKROOM, _POK_CHOICE_LOCK, _ITEM_HOLD_EFFECT, _MOVENAME_LAST_RESORT,
+    _VOLSTATUS2_TORMENT, _POK_LAST_MOVE_ID,
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
 from Engine.battle import turn_sim, switch_in_action, baton_pass_action, OPP_RAN_PP_STEP
 from Engine.engine_helper import (
     move_blocked, truant_loafs, is_trapped, CHOICE_EFFECTS, last_resort_works, stockpile_count,
+    imprisoned,
 )
 from Engine.speed import slow_start_active
 from Engine.status_calc import SLOT_MASK
@@ -104,6 +106,7 @@ def valid_action_mask(battle_array):
     mask = 0
     if battle_array[_FIELD_PHASE] == _BATTLEPHASE_TURN_START:
         base = my_active * POK_LEN
+        opp_base = (battle_array[_FIELD_OPP_POK] + 6) * POK_LEN
         usable = False
         for i in range(4):
             if battle_array[base + _MOVE_ID_IDXS[i]] == 0:
@@ -113,13 +116,15 @@ def valid_action_mask(battle_array):
                 and not move_blocked(
                     battle_array[base:base + POK_LEN], i, battle_array[_FIELD_GRAVITY_TURNS] > 0
                 )
+                and not imprisoned(
+                    battle_array[opp_base:opp_base + POK_LEN], battle_array[base + _MOVE_ID_IDXS[i]]
+                )
             ):
                 mask |= 1 << i
                 usable = True
         if not usable:
             mask |= 1 << 4
-        # Ingrain, a bind and the foe's trapping abilities keep it in, unless Shed Shell
-        opp_base = (battle_array[_FIELD_OPP_POK] + 6) * POK_LEN
+        # Ingrain, a bind, Mean Look and the foe's trapping abilities keep it in, unless Shed Shell
         if is_trapped(
             battle_array[base:base + POK_LEN], battle_array[opp_base:opp_base + POK_LEN],
             battle_array[_FIELD_GRAVITY_TURNS] > 0
@@ -270,6 +275,8 @@ AB_KEY_BITS = 7
 AB_KEY_SHIFT = 12
 # k3 bit right above each side's VolStatus (opp, then +32 mine): Truant loafs or Slow Start is on
 TURN_AB_KEY_BIT = 31
+# k4 per side, above the Metronome item's move and count: the slot Torment blocks + 1
+TORMENT_KEY_SHIFT = 28
 
 
 @njit
@@ -293,6 +300,18 @@ def _knows_last_resort(pok):
         if pok[idx] == _MOVENAME_LAST_RESORT:
             return True
     return False
+
+
+@njit
+def _torment_key(pok):
+    """The slot Torment keeps from being picked + 1, 0 without Torment or when the last move is in
+    no slot"""
+    if not pok[_POK_VOL_STATUS2] & _VOLSTATUS2_TORMENT:
+        return np.int64(0)
+    for slot in range(4):
+        if pok[_MOVE_ID_IDXS[slot]] == pok[_POK_LAST_MOVE_ID] and pok[_POK_LAST_MOVE_ID] != 0:
+            return np.int64(slot + 1) << TORMENT_KEY_SHIFT
+    return np.int64(0)
 
 
 @njit
@@ -337,7 +356,8 @@ def node_key(battle_array):
     depends on the history), Truant's loaf turn or an active Slow Start, the weather, Gravity, each
     side's conditions, Toxic Spikes and Spikes layers
     (not the turns left), my active slot (Roar picks it at random), the Baton Pass phase, each
-    active's Metronome item move and count (k4, opp low 32 bits, mine high), Trick Room, and per
+    active's Metronome item move and count and the slot Torment blocks (k4, opp low 32 bits, mine
+    high), Trick Room, and per
     side (k5, k6) the choice-locked slot, the Encore and Disable slots, the active's item id, types
     and lock"""
     opp_idx = battle_array[_FIELD_OPP_POK]
@@ -354,7 +374,7 @@ def node_key(battle_array):
         k1 |= np.int64(opp[_POK_AB_ID]) << AB_KEY_SHIFT
     k2 = _stages_key(opp)
     k3 = np.int64(opp[_POK_VOL_STATUS])
-    k4 = np.int64(opp[_POK_METRONOME_COUNT])
+    k4 = np.int64(opp[_POK_METRONOME_COUNT]) | _torment_key(opp)
     if _turn_ability_on(opp):
         k3 |= np.int64(1) << TURN_AB_KEY_BIT
     k1 |= np.int64(battle_array[_FIELD_WEATHER]) << 32
@@ -374,7 +394,7 @@ def node_key(battle_array):
             k1 |= np.int64(me[_POK_AB_ID]) << AB_KEY_SHIFT + AB_KEY_BITS
         k2 = (k2 << 28) | _stages_key(me)
         k3 |= np.int64(me[_POK_VOL_STATUS]) << 32
-        k4 |= np.int64(me[_POK_METRONOME_COUNT]) << 32
+        k4 |= (np.int64(me[_POK_METRONOME_COUNT]) | _torment_key(me)) << 32
         if _turn_ability_on(me):
             k3 |= np.int64(1) << TURN_AB_KEY_BIT + 32
         k1 |= (np.int64(battle_array[_FIELD_MY_SIDE_COND]) & SIDE_COND_K1_MASK) << 47

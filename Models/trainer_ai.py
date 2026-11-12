@@ -2,7 +2,7 @@
 import random
 import numpy as np
 from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
-from Engine.engine_helper import move_blocked
+from Engine.engine_helper import move_blocked, imprisoned
 from Engine.ability_helper import effective_weather, slot_move_type
 from Engine.status_calc import last_move_slot
 from Utils.jit import njit
@@ -30,7 +30,7 @@ from Models.constants import (
     _MOVENAME_COPYCAT, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_ARENA_TRAP, _ABILITYNAMES_MAGNET_PULL,
     _TYPES_STEEL, _MOVE_POWER, _MOVENAME_HIDDEN_POWER, _MOVENAME_HEALING_WISH, _POK_VOL_STATUS2,
     _MOVENAME_U_TURN,
-    _VOLSTATUS2_EMBARGO, _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER
+    _VOLSTATUS2_EMBARGO, _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _VOLSTATUS2_MEAN_LOOK
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -370,11 +370,12 @@ def choose_move(battle_array):
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
     # pokeplatinum TrainerAI_ShouldSwitch skips every withdraw check when Ingrain roots the active
-    # or a bind traps it, or my side has Shadow Tag, Arena Trap, or Magnet Pull against a Steel
-    # type. Naive on purpose: its own Shadow Tag, Flying type or Shed Shell don't free it
+    # or a bind or Mean Look traps it, or my side has Shadow Tag, Arena Trap, or Magnet Pull against
+    # a Steel type. Naive on purpose: its own Shadow Tag, Flying type or Shed Shell don't free it
     user_ab = user_pok[_POK_AB_ID]
     can_switch = not (
         ai_pok[_POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED)
+        or ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_MEAN_LOOK
         or user_ab == _ABILITYNAMES_SHADOW_TAG
         or user_ab == _ABILITYNAMES_ARENA_TRAP
         or (
@@ -468,9 +469,9 @@ def choose_move(battle_array):
         move_is_status = move_category == _MOVECATEGORY_STATUS
         is_damaging = move_id not in MOVE_EXCEP and not move_is_status
 
-        # Disable, Encore and Taunt make the move invalid, scored like a move without PP. Its
-        # damage still counts as the one to beat (pokeplatinum TrainerAI_CalcAllDamage)
-        if move[_MOVE_PP] < 1 or move_blocked(ai_pok, i, gravity):
+        # Disable, Encore, Taunt, Torment and my Imprison make the move invalid, scored like a move
+        # without PP. Its damage still counts as the one to beat (pokeplatinum TrainerAI_CalcAllDamage)
+        if move[_MOVE_PP] < 1 or move_blocked(ai_pok, i, gravity) or imprisoned(user_pok, move_id):
             if is_damaging:
                 view = ai_move_view(move, ai_pok, user_pok, eff_weather, ai_side, user_side)
                 eff, _ = trainer_ai_effectiveness(view, ai_pok, user_pok, gravity)

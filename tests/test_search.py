@@ -1549,3 +1549,79 @@ def test_rollout_future_sight_and_spit_up(make_pokemon, make_battle, move, setup
     actions = np.array([[ActionType.MOVE, 0], [ActionType.MOVE, 1]], dtype=np.int16)
     picks = {int(rollout_pref(arr, 0, actions)[1]) for _ in range(200)}
     assert (1 in picks) == picked
+
+
+# ── Restriction and trapping ─────────────────────────────────────────────────
+
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_the_tormented_slot(one_v_one, mine):
+    """Under Torment the last move's slot splits nodes (it decides what can be picked next),
+    without Torment the last move doesn't"""
+    def keys(torment):
+        out = []
+        for slot in (0, 1):
+            arr = one_v_one()
+            pok = my_active(arr) if mine else opp_active(arr)
+            pok[Pok.VOL_STATUS2] = VolStatus2.TORMENT if torment else 0
+            pok[Pok.LAST_MOVE_ID] = move_slice(pok, slot)[Move.ID]
+            out.append(node_key(arr))
+        return out
+    assert keys(False)[0] == keys(False)[1]
+    assert keys(True)[0] != keys(True)[1]
+
+
+def test_torment_key_fits_above_the_metronome_count():
+    """The Metronome item's move and count stay below TORMENT_KEY_SHIFT, slot + 1 fits below
+    each half's top bit"""
+    assert (max(_int_attrs(MoveName)) << 4 | 15) < 1 << search_models.TORMENT_KEY_SHIFT
+    assert search_models.TORMENT_KEY_SHIFT + 3 < SIDE_KEY_SHIFT
+
+
+def test_torment_on_the_only_move_means_struggle(make_pokemon, make_battle):
+    """Its single move is the last one, nothing else can be picked"""
+    arr = make_battle([make_pokemon("Rattata", 10, "Run Away", ["Tackle"])],
+                      [make_pokemon("Murkrow", 10, "Insomnia", ["Torment"])])
+    me = my_active(arr)
+    me[Pok.VOL_STATUS2] = VolStatus2.TORMENT
+    me[Pok.LAST_MOVE_ID] = MoveName.TACKLE
+    assert mask_actions(arr) == [(MOVE, 10)] == legal_actions(arr)
+
+
+def test_the_foes_imprison_seals_my_shared_moves(make_pokemon, make_battle):
+    """Only the moves the Imprisoner doesn't know stay"""
+    arr = make_battle([make_pokemon("Rattata", 10, "Run Away", ["Tackle", "Growl", "Bite"])],
+                      [make_pokemon("Murkrow", 10, "Insomnia", ["Imprison", "Bite"])])
+    opp_active(arr)[Pok.VOL_STATUS2] = VolStatus2.IMPRISON
+    assert mask_actions(arr) == [(MOVE, 0), (MOVE, 1)] == legal_actions(arr)
+
+
+def test_mean_look_blocks_switching(make_pokemon, make_battle):
+    """Mean Look traps like a bind, a Shed Shell holder still switches"""
+    team = [make_pokemon(n, 10, "Run Away", ["Tackle"]) for n in ("Rattata", "Pidgey")]
+    arr = make_battle(team, [make_pokemon("Gastly", 10, "Levitate", ["Mean Look"])])
+    my_active(arr)[Pok.VOL_STATUS2] = VolStatus2.MEAN_LOOK
+    assert mask_actions(arr) == [(MOVE, 0)] == legal_actions(arr)
+    held = make_battle([make_pokemon("Rattata", 10, "Run Away", ["Tackle"], item="Shed Shell"),
+                        make_pokemon("Pidgey", 10, "Keen Eye", ["Tackle"])],
+                       [make_pokemon("Gastly", 10, "Levitate", ["Mean Look"])])
+    my_active(held)[Pok.VOL_STATUS2] = VolStatus2.MEAN_LOOK
+    assert mask_actions(held) == [(MOVE, 0), (SWITCH, 1)] == legal_actions(held)
+
+
+def test_rollout_skips_the_restricting_moves_that_fail(poke):
+    """status_move_blocked: Torment or Mean Look on a foe already under it, an Imprison with no
+    shared move or already up, a Spite with no last move"""
+    me = poke("Murkrow", 20, "Insomnia", ["Torment", "Mean Look", "Imprison", "Spite"])
+    foe = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert [status_move_blocked(move_slice(me, i), me, foe, 0) for i in range(4)] == [
+        False, False, True, True
+    ]
+    # Now it knows one of my moves (Spite) and used it last
+    foe[Pok.VOL_STATUS2] = VolStatus2.TORMENT | VolStatus2.MEAN_LOOK
+    move_slice(foe, 0)[Move.ID] = MoveName.SPITE
+    foe[Pok.LAST_MOVE_ID] = MoveName.SPITE
+    assert [status_move_blocked(move_slice(me, i), me, foe, 0) for i in range(4)] == [
+        True, True, False, False
+    ]
+    me[Pok.VOL_STATUS2] = VolStatus2.IMPRISON
+    assert status_move_blocked(move_slice(me, 2), me, foe, 0)

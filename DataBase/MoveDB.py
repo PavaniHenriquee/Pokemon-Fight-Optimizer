@@ -41,7 +41,8 @@ class MoveName:
     BLAST_BURN      = BITE + 1
     BLAZE_KICK      = BLAST_BURN + 1
     BLIZZARD        = BLAZE_KICK + 1
-    BODY_SLAM       = BLIZZARD + 1
+    BLOCK           = BLIZZARD + 1
+    BODY_SLAM       = BLOCK + 1
     BONE_CLUB       = BODY_SLAM + 1
     BONE_RUSH       = BONE_CLUB + 1
     BONEMERANG      = BONE_RUSH + 1
@@ -204,7 +205,8 @@ class MoveName:
     ICICLE_CRASH    = ICE_SHARD + 1
     ICICLE_SPEAR    = ICICLE_CRASH + 1
     ICY_WIND        = ICICLE_SPEAR + 1
-    INGRAIN         = ICY_WIND + 1
+    IMPRISON        = ICY_WIND + 1
+    INGRAIN         = IMPRISON + 1
     IRON_DEFENSE    = INGRAIN + 1
     IRON_HEAD       = IRON_DEFENSE + 1
     IRON_TAIL       = IRON_HEAD + 1
@@ -231,7 +233,8 @@ class MoveName:
     MAGNET_BOMB     = MAGMA_STORM + 1
     MAGNET_RISE     = MAGNET_BOMB + 1
     MAGNITUDE       = MAGNET_RISE + 1
-    MEDITATE        = MAGNITUDE + 1
+    MEAN_LOOK       = MAGNITUDE + 1
+    MEDITATE        = MEAN_LOOK + 1
     MEGA_DRAIN      = MEDITATE + 1
     MEGA_KICK       = MEGA_DRAIN + 1
     MEGA_PUNCH      = MEGA_KICK + 1
@@ -370,10 +373,12 @@ class MoveName:
     SONIC_BOOM      = SOLAR_BEAM + 1
     SPACIAL_REND    = SONIC_BOOM + 1
     SPARK           = SPACIAL_REND + 1
-    SPIKE_CANNON    = SPARK + 1
+    SPIDER_WEB      = SPARK + 1
+    SPIKE_CANNON    = SPIDER_WEB + 1
     SPIKES          = SPIKE_CANNON + 1
     SPIT_UP         = SPIKES + 1
-    SPLASH          = SPIT_UP + 1
+    SPITE           = SPIT_UP + 1
+    SPLASH          = SPITE + 1
     SPORE           = SPLASH + 1
     STEALTH_ROCK    = SPORE + 1
     STEEL_WING      = STEALTH_ROCK + 1
@@ -416,7 +421,8 @@ class MoveName:
     THUNDER_WAVE    = THUNDER_SHOCK + 1
     THUNDERBOLT     = THUNDER_WAVE + 1
     TICKLE          = THUNDERBOLT + 1
-    TOXIC           = TICKLE + 1
+    TORMENT         = TICKLE + 1
+    TOXIC           = TORMENT + 1
     TOXIC_SPIKES    = TOXIC + 1
     TRICK           = TOXIC_SPIKES + 1
     TRICK_ROOM      = TRICK + 1

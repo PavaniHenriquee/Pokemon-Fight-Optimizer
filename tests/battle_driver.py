@@ -7,7 +7,7 @@ import random
 import numpy as np
 from Models.pokemon import Pokemon
 from Models.idx_const import POK_LEN, Pok, Move, MOVE_STRIDE, Field, Item, Flags
-from Models.helper import ActionType, BattlePhase, VolStatus, MoveCategory, Types, HoldEffect
+from Models.helper import ActionType, BattlePhase, VolStatus, VolStatus2, MoveCategory, Types, HoldEffect
 from DataBase.AbilitiesDB import AbilityNames
 from Models.constants import _POTIONS_POTION, _POTIONS_SUPER_POTION, _POTIONS_FULL_HEAL
 from Models.trainer_ai import return_idx
@@ -53,11 +53,17 @@ def is_over(arr):
 _CHOICE_ITEMS = (HoldEffect.CHOICE_ATK, HoldEffect.CHOICE_SPATK, HoldEffect.CHOICE_SPEED)
 
 
-def _blocked(active, i, mv, gravity=False):
+def _blocked(active, i, mv, gravity=False, foe=None):
     """Disable, Encore and Taunt (the slot is packed as turns * 4 + slot), a choice item's
-    lock (slot + 1) and Gravity for the moves it grounds"""
+    lock (slot + 1), Gravity for the moves it grounds, Torment for the last move and the foe's
+    Imprison for the moves it knows"""
     if gravity and mv[Flags.GRAVITY]:
         return True
+    if active[Pok.VOL_STATUS2] & VolStatus2.TORMENT and mv[Move.ID] == active[Pok.LAST_MOVE_ID]:
+        return True
+    if foe is not None and foe[Pok.VOL_STATUS2] & VolStatus2.IMPRISON:
+        if any(move_slice(foe, j)[Move.ID] == mv[Move.ID] for j in range(4)):
+            return True
     lock = active[Pok.CHOICE_LOCK]
     if lock and i != lock - 1 and active[Item.HOLD_EFFECT] in _CHOICE_ITEMS:
         return True
@@ -70,11 +76,13 @@ def _blocked(active, i, mv, gravity=False):
 
 
 def _trapped(arr, active):
-    """Shed Shell frees, bind and Ingrain trap, then the living foe's Shadow Tag, Magnet Pull
-    (Steel) and Arena Trap (not Flying or Levitate, unless Gravity or Iron Ball)"""
+    """Shed Shell frees, bind, Mean Look and Ingrain trap, then the living foe's Shadow Tag, Magnet
+    Pull (Steel) and Arena Trap (not Flying or Levitate, unless Gravity or Iron Ball)"""
     if active[Item.HOLD_EFFECT] == HoldEffect.SWITCH:
         return False
     if active[Pok.VOL_STATUS] & (VolStatus.INGRAIN | VolStatus.PARTIALLY_TRAPPED):
+        return True
+    if active[Pok.VOL_STATUS2] & VolStatus2.MEAN_LOOK:
         return True
     foe = opp_active(arr)
     if foe[Pok.CURRENT_HP] <= 0:
@@ -103,7 +111,9 @@ def legal_actions(arr):
         mv = move_slice(active, i)
         if mv[Move.ID] == 0:
             break
-        if mv[Move.PP] > 0 and not _blocked(active, i, mv, arr[Field.GRAVITY_TURNS] > 0):
+        if mv[Move.PP] > 0 and not _blocked(
+            active, i, mv, arr[Field.GRAVITY_TURNS] > 0, opp_active(arr)
+        ):
             moves.append((ActionType.MOVE, i))
     if not moves:
         moves = [(ActionType.MOVE, 10)]

@@ -13,7 +13,7 @@ from Models.idx_const import (
 from Models.helper import (
     ActionType, BattlePhase, Status, Potions, MoveOutcome, VolStatus, VolStatus2, Types, SideCondition,
     Weather,
-    Enemy_AI_Knows,
+    Enemy_AI_Knows, HoldEffect,
 )
 from Models.idx_const import Item
 from DataBase.ItemDB import ItemNames
@@ -6348,3 +6348,211 @@ def test_ai_u_turn_after_my_baton_pass(make_pokemon, make_battle):
     turn_sim(0, (MOVE, 0), arr)
     assert battle.baton_pass_action(arr, 1) == BattlePhase.TURN_START
     assert arr[Field.MY_POK] == 1 and arr[Field.OPP_POK] == 1
+
+
+# ── Restriction and trapping ─────────────────────────────────────────────────
+
+def _restrict_battle(make_pokemon, make_battle, my_moves, foe_moves, foe_ability="Run Away",
+                     my_bench=False, foe_bench=False, fast=True):
+    """My Murkrow against a Rattata, both bulky, mine faster unless fast is False"""
+    mine = [make_pokemon("Murkrow", 30, "Insomnia", list(my_moves))]
+    if my_bench:
+        mine.append(make_pokemon("Geodude", 30, "Sturdy", ["Tackle"]))
+    opp = [make_pokemon("Rattata", 30, foe_ability, list(foe_moves))]
+    if foe_bench:
+        opp.append(make_pokemon("Machop", 30, "Guts", ["Tackle"]))
+    arr = make_battle(mine, opp)
+    my_active(arr)[Pok.SPEED] = 200 if fast else 10
+    opp_active(arr)[Pok.SPEED] = 10 if fast else 200
+    for p in (my_active(arr), opp_active(arr)):
+        p[Pok.MAX_HP] = p[Pok.CURRENT_HP] = 500
+    return arr
+
+
+def test_torment_blocks_the_last_move(make_pokemon, make_battle):
+    """Only the slot of the move used last can't be picked, and it follows the last move
+    (pokeplatinum BattleSystem_CheckInvalidMoves, CHECK_INVALID_TORMENTED)"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Torment", "Splash"], ["Tackle", "Growl"])
+    foe = opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS2] & VolStatus2.TORMENT
+    assert engine_helper.move_blocked(foe, 0) and not engine_helper.move_blocked(foe, 1)
+    turn_sim(1, (MOVE, 1), arr)
+    assert not engine_helper.move_blocked(foe, 0) and engine_helper.move_blocked(foe, 1)
+
+
+def test_torment_blocks_nothing_after_a_disrupted_turn(poke):
+    """A turn the move didn't run leaves no last move (pokeplatinum movePrevByBattler)"""
+    p = poke("Rattata", 30, "Run Away", ["Tackle", "Growl"])
+    p[Pok.VOL_STATUS2] = VolStatus2.TORMENT
+    assert not any(engine_helper.move_blocked(p, i) for i in range(2))
+
+
+def test_torment_fails_while_up_and_goes_through_a_substitute(make_pokemon, make_battle):
+    """subscript_torment_start has no Substitute check, only the target already under it"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Torment"], ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS2] = VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 50
+    assert not engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS2] & VolStatus2.TORMENT and foe[Pok.SUB_HP] == 50
+    assert engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+
+
+def test_baton_pass_drops_torment_and_imprison(make_pokemon, make_battle):
+    """Neither is in VOLATILE_CONDITION_BATON_PASSED or MOVE_EFFECT_BATON_PASSED"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Splash"], ["Splash"], my_bench=True)
+    me = my_active(arr)
+    me[Pok.VOL_STATUS2] = VolStatus2.TORMENT | VolStatus2.IMPRISON
+    new = pok_slice(arr, 1)
+    battle._pass_baton(me, new)
+    assert not new[Pok.VOL_STATUS2] & (VolStatus2.TORMENT | VolStatus2.IMPRISON)
+
+
+def test_imprison_seals_a_move_picked_before_it(make_pokemon, make_battle):
+    """My faster Imprison stops the foe's Tackle that turn, which costs no PP (pokeplatinum
+    CHECK_STATUS_STATE_IMPRISON runs before DECREMENT_PP), and from then on only the move I don't
+    know can be picked"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Imprison", "Tackle"], ["Tackle", "Growl"])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = _pp(foe, 0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.IMPRISON
+    assert me[Pok.CURRENT_HP] == 500 and _pp(foe, 0) == pp and foe[Pok.LAST_MOVE_ID] == 0
+    assert engine_helper.imprisoned(me, MoveName.TACKLE)
+    assert not engine_helper.imprisoned(me, MoveName.GROWL)
+
+
+@pytest.mark.parametrize("foe_moves, up", [(["Growl"], False), (["Tackle"], True)])
+def test_imprison_fails(make_pokemon, make_battle, foe_moves, up):
+    """With no move in common, or while already up (pokeplatinum BtlCmd_TryImprison)"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Imprison", "Tackle"], foe_moves)
+    me, foe = my_active(arr), opp_active(arr)
+    if up:
+        me[Pok.VOL_STATUS2] = VolStatus2.IMPRISON
+    assert engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+
+
+def test_imprison_pays_pressure(make_pokemon, make_battle):
+    """One PP more against a Pressure foe, though it aims at the user (DecrementPP)"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Imprison", "Tackle"], ["Tackle"],
+                           foe_ability="Pressure")
+    pp = _pp(my_active(arr), 0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert _pp(my_active(arr), 0) == pp - 2
+
+
+def test_imprison_ends_when_the_user_leaves(make_pokemon, make_battle):
+    """The seal is the user's own flag, a switch-out clears it"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Imprison", "Tackle"], ["Tackle"],
+                           my_bench=True)
+    me = my_active(arr)
+    me[Pok.VOL_STATUS2] = VolStatus2.IMPRISON
+    turn_sim(0, (SWITCH, 1), arr)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.IMPRISON
+
+
+def test_sleep_talk_skips_sealed_and_tormented_moves(poke):
+    """TrySleepTalk runs CheckInvalidMoves without the PP check, so Imprison and Torment count"""
+    p = poke("Rattata", 30, "Run Away", ["Sleep Talk", "Tackle", "Growl", "Bite"])
+    foe = poke("Murkrow", 30, "Insomnia", ["Imprison", "Tackle"])
+    p[Pok.STATUS] = Status.SLEEP
+    p[Pok.SLEEP_COUNTER] = 3
+    foe[Pok.VOL_STATUS2] = VolStatus2.IMPRISON
+    p[Pok.VOL_STATUS2] = VolStatus2.TORMENT
+    p[Pok.LAST_MOVE_ID] = MoveName.GROWL
+    random.seed(0)
+    assert {engine_helper.sleep_talk_move(p, foe, False) for _ in range(30)} == {MoveName.BITE}
+
+
+@pytest.mark.parametrize("pp, left", [(20, 16), (3, 0)])
+def test_spite_takes_four_pp_from_the_last_move(make_pokemon, make_battle, pp, left):
+    """4 PP, or what's left, from the move the foe used before my slower Spite (BtlCmd_TrySpite).
+    Tackle pays its own 1 first"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Spite"], ["Tackle", "Growl"], fast=False)
+    foe = opp_active(arr)
+    move_slice(foe, 0)[Move.PP] = pp + 1
+    growl = _pp(foe, 1)
+    turn_sim(0, (MOVE, 0), arr)
+    assert _pp(foe, 0) == left and _pp(foe, 1) == growl
+
+
+def test_spite_fails(poke):
+    """No last move, a last move it doesn't know or one with no PP left"""
+    me = poke("Murkrow", 30, "Insomnia", ["Spite"])
+    foe = poke("Rattata", 30, "Run Away", ["Tackle"])
+    spite = move_slice(me, 0)
+    assert engine_helper.status_move_fails(spite, me, foe)
+    foe[Pok.LAST_MOVE_ID] = MoveName.GROWL
+    assert engine_helper.status_move_fails(spite, me, foe)
+    foe[Pok.LAST_MOVE_ID] = MoveName.TACKLE
+    assert not engine_helper.status_move_fails(spite, me, foe)
+    move_slice(foe, 0)[Move.PP] = 0
+    assert engine_helper.status_move_fails(spite, me, foe)
+
+
+@pytest.mark.parametrize("move", ["Mean Look", "Block", "Spider Web"])
+def test_mean_look_traps(make_pokemon, make_battle, move):
+    """The target can't switch, a Shed Shell holder still can (Battler_IsTrapped)"""
+    arr = _restrict_battle(make_pokemon, make_battle, [move], ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS2] & VolStatus2.MEAN_LOOK and engine_helper.is_trapped(foe, me)
+    foe[Item.HOLD_EFFECT] = HoldEffect.SWITCH
+    assert not engine_helper.is_trapped(foe, me)
+
+
+@pytest.mark.parametrize("case", ["trapped", "substitute"])
+def test_mean_look_fails(make_pokemon, make_battle, case):
+    """On a target already trapped by it, or behind a Substitute (subscript_mean_look)"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Mean Look"], ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    if case == "trapped":
+        foe[Pok.VOL_STATUS2] = VolStatus2.MEAN_LOOK
+        assert engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+    else:
+        foe[Pok.VOL_STATUS2] = VolStatus2.SUBSTITUTE
+        foe[Pok.SUB_HP] = 50
+        turn_sim(0, (MOVE, 0), arr)
+        assert not foe[Pok.VOL_STATUS2] & VolStatus2.MEAN_LOOK
+
+
+@pytest.mark.parametrize("baton, freed", [(False, True), (True, False)])
+def test_the_trapper_leaving_frees_the_target(make_pokemon, make_battle, baton, freed):
+    """A switch-out frees the one it trapped, a Baton Pass doesn't (UpdateAfterSwitch)"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Mean Look"], ["Splash"], my_bench=True)
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS2] = VolStatus2.MEAN_LOOK
+    battle._switch_my_side(arr, me, foe, 1, baton)
+    assert (not foe[Pok.VOL_STATUS2] & VolStatus2.MEAN_LOOK) == freed
+
+
+def test_the_ai_trapper_leaving_frees_me(make_pokemon, make_battle):
+    """The same on the AI's side"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Splash"], ["Mean Look"], foe_bench=True)
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.VOL_STATUS2] = VolStatus2.MEAN_LOOK
+    battle._switch_opp_side(arr, foe, me, 1)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.MEAN_LOOK
+
+
+def test_baton_pass_keeps_the_trapped_one_trapped(make_pokemon, make_battle):
+    """VOLATILE_CONDITION_BATON_PASSED has Mean Look"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Splash"], ["Splash"], my_bench=True)
+    me = my_active(arr)
+    me[Pok.VOL_STATUS2] = VolStatus2.MEAN_LOOK
+    new = pok_slice(arr, 1)
+    battle._pass_baton(me, new)
+    assert new[Pok.VOL_STATUS2] & VolStatus2.MEAN_LOOK
+
+
+def test_a_move_spite_emptied_fails(make_pokemon, make_battle):
+    """The foe picked Tackle with 1 PP, my faster Spite took it: no PP left for the move, nothing
+    is paid and no last move stays (pokeplatinum DecrementPP, MOVE_STATUS_NO_PP)"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Spite"], ["Tackle", "Growl"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.LAST_MOVE_ID] = MoveName.TACKLE
+    move_slice(foe, 0)[Move.PP] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    assert _pp(foe, 0) == 0 and foe[Pok.LAST_MOVE_ID] == 0 and me[Pok.CURRENT_HP] == 500

@@ -23,7 +23,8 @@ Updated only when asked.
 - Done: 9.3 (hazards and grounding), and with it Phase 9, 2026-11-11.
 - Done: 10.1 (delayed effects) and 10.2 (sacrifice), 2026-11-12.
 - Done: 10.3 (self-switch), and with it Phase 10, 2026-11-12.
-- Next: 11.1 (restriction and trapping).
+- Done: 11.1 (restriction and trapping), 2026-11-12.
+- Next: 11.2 (accuracy locks and protection).
 
 ## Goal
 
@@ -667,12 +668,12 @@ Fixed damage:
 
 ### 11.1 Restriction and trapping
 
-- [ ] Torment(B)
-- [ ] Imprison(B/E)
-- [ ] Spite \* !
-- [ ] Mean Look(B)
-- [ ] Block
-- [ ] Spider Web \*
+- [x] Torment(B)
+- [x] Imprison(B/E)
+- [x] Spite \* !
+- [x] Mean Look(B)
+- [x] Block
+- [x] Spider Web \*
 
 ### 11.2 Accuracy locks and protection
 

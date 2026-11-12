@@ -5,7 +5,7 @@ import { getJSON, postJSON } from "@/lib/api";
 import { pokIcon } from "@/lib/sprites";
 import { TIER_TEXT, displayName, hpTier } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { PathClick, PokemonEntry, NodeInfoData } from "../types";
+import type { PathClick, PokemonEntry, NodeInfoData, SpitePpRow } from "../types";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +60,27 @@ function HpRow({
   );
 }
 
+function PpRow({ name, pp, maxPp, onChange }: { name: string; pp: number; maxPp: number; onChange: (pp: number) => void }) {
+  const clamp = (v: number) => Math.max(0, Math.min(maxPp, v));
+  return (
+    <div className="flex items-center gap-3 py-0.5 pl-13">
+      <span className="flex-1 truncate text-sm">{name}</span>
+      <div className="flex shrink-0 items-center gap-1">
+        <input
+          type="number"
+          min={0}
+          max={maxPp}
+          value={pp}
+          onChange={(e) => onChange(clamp(parseInt(e.target.value) || 0))}
+          className="num h-7 w-14 rounded-md border border-input bg-input/30 text-center text-sm font-semibold outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          aria-label={`${name} PP`}
+        />
+        <span className="num w-10 text-xs text-subtle-foreground">/ {maxPp}</span>
+      </div>
+    </div>
+  );
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="mt-3 mb-1 text-[11px] font-medium tracking-wider text-subtle-foreground uppercase">
@@ -81,6 +102,11 @@ export default function ContinueModal({ nodeId, path, onClose, onStarted, defaul
   const [myActiveHp, setMyActiveHp] = useState(0);
   const [oppActiveHp, setOppActiveHp] = useState(0);
   const [benchHps, setBenchHps] = useState<Record<number, number>>({});
+  // A Spite of mine on the way: the foe's PP the path can't tell, "foe slot:move slot" -> PP
+  const [spiteRows, setSpiteRows] = useState<SpitePpRow[]>([]);
+  const [oppPp, setOppPp] = useState<Record<string, number>>({});
+  // The path when the modal opened, the parent rebuilds the array on every render
+  const [openPath] = useState(path);
   const [iterations, setIterations] = useState(defaultIterations);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -102,7 +128,16 @@ export default function ContinueModal({ nodeId, path, onClose, onStarted, defaul
         setFailed(true);
         setLoading(false);
       });
-  }, [nodeId]);
+    postJSON<{ rows?: SpitePpRow[] }>("/spite_pp", { node_id: nodeId, path: openPath })
+      .then((res) => {
+        const rows = res.rows ?? [];
+        setSpiteRows(rows);
+        const pp: Record<string, number> = {};
+        for (const row of rows) for (const m of row.moves) pp[`${row.slot}:${m.move_slot}`] = m.pp;
+        setOppPp(pp);
+      })
+      .catch(() => setSpiteRows([]));
+  }, [nodeId, openPath]);
 
   function handleStart() {
     setStarting(true);
@@ -113,6 +148,7 @@ export default function ContinueModal({ nodeId, path, onClose, onStarted, defaul
       opp_active_hp: oppActiveHp,
       bench_hps: benchHps,
       path,
+      opp_pp: oppPp,
     })
       .then(() => {
         onStarted(iterations);
@@ -148,6 +184,35 @@ export default function ContinueModal({ nodeId, path, onClose, onStarted, defaul
           <div className="-mt-2">
             <SectionLabel>Opponent</SectionLabel>
             <HpRow entry={nodeInfo.opp_active} hp={oppActiveHp} onChange={setOppActiveHp} />
+
+            {spiteRows.length > 0 && (
+              <>
+                <SectionLabel>Foe PP after your Spite</SectionLabel>
+                <p className="mb-1 text-xs text-muted-foreground">
+                  A guess: set what the game shows once you know it.
+                </p>
+                {spiteRows.map((row) => (
+                  <div key={row.slot}>
+                    <div className="flex items-center gap-3 py-0.5">
+                      <Sprite srcs={pokIcon(row.pok_id)} alt={row.name} width={40} height={30} className="shrink-0 object-contain" />
+                      <span className="truncate text-sm font-medium">{displayName(row.name)}</span>
+                    </div>
+                    {row.moves.map((m) => {
+                      const key = `${row.slot}:${m.move_slot}`;
+                      return (
+                        <PpRow
+                          key={key}
+                          name={m.name}
+                          pp={oppPp[key] ?? m.pp}
+                          maxPp={m.max_pp}
+                          onChange={(pp) => setOppPp((prev) => ({ ...prev, [key]: pp }))}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </>
+            )}
 
             <SectionLabel>Your Pokémon</SectionLabel>
             {nodeInfo.my_active ? (

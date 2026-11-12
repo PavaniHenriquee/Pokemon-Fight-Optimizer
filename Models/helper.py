@@ -95,6 +95,9 @@ class VolStatus2:
     MAGNET_RISE       = 512
     GRUDGE            = 1024
     U_TURN            = 2048
+    TORMENT           = 4096
+    IMPRISON          = 8192
+    MEAN_LOOK         = 16384
 
 
 @dataclass(slots=True)

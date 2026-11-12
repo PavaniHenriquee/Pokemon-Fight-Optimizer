@@ -19,15 +19,18 @@ from pydantic import BaseModel, Field
 import numpy as np
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from Models.idx_const import Pok, POK_LEN
+from Models.idx_const import Pok, POK_LEN, Move, MOVE_STRIDE
 from Models.constants import (
     _FIELD_TURN,
     _FIELD_AI_ITEM1, _FIELD_AI_ITEM2, _FIELD_AI_ITEM3, _FIELD_AI_ITEM4, _FIELD_TERRAIN,
 )
-from Models.helper import Terrain
+from Models.helper import Terrain, ActionType
 from Models.pokemon import Pokemon
-from Engine.engine_helper import start_of_battle
-from SearchEngine.models import GameState, Node, reconstruct_battle_array, real_position
+from Engine.engine_helper import start_of_battle, SPITE_PP
+from SearchEngine.models import (
+    GameState, Node, reconstruct_battle_array, real_position, foe_pp_along_path, opp_turns,
+    OPP_SWITCHED,
+)
 from SearchEngine.my_mcts import _select_expand, _rollout, _backprop, find_best_terminal_node
 from SearchEngine.helper import prune_dominated
 from Utils.jit import njit
@@ -35,8 +38,11 @@ from Utils.helper import to_battle_array
 from Utils.loader import natures
 from DataBase.loader import pkDB, moveDB, abDB, itemDB
 from DataBase.PkDB import PokemonName, PokIdToName, sprite_id
+from DataBase.MoveDB import MoveName
 from DataBase.support import TRAINER_ITEMS, trainer_lacks
-from .serializer import serialize_node, opp_move_label, battle_sprite   # relative import within the backend package
+from .serializer import (   # relative import within the backend package
+    serialize_node, opp_move_label, battle_sprite, _extract_moves,
+)
 
 # Put project root on path so Models/Engine/etc. are importable
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -251,6 +257,71 @@ class ContinueConfig(BaseModel):
     opp_active_hp: int
     bench_hps:     dict[int, int]          # slot_index → hp
     path:          list[PathStep] = Field(default_factory=list)  # root → node, what the foe really did
+    opp_pp:        dict[str, int] = Field(default_factory=dict)  # "foe party slot:move slot" → PP
+
+
+class SpitePpQuery(BaseModel):
+    """The node Continue starts from and the clicks on the way, for the moves a Spite may have cut"""
+    node_id: str
+    path:    list[PathStep] = Field(default_factory=list)
+
+
+def _spite_steps(path: list[tuple]) -> list[tuple[int, int]]:
+    """
+    (foe party slot, the slot Spite most likely hit or -1) for each step of the path where I used
+    Spite. The likely one is the move the foe used that turn, else its last move before it. A foe
+    that switched first leaves the one it sent, the node's
+    """
+    steps = []
+    for parent, action, node, did in path:
+        snap = parent.snapshot
+        if int(action[0]) != ActionType.MOVE or int(action[1]) >= 4 or snap.my_active < 0:
+            continue
+        move_id = int(snap.my_slice[Pok.MOVE1_ID + int(action[1]) * MOVE_STRIDE + Move.ID])
+        if move_id != MoveName.SPITE:
+            continue
+        turns = opp_turns(did or 0)
+        foe, what = (turns[0][0], turns[0][1]) if turns else (snap.opp_active, 0)
+        if what == OPP_SWITCHED:
+            foe = node.snapshot.opp_active
+        guess = what - 1 if 1 <= what <= 4 else -1
+        if guess < 0 and foe == snap.opp_active:
+            last = int(snap.opp_slice[Pok.LAST_MOVE_ID])
+            for m in range(4):
+                if last and int(snap.opp_slice[Pok.MOVE1_ID + m * MOVE_STRIDE + Move.ID]) == last:
+                    guess = m
+        steps.append((foe, guess))
+    return steps
+
+
+def spite_rows(initial: np.ndarray, path: list[tuple]) -> list[dict]:
+    """
+    The foe's moves a Spite of mine along the path may have cut, for Continue to ask about. Per
+    Pokemon hit, its moves with the PP the path's arithmetic gives, minus Spite's 4 on the move it
+    most likely hit. Empty when I never used Spite
+    """
+    steps = _spite_steps(path)
+    if not steps:
+        return []
+    pp = initial.copy()
+    foe_pp_along_path(pp, initial, [step[3] for step in path])
+    for foe, guess in steps:
+        if guess >= 0:
+            idx = (foe + 6) * POK_LEN + Pok.MOVE1_ID + guess * MOVE_STRIDE + Move.PP
+            pp[idx] -= min(SPITE_PP, int(pp[idx]))
+    rows = []
+    for foe in dict.fromkeys(foe for foe, _ in steps):
+        pok = pp[(foe + 6) * POK_LEN:(foe + 7) * POK_LEN]
+        rows.append({
+            "slot":   foe,
+            "pok_id": sprite_id(int(pok[Pok.ID])),
+            "name":   PokIdToName.get(int(pok[Pok.ID]), "?").capitalize(),
+            "moves":  [
+                {"move_slot": m, "name": mv["name"], "pp": mv["pp"], "max_pp": mv["max_pp"]}
+                for m, mv in enumerate(_extract_moves(pok))
+            ],
+        })
+    return rows
 
 
 @app.get("/pokemon-data")
@@ -588,6 +659,18 @@ async def node_info(node_id: str) -> dict:
     return {"my_active": my_active, "opp_active": opp_active, "my_bench": my_bench}
 
 
+@app.post("/spite_pp")
+async def spite_pp(query: SpitePpQuery) -> dict:
+    """The foe's moves whose PP Continue can't know because I used Spite on the way to the node"""
+    sess = _session
+    if sess is None:
+        return {"error": "no active battle"}
+    path = _clicked_path(sess.root, query.path, sess.battle_array)
+    if not path or str(id(path[-1][2])) != query.node_id:
+        return {"rows": []}
+    return {"rows": spite_rows(sess.battle_array, path)}
+
+
 @app.post("/continue_from_node")
 async def continue_from_node(config: ContinueConfig) -> dict:
     """Continue from node"""
@@ -612,6 +695,10 @@ async def continue_from_node(config: ContinueConfig) -> dict:
     battle[(snap.opp_active + 6) * POK_LEN + Pok.CURRENT_HP] = config.opp_active_hp
     for slot, hp in config.bench_hps.items():
         battle[int(slot) * POK_LEN + Pok.CURRENT_HP] = hp
+    # What I set for the moves a Spite of mine may have cut, the arithmetic can't know it
+    for key, pp in config.opp_pp.items():
+        foe, move_slot = (int(x) for x in key.split(":"))
+        battle[(foe + 6) * POK_LEN + Pok.MOVE1_ID + move_slot * MOVE_STRIDE + Move.PP] = pp
 
     await _launch(GameState(battle), battle, config.iterations)
     return {"status": "started"}

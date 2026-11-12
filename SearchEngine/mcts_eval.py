@@ -14,7 +14,8 @@ from Models.constants import (
     _MOVE_SIDE_CONDITION, _MOVE_TARGET, _SIDECONDITION_TOXIC_SPIKES, _FIELD_GRAVITY_TURNS,
     _MOVENAME_GRAVITY, _MOVE_OH_KO, _TYPES_GROUND, _MOVE_STATUS, _MOVE_VOL_STATUS,
     _MOVE_BOOST_ACC, _POK_ACCURACY_STAT_STAGE, _MOVENAME_SUBSTITUTE, _MOVENAME_EMBARGO,
-    _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _ITEM_ID, _SEC_TARGET,
+    _MOVENAME_TRICK, _MOVENAME_SWITCHEROO, _ITEM_ID, _SEC_TARGET, _MOVENAME_TORMENT,
+    _MOVENAME_IMPRISON, _MOVENAME_SPITE, _POK_VOL_STATUS2, _VOLSTATUS2_TORMENT, _VOLSTATUS2_MEAN_LOOK,
     _MOVENAME_SNORE, _MOVENAME_SLEEP_TALK, _MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE,
     _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _POK_STATUS, _STATUS_SLEEP, _POK_VOL_STATUS,
     _VOLSTATUS_NIGHTMARE, _POK_AB_ID, _MOVENAME_HEAL_BLOCK, _SIDECONDITION_SPIKES,
@@ -29,7 +30,8 @@ from SearchEngine.models import valid_actions_array, is_terminal_arr, step_arr
 from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import (
     calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails,
-    has_substitute, heal_blocked, magnet_rise_fails, stockpile_count, spit_up_move, STOCKPILE_MAX
+    has_substitute, heal_blocked, magnet_rise_fails, stockpile_count, spit_up_move, STOCKPILE_MAX,
+    imprison_fails, spite_slot, TRAP_MOVES,
 )
 from Engine.ability_helper import (
     levitates, effective_weather, normalized_type, grounded_by_item, weather_ball_move, magnet_risen
@@ -153,7 +155,8 @@ def status_move_blocked(move, me, foe, weather):
     ability_blocks_status keeps off, or every stat drop it causes is one stat_drop_blocked stops.
     Also one the foe's Substitute stops, and my Substitute when it would fail. Embargo on a foe
     already under it, Heal Block on a foe already under it, Trick and Switcheroo with no item on
-    either side, a Magnet Rise that would fail"""
+    either side, a Magnet Rise that would fail, Torment, Mean Look, Block or Spider Web on a foe
+    already under it, an Imprison or Spite that would fail"""
     if move[_MOVE_ID] == _MOVENAME_SUBSTITUTE:
         return substitute_fails(me)
     if sub_blocks_move(move, me, foe):
@@ -170,6 +173,14 @@ def status_move_blocked(move, me, foe, weather):
         return stockpile_count(me) >= STOCKPILE_MAX
     if move[_MOVE_ID] == _MOVENAME_SWALLOW:
         return stockpile_count(me) == 0
+    if move[_MOVE_ID] == _MOVENAME_TORMENT:
+        return foe[_POK_VOL_STATUS2] & _VOLSTATUS2_TORMENT != 0
+    if move[_MOVE_ID] in TRAP_MOVES:
+        return foe[_POK_VOL_STATUS2] & _VOLSTATUS2_MEAN_LOOK != 0
+    if move[_MOVE_ID] == _MOVENAME_IMPRISON:
+        return imprison_fails(me, foe)
+    if move[_MOVE_ID] == _MOVENAME_SPITE:
+        return spite_slot(foe) < 0
     if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
         return False
     status = move[_MOVE_STATUS]

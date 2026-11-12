@@ -528,6 +528,20 @@
     "target": "all_adjacent_foes",
     "type": "Ice"
   },
+  "Block": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "block",
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Body Slam": {
     "accuracy": 100,
     "category": "Physical",
@@ -3189,6 +3203,18 @@
     "target": "all_adjacent_foes",
     "type": "Ice"
   },
+  "Imprison": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true
+    },
+    "name": "imprison",
+    "pp": 10,
+    "target": "self",
+    "type": "Psychic"
+  },
   "Ingrain": {
     "accuracy": true,
     "category": "Status",
@@ -3606,6 +3632,20 @@
     "pp": 30,
     "target": "all_adjacent",
     "type": "Ground"
+  },
+  "Mean Look": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "mean_look",
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
   },
   "Meditate": {
     "accuracy": true,
@@ -5830,6 +5870,20 @@
     "target": "normal",
     "type": "Electric"
   },
+  "Spider Web": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "spider_web",
+    "pp": 10,
+    "target": "normal",
+    "type": "Bug"
+  },
   "Spike Cannon": {
     "accuracy": 100,
     "category": "Physical",
@@ -5869,6 +5923,20 @@
     "pp": 10,
     "target": "normal",
     "type": "Normal"
+  },
+  "Spite": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "spite",
+    "pp": 10,
+    "target": "normal",
+    "type": "Ghost"
   },
   "Splash": {
     "accuracy": true,
@@ -6549,6 +6617,20 @@
     "pp": 20,
     "target": "normal",
     "type": "Normal"
+  },
+  "Torment": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "torment",
+    "pp": 15,
+    "target": "normal",
+    "type": "Dark"
   },
   "Toxic": {
     "accuracy": 90,

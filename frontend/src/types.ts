@@ -188,6 +188,21 @@ export interface PathClick {
   opp_move: string | null; // the OppMoveRow label it was picked under
 }
 
+// /spite_pp: a foe a Spite of mine hit on the way to the node, its moves with a suggested PP
+export interface SpitePpMove {
+  move_slot: number;
+  name: string;
+  pp: number;
+  max_pp: number;
+}
+
+export interface SpitePpRow {
+  slot: number; // the foe's party slot
+  pok_id: number;
+  name: string;
+  moves: SpitePpMove[];
+}
+
 export interface TrainerEntry {
   split: string; // the sheet's split tab ("Roark" ... "Champion"), the file is in story order
   id?: number; // [pp] trainer id, missing when the sheet doesn't give one

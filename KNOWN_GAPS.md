@@ -9,6 +9,9 @@
   panels load with JavaScript and couldn't be fetched, so any place Pokemow differs isn't checked.
 - AI: the 10.1 branches (Basic Future Sight / Doom Desire, Stockpile, Spit Up / Swallow, Expert Spit Up, Swallow
   in Expert_Recovery, the Encore and Heal Block lists) follow [pp] `trainer_ai/script.s` only, for the same reason.
+- AI: Basic Imprison (11.1) checks only the AI's own Imprison. [pp] `Basic_CheckCanImprison` also gives -10 when
+  the target has `MOVE_EFFECT_IMPRISONED`, which any Imprison attempt sets on it, a failed one included, until it
+  leaves the field (my call: one bit).
 - AI: Expert Heal Block counts every move with `drain` as a drain move ([pp] RECOVER_HALF_DAMAGE_DEALT), so
   Draining Kiss too; which effect RP gives it is unknown (ROM not read).
 - AI: Expert Gravity reads the target's real ability;
@@ -180,6 +183,8 @@
   left (confusion this turn) share a node.
 - Leppa on the foe (only through a Covet on my Leppa holder) gives back PP that Continue's foe PP arithmetic
   doesn't see.
+- Continue's Foe PP after Spite: the suggested move is the one the foe used that turn, so when my Spite moved
+  first (it hit the move before) the 4 PP land on the wrong move until edited. A Spite Metronome calls isn't seen.
 - Search: `evaluate_terminal` counts deaths, so every Pokemon is worth the same: a win that loses the
   team's best Pokemon scores like one that loses its worst.
 - Search: `ROOT_C` costs wins at very low budgets: Roark weak at 200 iterations wins 2.1%, against 8.7% with
@@ -220,6 +225,7 @@
 ## Tracker, Box, Setup, UI, Lint
 
 - UI: a Substitute shows as a chip, without its HP.
+- UI: Block and Spider Web show the "Mean Look" chip (one bit for all three).
 - UI: no badge for a rampage (Thrash, Outrage, Petal Dance), like Rollout.
 - UI: no "the AI knows this ability" marker, and the field's weather shows while Cloud Nine / Air Lock
   suppress it.

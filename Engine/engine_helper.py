@@ -133,7 +133,9 @@ from Models.constants import (
     _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _POK_HEAL_BLOCK_TURNS,
     _SIDECONDITION_SPIKES, _POK_MAGNET_RISE_TURNS, _VOLSTATUS2_MAGNET_RISE, _ABILITYNAMES_LEVITATE,
     _MOVENAME_MAGNET_RISE, _VOLSTATUS2_GRUDGE, _MOVENAME_HEALING_WISH, _SIDECONDITION_HEALING_WISH,
-    _MOVENAME_MEMENTO, _MOVENAME_GRUDGE,
+    _MOVENAME_MEMENTO, _MOVENAME_GRUDGE, _VOLSTATUS2_TORMENT, _VOLSTATUS2_IMPRISON,
+    _VOLSTATUS2_MEAN_LOOK, _MOVENAME_TORMENT, _MOVENAME_IMPRISON, _MOVENAME_SPITE,
+    _MOVENAME_MEAN_LOOK, _MOVENAME_BLOCK, _MOVENAME_SPIDER_WEB,
 )
 from DataBase.PkDB import PokemonName
 
@@ -272,10 +274,15 @@ def unlock_move(pok):
 def move_blocked(pok, slot, gravity=False):
     """
     Disable, Encore or Taunt keep this move slot from being selected, and so does Gravity for
-    its moves, Heal Block for its moves and a choice item for every slot but the locked one (PP is
-    checked apart)
+    its moves, Heal Block for its moves, Torment for the last move and a choice item for every
+    slot but the locked one (PP and the foe's Imprison are checked apart)
     """
     if gravity and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _FLAGS_GRAVITY]:
+        return True
+    if (
+        pok[_POK_VOL_STATUS2] & _VOLSTATUS2_TORMENT
+        and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID] == pok[_POK_LAST_MOVE_ID]
+    ):
         return True
     if heal_block_stops(pok, pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID]):
         return True
@@ -291,6 +298,66 @@ def move_blocked(pok, slot, gravity=False):
         vol & _VOLSTATUS_TAUNT
         and pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_CATEGORY] == _MOVECATEGORY_STATUS
     )
+
+
+@njit
+def imprisoned(foe, move_id):
+    """The foe's Imprison seals this move: it knows it too (pokeplatinum Move_Imprisoned)"""
+    if not foe[_POK_VOL_STATUS2] & _VOLSTATUS2_IMPRISON or move_id == 0:
+        return False
+    for slot in range(4):
+        if foe[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID] == move_id:
+            return True
+    return False
+
+
+@njit
+def imprison_fails(user, foe):
+    """Imprison fails while the user already has it, or when the foe knows none of its moves
+    (pokeplatinum BtlCmd_TryImprison)"""
+    if user[_POK_VOL_STATUS2] & _VOLSTATUS2_IMPRISON:
+        return True
+    for i in range(4):
+        move_id = user[OFFSET_MOVE + i * MOVE_STRIDE + _MOVE_ID]
+        if move_id == 0:
+            continue
+        for j in range(4):
+            if foe[OFFSET_MOVE + j * MOVE_STRIDE + _MOVE_ID] == move_id:
+                return False
+    return True
+
+
+@njit
+def spite_slot(target):
+    """The slot Spite takes PP from, -1 if it fails: no last move, one it doesn't know or with no PP
+    left (pokeplatinum BtlCmd_TrySpite)"""
+    last = target[_POK_LAST_MOVE_ID]
+    if last == 0:
+        return -1
+    for slot in range(4):
+        base = OFFSET_MOVE + slot * MOVE_STRIDE
+        if target[base + _MOVE_ID] == last:
+            return slot if target[base + _MOVE_PP] > 0 else -1
+    return -1
+
+
+SPITE_PP = 4
+
+
+@njit
+def spite(target):
+    """Spite takes 4 PP from the target's last move, or what's left of it (pokeplatinum
+    BtlCmd_TrySpite). Returns the PP taken"""
+    slot = spite_slot(target)
+    if slot < 0:
+        return 0
+    idx = OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_PP
+    taken = min(SPITE_PP, target[idx])
+    target[idx] -= taken
+    return taken
+
+
+TRAP_MOVES = (_MOVENAME_MEAN_LOOK, _MOVENAME_BLOCK, _MOVENAME_SPIDER_WEB)
 
 
 @njit
@@ -821,24 +888,25 @@ def item_cure(effect, pok):
 
 
 @njit
-def sleep_talk_move(pok, gravity):
+def sleep_talk_move(pok, foe, gravity):
     """
     The move Sleep Talk calls at random from the user's slots, 0 if none or if it's awake. It skips
     the moves [SD] flags nosleeptalk (the callers, Focus Punch, Uproar, Chatter, Bide and most charge
-    moves), every charge move ([pp] Move_IsMultiTurn, Fly too) and the slots move_blocked stops, so
-    a choice lock or Encore makes it fail. PP doesn't matter ([pp] TrySleepTalk skips that check)
+    moves), every charge move ([pp] Move_IsMultiTurn, Fly too) and the slots move_blocked or the
+    foe's Imprison stop, so a choice lock or Encore makes it fail. PP doesn't matter ([pp]
+    TrySleepTalk skips that check)
     """
     if pok[_POK_STATUS] != _STATUS_SLEEP:
         return 0
     count = 0
     for slot in range(4):
-        if _sleep_talk_pick(pok, slot, gravity):
+        if _sleep_talk_pick(pok, foe, slot, gravity):
             count += 1
     if count == 0:
         return 0
     pick = random.randint(0, count - 1)
     for slot in range(4):
-        if _sleep_talk_pick(pok, slot, gravity):
+        if _sleep_talk_pick(pok, foe, slot, gravity):
             if pick == 0:
                 return pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID]
             pick -= 1
@@ -846,7 +914,7 @@ def sleep_talk_move(pok, gravity):
 
 
 @njit
-def _sleep_talk_pick(pok, slot, gravity):
+def _sleep_talk_pick(pok, foe, slot, gravity):
     """Sleep Talk can call the move in this slot"""
     base = OFFSET_MOVE + slot * MOVE_STRIDE
     return (
@@ -854,6 +922,7 @@ def _sleep_talk_pick(pok, slot, gravity):
         and not pok[base + _FLAGS_NO_SLEEP_TALK]
         and pok[base + _MOVE_CHARGE_RECHARGE] <= 0
         and not move_blocked(pok, slot, gravity)
+        and not imprisoned(foe, pok[base + _MOVE_ID])
     )
 
 
@@ -864,9 +933,20 @@ def status_move_fails(move, attacker, defender):
     uproar it isn't Soundproof against; Leaf Guard doesn't stop it ([SD] gen4 rest onTry, Leaf Guard).
     Nightmare on a target that isn't asleep or already has one. Psycho Shift with no status on the
     user or one on the target ([pp] CheckCanShareStatus; the Substitute is sub_blocks_status_move's).
-    Magnet Rise while up, with Levitate or under Ingrain
+    Magnet Rise while up, with Levitate or under Ingrain. Torment on a target already under it
+    ([pp] subscript_torment_start), Mean Look, Block and Spider Web on one already trapped by them
+    ([pp] subscript_mean_look, the Substitute is sub_blocks_status_move's), Imprison
+    (imprison_fails) and Spite (spite_slot)
     """
     move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_TORMENT:
+        return defender[_POK_VOL_STATUS2] & _VOLSTATUS2_TORMENT != 0
+    if move_id in TRAP_MOVES:
+        return defender[_POK_VOL_STATUS2] & _VOLSTATUS2_MEAN_LOOK != 0
+    if move_id == _MOVENAME_IMPRISON:
+        return imprison_fails(attacker, defender)
+    if move_id == _MOVENAME_SPITE:
+        return spite_slot(defender) < 0
     if move_id == _MOVENAME_REST:
         if attacker[_POK_STATUS] == _STATUS_SLEEP:
             return True
@@ -1833,13 +1913,14 @@ def pressure_pp(mv, defender):
     """
     After the move's PP is taken: one more while the defender is an alive Pressure holder, unless
     the move aims at the user's side (pokeplatinum BattleControllerPlayer_DecrementPP). Metronome,
-    Mirror Move and Copycat target the user, so they don't pay it
+    Mirror Move and Copycat target the user, so they don't pay it. Imprison does, despite aiming at
+    the user
     """
     if (
         mv[_MOVE_PP] > 0
         and defender[_POK_CURRENT_HP] > 0
         and defender[_POK_AB_ID] == _ABILITYNAMES_PRESSURE
-        and mv[_MOVE_TARGET] not in TARGET_SELF_SIDE
+        and (mv[_MOVE_TARGET] not in TARGET_SELF_SIDE or mv[_MOVE_ID] == _MOVENAME_IMPRISON)
     ):
         mv[_MOVE_PP] -= 1
 
@@ -1861,13 +1942,15 @@ def is_grounded(pok, gravity=False):
 @njit
 def is_trapped(pok, foe, gravity=False):
     """
-    pokeplatinum Battler_IsTrapped: Shed Shell always lets the holder switch, bind and Ingrain
-    trap it, and a living foe's Shadow Tag (unless it has Shadow Tag too), Magnet Pull (Steel
-    types) or Arena Trap (grounded) do
+    pokeplatinum Battler_IsTrapped: Shed Shell always lets the holder switch, bind, Mean Look and
+    Ingrain trap it, and a living foe's Shadow Tag (unless it has Shadow Tag too), Magnet Pull
+    (Steel types) or Arena Trap (grounded) do
     """
     if pok[_ITEM_HOLD_EFFECT] == _HOLDEFFECT_SWITCH:
         return False
     if pok[_POK_VOL_STATUS] & (_VOLSTATUS_INGRAIN | _VOLSTATUS_PARTIALLY_TRAPPED):
+        return True
+    if pok[_POK_VOL_STATUS2] & _VOLSTATUS2_MEAN_LOOK:
         return True
     if foe[_POK_CURRENT_HP] <= 0:
         return False
@@ -2505,6 +2588,10 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
         unlock_move(attacker)
         return True
     if attacker[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT and move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
+        unlock_move(attacker)
+        return True
+    # Imprison, a move picked before it was used fails (pokeplatinum CHECK_STATUS_STATE_IMPRISON)
+    if imprisoned(defender, move[_MOVE_ID]):
         unlock_move(attacker)
         return True
     # Confusion
@@ -3155,10 +3242,10 @@ def secret_power_move(mv, battle_array):
 
 
 @njit
-def called_move(pok, move_id, battle_array):
+def called_move(pok, foe, move_id, battle_array):
     """The move Metronome, Mirror Move, Copycat, Nature Power or Sleep Talk calls, 0 if it fails"""
     if move_id == _MOVENAME_SLEEP_TALK:
-        return sleep_talk_move(pok, battle_array[_FIELD_GRAVITY_TURNS] > 0)
+        return sleep_talk_move(pok, foe, battle_array[_FIELD_GRAVITY_TURNS] > 0)
     if move_id == _MOVENAME_METRONOME:
         return metronome_move(pok)
     if move_id == _MOVENAME_MIRROR_MOVE:
