@@ -1305,6 +1305,20 @@
     "type": "Ghost",
     "vol_status": "destiny_bond"
   },
+  "Detect": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "fail_copycat": true,
+      "no_assist": true
+    },
+    "name": "detect",
+    "pp": 5,
+    "priority": 3,
+    "target": "self",
+    "type": "Fighting",
+    "vol_status": "protect"
+  },
   "Dig": {
     "accuracy": 100,
     "category": "Physical",
@@ -3504,6 +3518,19 @@
     "target": "ally_side",
     "type": "Psychic"
   },
+  "Lock-On": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "lock_on",
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Lovely Kiss": {
     "accuracy": 75,
     "category": "Status",
@@ -3837,6 +3864,19 @@
     "target": "self",
     "type": "Normal"
   },
+  "Mind Reader": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "mind_reader",
+    "pp": 5,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Minimize": {
     "accuracy": true,
     "boost_ev": 1,
@@ -3849,6 +3889,20 @@
     "pp": 10,
     "target": "self",
     "type": "Normal"
+  },
+  "Miracle Eye": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "miracle_eye",
+    "pp": 40,
+    "target": "normal",
+    "type": "Psychic"
   },
   "Mirror Coat": {
     "accuracy": 100,

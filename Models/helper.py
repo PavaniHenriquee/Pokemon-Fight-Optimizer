@@ -98,6 +98,8 @@ class VolStatus2:
     TORMENT           = 4096
     IMPRISON          = 8192
     MEAN_LOOK         = 16384
+    LOCK_ON           = 32768
+    MIRACLE_EYE       = 65536
 
 
 @dataclass(slots=True)

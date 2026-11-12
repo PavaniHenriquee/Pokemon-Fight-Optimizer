@@ -1346,6 +1346,18 @@ def test_rollout_sees_embargo_and_trick_fail(poke):
     assert not status_move_blocked(move_slice(me, 1), me, foe, 0)
 
 
+def test_rollout_sees_lock_on_and_miracle_eye_fail(poke):
+    """status_move_blocked: Lock-On while my lock is up, Miracle Eye on a foe already identified"""
+    me = poke("Abra", 20, "Synchronize", ["Lock-On", "Miracle Eye"])
+    foe = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert not status_move_blocked(move_slice(me, 0), me, foe, 0)
+    assert not status_move_blocked(move_slice(me, 1), me, foe, 0)
+    me[Pok.VOL_STATUS2] |= VolStatus2.LOCK_ON
+    foe[Pok.VOL_STATUS] |= VolStatus.FORESIGHT
+    assert status_move_blocked(move_slice(me, 0), me, foe, 0)
+    assert status_move_blocked(move_slice(me, 1), me, foe, 0)
+
+
 def test_rollout_sees_the_sleep_move_fails(poke):
     """sleep_move_fails: Snore and Sleep Talk awake, Dream Eater and Nightmare on an awake foe, Rest
     at full HP, Psycho Shift without a status; none of them once they'd work. No ability revealed"""

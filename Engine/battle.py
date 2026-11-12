@@ -24,7 +24,7 @@ from Engine.engine_helper import (
     stage_move_fails, belly_drum, acupressure, haze, psych_up, swap_stages, power_trick, swap_atk_def,
     status_move_fails, rest, psycho_shift, heal_bell, start_magnet_rise, end_magnet_rise,
     magnet_rise_count, stockpile, release_stockpile, swallow, future_hit_lands, SPIT_UP_POWER,
-    spite, TRAP_MOVES,
+    spite, TRAP_MOVES, lock_on_count, LOCK_ON_MOVES, LOCK_ON_DURATION,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -90,6 +90,8 @@ from Models.constants import (
     _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_GRUDGE, _VOLSTATUS2_GRUDGE,
     _SIDECONDITION_HEALING_WISH, _VOLSTATUS2_U_TURN, _VOLSTATUS2_TORMENT, _VOLSTATUS2_IMPRISON,
     _VOLSTATUS2_MEAN_LOOK, _MOVENAME_TORMENT, _MOVENAME_IMPRISON, _MOVENAME_SPITE,
+    _MOVENAME_DETECT, _MOVENAME_MIRACLE_EYE, _VOLSTATUS2_LOCK_ON, _VOLSTATUS2_MIRACLE_EYE,
+    _POK_LOCK_ON_TURNS,
     _MOVENAME_KNOCK_OFF, _POK_ITEM_KNOCKED_OFF, _MOVENAME_RECOVER, _MOVENAME_SYNTHESIS,
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
     _ENEMY_AI_KNOWS_ABILITY, _POK_CALLED_MOVE, _FIELD_LAST_MOVE, _MOVENAME_HIDDEN_POWER,
@@ -126,7 +128,7 @@ from Models.item import refresh_item, raw_item_type
 MULTIHIT_PROB=(2,2,2,3,3,3,4,5)
 ROLLOUT_MAX_USES = 5
 FURY_CUTTER_MAX_COUNT = 5
-STALL_MOVES = (_MOVENAME_PROTECT, _MOVENAME_ENDURE)
+STALL_MOVES = (_MOVENAME_PROTECT, _MOVENAME_DETECT, _MOVENAME_ENDURE)
 # Volatiles that only last for the turn they were set in
 TURN_VOLATILES = _VOLSTATUS_HURT_THIS_TURN | _VOLSTATUS_PROTECT | _VOLSTATUS_ENDURE
 # Bits of pokeplatinum's statusVolatile that the Gen IV Rage glitch wipes. Bide is left out so
@@ -201,7 +203,7 @@ BATON_PASS_VOLS = (
 # with its turns, Power Trick by trading the receiver's Attack and Defense)
 BATON_PASS_VOLS2 = (
     _VOLSTATUS2_SUBSTITUTE | _VOLSTATUS2_EMBARGO | _VOLSTATUS2_POWER_TRICK | _VOLSTATUS2_MAGNET_RISE
-    | _VOLSTATUS2_MEAN_LOOK
+    | _VOLSTATUS2_MEAN_LOOK | _VOLSTATUS2_LOCK_ON
 )
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
@@ -239,6 +241,9 @@ def _pass_baton(old, new):
     new[_POK_HEAL_BLOCK_TURNS] = old[_POK_HEAL_BLOCK_TURNS]
     # Magnet Rise too (pokeplatinum magnetRiseTurns)
     new[_POK_MAGNET_RISE_TURNS] = old[_POK_MAGNET_RISE_TURNS]
+    # A passed Lock-On starts its turns again (pokeplatinum LOCK_ON_INITIAL_DURATION)
+    if new[_POK_VOL_STATUS2] & _VOLSTATUS2_LOCK_ON:
+        new[_POK_LOCK_ON_TURNS] = LOCK_ON_DURATION
     # The receiver's own Attack and Defense trade (pokeplatinum BattleSystem_UpdateAfterSwitch)
     if new[_POK_VOL_STATUS2] & _VOLSTATUS2_POWER_TRICK:
         swap_atk_def(new)
@@ -305,8 +310,9 @@ def _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx, bato
     if baton:
         _pass_baton(current_pokemon, battle_array[(switch_idx * POK_LEN):((switch_idx+1) * POK_LEN)])
     else:
-        # The trapper leaving frees the one it trapped (pokeplatinum BattleSystem_UpdateAfterSwitch)
-        current_opp[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_MEAN_LOOK
+        # The trapper leaving frees the one it trapped, the target leaving ends the foe's Lock-On
+        # (pokeplatinum BattleSystem_UpdateAfterSwitch)
+        current_opp[_POK_VOL_STATUS2] &= ~(_VOLSTATUS2_MEAN_LOOK | _VOLSTATUS2_LOCK_ON)
     reset_switch_out(current_pokemon)
     battle_array[_FIELD_MY_POK] = switch_idx
     battle_array[_FIELD_AI_KNOWS] = 0
@@ -328,7 +334,7 @@ def _switch_opp_side(battle_array, current_opp, current_pokemon, opp_switch, bat
             current_opp, battle_array[((opp_switch+6) * POK_LEN):((opp_switch+7) * POK_LEN)]
         )
     else:
-        current_pokemon[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_MEAN_LOOK
+        current_pokemon[_POK_VOL_STATUS2] &= ~(_VOLSTATUS2_MEAN_LOOK | _VOLSTATUS2_LOCK_ON)
     reset_switch_out(current_opp)
     battle_array[_FIELD_OPP_POK] = opp_switch
     battle_array[_FIELD_OPP_ENTER_FIELD] = 1
@@ -1451,6 +1457,11 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_IMPRISON
     elif move_id in TRAP_MOVES:
         defn[_POK_VOL_STATUS2] |= _VOLSTATUS2_MEAN_LOOK
+    elif move_id in LOCK_ON_MOVES:
+        atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_LOCK_ON
+        atk[_POK_LOCK_ON_TURNS] = LOCK_ON_DURATION
+    elif move_id == _MOVENAME_MIRACLE_EYE:
+        defn[_POK_VOL_STATUS2] |= _VOLSTATUS2_MIRACLE_EYE
     elif move_id == _MOVENAME_SPITE:
         spite(defn)
     # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
@@ -2037,6 +2048,9 @@ def _apply_residual(pok, foe, enter_field_flag_idx, battle_array):
         if pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_PP] == 0:
             pok[_POK_ENCORE_TURNS] = slot
         _count_down_slot_lock(pok, _POK_ENCORE_TURNS, _VOLSTATUS_ENCORE)
+
+    # 10a. Lock-On / Mind Reader
+    lock_on_count(pok)
 
     # 11. Taunt
     if pok[_POK_VOL_STATUS] & _VOLSTATUS_TAUNT:

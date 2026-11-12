@@ -74,7 +74,8 @@ class Pok:
     LAST_RESORT               = RAMPAGE_TURNS + 1
     FRIENDSHIP                = LAST_RESORT + 1
     STOCKPILE                 = FRIENDSHIP + 1
-    AB_ID                     = STOCKPILE + 1
+    LOCK_ON_TURNS             = STOCKPILE + 1
+    AB_ID                     = LOCK_ON_TURNS + 1
     AB_WHEN                   = AB_ID + 1
     AB_BREAKABLE              = AB_WHEN + 1
     """AB_CANT_SUPRESS           = AB_BREAKABLE + 1

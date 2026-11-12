@@ -80,7 +80,7 @@ def test_trainers(client):
     assert "Gym Leader Roark 1" in data
     assert all("team" in t for t in data.values())
     assert "lacks" not in data["Gym Leader Roark 1"]
-    assert "Detect" in data["Commander Mars 1"]["lacks"]
+    assert "Me First" in data["Veteran Grant 1"]["lacks"]
     assert all(t["lacks"] for t in data.values() if "lacks" in t)
 
 
@@ -246,9 +246,9 @@ def test_start_rejects_bad_config(client):
 
 def test_start_refuses_what_the_engine_lacks(client):
     """An opponent with a move the engine can't run is refused before the running search is touched"""
-    foe = {**OPP_MEMBER, "moves": ["Tackle", "Detect"]}
+    foe = {**OPP_MEMBER, "moves": ["Tackle", "Me First"]}
     res = client.post("/start", json={"my_team": [TEAM_MEMBER], "opp_team": [foe], "iterations": 10}).json()
-    assert res == {"status": "error", "error": "Not supported yet: Detect"}
+    assert res == {"status": "error", "error": "Not supported yet: Me First"}
 
 
 def test_start_node_info_and_continue(client):

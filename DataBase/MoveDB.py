@@ -88,7 +88,8 @@ class MoveName:
     DEFENSE_CURL    = DEFEND_ORDER + 1
     DEFOG           = DEFENSE_CURL + 1
     DESTINY_BOND    = DEFOG + 1
-    DIG             = DESTINY_BOND + 1
+    DETECT          = DESTINY_BOND + 1
+    DIG             = DETECT + 1
     DISABLE         = DIG + 1
     DISARMING_VOICE = DISABLE + 1
     DISCHARGE       = DISARMING_VOICE + 1
@@ -224,7 +225,8 @@ class MoveName:
     LEER            = LEECH_SEED + 1
     LICK            = LEER + 1
     LIGHT_SCREEN    = LICK + 1
-    LOVELY_KISS     = LIGHT_SCREEN + 1
+    LOCK_ON         = LIGHT_SCREEN + 1
+    LOVELY_KISS     = LOCK_ON + 1
     LOW_KICK        = LOVELY_KISS + 1
     LUCKY_CHANT     = LOW_KICK + 1
     MACH_PUNCH      = LUCKY_CHANT + 1
@@ -246,8 +248,10 @@ class MoveName:
     METEOR_MASH     = METAL_SOUND + 1
     METRONOME       = METEOR_MASH + 1
     MILK_DRINK      = METRONOME + 1
-    MINIMIZE        = MILK_DRINK + 1
-    MIRROR_COAT     = MINIMIZE + 1
+    MIND_READER     = MILK_DRINK + 1
+    MINIMIZE        = MIND_READER + 1
+    MIRACLE_EYE     = MINIMIZE + 1
+    MIRROR_COAT     = MIRACLE_EYE + 1
     MIRROR_MOVE     = MIRROR_COAT + 1
     MIRROR_SHOT     = MIRROR_MOVE + 1
     MIST            = MIRROR_SHOT + 1

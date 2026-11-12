@@ -32,8 +32,6 @@
 - AI: Superpower and the recharge moves have no Basic branch of their own ([pp]
   `Basic_CheckNonStandardDamageOrChargeTurn`): the general checks cover them, with Pokemow's -12 into Wonder
   Guard where [pp]'s script gives -10.
-- AI: `PROTECT_LIKE_M` (the "saw the target use Protect" checks) holds only Protect. Detect goes in once it's in
-  MoveDB ([pp] `IfMoveEffectKnown BATTLE_EFFECT_PROTECT` covers both).
 - AI: `ai_move_damage` uses the raw base power except for the semi-invulnerable doublings (6.3). Pokemow's
   damage calc also sees Stomp vs Minimize, Brine and Rollout / Fury Cutter
   streaks (7.1).
@@ -105,8 +103,6 @@
 - Scald: which [pp] effect RP gives it is unknown (ROM not read). No AI branch reads the burn-hit effects yet.
 - Wild Charge, Cut and Strength: which [pp] effect RP gives them is unknown too. The AI goes by their data:
   recoil, high crit, and no branch for Strength's Attack raise (like Meteor Mash).
-- Future Sight / Doom Desire: a Lock-On by the attacking side's active should make the hit land ([pp]
-  `CheckMoveHitOverrides`, `MON_IS_LOCKED_ONTO`). `future_hit_lands` gets it with Lock-On (11.2).
 - The AI's U-turn or Baton Pass replacement that faints to the hazards mid-turn stays in until the end of the
   turn: my slower move goes into it and fails. What [pp] does there wasn't checked.
 - My U-turn: `_after_move_items` runs while the user is still in, before my pick (like Baton Pass). [pp] switches

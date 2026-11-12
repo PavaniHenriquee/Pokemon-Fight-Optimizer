@@ -54,7 +54,7 @@ KIT_STATUS = (
     "Milk Drink", "Soft-Boiled", "Slack Off", "Heal Order", "Moonlight", "Morning Sun", "Roost",
     "Heal Block", "Sunny Day", "Hail", "Tailwind", "Trick Room", "Spikes", "Defog", "Magnet Rise",
     "Wish", "Stockpile", "Swallow", "Memento", "Healing Wish", "Grudge", "Torment", "Imprison", "Spite",
-    "Mean Look", "Block", "Spider Web",
+    "Mean Look", "Block", "Spider Web", "Lock-On", "Mind Reader", "Miracle Eye",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -92,7 +92,7 @@ KIT_DAMAGE = (
 KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
     "Ingrain", "Aqua Ring", "Attract", "Leech Seed", "Charge", "Destiny Bond", "Yawn", "Rage",
-    "Helping Hand", "Follow Me", "Dig", "Gravity", "Minimize", "Substitute",
+    "Helping Hand", "Follow Me", "Dig", "Gravity", "Minimize", "Substitute", "Detect",
 )
 KIT_CALLING = ("Metronome", "Copycat", "Mirror Move", "Nature Power")
 
@@ -3732,3 +3732,90 @@ def test_mean_looked_ai_never_switches(make_pokemon, make_battle):
     arr = make_battle([me], opp)
     pok_slice(arr, 0, opp=True)[Pok.VOL_STATUS2] = VolStatus2.MEAN_LOOK
     assert all(return_idx(arr) in (0, 1) for _ in range(30))
+
+
+# ── 11.2 Accuracy locks and protection ───────────────────────────────────────
+
+@pytest.mark.parametrize("move", ["Lock-On", "Mind Reader"])
+@pytest.mark.parametrize("setup, expected", [
+    (None, 0), ("locked", -10), ("ai_no_guard", -10), ("target_no_guard", -10),
+])
+def test_basic_lock_on(poke, move, setup, expected):
+    """Basic_CheckLockOn (Mind Reader shares the effect): -10 on a target already locked onto, or with
+    No Guard on either side"""
+    ai_pok = poke("Machop", 20, "No Guard" if setup == "ai_no_guard" else "Guts", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    if setup == "locked":
+        ai_pok[Pok.VOL_STATUS2] = VolStatus2.LOCK_ON
+    ability = AbilityNames.NO_GUARD if setup == "target_no_guard" else AbilityNames.STURDY
+    assert _basic(ai_pok, user, ability) == expected
+
+
+@pytest.mark.parametrize("move", ["Lock-On", "Mind Reader"])
+def test_expert_lock_on(poke, move):
+    """Expert_LockOn: 50% of +2"""
+    ai_pok = poke("Machop", 20, "Guts", [move])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _expert(ai_pok, user) == (0, [(2, 128)])
+
+
+def test_basic_miracle_eye(poke):
+    """Basic_CheckMiracleEye: -10 on a target already under it"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Miracle Eye"])
+    user = poke("Murkrow", 20, "Insomnia", ["Peck"])
+    assert _basic(ai_pok, user, AbilityNames.INSOMNIA) == 0
+    user[Pok.VOL_STATUS2] = VolStatus2.MIRACLE_EYE
+    assert _basic(ai_pok, user, AbilityNames.INSOMNIA) == -10
+
+
+@pytest.mark.parametrize("user, evasion, expected", [
+    ("Murkrow", 0, (0, [(2, 121)])),     # Dark: two 176/256 gates
+    ("Rattata", 3, (0, [(2, 176)])),
+    ("Rattata", 2, (-2, [])),
+])
+def test_expert_miracle_eye(poke, user, evasion, expected):
+    """Expert_MiracleEye: the target's Dark type, then its evasion at +3 or more, else -2"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Miracle Eye"])
+    target = poke(user, 20, "Insomnia" if user == "Murkrow" else "Run Away", ["Tackle"])
+    target[Pok.EVASION_STAT_STAGE] = evasion
+    assert _expert(ai_pok, target) == expected
+
+
+@pytest.mark.parametrize("move", ["Protect", "Detect"])
+def test_expert_protect_under_my_lock_on(poke, move):
+    """Expert_Protect: locked onto, the AI wearing down ends with no change instead of -2, and the +2
+    is sure (Expert_Protect_CheckAttackerLockedOnto)"""
+    ai_pok = poke("Rattata", 20, "Run Away", [move])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    user[Pok.VOL_STATUS2] = VolStatus2.LOCK_ON
+    assert _expert_knows(ai_pok, user) == (2, [(-1, 128)])
+    ai_pok[Pok.VOL_STATUS] = VolStatus.LEECH_SEED
+    assert _expert_knows(ai_pok, user) == (0, [])
+
+
+def test_detect_is_protect_for_the_ai():
+    """IfMoveEffectKnown BATTLE_EFFECT_PROTECT covers both, and both are on Pokemow List_Encore with the
+    other 11.2 moves"""
+    assert MoveName.DETECT in ai.PROTECT_LIKE_M
+    assert {MoveName.LOCK_ON, MoveName.MIND_READER, MoveName.DETECT, MoveName.MIRACLE_EYE} <= set(
+        ai.ENCORE_ENCOURAGED_M
+    )
+
+
+def test_expert_feint_sees_detect(poke):
+    """A Detect the AI saw counts like Protect for Feint"""
+    ai_pok = poke("Rattata", 20, "Run Away", ["Feint"])
+    user = poke("Machop", 20, "Guts", ["Detect"])
+    _, queued = _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE1)
+    assert (1, 128) in queued
+
+
+@pytest.mark.parametrize("last, expected", [(None, [(1, 176)]), ("Lock-On", []), ("Mind Reader", [])])
+def test_expert_bounce_after_my_lock_on(make_pokemon, poke, last, expected):
+    """Expert_ChargeTurnWithInvuln_CompareSpeed: the faster AI skips its +1 when my last move was Lock-On
+    or Mind Reader"""
+    ai_pok = make_pokemon("Pidgey", 50, "Keen Eye", ["Bounce"]).to_np()
+    user = poke("Rattata", 30, "Run Away", ["Tackle"])
+    if last:
+        user[Pok.LAST_MOVE_ID] = getattr(MoveName, last.upper().replace("-", "_").replace(" ", "_"))
+    assert _expert(ai_pok, user) == (0, expected)

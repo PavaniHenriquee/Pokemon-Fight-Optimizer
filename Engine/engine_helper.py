@@ -136,6 +136,8 @@ from Models.constants import (
     _MOVENAME_MEMENTO, _MOVENAME_GRUDGE, _VOLSTATUS2_TORMENT, _VOLSTATUS2_IMPRISON,
     _VOLSTATUS2_MEAN_LOOK, _MOVENAME_TORMENT, _MOVENAME_IMPRISON, _MOVENAME_SPITE,
     _MOVENAME_MEAN_LOOK, _MOVENAME_BLOCK, _MOVENAME_SPIDER_WEB,
+    _MOVENAME_DETECT, _MOVENAME_LOCK_ON, _MOVENAME_MIND_READER, _MOVENAME_MIRACLE_EYE,
+    _VOLSTATUS2_LOCK_ON, _VOLSTATUS2_MIRACLE_EYE, _POK_LOCK_ON_TURNS,
 )
 from DataBase.PkDB import PokemonName
 
@@ -181,6 +183,12 @@ SIDE_OR_FIELD_TARGETS = (Target.ALL, Target.FOE_SIDE, Target.ALLY_TEAM)
 # Confusion moves whose pokeplatinum subscript checks the Substitute before Own Tempo
 SUB_FIRST_CONFUSERS = (_MOVENAME_SWAGGER, _MOVENAME_FLATTER)
 PROTECT_COUNT_MAX = 3  # Success chance 1, 1/2, 1/4, then 1/8 from here on
+# Detect is Protect under another name (pokeplatinum effect 111)
+PROTECT_MOVES = (_MOVENAME_PROTECT, _MOVENAME_DETECT)
+# Lock-On and Mind Reader share one effect (pokeplatinum effect 94, Showdown's lockon volatile)
+LOCK_ON_MOVES = (_MOVENAME_LOCK_ON, _MOVENAME_MIND_READER)
+# The lock lasts through the user's next turn (pokeplatinum LOCK_ON_INITIAL_DURATION, Showdown duration 2)
+LOCK_ON_DURATION = 2
 # Stealth Rock takes max HP * Rock effectiveness / STEALTH_ROCK_DIV, 1/8 when neutral
 STEALTH_ROCK_DIV = 8
 # Synthesis heals a quarter of max HP in these weathers
@@ -390,14 +398,14 @@ def clear_target_choice_lock(target, user):
 @njit
 def try_protect(pok, move_id, is_last):
     """
-    Protect and Endure share the consecutive-use count. They fail when nothing acts after the
-    user, a failure resets the count
+    Protect, Detect and Endure share the consecutive-use count. They fail when nothing acts after
+    the user, a failure resets the count
     """
     count = pok[_POK_PROTECT_COUNT]
     if is_last or (count > 0 and random.getrandbits(count) != 0):
         pok[_POK_PROTECT_COUNT] = 0
         return
-    pok[_POK_VOL_STATUS] |= _VOLSTATUS_PROTECT if move_id == _MOVENAME_PROTECT else _VOLSTATUS_ENDURE
+    pok[_POK_VOL_STATUS] |= _VOLSTATUS_PROTECT if move_id in PROTECT_MOVES else _VOLSTATUS_ENDURE
     pok[_POK_PROTECT_COUNT] = min(count + 1, PROTECT_COUNT_MAX)
 
 
@@ -936,9 +944,17 @@ def status_move_fails(move, attacker, defender):
     Magnet Rise while up, with Levitate or under Ingrain. Torment on a target already under it
     ([pp] subscript_torment_start), Mean Look, Block and Spider Web on one already trapped by them
     ([pp] subscript_mean_look, the Substitute is sub_blocks_status_move's), Imprison
-    (imprison_fails) and Spite (spite_slot)
+    (imprison_fails) and Spite (spite_slot). Lock-On and Mind Reader while the user's lock is up, Miracle
+    Eye on a target already under it or Foresight ([SD] lockon / miracleeye onTryHit)
     """
     move_id = move[_MOVE_ID]
+    if move_id in LOCK_ON_MOVES:
+        return attacker[_POK_VOL_STATUS2] & _VOLSTATUS2_LOCK_ON != 0
+    if move_id == _MOVENAME_MIRACLE_EYE:
+        return (
+            defender[_POK_VOL_STATUS] & _VOLSTATUS_FORESIGHT != 0
+            or defender[_POK_VOL_STATUS2] & _VOLSTATUS2_MIRACLE_EYE != 0
+        )
     if move_id == _MOVENAME_TORMENT:
         return defender[_POK_VOL_STATUS2] & _VOLSTATUS2_TORMENT != 0
     if move_id in TRAP_MOVES:
@@ -1600,6 +1616,25 @@ def no_guard(attacker, defender):
 
 
 @njit
+def sure_hit(attacker, defender):
+    """
+    No Guard, or the attacker's Lock-On / Mind Reader on the foe: the move skips the accuracy roll
+    and reaches a semi-invulnerable target, Protect still stops it (pokeplatinum
+    BattleControllerPlayer_CheckMoveHitOverrides, MON_IS_LOCKED_ONTO)
+    """
+    return attacker[_POK_VOL_STATUS2] & _VOLSTATUS2_LOCK_ON != 0 or no_guard(attacker, defender)
+
+
+@njit
+def lock_on_count(pok):
+    """End of turn: Lock-On counts down (pokeplatinum MON_COND_CHECK_STATE_LOCK_ON)"""
+    if pok[_POK_LOCK_ON_TURNS] > 0:
+        pok[_POK_LOCK_ON_TURNS] -= 1
+        if pok[_POK_LOCK_ON_TURNS] == 0:
+            pok[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_LOCK_ON
+
+
+@njit
 def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False, target_moved=False):
     """
     Hit rate out of 100 in pokeplatinum BattleControllerPlayer_CheckMoveHitAccuracy order: stages
@@ -1619,8 +1654,11 @@ def move_accuracy(move, attacker, defender, move_acc, weather, gravity=False, ta
         acc_stage = 0
     if atk_ab == _ABILITYNAMES_UNAWARE:
         ev_stage = 0
-    # Foresight ignores the target's evasion boosts
-    if defender[_POK_VOL_STATUS] & _VOLSTATUS_FORESIGHT and ev_stage > 0:
+    # Foresight and Miracle Eye ignore the target's evasion boosts (pokeplatinum MON_IS_IDENTIFIED)
+    if (
+        defender[_POK_VOL_STATUS] & _VOLSTATUS_FORESIGHT
+        or defender[_POK_VOL_STATUS2] & _VOLSTATUS2_MIRACLE_EYE
+    ) and ev_stage > 0:
         ev_stage = 0
     acc_stage = acc_stage - ev_stage
     acc_stage = max(-6, min(6, acc_stage))
@@ -1697,8 +1735,9 @@ def last_resort_works(pok):
 @njit
 def kick_hits(move, attacker, defender, weather, gravity=False, target_moved=False):
     """Triple Kick rolls accuracy again for each kick after the first, nothing else (pokeplatinum
-    SetMultiHit without SKIP_ACCURACY_CHECK, Showdown multiaccuracy). No Guard always hits"""
-    if no_guard(attacker, defender):
+    SetMultiHit without SKIP_ACCURACY_CHECK, Showdown multiaccuracy). No Guard and Lock-On
+    always hit"""
+    if sure_hit(attacker, defender):
         return True
     accuracy = move_accuracy(
         move, attacker, defender, move[_MOVE_ACCURACY], weather, gravity, target_moved
@@ -1709,7 +1748,7 @@ def kick_hits(move, attacker, defender, weather, gravity=False, target_moved=Fal
 @njit
 def _hit_outcome(move, attacker, defender, weather, gravity=False, target_moved=False):
     '''Protect, semi-invulnerability, type immunities and the accuracy roll'''
-    guard = no_guard(attacker, defender)
+    guard = sure_hit(attacker, defender)
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_PROTECT and move[_FLAGS_PROTECT]:
         return _MOVEOUTCOME_PROTECTED
     if (
@@ -1770,7 +1809,6 @@ def _hit_outcome(move, attacker, defender, weather, gravity=False, target_moved=
     # OHKO moves hit on accuracy + the level difference out of 100 and always fail from a lower
     # level. Stat stages, Gravity and the accuracy abilities don't apply (pokeplatinum
     # BtlCmd_TryOHKOMove). No Guard skips the roll, not the level check
-    #TODO: Lock-On
     if move[_MOVE_OH_KO]:
         if attacker[_POK_LEVEL] < defender[_POK_LEVEL]:
             return _MOVEOUTCOME_INVULNERABLE
@@ -1890,6 +1928,7 @@ def reset_switch_out(pok):
     pok[_POK_RAMPAGE_TURNS] = 0
     pok[_POK_LAST_RESORT] = 0
     pok[_POK_STOCKPILE] = 0
+    pok[_POK_LOCK_ON_TURNS] = 0
     refresh_item(pok)
     pok[_POK_AB_KNOWN] = 0
     # Worry Seed's ability lasts until the Pokemon leaves the field
@@ -3078,12 +3117,12 @@ def swallow(pok):
 @njit
 def future_hit_lands(move, attacker, defender, weather, gravity=False):
     """
-    The Future Sight / Doom Desire hit at the end of the turn: No Guard always hits, a
-    semi-invulnerable target dodges, else the accuracy roll with the attacking side's active's
-    stages. No Protect, type or ability check (pokeplatinum subscript_future_sight_damage,
+    The Future Sight / Doom Desire hit at the end of the turn: No Guard or the attacking side's
+    active's Lock-On always hits, a semi-invulnerable target dodges, else the accuracy roll with that
+    active's stages. No Protect, type or ability check (pokeplatinum subscript_future_sight_damage,
     CheckMoveHit)
     """
-    if no_guard(attacker, defender):
+    if sure_hit(attacker, defender):
         return True
     if defender[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE:
         return False

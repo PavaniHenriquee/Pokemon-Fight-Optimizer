@@ -20,7 +20,7 @@ from Models.constants import (
     _MOVENAME_REST, _MOVENAME_PSYCHO_SHIFT, _POK_STATUS, _STATUS_SLEEP, _POK_VOL_STATUS,
     _VOLSTATUS_NIGHTMARE, _POK_AB_ID, _MOVENAME_HEAL_BLOCK, _SIDECONDITION_SPIKES,
     _MOVENAME_MAGNET_RISE, _FLAGS_FUTURE_MOVE, _SIDECONDITION_FUTURE_SIGHT, _SIDECONDITION_WISH,
-    _MOVENAME_WISH, _MOVENAME_STOCKPILE, _MOVENAME_SWALLOW, _MOVENAME_SPIT_UP,
+    _MOVENAME_WISH, _MOVENAME_STOCKPILE, _MOVENAME_SWALLOW, _MOVENAME_SPIT_UP, _MOVENAME_MIRACLE_EYE,
 )
 from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
@@ -31,7 +31,7 @@ from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import (
     calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails,
     has_substitute, heal_blocked, magnet_rise_fails, stockpile_count, spit_up_move, STOCKPILE_MAX,
-    imprison_fails, spite_slot, TRAP_MOVES,
+    imprison_fails, spite_slot, TRAP_MOVES, LOCK_ON_MOVES, status_move_fails,
 )
 from Engine.ability_helper import (
     levitates, effective_weather, normalized_type, grounded_by_item, weather_ball_move, magnet_risen
@@ -156,7 +156,8 @@ def status_move_blocked(move, me, foe, weather):
     Also one the foe's Substitute stops, and my Substitute when it would fail. Embargo on a foe
     already under it, Heal Block on a foe already under it, Trick and Switcheroo with no item on
     either side, a Magnet Rise that would fail, Torment, Mean Look, Block or Spider Web on a foe
-    already under it, an Imprison or Spite that would fail"""
+    already under it, an Imprison or Spite that would fail, Lock-On or Mind Reader while my lock is up,
+    Miracle Eye on a foe already identified"""
     if move[_MOVE_ID] == _MOVENAME_SUBSTITUTE:
         return substitute_fails(me)
     if sub_blocks_move(move, me, foe):
@@ -181,6 +182,8 @@ def status_move_blocked(move, me, foe, weather):
         return imprison_fails(me, foe)
     if move[_MOVE_ID] == _MOVENAME_SPITE:
         return spite_slot(foe) < 0
+    if move[_MOVE_ID] in LOCK_ON_MOVES or move[_MOVE_ID] == _MOVENAME_MIRACLE_EYE:
+        return status_move_fails(move, me, foe)
     if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
         return False
     status = move[_MOVE_STATUS]

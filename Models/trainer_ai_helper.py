@@ -113,13 +113,16 @@ from Models.constants import (
     _VOLSTATUS_HEAL_BLOCK, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _ABILITYNAMES_ICE_BODY,
     _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SOLAR_POWER, _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL,
     _MOVENAME_WEATHER_BALL, _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_U_TURN,
+    _MOVENAME_DETECT, _MOVENAME_MIRACLE_EYE, _VOLSTATUS2_LOCK_ON, _VOLSTATUS2_MIRACLE_EYE,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
     FORESIGHT_TYPES
 )
 from Engine.speed import check_speed, quick_claw, custap_ready, has_tailwind
-from Engine.engine_helper import last_resort_works, stockpile_count, STOCKPILE_MAX, TRAP_MOVES
+from Engine.engine_helper import (
+    last_resort_works, stockpile_count, STOCKPILE_MAX, TRAP_MOVES, LOCK_ON_MOVES
+)
 from Engine.ability_helper import (
     ignorable_ability, levitates, normalized_type, grounded_by_item, slot_move_type, weather_ball_move,
     magnet_risen,
@@ -329,7 +332,7 @@ SELF_DROP_HP_M = (
 CONFUSE_EFFECT_M = (_MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS)
 # Moves the Expert AI looks for among the ones it saw the target use. Detect
 # isn't in MoveDB
-PROTECT_LIKE_M = (_MOVENAME_PROTECT,)
+PROTECT_LIKE_M = (_MOVENAME_PROTECT, _MOVENAME_DETECT)
 FEINT_LIKE_M = (_MOVENAME_FEINT, _MOVENAME_SHADOW_FORCE)
 # pokeplatinum BATTLE_EFFECT_RESTORE_HALF_HP (Pokemow Expert Protect's list)
 RESTORE_HALF_M = (
@@ -390,7 +393,8 @@ ENCORE_ENCOURAGED_M = (
     MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT, MoveName.SUNNY_DAY,
     MoveName.HAIL, MoveName.MAGNET_RISE, MoveName.DOOM_DESIRE, MoveName.STOCKPILE, MoveName.SPIT_UP,
     MoveName.SWALLOW, MoveName.GRUDGE, MoveName.HEALING_WISH, MoveName.SPIDER_WEB, MoveName.MEAN_LOOK,
-    MoveName.BLOCK, MoveName.TORMENT, MoveName.IMPRISON
+    MoveName.BLOCK, MoveName.TORMENT, MoveName.IMPRISON, MoveName.MIND_READER, MoveName.LOCK_ON,
+    MoveName.DETECT, MoveName.MIRACLE_EYE
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 MOVE_DRAIN_SLOTS = tuple(slot + _MOVE_DRAIN - _MOVE_ID for slot in MOVE_ID_SLOTS)
@@ -412,8 +416,8 @@ HEAL_BLOCK_GOOD_M = HEAL_M + (
 # Scored by basic_misc / expert_misc
 MISC_BASIC_M = HEAL_M + (
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
-    _MOVENAME_TORMENT, _MOVENAME_IMPRISON
-) + TRAP_MOVES
+    _MOVENAME_TORMENT, _MOVENAME_IMPRISON, _MOVENAME_MIRACLE_EYE
+) + TRAP_MOVES + LOCK_ON_MOVES
 MISC_EXPERT_M = MISC_BASIC_M + (_MOVENAME_KNOCK_OFF, _MOVENAME_SPLASH, _MOVENAME_SWALLOW)
 # Expert_Recovery's moves, Swallow included (pokeplatinum script.s)
 RECOVERY_EXPERT_M = HEAL_M + (_MOVENAME_SWALLOW,)
@@ -983,7 +987,8 @@ def basic_misc(move, ability, ai_pok, user_pok, ai_know):
     pokeplatinum Basic_CheckCanRecoverHP, Basic_CheckCanRefreshStatus, Basic_CheckCanRecycle,
     Basic_CheckWorrySeed, Basic_CheckPerishSong, Basic_CheckTorment, Basic_CheckMeanLook and
     Basic_CheckCanImprison (only the AI's own Imprison, the target's MOVE_EFFECT_IMPRISONED is left
-    out). ability is the target's
+    out), Basic_CheckLockOn (Mind Reader too: the target is under the AI's lock, the AI holds it here)
+    and Basic_CheckMiracleEye. ability is the target's
     """
     move_id = move[_MOVE_ID]
     if move_id in HEAL_M:
@@ -1006,6 +1011,16 @@ def basic_misc(move, ability, ai_pok, user_pok, ai_know):
         return -10 if user_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_MEAN_LOOK else 0
     if move_id == _MOVENAME_IMPRISON:
         return -10 if ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_IMPRISON else 0
+    if move_id in LOCK_ON_MOVES:
+        if (
+            ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_LOCK_ON
+            or ai_pok[_POK_AB_ID] == _ABILITYNAMES_NO_GUARD
+            or ability == _ABILITYNAMES_NO_GUARD
+        ):
+            return -10
+        return 0
+    if move_id == _MOVENAME_MIRACLE_EYE:
+        return -10 if user_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_MIRACLE_EYE else 0
     return 0
 
 
@@ -1642,7 +1657,9 @@ def wearing_down(pok):
 
 @njit
 def expert_protect(ai_pok, u_pok, rand, idx, ai_know):
-    """Pokemow Expert Protect. TODO: Lock-On / Mind Reader on the AI"""
+    """Pokemow Expert Protect"""
+    # The AI is under my Lock-On / Mind Reader (pokeplatinum Expert_Protect_CheckAttackerLockedOnto)
+    locked_onto = u_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_LOCK_ON != 0
     score = 0
     if seen_move(u_pok, ai_know, FEINT_LIKE_M):
         add_adjustment(rand, idx, -2, 128)
@@ -1650,8 +1667,8 @@ def expert_protect(ai_pok, u_pok, rand, idx, ai_know):
     if chain >= 2:
         return score - 2
     if wearing_down(ai_pok) or seen_move(u_pok, ai_know, RECOVER_DEF_CURL_M):
-        return score - 2
-    if wearing_down(u_pok):
+        return score if locked_onto else score - 2
+    if wearing_down(u_pok) or locked_onto:
         score += 2
     else:
         add_adjustment(rand, idx, 2, 85)
@@ -2461,6 +2478,20 @@ def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know=0):
         ):
             add_adjustment(rand, idx, 1, 128)
         return 0
+    # Expert_LockOn (Mind Reader too): 50% of +2
+    if move_id in LOCK_ON_MOVES:
+        add_adjustment(rand, idx, 2, 128)
+        return 0
+    # Expert_MiracleEye: a Dark target 121/256 of +2 (two 176/256 gates), evasion at +3 or more
+    # 176/256 of +2, else -2
+    if move_id == _MOVENAME_MIRACLE_EYE:
+        if u_pok[_POK_TYPE1] == _TYPES_DARK or u_pok[_POK_TYPE2] == _TYPES_DARK:
+            add_adjustment(rand, idx, 2, 121)
+            return 0
+        if u_pok[_POK_EVASION_STAT_STAGE] >= 3:
+            add_adjustment(rand, idx, 2, 176)
+            return 0
+        return -2
     return 0
 
 
@@ -2635,7 +2666,8 @@ def expert_charge_invulnerable(
     if weather == _WEATHER_HAIL and _TYPES_ICE in ai_types:
         add_adjustment(rand, idx, 1, 176)
         return 0
-    if move_first:
+    # Not when my last move was Lock-On or Mind Reader (Expert_ChargeTurnWithInvuln_CompareSpeed)
+    if move_first and u_pok[_POK_LAST_MOVE_ID] not in LOCK_ON_MOVES:
         add_adjustment(rand, idx, 1, 176)
     return 0
 

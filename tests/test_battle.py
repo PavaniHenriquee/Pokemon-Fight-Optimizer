@@ -6556,3 +6556,214 @@ def test_a_move_spite_emptied_fails(make_pokemon, make_battle):
     move_slice(foe, 0)[Move.PP] = 1
     turn_sim(0, (MOVE, 0), arr)
     assert _pp(foe, 0) == 0 and foe[Pok.LAST_MOVE_ID] == 0 and me[Pok.CURRENT_HP] == 500
+
+
+# ── 11.2 Accuracy locks and protection: Lock-On, Mind Reader, Miracle Eye, Detect ─────────────
+
+def _miss_rolls(monkeypatch):
+    """Every accuracy roll misses unless something skips it"""
+    monkeypatch.setattr(random, "randint", lambda a, b: b)
+
+
+@pytest.mark.parametrize("move", ["Lock-On", "Mind Reader"])
+def test_lock_on_lasts_through_the_next_turn(make_pokemon, make_battle, move):
+    """Set to 2, counted down at the end of each turn (pokeplatinum LOCK_ON_INITIAL_DURATION,
+    MON_COND_CHECK_STATE_LOCK_ON; Showdown duration 2)"""
+    arr = _restrict_battle(make_pokemon, make_battle, [move, "Splash"], ["Splash"])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.LOCK_ON and me[Pok.LOCK_ON_TURNS] == 1
+    turn_sim(0, (MOVE, 1), arr)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.LOCK_ON and me[Pok.LOCK_ON_TURNS] == 0
+
+
+def test_lock_on_skips_the_accuracy_roll_and_reaches_fly(monkeypatch, make_pokemon, make_battle):
+    """Like No Guard: past the evasion and a semi-invulnerable target, not past Protect
+    (pokeplatinum CheckMoveHitOverrides, MON_IS_LOCKED_ONTO)"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Tackle"], ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    tackle = move_slice(me, 0)
+    _miss_rolls(monkeypatch)
+    foe[Pok.EVASION_STAT_STAGE] = 6
+    assert engine_helper.calculate_hit_miss(tackle, me, foe, 0) == MoveOutcome.MISS
+    me[Pok.VOL_STATUS2] |= VolStatus2.LOCK_ON
+    assert engine_helper.calculate_hit_miss(tackle, me, foe, 0) == MoveOutcome.HIT
+    foe[Pok.VOL_STATUS] |= VolStatus.SEMI_INVULNERABLE
+    foe[Pok.SEMI_INV_MOVE] = MoveName.FLY
+    assert engine_helper.calculate_hit_miss(tackle, me, foe, 0) == MoveOutcome.HIT
+    foe[Pok.VOL_STATUS] = VolStatus.PROTECT
+    assert engine_helper.calculate_hit_miss(tackle, me, foe, 0) == MoveOutcome.PROTECTED
+
+
+@pytest.mark.parametrize("foe_level, ability, outcome", [
+    (30, "Run Away", MoveOutcome.HIT),
+    (31, "Run Away", MoveOutcome.INVULNERABLE),
+    (30, "Sturdy", MoveOutcome.INVULNERABLE),
+])
+def test_lock_on_ohko_keeps_the_level_rule(monkeypatch, make_pokemon, make_battle, foe_level, ability,
+                                           outcome):
+    """A locked OHKO move hits from the same level up, Sturdy still stops it (BtlCmd_TryOHKOMove)"""
+    arr = make_battle([make_pokemon("Krabby", 30, "Hyper Cutter", ["Guillotine"])],
+                      [make_pokemon("Rattata", foe_level, ability, ["Splash"])])
+    me, foe = my_active(arr), opp_active(arr)
+    _miss_rolls(monkeypatch)
+    me[Pok.VOL_STATUS2] |= VolStatus2.LOCK_ON
+    assert engine_helper.calculate_hit_miss(move_slice(me, 0), me, foe, 0) == outcome
+
+
+@pytest.mark.parametrize("move", ["Lock-On", "Mind Reader"])
+def test_lock_on_fails_while_the_lock_is_up(make_pokemon, make_battle, move):
+    """Showdown lockon onTryHit: the user already has one, the turns don't restart"""
+    arr = _restrict_battle(make_pokemon, make_battle, [move], ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    assert not engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+    me[Pok.VOL_STATUS2] |= VolStatus2.LOCK_ON
+    me[Pok.LOCK_ON_TURNS] = 1
+    assert engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+    turn_sim(0, (MOVE, 0), arr)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.LOCK_ON and me[Pok.LOCK_ON_TURNS] == 0
+
+
+def test_lock_on_fails_into_a_substitute(make_pokemon, make_battle):
+    """No bypass_sub (pokeplatinum subscript_lock_on CheckSubstitute)"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Lock-On"], ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS2] = VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 50
+    turn_sim(0, (MOVE, 0), arr)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.LOCK_ON
+
+
+@pytest.mark.parametrize("baton, kept", [(False, False), (True, True)])
+def test_the_target_leaving_ends_the_lock(make_pokemon, make_battle, baton, kept):
+    """The target's switch-out ends it, its Baton Pass keeps it with its turns
+    (pokeplatinum BattleSystem_UpdateAfterSwitch, MOVE_EFFECT_BATON_PASSED)"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Splash"], ["Splash"], foe_bench=True)
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.VOL_STATUS2] |= VolStatus2.LOCK_ON
+    me[Pok.LOCK_ON_TURNS] = 1
+    battle._switch_opp_side(arr, foe, me, 1, baton)
+    assert bool(me[Pok.VOL_STATUS2] & VolStatus2.LOCK_ON) == kept
+    assert me[Pok.LOCK_ON_TURNS] == 1
+
+
+def test_my_target_leaving_ends_the_ai_lock(make_pokemon, make_battle):
+    """The same on my side"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Splash"], ["Splash"], my_bench=True)
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.LOCK_ON
+    battle._switch_my_side(arr, me, foe, 1)
+    assert not foe[Pok.VOL_STATUS2] & VolStatus2.LOCK_ON
+
+
+def test_baton_pass_restarts_the_lock(make_pokemon, make_battle):
+    """The user's Baton Pass hands the lock over with its turns back at 2
+    (pokeplatinum LOCK_ON_INITIAL_DURATION); a switch-out drops it"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Splash"], ["Splash"], my_bench=True)
+    me = my_active(arr)
+    me[Pok.VOL_STATUS2] |= VolStatus2.LOCK_ON
+    me[Pok.LOCK_ON_TURNS] = 1
+    new = pok_slice(arr, 1)
+    battle._pass_baton(me, new)
+    assert new[Pok.VOL_STATUS2] & VolStatus2.LOCK_ON and new[Pok.LOCK_ON_TURNS] == 2
+    engine_helper.reset_switch_out(me)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.LOCK_ON and me[Pok.LOCK_ON_TURNS] == 0
+
+
+def test_lock_on_makes_future_sight_land(make_pokemon, make_battle):
+    """The attacking side's active's lock reaches a semi-invulnerable target (CheckMoveHitOverrides)"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS] |= VolStatus.SEMI_INVULNERABLE
+    foe[Pok.SEMI_INV_MOVE] = MoveName.FLY
+    future = battle.MOVE_TABLE[MoveName.FUTURE_SIGHT]
+    assert not engine_helper.future_hit_lands(future, me, foe, 0)
+    me[Pok.VOL_STATUS2] |= VolStatus2.LOCK_ON
+    assert engine_helper.future_hit_lands(future, me, foe, 0)
+
+
+def test_a_same_turn_lock_on_reaches_future_sight(monkeypatch, make_pokemon, make_battle):
+    """Future Sight lands after the countdown (CheckSideConditions after CheckMonConditions), so a
+    Lock-On used that turn still counts"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Lock-On"])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.SPEED] = 200
+    foe[Pok.SPEED] = 10
+    _future_pending(arr, Field.OPP_SIDE_COND, 20)
+    foe[Pok.EVASION_STAT_STAGE] = 6
+    hp = foe[Pok.CURRENT_HP]
+    _miss_rolls(monkeypatch)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.LOCK_ON
+    assert foe[Pok.CURRENT_HP] == hp - 20
+
+
+def test_miracle_eye_lets_psychic_hit_dark(monkeypatch, make_pokemon, make_battle):
+    """pokeplatinum battle_lib MOVE_EFFECT_MIRACLE_EYE drops the Dark immunity to Psychic"""
+    arr = _delayed_battle(make_pokemon, make_battle, ["Miracle Eye", "Confusion"])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.SPEED] = 200
+    confusion = move_slice(me, 1)
+    assert engine_helper.calculate_hit_miss(confusion, me, foe, 0) == MoveOutcome.INVULNERABLE
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS2] & VolStatus2.MIRACLE_EYE
+    monkeypatch.setattr(random, "randint", lambda a, b: a)
+    assert engine_helper.calculate_hit_miss(confusion, me, foe, 0) == MoveOutcome.HIT
+
+
+def test_miracle_eye_ignores_raised_evasion(make_pokemon, make_battle):
+    """MON_IS_IDENTIFIED covers Foresight and Miracle Eye: raised evasion counts as 0"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Tackle"], ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    tackle = move_slice(me, 0)
+    foe[Pok.EVASION_STAT_STAGE] = 6
+    assert engine_helper.move_accuracy(tackle, me, foe, 100, 0) < 100
+    foe[Pok.VOL_STATUS2] |= VolStatus2.MIRACLE_EYE
+    assert engine_helper.move_accuracy(tackle, me, foe, 100, 0) == 100
+
+
+@pytest.mark.parametrize("vol, vol2", [(VolStatus.FORESIGHT, 0), (0, VolStatus2.MIRACLE_EYE)])
+def test_miracle_eye_fails_on_an_identified_target(make_pokemon, make_battle, vol, vol2):
+    """Showdown miracleeye onTryHit (Foresight) and its volatile already there"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Miracle Eye"], ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    assert not engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+    foe[Pok.VOL_STATUS] |= vol
+    foe[Pok.VOL_STATUS2] |= vol2
+    assert engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+
+
+def test_miracle_eye_goes_through_a_substitute_and_ends_on_switch_out(make_pokemon, make_battle):
+    """bypass_sub (pokeplatinum subscript_miracle_eye has no Substitute check); not Baton Passed"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Miracle Eye"], ["Splash"], foe_bench=True)
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS2] = VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 50
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS2] & VolStatus2.MIRACLE_EYE
+    new = pok_slice(arr, 7)
+    battle._pass_baton(foe, new)
+    assert not new[Pok.VOL_STATUS2] & VolStatus2.MIRACLE_EYE
+    engine_helper.reset_switch_out(foe)
+    assert not foe[Pok.VOL_STATUS2] & VolStatus2.MIRACLE_EYE
+
+
+def test_detect_blocks_like_protect(make_pokemon, make_battle):
+    """Detect is Protect's effect (pokeplatinum effect 111)"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Detect"], ["Tackle"], my_level=5, opp_level=50)
+    me = my_active(arr)
+    hp = me[Pok.CURRENT_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] == hp
+    assert not me[Pok.VOL_STATUS] & VolStatus.PROTECT and me[Pok.PROTECT_COUNT] == 1
+
+
+def test_detect_shares_protects_count(monkeypatch, make_pokemon, make_battle):
+    """A Detect after a Protect rolls the 1/2 chance, a failure resets the count (TryProtection)"""
+    arr = _phase3_battle(make_pokemon, make_battle, ["Protect", "Detect"], ["Splash"])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.PROTECT_COUNT] == 1
+    monkeypatch.setattr(random, "getrandbits", lambda n: 1)
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.PROTECT_COUNT] == 0

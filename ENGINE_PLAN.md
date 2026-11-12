@@ -23,8 +23,8 @@ Updated only when asked.
 - Done: 9.3 (hazards and grounding), and with it Phase 9, 2026-11-11.
 - Done: 10.1 (delayed effects) and 10.2 (sacrifice), 2026-11-12.
 - Done: 10.3 (self-switch), and with it Phase 10, 2026-11-12.
-- Done: 11.1 (restriction and trapping), 2026-11-12.
-- Next: 11.2 (accuracy locks and protection).
+- Done: 11.1 (restriction and trapping) and 11.2 (accuracy locks and protection), 2026-11-12.
+- Next: 11.3 (reflection).
 
 ## Goal
 
@@ -677,10 +677,10 @@ Fixed damage:
 
 ### 11.2 Accuracy locks and protection
 
-- [ ] Lock-On(B/E)
-- [ ] Mind Reader(E)
-- [ ] Miracle Eye(B/E)
-- [ ] Detect(E)
+- [x] Lock-On(B/E)
+- [x] Mind Reader(E)
+- [x] Miracle Eye(B/E)
+- [x] Detect(E)
 
 ### 11.3 Reflection
 

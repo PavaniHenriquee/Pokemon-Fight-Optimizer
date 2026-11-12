@@ -48,6 +48,7 @@ from Models.constants import (
     _MOVENAME_FACADE, _MOVENAME_SMELLING_SALTS, _MOVENAME_WAKE_UP_SLAP, _STATUS_POISON,
     _STATUS_TOXIC, _STATUS_PARALYSIS, _STATUS_SLEEP, _MOVE_PP, _POK_EVASION_STAT_STAGE,
     _MOVENAME_RETURN, _MOVENAME_FRUSTRATION, _POK_FRIENDSHIP, _VOLSTATUS2_ROOST,
+    _VOLSTATUS2_MIRACLE_EYE, _TYPES_PSYCHIC, _TYPES_DARK,
 )
 from Models.move import friendship_power
 from Engine.ability_helper import ignorable_ability, normalized_type, grounded_by_item
@@ -136,7 +137,7 @@ def matchup_types(move_type, defender, gravity=False, scrappy=False):
     Defender types the type chart reads. Foresight or the attacker's Scrappy drop the Ghost type
     against Normal and Fighting, Ingrain, Gravity and Iron Ball drop the Flying type against Ground, a
     dropped type is 0 (neutral). Roost drops it against every type for the turn (pokeplatinum
-    BasicTypeMulApplies, TURN_FLAG_ROOSTING)
+    BasicTypeMulApplies, TURN_FLAG_ROOSTING). Miracle Eye drops the Dark type against Psychic
     """
     t1 = defender[_POK_TYPE1]
     t2 = defender[_POK_TYPE2]
@@ -150,6 +151,11 @@ def matchup_types(move_type, defender, gravity=False, scrappy=False):
         if t1 == _TYPES_GHOST:
             t1 = 0
         if t2 == _TYPES_GHOST:
+            t2 = 0
+    if defender[_POK_VOL_STATUS2] & _VOLSTATUS2_MIRACLE_EYE and move_type == _TYPES_PSYCHIC:
+        if t1 == _TYPES_DARK:
+            t1 = 0
+        if t2 == _TYPES_DARK:
             t2 = 0
     if (vol & _VOLSTATUS_INGRAIN or gravity or grounded_by_item(defender)) and move_type == _TYPES_GROUND:
         if t1 == _TYPES_FLYING:
