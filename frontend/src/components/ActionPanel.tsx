@@ -244,6 +244,7 @@ export default function ActionPanel({ node, onActionClick, selectedKey }: Props)
   const bestKey = bestActionKey(node) ?? "";
   const isDeath = snapshot.phase === "DEATH";
   const isBatonPass = snapshot.phase === "BATON_PASS";
+  const healingWish = snapshot.field?.my_side?.some((s) => s.name === "Healing Wish") ?? false;
   const moves = ordered.filter(([, a]) => a.action_type === 1);
   const switches = ordered.filter(([, a]) => a.action_type === 2);
   const benchBySlot = new Map(snapshot.my_bench.map((b) => [b.slot, b]));
@@ -274,7 +275,7 @@ export default function ActionPanel({ node, onActionClick, selectedKey }: Props)
       {switches.length > 0 && (
         <div>
           <SectionTitle count={switches.length}>
-            {isDeath ? "Switch to" : isBatonPass ? "Baton Pass to" : "Switches"}
+            {isDeath ? "Switch to" : isBatonPass ? (healingWish ? "Healing Wish to" : "Baton Pass to") : "Switches"}
           </SectionTitle>
           {/* Five across, unless that makes a card narrower than 145px. 48px is the row's four gaps */}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(max(145px,calc((100%-48px)/5)),1fr))] gap-3">

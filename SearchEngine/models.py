@@ -193,7 +193,9 @@ def step_arr(battle_array, action_type, action_idx, opp_move):
     if battle_array[_FIELD_PHASE] == _BATTLEPHASE_BATON_PASS:
         pending = battle_array[_FIELD_PENDING_OPP_MOVE]
         foe = battle_array[_FIELD_OPP_POK]
-        baton_pass_action(battle_array, action_idx)
+        # Healing Wish's pick fainted to the hazards: the foe's move still waits for the next pick
+        if baton_pass_action(battle_array, action_idx) == _BATTLEPHASE_BATON_PASS:
+            return 0
         return _foe_turn(battle_array, foe, 0) if pending else 0
 
     a_type = action_type

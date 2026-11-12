@@ -132,7 +132,8 @@ from Models.constants import (
     _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST,
     _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _POK_HEAL_BLOCK_TURNS,
     _SIDECONDITION_SPIKES, _POK_MAGNET_RISE_TURNS, _VOLSTATUS2_MAGNET_RISE, _ABILITYNAMES_LEVITATE,
-    _MOVENAME_MAGNET_RISE,
+    _MOVENAME_MAGNET_RISE, _VOLSTATUS2_GRUDGE, _MOVENAME_HEALING_WISH, _SIDECONDITION_HEALING_WISH,
+    _MOVENAME_MEMENTO, _MOVENAME_GRUDGE,
 )
 from DataBase.PkDB import PokemonName
 
@@ -187,7 +188,8 @@ SUN_HEAL_MOVES = (_MOVENAME_SYNTHESIS, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SU
 # pokeplatinum sMovesAffectedByHealBlock, the ones in MoveDB
 HEAL_BLOCK_MOVES = SUN_HEAL_MOVES + (
     _MOVENAME_RECOVER, _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF,
-    _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_REST, _MOVENAME_SWALLOW, _MOVENAME_WISH
+    _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_REST, _MOVENAME_SWALLOW, _MOVENAME_WISH,
+    _MOVENAME_HEALING_WISH
 )
 # Pok.STOCKPILE packs the count with the Defense and Sp. Def stages it gave (pokeplatinum
 # stockpileCount, stockpileDefBoosts, stockpileSpDefBoosts)
@@ -1490,9 +1492,11 @@ def absorb_move(move, attacker, defender, gravity=False):
 def semi_inv_reaches(move_id, defender):
     """
     Gust, Hurricane, Sky Uppercut and Thunder reach a Pokemon in the air (Fly, Bounce), Earthquake
-    and Magnitude one underground (Dig), Surf and Whirlpool one underwater (Dive). Nothing reaches
-    Shadow Force (pokeplatinum SYSCTL_HIT_DURING_*)
+    and Magnitude one underground (Dig), Surf and Whirlpool one underwater (Dive). Only Memento
+    reaches all four, Shadow Force included (pokeplatinum SYSCTL_HIT_DURING_*, effect 0168)
     """
+    if move_id == _MOVENAME_MEMENTO:
+        return True
     hidden = defender[_POK_SEMI_INV_MOVE]
     if hidden in AIRBORNE_MOVES:
         return move_id in HITS_AIRBORNE
@@ -2102,6 +2106,20 @@ def recover_status_by_ability(pok):
 
 
 @njit
+def healing_wish_heal(pok, battle_array, side):
+    """
+    Healing Wish's replacement: full HP and no status, even if it was already healthy, after the
+    hazards and only for one that survived them (pokeplatinum subscript_healing_wish, Showdown gen4
+    onEntryHazardPriority -1). side is pok's Field.SIDE_COND
+    """
+    if not battle_array[side] & _SIDECONDITION_HEALING_WISH:
+        return
+    battle_array[side] &= ~_SIDECONDITION_HEALING_WISH
+    pok[_POK_CURRENT_HP] = pok[_POK_MAX_HP]
+    cure_status(pok)
+
+
+@njit
 def switch_in(attacker, defender, battle_array, is_mine, foe_entering=False):
     """
     What happens when a pokemon switches in so, abilities, hazards.
@@ -2121,6 +2139,7 @@ def switch_in(attacker, defender, battle_array, is_mine, foe_entering=False):
     apply_hazards(attacker, battle_array, side_base(is_mine))
     if attacker[_POK_CURRENT_HP] <= 0:
         return
+    healing_wish_heal(attacker, battle_array, side_base(is_mine))
     # pokeplatinum runs Trace for every active before the other switch-in abilities, so a copied
     # Intimidate or Download fires. A Trace already out that found nothing copies the newcomer
     traced = trace(attacker, defender)
@@ -2418,8 +2437,10 @@ def early_returns(attacker, defender, idx: int, flinch: bool, move, gravity=Fals
     A blocked turn (sleep, Truant, flinch, confusion self-hit, infatuation, full paralysis) ends charge
     moves and locks via unlock_move, Bide pauses instead, freeze keeps the lock.
     Destiny Bond ends as soon as the user tries to move again, even if the turn is blocked.
+    Grudge too (pokeplatinum CHECK_STATUS_START).
     """
     attacker[_POK_VOL_STATUS] &= ~_VOLSTATUS_DESTINY_BOND
+    attacker[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_GRUDGE
     # A recharge lasts only this turn: whatever blocks the turn first uses it up (pokeplatinum
     # clears VOLATILE_CONDITION_RECHARGING at the next turn's setup either way)
     recharging = attacker[_POK_CHARGE_RECHARGE] < 0

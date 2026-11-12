@@ -24,7 +24,7 @@ from SearchEngine.my_mcts import (
 )
 from SearchEngine.helper import find_best_terminal_node, prune_dominated
 from Models.idx_const import (
-    Pok, Move, Field, Item, ITEM_LEN, SIDE_WISH_TURNS, SIDE_FUTURE_TURNS, SIDE_FUTURE_DAMAGE,
+    Pok, Move, Field, Item, ITEM_LEN, SIDE_WISH_TURNS, SIDE_FUTURE_TURNS, SIDE_FUTURE_DAMAGE, POK_LEN,
 )
 from Models.item import ITEM_TABLE
 from Models.helper import (
@@ -1477,6 +1477,31 @@ def test_node_key_sees_wish_and_future_sight(one_v_one, side, cond):
     arr[side + SIDE_FUTURE_TURNS] = 2
     arr[side + SIDE_FUTURE_DAMAGE] = 30
     assert node_key(arr) == up
+
+
+@pytest.mark.parametrize("side", [Field.MY_SIDE_COND, Field.OPP_SIDE_COND])
+def test_node_key_sees_a_waiting_healing_wish(one_v_one, side):
+    """The Baton Pass phase's pick heals while Healing Wish waits, a plain one doesn't"""
+    arr = one_v_one()
+    key = node_key(arr)
+    arr[side] |= SideCondition.HEALING_WISH
+    assert node_key(arr) != key
+
+
+def test_my_healing_wish_pick_into_the_rocks_picks_again(make_pokemon, make_battle):
+    """step_arr reports no foe turn until a pick survives, then the slower foe's move"""
+    mine = [make_pokemon("Clefairy", 40, "Cute Charm", ["Healing Wish"]),
+            make_pokemon("Geodude", 30, "Sturdy", ["Tackle"]),
+            make_pokemon("Machop", 30, "Guts", ["Tackle"])]
+    arr = make_battle(mine, [make_pokemon("Rattata", 10, "Run Away", ["Growl"])])
+    arr[Field.MY_SIDE_COND] |= SideCondition.STEALTH_ROCK
+    arr[1 * POK_LEN + Pok.CURRENT_HP] = 1
+    step_arr(arr, ActionType.MOVE, 0, 0)
+    assert arr[Field.PHASE] == BattlePhase.BATON_PASS
+    assert step_arr(arr, ActionType.SWITCH, 1, 0) == 0
+    assert arr[Field.PHASE] == BattlePhase.BATON_PASS and arr[Field.PENDING_OPP_MOVE] == 1
+    assert step_arr(arr, ActionType.SWITCH, 2, 0) != 0
+    assert arr[Field.PHASE] == BattlePhase.TURN_START and my_active(arr)[Pok.ATTACK_STAT_STAGE] == -1
 
 
 @pytest.mark.parametrize("move, field, fails", [

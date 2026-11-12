@@ -166,7 +166,8 @@ class MoveName:
     GRAVITY         = GRASS_WHISTLE + 1
     GROWL           = GRAVITY + 1
     GROWTH          = GROWL + 1
-    GUARD_SWAP      = GROWTH + 1
+    GRUDGE          = GROWTH + 1
+    GUARD_SWAP      = GRUDGE + 1
     GUILLOTINE      = GUARD_SWAP + 1
     GUNK_SHOT       = GUILLOTINE + 1
     GUST            = GUNK_SHOT + 1
@@ -180,7 +181,8 @@ class MoveName:
     HEAL_BELL       = HEADBUTT + 1
     HEAL_BLOCK      = HEAL_BELL + 1
     HEAL_ORDER      = HEAL_BLOCK + 1
-    HEART_SWAP      = HEAL_ORDER + 1
+    HEALING_WISH    = HEAL_ORDER + 1
+    HEART_SWAP      = HEALING_WISH + 1
     HEAT_WAVE       = HEART_SWAP + 1
     HELPING_HAND    = HEAT_WAVE + 1
     HIDDEN_POWER    = HELPING_HAND + 1
@@ -234,7 +236,8 @@ class MoveName:
     MEGA_KICK       = MEGA_DRAIN + 1
     MEGA_PUNCH      = MEGA_KICK + 1
     MEGAHORN        = MEGA_PUNCH + 1
-    METAL_BURST     = MEGAHORN + 1
+    MEMENTO         = MEGAHORN + 1
+    METAL_BURST     = MEMENTO + 1
     METAL_CLAW      = METAL_BURST + 1
     METAL_SOUND     = METAL_CLAW + 1
     METEOR_MASH     = METAL_SOUND + 1

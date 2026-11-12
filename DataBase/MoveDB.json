@@ -2587,6 +2587,18 @@
     "target": "self",
     "type": "Normal"
   },
+  "Grudge": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true
+    },
+    "name": "grudge",
+    "pp": 5,
+    "target": "self",
+    "type": "Ghost"
+  },
   "Guard Swap": {
     "accuracy": true,
     "category": "Status",
@@ -2797,6 +2809,18 @@
     "pp": 10,
     "target": "self",
     "type": "Bug"
+  },
+  "Healing Wish": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "heal": true,
+      "metronome": true
+    },
+    "name": "healing_wish",
+    "pp": 10,
+    "target": "self",
+    "type": "Psychic"
   },
   "Heart Swap": {
     "accuracy": true,
@@ -3657,6 +3681,21 @@
     "pp": 10,
     "target": "normal",
     "type": "Bug"
+  },
+  "Memento": {
+    "accuracy": 100,
+    "boost_atk": -2,
+    "boost_spatk": -2,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "memento",
+    "pp": 10,
+    "target": "normal",
+    "type": "Dark"
   },
   "Metal Burst": {
     "accuracy": 100,

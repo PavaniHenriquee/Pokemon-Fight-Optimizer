@@ -2,6 +2,8 @@
 
 ## Trainer AI
 
+- Memento and Healing Wish (10.2): Basic and Expert follow [pp] `trainer_ai/script.s` only, Pokemow not checked.
+
 - AI: the 8.1 branches (Belly Drum, Acupressure, Captivate, Haze, Psych Up, the swaps, Power Trick,
   the two-stat boosts, Expert Dragon Dance) follow [pp] `trainer_ai/script.s` only: Pokemow's per-move
   panels load with JavaScript and couldn't be fetched, so any place Pokemow differs isn't checked.
@@ -90,7 +92,6 @@
   `subscript_rest`, CHECK_STATUS_STATE_SLEEP); [SD gen4]'s uproar stops every sleep.
 - Called moves under Gravity or Heal Block fail ([SD] onModifyMove, my call). [pp] `Move_CanBeMetronomed`
   rerolls Metronome's pick instead and fails Copycat and Assist.
-- Heal Block: Healing Wish and Lunar Dance go in `HEAL_BLOCK_MOVES` once they're in MoveDB.
 - Dream Eater runs `drain`, so a Liquid Ooze target hurts it; [pp] `subscript_dream_eater` has no Liquid Ooze
   check and heals.
 - Metronome item: a failed Trick, Switcheroo or Embargo keeps its count, like the status moves above ([pp] gives
@@ -171,6 +172,8 @@
   picked, a hit before Focus Punch). Only its move weights are off.
 - Search: the rollout weighs Trick Room at 1 like any status move (9.2), also when it's up and helps me (a second
   one ends it). `field_move_fails` only catches Tailwind already up.
+- Search: the rollout doesn't see Baton Pass or Healing Wish (10.2) fail on my last Pokemon, both are weighed like
+  any status move.
 - Search: `node_key` sees a rampage only through `LOCKED_MOVE`, not `RAMPAGE_TURNS`, so 2 turns left and 1
   left (confusion this turn) share a node.
 - Leppa on the foe (only through a Covet on my Leppa holder) gives back PP that Continue's foe PP arithmetic

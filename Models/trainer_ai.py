@@ -12,7 +12,7 @@ from Utils.helper import (
 from DataBase.MoveDB import MoveName, FIRE_WATER_ELECTRIC
 from DataBase.PkDB import POKEMON_ABILITY_POOL
 from Models.idx_const import (
-    POK_LEN, MOVE_STRIDE
+    POK_LEN, MOVE_STRIDE, AB_LEN
 )
 from Models.constants import (
     _POK_MOVE1_ID, _POK_ITEM_ID, _POK_ID, _POK_AB_ID, _POK_CURRENT_HP, _POK_TYPE1,
@@ -28,7 +28,8 @@ from Models.constants import (
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_MY_SIDE_COND,
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_MY_SPIKES, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
     _MOVENAME_COPYCAT, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_ARENA_TRAP, _ABILITYNAMES_MAGNET_PULL,
-    _TYPES_STEEL, _MOVE_POWER, _MOVENAME_HIDDEN_POWER
+    _TYPES_STEEL, _MOVE_POWER, _MOVENAME_HIDDEN_POWER, _MOVENAME_HEALING_WISH, _POK_VOL_STATUS2,
+    _VOLSTATUS2_EMBARGO, _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -235,6 +236,62 @@ def copycat_beats(ai_pok, user_pok, weather, user_side, gravity=False, ai_side=0
 
 
 @njit
+def _max_ai_damage(pok, user_pok, weather, ai_side, user_side, gravity):
+    """pokeplatinum TrainerAI_CalcAllDamage at the top roll: the best damage of pok's moves, PP or not"""
+    best = 0
+    for i in range(4):
+        mv = pok[_POK_MOVE1_ID + i * MOVE_STRIDE:_POK_MOVE1_ID + (i + 1) * MOVE_STRIDE]
+        if mv[_MOVE_ID] in MOVE_EXCEP or mv[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS:
+            continue
+        view = ai_move_view(mv, pok, user_pok, weather, ai_side, user_side)
+        eff, _ = trainer_ai_effectiveness(view, pok, user_pok, gravity)
+        dmg = ai_move_damage(view, eff, pok, user_pok, weather, user_side, gravity)
+        if dmg > best:
+            best = dmg
+    return best
+
+
+@njit
+def bench_deals_more(battle_array, ai_pok, user_pok, weather, ai_side, user_side, gravity):
+    """
+    pokeplatinum IfPartyMemberDealsMoreDamage (USE_MAX_DAMAGE) for Expert Healing Wish: a living
+    bench Pokemon's best damage beats the active's. Copied quirk: the bench's moves are worked out
+    on the active's battler (stats, level, types, stages, status), only the bench Pokemon's item,
+    ability and Hidden Power are its own, never under Embargo
+    """
+    active_dmg = _max_ai_damage(ai_pok, user_pok, weather, ai_side, user_side, gravity)
+    opp_active = battle_array[_FIELD_OPP_POK]
+    tmp = ai_pok.copy()
+    tmp[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_EMBARGO
+    for j in range(6):
+        base = (6 + j) * POK_LEN
+        if j == opp_active or battle_array[base + _POK_CURRENT_HP] <= 0:
+            continue
+        bench = battle_array[base:base + POK_LEN]
+        tmp[_POK_MOVE1_ID:POK_LEN] = bench[_POK_MOVE1_ID:POK_LEN]
+        tmp[_POK_AB_ID:_POK_AB_ID + AB_LEN] = bench[_POK_AB_ID:_POK_AB_ID + AB_LEN]
+        tmp[_POK_HIDDEN_POWER_TYPE] = bench[_POK_HIDDEN_POWER_TYPE]
+        tmp[_POK_HIDDEN_POWER_POWER] = bench[_POK_HIDDEN_POWER_POWER]
+        if _max_ai_damage(tmp, user_pok, weather, ai_side, user_side, gravity) > active_dmg:
+            return True
+    return False
+
+
+@njit
+def ai_has_se_move(ai_pok, user_pok, weather, ai_side, user_side, gravity):
+    """pokeplatinum IfHasSuperEffectiveMove: any of the AI's moves, status ones too, is super effective"""
+    for i in range(4):
+        mv = ai_pok[_POK_MOVE1_ID + i * MOVE_STRIDE:_POK_MOVE1_ID + (i + 1) * MOVE_STRIDE]
+        if mv[_MOVE_ID] == 0:
+            continue
+        view = ai_move_view(mv, ai_pok, user_pok, weather, ai_side, user_side)
+        _, s_e = trainer_ai_effectiveness(view, ai_pok, user_pok, gravity)
+        if s_e:
+            return True
+    return False
+
+
+@njit
 def choose_move(battle_array):
     """
     Calculates the score of the moves and sees what has the highest score
@@ -301,10 +358,14 @@ def choose_move(battle_array):
     ai_bench = count_party(battle_array[(6 * POK_LEN):(12 * POK_LEN)]) - 1
     # A living bench Pokemon with a status, for Expert Heal Bell (pokeplatinum IfPartyMemberStatus)
     ai_bench_status = False
+    # One below its max HP, fainted included, for Basic Healing Wish (IfAnyPartyMemberIsWounded)
+    ai_bench_hurt = False
     for j in range(6):
         base = j * POK_LEN
         if j != opp_active and ai_pty[base + _POK_CURRENT_HP] > 0 and ai_pty[base + _POK_STATUS]:
             ai_bench_status = True
+        if j != opp_active and ai_pty[base + _POK_CURRENT_HP] != ai_pty[base + _POK_MAX_HP]:
+            ai_bench_hurt = True
 
     _evaluated_moves = np.full((4,4),10,dtype=np.int16)
     # pokeplatinum TrainerAI_ShouldSwitch skips every withdraw check when Ingrain roots the active
@@ -380,6 +441,15 @@ def choose_move(battle_array):
         ability = pool_row[random.getrandbits(1)]
 
     max_damage = 0
+    # Expert Healing Wish's two checks, only worked out when the active has it
+    has_se = False
+    bench_more = False
+    for i in range(4):
+        if moves[i][_MOVE_ID] == _MOVENAME_HEALING_WISH:
+            has_se = ai_has_se_move(ai_pok, user_pok, eff_weather, ai_side, user_side, gravity)
+            bench_more = bench_deals_more(
+                battle_array, ai_pok, user_pok, eff_weather, ai_side, user_side, gravity
+            )
 
     _rand = np.zeros((4, 6, 2), dtype=np.int16)
     _eff4x = np.zeros(4, dtype=np.bool_)
@@ -430,7 +500,7 @@ def choose_move(battle_array):
         score = eval_atk + basic_flag(
             move, ability, ai_pok, user_pok, effectiveness, weather, ai_side, user_side,
             user_tspikes, user_bench, ai_bench, ai_know, turn, gravity, claw_guess, eff_weather,
-            trick_room, battle_array[_FIELD_MY_SPIKES]
+            trick_room, battle_array[_FIELD_MY_SPIKES], ai_bench_status, ai_bench_hurt
         )
 
         expert = expert_flag(
@@ -438,7 +508,8 @@ def choose_move(battle_array):
             ai_know, user_side,
             move_id == _MOVENAME_COPYCAT
             and copycat_beats(ai_pok, user_pok, eff_weather, user_side, gravity, ai_side),
-            claw_guess, eff_weather, ai_side, ability, ai_bench_status, ai_bench, trick_room
+            claw_guess, eff_weather, ai_side, ability, ai_bench_status, ai_bench, trick_room,
+            has_se, bench_more
         )
         score += expert
 

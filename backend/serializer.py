@@ -242,6 +242,9 @@ def _side(field_block, side_cond) -> list[dict]:
             "name": MoveIdToName.get(move_id, f"Move#{move_id}").replace("_", " ").title(),
             "turns": int(field_block[base + SIDE_FUTURE_TURNS]),
         })
+    # Healing Wish waiting for the Pokemon that comes in (the Baton Pass phase's pick)
+    if mask & SideCondition.HEALING_WISH:
+        out.append({"name": "Healing Wish"})
     for bit, name in _HAZARDS:
         if mask & bit:
             entry = {"name": name}

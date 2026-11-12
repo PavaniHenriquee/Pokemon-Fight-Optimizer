@@ -113,7 +113,7 @@ from Models.constants import (
     _MOVENAME_ROOST, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _MOVENAME_HEAL_BLOCK,
     _VOLSTATUS_HEAL_BLOCK, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _ABILITYNAMES_ICE_BODY,
     _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SOLAR_POWER, _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL,
-    _MOVENAME_WEATHER_BALL,
+    _MOVENAME_WEATHER_BALL, _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -387,7 +387,7 @@ ENCORE_ENCOURAGED_M = (
     MoveName.TOXIC, MoveName.REST, MoveName.POISON_GAS, MoveName.GLARE, MoveName.HEAL_BELL,
     MoveName.AROMATHERAPY, MoveName.TEETER_DANCE, MoveName.PSYCHO_SHIFT, MoveName.SUNNY_DAY,
     MoveName.HAIL, MoveName.MAGNET_RISE, MoveName.DOOM_DESIRE, MoveName.STOCKPILE, MoveName.SPIT_UP,
-    MoveName.SWALLOW
+    MoveName.SWALLOW, MoveName.GRUDGE, MoveName.HEALING_WISH
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 MOVE_DRAIN_SLOTS = tuple(slot + _MOVE_DRAIN - _MOVE_ID for slot in MOVE_ID_SLOTS)
@@ -403,7 +403,8 @@ SUN_HEAL_M = (_MOVENAME_SYNTHESIS, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN)
 HEAL_M = RESTORE_HALF_M + (_MOVENAME_ROOST,) + SUN_HEAL_M
 # Pokemow List_HealingMoves, the ones in MoveDB that aren't drain moves (those go by their drain)
 HEAL_BLOCK_GOOD_M = HEAL_M + (
-    _MOVENAME_REST, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _MOVENAME_LEECH_SEED, _MOVENAME_SWALLOW
+    _MOVENAME_REST, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _MOVENAME_LEECH_SEED, _MOVENAME_SWALLOW,
+    _MOVENAME_HEALING_WISH
 )
 # Scored by basic_misc / expert_misc
 MISC_BASIC_M = HEAL_M + (
@@ -1209,10 +1210,38 @@ def basic_defog(user_pok, user_side, user_bench):
 
 
 @njit
+def basic_memento(ability, ai_pok, user_pok, ai_bench):
+    """
+    Basic_CheckMemento: -10 into Clear Body or White Smoke unless the AI has Mold Breaker, -10 at -6
+    Attack, -8 at -6 Sp. Atk, -10 on the AI's last Pokemon. ability is the target's
+    """
+    if ai_pok[_POK_AB_ID] != _ABILITYNAMES_MOLD_BREAKER and ability in STAT_AB_IM:
+        return -10
+    if user_pok[_POK_ATTACK_STAT_STAGE] == -6:
+        return -10
+    if user_pok[_POK_SPECIAL_ATTACK_STAT_STAGE] == -6:
+        return -8
+    return -10 if ai_bench <= 0 else 0
+
+
+@njit
+def basic_healing_wish(ai_bench, ai_bench_status, ai_bench_hurt):
+    """
+    Basic_CheckHealingWish: -20, then -10 more on the AI's last Pokemon or when no bench Pokemon
+    has a status or less than its max HP (a fainted one counts, pokeplatinum
+    IfAnyPartyMemberIsWounded only compares HP with max HP)
+    """
+    if ai_bench <= 0 or not (ai_bench_status or ai_bench_hurt):
+        return -30
+    return -20
+
+
+@njit
 def basic_flag(
             move, ability, ai_pok, user_pok, effectiveness,
             weather, ai_side=0, user_side=0, user_tspikes=0, user_bench=1, ai_bench=1, ai_know=0,
-            turn=0, gravity=False, claw_guess=0, speed_weather=-1, trick_room=False, user_spikes=0
+            turn=0, gravity=False, claw_guess=0, speed_weather=-1, trick_room=False, user_spikes=0,
+            ai_bench_status=False, ai_bench_hurt=False
     ):
     """
     Basic Flag, every trainer has this,
@@ -1221,7 +1250,8 @@ def basic_flag(
     target's side and user_bench how many Pokemon it has alive besides the active, ai_bench the
     same for the AI. ai_know is Field.AI_KNOWS, turn is Field.TURN, gravity if Gravity is up.
     claw_guess and speed_weather are expert_flag's, for the speed compare, trick_room if Trick
-    Room is up, user_spikes the Spikes layers on the target's side
+    Room is up, user_spikes the Spikes layers on the target's side. ai_bench_status: a living
+    Pokemon on the AI's bench has a status, ai_bench_hurt: one is below its max HP (fainted counts)
     """
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
@@ -1246,6 +1276,10 @@ def basic_flag(
         return basic_magnet_rise(ai_pok)
     if move[_MOVE_ID] == _MOVENAME_DEFOG:
         return basic_defog(user_pok, user_side, user_bench)
+    if move[_MOVE_ID] == _MOVENAME_MEMENTO:
+        return basic_memento(ability, ai_pok, user_pok, ai_bench)
+    if move[_MOVE_ID] == _MOVENAME_HEALING_WISH:
+        return basic_healing_wish(ai_bench, ai_bench_status, ai_bench_hurt)
     # Pokemow Basic TrickRoom: -10 if the AI moves first, half the time on a speed tie
     if move[_MOVE_ID] == _MOVENAME_TRICK_ROOM:
         order = ai_speed_order(
@@ -1345,12 +1379,10 @@ def basic_flag(
     Reflect / Light Screen / Mist / Safeguard
     Camouflage / Lucky Chant
     Lock On / Mean Look / Torment / Miracle Eye / Heal Block / Gastro Acid
-    Memento
     Trick / Switcheroo
     Imprison
     Gravity / Tailwind
     Trick Room
-    Healing Wish / Lunar Dance
     Embargo
     Fling
     Copycat
@@ -2850,6 +2882,32 @@ def expert_explosion(ai_pok, u_pok, rand, idx, slower):
 
 
 @njit
+def expert_healing_wish(ai_pok, rand, idx, slower, has_se, bench_more):
+    """
+    pokeplatinum Expert_HealingWish: at 80% HP or more and not slower, 25% of -5. Above 50% HP,
+    80.5% of -1. Otherwise 25% of: +1, then 25% of +1 without a super-effective move and 50% of +1
+    if a bench Pokemon deals more damage (bench_deals_more); then at 30% HP or less 50% of +1
+    """
+    ai_hp_pct = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
+    if ai_hp_pct >= 80 and not slower:
+        add_adjustment(rand, idx, -5, 64)
+        return 0
+    if ai_hp_pct > 50:
+        add_adjustment(rand, idx, -1, 206)
+        return 0
+    score = 0
+    if random.getrandbits(8) >= 192:
+        score = 1
+        if not has_se:
+            add_adjustment(rand, idx, 1, 64)
+        if bench_more:
+            add_adjustment(rand, idx, 1, 128)
+    if ai_hp_pct <= 30:
+        add_adjustment(rand, idx, 1, 128)
+    return score
+
+
+@njit
 def quick_claw_guess(ai_pok, u_pok):
     """
     The AI's guess of which Quick Claws activate this turn, independent of the real roll (Pokemow):
@@ -2900,11 +2958,13 @@ def ai_speed_order(ai_pok, u_pok, weather, claw_guess, ai_side=0, user_side=0, t
 def expert_flag(
     ai_pok, u_pok, move, turn, idx, rand, weather, my_last_move, effectiveness, t_dmg, ai_know=0,
     user_side=0, copycat_beats=False, claw_guess=0, speed_weather=-1, ai_side=0, ability=-1,
-    ai_bench_status=False, ai_bench=1, trick_room=False
+    ai_bench_status=False, ai_bench=1, trick_room=False, has_se=False, bench_more=False
 ):
     """
     It shows the incentives and disincentives for the best trainer ai out there,
     for ROM HACKS every trainer has it.
+    has_se: one of the AI's moves is super effective on the target (pokeplatinum
+    IfHasSuperEffectiveMove), bench_more: bench_deals_more. Both only for Healing Wish.
     ai_know is Field.AI_KNOWS, its move bits are the target's moves the AI saw.
     user_side is the target's Field.SIDE_COND. copycat_beats: the target's last move, used on
     itself, does more damage than any of the AI's moves. claw_guess: quick_claw_guess.
@@ -2927,8 +2987,11 @@ def expert_flag(
 
     if move[_MOVE_ID] in NO_AI_CHECK_M:
         return 0
-    if move[_MOVE_ID] in EXPLODE_MOVES:
+    # Memento goes through the same script (pokeplatinum Expert_Main)
+    if move[_MOVE_ID] in EXPLODE_MOVES or move[_MOVE_ID] == _MOVENAME_MEMENTO:
         return expert_explosion(ai_pok, u_pok, rand, idx, order < 0)
+    if move[_MOVE_ID] == _MOVENAME_HEALING_WISH:
+        return expert_healing_wish(ai_pok, rand, idx, order < 0, has_se, bench_more)
     # Expert_OHKOMove: 25% chance of +1
     if move[_MOVE_OH_KO]:
         add_adjustment(rand, idx, 1, 64)
@@ -3135,8 +3198,7 @@ def expert_flag(
     """
     TODO:
     --------------Specific Moves---------------
-    Selfdestruct, Explosion, Memento
-    Healing Wish, Lunar Dance
+    Selfdestruct, Explosion
     Mirror Move
     Conversion
     Spit Up

@@ -93,6 +93,7 @@ class VolStatus2:
     POWER_TRICK       = 128
     ROOST             = 256
     MAGNET_RISE       = 512
+    GRUDGE            = 1024
 
 
 @dataclass(slots=True)
@@ -111,6 +112,7 @@ class SideCondition:
     TAILWIND = 1024
     WISH = 2048
     FUTURE_SIGHT = 4096
+    HEALING_WISH = 8192
 
 
 @dataclass(slots=True)

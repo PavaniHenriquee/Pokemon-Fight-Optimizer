@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from Models import trainer_ai_helper as ai
 from Engine import engine_helper
-from Models.trainer_ai import return_idx, sub_after_death, MOVE_EXCEP
+from Models.trainer_ai import return_idx, sub_after_death, MOVE_EXCEP, bench_deals_more
 from Models.idx_const import Pok, Move, POK_LEN, Field, Item
 from Models.helper import (
     VolStatus, VolStatus2, Status, Types, Enemy_AI_Knows, SideCondition, Weather
@@ -53,7 +53,7 @@ KIT_STATUS = (
     "Sleep Talk", "Nightmare", "Psycho Shift", "Heal Bell", "Aromatherapy",
     "Milk Drink", "Soft-Boiled", "Slack Off", "Heal Order", "Moonlight", "Morning Sun", "Roost",
     "Heal Block", "Sunny Day", "Hail", "Tailwind", "Trick Room", "Spikes", "Defog", "Magnet Rise",
-    "Wish", "Stockpile", "Swallow",
+    "Wish", "Stockpile", "Swallow", "Memento", "Healing Wish", "Grudge",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -2132,6 +2132,104 @@ def test_expert_explosion(poke, hp_pct, evasion, faster, expected):
     user[Pok.EVASION_STAT_STAGE] = evasion
     ai_pok[Pok.SPEED], user[Pok.SPEED] = (200, 10) if faster else (10, 200)
     assert _expert(ai_pok, user) == expected
+
+
+# ── 10.2 Memento, Healing Wish, Grudge ───────────────────────────────────────
+
+@pytest.mark.parametrize("kwargs, expected", [
+    ({}, 0),
+    ({"user_ability": "Clear Body"}, -10),
+    ({"user_ability": "White Smoke"}, -10),
+    ({"user_ability": "Clear Body", "ai_ability": "Mold Breaker"}, 0),
+    ({"ai_bench": 0}, -10),
+])
+def test_basic_memento(kwargs, expected):
+    """pokeplatinum Basic_CheckMemento: the target's stat-drop abilities, then the AI's last Pokemon"""
+    assert _basic_switch("Memento", **kwargs) == expected
+
+
+@pytest.mark.parametrize("atk, spatk, expected", [(-6, 0, -10), (0, -6, -8), (-6, -6, -10), (-5, -5, 0)])
+def test_basic_memento_stages(poke, atk, spatk, expected):
+    """-10 at -6 Attack, else -8 at -6 Sp. Atk"""
+    ai_pok = poke("Murkrow", 20, "Insomnia", ["Memento"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    user[Pok.ATTACK_STAT_STAGE] = atk
+    user[Pok.SPECIAL_ATTACK_STAT_STAGE] = spatk
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == expected
+
+
+@pytest.mark.parametrize("faster", [True, False])
+def test_expert_memento_is_scored_like_explosion(poke, faster):
+    """pokeplatinum Expert_Main sends Memento to Expert_Explosion"""
+    scores = []
+    for move in ("Memento", "Selfdestruct"):
+        ai_pok = poke("Murkrow", 20, "Insomnia", [move])
+        user = poke("Rattata", 20, "Run Away", ["Tackle"])
+        ai_pok[Pok.SPEED], user[Pok.SPEED] = (200, 10) if faster else (10, 200)
+        scores.append(_expert(ai_pok, user))
+    assert scores[0] == scores[1]
+
+
+@pytest.mark.parametrize("bench, status, hurt, expected", [
+    (1, False, True, -20), (1, True, False, -20), (1, False, False, -30), (0, True, True, -30),
+])
+def test_basic_healing_wish(poke, bench, status, hurt, expected):
+    """pokeplatinum Basic_CheckHealingWish: -20, -10 more on the last Pokemon or with nobody to heal"""
+    ai_pok = poke("Clefairy", 20, "Cute Charm", ["Healing Wish"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    score = ai.basic_flag(
+        move_slice(ai_pok, 0), AbilityNames.STURDY, ai_pok, user, 1.0, 0, ai_bench=bench,
+        ai_bench_status=status, ai_bench_hurt=hurt
+    )
+    assert score == expected
+
+
+@pytest.mark.parametrize("hp_pct, faster, roll, has_se, bench_more, expected", [
+    (80, True, 0, False, False, (0, [(-5, 64)])),               # healthy and faster
+    (80, False, 0, False, False, (0, [(-1, 206)])),             # slower: on to the HP checks
+    (51, True, 0, False, False, (0, [(-1, 206)])),
+    (50, True, 191, False, True, (0, [])),                      # 75%: skips the +1 section
+    (50, True, 192, False, True, (1, [(1, 64), (1, 128)])),
+    (50, True, 192, True, False, (1, [])),
+    (30, True, 191, True, True, (0, [(1, 128)])),               # 30% or less: 50% of +1
+])
+def test_expert_healing_wish(monkeypatch, poke, hp_pct, faster, roll, has_se, bench_more, expected):
+    """pokeplatinum Expert_HealingWish"""
+    monkeypatch.setattr(ai.random, "getrandbits", lambda k: roll)
+    ai_pok = poke("Clefairy", 20, "Cute Charm", ["Healing Wish"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = hp_pct
+    ai_pok[Pok.SPEED], user[Pok.SPEED] = (200, 10) if faster else (10, 200)
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0, has_se=has_se,
+        bench_more=bench_more
+    )
+    queued = [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+    assert (score, queued) == expected
+
+
+@pytest.mark.parametrize("bench_moves, more", [
+    (["Pound"], False),       # same move, its own higher level doesn't count
+    (["Strength"], True),     # a stronger move does
+    (["Growl"], False),
+])
+def test_bench_deals_more_uses_the_active_battler(make_pokemon, make_battle, bench_moves, more):
+    """pokeplatinum IfPartyMemberDealsMoreDamage works the bench's moves out on the active's battler"""
+    arr = make_battle(
+        [make_pokemon("Geodude", 20, "Sturdy", ["Tackle"])],
+        [make_pokemon("Clefairy", 20, "Cute Charm", ["Healing Wish", "Pound"]),
+         make_pokemon("Machamp", 60, "Guts", bench_moves)],
+    )
+    assert bench_deals_more(arr, opp_active(arr), my_active(arr), 0, 0, 0, False) == more
+
+
+def test_encore_and_heal_block_lists_have_the_new_moves():
+    """pokeplatinum Expert_Encore's table lists Grudge's and Healing Wish's effects, Expert_HealBlock
+    Healing Wish's"""
+    assert MoveName.GRUDGE in ai.ENCORE_ENCOURAGED_M and MoveName.HEALING_WISH in ai.ENCORE_ENCOURAGED_M
+    assert MoveName.HEALING_WISH in ai.HEAL_BLOCK_GOOD_M
 
 
 

@@ -200,7 +200,13 @@ def check_invariants(arr, action):
     )
     if not is_over(arr):
         if arr[Field.PHASE] != BattlePhase.DEATH_END_OF_TURN:
-            assert my_active(arr)[Pok.CURRENT_HP] > 0, "my active fainted outside death phase"
+            # My Healing Wish user (or its replacement the hazards KOed) waits for my pick fainted
+            healing_wish = (
+                arr[Field.PHASE] == BattlePhase.BATON_PASS
+                and arr[Field.MY_SIDE_COND] & SideCondition.HEALING_WISH
+            )
+            if not healing_wish:
+                assert my_active(arr)[Pok.CURRENT_HP] > 0, "my active fainted outside death phase"
             # A foe that fainted before my Baton Pass is replaced at the end of the paused turn
             if arr[Field.PHASE] != BattlePhase.BATON_PASS:
                 assert opp_active(arr)[Pok.CURRENT_HP] > 0, "opponent active fainted mid-battle"
@@ -5971,3 +5977,203 @@ def test_swallow_at_full_hp_still_empties_the_stockpile(poke):
     _stockpiled(p, 2)
     engine_helper.swallow(p)
     assert p[Pok.CURRENT_HP] == p[Pok.MAX_HP] and p[Pok.STOCKPILE] == 0 and p[Pok.DEFENSE_STAT_STAGE] == 0
+
+
+def _memento_battle(make_pokemon, make_battle, foe_moves=("Splash",), foe="Machop", foe_ab="Guts"):
+    """My faster Murkrow with Memento and a Geodude on the bench, against a level 30 foe"""
+    arr = make_battle(
+        [make_pokemon("Murkrow", 30, "Insomnia", ["Memento"]),
+         make_pokemon("Geodude", 30, "Sturdy", ["Tackle"])],
+        [make_pokemon(foe, 30, foe_ab, list(foe_moves))],
+    )
+    my_active(arr)[Pok.SPEED] = 200
+    return arr
+
+
+def test_memento_faints_the_user_and_drops_both(make_pokemon, make_battle):
+    """Attack and Sp. Atk -2 on the target, the user faints"""
+    arr = _memento_battle(make_pokemon, make_battle)
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    foe = opp_active(arr)
+    assert phase == BattlePhase.DEATH_END_OF_TURN and pok_slice(arr, 0)[Pok.CURRENT_HP] == 0
+    assert foe[Pok.ATTACK_STAT_STAGE] == -2 and foe[Pok.SPECIAL_ATTACK_STAT_STAGE] == -2
+
+
+@pytest.mark.parametrize("case", ["protect", "substitute"])
+def test_memento_that_doesnt_reach_spares_the_user(make_pokemon, make_battle, case):
+    """Protect or a Substitute: no drop and the user stays (Showdown selfdestruct ifHit, the gen4
+    substitute's onTryPrimaryHit fails a status move)"""
+    arr = _memento_battle(make_pokemon, make_battle, ("Protect",) if case == "protect" else ("Splash",))
+    foe = opp_active(arr)
+    if case == "protect":
+        foe[Pok.SPEED] = 300
+    else:
+        foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+        foe[Pok.SUB_HP] = 10
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Pok.CURRENT_HP] > 0
+    assert foe[Pok.ATTACK_STAT_STAGE] == 0 and foe[Pok.SPECIAL_ATTACK_STAT_STAGE] == 0
+
+
+def test_memento_miss_spares_the_user(monkeypatch, make_pokemon, make_battle):
+    """A miss doesn't reach the target either"""
+    arr = _memento_battle(make_pokemon, make_battle)
+    monkeypatch.setattr(battle, "calculate_hit_miss", lambda *a: MoveOutcome.MISS)
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Pok.CURRENT_HP] > 0
+
+
+@pytest.mark.parametrize("case", ["both at -6", "clear body", "mist"])
+def test_memento_faints_the_user_with_nothing_to_drop(make_pokemon, make_battle, case):
+    """It reached the target, so the user faints even when no drop lands"""
+    foe, ab = ("Tentacool", "Clear Body") if case == "clear body" else ("Machop", "Guts")
+    arr = _memento_battle(make_pokemon, make_battle, foe=foe, foe_ab=ab)
+    target = opp_active(arr)
+    start = -6 if case == "both at -6" else 0
+    target[Pok.ATTACK_STAT_STAGE] = start
+    target[Pok.SPECIAL_ATTACK_STAT_STAGE] = start
+    if case == "mist":
+        arr[OPP_SIDE] |= SideCondition.MIST
+    turn_sim(0, (MOVE, 0), arr)
+    assert pok_slice(arr, 0)[Pok.CURRENT_HP] == 0
+    assert target[Pok.ATTACK_STAT_STAGE] == start and target[Pok.SPECIAL_ATTACK_STAT_STAGE] == start
+
+
+@pytest.mark.parametrize("hidden", [MoveName.FLY, MoveName.DIG, MoveName.DIVE, MoveName.SHADOW_FORCE])
+def test_memento_reaches_every_semi_invulnerable_target(make_pokemon, make_battle, hidden):
+    """pokeplatinum effect 0168 sets every SYSCTL_HIT_DURING_* flag, Shadow Force included"""
+    arr = _memento_battle(make_pokemon, make_battle)
+    foe = opp_active(arr)
+    foe[Pok.VOL_STATUS] |= VolStatus.SEMI_INVULNERABLE
+    foe[Pok.SEMI_INV_MOVE] = hidden
+    assert engine_helper.semi_inv_reaches(MoveName.MEMENTO, foe)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.ATTACK_STAT_STAGE] == -2 and pok_slice(arr, 0)[Pok.CURRENT_HP] == 0
+
+
+def _healing_wish_battle(make_pokemon, make_battle, bench=2, foe_moves=("Growl",)):
+    """My faster Clefairy with Healing Wish, Geodude and Machop on the bench, against a Rattata"""
+    mine = [make_pokemon("Clefairy", 40, "Cute Charm", ["Healing Wish"]),
+            make_pokemon("Geodude", 30, "Sturdy", ["Tackle"]),
+            make_pokemon("Machop", 30, "Guts", ["Tackle"])][:bench + 1]
+    return make_battle(mine, [make_pokemon("Rattata", 10, "Run Away", list(foe_moves))])
+
+
+def test_my_healing_wish_heals_my_pick(make_pokemon, make_battle):
+    """The user faints, the turn waits for my pick, which comes in at full HP with no status and no
+    passed stages; then the slower foe's move hits it"""
+    arr = _healing_wish_battle(make_pokemon, make_battle)
+    clefairy, geodude = pok_slice(arr, 0), pok_slice(arr, 1)
+    clefairy[Pok.ATTACK_STAT_STAGE] = 2
+    geodude[Pok.CURRENT_HP] = 1
+    geodude[Pok.STATUS] = Status.BURN
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert phase == BattlePhase.BATON_PASS and arr[Field.PENDING_OPP_MOVE] == 1
+    assert clefairy[Pok.CURRENT_HP] == 0 and arr[MY_SIDE] & SideCondition.HEALING_WISH
+    assert battle.baton_pass_action(arr, 1) == BattlePhase.TURN_START
+    assert arr[Field.MY_POK] == 1 and not arr[MY_SIDE] & SideCondition.HEALING_WISH
+    assert geodude[Pok.CURRENT_HP] == geodude[Pok.MAX_HP] and geodude[Pok.STATUS] == 0
+    assert geodude[Pok.ATTACK_STAT_STAGE] == -1
+
+
+def test_healing_wish_fails_without_a_bench(make_pokemon, make_battle):
+    """Nobody to switch in: the user stays and nothing waits (pokeplatinum TryReplaceFaintedMon)"""
+    arr = _healing_wish_battle(make_pokemon, make_battle, bench=0)
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert phase == BattlePhase.TURN_START and my_active(arr)[Pok.CURRENT_HP] > 0
+    assert not arr[MY_SIDE] & SideCondition.HEALING_WISH
+
+
+def test_healing_wish_heals_after_the_hazards(make_pokemon, make_battle):
+    """The rocks hit first, then the heal brings it to full"""
+    arr = _healing_wish_battle(make_pokemon, make_battle)
+    arr[MY_SIDE] = SR
+    turn_sim(0, (MOVE, 0), arr)
+    battle.baton_pass_action(arr, 2)
+    machop = my_active(arr)
+    assert machop[Pok.CURRENT_HP] == machop[Pok.MAX_HP]
+
+
+def test_healing_wish_pick_into_the_rocks_picks_again(make_pokemon, make_battle):
+    """One the hazards KO is replaced before the foe moves, the next one gets the heal"""
+    arr = _healing_wish_battle(make_pokemon, make_battle)
+    arr[MY_SIDE] = SR
+    pok_slice(arr, 1)[Pok.CURRENT_HP] = 1
+    turn_sim(0, (MOVE, 0), arr)
+    pp = _pp(opp_active(arr), 0)
+    assert battle.baton_pass_action(arr, 1) == BattlePhase.BATON_PASS
+    assert arr[Field.PENDING_OPP_MOVE] == 1 and arr[MY_SIDE] & SideCondition.HEALING_WISH
+    assert _pp(opp_active(arr), 0) == pp
+    assert battle.baton_pass_action(arr, 2) == BattlePhase.TURN_START
+    machop = my_active(arr)
+    assert machop[Pok.CURRENT_HP] == machop[Pok.MAX_HP] and machop[Pok.ATTACK_STAT_STAGE] == -1
+    assert _pp(opp_active(arr), 0) == pp - 1
+
+
+def test_ai_healing_wish_sends_its_pick_healed(make_pokemon, make_battle):
+    """The AI picks right away with its post-KO logic, my slower move hits who it sent"""
+    me = make_pokemon("Geodude", 10, "Sturdy", ["Tackle"])
+    opp = [make_pokemon("Clefairy", 40, "Cute Charm", ["Healing Wish"]),
+           make_pokemon("Rattata", 30, "Run Away", ["Growl"])]
+    arr = make_battle([me], opp)
+    rattata = pok_slice(arr, 1, opp=True)
+    rattata[Pok.CURRENT_HP] = 1
+    rattata[Pok.STATUS] = Status.POISON
+    phase, _ = turn_sim(0, (MOVE, 0), arr)
+    assert phase == BattlePhase.TURN_START and arr[Field.OPP_POK] == 1
+    assert pok_slice(arr, 0, opp=True)[Pok.CURRENT_HP] == 0 and rattata[Pok.STATUS] == 0
+    assert 1 < rattata[Pok.CURRENT_HP] < rattata[Pok.MAX_HP]
+    assert not arr[OPP_SIDE] & SideCondition.HEALING_WISH
+
+
+def test_heal_block_stops_healing_wish(make_pokemon, make_battle):
+    """pokeplatinum sMovesAffectedByHealBlock lists it"""
+    arr = _healing_wish_battle(make_pokemon, make_battle)
+    _heal_blocked(my_active(arr))
+    assert engine_helper.heal_block_stops(my_active(arr), MoveName.HEALING_WISH)
+
+
+def _grudge_battle(make_pokemon, make_battle):
+    """My faster Misdreavus with Grudge and Splash, a Geodude on the bench, against a Poochyena"""
+    arr = make_battle(
+        [make_pokemon("Misdreavus", 30, "Levitate", ["Grudge", "Splash"]),
+         make_pokemon("Geodude", 30, "Sturdy", ["Tackle"])],
+        [make_pokemon("Poochyena", 30, "Run Away", ["Bite", "Leer"])],
+    )
+    my_active(arr)[Pok.SPEED] = 200
+    return arr
+
+
+def test_grudge_empties_the_move_that_kos_the_user(make_pokemon, make_battle):
+    """The foe's Bite loses all its PP, its other move keeps them (pokeplatinum BtlCmd_TryGrudge)"""
+    arr = _grudge_battle(make_pokemon, make_battle)
+    my_active(arr)[Pok.CURRENT_HP] = 1
+    leer = _pp(opp_active(arr), 1)
+    turn_sim(0, (MOVE, 0), arr)
+    assert pok_slice(arr, 0)[Pok.CURRENT_HP] == 0
+    assert _pp(opp_active(arr), 0) == 0 and _pp(opp_active(arr), 1) == leer
+
+
+def test_grudge_ends_when_the_user_moves_again(make_pokemon, make_battle):
+    """Gone at the start of the user's next move, like Destiny Bond (CHECK_STATUS_START)"""
+    arr = _grudge_battle(make_pokemon, make_battle)
+    turn_sim(1, (MOVE, 0), arr)
+    assert my_active(arr)[Pok.VOL_STATUS2] & VolStatus2.GRUDGE
+    my_active(arr)[Pok.CURRENT_HP] = 1
+    pp = _pp(opp_active(arr), 0)
+    turn_sim(0, (MOVE, 1), arr)
+    assert pok_slice(arr, 0)[Pok.CURRENT_HP] == 0 and _pp(opp_active(arr), 0) == pp - 1
+
+
+@pytest.mark.parametrize("case", ["attacker fainted", "struggle", "user alive"])
+def test_grudge_needs_a_ko_and_a_standing_attacker(poke, case):
+    """No PP lost when the attacker went down too, for Struggle, or without a KO"""
+    atk = poke("Machop", 30, "Guts", ["Tackle"])
+    defn = poke("Misdreavus", 30, "Levitate", ["Grudge"])
+    defn[Pok.VOL_STATUS2] |= VolStatus2.GRUDGE
+    defn[Pok.CURRENT_HP] = 0 if case != "user alive" else 1
+    if case == "attacker fainted":
+        atk[Pok.CURRENT_HP] = 0
+    pp = _pp(atk, 0)
+    battle._grudge(atk, defn, 10 if case == "struggle" else 0)
+    assert _pp(atk, 0) == pp

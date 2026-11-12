@@ -21,8 +21,8 @@ Updated only when asked.
 - Done: 8.2 (status and sleep) and 8.3 (healing), and with it Phase 8, 2026-11-11.
 - Done: 9.1 (weather) and 9.2 (field), 2026-11-11.
 - Done: 9.3 (hazards and grounding), and with it Phase 9, 2026-11-11.
-- Done: 10.1 (delayed effects), 2026-11-12.
-- Next: 10.2 (sacrifice).
+- Done: 10.1 (delayed effects) and 10.2 (sacrifice), 2026-11-12.
+- Next: 10.3 (self-switch).
 
 ## Goal
 
@@ -654,9 +654,9 @@ Fixed damage:
 
 ### 10.2 Sacrifice
 
-- [ ] Memento(B/E)
-- [ ] Healing Wish(B/E) !! (the replacement is picked mid-turn)
-- [ ] Grudge \* !
+- [x] Memento(B/E)
+- [x] Healing Wish(B/E) !! (the replacement is picked mid-turn)
+- [x] Grudge \* !
 
 ### 10.3 Self-switch
 

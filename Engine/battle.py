@@ -86,6 +86,8 @@ from Models.constants import (
     _ABILITYNAMES_SUCTION_CUPS, _ABILITYNAMES_MOLD_BREAKER, _MOVENAME_PURSUIT, _POK_CONFUSION_COUNTER,
     _POK_EVASION_STAT_STAGE, _VOLSTATUS_MUD_SPORT, _VOLSTATUS_WATER_SPORT, _VOLSTATUS_HEAL_BLOCK,
     _BATTLEPHASE_BATON_PASS, _FIELD_PENDING_OPP_MOVE, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
+    _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_GRUDGE, _VOLSTATUS2_GRUDGE,
+    _SIDECONDITION_HEALING_WISH,
     _MOVENAME_KNOCK_OFF, _POK_ITEM_KNOCKED_OFF, _MOVENAME_RECOVER, _MOVENAME_SYNTHESIS,
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
     _ENEMY_AI_KNOWS_ABILITY, _POK_CALLED_MOVE, _FIELD_LAST_MOVE, _MOVENAME_HIDDEN_POWER,
@@ -422,6 +424,7 @@ def _pursuit(atk, defn, slot, is_mine, battle_array):
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
             atk[_POK_CURRENT_HP] = 0
+        _grudge(atk, defn, slot)
         after_move_hit_items(atk, doubled, dealt, hit_pok)
     update_choice_lock(atk, slot)
     clear_target_choice_lock(defn, atk)
@@ -1313,6 +1316,7 @@ def _execute_move_slot(
         if defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS] & _VOLSTATUS_DESTINY_BOND:
             mark_hurt(atk)
             atk[_POK_CURRENT_HP] = 0
+        _grudge(atk, defn, current_move if is_mine else opp_move)
         after_move_hit_items(atk, mv, dealt, hit_pok)
         # Information for trainer ai logic, not set by a hit its Substitute took
         if is_mine and hit_pok:
@@ -1329,6 +1333,14 @@ def _execute_move_slot(
         or stage_move_fails(mv, atk, defn) or status_move_fails(mv, atk, defn)
     ):
         if counted:
+            metronome_fail(atk, outer_id)
+        return False
+    # Memento faints the user once it reached the target, also when the drops do nothing (Showdown
+    # selfdestruct "ifHit": a miss, Protect or a Substitute spares it)
+    if mv[_MOVE_ID] == _MOVENAME_MEMENTO:
+        atk[_POK_CURRENT_HP] = 0
+    if mv[_MOVE_ID] == _MOVENAME_HEALING_WISH:
+        if not _healing_wish(atk, defn, battle_array, is_mine) and counted:
             metronome_fail(atk, outer_id)
         return False
     if mv[_MOVE_FORCE_SWITCH]:
@@ -1414,6 +1426,8 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         swallow(atk)
     elif move_id == _MOVENAME_WISH:
         _set_wish(battle_array, side_base(is_mine))
+    elif move_id == _MOVENAME_GRUDGE:
+        atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_GRUDGE
     # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
     elif move_id == _MOVENAME_WORRY_SEED and worry_seed(defn) and not is_mine:
         battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY
@@ -1455,6 +1469,45 @@ def _baton_pass(atk, defn, battle_array, is_mine):
         effective_weather(battle_array), opp_idx, battle_array[_FIELD_GRAVITY_TURNS] > 0
     )
     _switch_opp_side(battle_array, atk, defn, i, True)
+
+
+@njit
+def _grudge(atk, defn, slot):
+    """
+    Grudge: the foe whose move KOed the Grudge user loses every PP of that slot, the caller's for a
+    called move. Only if it's still standing (after Destiny Bond) and it wasn't Struggle (pokeplatinum
+    BtlCmd_TryGrudge in subscript_faint_check_destiny_bond)
+    """
+    if (
+        defn[_POK_CURRENT_HP] <= 0 and defn[_POK_VOL_STATUS2] & _VOLSTATUS2_GRUDGE
+        and atk[_POK_CURRENT_HP] > 0 and 0 <= slot < 4
+    ):
+        atk[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_PP] = 0
+
+
+@njit
+def _healing_wish(atk, defn, battle_array, is_mine):
+    """
+    Healing Wish fails with nobody left to switch in. Otherwise the user faints and the replacement
+    comes in mid-turn, healed once it survives the hazards (healing_wish_heal); one they KO is
+    replaced right away (pokeplatinum effect 0220, subscript_healing_wish). Mine waits in the Baton
+    Pass phase for my pick, the AI picks with its post-KO logic. Returns False if it failed
+    """
+    if _bench_alive(battle_array, is_mine) == 0:
+        return False
+    atk[_POK_CURRENT_HP] = 0
+    battle_array[side_base(is_mine)] |= _SIDECONDITION_HEALING_WISH
+    if is_mine:
+        battle_array[_FIELD_PHASE] = _BATTLEPHASE_BATON_PASS
+        return True
+    while True:
+        i = sub_after_death(
+            battle_array[(6 * POK_LEN):(12 * POK_LEN)], defn, atk, battle_array[_FIELD_MY_SIDE_COND],
+            effective_weather(battle_array), -1, battle_array[_FIELD_GRAVITY_TURNS] > 0
+        )
+        atk = _switch_opp_side(battle_array, atk, defn, i)
+        if atk[_POK_CURRENT_HP] > 0 or _bench_alive(battle_array, False) == 0:
+            return True
 
 
 @njit
@@ -2261,7 +2314,8 @@ def switch_in_action(battle_array, switch_idx: int):
 def baton_pass_action(battle_array, switch_idx: int):
     """
     My pick for Baton Pass: switch with the stages and volatiles, run the opponent's move if it
-    was slower, then the rest of the turn. Returns the phase, also stored in Field.PHASE
+    was slower, then the rest of the turn. Returns the phase, also stored in Field.PHASE.
+    Healing Wish's pick is a plain switch, and one the hazards KO is picked again before the foe moves
     """
     battle_array[_FIELD_OPP_MOVE_RAN] = 0
     current_pokemon = battle_array[
@@ -2270,7 +2324,12 @@ def baton_pass_action(battle_array, switch_idx: int):
     current_opp = battle_array[
         ((battle_array[_FIELD_OPP_POK]+6) * POK_LEN):((battle_array[_FIELD_OPP_POK]+7) * POK_LEN)
     ]
-    current_pokemon = _switch_my_side(battle_array, current_pokemon, current_opp, switch_idx, True)
+    healing_wish = battle_array[_FIELD_MY_SIDE_COND] & _SIDECONDITION_HEALING_WISH != 0
+    current_pokemon = _switch_my_side(
+        battle_array, current_pokemon, current_opp, switch_idx, not healing_wish
+    )
+    if healing_wish and current_pokemon[_POK_CURRENT_HP] <= 0 and _bench_alive(battle_array, True) > 0:
+        return _BATTLEPHASE_BATON_PASS
     pending = battle_array[_FIELD_PENDING_OPP_MOVE] - 1
     battle_array[_FIELD_PENDING_OPP_MOVE] = 0
     battle_array[_FIELD_PHASE] = _BATTLEPHASE_TURN_START
