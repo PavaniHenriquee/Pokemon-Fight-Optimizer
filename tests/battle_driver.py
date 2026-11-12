@@ -463,6 +463,25 @@ def scenario_delayed_sacrifice():
     return my, opp, ()
 
 
+def scenario_restriction_reflection():
+    """Phase 11: restriction and trapping (Torment, Imprison, Spite, Mean Look, Block, Spider Web),
+    accuracy locks and protection (Lock-On, Mind Reader, Miracle Eye, Detect) and reflection (Magic
+    Coat, Snatch) both ways"""
+    my = [
+        _p("Sableye", 40, "Keen Eye", ["Snatch", "Torment", "Mean Look", "Shadow Ball"]),
+        _p("Alakazam", 40, "Synchronize", ["Magic Coat", "Miracle Eye", "Psychic", "Imprison"]),
+        _p("Porygon_z", 40, "Adaptability", ["Lock-On", "Zap Cannon", "Thunderbolt", "Recover"]),
+        _p("Umbreon", 40, "Synchronize", ["Block", "Toxic", "Moonlight", "Detect"]),
+    ]
+    opp = [
+        _p("Mr_mime", 40, "Soundproof", ["Magic Coat", "Psychic", "Thunder Wave", "Calm Mind"]),
+        _p("Absol", 40, "Pressure", ["Snatch", "Swords Dance", "Night Slash", "Detect"]),
+        _p("Ariados", 40, "Insomnia", ["Spider Web", "Toxic", "Poison Jab", "Spite"]),
+        _p("Poliwrath", 40, "Water Absorb", ["Mind Reader", "Dynamic Punch", "Hypnosis", "Torment"]),
+    ]
+    return my, opp, ()
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -480,6 +499,7 @@ SCENARIOS = {
     "status_moves": scenario_status_moves,
     "field_hazards": scenario_field_hazards,
     "delayed_sacrifice": scenario_delayed_sacrifice,
+    "restriction_reflection": scenario_restriction_reflection,
 }
 
 

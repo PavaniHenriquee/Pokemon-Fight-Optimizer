@@ -24,7 +24,9 @@ Updated only when asked.
 - Done: 10.1 (delayed effects) and 10.2 (sacrifice), 2026-11-12.
 - Done: 10.3 (self-switch), and with it Phase 10, 2026-11-12.
 - Done: 11.1 (restriction and trapping) and 11.2 (accuracy locks and protection), 2026-11-12.
-- Next: 11.3 (reflection).
+- Done: 11.3 (reflection), and with it Phase 11, 2026-11-12. Its `benchmarks.run quick` on the home PC is still
+  to do.
+- Next: 12.1 (type and ability changes).
 
 ## Goal
 
@@ -684,8 +686,8 @@ Fixed damage:
 
 ### 11.3 Reflection
 
-- [ ] Magic Coat(E) !!
-- [ ] Snatch(E) !!
+- [x] Magic Coat(E) !!
+- [x] Snatch(E) !!
 
 ## Phase 12: copying, calling and type/ability changes
 

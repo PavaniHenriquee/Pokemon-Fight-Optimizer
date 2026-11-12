@@ -157,6 +157,7 @@ class Flags:
     REFLECTABLE      = RECHARGE + 1
     SLICING          = REFLECTABLE + 1
     SOUND            = SLICING + 1
+    SNATCH           = SOUND + 1
     #DISTANCE         = DEFROST + 1
     #FAIL_COPYCAT     = DISTANCE + 1
     #FAIL_INSTRUCT    = FAIL_ENCORE + 1

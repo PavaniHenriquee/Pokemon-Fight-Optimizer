@@ -163,6 +163,7 @@ class Moves():
         move_flags_array[MoveFlags.REFLECTABLE - off]      = int(flags.get('reflectable', False))
         move_flags_array[MoveFlags.SLICING - off]          = int(flags.get('slicing', False))
         move_flags_array[MoveFlags.SOUND - off]            = int(flags.get('sound', False))
+        move_flags_array[MoveFlags.SNATCH - off]           = int(flags.get('snatch', False))
         """move_flags_array[MoveFlags.CANT_USE_TWICE - off]   = int(flags.get('cant_use_twice', False))
         move_flags_array[MoveFlags.DISTANCE - off]         = int(flags.get('distance', False))
         move_flags_array[MoveFlags.FAIL_COPYCAT - off]     = int(flags.get('fail_copycat', False))

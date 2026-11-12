@@ -120,6 +120,8 @@ from Models.constants import (
     _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER, _MOVENAME_ROOST, _MOVENAME_MOONLIGHT,
     _MOVENAME_MORNING_SUN, _VOLSTATUS2_ROOST, _POK_HEAL_BLOCK_TURNS, _POK_MAGNET_RISE_TURNS,
     _VOLSTATUS2_MAGNET_RISE, _MOVENAME_MAGNET_RISE, _MOVENAME_DEFOG,
+    _MOVENAME_MAGIC_COAT, _MOVENAME_SNATCH, _VOLSTATUS2_MAGIC_COAT, _VOLSTATUS2_SNATCH,
+    _FLAGS_REFLECTABLE, _FLAGS_SNATCH, _ABILITYNAMES_PRESSURE,
 )
 from Models.move import STRUGGLE, MOVE_TABLE, DEFOG_DROP
 from Models.item import refresh_item, raw_item_type
@@ -217,7 +219,9 @@ HEAL_MOVES = (
     _MOVENAME_MORNING_SUN
 )
 # VOL_STATUS2 bits that last only the turn
-TURN_VOLATILES2 = _VOLSTATUS2_DAMAGED_BY_MOVE | _VOLSTATUS2_ROOST
+TURN_VOLATILES2 = (
+    _VOLSTATUS2_DAMAGED_BY_MOVE | _VOLSTATUS2_ROOST | _VOLSTATUS2_MAGIC_COAT | _VOLSTATUS2_SNATCH
+)
 RECOIL_IMMUNE_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 # Covet and Thief take the target's item, Bug Bite and Pluck eat its berry
 STEAL_MOVES = (_MOVENAME_COVET, _MOVENAME_THIEF)
@@ -1073,6 +1077,33 @@ def _called_move_array(atk, move_id):
 
 
 @njit
+def _stolen_by(mv, foe):
+    """The foe's turn flag that takes this move: Magic Coat for a reflectable one, Snatch for a
+    snatchable one, 0 for neither"""
+    if foe[_POK_CURRENT_HP] <= 0:
+        return 0
+    vol2 = foe[_POK_VOL_STATUS2]
+    if vol2 & _VOLSTATUS2_MAGIC_COAT and mv[_FLAGS_REFLECTABLE]:
+        return _VOLSTATUS2_MAGIC_COAT
+    if vol2 & _VOLSTATUS2_SNATCH and mv[_FLAGS_SNATCH]:
+        return _VOLSTATUS2_SNATCH
+    return 0
+
+
+@njit
+def _stolen_pressure(taker, user, slot, taker_is_opp, battle_array):
+    """The original user's Pressure costs the taker one more PP of the move it selected
+    (pokeplatinum BattleSystem_DecPPForPressure in MoveStolen)"""
+    if user[_POK_AB_ID] != _ABILITYNAMES_PRESSURE or slot < 0 or slot > 3:
+        return
+    pp_idx = OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_PP
+    if taker[pp_idx] > 0:
+        taker[pp_idx] -= 1
+        if taker_is_opp:
+            battle_array[_FIELD_OPP_MOVE_RAN] += OPP_RAN_PP_STEP
+
+
+@njit
 def _execute_move_slot(
         atk, defn, mv, is_mine, current_move, opp_move,
         flinch_in, slot_num, is_last, battle_array, weather,
@@ -1190,6 +1221,19 @@ def _execute_move_slot(
             metronome_fail(atk, outer_id)
         return False
 
+    # The foe's Magic Coat sends the move back, its Snatch takes it: from here the move runs with
+    # the foe as its user, once per turn (pokeplatinum BattleControllerPlayer_MoveStolen, after
+    # the PP and the target check)
+    stolen = _stolen_by(mv, defn)
+    if stolen:
+        defn[_POK_VOL_STATUS2] &= ~stolen
+        _stolen_pressure(defn, atk, opp_move if is_mine else current_move, is_mine, battle_array)
+        atk, defn = defn, atk
+        is_mine = not is_mine
+        counted = False
+        if heal_block_stops(atk, mv[_MOVE_ID]):
+            return False
+
     _consec_before_move(atk, mv, current_move if is_mine else opp_move)
     if mv[_MOVE_ID] == _MOVENAME_NATURAL_GIFT and not natural_gift(atk, mv):
         metronome_fail(atk, outer_id)
@@ -1202,6 +1246,18 @@ def _execute_move_slot(
         mv = fling_move(atk, defn, mv)
     if mv[_MOVE_ID] in STALL_MOVES:
         try_protect(atk, mv[_MOVE_ID], is_last)
+        return False
+    # Magic Coat and Snatch fail when nothing acts after the user (pokeplatinum
+    # BtlCmd_TrySetMagicCoat, BtlCmd_TrySnatch)
+    if mv[_MOVE_ID] == _MOVENAME_MAGIC_COAT or mv[_MOVE_ID] == _MOVENAME_SNATCH:
+        if is_last:
+            if counted:
+                metronome_fail(atk, outer_id)
+            return False
+        if mv[_MOVE_ID] == _MOVENAME_MAGIC_COAT:
+            atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_MAGIC_COAT
+        else:
+            atk[_POK_VOL_STATUS2] |= _VOLSTATUS2_SNATCH
         return False
     target_action = opp_move if is_mine else current_move
     if (
@@ -1277,7 +1333,7 @@ def _execute_move_slot(
     # Shadow Force goes through Protect and lifts it (pokeplatinum effect 272, the Feint subscript)
     if mv[_MOVE_ID] == _MOVENAME_SHADOW_FORCE:
         defn[_POK_VOL_STATUS] &= ~_VOLSTATUS_PROTECT
-    if mv[_MOVE_TARGET] not in NO_FOE_TARGETS:
+    if mv[_MOVE_TARGET] not in NO_FOE_TARGETS and not stolen:
         mirror_record(mv, defn, is_called)
     if mv[_MOVE_ID] == _MOVENAME_PRESENT and mv[_MOVE_POWER] == 0:
         _present_heal(defn)

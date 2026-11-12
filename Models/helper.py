@@ -100,6 +100,8 @@ class VolStatus2:
     MEAN_LOOK         = 16384
     LOCK_ON           = 32768
     MIRACLE_EYE       = 65536
+    MAGIC_COAT        = 131072
+    SNATCH            = 262144
 
 
 @dataclass(slots=True)

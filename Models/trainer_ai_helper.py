@@ -114,6 +114,7 @@ from Models.constants import (
     _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SOLAR_POWER, _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL,
     _MOVENAME_WEATHER_BALL, _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_U_TURN,
     _MOVENAME_DETECT, _MOVENAME_MIRACLE_EYE, _VOLSTATUS2_LOCK_ON, _VOLSTATUS2_MIRACLE_EYE,
+    _MOVENAME_MAGIC_COAT, _MOVENAME_SNATCH,
 )
 from Engine.damage_calc import (
     weight_power, matchup_types, gyro_ball_power, gravity_types, EXPLODE_MOVES, is_scrappy,
@@ -305,6 +306,7 @@ SLEEP_EXPERT_M = (
     _MOVENAME_AROMATHERAPY, _MOVENAME_PSYCHO_SHIFT
 )
 REST_M = (_MOVENAME_REST,)
+SNATCH_M = (_MOVENAME_SNATCH,)
 # Basic_PsychoShift_Poison's target abilities
 PSYCHO_SHIFT_POISON_AB = (
     _ABILITYNAMES_IMMUNITY, _ABILITYNAMES_POISON_HEAL, _ABILITYNAMES_MAGIC_GUARD
@@ -1564,7 +1566,7 @@ def expert_toxic(ai_pok, hp_pct_ai, hp_pct_u, rand, idx):
 
 
 @njit
-def expert_sleep(move, ai_pok, u_pok, rand, idx, move_first, ai_bench_status):
+def expert_sleep(move, ai_pok, u_pok, rand, idx, move_first, ai_bench_status, ai_know=0):
     """
     pokeplatinum Expert_Rest, Expert_Nightmare (Snore's effect goes there, Nightmare has no Expert
     check), Expert_SleepTalk, Expert_HealBell (Aromatherapy too) and Expert_PsychoShift, as Pokemow
@@ -1584,8 +1586,8 @@ def expert_sleep(move, ai_pok, u_pok, rand, idx, move_first, ai_bench_status):
         if (u_pok[_POK_CURRENT_HP] * 100) // u_pok[_POK_MAX_HP] >= 30:
             add_adjustment(rand, idx, 1, 128)
         return 0
-    # Rest: the HP checks end it with -3 (a roll in the middle band), else 246/256 of +3. Snatch
-    # isn't in MoveDB, a target seen using it would make this 12669/16384
+    # Rest: the HP checks end it with -3 (a roll in the middle band), else 246/256 of +3. A
+    # target seen using Snatch makes this 12669/16384 (206/256 to get to the roll)
     if move_first:
         if hp_pct_ai == 100:
             return -8
@@ -1600,6 +1602,8 @@ def expert_sleep(move, ai_pok, u_pok, rand, idx, move_first, ai_bench_status):
         # 206/256 of -3 and terminate
         if hp_pct_ai >= 60 and random.getrandbits(8) >= 50:
             return -3
+    if seen_move(u_pok, ai_know, SNATCH_M) and random.getrandbits(8) < 50:
+        return 0
     add_adjustment(rand, idx, 3, 246)
     return 0
 
@@ -1701,6 +1705,48 @@ def expert_feint(ai_pok, u_pok, rand, idx, ai_know):
         add_adjustment(rand, idx, 1, 64)
         return 0
     return -2
+
+
+@njit
+def expert_magic_coat(ai_pok, rand, idx):
+    """Pokemow Expert Magic Coat. It reads the AI's own HP, pokeplatinum Expert_MagicCoat the
+    target's"""
+    if (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP] < 31:
+        add_adjustment(rand, idx, -1, 156)
+    if ai_pok[_POK_TURNS_ACTIVE] == 1:
+        add_adjustment(rand, idx, 1, 106)
+    else:
+        add_adjustment(rand, idx, -1, 226)
+    return 0
+
+
+@njit
+def expert_snatch(ai_pok, u_pok, rand, idx, move_first, ai_know):
+    """Pokemow Expert Snatch. pokeplatinum Expert_Snatch_TryScorePlus1 sends the 230/256 that
+    miss the +1 on to the -2 roll, Pokemow ends there"""
+    if ai_pok[_POK_TURNS_ACTIVE] == 1:
+        add_adjustment(rand, idx, 2, 106)
+        return 0
+    # 30/256 of no change and terminate
+    if random.getrandbits(8) < 30:
+        return 0
+    hp_pct_u = (u_pok[_POK_CURRENT_HP] * 100) // u_pok[_POK_MAX_HP]
+    if not move_first:
+        if hp_pct_u > 25:
+            add_adjustment(rand, idx, -2, 226)
+        elif seen_move(u_pok, ai_know, RECOVER_DEF_CURL_M):
+            add_adjustment(rand, idx, 2, 106)
+        else:
+            add_adjustment(rand, idx, 1, 26)
+        return 0
+    # 5537/8192 of -2 at full HP against a target at 70% or more: 196/256 to get to the roll
+    if (
+        ai_pok[_POK_CURRENT_HP] == ai_pok[_POK_MAX_HP] and hp_pct_u >= 70
+        and random.getrandbits(8) < 60
+    ):
+        return 0
+    add_adjustment(rand, idx, -2, 226)
+    return 0
 
 
 @njit
@@ -2444,7 +2490,9 @@ def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know=0):
         # 226/256 of -3 and terminate
         if hp_pct_ai > 69 and random.getrandbits(8) >= 30:
             return score - 3
-        # Snatch isn't in MoveDB, a target seen using it would make this 2301/4096
+        # A target seen using Snatch makes this 2301/4096 (156/256 to get to the roll)
+        if seen_move(u_pok, ai_know, SNATCH_M) and random.getrandbits(8) < 100:
+            return score
         add_adjustment(rand, idx, 2, 236)
         return score
     if move_id == _MOVENAME_REFRESH:
@@ -3092,7 +3140,7 @@ def expert_flag(
         add_adjustment(rand, idx, 1, 64)
         return 0
     if move[_MOVE_ID] in SLEEP_EXPERT_M:
-        return expert_sleep(move, ai_pok, u_pok, rand, idx, move_first, ai_bench_status)
+        return expert_sleep(move, ai_pok, u_pok, rand, idx, move_first, ai_bench_status, ai_know)
     if move[_MOVE_ID] in EXPERT_SPECIFIC_M:
         return expert_moves(
             move, u_pok, ai_pok, effectiveness, rand, idx, t_dmg, my_last_move, move_first, ability,
@@ -3126,6 +3174,10 @@ def expert_flag(
         return 1 if weather == _WEATHER_HAIL else 0
     if move[_MOVE_ID] == _MOVENAME_FEINT:
         return expert_feint(ai_pok, u_pok, rand, idx, ai_know)
+    if move[_MOVE_ID] == _MOVENAME_MAGIC_COAT:
+        return expert_magic_coat(ai_pok, rand, idx)
+    if move[_MOVE_ID] == _MOVENAME_SNATCH:
+        return expert_snatch(ai_pok, u_pok, rand, idx, move_first, ai_know)
     # Expert_SpitUp: 176/256 of +2 with 2 or more stockpiled
     if move[_MOVE_ID] == _MOVENAME_SPIT_UP:
         if stockpile_count(ai_pok) >= 2:

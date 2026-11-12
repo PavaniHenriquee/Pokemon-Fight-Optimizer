@@ -230,7 +230,8 @@ class MoveName:
     LOW_KICK        = LOVELY_KISS + 1
     LUCKY_CHANT     = LOW_KICK + 1
     MACH_PUNCH      = LUCKY_CHANT + 1
-    MAGICAL_LEAF    = MACH_PUNCH + 1
+    MAGIC_COAT      = MACH_PUNCH + 1
+    MAGICAL_LEAF    = MAGIC_COAT + 1
     MAGMA_STORM     = MAGICAL_LEAF + 1
     MAGNET_BOMB     = MAGMA_STORM + 1
     MAGNET_RISE     = MAGNET_BOMB + 1
@@ -371,7 +372,8 @@ class MoveName:
     SMELLING_SALTS  = SLUDGE_BOMB + 1
     SMOG            = SMELLING_SALTS + 1
     SMOKESCREEN     = SMOG + 1
-    SNORE           = SMOKESCREEN + 1
+    SNATCH          = SMOKESCREEN + 1
+    SNORE           = SNATCH + 1
     SOFT_BOILED     = SNORE + 1
     SOLAR_BEAM      = SOFT_BOILED + 1
     SONIC_BOOM      = SOLAR_BEAM + 1

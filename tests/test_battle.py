@@ -6,7 +6,7 @@ from Engine import battle
 from Engine.battle import start_of_turn, end_of_turn, turn_sim, switch_in_action
 from Engine.status_calc import vol_status
 from Models.idx_const import (
-    Pok, Move, Sec, Field, POK_LEN, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS,
+    Pok, Move, Sec, Field, Flags, POK_LEN, SIDE_REFLECT_TURNS, SIDE_LIGHT_SCREEN_TURNS, SIDE_MIST_TURNS,
     SIDE_SAFEGUARD_TURNS, SIDE_LUCKY_CHANT_TURNS, SIDE_TOXIC_SPIKES, FIELD_LEN, SIDE_SPIKES,
     SIDE_FUTURE_TURNS, SIDE_FUTURE_DAMAGE, SIDE_FUTURE_MOVE,
 )
@@ -6767,3 +6767,152 @@ def test_detect_shares_protects_count(monkeypatch, make_pokemon, make_battle):
     monkeypatch.setattr(random, "getrandbits", lambda n: 1)
     turn_sim(0, (MOVE, 1), arr)
     assert me[Pok.PROTECT_COUNT] == 0
+
+
+# ── 11.3 Reflection: Magic Coat, Snatch ───────────────────────────────────────────────────────
+
+def _run_slot(arr, mine, slot=0, slot_num=1, is_last=False):
+    """One side's move through _execute_move_slot, so the turn flags can be read mid-turn"""
+    me, foe = my_active(arr), opp_active(arr)
+    atk, defn = (me, foe) if mine else (foe, me)
+    battle._execute_move_slot(
+        atk, defn, move_slice(atk, slot), mine, slot if mine else 0, 0 if mine else slot,
+        False, slot_num, is_last, arr, 0
+    )
+
+
+def _taker_then_user(arr, taker_mine=True):
+    """The taker's first move, then the other side's first move as the last slot of the turn"""
+    _run_slot(arr, taker_mine)
+    _run_slot(arr, not taker_mine, slot_num=2, is_last=True)
+
+
+@pytest.mark.parametrize("move, bit", [
+    ("Magic Coat", VolStatus2.MAGIC_COAT), ("Snatch", VolStatus2.SNATCH),
+])
+def test_magic_coat_and_snatch_fail_when_moving_last(make_pokemon, make_battle, move, bit):
+    """pokeplatinum BtlCmd_TrySetMagicCoat / BtlCmd_TrySnatch: nothing acts after the user"""
+    arr = _restrict_battle(make_pokemon, make_battle, [move], ["Splash"])
+    me = my_active(arr)
+    _run_slot(arr, True, is_last=True)
+    assert not me[Pok.VOL_STATUS2] & bit
+    _run_slot(arr, True)
+    assert me[Pok.VOL_STATUS2] & bit
+    battle._finish_turn(arr)
+    assert not me[Pok.VOL_STATUS2] & bit
+
+
+def test_magic_coat_sends_the_move_back_once(monkeypatch, make_pokemon, make_battle):
+    """pokeplatinum BattleControllerPlayer_MoveStolen: the user pays its PP and the move counts as
+    its last one, the coat is used up and nothing is left for Mirror Move"""
+    monkeypatch.setattr(random, "randint", lambda a, b: a)
+    arr = _restrict_battle(make_pokemon, make_battle, ["Magic Coat"], ["Thunder Wave"])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = move_slice(foe, 0)[Move.PP]
+    _taker_then_user(arr)
+    assert foe[Pok.STATUS] == Status.PARALYSIS and me[Pok.STATUS] == 0
+    assert move_slice(foe, 0)[Move.PP] == pp - 1
+    assert foe[Pok.LAST_MOVE_ID] == MoveName.THUNDER_WAVE
+    assert me[Pok.LAST_MOVE_ID] == MoveName.MAGIC_COAT
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.MAGIC_COAT
+    assert foe[Pok.MIRROR_MOVE] == 0 and me[Pok.MIRROR_MOVE] == 0
+    # The coat is gone: a second one this turn lands
+    foe[Pok.STATUS] = 0
+    _run_slot(arr, False, slot_num=2, is_last=True)
+    assert me[Pok.STATUS] == Status.PARALYSIS
+
+
+@pytest.mark.parametrize("move", ["Taunt", "Roar", "Foresight", "Stealth Rock", "Tackle"])
+def test_magic_coat_leaves_other_moves_alone(make_pokemon, make_battle, move):
+    """Gen IV's list (Showdown gen4 flags): these aren't reflected yet, the coat stays up"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Magic Coat"], [move])
+    assert not move_slice(opp_active(arr), 0)[Flags.REFLECTABLE]
+    _taker_then_user(arr)
+    assert my_active(arr)[Pok.VOL_STATUS2] & VolStatus2.MAGIC_COAT
+
+
+def test_a_bounced_move_stops_at_the_users_substitute(monkeypatch, make_pokemon, make_battle):
+    """The bounced move goes through the checks again with the coat user as the attacker"""
+    monkeypatch.setattr(random, "randint", lambda a, b: a)
+    arr = _restrict_battle(make_pokemon, make_battle, ["Magic Coat"], ["Thunder Wave"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 50
+    _taker_then_user(arr)
+    assert foe[Pok.STATUS] == 0 and me[Pok.STATUS] == 0
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.MAGIC_COAT
+
+
+def test_magic_coat_in_a_full_turn(monkeypatch, make_pokemon, make_battle):
+    """Priority +4: the slower side's coat is up before the move comes"""
+    monkeypatch.setattr(random, "randint", lambda a, b: a)
+    arr = _restrict_battle(make_pokemon, make_battle, ["Magic Coat"], ["Thunder Wave"], fast=False)
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.STATUS] == Status.PARALYSIS and me[Pok.STATUS] == 0
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.MAGIC_COAT
+
+
+def test_snatch_takes_the_boost(make_pokemon, make_battle):
+    """The move runs with the Snatch user as its user, the original user only pays the PP"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Snatch"], ["Swords Dance"])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = move_slice(foe, 0)[Move.PP]
+    _taker_then_user(arr)
+    assert me[Pok.ATTACK_STAT_STAGE] == 2 and foe[Pok.ATTACK_STAT_STAGE] == 0
+    assert move_slice(foe, 0)[Move.PP] == pp - 1
+    assert foe[Pok.LAST_MOVE_ID] == MoveName.SWORDS_DANCE
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.SNATCH
+    # Used up: the next one stays with its user
+    _run_slot(arr, False, slot_num=2, is_last=True)
+    assert foe[Pok.ATTACK_STAT_STAGE] == 2
+
+
+def test_snatch_takes_recover_and_substitute(make_pokemon, make_battle):
+    """The healing and the Substitute's cost land on the Snatch user"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Snatch"], ["Recover", "Substitute"])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.CURRENT_HP] = foe[Pok.CURRENT_HP] = 100
+    _taker_then_user(arr)
+    assert me[Pok.CURRENT_HP] == 350 and foe[Pok.CURRENT_HP] == 100
+    _run_slot(arr, True)
+    _run_slot(arr, False, slot=1, slot_num=2, is_last=True)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.SUBSTITUTE and me[Pok.CURRENT_HP] == 225
+    assert not foe[Pok.VOL_STATUS2] & VolStatus2.SUBSTITUTE
+
+
+def test_snatch_leaves_other_moves_alone(make_pokemon, make_battle):
+    """Only the moves flagged for it, the flag stays up for a later one"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Snatch"], ["Splash"])
+    _taker_then_user(arr)
+    assert my_active(arr)[Pok.VOL_STATUS2] & VolStatus2.SNATCH
+
+
+def test_a_snatched_heal_fails_under_heal_block(make_pokemon, make_battle):
+    """The move is taken, then Heal Block stops it for its new user"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Snatch"], ["Recover"])
+    me, foe = my_active(arr), opp_active(arr)
+    me[Pok.CURRENT_HP] = foe[Pok.CURRENT_HP] = 100
+    me[Pok.VOL_STATUS] |= VolStatus.HEAL_BLOCK
+    me[Pok.HEAL_BLOCK_TURNS] = 3
+    _taker_then_user(arr)
+    assert me[Pok.CURRENT_HP] == 100 and foe[Pok.CURRENT_HP] == 100
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.SNATCH
+
+
+@pytest.mark.parametrize("taker_mine", [True, False])
+def test_the_users_pressure_costs_the_taker_a_pp(make_pokemon, make_battle, taker_mine):
+    """pokeplatinum BattleSystem_DecPPForPressure in MoveStolen. The foe's extra PP is counted in
+    Field.OPP_MOVE_RAN"""
+    mine, theirs = (["Snatch"], ["Swords Dance"]) if taker_mine else (["Swords Dance"], ["Snatch"])
+    arr = _restrict_battle(make_pokemon, make_battle, mine, theirs)
+    me, foe = my_active(arr), opp_active(arr)
+    taker, user = (me, foe) if taker_mine else (foe, me)
+    user[Pok.AB_ID] = AbilityNames.PRESSURE
+    pp = move_slice(taker, 0)[Move.PP]
+    arr[Field.OPP_MOVE_RAN] = 0
+    _taker_then_user(arr, taker_mine)
+    assert move_slice(taker, 0)[Move.PP] == pp - 2
+    assert taker[Pok.ATTACK_STAT_STAGE] == 2
+    if not taker_mine:
+        assert arr[Field.OPP_MOVE_RAN] == 1 + 16 * 2

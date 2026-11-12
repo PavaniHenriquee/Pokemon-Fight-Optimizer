@@ -51,6 +51,8 @@
   power under 10) and with Multitype. The Klutz checks in Basic Fling and Expert Trick are left out (no RP species).
 - AI: Expert Vital Throw's middle case (40-60% HP) is two rolls in [pp] (76/256, then 206/256); the engine
   queues one roll of 61/256 (23.8% for 23.9%).
+- Expert Snatch (11.3) follows Pokemow: slower, target at 25% or less with no Recover / Defense Curl seen is
+  26/256 of +1 and ends. [pp] `Expert_Snatch_TryScorePlus1` sends the other 230/256 on to the 226/256 roll of -2.
 
 ## Engine mechanics
 
@@ -107,6 +109,9 @@
   turn: my slower move goes into it and fails. What [pp] does there wasn't checked.
 - My U-turn: `_after_move_items` runs while the user is still in, before my pick (like Baton Pass). [pp] switches
   it out inside `subscript_attack_then_switch_out`, so a status berry can fire a step early here.
+- Magic Coat / Snatch (11.3): a called move (Metronome, Copycat...) can be bounced or snatched ([SD]); [pp] has
+  `SYSCTL_SKIP_STOLEN_CHECK` and whether a called move sets it wasn't traced. A stolen move keeps the original
+  user's Metronome item count (not checked in [pp]). The rollout scores both moves as plain status moves.
 
 ## Items
 
@@ -132,8 +137,8 @@
 ## MoveDB and tests
 
 - MoveDB flags from after Gen IV (`python -m DataBase.add_moves --check` lists them): Absorb and Mega
-  Drain have `heal`; Stealth Rock, Foresight and Taunt are `reflectable`; Roar has no `protect`. They matter
-  once Magic Coat and Heal Block are in.
+  Drain have `heal`; Roar has no `protect`.
+- `DamageSources.MAGIC_COAT` (MoveDB `"damage": "magic_coat"`) is Mirror Coat's, not the move Magic Coat's.
 - MoveDB: Earthquake's flag is spelled `nonsky`, every other move's `non_sky`. Nothing reads it yet.
 - `battle_driver.py`'s `_blocked` (the independent `legal_actions`) has Gravity but not Heal Block; no scenario
   gives my side a healing move under Heal Block yet.

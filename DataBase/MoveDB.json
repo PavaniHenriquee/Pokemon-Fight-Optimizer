@@ -2394,8 +2394,7 @@
       "bypass_sub": true,
       "metronome": true,
       "mirror": true,
-      "protect": true,
-      "reflectable": true
+      "protect": true
     },
     "name": "foresight",
     "pp": 40,
@@ -3589,6 +3588,18 @@
     "priority": 1,
     "target": "normal",
     "type": "Fighting"
+  },
+  "Magic Coat": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true
+    },
+    "name": "magic_coat",
+    "pp": 15,
+    "priority": 4,
+    "target": "self",
+    "type": "Psychic"
   },
   "Magical Leaf": {
     "accuracy": true,
@@ -5007,7 +5018,6 @@
       "metronome": true,
       "mirror": true,
       "no_assist": true,
-      "reflectable": true,
       "sound": true
     },
     "force_switch": true,
@@ -5825,6 +5835,20 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Snatch": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "fail_copycat": true,
+      "no_assist": true
+    },
+    "name": "snatch",
+    "pp": 10,
+    "priority": 4,
+    "target": "self",
+    "type": "Dark"
+  },
   "Snore": {
     "accuracy": 100,
     "category": "Special",
@@ -6025,8 +6049,7 @@
     "category": "Status",
     "flags": {
       "metronome": true,
-      "must_pressure": true,
-      "reflectable": true
+      "must_pressure": true
     },
     "name": "stealth_rock",
     "pp": 20,
@@ -6475,8 +6498,7 @@
       "bypass_sub": true,
       "metronome": true,
       "mirror": true,
-      "protect": true,
-      "reflectable": true
+      "protect": true
     },
     "name": "taunt",
     "pp": 20,

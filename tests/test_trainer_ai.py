@@ -93,6 +93,7 @@ KIT_VOLATILE = (
     "Protect", "Endure", "Feint", "Foresight", "Odor Sleuth", "Mud Sport", "Water Sport",
     "Ingrain", "Aqua Ring", "Attract", "Leech Seed", "Charge", "Destiny Bond", "Yawn", "Rage",
     "Helping Hand", "Follow Me", "Dig", "Gravity", "Minimize", "Substitute", "Detect",
+    "Magic Coat", "Snatch",
 )
 KIT_CALLING = ("Metronome", "Copycat", "Mirror Move", "Nature Power")
 
@@ -3309,7 +3310,7 @@ def test_expert_psycho_shift(poke, ai_status, user_hp, expected):
 ])
 def test_expert_rest(poke, monkeypatch, fast, hp_pct, roll, expected):
     """Expert_Rest: faster at full HP -8, over 50% -3, 40-50% 186/256 of -3; slower over 70% -3,
-    60-70% 206/256 of -3; otherwise 246/256 of +3 (no Snatch in MoveDB)"""
+    60-70% 206/256 of -3; otherwise 246/256 of +3"""
     monkeypatch.setattr(ai.random, "getrandbits", lambda n: roll)
     ai_pok, user = _expert_at(poke, "Rest", fast, hp_pct)
     assert _expert(ai_pok, user) == expected
@@ -3819,3 +3820,55 @@ def test_expert_bounce_after_my_lock_on(make_pokemon, poke, last, expected):
     if last:
         user[Pok.LAST_MOVE_ID] = getattr(MoveName, last.upper().replace("-", "_").replace(" ", "_"))
     assert _expert(ai_pok, user) == (0, expected)
+
+
+# ── 11.3 Reflection: Magic Coat, Snatch ───────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("hp_pct, turns, queued", [
+    (100, 1, [(1, 106)]), (100, 2, [(-1, 226)]),
+    (31, 2, [(-1, 226)]), (30, 2, [(-1, 156), (-1, 226)]), (30, 1, [(-1, 156), (1, 106)]),
+])
+def test_expert_magic_coat(poke, hp_pct, turns, queued):
+    """Pokemow Expert Magic Coat: under 31% of its own HP 156/256 of -1, then 106/256 of +1 on its
+    first turn, else 226/256 of -1"""
+    ai_pok = poke("Abra", 20, "Synchronize", ["Magic Coat"])
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    _at_pct(ai_pok, hp_pct)
+    ai_pok[Pok.TURNS_ACTIVE] = turns
+    assert _expert(ai_pok, user) == (0, queued)
+
+
+@pytest.mark.parametrize("fast, turns, hp_pct, user_pct, seen, roll, queued", [
+    (True, 1, 100, 100, False, 0, [(2, 106)]),       # first turn
+    (True, 2, 100, 100, False, 29, []),              # the 30/256 that end it
+    (False, 2, 100, 26, False, 30, [(-2, 226)]),     # slower, target over 25%
+    (False, 2, 100, 25, True, 30, [(2, 106)]),       # slower, a seen Recover
+    (False, 2, 100, 25, False, 30, [(1, 26)]),
+    (True, 2, 99, 100, False, 30, [(-2, 226)]),      # faster, not at full HP
+    (True, 2, 100, 69, False, 30, [(-2, 226)]),      # faster, target under 70%
+    (True, 2, 100, 70, False, 59, []),               # the 60/256 that end it
+    (True, 2, 100, 70, False, 60, [(-2, 226)]),
+])
+def test_expert_snatch(monkeypatch, poke, fast, turns, hp_pct, user_pct, seen, roll, queued):
+    """Pokemow Expert Snatch"""
+    monkeypatch.setattr(ai.random, "getrandbits", lambda k: roll if k == 8 else 0)
+    ai_pok, _ = _expert_at(poke, "Snatch", fast, hp_pct)
+    ai_pok[Pok.TURNS_ACTIVE] = turns
+    user = poke("Rattata", 30, "Run Away", ["Recover"])
+    _at_pct(user, user_pct)
+    assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE1 if seen else 0) == (0, queued)
+
+
+@pytest.mark.parametrize("move, seen, roll, queued", [
+    ("Recover", False, 99, [(2, 236)]),
+    ("Recover", True, 99, []), ("Recover", True, 100, [(2, 236)]),   # 156/256 to get to the roll
+    ("Rest", False, 49, [(3, 246)]),
+    ("Rest", True, 49, []), ("Rest", True, 50, [(3, 246)]),          # 206/256 to get to the roll
+])
+def test_expert_heal_into_a_seen_snatch(monkeypatch, poke, move, seen, roll, queued):
+    """Expert_Recovery_CheckForSnatch / Expert_Rest_CheckForSnatch: a target seen using Snatch makes
+    the +2 2301/4096 and Rest's +3 12669/16384"""
+    monkeypatch.setattr(ai.random, "getrandbits", lambda k: roll if k == 8 else 0)
+    ai_pok, _ = _expert_at(poke, move, False, 30)
+    user = poke("Rattata", 30, "Run Away", ["Snatch"])
+    assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE1 if seen else 0) == (0, queued)
