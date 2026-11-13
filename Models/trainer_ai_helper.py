@@ -81,7 +81,7 @@ from Models.constants import (
     _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG, _MOVENAME_SPLASH, _MOVENAME_SLEEP_TALK,
     _VOLSTATUS_PERISH_SONG, _POK_CONSUMED_ITEM, _ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE,
     _ABILITYNAMES_STICKY_HOLD, _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT,
-    _MOVENAME_NATURE_POWER, _TYPES_TYPELESS, _MOVENAME_BLIZZARD, _MOVE_OH_KO, _POK_LEVEL,
+    _MOVENAME_NATURE_POWER, _MOVENAME_ME_FIRST, _TYPES_TYPELESS, _MOVENAME_BLIZZARD, _MOVE_OH_KO, _POK_LEVEL,
     _MOVENAME_FIRE_FANG, _MOVENAME_SUBSTITUTE, _POK_VOL_STATUS2, _VOLSTATUS2_SUBSTITUTE,
     _MOVENAME_SUPERSONIC, _MOVENAME_CONFUSE_RAY, _MOVENAME_SWEET_KISS, _MOVENAME_LEECH_SEED,
     _ITEM_HOLD_EFFECT, _HOLDEFFECT_PRIORITY_DOWN,
@@ -460,7 +460,10 @@ SYNTHESIS_BAD_WEATHER = (_WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL)
 # Expert_Recycle_DesirableItems, Starf Berry isn't in ItemDB
 RECYCLE_GOOD_ITEMS = (_ITEMNAMES_CHESTO_BERRY, _ITEMNAMES_LUM_BERRY)
 # Moves that call another move, scored by expert_call. Metronome and Nature Power have no check
-CALL_M = (_MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER)
+CALL_M = (
+    _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER,
+    _MOVENAME_ME_FIRST
+)
 # Expert_MirrorMove_MoveTable, the same list as Expert_Copycat_EncouragedMoves. Names not in MoveDB
 # are skipped
 MIRROR_COPYCAT_GOOD_M = tuple(
@@ -2685,12 +2688,35 @@ def expert_items(move, ai_pok, u_pok, effectiveness, rand, idx, ai_side, user_si
 
 
 @njit
+def expert_me_first(u_pok, rand, idx, move_first, beats):
+    """
+    pokeplatinum / Pokemow Expert_MeFirst: -2 if the AI moves after the target. Otherwise 87.5% +1 if
+    the target's last move, used on itself, beats every AI move (beats, copycat_beats). Then, after a
+    damaging last move or none, 50% of +1 followed by 75% of another +1; after a status one, 75% +1
+    """
+    if not move_first:
+        return -2
+    if beats:
+        add_adjustment(rand, idx, 1, 224)
+    last = u_pok[_POK_LAST_MOVE_ID]
+    if last == 0 or last in PHYSICAL or last in SPECIAL:
+        if random.getrandbits(8) < 128:
+            return 0
+        add_adjustment(rand, idx, 1, 192)
+        return 1
+    add_adjustment(rand, idx, 1, 192)
+    return 0
+
+
+@njit
 def expert_call(move, u_pok, rand, idx, move_first, copycat_beats):
     """
     pokeplatinum Expert_MirrorMove and Expert_Copycat, both read the target's last move.
     Metronome and Nature Power have no Expert check
     """
     move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_ME_FIRST:
+        return expert_me_first(u_pok, rand, idx, move_first, copycat_beats)
     good = u_pok[_POK_LAST_MOVE_ID] in MIRROR_COPYCAT_GOOD_M
     if move_id == _MOVENAME_MIRROR_MOVE:
         if move_first and good:

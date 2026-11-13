@@ -16,6 +16,7 @@ from Models.constants import (
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
     _FIELD_MY_SPIKES, _FIELD_OPP_SPIKES,
     _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID, _POK_AB_ID,
+    _VOLSTATUS2_ME_FIRST,
     _POK_METRONOME_COUNT, _POK_BASE_AB_ID, _FIELD_OPP_MOVE_RAN, _FIELD_PENDING_OPP_MOVE,
     _POK_TYPE1, _POK_TYPE2, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _VOLSTATUS_ENCORE,
     _VOLSTATUS_DISABLE, _FIELD_TRICKROOM, _POK_CHOICE_LOCK, _ITEM_HOLD_EFFECT, _MOVENAME_LAST_RESORT,
@@ -247,6 +248,8 @@ SIDE_KEY_SHIFT = 32
 # k5 per side: VOL_STATUS2 from bit 0, the choice-locked slot, the Stockpile count, Last Resort
 # working, then the Encore and Disable slots while they hold
 VOL2_KEY_BITS = 22
+# VOL_STATUS2 bits left out of the key: Me First's boost ends before any decision node
+VOL2_UNKEYED = _VOLSTATUS2_ME_FIRST
 CHOICE_KEY_SHIFT = 22
 STOCKPILE_KEY_SHIFT = 25
 LAST_RESORT_KEY_BIT = 27
@@ -320,7 +323,7 @@ def _torment_key(pok):
 def _vol_key(pok):
     """One side's half of k5: VOL_STATUS2, the choice-locked slot while a choice item holds it, Last
     Resort working when the Pokemon knows it, then the Encore and Disable slots while they hold"""
-    packed = np.int64(pok[_POK_VOL_STATUS2])
+    packed = np.int64(pok[_POK_VOL_STATUS2] & ~VOL2_UNKEYED)
     if pok[_ITEM_HOLD_EFFECT] in CHOICE_EFFECTS:
         packed |= np.int64(pok[_POK_CHOICE_LOCK]) << CHOICE_KEY_SHIFT
     packed |= np.int64(stockpile_count(pok)) << STOCKPILE_KEY_SHIFT

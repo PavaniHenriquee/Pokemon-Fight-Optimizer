@@ -7,7 +7,7 @@ from SearchEngine.models import (
     valid_action_mask, valid_actions_array, is_terminal_arr, step_arr, node_key, _hp_bracket,
     best_slot, GameState, Node, NodeSnapshot, reconstruct_battle_array, random_untried_slot,
     opp_turns, foe_pp_along_path, real_position, ACTION_ORDER, ACTION_SLOT, N_SLOTS, ROOT_C,
-    STATS_COLS, VOL2_KEY_BITS, AB_KEY_BITS, AB_KEY_SHIFT, TURN_AB_KEY_BIT, OPP_DIDNT_MOVE,
+    STATS_COLS, VOL2_KEY_BITS, VOL2_UNKEYED, AB_KEY_BITS, AB_KEY_SHIFT, TURN_AB_KEY_BIT, OPP_DIDNT_MOVE,
     OPP_STRUGGLED, OPP_SWITCHED, OPP_USED_ITEM, OPP_TURN_BITS, SIDE_KEY_SHIFT, CHOICE_KEY_SHIFT,
     STOCKPILE_KEY_SHIFT, LAST_RESORT_KEY_BIT, ENCORE_KEY_SHIFT, DISABLE_KEY_SHIFT, SIDE_COND_K1_BITS,
     SIDE_COND_HI_BITS, SPIKES_KEY_SHIFT, ITEM_KEY_SHIFT, ITEM_KEY_BITS, TYPE_KEY_SHIFT, TYPE_KEY_BITS,
@@ -204,6 +204,15 @@ def test_node_key_sees_vol_status2(one_v_one, mine):
     assert node_key(other) != node_key(arr)
 
 
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_ignores_me_first(one_v_one, mine):
+    """Me First's boost never outlives the move it called, so it's left out of the key (VOL2_UNKEYED)"""
+    arr = one_v_one()
+    key = node_key(arr)
+    (my_active(arr) if mine else opp_active(arr))[Pok.VOL_STATUS2] |= VolStatus2.ME_FIRST
+    assert node_key(arr) == key
+
+
 @pytest.mark.parametrize("bit", [VolStatus2.GASTRO_ACID, VolStatus2.CAMOUFLAGE])
 @pytest.mark.parametrize("mine", [True, False])
 def test_node_key_sees_gastro_acid_and_camouflage(one_v_one, mine, bit):
@@ -303,7 +312,7 @@ def test_vol_status_leaves_the_turn_ability_bit_free():
 
 def test_vol_status2_fits_node_key():
     """node_key packs each side's VOL_STATUS2 into VOL2_KEY_BITS bits, grow it with the bitmap"""
-    assert sum(_int_attrs(VolStatus2)) < 2 ** VOL2_KEY_BITS
+    assert sum(_int_attrs(VolStatus2)) & ~VOL2_UNKEYED < 2 ** VOL2_KEY_BITS
 
 
 def test_node_key_fields_fit():

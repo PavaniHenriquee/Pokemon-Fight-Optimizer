@@ -24,7 +24,8 @@ class MoveName:
     AQUA_TAIL       = AQUA_RING + 1
     ARM_THRUST      = AQUA_TAIL + 1
     AROMATHERAPY    = ARM_THRUST + 1
-    ASSURANCE       = AROMATHERAPY + 1
+    ASSIST          = AROMATHERAPY + 1
+    ASSURANCE       = ASSIST + 1
     ASTONISH        = ASSURANCE + 1
     ATTACK_ORDER    = ASTONISH + 1
     ATTRACT         = ATTACK_ORDER + 1
@@ -240,7 +241,8 @@ class MoveName:
     MAGNET_BOMB     = MAGMA_STORM + 1
     MAGNET_RISE     = MAGNET_BOMB + 1
     MAGNITUDE       = MAGNET_RISE + 1
-    MEAN_LOOK       = MAGNITUDE + 1
+    ME_FIRST        = MAGNITUDE + 1
+    MEAN_LOOK       = ME_FIRST + 1
     MEDITATE        = MEAN_LOOK + 1
     MEGA_DRAIN      = MEDITATE + 1
     MEGA_KICK       = MEGA_DRAIN + 1

@@ -114,7 +114,11 @@
 - Uproar: a Soundproof Pokemon still falls asleep during one, Rest included (`sleep_blocked`, [pp]
   `subscript_rest`, CHECK_STATUS_STATE_SLEEP); [SD gen4]'s uproar stops every sleep.
 - Called moves under Gravity or Heal Block fail ([SD] onModifyMove, my call). [pp] `Move_CanBeMetronomed`
-  rerolls Metronome's pick instead and fails Copycat and Assist.
+  rerolls Metronome's pick instead and fails Copycat.
+- Me First (12.3) follows [SD] gen4: the x1.5 lasts the turn, its fail list has Metal Burst, and a status move is
+  told by its category. [pp] `CalcMoveDamage`'s `meFirstTurnNumber` keeps the boost for a called charge move's
+  release turn, and for the next turn's hit when the copied move never reached the damage calc (a miss, Protect).
+  [pp] `sCannotMeFirstMoves` leaves Metal Burst out and tests `power != 0`.
 - Dream Eater runs `drain`, so a Liquid Ooze target hurts it; [pp] `subscript_dream_eater` has no Liquid Ooze
   check and heals.
 - Metronome item: a failed Trick, Switcheroo or Embargo keeps its count, like the status moves above ([pp] gives

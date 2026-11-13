@@ -27,7 +27,7 @@ from Models.constants import (
     _MOVENAME_MAGNITUDE, _DAMAGESOURCES_LEVEL, _DAMAGESOURCES_PSYWAVE, _POK_LEVEL,
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _VOLSTATUS_PARTIALLY_TRAPPED, _FIELD_MY_SIDE_COND,
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_MY_SPIKES, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
-    _MOVENAME_COPYCAT, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_ARENA_TRAP, _ABILITYNAMES_MAGNET_PULL,
+    _MOVENAME_COPYCAT, _MOVENAME_ME_FIRST, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_ARENA_TRAP, _ABILITYNAMES_MAGNET_PULL,
     _TYPES_STEEL, _MOVE_POWER, _MOVENAME_HIDDEN_POWER, _MOVENAME_HEALING_WISH, _POK_VOL_STATUS2,
     _VOLSTATUS2_GASTRO_ACID,
     _MOVENAME_U_TURN,
@@ -511,7 +511,7 @@ def choose_move(battle_array):
         expert = expert_flag(
             ai_pok, user_pok, move, turn, i, _rand, weather, my_last_move, effectiveness, took_dmg,
             ai_know, user_side,
-            move_id == _MOVENAME_COPYCAT
+            (move_id == _MOVENAME_COPYCAT or move_id == _MOVENAME_ME_FIRST)
             and copycat_beats(ai_pok, user_pok, eff_weather, user_side, gravity, ai_side),
             claw_guess, eff_weather, ai_side, ability, ai_bench_status, ai_bench, trick_room,
             has_se, bench_more

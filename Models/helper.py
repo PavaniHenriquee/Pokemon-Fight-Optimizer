@@ -105,6 +105,7 @@ class VolStatus2:
     GASTRO_ACID       = 524288
     CAMOUFLAGE        = 1048576
     TRANSFORM         = 2097152
+    ME_FIRST          = 4194304
 
 
 @dataclass(slots=True)

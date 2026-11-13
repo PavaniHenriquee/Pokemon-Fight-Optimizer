@@ -49,7 +49,7 @@ from Models.constants import (
     _MOVENAME_FACADE, _MOVENAME_SMELLING_SALTS, _MOVENAME_WAKE_UP_SLAP, _STATUS_POISON,
     _STATUS_TOXIC, _STATUS_PARALYSIS, _STATUS_SLEEP, _MOVE_PP, _POK_EVASION_STAT_STAGE,
     _MOVENAME_RETURN, _MOVENAME_FRUSTRATION, _POK_FRIENDSHIP, _VOLSTATUS2_ROOST,
-    _VOLSTATUS2_MIRACLE_EYE, _TYPES_PSYCHIC, _TYPES_DARK,
+    _VOLSTATUS2_MIRACLE_EYE, _TYPES_PSYCHIC, _TYPES_DARK, _VOLSTATUS2_ME_FIRST,
 )
 from Models.move import friendship_power
 from Engine.ability_helper import ignorable_ability, normalized_type, grounded_by_item
@@ -583,6 +583,9 @@ def multipliers(
         damage = damage * (10 + (attacker[_POK_METRONOME_COUNT] & METRONOME_COUNT_MASK)) // 10
 
     # TODO: Me First
+    # The move Me First called x15/10 (pokeplatinum CalcMoveDamage, Showdown gen4 onModifyDamagePhase2)
+    if attacker[_POK_VOL_STATUS2] & _VOLSTATUS2_ME_FIRST:
+        damage = damage * 15 // 10
 
     # Roll Multiplier
     if roll_mult is None:

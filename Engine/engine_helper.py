@@ -151,6 +151,10 @@ from Models.constants import (
     _POK_ORIG_MOVE1, _POK_ORIG_ID, _POK_ORIG_ATTACK, _POK_ORIG_SPEED, _POK_ORIG_WEIGHT,
     _POK_ORIG_HIDDEN_POWER_TYPE, _POK_ORIG_HIDDEN_POWER_POWER,
 )
+from Models.constants import (
+    _MOVENAME_ASSIST, _MOVENAME_ME_FIRST, _MOVENAME_COUNTER, _MOVENAME_MIRROR_COAT, _MOVENAME_THIEF,
+    _MOVENAME_COVET, _MOVENAME_METAL_BURST, _VOLSTATUS2_ME_FIRST,
+)
 from Models.move import friendship_power
 from DataBase.PkDB import PokemonName
 
@@ -253,11 +257,18 @@ ITEM_TYPE_COL = _ITEM_ITEM_TYPE - _ITEM_ID
 # Moves that call another move
 CALLER_MOVES = (
     _MOVENAME_METRONOME, _MOVENAME_MIRROR_MOVE, _MOVENAME_COPYCAT, _MOVENAME_NATURE_POWER,
-    _MOVENAME_SLEEP_TALK
+    _MOVENAME_SLEEP_TALK, _MOVENAME_ASSIST, _MOVENAME_ME_FIRST
 )
-# pokeplatinum Move_IsInvoker (Assist and Me First aren't in MoveDB), Copycat fails on them too
+# pokeplatinum Move_IsInvoker, Copycat fails on them too
 INVOKER_MOVES = (
-    _MOVENAME_SLEEP_TALK, _MOVENAME_COPYCAT, _MOVENAME_MIRROR_MOVE, _MOVENAME_METRONOME
+    _MOVENAME_SLEEP_TALK, _MOVENAME_COPYCAT, _MOVENAME_MIRROR_MOVE, _MOVENAME_METRONOME,
+    _MOVENAME_ASSIST, _MOVENAME_ME_FIRST
+)
+# The moves Me First can't copy: Showdown gen4's failmefirst (pokeplatinum sCannotMeFirstMoves, which
+# leaves Metal Burst out). Struggle fails on its own
+ME_FIRST_FORBIDDEN = (
+    _MOVENAME_COUNTER, _MOVENAME_MIRROR_COAT, _MOVENAME_THIEF, _MOVENAME_COVET, _MOVENAME_FOCUS_PUNCH,
+    _MOVENAME_CHATTER, _MOVENAME_METAL_BURST
 )
 # pokeplatinum sCannotEncoreMoves, Mirror Move shares it (Transform, Mimic and Sketch aren't in
 # MoveDB)
@@ -3809,8 +3820,83 @@ def secret_power_move(mv, battle_array):
 
 
 @njit
-def called_move(pok, foe, move_id, battle_array):
-    """The move Metronome, Mirror Move, Copycat, Nature Power or Sleep Talk calls, 0 if it fails"""
+def own_move_id(pok, slot):
+    """The move in pok's slot as its party knows it: Mimic and Transform undone (Showdown
+    baseMoveSlots, which a faint restores too), 0 for an empty slot"""
+    packed = pok[_POK_ORIG_MOVE1 + slot]
+    if packed:
+        return packed // ORIG_MOVE_STEP
+    if pok[_POK_VOL_STATUS2] & _VOLSTATUS2_TRANSFORM:
+        return 0
+    return pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID]
+
+
+@njit
+def _assist_pick(pok, move_id, gravity):
+    """Assist can call this party move: not an invoker or a move Metronome can't call, and not one
+    Gravity or the user's Heal Block stops"""
+    return (
+        move_id != 0 and move_id not in INVOKER_MOVES and move_id not in METRONOME_FORBIDDEN
+        and not (gravity and MOVE_TABLE[move_id, _FLAGS_GRAVITY])
+        and not heal_block_stops(pok, move_id)
+    )
+
+
+@njit
+def assist_move(pok, battle_array, is_mine):
+    """
+    Assist: a uniform pick among every move slot of the user's party but itself, fainted Pokemon
+    included, 0 if there's none (pokeplatinum BtlCmd_TryAssist, Showdown gen4 onHit). The moves
+    Gravity or Heal Block stop are left out of the pick
+    """
+    base = 0 if is_mine else 6
+    active = battle_array[_FIELD_MY_POK] if is_mine else battle_array[_FIELD_OPP_POK]
+    gravity = battle_array[_FIELD_GRAVITY_TURNS] > 0
+    count = 0
+    for i in range(6):
+        if i == active:
+            continue
+        member = battle_array[(base + i) * POK_LEN:(base + i + 1) * POK_LEN]
+        for slot in range(4):
+            if _assist_pick(pok, own_move_id(member, slot), gravity):
+                count += 1
+    if count == 0:
+        return 0
+    pick = random.randrange(count)
+    for i in range(6):
+        if i == active:
+            continue
+        member = battle_array[(base + i) * POK_LEN:(base + i + 1) * POK_LEN]
+        for slot in range(4):
+            move_id = own_move_id(member, slot)
+            if _assist_pick(pok, move_id, gravity):
+                if pick == 0:
+                    return move_id
+                pick -= 1
+    return 0
+
+
+@njit
+def me_first_move(pok, foe, idx, target_action):
+    """
+    Me First: the move the foe picked this turn, 0 if the foe already acted, is recharging or
+    struggling, or picked a status move or one Me First can't copy. On success the user's next hit
+    this turn does x1.5 (Showdown gen4 onTryHit, pokeplatinum BtlCmd_TryMeFirst)
+    """
+    if target_acted(idx, target_action) or foe[_POK_CHARGE_RECHARGE] < 0 or target_action > 3:
+        return 0
+    base = OFFSET_MOVE + target_action * MOVE_STRIDE
+    move_id = foe[base + _MOVE_ID]
+    if move_id == 0 or foe[base + _MOVE_CATEGORY] == _MOVECATEGORY_STATUS or move_id in ME_FIRST_FORBIDDEN:
+        return 0
+    pok[_POK_VOL_STATUS2] |= _VOLSTATUS2_ME_FIRST
+    return move_id
+
+
+@njit
+def called_move(pok, foe, move_id, battle_array, is_mine=True, idx=1, target_action=-1):
+    """The move Metronome, Mirror Move, Copycat, Nature Power, Sleep Talk, Assist or Me First calls,
+    0 if it fails. is_mine: pok is on my side. idx and target_action as in sucker_punch_fails"""
     if move_id == _MOVENAME_SLEEP_TALK:
         return sleep_talk_move(pok, foe, battle_array[_FIELD_GRAVITY_TURNS] > 0)
     if move_id == _MOVENAME_METRONOME:
@@ -3819,6 +3905,10 @@ def called_move(pok, foe, move_id, battle_array):
         return pok[_POK_MIRROR_MOVE]
     if move_id == _MOVENAME_COPYCAT:
         return copycat_move(battle_array)
+    if move_id == _MOVENAME_ASSIST:
+        return assist_move(pok, battle_array, is_mine)
+    if move_id == _MOVENAME_ME_FIRST:
+        return me_first_move(pok, foe, idx, target_action)
     return nature_power_move(battle_array)
 
 

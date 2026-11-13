@@ -26,8 +26,9 @@ Updated only when asked.
 - Done: 11.1 (restriction and trapping) and 11.2 (accuracy locks and protection), 2026-11-12.
 - Done: 11.3 (reflection), and with it Phase 11, 2026-11-12. Its `benchmarks.run quick` on the home PC is still
   to do.
-- Done: 12.1 (type and ability changes) and 12.2 (copying), 2026-11-12.
-- Next: 12.3 (calling).
+- Done: 12.1 (type and ability changes), 12.2 (copying) and 12.3 (calling), and with it Phase 12, 2026-11-12. Its
+  `benchmarks.run quick` on the home PC is still to do.
+- Next: Phase 13 (trainer AI).
 
 ## Goal
 
@@ -710,8 +711,8 @@ Fixed damage:
 
 ### 12.3 Calling
 
-- [ ] Assist !
-- [ ] Me First(E) !!
+- [x] Assist !
+- [x] Me First(E) !!
 
 ## To check in 1.3
 

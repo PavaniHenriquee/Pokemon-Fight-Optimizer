@@ -157,12 +157,12 @@ def test_trainer_lacks(monkeypatch):
     """Moves and held items the databases don't have, NOT_IMPLEMENTED ones, unknown trainer items"""
     foe = {"name": "Squirtle", "level": 5, "ability": "Torrent", "moves": ["Tackle", "Tail Whip", "", ""]}
     team = [
-        {**foe, "moves": ["Tackle", "Me First", "", ""], "item": "Rocky Helmet"},
+        {**foe, "moves": ["Tackle", "Twister", "", ""], "item": "Rocky Helmet"},
         {**foe, "ability": "Color Change"},
     ]
     monkeypatch.setattr("DataBase.support.NOT_IMPLEMENTED", frozenset({"Color Change"}))
     assert trainer_lacks(team, ["Potion", "X Attack"]) == [
-        "Color Change", "Me First", "Rocky Helmet", "X Attack"
+        "Color Change", "Rocky Helmet", "Twister", "X Attack"
     ]
     assert not trainer_lacks([foe], ["Full Restore"])
 

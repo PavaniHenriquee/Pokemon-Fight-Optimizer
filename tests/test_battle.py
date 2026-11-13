@@ -7441,3 +7441,150 @@ def test_a_transformed_chatot_does_not_confuse(make_pokemon, make_battle):
         my_active(arr)[Pok.VOL_STATUS2] |= VolStatus2.TRANSFORM
         turn_sim(0, (MOVE, 0), arr)
         assert not opp_active(arr)[Pok.VOL_STATUS] & VolStatus.CONFUSION
+
+
+# ── 12.3 calling: Assist, Me First ──────────────────────────────────────────────────────────────
+
+def _assist_battle(make_pokemon, make_battle, bench_moves, foe_moves=("Splash",)):
+    """My Eevee with Assist and Tackle, one bench Rattata per entry of bench_moves, against a Geodude"""
+    mine = [make_pokemon("Eevee", 30, "Run Away", ["Assist", "Tackle"])]
+    mine += [make_pokemon("Rattata", 30, "Run Away", list(moves)) for moves in bench_moves]
+    return make_battle(mine, [make_pokemon("Geodude", 30, "Sturdy", list(foe_moves))])
+
+
+def _assist_picks(monkeypatch, arr):
+    """Every entry of Assist's pool in draw order, [] when it fails"""
+    me = my_active(arr)
+    sizes = []
+    monkeypatch.setattr(engine_helper.random, "randrange", lambda n: sizes.append(n) or 0)
+    if engine_helper.assist_move(me, arr, True) == 0:
+        return []
+    picks = []
+    for k in range(sizes[0]):
+        monkeypatch.setattr(engine_helper.random, "randrange", lambda n, k=k: k)
+        picks.append(int(engine_helper.assist_move(me, arr, True)))
+    return picks
+
+
+def test_assist_draws_from_every_bench_slot(monkeypatch, make_pokemon, make_battle):
+    """A fainted Pokemon's moves count and a repeated move counts twice; the user's own moves, the
+    invokers and the moves Metronome can't call don't (pokeplatinum BtlCmd_TryAssist)"""
+    arr = _assist_battle(make_pokemon, make_battle,
+                         [["Ember", "Protect", "Ember"], ["Gust", "Metronome", "Copycat", "Me First"]])
+    pok_slice(arr, 2)[Pok.CURRENT_HP] = 0
+    assert _assist_picks(monkeypatch, arr) == [MoveName.EMBER, MoveName.EMBER, MoveName.GUST]
+
+
+def test_assist_reads_a_party_members_own_moves(monkeypatch, make_pokemon, make_battle):
+    """A Mimic'd slot and a Transform that a faint left in the array give the Pokemon's own moves
+    back (Showdown baseMoveSlots, which clearVolatile restores on a faint)"""
+    arr = make_battle(
+        [make_pokemon("Eevee", 30, "Run Away", ["Assist"]),
+         make_pokemon("Rattata", 30, "Run Away", ["Ember", "Tackle"]),
+         make_pokemon("Ditto", 30, "Limber", ["Transform"])],
+        [make_pokemon("Geodude", 30, "Sturdy", ["Splash", "Rock Throw"])])
+    rattata, ditto = pok_slice(arr, 1), pok_slice(arr, 2)
+    engine_helper._backup_move(rattata, 1)
+    engine_helper.set_move_slot(rattata, 1, MoveName.SPLASH, 5)
+    engine_helper.transform(ditto, opp_active(arr), arr, True)
+    ditto[Pok.CURRENT_HP] = 0
+    assert _assist_picks(monkeypatch, arr) == [MoveName.EMBER, MoveName.TACKLE, MoveName.TRANSFORM]
+
+
+def test_assist_leaves_out_what_gravity_or_heal_block_stop(monkeypatch, make_pokemon, make_battle):
+    """Dropped from the pool, not a failure (pokeplatinum Move_CanBeMetronomed, Showdown gen4)"""
+    arr = _assist_battle(make_pokemon, make_battle, [["Fly", "Recover", "Ember"]])
+    arr[Field.GRAVITY_TURNS] = 5
+    _heal_blocked(my_active(arr))
+    assert _assist_picks(monkeypatch, arr) == [MoveName.EMBER]
+
+
+def test_assist_uses_the_drawn_move_in_its_turn(make_pokemon, make_battle):
+    """The bench's Ember hits, Assist spends its PP and is the last move"""
+    arr = _assist_battle(make_pokemon, make_battle, [["Ember"]])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = _pp(me, 0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert _pp(me, 0) == pp - 1 and me[Pok.LAST_MOVE_ID] == MoveName.ASSIST
+
+
+def test_assist_fails_with_nothing_to_call(make_pokemon, make_battle):
+    """Only Protect on the bench: it fails after spending PP"""
+    arr = _assist_battle(make_pokemon, make_battle, [["Protect"]])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = _pp(me, 0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP] and _pp(me, 0) == pp - 1
+    assert not me[Pok.VOL_STATUS] & VolStatus.PROTECT
+
+
+@pytest.mark.parametrize("move", [MoveName.ASSIST, MoveName.ME_FIRST])
+def test_copycat_fails_after_assist_and_me_first(make_pokemon, make_battle, move):
+    """pokeplatinum Move_IsInvoker"""
+    arr = _assist_battle(make_pokemon, make_battle, [["Ember"]])
+    arr[Field.LAST_MOVE] = move
+    assert engine_helper.copycat_move(arr) == 0
+
+
+def _me_first_pair(poke, foe_moves=("Tackle",)):
+    return (poke("Togepi", 30, "Hustle", ["Me First"]),
+            poke("Machop", 30, "Guts", list(foe_moves)))
+
+
+@pytest.mark.parametrize("case", [
+    "acted", "switched", "struggle", "recharging", "status", "Counter", "Focus Punch", "Metal Burst",
+])
+def test_me_first_fails(poke, case):
+    """The foe already acted, switched, struggles, recharges, or picked a status move or one Me First
+    can't copy (Showdown gen4 onTryHit, pokeplatinum BtlCmd_TryMeFirst)"""
+    moves = {"status": ["Leer"], "Counter": ["Counter"], "Focus Punch": ["Focus Punch"],
+             "Metal Burst": ["Metal Burst"]}.get(case, ["Tackle"])
+    me, foe = _me_first_pair(poke, moves)
+    idx = 2 if case == "acted" else 1
+    action = {"switched": -1, "struggle": 10}.get(case, 0)
+    if case == "recharging":
+        foe[Pok.CHARGE_RECHARGE] = -1
+    assert engine_helper.me_first_move(me, foe, idx, action) == 0
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.ME_FIRST
+
+
+def test_me_first_copies_the_foes_attack(poke):
+    """The foe's picked attack, and the boost flag for it"""
+    me, foe = _me_first_pair(poke, ["Leer", "Tackle"])
+    assert engine_helper.me_first_move(me, foe, 1, 1) == MoveName.TACKLE
+    assert me[Pok.VOL_STATUS2] & VolStatus2.ME_FIRST
+
+
+def test_faster_me_first_hits_with_the_foes_move(make_pokemon, make_battle):
+    """The faster Togepi uses the foe's Karate Chop first; the boost is gone by the end of the turn"""
+    arr = make_battle([make_pokemon("Togepi", 40, "Serene Grace", ["Me First"])],
+                      [make_pokemon("Geodude", 10, "Sturdy", ["Karate Chop"])])
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+    assert me[Pok.LAST_MOVE_ID] == MoveName.ME_FIRST
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.ME_FIRST
+
+
+def test_slower_me_first_fails(make_pokemon, make_battle):
+    """The foe already moved, so it fails after spending PP"""
+    arr = make_battle([make_pokemon("Togepi", 5, "Hustle", ["Me First"])],
+                      [make_pokemon("Machop", 40, "Guts", ["Leer", "Leer"])])
+    me, foe = my_active(arr), opp_active(arr)
+    pp = _pp(me, 0)
+    foe[Pok.DEFENSE_STAT_STAGE] = 0
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP] and _pp(me, 0) == pp - 1
+
+
+def test_me_first_boost_ends_before_the_next_slot(make_pokemon, make_battle):
+    """A boost left on either active is cleared when the next move slot starts, and at end of turn"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Splash"], ["Splash"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS2] |= VolStatus2.ME_FIRST
+    _run_slot(arr, True)
+    assert not foe[Pok.VOL_STATUS2] & VolStatus2.ME_FIRST
+    me[Pok.VOL_STATUS2] |= VolStatus2.ME_FIRST
+    battle._finish_turn(arr)
+    assert not me[Pok.VOL_STATUS2] & VolStatus2.ME_FIRST

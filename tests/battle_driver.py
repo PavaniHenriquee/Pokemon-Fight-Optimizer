@@ -482,6 +482,25 @@ def scenario_restriction_reflection():
     return my, opp, ()
 
 
+def scenario_copy_calling():
+    """Phase 12: type and ability changes (Conversion, Conversion 2, Camouflage, Color Change, Role
+    Play, Skill Swap, Gastro Acid), copying (Mimic, Sketch, Transform) and calling (Assist, Me First)
+    both ways"""
+    my = [
+        _p("Porygon2", 40, "Download", ["Conversion", "Conversion 2", "Tri Attack", "Recover"]),
+        _p("Smeargle", 40, "Own Tempo", ["Sketch", "Me First", "Spore", "Assist"]),
+        _p("Kecleon", 40, "Color Change", ["Camouflage", "Mimic", "Shadow Claw", "Skill Swap"]),
+        _p("Ditto", 40, "Limber", ["Transform"]),
+    ]
+    opp = [
+        _p("Alakazam", 40, "Synchronize", ["Role Play", "Skill Swap", "Psychic", "Calm Mind"]),
+        _p("Swalot", 40, "Liquid Ooze", ["Gastro Acid", "Sludge Bomb", "Toxic", "Yawn"]),
+        _p("Delcatty", 40, "Normalize", ["Assist", "Fake Out", "Double-Edge", "Sing"]),
+        _p("Kecleon", 40, "Color Change", ["Camouflage", "Me First", "Shadow Claw", "Mimic"]),
+    ]
+    return my, opp, ()
+
+
 SCENARIOS = {
     "starters": scenario_starters,
     "status": scenario_status,
@@ -500,6 +519,7 @@ SCENARIOS = {
     "field_hazards": scenario_field_hazards,
     "delayed_sacrifice": scenario_delayed_sacrifice,
     "restriction_reflection": scenario_restriction_reflection,
+    "copy_calling": scenario_copy_calling,
 }
 
 

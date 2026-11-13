@@ -250,6 +250,19 @@
     "target": "ally_team",
     "type": "Grass"
   },
+  "Assist": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "fail_copycat": true,
+      "no_assist": true,
+      "no_sleep_talk": true
+    },
+    "name": "assist",
+    "pp": 20,
+    "target": "self",
+    "type": "Normal"
+  },
   "Assurance": {
     "accuracy": 100,
     "category": "Physical",
@@ -3720,6 +3733,22 @@
     "pp": 30,
     "target": "all_adjacent",
     "type": "Ground"
+  },
+  "Me First": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "fail_copycat": true,
+      "fail_me_first": true,
+      "no_assist": true,
+      "no_sleep_talk": true,
+      "protect": true
+    },
+    "name": "me_first",
+    "pp": 20,
+    "target": "adjacent_foe",
+    "type": "Normal"
   },
   "Mean Look": {
     "accuracy": true,

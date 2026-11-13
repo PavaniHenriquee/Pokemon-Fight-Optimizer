@@ -123,6 +123,7 @@ from Models.constants import (
     _MOVENAME_MORNING_SUN, _VOLSTATUS2_ROOST, _POK_HEAL_BLOCK_TURNS, _POK_MAGNET_RISE_TURNS,
     _VOLSTATUS2_MAGNET_RISE, _MOVENAME_MAGNET_RISE, _MOVENAME_DEFOG,
     _MOVENAME_MAGIC_COAT, _MOVENAME_SNATCH, _VOLSTATUS2_MAGIC_COAT, _VOLSTATUS2_SNATCH,
+    _VOLSTATUS2_ME_FIRST,
     _FLAGS_REFLECTABLE, _FLAGS_SNATCH, _ABILITYNAMES_PRESSURE,
 )
 from Models.move import STRUGGLE, MOVE_TABLE, DEFOG_DROP
@@ -228,6 +229,7 @@ HEAL_MOVES = (
 # VOL_STATUS2 bits that last only the turn
 TURN_VOLATILES2 = (
     _VOLSTATUS2_DAMAGED_BY_MOVE | _VOLSTATUS2_ROOST | _VOLSTATUS2_MAGIC_COAT | _VOLSTATUS2_SNATCH
+    | _VOLSTATUS2_ME_FIRST
 )
 RECOIL_IMMUNE_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 # Covet and Thief take the target's item, Bug Bite and Pluck eat its berry
@@ -1128,6 +1130,9 @@ def _execute_move_slot(
     is_last: nothing acts after this slot (Protect and Endure fail).
     Returns the flinch this slot produced (False if it didn't attack/hit).
     """
+    # Me First's boost was for the move it called, gone before anything else moves
+    atk[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_ME_FIRST
+    defn[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_ME_FIRST
     if atk[_POK_CURRENT_HP] <= 0:
         return False
     # Metronome and co. keep their slot locked, a locked turn replays the move they called
@@ -1175,7 +1180,9 @@ def _execute_move_slot(
 
     # The called move runs in the caller's turn, the caller is the last move for everything else
     if is_caller and atk[_POK_CALLED_MOVE] == 0:
-        called = called_move(atk, defn, outer_id, battle_array)
+        called = called_move(
+            atk, defn, outer_id, battle_array, is_mine, slot_num, opp_move if is_mine else current_move
+        )
         battle_array[_FIELD_LAST_MOVE] = outer_id
         if called == 0:
             metronome_fail(atk, outer_id)

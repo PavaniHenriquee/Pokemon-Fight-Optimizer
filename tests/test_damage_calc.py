@@ -1392,6 +1392,15 @@ def test_metronome_item_multiplier(poke, count):
     assert dmg(held, d) == dmg(plain, d) * (10 + count) // 10
 
 
+def test_me_first_multiplier(poke):
+    """x15/10 at the same step as the Metronome item (pokeplatinum CalcMoveDamage)"""
+    plain = poke("Rattata", 50, "Run Away", ["Ember"])
+    boosted = poke("Rattata", 50, "Run Away", ["Ember"])
+    boosted[Pok.VOL_STATUS2] |= VolStatus2.ME_FIRST
+    d = poke("Rattata", 50, "Run Away", ["Tackle"])
+    assert dmg(boosted, d) == dmg(plain, d) * 15 // 10
+
+
 # ── Batch 15: Normalize ──────────────────────────────────────────────────────
 
 def test_normalize_type(poke):

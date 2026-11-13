@@ -97,7 +97,7 @@ KIT_VOLATILE = (
     "Helping Hand", "Follow Me", "Dig", "Gravity", "Minimize", "Substitute", "Detect",
     "Magic Coat", "Snatch",
 )
-KIT_CALLING = ("Metronome", "Copycat", "Mirror Move", "Nature Power")
+KIT_CALLING = ("Metronome", "Copycat", "Mirror Move", "Nature Power", "Assist", "Me First")
 
 
 def test_ai_picks_a_legal_slot_with_every_kit(make_pokemon, make_battle):
@@ -1911,6 +1911,34 @@ def test_copycat_beats(poke):
     assert copycat_beats(ai_pok, user, 0, 0)
     user[Pok.LAST_MOVE_ID] = MoveName.LEER
     assert not copycat_beats(ai_pok, user, 0, 0)
+
+
+@pytest.mark.parametrize("ai_lv, beats, last, roll, expected", [
+    (5, True, "Tackle", 255, (-2, [])),                       # slower: -2 and nothing else
+    (40, False, "Leer", 0, (0, [(1, 192)])),                  # status last move: 75% +1
+    (40, True, "Leer", 0, (0, [(1, 224), (1, 192)])),         # out-damaged: 87.5% +1 first
+    (40, False, "Tackle", 0, (0, [])),                        # damaging, the 50% roll fails
+    (40, False, "Tackle", 128, (1, [(1, 192)])),              # +1, then 75% of another +1
+    (40, False, None, 128, (1, [(1, 192)])),                  # no last move counts as damaging
+])
+def test_expert_me_first(monkeypatch, poke, ai_lv, beats, last, roll, expected):
+    """pokeplatinum Expert_MeFirst, Pokemow MeFirst"""
+    monkeypatch.setattr(ai.random, "getrandbits", lambda n: roll)
+    ai_pok = poke("Togepi", ai_lv, "Hustle", ["Me First"])
+    user = poke("Machop", 20, "Guts", ["Tackle", "Leer"])
+    if last:
+        user[Pok.LAST_MOVE_ID] = getattr(MoveName, last.upper())
+    assert _expert_copycat(ai_pok, user, beats) == expected
+
+
+def test_assist_has_no_ai_check(poke):
+    """Neither script.s nor Pokemow has an Assist branch"""
+    ai_pok = poke("Eevee", 20, "Run Away", ["Assist"])
+    user = poke("Machop", 20, "Guts", ["Tackle"])
+    assert _expert_copycat(ai_pok, user, False) == (0, [])
+    assert ai.basic_flag(
+        move_slice(ai_pok, 0), AbilityNames.GUTS, ai_pok, user, 1.0, 0, 0, 0, 0, 1, 1, 0, 2
+    ) == 0
 
 
 @pytest.mark.parametrize("move", ["Metronome", "Nature Power"])
