@@ -253,7 +253,8 @@ class MoveName:
     METEOR_MASH     = METAL_SOUND + 1
     METRONOME       = METEOR_MASH + 1
     MILK_DRINK      = METRONOME + 1
-    MIND_READER     = MILK_DRINK + 1
+    MIMIC           = MILK_DRINK + 1
+    MIND_READER     = MIMIC + 1
     MINIMIZE        = MIND_READER + 1
     MIRACLE_EYE     = MINIMIZE + 1
     MIRROR_COAT     = MIRACLE_EYE + 1
@@ -364,7 +365,8 @@ class MoveName:
     SIGNAL_BEAM     = SHOCK_WAVE + 1
     SILVER_WIND     = SIGNAL_BEAM + 1
     SING            = SILVER_WIND + 1
-    SKILL_SWAP      = SING + 1
+    SKETCH          = SING + 1
+    SKILL_SWAP      = SKETCH + 1
     SKULL_BASH      = SKILL_SWAP + 1
     SKY_ATTACK      = SKULL_BASH + 1
     SKY_UPPERCUT    = SKY_ATTACK + 1
@@ -436,7 +438,8 @@ class MoveName:
     TORMENT         = TICKLE + 1
     TOXIC           = TORMENT + 1
     TOXIC_SPIKES    = TOXIC + 1
-    TRICK           = TOXIC_SPIKES + 1
+    TRANSFORM       = TOXIC_SPIKES + 1
+    TRICK           = TRANSFORM + 1
     TRICK_ROOM      = TRICK + 1
     TRI_ATTACK      = TRICK_ROOM + 1
     TRIPLE_KICK     = TRI_ATTACK + 1

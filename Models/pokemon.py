@@ -194,6 +194,11 @@ class Pokemon:
             type1,  # Its own types, switch-out restores them (Conversion, Camouflage, Color Change)
             type2,
             0,   # Ability Gastro Acid is suppressing, 0 means none
+            0, 0, 0, 0,  # Moves Mimic or Transform replaced: id * 128 + PP, 0 means untouched
+            0,   # While transformed, its own species
+            0, 0, 0, 0, 0,  # its own Attack, Defense, Sp. Atk, Sp. Def and Speed
+            0,   # its own weight
+            0, 0,  # and its own Hidden Power type and power
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 

@@ -19,7 +19,7 @@ from Models.constants import (
     _POK_METRONOME_COUNT, _POK_BASE_AB_ID, _FIELD_OPP_MOVE_RAN, _FIELD_PENDING_OPP_MOVE,
     _POK_TYPE1, _POK_TYPE2, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _VOLSTATUS_ENCORE,
     _VOLSTATUS_DISABLE, _FIELD_TRICKROOM, _POK_CHOICE_LOCK, _ITEM_HOLD_EFFECT, _MOVENAME_LAST_RESORT,
-    _VOLSTATUS2_TORMENT, _POK_LAST_MOVE_ID,
+    _VOLSTATUS2_TORMENT, _POK_LAST_MOVE_ID, _POK_ORIG_MOVE1,
 )
 from Models.trainer_ai import return_idx
 from Models.helper import ActionType, BattlePhase
@@ -246,12 +246,12 @@ def _hp_bracket(hp, max_hp):
 SIDE_KEY_SHIFT = 32
 # k5 per side: VOL_STATUS2 from bit 0, the choice-locked slot, the Stockpile count, Last Resort
 # working, then the Encore and Disable slots while they hold
-VOL2_KEY_BITS = 21
-CHOICE_KEY_SHIFT = 21
-STOCKPILE_KEY_SHIFT = 24
-LAST_RESORT_KEY_BIT = 26
-ENCORE_KEY_SHIFT = 27
-DISABLE_KEY_SHIFT = 29
+VOL2_KEY_BITS = 22
+CHOICE_KEY_SHIFT = 22
+STOCKPILE_KEY_SHIFT = 25
+LAST_RESORT_KEY_BIT = 27
+ENCORE_KEY_SHIFT = 28
+DISABLE_KEY_SHIFT = 30
 # k1 keeps each side's first SIDE_COND_K1_BITS side conditions, k6 gets the ones above
 SIDE_COND_K1_BITS = 10
 SIDE_COND_K1_MASK = (1 << SIDE_COND_K1_BITS) - 1
@@ -267,6 +267,8 @@ LOCK_KEY_SHIFT = 25
 LOCK_KEY_MASK = 15
 CHARGING_KEY_BIT = 29
 RECHARGING_KEY_BIT = 30
+# Mimic or Transform replaced one of the active's moves (which move isn't keyed)
+COPIED_MOVE_KEY_BIT = 31
 # k2 bits above the two 28-bit stage packs
 GRAVITY_KEY_BIT = 56
 TRICK_ROOM_KEY_BIT = 57
@@ -345,6 +347,9 @@ def _hold_key(pok, side_cond, spikes):
         packed |= np.int64(1) << CHARGING_KEY_BIT
     elif pok[_POK_CHARGE_RECHARGE] < 0:
         packed |= np.int64(1) << RECHARGING_KEY_BIT
+    for slot in range(4):
+        if pok[_POK_ORIG_MOVE1 + slot]:
+            packed |= np.int64(1) << COPIED_MOVE_KEY_BIT
     return packed
 
 

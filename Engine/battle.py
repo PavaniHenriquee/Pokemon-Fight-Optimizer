@@ -26,6 +26,7 @@ from Engine.engine_helper import (
     magnet_rise_count, stockpile, release_stockpile, swallow, future_hit_lands, SPIT_UP_POWER,
     spite, TRAP_MOVES, lock_on_count, LOCK_ON_MOVES, LOCK_ON_DURATION,
     suppress_ability, role_play, skill_swap, conversion, conversion2, camouflage, type_move_fails,
+    mimic, sketch, transform,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -128,6 +129,7 @@ from Models.move import STRUGGLE, MOVE_TABLE, DEFOG_DROP
 from Models.constants import (
     _VOLSTATUS2_GASTRO_ACID, _MOVENAME_GASTRO_ACID, _MOVENAME_ROLE_PLAY, _MOVENAME_SKILL_SWAP,
     _MOVENAME_CONVERSION, _MOVENAME_CONVERSION_2, _MOVENAME_CAMOUFLAGE, _FIELD_TERRAIN,
+    _MOVENAME_MIMIC, _MOVENAME_SKETCH, _MOVENAME_TRANSFORM,
 )
 from Models.item import refresh_item, raw_item_type
 
@@ -232,6 +234,8 @@ RECOIL_IMMUNE_AB = (_ABILITYNAMES_ROCK_HEAD, _ABILITYNAMES_MAGIC_GUARD)
 STEAL_MOVES = (_MOVENAME_COVET, _MOVENAME_THIEF)
 PLUCK_MOVES = (_MOVENAME_BUG_BITE, _MOVENAME_PLUCK)
 SWAP_MOVES = (_MOVENAME_TRICK, _MOVENAME_SWITCHEROO)
+# They rewrite the user's move slots, the one being run included
+COPY_MOVES = (_MOVENAME_MIMIC, _MOVENAME_SKETCH, _MOVENAME_TRANSFORM)
 
 @njit
 def _pass_baton(old, new):
@@ -1457,9 +1461,32 @@ def _execute_move_slot(
     if mv[_MOVE_ID] == _MOVENAME_DEFOG:
         _defog(atk, defn, battle_array, def_side)
         return False
+    if mv[_MOVE_ID] in COPY_MOVES:
+        _copy_move(atk, defn, mv[_MOVE_ID], is_mine, battle_array)
+        return False
     _status_move(atk, defn, mv, is_mine, battle_array, weather)
     calculate_effects(atk, defn, mv, weather, battle_array[def_side])
     return False
+
+
+@njit
+def _copy_move(atk, defn, move_id, is_mine, battle_array):
+    """
+    Mimic, Sketch and Transform. The AI knows a move of mine once it saw it used, so a slot of mine
+    that changed is unknown to it again (pokeplatinum TrainerAI_RecordLastMove goes by move id)
+    """
+    if move_id == _MOVENAME_TRANSFORM:
+        transform(atk, defn, battle_array, is_mine)
+        if is_mine:
+            for known in AI_KNOWS_MOVES:
+                battle_array[_FIELD_AI_KNOWS] &= ~known
+        return
+    if move_id == _MOVENAME_MIMIC:
+        slot = mimic(atk, defn)
+    else:
+        slot = sketch(atk, defn)
+    if is_mine and slot >= 0:
+        battle_array[_FIELD_AI_KNOWS] &= ~AI_KNOWS_MOVES[slot]
 
 
 @njit

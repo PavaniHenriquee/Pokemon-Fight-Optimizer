@@ -26,8 +26,8 @@ Updated only when asked.
 - Done: 11.1 (restriction and trapping) and 11.2 (accuracy locks and protection), 2026-11-12.
 - Done: 11.3 (reflection), and with it Phase 11, 2026-11-12. Its `benchmarks.run quick` on the home PC is still
   to do.
-- Done: 12.1 (type and ability changes), 2026-11-12.
-- Next: 12.2 (copying).
+- Done: 12.1 (type and ability changes) and 12.2 (copying), 2026-11-12.
+- Next: 12.3 (calling).
 
 ## Goal
 
@@ -704,9 +704,9 @@ Fixed damage:
 
 ### 12.2 Copying
 
-- [ ] Mimic !!
-- [ ] Sketch \* !
-- [ ] Transform \* !!
+- [x] Mimic !!
+- [x] Sketch \* !
+- [x] Transform \* !!
 
 ### 12.3 Calling
 

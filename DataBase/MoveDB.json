@@ -3925,6 +3925,23 @@
     "target": "self",
     "type": "Normal"
   },
+  "Mimic": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "fail_copycat": true,
+      "fail_encore": true,
+      "fail_instruct": true,
+      "fail_mimic": true,
+      "no_assist": true,
+      "protect": true
+    },
+    "name": "mimic",
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Mind Reader": {
     "accuracy": true,
     "category": "Status",
@@ -5678,6 +5695,24 @@
     "target": "normal",
     "type": "Normal"
   },
+  "Sketch": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "bypass_sub": true,
+      "fail_copycat": true,
+      "fail_encore": true,
+      "fail_instruct": true,
+      "fail_mimic": true,
+      "no_assist": true,
+      "no_sketch": true
+    },
+    "name": "sketch",
+    "pp": 1,
+    "target": "normal",
+    "type": "Normal"
+  },
   "Skill Swap": {
     "accuracy": true,
     "category": "Status",
@@ -6813,6 +6848,19 @@
     "side_condition": "toxic_spikes",
     "target": "foe_side",
     "type": "Poison"
+  },
+  "Transform": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "fail_encore": true,
+      "metronome": true
+    },
+    "name": "transform",
+    "pp": 10,
+    "target": "normal",
+    "type": "Normal"
   },
   "Tri Attack": {
     "accuracy": 100,

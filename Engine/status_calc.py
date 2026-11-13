@@ -27,7 +27,7 @@ from Models.constants import (
     _ABILITYNAMES_OWN_TEMPO, _ABILITYNAMES_OBLIVIOUS, _ABILITYNAMES_CLEAR_BODY,
     _ABILITYNAMES_WHITE_SMOKE, _ABILITYNAMES_HYPER_CUTTER, _ITEM_HOLD_EFFECT,
     _HOLDEFFECT_RECIPROCATE_INFAT, _MOVENAME_CHATTER, _POK_ID, _VOLSTATUS_NIGHTMARE,
-    _VOLSTATUS_HEAL_BLOCK, _POK_HEAL_BLOCK_TURNS,
+    _VOLSTATUS_HEAL_BLOCK, _POK_HEAL_BLOCK_TURNS, _POK_VOL_STATUS2, _VOLSTATUS2_TRANSFORM,
 )
 from Models.idx_const import OFFSET_MOVE, MOVE_STRIDE
 from DataBase.PkDB import PokemonName
@@ -456,8 +456,11 @@ def sec_effects(move, attacker, defender, weather, def_side=0):
     ):
         return
 
-    # Chatter only confuses when a Chatot uses it (pokeplatinum BtlCmd_CheckChatterActivation)
-    if move[_MOVE_ID] == _MOVENAME_CHATTER and attacker[_POK_ID] != CHATOT:
+    # Chatter only confuses when a Chatot uses it, and not a transformed one (pokeplatinum
+    # BtlCmd_CheckChatterActivation)
+    if move[_MOVE_ID] == _MOVENAME_CHATTER and (
+        attacker[_POK_ID] != CHATOT or attacker[_POK_VOL_STATUS2] & _VOLSTATUS2_TRANSFORM
+    ):
         return
 
     chance = move[_SEC_CHANCE]

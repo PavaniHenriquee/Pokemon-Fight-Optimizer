@@ -12,7 +12,7 @@ from SearchEngine.models import (
     STOCKPILE_KEY_SHIFT, LAST_RESORT_KEY_BIT, ENCORE_KEY_SHIFT, DISABLE_KEY_SHIFT, SIDE_COND_K1_BITS,
     SIDE_COND_HI_BITS, SPIKES_KEY_SHIFT, ITEM_KEY_SHIFT, ITEM_KEY_BITS, TYPE_KEY_SHIFT, TYPE_KEY_BITS,
     LOCK_KEY_SHIFT, LOCK_KEY_MASK, CHARGING_KEY_BIT, RECHARGING_KEY_BIT, GRAVITY_KEY_BIT,
-    TRICK_ROOM_KEY_BIT,
+    TRICK_ROOM_KEY_BIT, COPIED_MOVE_KEY_BIT,
 )
 from SearchEngine import models as search_models
 from SearchEngine.mcts_eval import (
@@ -215,6 +215,21 @@ def test_node_key_sees_gastro_acid_and_camouflage(one_v_one, mine, bit):
     assert node_key(arr) != key
 
 
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_transform_and_a_copied_move(one_v_one, mine):
+    """Transform's bit is the last one of k5's half, a replaced move slot the last one of k6's. Both
+    split nodes and the sides don't collide"""
+    def build(pok_mine, slot, value):
+        arr = one_v_one()
+        (my_active(arr) if pok_mine else opp_active(arr))[slot] = value
+        return arr
+    base = node_key(one_v_one())
+    for slot, value in ((Pok.VOL_STATUS2, VolStatus2.TRANSFORM), (Pok.ORIG_MOVE1 + 2, 300)):
+        key = node_key(build(mine, slot, value))
+        assert key != base
+        assert key != node_key(build(not mine, slot, value))
+
+
 def test_node_key_sees_power_trick(one_v_one):
     """Power Trick's VolStatus2 bit is under VOL2_KEY_BITS"""
     arr = one_v_one()
@@ -292,17 +307,17 @@ def test_vol_status2_fits_node_key():
 
 
 def test_node_key_fields_fit():
-    """k5 and k6 fields follow each other without overlap and leave each half's top bit free,
-    and what they hold fits their bits"""
+    """k5 and k6 fields follow each other without overlap and fill each half exactly (12.2 took the
+    top bits), and what they hold fits their bits"""
     k5 = [(0, VOL2_KEY_BITS), (CHOICE_KEY_SHIFT, 3), (STOCKPILE_KEY_SHIFT, 2), (LAST_RESORT_KEY_BIT, 1),
           (ENCORE_KEY_SHIFT, 2), (DISABLE_KEY_SHIFT, 2)]
     k6 = [(0, SIDE_COND_HI_BITS), (SPIKES_KEY_SHIFT, 2), (ITEM_KEY_SHIFT, ITEM_KEY_BITS),
           (TYPE_KEY_SHIFT, 2 * TYPE_KEY_BITS), (LOCK_KEY_SHIFT, LOCK_KEY_MASK.bit_length()),
-          (CHARGING_KEY_BIT, 1), (RECHARGING_KEY_BIT, 1)]
+          (CHARGING_KEY_BIT, 1), (RECHARGING_KEY_BIT, 1), (COPIED_MOVE_KEY_BIT, 1)]
     for fields in (k5, k6):
         for (shift, bits), (next_shift, _) in zip(fields, fields[1:]):
             assert shift + bits == next_shift
-        assert fields[-1][0] + fields[-1][1] < SIDE_KEY_SHIFT
+        assert fields[-1][0] + fields[-1][1] <= SIDE_KEY_SHIFT
     assert sum(_int_attrs(SideCondition)) < 2 ** (SIDE_COND_K1_BITS + SIDE_COND_HI_BITS)
     assert max(_int_attrs(ItemNames)) < 2 ** ITEM_KEY_BITS
     assert max(_int_attrs(Types)) < 2 ** TYPE_KEY_BITS

@@ -93,11 +93,22 @@
 - Whether RP's ROM lets Soundproof block Disarming Voice is unknown (the engine says yes).
 - Custap is eaten when the turn order is set, not when its holder moves: a holder KO'd first by a higher
   priority move loses it ([pp] keeps it), and its slot's Recycle item follows.
-- Choice lock: a locked move that leaves the moveset ends the lock in [pp] (`CheckInvalidMoves`); it needs Mimic or
-  Transform (12.2). [pp] also clears the lock of a Pokemon hit while holding no choice item; the engine keeps it
+- Choice lock: [pp] also clears the lock of a Pokemon hit while holding no choice item; the engine keeps it
   stored (it does nothing without a choice item) until a choice item comes back, which only Trick can do (4.5).
-- Last Resort: Mimic, Sketch and Transform reset its count of moves used ([pp] `lastResortCount = 0`); none of
-  them is in yet (12.2).
+- Mimic follows [SD] gen4 (the target's last used move, a miss included). [pp] `movePrevByBattler` is cleared
+  when the move failed, so its Mimic fails after a miss.
+- Mimic, Sketch, Transform (12.2):
+  - Sketch's new move isn't written to `box.json`, it only lasts the battle.
+  - `node_key` has one bit for "a slot was replaced", not which move my Mimic copied.
+  - A Disable on a replaced slot ends at once ([pp] lets its counter run on a move that is gone). Transform also
+    ends an Encore at once ([pp] ends it when the encored Pokemon next moves).
+  - Transform copies the target's current types; [SD] gives a Roosting target's own types back.
+  - A copied ability starts like a switch-in ([pp] clears the announced flags); what [SD] gen4 does wasn't found.
+  - Transform doesn't touch `AB_KNOWN` or the AI's knowledge of my ability (like Role Play above).
+  - A transformed Pokemon that faints stays in the target's shape in the array (`reset_switch_out` doesn't run
+    on a faint). The serializer names it by `ORIG_ID`; `backend/main.py`'s PP and death rows still read `Pok.ID`.
+  - Continue's foe PP guess (`backend/main.py`) finds the slot by the last move's id, which a Mimic changed.
+  - A mimicked Charge doesn't keep the Charge boost rule (`_clear_charge` reads the replaced slot).
 - Sleep Talk goes by [SD]'s `nosleeptalk` flag, so it never calls Nature Power; [pp] `Move_IsInvoker` leaves
   Nature Power out, so its Sleep Talk can.
 - Uproar: a Soundproof Pokemon still falls asleep during one, Rest included (`sleep_blocked`, [pp]
@@ -109,8 +120,7 @@
 - Metronome item: a failed Trick, Switcheroo or Embargo keeps its count, like the status moves above ([pp] gives
   it back on MOVE_STATUS_FAILED). A failed Fling gives it back.
 - Chatter confuses at [SD gen4]'s 31% whenever a Chatot uses it. [pp] reads the recorded cry's volume (1%, 11% or
-  31%, 1% with no valid recording, `BtlCmd_CheckChatterActivation`). Once Transform is in, a transformed Chatot
-  mustn't confuse.
+  31%, 1% with no valid recording, `BtlCmd_CheckChatterActivation`).
 - Scald: which [pp] effect RP gives it is unknown (ROM not read). No AI branch reads the burn-hit effects yet.
 - Wild Charge, Cut and Strength: which [pp] effect RP gives them is unknown too. The AI goes by their data:
   recoil, high crit, and no branch for Strength's Attack raise (like Meteor Mash).
@@ -129,9 +139,7 @@
   defender whose Quick Claw or Custap activated this turn ([pp] `BtlCmd_TryStealItem`, `subscript_knock_off`,
   `subscript_exchange_items`).
 - Knock Off's Sticky Hold check reads the attacker's Mold Breaker directly, not through `ignorable_ability`.
-- Species items read `Pok.ID`: once Transform is in they must read the transformed species, and [pp] skips the
-  Griseous Orb boost for a transformed Giratina. [pp] also skips Trace for a Griseous Orb holder (unreachable,
-  only Giratina can hold it).
+- [pp] skips Trace for a Griseous Orb holder (unreachable, only Giratina can hold it).
 - Two actives both holding Lagging Tail / Full Incense: [pp] lets the slower go first, the engine goes by speed
   (Showdown). Unreachable, only my side can have them.
 - Switcheroo and Embargo also fail on a target whose Quick Claw or Custap activated this turn in [pp]

@@ -145,6 +145,13 @@ from Models.constants import (
     _MOVENAME_ROLE_PLAY, _MOVENAME_SKILL_SWAP, _MOVENAME_GASTRO_ACID, _ABILITYNAMES_COLOR_CHANGE,
     _MOVENAME_HIDDEN_POWER, _TYPES_GRASS,
 )
+from Models.constants import (
+    _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _POK_WEIGHT, _POK_SPEED, _POK_FRIENDSHIP,
+    _MOVENAME_CHATTER, _MOVENAME_MIMIC, _MOVENAME_SKETCH, _MOVENAME_TRANSFORM, _VOLSTATUS2_TRANSFORM,
+    _POK_ORIG_MOVE1, _POK_ORIG_ID, _POK_ORIG_ATTACK, _POK_ORIG_SPEED, _POK_ORIG_WEIGHT,
+    _POK_ORIG_HIDDEN_POWER_TYPE, _POK_ORIG_HIDDEN_POWER_POWER,
+)
+from Models.move import friendship_power
 from DataBase.PkDB import PokemonName
 
 
@@ -395,7 +402,12 @@ def update_choice_lock(pok, slot):
     if pok[_ITEM_HOLD_EFFECT] not in CHOICE_EFFECTS:
         pok[_POK_CHOICE_LOCK] = 0
     elif slot < 4:
-        pok[_POK_CHOICE_LOCK] = slot + 1
+        # A move that left the moveset (Mimic, Sketch, Transform) can't hold the lock (pokeplatinum
+        # BattleSystem_CheckInvalidMoves)
+        if pok[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID] == pok[_POK_LAST_MOVE_ID]:
+            pok[_POK_CHOICE_LOCK] = slot + 1
+        else:
+            pok[_POK_CHOICE_LOCK] = 0
 
 
 @njit
@@ -1002,6 +1014,10 @@ def status_move_fails(move, attacker, defender):
         return role_play_fails(attacker, defender)
     if move_id == _MOVENAME_SKILL_SWAP:
         return skill_swap_fails(attacker, defender)
+    if move_id == _MOVENAME_MIMIC or move_id == _MOVENAME_SKETCH:
+        return copy_slot(attacker, defender, move_id) < 0
+    if move_id == _MOVENAME_TRANSFORM:
+        return transform_fails(defender)
     return False
 
 
@@ -1939,6 +1955,8 @@ def reset_switch_out(pok):
     # Power Trick ends: back to its own Attack and Defense
     if pok[_POK_VOL_STATUS2] & _VOLSTATUS2_POWER_TRICK:
         swap_atk_def(pok)
+    # Transform and Mimic end, after Power Trick so its trade can't touch the restored stats
+    restore_copied(pok)
     pok[_POK_VOL_STATUS2] = 0
     pok[_POK_SUB_HP] = 0
     pok[_POK_CHOICE_LOCK] = 0
@@ -3466,6 +3484,194 @@ def camouflage(pok, terrain):
     ([pp] effect 213, MOVE_EFFECT_CAMOUFLAGE)"""
     set_type(pok, camouflage_type(terrain))
     pok[_POK_VOL_STATUS2] |= _VOLSTATUS2_CAMOUFLAGE
+
+
+# pokeplatinum Move_CanBeMimicked (sCannotMetronomeMoves up to FORBIDDEN_BY_MIMIC_DELIM) and
+# BtlCmd_TrySketch
+MIMIC_FORBIDDEN = (
+    _MOVENAME_METRONOME, _MOVENAME_STRUGGLE, _MOVENAME_SKETCH, _MOVENAME_MIMIC, _MOVENAME_CHATTER
+)
+SKETCH_FORBIDDEN = (_MOVENAME_STRUGGLE, _MOVENAME_SKETCH, _MOVENAME_CHATTER)
+MIMIC_PP = 5
+# Pok.ORIG_MOVE1..4: move id * ORIG_MOVE_STEP + PP
+ORIG_MOVE_STEP = 128
+
+
+@njit
+def set_move_slot(pok, slot, move_id, pp):
+    """
+    Writes a move into pok's slot with this PP. The slot keeps its PP Ups, and Hidden Power, Return
+    and Frustration get pok's own numbers like in to_np
+    """
+    base = OFFSET_MOVE + slot * MOVE_STRIDE
+    pp_ups = pok[base + _MOVE_PP_UP]
+    pok[base:base + MOVE_STRIDE] = MOVE_TABLE[move_id]
+    pok[base + _MOVE_PP] = pp
+    pok[base + _MOVE_PP_UP] = pp_ups
+    if move_id == _MOVENAME_HIDDEN_POWER:
+        pok[base + _MOVE_TYPE] = pok[_POK_HIDDEN_POWER_TYPE]
+        pok[base + _MOVE_POWER] = pok[_POK_HIDDEN_POWER_POWER]
+    power = friendship_power(move_id, pok[_POK_FRIENDSHIP])
+    if power:
+        pok[base + _MOVE_POWER] = power
+
+
+@njit
+def _backup_move(pok, slot):
+    """Keeps the slot's own move and PP for switch-out, once (a Transform over a Mimic keeps Mimic)"""
+    if pok[_POK_ORIG_MOVE1 + slot] == 0:
+        base = OFFSET_MOVE + slot * MOVE_STRIDE
+        pok[_POK_ORIG_MOVE1 + slot] = pok[base + _MOVE_ID] * ORIG_MOVE_STEP + pok[base + _MOVE_PP]
+
+
+@njit
+def _slot_changed(pok, slot):
+    """The move in this slot was replaced: a Disable on it ends (pokeplatinum keeps the disabled
+    move's id, which is gone)"""
+    if pok[_POK_VOL_STATUS] & _VOLSTATUS_DISABLE and slot == pok[_POK_DISABLE_TURNS] & SLOT_MASK:
+        pok[_POK_VOL_STATUS] &= ~_VOLSTATUS_DISABLE
+        pok[_POK_DISABLE_TURNS] = 0
+
+
+@njit
+def copy_slot(user, target, move_id):
+    """
+    The slot Mimic or Sketch would overwrite, -1 if it fails: the user is transformed, the target is
+    behind a Substitute or has no last move, the last move can't be copied or the user knows it
+    already (pokeplatinum BtlCmd_TryMimic, BtlCmd_TrySketch, subscript_sketch). The last move is
+    the last one the target used, a miss included ([SD] gen4 lastMove). The first slot with the
+    copying move is the one replaced
+    """
+    last = target[_POK_LAST_MOVE_ID]
+    if (
+        last == 0
+        or user[_POK_VOL_STATUS2] & _VOLSTATUS2_TRANSFORM
+        or target[_POK_VOL_STATUS2] & _VOLSTATUS2_SUBSTITUTE
+    ):
+        return -1
+    if move_id == _MOVENAME_MIMIC:
+        if last in MIMIC_FORBIDDEN:
+            return -1
+    elif last in SKETCH_FORBIDDEN:
+        return -1
+    found = -1
+    for slot in range(4):
+        known = user[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID]
+        if known == last:
+            return -1
+        if known == move_id and found < 0:
+            found = slot
+    return found
+
+
+@njit
+def mimic(user, target):
+    """
+    Mimic: its slot becomes the target's last move with up to 5 PP until the user switches out
+    (pokeplatinum BtlCmd_TryMimic). Returns the slot, -1 if it failed
+    """
+    slot = copy_slot(user, target, _MOVENAME_MIMIC)
+    if slot < 0:
+        return -1
+    last = target[_POK_LAST_MOVE_ID]
+    _backup_move(user, slot)
+    set_move_slot(user, slot, last, min(MIMIC_PP, MOVE_TABLE[last, _MOVE_PP]))
+    _slot_changed(user, slot)
+    if last == _MOVENAME_LAST_RESORT:
+        user[_POK_LAST_RESORT] = 0
+    return slot
+
+
+@njit
+def sketch(user, target):
+    """
+    Sketch: its slot becomes the target's last move for good, with that move's full PP (pokeplatinum
+    BtlCmd_TrySketch). Returns the slot, -1 if it failed
+    """
+    slot = copy_slot(user, target, _MOVENAME_SKETCH)
+    if slot < 0:
+        return -1
+    last = target[_POK_LAST_MOVE_ID]
+    set_move_slot(user, slot, last, MOVE_TABLE[last, _MOVE_PP])
+    _slot_changed(user, slot)
+    if last == _MOVENAME_LAST_RESORT:
+        user[_POK_LAST_RESORT] = 0
+    return slot
+
+
+@njit
+def transform_fails(target):
+    """On a semi-invulnerable or transformed target (pokeplatinum subscript_transform_into_target).
+    A Substitute doesn't stop it in Gen IV"""
+    return (
+        target[_POK_VOL_STATUS] & _VOLSTATUS_SEMI_INVULNERABLE != 0
+        or target[_POK_VOL_STATUS2] & _VOLSTATUS2_TRANSFORM != 0
+    )
+
+
+@njit
+def transform(user, target, battle_array, is_mine):
+    """
+    Transform: the user takes the target's species, stats but HP, stat stages, weight, types, Hidden
+    Power, ability and moves (up to 5 PP each) until it switches out. Its Disable and Encore end and
+    Last Resort's count starts over. The ability is the target's real one under a Gastro Acid, the
+    user's own Gastro Acid stays, and it starts like a switch-in (pokeplatinum BtlCmd_Transform,
+    which copies the BattleMon up to its ability and clears the announced flags).
+    is_mine: the user is on my side
+    """
+    # A Power Trick on the user trades its own stats back first, so the backup has the real ones
+    if user[_POK_VOL_STATUS2] & _VOLSTATUS2_POWER_TRICK:
+        swap_atk_def(user)
+    if not user[_POK_VOL_STATUS2] & _VOLSTATUS2_TRANSFORM:
+        user[_POK_ORIG_ID] = user[_POK_ID]
+        user[_POK_ORIG_ATTACK:_POK_ORIG_SPEED + 1] = user[_POK_ATTACK:_POK_SPEED + 1]
+        user[_POK_ORIG_WEIGHT] = user[_POK_WEIGHT]
+        user[_POK_ORIG_HIDDEN_POWER_TYPE] = user[_POK_HIDDEN_POWER_TYPE]
+        user[_POK_ORIG_HIDDEN_POWER_POWER] = user[_POK_HIDDEN_POWER_POWER]
+    user[_POK_VOL_STATUS2] |= _VOLSTATUS2_TRANSFORM
+    user[_POK_ID] = target[_POK_ID]
+    user[_POK_ATTACK:_POK_SPEED + 1] = target[_POK_ATTACK:_POK_SPEED + 1]
+    user[_POK_ATTACK_STAT_STAGE:_POK_EVASION_STAT_STAGE + 1] = (
+        target[_POK_ATTACK_STAT_STAGE:_POK_EVASION_STAT_STAGE + 1]
+    )
+    user[_POK_WEIGHT] = target[_POK_WEIGHT]
+    user[_POK_TYPE1] = target[_POK_TYPE1]
+    user[_POK_TYPE2] = target[_POK_TYPE2]
+    user[_POK_HIDDEN_POWER_TYPE] = target[_POK_HIDDEN_POWER_TYPE]
+    user[_POK_HIDDEN_POWER_POWER] = target[_POK_HIDDEN_POWER_POWER]
+    for slot in range(4):
+        _backup_move(user, slot)
+        move_id = target[OFFSET_MOVE + slot * MOVE_STRIDE + _MOVE_ID]
+        set_move_slot(user, slot, move_id, min(MIMIC_PP, MOVE_TABLE[move_id, _MOVE_PP]))
+    user[_POK_VOL_STATUS] &= ~(_VOLSTATUS_DISABLE | _VOLSTATUS_ENCORE)
+    user[_POK_DISABLE_TURNS] = 0
+    user[_POK_ENCORE_TURNS] = 0
+    user[_POK_LAST_RESORT] = 0
+    set_ability(user, raw_ability(target))
+    _gained_ability(user, target, battle_array, is_mine)
+    forecast_actives(battle_array)
+
+
+@njit
+def restore_copied(pok):
+    """
+    Switch-out: the moves Mimic or Transform replaced come back with the PP they had, and a
+    transformed Pokemon gets its own species, stats, weight and Hidden Power again (pokeplatinum
+    reloads them from the party; types and ability have their own backups). Transform replaced
+    every slot, so a backup of 0 there is a slot that was empty
+    """
+    transformed = pok[_POK_VOL_STATUS2] & _VOLSTATUS2_TRANSFORM != 0
+    if transformed:
+        pok[_POK_ID] = pok[_POK_ORIG_ID]
+        pok[_POK_ATTACK:_POK_SPEED + 1] = pok[_POK_ORIG_ATTACK:_POK_ORIG_SPEED + 1]
+        pok[_POK_WEIGHT] = pok[_POK_ORIG_WEIGHT]
+        pok[_POK_HIDDEN_POWER_TYPE] = pok[_POK_ORIG_HIDDEN_POWER_TYPE]
+        pok[_POK_HIDDEN_POWER_POWER] = pok[_POK_ORIG_HIDDEN_POWER_POWER]
+    for slot in range(4):
+        packed = pok[_POK_ORIG_MOVE1 + slot]
+        if packed or transformed:
+            set_move_slot(pok, slot, packed // ORIG_MOVE_STEP, packed % ORIG_MOVE_STEP)
+            pok[_POK_ORIG_MOVE1 + slot] = 0
 
 
 @njit

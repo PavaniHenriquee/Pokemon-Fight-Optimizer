@@ -5,7 +5,7 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 from backend import main
-from backend.serializer import serialize_node, opp_move_label, battle_sprite
+from backend.serializer import serialize_node, opp_move_label, battle_sprite, own_species
 from SearchEngine.models import (
     GameState, Node, reconstruct_battle_array, OPP_DIDNT_MOVE, OPP_STRUGGLED, OPP_SWITCHED,
     OPP_USED_ITEM, OPP_TURN_BITS,
@@ -15,6 +15,7 @@ from DataBase.AbilitiesDB import AbilityNames
 from DataBase.PkDB import PokemonName
 from Models.helper import Gender, Types, ActionType
 from Models.idx_const import Pok, POK_LEN, Move
+from Engine.battle import turn_sim
 from battle_driver import build_scenario, pok_slice, move_slice
 
 TEAM_MEMBER = {
@@ -642,6 +643,17 @@ def test_field_shows_wish_future_sight_and_stockpile():
     mine = arr[0:POK_LEN]
     mine[Pok.STOCKPILE] = 2 + 4 * 2
     assert "Stockpile 2" in _pok(mine)["vol_status"]
+
+
+def test_a_transformed_pokemon_keeps_its_own_name(make_pokemon, make_battle):
+    """The sprite is the species it turned into, the name stays its own"""
+    arr = make_battle([make_pokemon("Ditto", 30, "Limber", ["Transform"])],
+                      [make_pokemon("Geodude", 30, "Sturdy", ["Splash"])])
+    turn_sim(0, (ActionType.MOVE, 0), arr)
+    mine, foe = arr[0:POK_LEN], arr[6 * POK_LEN:7 * POK_LEN]
+    assert mine[Pok.ID] == PokemonName.GEODUDE and own_species(mine) == PokemonName.DITTO
+    assert battle_sprite(mine) == battle_sprite(foe)
+    assert own_species(foe) == PokemonName.GEODUDE
 
 
 def _spite_node(client, my_moves=("Spite", "Scratch", "", "")):

@@ -28,6 +28,7 @@ from Models.constants import (
     _SIDECONDITION_REFLECT, _SIDECONDITION_LIGHT_SCREEN, _ABILITYNAMES_ADAPTABILITY,
     _MOVENAME_GYRO_BALL, _MOVENAME_BOUNCE, _MOVENAME_DIG, _MOVENAME_EARTHQUAKE, _MOVENAME_STOMP,
     _POK_SEMI_INV_MOVE, _POK_VOL_STATUS2, _VOLSTATUS2_MINIMIZE, _POK_ID, _ITEM_HOLD_EFFECT,
+    _VOLSTATUS2_TRANSFORM,
     _ITEM_EFFECT_PARAM, _ITEM_EFFECT_TYPE, _HOLDEFFECT_TYPE_BOOST, _HOLDEFFECT_PIKA_SPATK_UP,
     _HOLDEFFECT_POWER_UP_PHYS, _HOLDEFFECT_POWER_UP_SE, _HOLDEFFECT_CUBONE_ATK_UP,
     _MOVENAME_EXPLOSION, _MOVENAME_SELFDESTRUCT, _ABILITYNAMES_SWARM, _TYPES_BUG,
@@ -401,7 +402,10 @@ def item_power(attacker, move_type, category, power):
         return power * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
     if effect == _HOLDEFFECT_PIKA_SPATK_UP and attacker[_POK_ID] == PIKACHU:
         return power * 2
-    if orb_boosts(effect, attacker[_POK_ID], move_type):
+    # A transformed Giratina gets nothing from the Griseous Orb (pokeplatinum CalcMoveDamage)
+    if orb_boosts(effect, attacker[_POK_ID], move_type) and not (
+        effect == _HOLDEFFECT_GIRATINA_BOOST and attacker[_POK_VOL_STATUS2] & _VOLSTATUS2_TRANSFORM
+    ):
         return power * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100
     if effect == _HOLDEFFECT_POWER_UP_PHYS and category == _MOVECATEGORY_PHYSICAL:
         return power * (100 + attacker[_ITEM_EFFECT_PARAM]) // 100

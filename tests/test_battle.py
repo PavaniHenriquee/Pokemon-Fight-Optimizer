@@ -7243,3 +7243,201 @@ def test_forecast_only_changes_castform(make_pokemon, make_battle):
     arr[Field.WEATHER] = Weather.HAIL
     battle.forecast_actives(arr)
     assert my_active(arr)[Pok.TYPE1] == Types.NORMAL
+
+
+# ── 12.2 copying: Mimic, Sketch, Transform ──────────────────────────────────────────────────────
+
+def test_mimic_copies_the_last_move_until_switch_out(make_pokemon, make_battle):
+    """Up to 5 PP, the AI no longer knows the slot, and switch-out brings Mimic back with its PP"""
+    arr = _change_battle(make_pokemon, make_battle, ["Tackle", "Mimic"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.LAST_MOVE_ID] = MoveName.EMBER
+    turn_sim(0, (MOVE, 1), arr)
+    slot = move_slice(me, 1)
+    assert slot[Move.ID] == MoveName.EMBER and slot[Move.PP] == 5
+    assert slot[Move.TYPE] == Types.FIRE and slot[Move.POWER] > 0
+    assert not arr[Field.AI_KNOWS] & _ENEMY_AI_KNOWS_MOVE2
+    assert me[Pok.ORIG_MOVE1 + 1] == MoveName.MIMIC * engine_helper.ORIG_MOVE_STEP + 9
+    engine_helper.reset_switch_out(me)
+    assert slot[Move.ID] == MoveName.MIMIC and slot[Move.PP] == 9
+    assert me[Pok.ORIG_MOVE1 + 1] == 0
+
+
+@pytest.mark.parametrize("move, last, fails", [
+    ("Mimic", MoveName.EMBER, False), ("Mimic", 0, True), ("Mimic", MoveName.TACKLE, True),
+    ("Mimic", MoveName.METRONOME, True), ("Mimic", MoveName.STRUGGLE, True),
+    ("Mimic", MoveName.SKETCH, True), ("Mimic", MoveName.MIMIC, True), ("Mimic", MoveName.CHATTER, True),
+    ("Mimic", MoveName.TRANSFORM, False),
+    ("Sketch", MoveName.EMBER, False), ("Sketch", 0, True), ("Sketch", MoveName.TACKLE, True),
+    ("Sketch", MoveName.STRUGGLE, True), ("Sketch", MoveName.CHATTER, True),
+    ("Sketch", MoveName.METRONOME, False),
+])
+def test_mimic_and_sketch_fail(poke, move, last, fails):
+    """No last move, one the user knows, or one of pokeplatinum's forbidden moves"""
+    me = poke("Porygon", 30, "Download", [move, "Tackle"])
+    foe = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    foe[Pok.LAST_MOVE_ID] = last
+    assert engine_helper.status_move_fails(move_slice(me, 0), me, foe) == fails
+
+
+@pytest.mark.parametrize("move", ["Mimic", "Sketch"])
+def test_mimic_and_sketch_fail_transformed_or_into_a_substitute(poke, move):
+    """pokeplatinum BtlCmd_TryMimic, BtlCmd_TrySketch and subscript_sketch"""
+    foe = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    foe[Pok.LAST_MOVE_ID] = MoveName.EMBER
+    me = poke("Porygon", 30, "Download", [move])
+    move_id = move_slice(me, 0)[Move.ID]
+    assert engine_helper.copy_slot(me, foe, move_id) == 0
+    me[Pok.VOL_STATUS2] |= VolStatus2.TRANSFORM
+    assert engine_helper.copy_slot(me, foe, move_id) == -1
+    me[Pok.VOL_STATUS2] = 0
+    foe[Pok.VOL_STATUS2] |= VolStatus2.SUBSTITUTE
+    assert engine_helper.copy_slot(me, foe, move_id) == -1
+
+
+def test_a_mimicked_hidden_power_is_the_users(poke):
+    """Its type and power come from the user, not from the move data"""
+    me = poke("Porygon", 30, "Download", ["Mimic"])
+    foe = poke("Geodude", 30, "Sturdy", ["Hidden Power"])
+    foe[Pok.LAST_MOVE_ID] = MoveName.HIDDEN_POWER
+    me[Pok.HIDDEN_POWER_TYPE], me[Pok.HIDDEN_POWER_POWER] = Types.ICE, 61
+    engine_helper.mimic(me, foe)
+    slot = move_slice(me, 0)
+    assert (slot[Move.TYPE], slot[Move.POWER]) == (Types.ICE, 61)
+
+
+def test_mimic_ends_a_disable_on_its_slot_and_resets_last_resort(poke):
+    """The disabled move is gone, and a copied Last Resort starts its count over"""
+    me = poke("Porygon", 30, "Download", ["Tackle", "Mimic"])
+    foe = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    foe[Pok.LAST_MOVE_ID] = MoveName.LAST_RESORT
+    me[Pok.VOL_STATUS] |= VolStatus.DISABLE
+    me[Pok.DISABLE_TURNS] = 3 * 4 + 1
+    me[Pok.LAST_RESORT] = 3
+    assert engine_helper.mimic(me, foe) == 1
+    assert not me[Pok.VOL_STATUS] & VolStatus.DISABLE and me[Pok.DISABLE_TURNS] == 0
+    assert me[Pok.LAST_RESORT] == 0
+
+
+def test_mimic_frees_a_choice_lock(make_pokemon, make_battle):
+    """The locked move left the moveset (pokeplatinum BattleSystem_CheckInvalidMoves)"""
+    arr = make_battle(
+        [make_pokemon("Porygon", 30, "Download", ["Tackle", "Mimic"], item="Choice Scarf")],
+        [make_pokemon("Geodude", 30, "Sturdy", ["Splash"])],
+    )
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.LAST_MOVE_ID] = MoveName.EMBER
+    turn_sim(0, (MOVE, 1), arr)
+    assert move_slice(me, 1)[Move.ID] == MoveName.EMBER and me[Pok.CHOICE_LOCK] == 0
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CHOICE_LOCK] == 1
+
+
+def test_sketch_keeps_the_move_for_good(make_pokemon, make_battle):
+    """Full PP, no backup, and it survives the switch-out"""
+    arr = _change_battle(make_pokemon, make_battle, ["Sketch"], mine="Smeargle", my_ab="Own Tempo")
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.LAST_MOVE_ID] = MoveName.EMBER
+    turn_sim(0, (MOVE, 0), arr)
+    slot = move_slice(me, 0)
+    full = engine_helper.MOVE_TABLE[MoveName.EMBER, Move.PP]
+    assert slot[Move.ID] == MoveName.EMBER and slot[Move.PP] == full
+    assert me[Pok.ORIG_MOVE1] == 0
+    engine_helper.reset_switch_out(me)
+    assert slot[Move.ID] == MoveName.EMBER and slot[Move.PP] == full
+
+
+def test_transform_copies_the_target_until_switch_out(make_pokemon, make_battle):
+    """Species, stats but HP, stages, weight, types, ability and moves at up to 5 PP. Level, HP and
+    item stay, and switch-out gives everything back"""
+    arr = make_battle(
+        [make_pokemon("Ditto", 30, "Limber", ["Transform"], item="Oran Berry"),
+         make_pokemon("Rattata", 30, "Run Away", ["Tackle"])],
+        [make_pokemon("Geodude", 40, "Sturdy", ["Splash", "Rock Throw", "Fire Blast"]),
+         make_pokemon("Rattata", 30, "Run Away", ["Tackle"])],
+    )
+    me, foe = my_active(arr), opp_active(arr)
+    before = me.copy()
+    foe[Pok.DEFENSE_STAT_STAGE] = 2
+    arr[Field.AI_KNOWS] |= _ENEMY_AI_KNOWS_MOVE2
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.TRANSFORM
+    assert me[Pok.ID] == PokemonName.GEODUDE and me[Pok.ORIG_ID] == PokemonName.DITTO
+    assert (me[Pok.ATTACK:Pok.SPEED + 1] == foe[Pok.ATTACK:Pok.SPEED + 1]).all()
+    assert me[Pok.DEFENSE_STAT_STAGE] == 2
+    assert me[Pok.WEIGHT] == foe[Pok.WEIGHT]
+    assert (me[Pok.TYPE1], me[Pok.TYPE2]) == (foe[Pok.TYPE1], foe[Pok.TYPE2])
+    assert me[Pok.AB_ID] == AbilityNames.STURDY and me[Pok.BASE_AB_ID] == AbilityNames.LIMBER
+    assert [move_slice(me, i)[Move.ID] for i in range(4)] == [move_slice(foe, i)[Move.ID] for i in range(4)]
+    assert [move_slice(me, i)[Move.PP] for i in range(4)] == [5, 5, 5, 0]
+    for keeps in (Pok.LEVEL, Pok.MAX_HP, Pok.CURRENT_HP, Pok.GENDER, Item.ID):
+        assert me[keeps] == before[keeps]
+    assert not arr[Field.AI_KNOWS] & _ENEMY_AI_KNOWS_MOVE2
+    engine_helper.reset_switch_out(me)
+    before[Pok.MOVE1_ID + Move.PP] -= 1
+    for same in (Pok.ID, Pok.WEIGHT, Pok.TYPE1, Pok.TYPE2, Pok.AB_ID, Pok.HIDDEN_POWER_TYPE):
+        assert me[same] == before[same]
+    assert (me[Pok.ATTACK:Pok.SPEED + 1] == before[Pok.ATTACK:Pok.SPEED + 1]).all()
+    assert (me[Pok.MOVE1_ID:Pok.ITEM_ID] == before[Pok.MOVE1_ID:Pok.ITEM_ID]).all()
+    assert not me[Pok.ORIG_MOVE1:Pok.ORIG_MOVE4 + 1].any()
+
+
+def test_transform_fails(poke):
+    """Into a semi-invulnerable or transformed target (pokeplatinum subscript_transform_into_target)"""
+    me = poke("Ditto", 30, "Limber", ["Transform"])
+    foe = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    mv = move_slice(me, 0)
+    assert not engine_helper.status_move_fails(mv, me, foe)
+    foe[Pok.VOL_STATUS] |= VolStatus.SEMI_INVULNERABLE
+    assert engine_helper.status_move_fails(mv, me, foe)
+    foe[Pok.VOL_STATUS] = 0
+    foe[Pok.VOL_STATUS2] |= VolStatus2.TRANSFORM
+    assert engine_helper.status_move_fails(mv, me, foe)
+
+
+def test_transform_goes_through_a_substitute(make_pokemon, make_battle):
+    """Gen IV: the Substitute doesn't stop it ([SD] gen4 bypasssub)"""
+    arr = _change_battle(make_pokemon, make_battle, ["Transform"], mine="Ditto", my_ab="Limber")
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS2] = VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 50
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.ID] == PokemonName.GEODUDE
+
+
+def test_transform_takes_the_ability_under_a_gastro_acid(make_pokemon, make_battle):
+    """The target's real ability, and a copied Intimidate fires (pokeplatinum clears the announced
+    flags)"""
+    arr = _change_battle(make_pokemon, make_battle, ["Transform"], mine="Ditto", my_ab="Limber",
+                         foe=("Gyarados", "Intimidate"))
+    me, foe = my_active(arr), opp_active(arr)
+    engine_helper.suppress_ability(foe)
+    foe[Pok.ATTACK_STAT_STAGE] = 0
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.AB_ID] == AbilityNames.INTIMIDATE and foe[Pok.ATTACK_STAT_STAGE] == -1
+
+
+def test_transform_over_a_mimic_keeps_mimic_for_switch_out(make_pokemon, make_battle):
+    """The first backup of a slot is the one switch-out restores"""
+    arr = _change_battle(make_pokemon, make_battle, ["Mimic", "Transform"], ["Splash", "Ember"],
+                         mine="Mew", my_ab="Synchronize")
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.LAST_MOVE_ID] = MoveName.EMBER
+    turn_sim(0, (MOVE, 0), arr)
+    backup = me[Pok.ORIG_MOVE1]
+    turn_sim(0, (MOVE, 1), arr)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.TRANSFORM and me[Pok.ORIG_MOVE1] == backup
+    assert move_slice(me, 0)[Move.ID] == MoveName.SPLASH
+    engine_helper.reset_switch_out(me)
+    assert [move_slice(me, i)[Move.ID] for i in range(2)] == [MoveName.MIMIC, MoveName.TRANSFORM]
+
+
+def test_a_transformed_chatot_does_not_confuse(make_pokemon, make_battle):
+    """pokeplatinum BtlCmd_CheckChatterActivation"""
+    random.seed(1)
+    for _ in range(40):
+        arr = make_battle([make_pokemon("Chatot", 30, "Keen Eye", ["Chatter"])],
+                          [make_pokemon("Geodude", 30, "Sturdy", ["Splash"])])
+        my_active(arr)[Pok.VOL_STATUS2] |= VolStatus2.TRANSFORM
+        turn_sim(0, (MOVE, 0), arr)
+        assert not opp_active(arr)[Pok.VOL_STATUS] & VolStatus.CONFUSION

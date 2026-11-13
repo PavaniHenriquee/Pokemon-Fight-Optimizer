@@ -56,6 +56,7 @@ KIT_STATUS = (
     "Wish", "Stockpile", "Swallow", "Memento", "Healing Wish", "Grudge", "Torment", "Imprison", "Spite",
     "Mean Look", "Block", "Spider Web", "Lock-On", "Mind Reader", "Miracle Eye",
     "Conversion", "Conversion 2", "Camouflage", "Role Play", "Skill Swap", "Gastro Acid",
+    "Mimic", "Sketch", "Transform",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",

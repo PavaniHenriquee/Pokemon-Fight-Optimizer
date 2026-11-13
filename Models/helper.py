@@ -104,6 +104,7 @@ class VolStatus2:
     SNATCH            = 262144
     GASTRO_ACID       = 524288
     CAMOUFLAGE        = 1048576
+    TRANSFORM         = 2097152
 
 
 @dataclass(slots=True)

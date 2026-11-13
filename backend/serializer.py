@@ -112,6 +112,13 @@ def _move_fields(base_slice, offset: int) -> dict:
     }
 
 
+def own_species(arr) -> int:
+    """The species id a Pokemon's array slice is named by: its own one while it is transformed"""
+    if int(arr[Pok.VOL_STATUS2]) & VolStatus2.TRANSFORM:
+        return int(arr[Pok.ORIG_ID])
+    return int(arr[Pok.ID])
+
+
 def battle_sprite(arr) -> int:
     """The sprite id of a Pokemon's array slice, Castform's in its current form"""
     return battle_sprite_id(int(arr[Pok.ID]), _TYPE_NAMES.get(int(arr[Pok.TYPE1]), ""))
@@ -171,7 +178,7 @@ def _bench_entry(battle_array, snap, i: int, is_my: bool) -> dict | None:
     return {
         "slot":   i,
         "id":     battle_sprite(battle_array[base : base + POK_LEN]),
-        "name":   PokIdToName.get(pok_id, "?").capitalize(),
+        "name":   PokIdToName.get(own_species(battle_array[base : base + POK_LEN]), "?").capitalize(),
         "hp":     int(snap.bench_delta[delta_i, 0]),
         "max_hp": int(battle_array[base + Pok.MAX_HP]),
         "status": STATUS.get(int(snap.bench_delta[delta_i, 1]), ""),
@@ -206,7 +213,7 @@ def _pok(arr) -> dict | None:
     pok_id = int(arr[Pok.ID])
     return {
         "id":         battle_sprite(arr),
-        "name":       PokIdToName.get(pok_id, "?").capitalize(),
+        "name":       PokIdToName.get(own_species(arr), "?").capitalize(),
         "level":      int(arr[Pok.LEVEL]),
         "gender":     _GENDER_NAMES.get(int(arr[Pok.GENDER])),
         "ability":    _ABILITY_NAMES.get(int(arr[Pok.AB_ID]), ""),
@@ -294,7 +301,8 @@ def opp_move_label(did: int, battle_array) -> str:
             move_id = int(battle_array[base + Pok.MOVE1_ID + (what - 1) * MOVE_STRIDE + Move.ID])
             name = MoveIdToName.get(move_id, f"Move#{move_id}").replace("_", " ").title()
         if last_foe is not None and foe != last_foe:
-            name = f"{PokIdToName.get(int(battle_array[base + Pok.ID]), '?').capitalize()}: {name}"
+            species = own_species(battle_array[base:base + POK_LEN])
+            name = f"{PokIdToName.get(species, '?').capitalize()}: {name}"
         parts.append(name)
         last_foe = foe
     return ", then ".join(parts)

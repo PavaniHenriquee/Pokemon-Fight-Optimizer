@@ -24,6 +24,7 @@ from Models.constants import (
 )
 from Models.constants import (
     _MOVENAME_GASTRO_ACID, _MOVENAME_ROLE_PLAY, _MOVENAME_SKILL_SWAP, _FIELD_TERRAIN,
+    _MOVENAME_MIMIC, _MOVENAME_SKETCH, _MOVENAME_TRANSFORM,
 )
 from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
@@ -133,6 +134,7 @@ def _weighted_choice(act_types, act_idxs, weights, n):
 
 
 ABILITY_CHANGE_MOVES = (_MOVENAME_GASTRO_ACID, _MOVENAME_ROLE_PLAY, _MOVENAME_SKILL_SWAP)
+COPY_MOVES = (_MOVENAME_MIMIC, _MOVENAME_SKETCH, _MOVENAME_TRANSFORM)
 
 
 @njit
@@ -192,6 +194,9 @@ def status_move_blocked(move, me, foe, weather):
         return status_move_fails(move, me, foe)
     # Gastro Acid, Role Play or Skill Swap that would fail
     if move[_MOVE_ID] in ABILITY_CHANGE_MOVES:
+        return status_move_fails(move, me, foe)
+    # Mimic, Sketch or Transform that would fail
+    if move[_MOVE_ID] in COPY_MOVES:
         return status_move_fails(move, me, foe)
     if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
         return False
