@@ -6,7 +6,7 @@ from Engine.damage_calc import (
     weight_power, magnitude_power, variable_power, base_power_ability, charge_power,
     sport_power, matchup_types, calculate_ai_logic_damage, item_power, item_attack, raw_atk_def,
     technician_power, rivalry_power, filter_damage, crit_multiplier, MULTIPLIERS,
-    METRONOME_MOVE_SHIFT, future_damage,
+    METRONOME_MOVE_SHIFT, future_damage, post_ko_damage,
 )
 from Engine.engine_helper import struggle, struggle_damage
 from Utils.helper import get_type_effectiveness, stage_to_multiplier
@@ -1606,3 +1606,40 @@ def test_future_damage_takes_the_screens_up_when_used(poke):
     random.seed(4)
     screened = future_damage(abra, foe, mv, 0, SideCondition.LIGHT_SCREEN)
     assert screened < open_hit
+
+
+# ── post_ko_damage (BattleAI_PostKOSwitchIn stage 2) ─────────────────────────
+
+def test_post_ko_damage_wraps_before_and_after_the_type_chart(poke):
+    """pokeplatinum keeps the score in a u8: CalcMoveDamage's result wraps at 256, then
+    ApplyTypeChart's STAB and type multipliers run on what's left and wrap again"""
+    a = poke("Machop", 100, "Guts", ["Tackle"])
+    d = poke("Rattata", 5, "Run Away", ["Tackle"])
+    mv = move_slice(a, 0)
+    raw = dmg(a, d)   # no STAB, neutral: the base damage + 2
+    assert raw >= 256
+    assert post_ko_damage(a, d, mv, Types.NORMAL) == raw & 255
+    # Read as a Fighting move: STAB x1.5 and x2 into a Normal type, on the wrapped value
+    assert post_ko_damage(a, d, mv, Types.FIGHTING) == ((raw & 255) * 3 // 2 * 2) & 255
+
+
+def test_post_ko_damage_weather_ball_keeps_its_data_type_in_the_damage(poke):
+    """CalcMoveDamage sees Weather Ball as Normal 50, so sun adds no Fire boost. Only the type chart
+    gets the weather type (Move_CalcVariableType)"""
+    a = poke("Rattata", 20, "Run Away", ["Weather Ball"])
+    d = poke("Turtwig", 20, "Overgrow", ["Tackle"])
+    mv = move_slice(a, 0)
+    assert post_ko_damage(a, d, mv, Types.FIRE, Weather.SUN) == post_ko_damage(a, d, mv, Types.FIRE)
+    assert post_ko_damage(a, d, mv, Types.FIRE, Weather.SUN) > post_ko_damage(a, d, mv, Types.NORMAL)
+
+
+@pytest.mark.parametrize("ability, damaging_turn, blocked", [
+    ("Torrent", True, True), ("Torrent", False, False), ("Mold Breaker", True, False),
+])
+def test_post_ko_damage_wonder_guard(poke, ability, damaging_turn, blocked):
+    """ApplyTypeChart's MOVE_STATUS_WONDER_GUARD is in MOVE_STATUS_IMMUNE: a move that isn't super
+    effective scores 0, unless Mold Breaker or it isn't on its damaging turn"""
+    a = poke("Squirtle", 20, ability, ["Water Gun"])
+    d = poke("Shedinja", 20, "Wonder Guard", ["Scratch"])
+    score = post_ko_damage(a, d, move_slice(a, 0), Types.WATER, 0, 0, False, damaging_turn)
+    assert (score == 0) == blocked

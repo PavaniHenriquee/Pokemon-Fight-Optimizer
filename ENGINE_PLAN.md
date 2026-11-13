@@ -28,7 +28,8 @@ Updated only when asked.
   to do.
 - Done: 12.1 (type and ability changes), 12.2 (copying) and 12.3 (calling), and with it Phase 12, 2026-11-12. Its
   `benchmarks.run quick` on the home PC is still to do.
-- Next: Phase 13 (trainer AI).
+- Done: Phase 13 (trainer AI), 2026-11-12.
+- Next: Phase 14 (wrap-up)
 
 ## Goal
 
@@ -728,15 +729,10 @@ and drop it otherwise. Done in 1.3 (the DEX tab has no egg moves):
 
 ## Phase 13: trainer AI
 
-- [ ] 13.1 Only if the tool shows the 3-flag assumption is wrong (`KNOWN_GAPS.md`, "AI flags").
-      The assumption: every RP trainer has Basic, Evaluate Attack and Expert, no more and no less. If it's wrong:
-  - add per-trainer `ai_flags` in TrainerDB, defaulting to those 3
-  - add whatever flags the evidence shows, for example Setup First Turn ! (Pokemow + [pp] `script.s`).
-    [pp] `res/trainers/data` gives it to Lucian, and to Mars at Spear Pillar (a multi battle).
-- [ ] 13.2 Trainer items that 1.3 finds and the AI can't use yet, per [pp] `TrainerAI_ShouldUseItem`.
+- [x] 13.1 Trainer items that 1.3 finds and the AI can't use yet, per [pp] `TrainerAI_ShouldUseItem`.
       Possible ones: Max Potion, X Attack, X Accuracy, Dire Hit, Guard Spec and status heals. Done already:
       Potion, Super Potion, Hyper Potion, Full Restore, Full Heal, X Special, X Defend and X Speed.
-- [ ] 13.3 Re-check each line in `KNOWN_GAPS.md`'s Trainer AI section against the trainers now covered. Do the ones a
+- [x] 13.2 Re-check each line in `KNOWN_GAPS.md`'s Trainer AI section against the trainers now covered. Do the ones a
       trainer reaches.
 
 ## Phase 14: wrap-up

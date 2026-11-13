@@ -2,57 +2,39 @@
 
 ## Trainer AI
 
-- Memento and Healing Wish (10.2): Basic and Expert follow [pp] `trainer_ai/script.s` only, Pokemow not checked.
-
-- AI: the 8.1 branches (Belly Drum, Acupressure, Captivate, Haze, Psych Up, the swaps, Power Trick,
-  the two-stat boosts, Expert Dragon Dance) follow [pp] `trainer_ai/script.s` only: Pokemow's per-move
-  panels load with JavaScript and couldn't be fetched, so any place Pokemow differs isn't checked.
-- AI: the 10.1 branches (Basic Future Sight / Doom Desire, Stockpile, Spit Up / Swallow, Expert Spit Up, Swallow
-  in Expert_Recovery, the Encore and Heal Block lists) follow [pp] `trainer_ai/script.s` only, for the same reason.
-- AI: Basic Imprison (11.1) checks only the AI's own Imprison. [pp] `Basic_CheckCanImprison` also gives -10 when
-  the target has `MOVE_EFFECT_IMPRISONED`, which any Imprison attempt sets on it, a failed one included, until it
-  leaves the field (my call: one bit).
-- AI: Expert Heal Block counts every move with `drain` as a drain move ([pp] RECOVER_HALF_DAMAGE_DEALT), so
-  Draining Kiss too; which effect RP gives it is unknown (ROM not read).
-- AI: Expert Gravity reads the target's real ability;
-  `expert_charge_invulnerable` skips the "target's last move isn't always-hit" check;
-  pokeplatinum's Expert swaps the EVA_DOWN_2 / ACC_DOWN_2 logic (copy it when a -2
-  accuracy/evasion move lands).
-- AI, small [pp] differences no trainer up to Roark reaches: `basic_ability`'s Wonder Guard check
-  reads the raw move type (Normalize ignored), and Natural Gift's berry type reaches its absorb
-  checks ([pp] `LOAD_MOVE_TYPE` reads the data type); [pp] Basic_Main skips the immunity check for
-  Guillotine / Sheer Cold, so into Wonder Guard the engine gives -12, [pp] 0; [pp] always knows my
-  Shadow Tag / Magnet Pull / Arena Trap (no script check reads them yet).
-- AI: `sub_after_death` phase 2 gives Weather Ball the weather's type for the whole damage calc; [pp]
-  `BattleAI_PostKOSwitchIn` passes only the type chart the variable type, `CalcMoveDamage` keeps the data type
-  (Normal), so [pp] adds no sun / rain boost there. Rounding only.
-- AI: `sub_after_death` phase 2 scores a Ground move into my Levitate or Magnet Rise by its damage; [pp]
-  `BattleAI_PostKOSwitchIn` runs `ApplyTypeChart` after `CalcMoveDamage` and scores it 0 (`MOVE_STATUS_IMMUNE`
-  includes `LEVITATED` and `MAGNET_RISE`). `calculate_damage` has neither check.
-- AI: Superpower and the recharge moves have no Basic branch of their own ([pp]
-  `Basic_CheckNonStandardDamageOrChargeTurn`): the general checks cover them, with Pokemow's -12 into Wonder
-  Guard where [pp]'s script gives -10.
-- AI: `ai_move_damage` uses the raw base power except for the semi-invulnerable doublings (6.3). Pokemow's
-  damage calc also sees Stomp vs Minimize, Brine and Rollout / Fury Cutter
-  streaks (7.1).
-- AI: `ai_move_damage` doesn't weigh Jump Kick / High Jump Kick's crash (6.5) when the move could miss or hit an
-  immune target. [pp] `script.s` has no branch for BATTLE_EFFECT_CRASH_ON_MISS, so this only matters past the script.
-- AI: `sub_after_death` stage 2 doesn't copy [pp]'s stale-score quirk (a skipped or empty move slot
-  still compares the previous `score`, at first the last stage 1 type score).
+- AI, where Pokemow and [pp] `trainer_ai/script.s` differ and the engine follows one of them (checked 13.2 with
+  Pokemow's data files):
+  - Expert Haze (19 trainers) follows [pp]: 206/256 of +3, and the low side reads accuracy. Pokemow says 50/256
+    of +3 and reads evasion on both sides.
+  - Expert Power Swap / Guard Swap (1 trainer) follow [pp]'s branches; Pokemow sums both gaps capped at 4, which
+    gives one more point in a few cases (gaps 2-3 and 2-3).
+  - Expert Snatch (11.3, 1 trainer) follows Pokemow: slower, target at 25% or less with no Recover / Defense
+    Curl seen is 26/256 of +1 and ends. [pp] `Expert_Snatch_TryScorePlus1` sends the other 230/256 on to the
+    226/256 roll of -2.
+  - Into my Wonder Guard the engine gives -12 to every damaging move (Pokemow `Check_WonderGuard`). [pp]
+    `Basic_Main` skips its immunity and ability checks for a move `FlagMoveDamageScore` doesn't compare (data
+    power 1 or `sNoDamageCalcMoveEffects`): Superpower, the recharge and charge moves, Counter and the rest of
+    `Basic_CheckNonStandardDamageOrChargeTurn` get -10 there, Guillotine and Sheer Cold 0
+    (`Basic_CheckOHKOWouldFail` has no Wonder Guard check).
+  - Natural Gift's berry type reaches the absorb checks (Pokemow `Check_VariableType`, 1 trainer); [pp]
+    `LOAD_MOVE_TYPE` reads the data type.
+  - `sub_after_death` phase 1 follows Pokemow's switching page (the party sorted by type score, each one then
+    checked for a super-effective move), so a Pokemon whose type score is 0 (both its types immune, a Normal
+    type with Crunch into a Ghost) is picked if no other has one. [pp] `BattleAI_PostKOSwitchIn` stage 1 never
+    picks a score of 0 (`maxScore < score`) and goes on to stage 2.
+- AI: `post_ko_damage` (`sub_after_death` phase 2) floors each type multiplier; [pp] `ApplyTypeMultiplier` uses
+  `BattleSystem_Divide` (at least 1). It reads the data power, so a Charge / Technician / item boost counts but
+  nothing a battle script sets (`powerMultiplier`).
+- AI: `ai_move_damage` doubles Gust / Earthquake / Surf into a semi-invulnerable target (6.3) and `ai_move_view`
+  gives Weather Ball its weather type and double power. Pokemow's Damage section lists both as ignored by the
+  AI's damage calc ("damage calculation omits adjusting the type of Weather Ball"), like Stomp into Minimize and
+  the Rollout / Fury Cutter streaks, which the engine does ignore.
 - AI flags: the engine gives every trainer Basic + Evaluate Attack + Expert; vanilla [pp]
   (`res/trainers/data`) gives the Route 201 rival PRIORITIZE_EXTREMES instead of Expert and route
   trainers like Youngster Austin Basic only; RP's flags are unknown (ROM not read). Working
   assumption until the tool proves it wrong: RP keeps those 3 flags for every trainer, no more, no
   less. That's an educated guess: another Drayano hack's repo does exactly that, for simplicity
   and consistency.
-- Drill Run: RP puts it in Horn Drill's slot, so [pp] Basic_Main's
-  `IfMoveEqualTo MOVE_HORN_DRILL` would skip its damage scoring if RP kept that script.
-- AI Basic Fling follows Pokemow (-10 only with no item); [pp] `Basic_CheckFling` is also -10 under Embargo (Fling
-  power under 10) and with Multitype. The Klutz checks in Basic Fling and Expert Trick are left out (no RP species).
-- AI: Expert Vital Throw's middle case (40-60% HP) is two rolls in [pp] (76/256, then 206/256); the engine
-  queues one roll of 61/256 (23.8% for 23.9%).
-- Expert Snatch (11.3) follows Pokemow: slower, target at 25% or less with no Recover / Defense Curl seen is
-  26/256 of +1 and ends. [pp] `Expert_Snatch_TryScorePlus1` sends the other 230/256 on to the 226/256 roll of -2.
 
 ## Engine mechanics
 

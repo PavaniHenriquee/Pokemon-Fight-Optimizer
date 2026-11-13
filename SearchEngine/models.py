@@ -16,7 +16,7 @@ from Models.constants import (
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_OPP_TOXIC_SPIKES, _BATTLEPHASE_TURN_START,
     _FIELD_MY_SPIKES, _FIELD_OPP_SPIKES,
     _BATTLEPHASE_BATON_PASS, _FIELD_GRAVITY_TURNS, _POK_VOL_STATUS2, _ITEM_ID, _POK_AB_ID,
-    _VOLSTATUS2_ME_FIRST,
+    _VOLSTATUS2_ME_FIRST, _VOLSTATUS2_IMPRISONED,
     _POK_METRONOME_COUNT, _POK_BASE_AB_ID, _FIELD_OPP_MOVE_RAN, _FIELD_PENDING_OPP_MOVE,
     _POK_TYPE1, _POK_TYPE2, _POK_ENCORE_TURNS, _POK_DISABLE_TURNS, _VOLSTATUS_ENCORE,
     _VOLSTATUS_DISABLE, _FIELD_TRICKROOM, _POK_CHOICE_LOCK, _ITEM_HOLD_EFFECT, _MOVENAME_LAST_RESORT,
@@ -248,8 +248,9 @@ SIDE_KEY_SHIFT = 32
 # k5 per side: VOL_STATUS2 from bit 0, the choice-locked slot, the Stockpile count, Last Resort
 # working, then the Encore and Disable slots while they hold
 VOL2_KEY_BITS = 22
-# VOL_STATUS2 bits left out of the key: Me First's boost ends before any decision node
-VOL2_UNKEYED = _VOLSTATUS2_ME_FIRST
+# VOL_STATUS2 bits left out of the key: Me First's boost ends before any decision node, the
+# Imprison mark has its own bit in k2
+VOL2_UNKEYED = _VOLSTATUS2_ME_FIRST | _VOLSTATUS2_IMPRISONED
 CHOICE_KEY_SHIFT = 22
 STOCKPILE_KEY_SHIFT = 25
 LAST_RESORT_KEY_BIT = 27
@@ -275,6 +276,8 @@ COPIED_MOVE_KEY_BIT = 31
 # k2 bits above the two 28-bit stage packs
 GRAVITY_KEY_BIT = 56
 TRICK_ROOM_KEY_BIT = 57
+# An Imprison was tried on the active (the AI's Basic check reads it): the opp's, then mine
+IMPRISONED_KEY_BIT = 58
 # Bits node_key gives each active's changed ability id, from k1 bit 12 (opp) then mine
 AB_KEY_BITS = 7
 AB_KEY_SHIFT = 12
@@ -365,7 +368,7 @@ def node_key(battle_array):
     side's conditions, Toxic Spikes and Spikes layers
     (not the turns left), my active slot (Roar picks it at random), the Baton Pass phase, each
     active's Metronome item move and count and the slot Torment blocks (k4, opp low 32 bits, mine
-    high), Trick Room, and per
+    high), Trick Room, the Imprison mark on each active (k2), and per
     side (k5, k6) the choice-locked slot, the Encore and Disable slots, the active's item id, types
     and lock"""
     opp_idx = battle_array[_FIELD_OPP_POK]
@@ -390,6 +393,7 @@ def node_key(battle_array):
     k1 |= np.int64(battle_array[_FIELD_OPP_TOXIC_SPIKES]) << 45
     k5 = _vol_key(opp)
     k6 = _hold_key(opp, battle_array[_FIELD_OPP_SIDE_COND], battle_array[_FIELD_OPP_SPIKES])
+    imprisoned = np.int64(1 if opp[_POK_VOL_STATUS2] & _VOLSTATUS2_IMPRISONED else 0)
 
     if not is_death:
         my_idx = battle_array[_FIELD_MY_POK]
@@ -401,6 +405,8 @@ def node_key(battle_array):
         if me[_POK_BASE_AB_ID]:
             k1 |= np.int64(me[_POK_AB_ID]) << AB_KEY_SHIFT + AB_KEY_BITS
         k2 = (k2 << 28) | _stages_key(me)
+        if me[_POK_VOL_STATUS2] & _VOLSTATUS2_IMPRISONED:
+            imprisoned |= np.int64(2)
         k3 |= np.int64(me[_POK_VOL_STATUS]) << 32
         k4 |= (np.int64(me[_POK_METRONOME_COUNT]) | _torment_key(me)) << 32
         if _turn_ability_on(me):
@@ -416,6 +422,7 @@ def node_key(battle_array):
         ) << SIDE_KEY_SHIFT
     else:
         k2 = k2 << 28
+    k2 |= imprisoned << IMPRISONED_KEY_BIT
     if battle_array[_FIELD_GRAVITY_TURNS] > 0:
         k2 |= np.int64(1) << GRAVITY_KEY_BIT
     if battle_array[_FIELD_TRICKROOM] > 0:

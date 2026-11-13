@@ -1,9 +1,9 @@
 """Gives the class for the trainer Ai to be what the game would do"""
 import random
 import numpy as np
-from Engine.damage_calc import calculate_damage, calculate_ai_logic_damage
+from Engine.damage_calc import calculate_ai_logic_damage, post_ko_damage
 from Engine.engine_helper import move_blocked, imprisoned
-from Engine.ability_helper import effective_weather, slot_move_type
+from Engine.ability_helper import effective_weather, slot_move_type, levitates, magnet_risen
 from Engine.status_calc import last_move_slot
 from Utils.jit import njit
 from Utils.helper import (
@@ -17,7 +17,7 @@ from Models.idx_const import (
 from Models.constants import (
     _POK_MOVE1_ID, _POK_ITEM_ID, _POK_ID, _POK_AB_ID, _POK_CURRENT_HP, _POK_TYPE1,
     _POK_TYPE2, _ENEMY_AI_KNOWS_ABILITY, _POK_AB_KNOWN, _MOVE_ID, _MOVE_PP, _MOVE_CATEGORY,
-    _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD, _POK_STATUS, _MOVENAME_WEATHER_BALL,
+    _MOVECATEGORY_STATUS, _MOVE_TYPE, _ABILITYNAMES_WONDER_GUARD, _POK_STATUS,
     _STATUS_SLEEP, _ABILITYNAMES_NATURAL_CURE, _POK_MAX_HP, _POK_ATTACK_STAT_STAGE,
     _POK_EVASION_STAT_STAGE,_FIELD_OPP_POK, _FIELD_MY_POK, _FIELD_TURN, _FIELD_WEATHER,
     _FIELD_GRAVITY_TURNS, _FIELD_TRICKROOM,
@@ -31,7 +31,8 @@ from Models.constants import (
     _TYPES_STEEL, _MOVE_POWER, _MOVENAME_HIDDEN_POWER, _MOVENAME_HEALING_WISH, _POK_VOL_STATUS2,
     _VOLSTATUS2_GASTRO_ACID,
     _MOVENAME_U_TURN,
-    _VOLSTATUS2_EMBARGO, _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _VOLSTATUS2_MEAN_LOOK
+    _VOLSTATUS2_EMBARGO, _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _VOLSTATUS2_MEAN_LOOK,
+    _TYPES_GROUND, _ABILITYNAMES_NORMALIZE, _TYPES_NORMAL
 )
 from Models.trainer_ai_helper import (
     trainer_ai_effectiveness,
@@ -74,6 +75,26 @@ MOVE_EXCEP = (
 
 
 @njit
+def _stale_type_score(ai_party, candidates, user_t1, user_t2):
+    """
+    The score pokeplatinum BattleAI_PostKOSwitchIn's stage 1 leaves behind when it picks nobody: the
+    type score (40 per neutral type, a u8) of the last Pokemon it disregarded, the lowest one, or 0
+    if one scores 0 (those are never picked, so they're worked out last)
+    """
+    low = 255
+    for idx in candidates:
+        mon = ai_party[POK_LEN * idx: POK_LEN * (idx + 1)]
+        t1 = mon[_POK_TYPE1]
+        t2 = mon[_POK_TYPE2] if mon[_POK_TYPE2] != 0 else t1
+        e1, d1 = get_type_effectiveness(t1, user_t1, user_t2)
+        e2, d2 = get_type_effectiveness(t2, user_t1, user_t2)
+        score = (40 * e1 // d1 + 40 * e2 // d2) & 255
+        if score < low:
+            low = score
+    return low
+
+
+@njit
 def sub_after_death(
         ai_party, user_pok, deadmon, user_side=0, weather=0, exclude=-1, gravity=False
 ):
@@ -94,8 +115,9 @@ def sub_after_death(
     Phase 2:
     ---------
         * If no Phase 1 candidate, for each non-fainted teammate compute the max damage any
-        of its moves would do to user_pok (use calculate_damage). Apply the "255 overflow"
-        rule: if damage > 255 -> damage = damage - 255.
+        of its moves would do to user_pok (post_ko_damage), used by the fainted Pokemon. The
+        "255 overflow": pokeplatinum keeps the score in a u8, so it wraps at 256, once before
+        the type chart and once after.
         * Choose teammate with highest such max move damage. Ties broken by party order.
 
     Returns:
@@ -153,9 +175,12 @@ def sub_after_death(
         return best_idx
 
     # Phase 2: pick mon with highest single-move damage
-    user_hp = user_pok[_POK_CURRENT_HP]
     best_idx2 = candidates[0]
     best_dmg = -1
+    # pokeplatinum's stale score: a skipped slot still compares the last score, and until phase 2
+    # works one out that's phase 1's last type score
+    stale = _stale_type_score(ai_party, candidates, user_t1, user_t2)
+    levitating = levitates(user_pok, deadmon, gravity) or magnet_risen(user_pok)
     for idx in candidates:
         mon = ai_party[off * idx: off * (idx + 1)]
         moves = mon[_POK_MOVE1_ID:_POK_ITEM_ID].reshape(4, -1)
@@ -170,19 +195,23 @@ def sub_after_death(
                 (mv[_MOVE_POWER] == 0 and mv[_MOVE_CATEGORY] != _MOVECATEGORY_STATUS)
                 or mv[_MOVE_ID] == _MOVENAME_HIDDEN_POWER
             ):
+                if stale > max_move_dmg:
+                    max_move_dmg = stale
                 continue
-            # Weather Ball keeps its data power, the type chart sees the weather type
-            # (pokeplatinum BattleAI_PostKOSwitchIn, Move_CalcVariableType)
-            dmg_mv = mv
-            if mv[_MOVE_ID] == _MOVENAME_WEATHER_BALL:
-                dmg_mv = mv.copy()
-                dmg_mv[_MOVE_TYPE] = slot_move_type(mon, mv, weather)
-            raw_dmg = calculate_damage(
-                deadmon, user_pok, dmg_mv, weather, False, 100, user_side, gravity
-            )
+            stale = 0
+            # Weather Ball keeps its data power and type in the damage, the type chart sees the
+            # weather type (pokeplatinum BattleAI_PostKOSwitchIn, Move_CalcVariableType), or Normal
+            # with the fainted battler's Normalize
+            chart_type = slot_move_type(mon, mv, weather)
+            if deadmon[_POK_AB_ID] == _ABILITYNAMES_NORMALIZE:
+                chart_type = _TYPES_NORMAL
+            # ApplyTypeChart's MOVE_STATUS_IMMUNE: a Ground move into Levitate or Magnet Rise scores 0
+            if levitating and chart_type == _TYPES_GROUND:
+                continue
             #overflow bug:
-            dmg = raw_dmg - 255 if raw_dmg > 255 else raw_dmg
-            dmg = min(dmg, user_hp)
+            dmg = post_ko_damage(
+                deadmon, user_pok, mv, chart_type, weather, user_side, gravity, on_damaging_turn(mv)
+            )
             if dmg > max_move_dmg:
                 max_move_dmg = dmg
         if max_move_dmg > best_dmg or (max_move_dmg == best_dmg and idx < best_idx2):

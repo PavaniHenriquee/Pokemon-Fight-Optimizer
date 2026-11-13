@@ -6443,6 +6443,19 @@ def test_imprison_pays_pressure(make_pokemon, make_battle):
     assert _pp(my_active(arr), 0) == pp - 2
 
 
+@pytest.mark.parametrize("foe_moves", [["Tackle"], ["Growl"]])
+def test_imprison_marks_the_target_at_every_attempt(make_pokemon, make_battle, foe_moves):
+    """pokeplatinum BtlCmd_TryImprison sets MOVE_EFFECT_IMPRISONED on the target before it checks
+    anything, so a failed Imprison (no move in common) marks it too. Leaving the field clears it"""
+    arr = _restrict_battle(make_pokemon, make_battle, ["Imprison", "Tackle"], foe_moves, foe_bench=True)
+    foe = opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.VOL_STATUS2] & VolStatus2.IMPRISONED
+    assert bool(my_active(arr)[Pok.VOL_STATUS2] & VolStatus2.IMPRISON) == (foe_moves == ["Tackle"])
+    engine_helper.reset_switch_out(foe)
+    assert not foe[Pok.VOL_STATUS2] & VolStatus2.IMPRISONED
+
+
 def test_imprison_ends_when_the_user_leaves(make_pokemon, make_battle):
     """The seal is the user's own flag, a switch-out clears it"""
     arr = _restrict_battle(make_pokemon, make_battle, ["Imprison", "Tackle"], ["Tackle"],

@@ -91,6 +91,7 @@ from Models.constants import (
     _BATTLEPHASE_BATON_PASS, _FIELD_PENDING_OPP_MOVE, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
     _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_GRUDGE, _VOLSTATUS2_GRUDGE,
     _SIDECONDITION_HEALING_WISH, _VOLSTATUS2_U_TURN, _VOLSTATUS2_TORMENT, _VOLSTATUS2_IMPRISON,
+    _VOLSTATUS2_IMPRISONED,
     _VOLSTATUS2_MEAN_LOOK, _MOVENAME_TORMENT, _MOVENAME_IMPRISON, _MOVENAME_SPITE,
     _MOVENAME_DETECT, _MOVENAME_MIRACLE_EYE, _VOLSTATUS2_LOCK_ON, _VOLSTATUS2_MIRACLE_EYE,
     _POK_LOCK_ON_TURNS,
@@ -1425,6 +1426,9 @@ def _execute_move_slot(
             _u_turn_start(atk, defn, battle_array, is_mine)
         return flinch
 
+    # pokeplatinum BtlCmd_TryImprison marks the target at every attempt, a failed one too
+    if mv[_MOVE_ID] == _MOVENAME_IMPRISON:
+        defn[_POK_VOL_STATUS2] |= _VOLSTATUS2_IMPRISONED
     # A status move aimed at a foe behind a Substitute fails, unless it bypasses it
     if (
         sub_blocks_status_move(mv, atk, defn, weather) or confuse_boost_fails(mv, defn)

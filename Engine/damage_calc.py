@@ -15,7 +15,7 @@ from Models.constants import (
     _POK_SPECIAL_DEFENSE_STAT_STAGE, _WEATHER_SANDSTORM, _POK_TYPE1, _TYPES_ROCK,
     _POK_TYPE2, _POK_AB_WHEN, _ABILITYACTIVATION_ON_MODIFY_STAT, _POK_CURRENT_HP,
     _POK_MAX_HP, _TYPES_FIRE, _TYPES_WATER, _TYPES_GRASS, _ABILITYNAMES_IRON_FIST,
-    _FLAGS_PUNCH, _STATUS_BURN, _WEATHER_SUN, _WEATHER_RAIN, _MOVE_POWER,
+    _FLAGS_PUNCH, _STATUS_BURN, _WEATHER_SUN, _WEATHER_RAIN, _MOVE_POWER, _ABILITYNAMES_WONDER_GUARD,
     _POK_LEVEL, _ABILITYNAMES_RECKLESS, _MOVE_RECOIL,
     _MOVE_HAS_CRASH_DAMAGE, _ABILITYNAMES_SIMPLE, _ABILITYNAMES_SOLAR_POWER,
     _ABILITYNAMES_THICK_FAT, _TYPES_ICE, _ABILITYNAMES_TINTED_LENS, _MOVE_ID, _MOVENAME_FLAIL,
@@ -900,6 +900,73 @@ def calculate_damage_confusion(pok):
     return damage
 
 
+
+
+@njit
+def post_ko_damage(
+        attacker, defender, move, chart_type, weather=0, def_side=0, gravity=False, damaging_turn=True
+):
+    """
+    pokeplatinum BattleAI_PostKOSwitchIn's stage 2 score for one move. BattleSystem_CalcMoveDamage
+    on the data power and type (no crit, no roll, no Life Orb), kept in a u8. Then
+    BattleSystem_ApplyTypeChart with chart_type, the variable type: STAB, each type, Wonder Guard
+    (0 for a move that isn't super effective), Filter / Solid Rock, Expert Belt and Tinted Lens,
+    kept in a u8 again. Levitate and Magnet Rise are the caller's
+    """
+    attack, defense = raw_atk_def(move, attacker, defender, weather)
+    m_type = normalized_type(attacker, move)
+    power = charge_power(attacker, move, move[_MOVE_POWER])
+    power = technician_power(attacker, move, power)
+    power = item_power(attacker, m_type, move[_MOVE_CATEGORY], power)
+    power = base_power_ability(attacker, defender, move, power)
+    damage = attack * power * (attacker[_POK_LEVEL] * 2 // 5 + 2) // defense // 50
+    if (
+        attacker[_POK_STATUS] == _STATUS_BURN
+        and move[_MOVE_CATEGORY] == _MOVECATEGORY_PHYSICAL
+        and attacker[_POK_AB_ID] != _ABILITYNAMES_GUTS
+    ):
+        damage //= 2
+    damage = screen_damage(move[_MOVE_CATEGORY], move[_MOVE_ID], def_side, False, damage)
+    if weather == _WEATHER_SUN:
+        if m_type == _TYPES_FIRE:
+            damage = (damage*3) // 2
+        elif m_type == _TYPES_WATER:
+            damage //= 2
+    if weather == _WEATHER_RAIN:
+        if m_type == _TYPES_WATER:
+            damage = (damage*3) // 2
+        elif m_type == _TYPES_FIRE:
+            damage //= 2
+    if move[_MOVE_ID] == _MOVENAME_SOLAR_BEAM and weather in SOLAR_DOWN_WEATHER:
+        damage //= 2
+    damage = flash_fire_damage(attacker, m_type, damage)
+    damage = (damage + 2) & 255
+
+    if chart_type == attacker[_POK_TYPE1] or chart_type == attacker[_POK_TYPE2]:  # pylint: disable=R1714
+        if attacker[_POK_AB_ID] == _ABILITYNAMES_ADAPTABILITY:
+            damage *= 2
+        else:
+            damage = (damage*3) // 2
+    def_type1, def_type2 = matchup_types(chart_type, defender, gravity, is_scrappy(attacker))
+    effectiveness1, _ = get_type_effectiveness(chart_type, def_type1, 0)
+    damage = (effectiveness1 * damage) // 2
+    effectiveness2 = 2
+    if def_type2:
+        effectiveness2, _ = get_type_effectiveness(chart_type, def_type2, 0)
+        damage = (effectiveness2 * damage) // 2
+    if (
+        defender[_POK_AB_ID] == _ABILITYNAMES_WONDER_GUARD and ignorable_ability(defender, attacker)
+        and damaging_turn and move[_MOVE_POWER] and effectiveness1 * effectiveness2 <= 4
+    ):
+        return 0
+    damage = filter_damage(attacker, defender, effectiveness1, effectiveness2, damage)
+    damage = expert_belt(attacker, effectiveness1, effectiveness2, damage)
+    if (
+        attacker[_POK_AB_ID] == _ABILITYNAMES_TINTED_LENS
+        and 0 < effectiveness1 * effectiveness2 < 4
+    ):
+        damage *= 2
+    return int(damage) & 255
 
 
 @njit

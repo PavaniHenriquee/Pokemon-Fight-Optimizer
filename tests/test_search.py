@@ -239,6 +239,19 @@ def test_node_key_sees_transform_and_a_copied_move(one_v_one, mine):
         assert key != node_key(build(not mine, slot, value))
 
 
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_the_imprison_mark(one_v_one, mine):
+    """VolStatus2.IMPRISONED is out of k5 (VOL2_UNKEYED), each side has its own bit in k2"""
+    arr = one_v_one()
+    key = node_key(arr)
+    (my_active(arr) if mine else opp_active(arr))[Pok.VOL_STATUS2] |= VolStatus2.IMPRISONED
+    marked = node_key(arr)
+    assert marked != key and marked[4] == key[4]
+    other = one_v_one()
+    (opp_active(other) if mine else my_active(other))[Pok.VOL_STATUS2] |= VolStatus2.IMPRISONED
+    assert node_key(other) != marked
+
+
 def test_node_key_sees_power_trick(one_v_one):
     """Power Trick's VolStatus2 bit is under VOL2_KEY_BITS"""
     arr = one_v_one()

@@ -188,13 +188,22 @@ def test_expert_close_combat_and_overheat(poke, move, fast, hp_pct, effectivenes
 @pytest.mark.parametrize("fast, hp_pct, queued", [
     (False, 10, []),                                 # slower: no change
     (True, 61, []),                                  # above 60%
-    (True, 60, [(-1, 61)]), (True, 40, [(-1, 61)]),  # 76/256 * 206/256 = 23.9%
     (True, 39, [(-1, 206)]),                         # below 40%: 80.5%
 ])
 def test_expert_vital_throw(poke, fast, hp_pct, queued):
     """pokeplatinum Expert_VitalThrow, which never reaches the never-miss branch"""
     ai_pok, user = _expert_at(poke, "Vital Throw", fast, hp_pct)
     ai_pok[Pok.ACCURACY_STAT_STAGE] = -5
+    assert _expert(ai_pok, user) == (0, queued)
+
+
+@pytest.mark.parametrize("hp_pct", [60, 40])
+@pytest.mark.parametrize("roll, queued", [(179, []), (180, [(-1, 206)])])
+def test_expert_vital_throw_middle_is_two_rolls(poke, monkeypatch, hp_pct, roll, queued):
+    """Expert_VitalThrow from 40% to 60% HP: IfRandomLessThan 180 ends it, then the 206/256 roll
+    (76/256 * 206/256 = 23.9%)"""
+    ai_pok, user = _expert_at(poke, "Vital Throw", True, hp_pct)
+    monkeypatch.setattr(random, "getrandbits", lambda bits: roll)
     assert _expert(ai_pok, user) == (0, queued)
 
 
@@ -432,16 +441,39 @@ def test_basic_captivate(poke, ai_ability, target_ability, ai_gender, target_gen
     ("Belly Drum", 100, (0, [])), ("Belly Drum", 90, (0, [])), ("Belly Drum", 89, (-2, [])),
     ("Acupressure", 50, (-1, [])), ("Acupressure", 51, (0, [(1, 96)])),
     ("Acupressure", 90, (0, [(1, 96)])), ("Acupressure", 91, (0, [(1, 192)])),
-    ("Captivate", 100, (0, [])), ("Captivate", 10, (0, [])),
 ])
 def test_expert_stage_moves(poke, move, hp_pct, expected):
-    """pokeplatinum Expert_BellyDrum, Expert_Acupressure (37.5% is 128/256 * 192/256), and no
-    Expert check for Captivate"""
+    """pokeplatinum Expert_BellyDrum and Expert_Acupressure (37.5% is 128/256 * 192/256)"""
     ai_pok = poke("Machop", 20, "Guts", [move], gender="Male")
     ai_pok[Pok.MAX_HP] = 100
     ai_pok[Pok.CURRENT_HP] = hp_pct
     user = poke("Geodude", 20, "Sturdy", ["Tackle"], gender="Female")
     assert _expert(ai_pok, user) == expected
+
+
+@pytest.mark.parametrize("spatk, ai_hp, target_hp, last, expected", [
+    (0, 100, 100, MoveName.EMBER, (0, [])),               # nothing to say
+    (0, 100, 100, 0, (0, [(-1, 192)])),                   # no move yet reads as physical
+    (0, 100, 100, MoveName.TACKLE, (0, [(-1, 192)])),     # physical last move: 75% of -1
+    (1, 91, 100, MoveName.EMBER, (-1, [])),               # SpAtk off 0: -1
+    (-1, 90, 100, MoveName.EMBER, (-2, [])),              # and -1 more at 90% HP or less
+    (-2, 100, 100, MoveName.EMBER, (-1, [])),
+    (-3, 100, 100, MoveName.EMBER, (-1, [(-2, 206)])),    # at -3 or less: 80.5% of -2
+    (0, 100, 71, MoveName.EMBER, (0, [])), (0, 100, 70, MoveName.EMBER, (-2, [])),
+    (-3, 90, 70, MoveName.TACKLE, (-4, [(-2, 206), (-1, 192)])),
+])
+def test_expert_captivate(poke, spatk, ai_hp, target_hp, last, expected):
+    """pokeplatinum Expert_Captivate (BATTLE_EFFECT_SP_ATK_DOWN_2_OPPOSITE_GENDER), Pokemow Captivate"""
+    ai_pok = poke("Machop", 20, "Guts", ["Captivate"], gender="Male")
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = ai_hp
+    user = poke("Vulpix", 20, "Flash Fire", ["Tackle", "Ember"], gender="Female")
+    user[Pok.MAX_HP] = 100
+    user[Pok.CURRENT_HP] = target_hp
+    user[Pok.SPECIAL_ATTACK_STAT_STAGE] = spatk
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, last, 1.0, 0)
+    assert (score, [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]) == expected
 
 
 @pytest.mark.parametrize("move", ["Haze", "Psych Up", "Heart Swap"])
@@ -2124,16 +2156,55 @@ def test_party_effectiveness_sees_wonder_guard(poke, attacker_ab, move_type, dam
     assert (eff == 0) == blocked
 
 
-def test_sub_after_death_stage_two_skips_power_one_moves(poke):
+@pytest.mark.parametrize("target, picked", [
+    # Ghost: Machop's type score is 0, so stage 1 leaves 0 behind and Will-O-Wisp's chip wins
+    ("Misdreavus", 1),
+    # Normal / Flying: both score 80, stage 1 leaves 80 behind and Machop's skipped slot takes it
+    ("Pidgey", 0),
+])
+def test_sub_after_death_stage_two_skips_power_one_moves(poke, target, picked):
     """pokeplatinum BattleAI_PostKOSwitchIn stage 2 skips data power 1 moves (Low Kick, Hidden
-    Power, fixed damage) but scores a status move's power 0 chip"""
+    Power, fixed damage) but scores a status move's power 0 chip. A skipped slot still compares
+    the last score, at first the type score stage 1 left behind"""
     party = np.zeros(6 * POK_LEN, dtype=np.int32)
     party[:POK_LEN] = poke("Machop", 20, "Guts", ["Low Kick", "Seismic Toss"])
-    party[POK_LEN:2 * POK_LEN] = poke("Rattata", 20, "Run Away", ["Growl"])
+    party[POK_LEN:2 * POK_LEN] = poke("Rattata", 20, "Run Away", ["Will-O-Wisp"])
     dead = poke("Machop", 20, "Guts", ["Karate Chop"])
     dead[Pok.CURRENT_HP] = 0
-    user = poke("Pidgey", 20, "Keen Eye", ["Tackle"])
+    user = poke(target, 20, "Keen Eye", ["Tackle"])
+    assert sub_after_death(party, user, dead) == picked
+
+
+def test_sub_after_death_has_no_hp_cap(poke):
+    """pokeplatinum BattleAI_PostKOSwitchIn doesn't cap the score at the target's HP: with 1 HP left
+    the harder hitter still wins over party order"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Rattata", 20, "Run Away", ["Tackle"])
+    party[POK_LEN:2 * POK_LEN] = poke("Geodude", 20, "Sturdy", ["Rock Slide"])
+    dead = poke("Machop", 20, "Guts", ["Karate Chop"])
+    dead[Pok.CURRENT_HP] = 0
+    user = poke("Rattata", 20, "Run Away", ["Tackle"])
+    user[Pok.CURRENT_HP] = 1
     assert sub_after_death(party, user, dead) == 1
+
+
+@pytest.mark.parametrize("ability, magnet_rise, dead_ability, picked", [
+    ("Keen Eye", 0, "Guts", 0),            # grounded: Earthquake hits harder
+    ("Levitate", 0, "Guts", 1),            # ApplyTypeChart: MOVE_STATUS_LEVITATED scores 0
+    ("Keen Eye", 3, "Guts", 1),            # MOVE_STATUS_MAGNET_RISE too
+    ("Levitate", 0, "Mold Breaker", 0),    # the fainted battler's Mold Breaker ignores Levitate
+])
+def test_sub_after_death_ground_move_into_levitate_scores_zero(poke, ability, magnet_rise, dead_ability,
+                                                               picked):
+    """pokeplatinum BattleAI_PostKOSwitchIn stage 2 zeroes a move ApplyTypeChart flags immune"""
+    party = np.zeros(6 * POK_LEN, dtype=np.int32)
+    party[:POK_LEN] = poke("Sandshrew", 20, "Sand Veil", ["Earthquake"])
+    party[POK_LEN:2 * POK_LEN] = poke("Pidgey", 20, "Keen Eye", ["Gust"])
+    dead = poke("Machop", 20, dead_ability, ["Karate Chop"])
+    dead[Pok.CURRENT_HP] = 0
+    user = poke("Misdreavus", 20, ability, ["Tackle"])
+    user[Pok.MAGNET_RISE_TURNS] = magnet_rise
+    assert sub_after_death(party, user, dead) == picked
 
 
 
@@ -2301,6 +2372,16 @@ def test_encore_and_heal_block_lists_have_the_new_moves():
     Healing Wish's"""
     assert MoveName.GRUDGE in ai.ENCORE_ENCOURAGED_M and MoveName.HEALING_WISH in ai.ENCORE_ENCOURAGED_M
     assert MoveName.HEALING_WISH in ai.HEAL_BLOCK_GOOD_M
+
+
+@pytest.mark.parametrize("move", [
+    "SHARPEN", "HAZE", "CONVERSION", "SWORDS_DANCE", "CONVERSION_2", "SKILL_SWAP", "BELLY_DRUM", "ROLE_PLAY",
+    "CAMOUFLAGE", "GRAVITY", "ACUPRESSURE", "HEAL_BLOCK", "POWER_TRICK", "GASTRO_ACID", "POWER_SWAP",
+    "GUARD_SWAP", "HEART_SWAP",
+])
+def test_encore_list_has_every_pokemow_move(move):
+    """Pokemow List_Encore, each one's effect is in pokeplatinum Expert_Encore_EncouragedMoveEffects"""
+    assert getattr(MoveName, move) in ai.ENCORE_ENCOURAGED_M
 
 
 
@@ -2784,6 +2865,19 @@ def _basic_fling(poke, item, user="Rattata", user_ability="Run Away", ai_species
 def test_basic_fling(poke, kwargs, expected):
     """Pokemow Basic Fling"""
     assert _basic_fling(poke, **kwargs) == expected
+
+
+@pytest.mark.parametrize("embargo, ai_ability, expected", [
+    (False, "No Guard", 0), (True, "No Guard", -10), (False, "Multitype", -10),
+])
+def test_basic_fling_needs_a_fling_power(poke, embargo, ai_ability, expected):
+    """pokeplatinum Basic_CheckFling: -10 with a Fling power under 10 (Battler_ItemFlingPower is 0
+    under Embargo) and with Multitype"""
+    ai_pok = poke("Machop", 20, ai_ability, ["Fling"], item="Iron Ball")
+    if embargo:
+        ai_pok[Pok.VOL_STATUS2] |= VolStatus2.EMBARGO
+    target = poke("Rattata", 20, "Run Away", ["Tackle"])
+    assert ai.basic_flag(move_slice(ai_pok, 0), AbilityNames.RUN_AWAY, ai_pok, target, 1.0, 0) == expected
 
 
 def test_expert_thief_is_covets(poke):
@@ -3680,12 +3774,15 @@ def test_basic_torment(poke):
 
 
 def test_basic_imprison(poke):
-    """Basic_CheckCanImprison: -10 while the AI already has it up. The target's
-    MOVE_EFFECT_IMPRISONED half isn't kept, so no shared move still scores 0"""
+    """Basic_CheckCanImprison: -10 while the AI already has it up, or on a target an Imprison was
+    already tried on (MOVE_EFFECT_IMPRISONED)"""
     ai_pok = poke("Abra", 20, "Synchronize", ["Imprison"])
     user = poke("Geodude", 20, "Sturdy", ["Tackle"])
     assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
     ai_pok[Pok.VOL_STATUS2] = VolStatus2.IMPRISON
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+    ai_pok[Pok.VOL_STATUS2] = 0
+    user[Pok.VOL_STATUS2] = VolStatus2.IMPRISONED
     assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
 
 

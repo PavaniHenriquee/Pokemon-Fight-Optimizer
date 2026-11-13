@@ -110,6 +110,7 @@ from Models.constants import (
     _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER,
     _MOVENAME_ROOST, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _MOVENAME_TORMENT,
     _MOVENAME_IMPRISON, _VOLSTATUS2_TORMENT, _VOLSTATUS2_IMPRISON, _VOLSTATUS2_MEAN_LOOK,
+    _VOLSTATUS2_IMPRISONED,
     _MOVENAME_GASTRO_ACID, _MOVENAME_CAMOUFLAGE, _MOVENAME_CONVERSION, _MOVENAME_ROLE_PLAY,
     _MOVENAME_SKILL_SWAP, _VOLSTATUS2_GASTRO_ACID, _VOLSTATUS2_CAMOUFLAGE,
     _ABILITYNAMES_SLOW_START, _ABILITYNAMES_STENCH, _ABILITYNAMES_RUN_AWAY, _ABILITYNAMES_PICKUP,
@@ -417,7 +418,11 @@ ENCORE_ENCOURAGED_M = (
     MoveName.HAIL, MoveName.MAGNET_RISE, MoveName.DOOM_DESIRE, MoveName.STOCKPILE, MoveName.SPIT_UP,
     MoveName.SWALLOW, MoveName.GRUDGE, MoveName.HEALING_WISH, MoveName.SPIDER_WEB, MoveName.MEAN_LOOK,
     MoveName.BLOCK, MoveName.TORMENT, MoveName.IMPRISON, MoveName.MIND_READER, MoveName.LOCK_ON,
-    MoveName.DETECT, MoveName.MIRACLE_EYE
+    MoveName.DETECT, MoveName.MIRACLE_EYE,
+    MoveName.SHARPEN, MoveName.HAZE, MoveName.CONVERSION, MoveName.SWORDS_DANCE, MoveName.CONVERSION_2,
+    MoveName.SKILL_SWAP, MoveName.BELLY_DRUM, MoveName.ROLE_PLAY, MoveName.CAMOUFLAGE, MoveName.GRAVITY,
+    MoveName.ACUPRESSURE, MoveName.HEAL_BLOCK, MoveName.POWER_TRICK, MoveName.GASTRO_ACID,
+    MoveName.POWER_SWAP, MoveName.GUARD_SWAP, MoveName.HEART_SWAP
 )
 MOVE_CATEGORY_SLOTS = tuple(slot + _MOVE_CATEGORY - _MOVE_ID for slot in MOVE_ID_SLOTS)
 MOVE_DRAIN_SLOTS = tuple(slot + _MOVE_DRAIN - _MOVE_ID for slot in MOVE_ID_SLOTS)
@@ -1019,8 +1024,8 @@ def basic_misc(move, ability, ai_pok, user_pok, ai_know):
     """
     pokeplatinum Basic_CheckCanRecoverHP, Basic_CheckCanRefreshStatus, Basic_CheckCanRecycle,
     Basic_CheckWorrySeed, Basic_CheckPerishSong, Basic_CheckTorment, Basic_CheckMeanLook and
-    Basic_CheckCanImprison (only the AI's own Imprison, the target's MOVE_EFFECT_IMPRISONED is left
-    out), Basic_CheckLockOn (Mind Reader too: the target is under the AI's lock, the AI holds it here)
+    Basic_CheckCanImprison (the AI's own Imprison, or a target an Imprison was already tried on:
+    MOVE_EFFECT_IMPRISONED), Basic_CheckLockOn (Mind Reader too: the target is under the AI's lock, the AI holds it here)
     and Basic_CheckMiracleEye. ability is the target's
     """
     move_id = move[_MOVE_ID]
@@ -1043,7 +1048,9 @@ def basic_misc(move, ability, ai_pok, user_pok, ai_know):
     if move_id in TRAP_MOVES:
         return -10 if user_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_MEAN_LOOK else 0
     if move_id == _MOVENAME_IMPRISON:
-        return -10 if ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_IMPRISON else 0
+        if ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_IMPRISON:
+            return -10
+        return -10 if user_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_IMPRISONED else 0
     if move_id in LOCK_ON_MOVES:
         if (
             ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_LOCK_ON
@@ -1194,9 +1201,10 @@ def basic_fling(ability, ai_pok, user_pok, ai_side, user_side):
     ability is the target's
     """
     item = ai_pok[_POK_ITEM_ID]
-    if item == 0:
-        return -10
     ai_ab = ai_pok[_POK_AB_ID]
+    # Basic_CheckFling: Fling power under 10 (no item, or Embargo: Battler_ItemFlingPower), Multitype
+    if item == 0 or embargoed(ai_pok) or ai_ab == _ABILITYNAMES_MULTITYPE:
+        return -10
     if item in FLING_POISON_ITEMS:
         if ai_ab == _ABILITYNAMES_POISON_HEAL or _cant_poison(user_pok, ability, user_side):
             return -5 if _cant_poison(ai_pok, ai_ab, ai_side) or ai_ab == _ABILITYNAMES_GUTS else 3
@@ -2474,12 +2482,14 @@ def _expert_swap(move_id, ai_pok, u_pok):
 
 
 @njit
-def expert_stage(move, ai_pok, u_pok, rand, idx):
+def expert_stage(move, ai_pok, u_pok, rand, idx, my_last_move=0):
     """
     pokeplatinum Expert_BellyDrum (-2 below 90% HP), Expert_Acupressure (-1 at 50% HP or less,
     above 90% 75% of +1, else 37.5% of +1), Expert_Haze, Expert_PsychUp, Expert_HeartSwap,
     Expert_PowerSwap, Expert_GuardSwap and Expert_PowerTrick (above 90% HP 62.5% of +1, above 60%
-    50%, above 30% 35.9%, else -2). Captivate has no Expert check
+    50%, above 30% 35.9%, else -2). Expert_Captivate: with the target's SpAtk off 0, -1, -1 more
+    at 90% HP or less and 80.5% of -2 at -3 or less; -2 with the target at 70% HP or less; 75% of
+    -1 after a physical last move (or none yet)
     """
     move_id = move[_MOVE_ID]
     if move_id == _MOVENAME_HAZE:
@@ -2489,6 +2499,20 @@ def expert_stage(move, ai_pok, u_pok, rand, idx):
     if move_id == _MOVENAME_POWER_SWAP or move_id == _MOVENAME_GUARD_SWAP:
         return _expert_swap(move_id, ai_pok, u_pok)
     hp_pct = (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP]
+    if move_id == _MOVENAME_CAPTIVATE:
+        score = 0
+        spatk_stage = u_pok[_POK_SPECIAL_ATTACK_STAT_STAGE]
+        if spatk_stage != 0:
+            score -= 1
+            if hp_pct < 91:
+                score -= 1
+            if spatk_stage <= -3:
+                add_adjustment(rand, idx, -2, 206)
+        if (u_pok[_POK_CURRENT_HP] * 100) // u_pok[_POK_MAX_HP] < 71:
+            score -= 2
+        if last_move_category(u_pok, my_last_move) == _MOVECATEGORY_PHYSICAL:
+            add_adjustment(rand, idx, -1, 192)
+        return score
     if move_id == _MOVENAME_BELLY_DRUM:
         return -2 if hp_pct < 90 else 0
     if move_id == _MOVENAME_ACUPRESSURE:
@@ -3260,7 +3284,7 @@ def expert_flag(
     if move[_MOVE_ID] in ABILITY_MOVES_M:
         return expert_change_ability(ai_pok, u_pok, rand, idx, ability)
     if move[_MOVE_ID] in STAGE_M:
-        return expert_stage(move, ai_pok, u_pok, rand, idx)
+        return expert_stage(move, ai_pok, u_pok, rand, idx, my_last_move)
     if move[_MOVE_ID] in CALL_M:
         return expert_call(move, u_pok, rand, idx, move_first, copycat_beats)
     if move[_MOVE_ID] == _MOVENAME_GRAVITY:
@@ -3331,7 +3355,8 @@ def expert_flag(
         hp_pct_ai = (ai_pok[_POK_CURRENT_HP]*100) // ai_pok[_POK_MAX_HP]
         if not move_first or hp_pct_ai > 60:
             return 0
-        add_adjustment(rand, idx, -1, 206 if hp_pct_ai < 40 else 61)
+        if hp_pct_ai < 40 or random.getrandbits(8) >= 180:
+            add_adjustment(rand, idx, -1, 206)
         return 0
 
     # Expert_RechargeTurn: -1 if resisted, a Truant user 68.75% of +1, else -1 slower at 60% HP or
