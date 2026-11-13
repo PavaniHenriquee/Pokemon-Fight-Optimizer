@@ -204,6 +204,17 @@ def test_node_key_sees_vol_status2(one_v_one, mine):
     assert node_key(other) != node_key(arr)
 
 
+@pytest.mark.parametrize("bit", [VolStatus2.GASTRO_ACID, VolStatus2.CAMOUFLAGE])
+@pytest.mark.parametrize("mine", [True, False])
+def test_node_key_sees_gastro_acid_and_camouflage(one_v_one, mine, bit):
+    """Both bits are under VOL2_KEY_BITS: a suppressed ability changes outcomes, Camouflage's flag
+    the AI's Basic check"""
+    arr = one_v_one()
+    key = node_key(arr)
+    (my_active(arr) if mine else opp_active(arr))[Pok.VOL_STATUS2] |= bit
+    assert node_key(arr) != key
+
+
 def test_node_key_sees_power_trick(one_v_one):
     """Power Trick's VolStatus2 bit is under VOL2_KEY_BITS"""
     arr = one_v_one()

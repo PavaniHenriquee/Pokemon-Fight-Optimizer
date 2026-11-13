@@ -22,6 +22,9 @@ from Models.constants import (
     _MOVENAME_MAGNET_RISE, _FLAGS_FUTURE_MOVE, _SIDECONDITION_FUTURE_SIGHT, _SIDECONDITION_WISH,
     _MOVENAME_WISH, _MOVENAME_STOCKPILE, _MOVENAME_SWALLOW, _MOVENAME_SPIT_UP, _MOVENAME_MIRACLE_EYE,
 )
+from Models.constants import (
+    _MOVENAME_GASTRO_ACID, _MOVENAME_ROLE_PLAY, _MOVENAME_SKILL_SWAP, _FIELD_TERRAIN,
+)
 from Models.helper import TARGET_SELF_SIDE
 from Models.helper import count_party, count_Id
 from Models.trainer_ai_helper import check_immunity_pty, check_resistance_pty
@@ -31,7 +34,7 @@ from Engine.damage_calc import calculate_damage, gravity_types, EXPLODE_MOVES
 from Engine.engine_helper import (
     calculate_crit, struggle, ohko_fails, ability_immune, sub_blocks_move, substitute_fails,
     has_substitute, heal_blocked, magnet_rise_fails, stockpile_count, spit_up_move, STOCKPILE_MAX,
-    imprison_fails, spite_slot, TRAP_MOVES, LOCK_ON_MOVES, status_move_fails,
+    imprison_fails, spite_slot, TRAP_MOVES, LOCK_ON_MOVES, status_move_fails, type_move_fails,
 )
 from Engine.ability_helper import (
     levitates, effective_weather, normalized_type, grounded_by_item, weather_ball_move, magnet_risen
@@ -129,6 +132,9 @@ def _weighted_choice(act_types, act_idxs, weights, n):
     return act_types[n - 1], act_idxs[n - 1]  # safety fallback
 
 
+ABILITY_CHANGE_MOVES = (_MOVENAME_GASTRO_ACID, _MOVENAME_ROLE_PLAY, _MOVENAME_SKILL_SWAP)
+
+
 @njit
 def field_move_fails(move, battle_array):
     """My side or weather move that would do nothing: already up, Toxic Spikes or Spikes at max
@@ -183,6 +189,9 @@ def status_move_blocked(move, me, foe, weather):
     if move[_MOVE_ID] == _MOVENAME_SPITE:
         return spite_slot(foe) < 0
     if move[_MOVE_ID] in LOCK_ON_MOVES or move[_MOVE_ID] == _MOVENAME_MIRACLE_EYE:
+        return status_move_fails(move, me, foe)
+    # Gastro Acid, Role Play or Skill Swap that would fail
+    if move[_MOVE_ID] in ABILITY_CHANGE_MOVES:
         return status_move_fails(move, me, foe)
     if move[_MOVE_TARGET] in TARGET_SELF_SIDE:
         return False
@@ -320,6 +329,7 @@ def rollout_pref(battle_array, opp_choice, actions) -> tuple:
                 weight = 0 if (
                     field_move_fails(move, battle_array)
                     or status_move_blocked(move, c_pok, o_pok, weather)
+                    or type_move_fails(move, c_pok, o_pok, battle_array[_FIELD_TERRAIN], weather)
                     or sleep_move_fails(move, c_pok, o_pok)
                 ) else 1
 

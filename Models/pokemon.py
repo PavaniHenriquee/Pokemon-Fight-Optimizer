@@ -191,6 +191,9 @@ class Pokemon:
             self.friendship,  # Friendship, for a called Return or Frustration
             0,   # Stockpile: count + 4 * Defense stages it gave + 16 * Sp. Def stages it gave
             0,   # Lock-On / Mind Reader turns left
+            type1,  # Its own types, switch-out restores them (Conversion, Camouflage, Color Change)
+            type2,
+            0,   # Ability Gastro Acid is suppressing, 0 means none
         ], dtype=np.int32)
         ability = ability_to_np(self.ability)
 

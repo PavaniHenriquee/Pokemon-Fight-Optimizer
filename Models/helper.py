@@ -102,6 +102,8 @@ class VolStatus2:
     MIRACLE_EYE       = 65536
     MAGIC_COAT        = 131072
     SNATCH            = 262144
+    GASTRO_ACID       = 524288
+    CAMOUFLAGE        = 1048576
 
 
 @dataclass(slots=True)

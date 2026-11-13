@@ -74,8 +74,17 @@
 - Natural Gift (`natural_gift`) writes the berry's type and power into the move slot itself, not a copy, so
   after it the slot keeps them (the move fails without a berry, but the AI and the rollout read the slot).
   Unconfirmed as a bug.
-- Forecast is checked by ability only. Fine while only Castform can hold it (Trace can't copy it); once Skill
-  Swap or Role Play exist, a non-Castform holder must not change ([pp] also checks `SPECIES_CASTFORM`).
+- Truant and Slow Start gained from Role Play, Skill Swap or Trace follow the holder's `TURNS_ACTIVE`. [pp]
+  sets the Truant turn to `totalTurns & 1` and restarts Slow Start's five turns (`subscript_copy_ability`,
+  `subscript_exchange_abilities`). Both read `TURNS_ACTIVE`, which Fake Out and the AI's first-turn checks
+  also use, so it needs its own slot.
+- A Castform that loses Forecast (Gastro Acid, Skill Swap) keeps its weather type until it switches out.
+  [pp]'s form check wasn't read for that case.
+- Role Play and Skill Swap don't move `AB_KNOWN`: after a swap the AI is told my new ability
+  (`Field.AI_KNOWS`), but a Role Play of mine tells it nothing. [pp] `BattleAI_SetAbility` wasn't read for them.
+- Worry Seed doesn't fail on a Griseous Orb holder ([pp] `subscript_give_target_insomnia`).
+- Conversion 2 follows [SD] gen4 (the foe's last used move, a miss included). [pp] takes the last move that
+  successfully targeted the user and fails while its user is locked into a multi-turn move.
 - Unverified: an absorbed move ends an Uproar like any immune target; the "Soundproof user can't
   use a sound move on its own side" rule isn't in [pp] `TriggerImmunityAbility`.
 - Thrash's fatigue confusion: Own Tempo always stops it. [pp] `subscript_confuse` checks it with

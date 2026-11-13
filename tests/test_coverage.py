@@ -106,9 +106,10 @@ def test_trainer_uses():
     }
 
 
-def test_supported():
+def test_supported(monkeypatch):
     """In its database and not NOT_IMPLEMENTED, or a trainer item the AI uses"""
     data = _data()
+    monkeypatch.setattr(coverage, "NOT_IMPLEMENTED", frozenset({"Color Change"}))
     assert coverage.supported("move", "Tackle", data)
     assert not coverage.supported("move", "Crunch", data)
     assert not coverage.supported("ability", "Color Change", data)  # NOT_IMPLEMENTED

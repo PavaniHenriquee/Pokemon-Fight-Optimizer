@@ -812,6 +812,18 @@
     "target": "self",
     "type": "Psychic"
   },
+  "Camouflage": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true,
+      "snatch": true
+    },
+    "name": "camouflage",
+    "pp": 20,
+    "target": "self",
+    "type": "Normal"
+  },
   "Captivate": {
     "accuracy": 100,
     "boost_spatk": -2,
@@ -986,6 +998,29 @@
     },
     "target": "normal",
     "type": "Psychic"
+  },
+  "Conversion": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "metronome": true
+    },
+    "name": "conversion",
+    "pp": 30,
+    "target": "self",
+    "type": "Normal"
+  },
+  "Conversion 2": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "bypass_sub": true,
+      "metronome": true
+    },
+    "name": "conversion_2",
+    "pp": 30,
+    "target": "normal",
+    "type": "Normal"
   },
   "Copycat": {
     "accuracy": true,
@@ -2494,6 +2529,21 @@
     "pp": 10,
     "target": "normal",
     "type": "Psychic"
+  },
+  "Gastro Acid": {
+    "accuracy": 100,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true,
+      "reflectable": true
+    },
+    "name": "gastro_acid",
+    "pp": 10,
+    "target": "normal",
+    "type": "Poison"
   },
   "Giga Drain": {
     "accuracy": 100,
@@ -5176,6 +5226,19 @@
     "target": "normal",
     "type": "Rock"
   },
+  "Role Play": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "bypass_sub": true,
+      "metronome": true
+    },
+    "name": "role_play",
+    "pp": 10,
+    "target": "normal",
+    "type": "Psychic"
+  },
   "Rolling Kick": {
     "accuracy": 85,
     "category": "Physical",
@@ -5614,6 +5677,21 @@
     "status": "sleep",
     "target": "normal",
     "type": "Normal"
+  },
+  "Skill Swap": {
+    "accuracy": true,
+    "category": "Status",
+    "flags": {
+      "allyanim": true,
+      "bypass_sub": true,
+      "metronome": true,
+      "mirror": true,
+      "protect": true
+    },
+    "name": "skill_swap",
+    "pp": 10,
+    "target": "normal",
+    "type": "Psychic"
   },
   "Skull Bash": {
     "accuracy": 100,

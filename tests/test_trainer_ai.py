@@ -55,6 +55,7 @@ KIT_STATUS = (
     "Heal Block", "Sunny Day", "Hail", "Tailwind", "Trick Room", "Spikes", "Defog", "Magnet Rise",
     "Wish", "Stockpile", "Swallow", "Memento", "Healing Wish", "Grudge", "Torment", "Imprison", "Spite",
     "Mean Look", "Block", "Spider Web", "Lock-On", "Mind Reader", "Miracle Eye",
+    "Conversion", "Conversion 2", "Camouflage", "Role Play", "Skill Swap", "Gastro Acid",
 )
 KIT_DAMAGE = (
     "Seismic Toss", "Night Shade", "Psywave", "Low Kick", "Magnitude", "Hidden Power",
@@ -3872,3 +3873,96 @@ def test_expert_heal_into_a_seen_snatch(monkeypatch, poke, move, seen, roll, que
     ai_pok, _ = _expert_at(poke, move, False, 30)
     user = poke("Rattata", 30, "Run Away", ["Snatch"])
     assert _expert_knows(ai_pok, user, Enemy_AI_Knows.MOVE1 if seen else 0) == (0, queued)
+
+
+# ── 12.1 type and ability changes ────────────────────────────────────────────
+
+@pytest.mark.parametrize("ability, suppressed, expected", [
+    ("STURDY", False, 0), ("STURDY", True, -10), ("MULTITYPE", False, -10), ("TRUANT", False, -10),
+    ("SLOW_START", False, -10), ("STENCH", False, -10), ("RUN_AWAY", False, -10),
+    ("PICKUP", False, -10), ("HONEY_GATHER", False, -10),
+])
+def test_basic_gastro_acid(poke, ability, suppressed, expected):
+    """Basic_CheckGastroAcid: -10 on a target already under it or with an ability not worth it"""
+    ai_pok = poke("Ekans", 20, "Shed Skin", ["Gastro Acid"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    if suppressed:
+        user[Pok.VOL_STATUS2] = VolStatus2.GASTRO_ACID
+    assert _basic(ai_pok, user, getattr(AbilityNames, ability)) == expected
+
+
+def test_basic_camouflage(poke):
+    """Basic_CheckCamouflage: -10 once a Camouflage worked, whatever the AI's type is now"""
+    ai_pok = poke("Kecleon", 20, "Color Change", ["Camouflage"])
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == 0
+    ai_pok[Pok.VOL_STATUS2] = VolStatus2.CAMOUFLAGE
+    assert _basic(ai_pok, user, AbilityNames.STURDY) == -10
+
+
+@pytest.mark.parametrize("first, second, hp_pct, expected", [
+    (63, 0, 100, 0),                          # 64/256: nothing
+    (64, 0, 71, 1), (64, 0, 70, 1), (64, 128, 70, 0),   # 70% or less: half the time -1
+    (64, 0, 50, 0), (64, 128, 50, -1),        # 50% or less: -1
+    (64, 0, 30, -1), (64, 128, 30, -2),       # 30% or less: -1 more
+])
+def test_expert_gastro_acid(poke, monkeypatch, first, second, hp_pct, expected):
+    """pokeplatinum Expert_GastroAcid"""
+    rolls = [first, second]
+    monkeypatch.setattr(ai.random, "getrandbits", lambda k: rolls.pop(0) if k == 8 and rolls else 0)
+    ai_pok = poke("Geodude", 10, "Sturdy", ["Gastro Acid"])
+    user = poke("Rattata", 30, "Run Away", ["Tackle"])
+    user[Pok.MAX_HP] = 100
+    user[Pok.CURRENT_HP] = hp_pct
+    assert _expert(ai_pok, user) == (expected, [])
+
+
+@pytest.mark.parametrize("hp_pct, turn, expected", [
+    (100, 1, (0, [])), (91, 1, (0, [])), (90, 1, (-2, [])),
+    (100, 2, (0, [(-2, 200)])), (90, 5, (-2, [(-2, 200)])),
+])
+def test_expert_conversion(poke, hp_pct, turn, expected):
+    """pokeplatinum Expert_Conversion: -2 at 90% HP or less, 200/256 of -2 after the first turn"""
+    ai_pok = poke("Porygon", 20, "Download", ["Conversion"])
+    ai_pok[Pok.MAX_HP] = 100
+    ai_pok[Pok.CURRENT_HP] = hp_pct
+    user = poke("Geodude", 20, "Sturdy", ["Tackle"])
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(ai_pok, user, move_slice(ai_pok, 0), turn, 0, rand, 0, 0, 1.0, 0)
+    queued = [tuple(int(x) for x in rand[0, i]) for i in range(5) if rand[0, i, 1]]
+    assert (score, queued) == expected
+
+
+@pytest.mark.parametrize("move", ["Role Play", "Skill Swap"])
+@pytest.mark.parametrize("ai_ab, user_ab, expected", [
+    ("Speed Boost", "Huge Power", (-1, [])),      # the AI's own is a desirable one
+    ("Run Away", "Huge Power", (0, [(2, 206)])),
+    ("Run Away", "Sturdy", (-1, [])),
+])
+def test_expert_role_play_and_skill_swap(poke, move, ai_ab, user_ab, expected):
+    """pokeplatinum Expert_ChangeUserAbility, the same check for both"""
+    ai_pok = poke("Abra", 20, ai_ab, [move])
+    user = poke("Geodude", 20, user_ab, ["Tackle"])
+    assert _expert(ai_pok, user) == expected
+
+
+def test_expert_role_play_uses_the_ability_the_ai_sees(poke):
+    """The guessed one when it's passed in, not the real one"""
+    ai_pok = poke("Abra", 20, "Run Away", ["Role Play"])
+    user = poke("Geodude", 20, "Huge Power", ["Tackle"])
+    rand = np.zeros((4, 5, 2), dtype=np.int16)
+    score = ai.expert_flag(
+        ai_pok, user, move_slice(ai_pok, 0), 1, 0, rand, 0, 0, 1.0, 0, ability=AbilityNames.STURDY
+    )
+    assert score == -1 and not rand.any()
+
+
+def test_ai_never_uses_gastro_acid_twice(make_pokemon, make_battle):
+    """A suppressed target has no ability for the AI, and Gastro Acid scores -10 on it"""
+    arr = make_battle(
+        [make_pokemon("Geodude", 20, "Sturdy", ["Splash"])],
+        [make_pokemon("Ekans", 20, "Shed Skin", ["Gastro Acid", "Wrap"])],
+    )
+    my_active(arr)[Pok.VOL_STATUS2] = VolStatus2.GASTRO_ACID
+    random.seed(1)
+    assert {return_idx(arr) for _ in range(30)} == {1}

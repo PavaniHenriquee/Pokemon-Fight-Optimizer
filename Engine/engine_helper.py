@@ -139,6 +139,12 @@ from Models.constants import (
     _MOVENAME_DETECT, _MOVENAME_LOCK_ON, _MOVENAME_MIND_READER, _MOVENAME_MIRACLE_EYE,
     _VOLSTATUS2_LOCK_ON, _VOLSTATUS2_MIRACLE_EYE, _POK_LOCK_ON_TURNS,
 )
+from Models.constants import (
+    _POK_SUPPRESSED_AB_ID, _VOLSTATUS2_GASTRO_ACID, _VOLSTATUS2_CAMOUFLAGE, _POK_BASE_TYPE1,
+    _POK_BASE_TYPE2, _MOVENAME_CONVERSION, _MOVENAME_CONVERSION_2, _MOVENAME_CAMOUFLAGE,
+    _MOVENAME_ROLE_PLAY, _MOVENAME_SKILL_SWAP, _MOVENAME_GASTRO_ACID, _ABILITYNAMES_COLOR_CHANGE,
+    _MOVENAME_HIDDEN_POWER, _TYPES_GRASS,
+)
 from DataBase.PkDB import PokemonName
 
 
@@ -214,6 +220,14 @@ REFRESH_CURES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
 WORRY_SEED_FAILS = (_ABILITYNAMES_TRUANT, _ABILITYNAMES_MULTITYPE)
 # pokeplatinum ChooseTraceTarget
 TRACE_FAILS = (_ABILITYNAMES_TRACE, _ABILITYNAMES_MULTITYPE, _ABILITYNAMES_FORECAST)
+# Role Play can't copy them and Skill Swap can't trade them ([pp] subscript_copy_ability,
+# subscript_exchange_abilities)
+ABILITY_MOVE_FAILS = (_ABILITYNAMES_WONDER_GUARD, _ABILITYNAMES_MULTITYPE)
+# Camouflage's type by Terrain ([pp] sTerrainCamouflageType)
+CAMOUFLAGE_TYPES = (
+    _TYPES_GROUND, _TYPES_GROUND, _TYPES_GRASS, _TYPES_GRASS, _TYPES_ROCK, _TYPES_ROCK, _TYPES_ICE,
+    _TYPES_WATER, _TYPES_ICE, _TYPES_NORMAL, _TYPES_GROUND, _TYPES_FLYING, _TYPES_NORMAL
+)
 SWITCH_IN_MESSAGE_ABS = (_ABILITYNAMES_SLOW_START, _ABILITYNAMES_MOLD_BREAKER, _ABILITYNAMES_PRESSURE)
 # The weather each ability sets on switch-in (pokeplatinum SWITCH_IN_CHECK_STATE_WEATHER_ABILITIES)
 WEATHER_ABILITIES = (
@@ -982,6 +996,12 @@ def status_move_fails(move, attacker, defender):
         return attacker[_POK_STATUS] == 0 or defender[_POK_STATUS] != 0
     if move_id == _MOVENAME_MAGNET_RISE:
         return magnet_rise_fails(attacker)
+    if move_id == _MOVENAME_GASTRO_ACID:
+        return gastro_acid_fails(defender)
+    if move_id == _MOVENAME_ROLE_PLAY:
+        return role_play_fails(attacker, defender)
+    if move_id == _MOVENAME_SKILL_SWAP:
+        return skill_swap_fails(attacker, defender)
     return False
 
 
@@ -1935,6 +1955,10 @@ def reset_switch_out(pok):
     if pok[_POK_BASE_AB_ID]:
         pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[pok[_POK_BASE_AB_ID]]
         pok[_POK_BASE_AB_ID] = 0
+    pok[_POK_SUPPRESSED_AB_ID] = 0
+    # Conversion, Conversion 2, Camouflage and Color Change last until then too
+    pok[_POK_TYPE1] = pok[_POK_BASE_TYPE1]
+    pok[_POK_TYPE2] = pok[_POK_BASE_TYPE2]
     # Castform leaves in its normal form, pokeplatinum reloads the party's types
     if pok[_POK_AB_ID] == _ABILITYNAMES_FORECAST:
         pok[_POK_TYPE1] = _TYPES_NORMAL
@@ -2091,12 +2115,12 @@ def trace(pok, foe):
         pok[_POK_AB_ID] != _ABILITYNAMES_TRACE
         or pok[_POK_CURRENT_HP] <= 0
         or foe[_POK_CURRENT_HP] <= 0
-        or foe[_POK_AB_ID] in TRACE_FAILS
+        or raw_ability(foe) in TRACE_FAILS
     ):
         return False
     if pok[_POK_BASE_AB_ID] == 0:
         pok[_POK_BASE_AB_ID] = pok[_POK_AB_ID]
-    pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[foe[_POK_AB_ID]]
+    pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[raw_ability(foe)]
     return True
 
 
@@ -2370,6 +2394,9 @@ def on_hit_abilities(attacker, defender, move, dealt, weather):
     attacker has to be alive. Statuses from them ignore Safeguard
     """
     def_ab = defender[_POK_AB_ID]
+    if def_ab == _ABILITYNAMES_COLOR_CHANGE:
+        color_change(attacker, defender, move, dealt)
+        return
     if (
         not move[_FLAGS_CONTACT]
         or attacker[_POK_CURRENT_HP] <= 0
@@ -3167,15 +3194,310 @@ def worry_seed(target):
     The target's ability becomes Insomnia until it switches out and a sleeping target wakes up
     right away (Showdown). Fails on Truant and Multitype. Returns True if the ability changed
     """
-    if target[_POK_AB_ID] in WORRY_SEED_FAILS:
+    if raw_ability(target) in WORRY_SEED_FAILS:
         return False
-    if target[_POK_BASE_AB_ID] == 0:
-        target[_POK_BASE_AB_ID] = target[_POK_AB_ID]
-    target[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[_ABILITYNAMES_INSOMNIA]
-    if target[_POK_STATUS] == _STATUS_SLEEP:
+    set_ability(target, _ABILITYNAMES_INSOMNIA)
+    if target[_POK_STATUS] == _STATUS_SLEEP and not ability_suppressed(target):
         target[_POK_STATUS] = 0
         target[_POK_SLEEP_COUNTER] = 0
     return True
+
+
+@njit
+def ability_suppressed(pok):
+    """Gastro Acid is on pok: AB_ID reads no ability and the real one waits in SUPPRESSED_AB_ID"""
+    return pok[_POK_VOL_STATUS2] & _VOLSTATUS2_GASTRO_ACID != 0
+
+
+@njit
+def raw_ability(pok):
+    """
+    The ability pok has, Gastro Acid or not. Role Play, Skill Swap, Worry Seed, Trace and the
+    Multitype checks read it ([pp] battleMons.ability; only Battler_Ability sees the suppression)
+    """
+    if ability_suppressed(pok):
+        return pok[_POK_SUPPRESSED_AB_ID]
+    return pok[_POK_AB_ID]
+
+
+@njit
+def set_ability(pok, ability):
+    """
+    pok's ability becomes this one until it switches out (BASE_AB_ID keeps its own). Under Gastro
+    Acid the new one is suppressed too
+    """
+    if pok[_POK_BASE_AB_ID] == 0:
+        pok[_POK_BASE_AB_ID] = raw_ability(pok)
+    if ability_suppressed(pok):
+        pok[_POK_SUPPRESSED_AB_ID] = ability
+    else:
+        pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[ability]
+
+
+@njit
+def suppress_ability(pok):
+    """
+    Gastro Acid's effect, also for the Pokemon a Baton Pass brings in: no ability until it switches
+    out. Multitype stays ([pp] Battler_Ability)
+    """
+    ability = pok[_POK_AB_ID]
+    if ability == _ABILITYNAMES_MULTITYPE:
+        pok[_POK_VOL_STATUS2] &= ~_VOLSTATUS2_GASTRO_ACID
+        return
+    if pok[_POK_BASE_AB_ID] == 0:
+        pok[_POK_BASE_AB_ID] = ability
+    pok[_POK_SUPPRESSED_AB_ID] = ability
+    pok[_POK_AB_ID:_POK_AB_ID + AB_LEN] = ABILITY_TABLE[0]
+    pok[_POK_VOL_STATUS2] |= _VOLSTATUS2_GASTRO_ACID
+
+
+@njit
+def gastro_acid_fails(target):
+    """On a target already under it or with Multitype ([pp] subscript_suppress_target_ability; the
+    Substitute is sub_blocks_status_move's)"""
+    return ability_suppressed(target) or target[_POK_AB_ID] == _ABILITYNAMES_MULTITYPE
+
+
+@njit
+def role_play_fails(user, target):
+    """
+    The target has Wonder Guard or no ability, or either side has Multitype ([pp]
+    subscript_copy_ability). The same ability on both fails too ([SD] roleplay onTryHit)
+    """
+    target_ab = raw_ability(target)
+    user_ab = raw_ability(user)
+    return (
+        target_ab == 0 or target_ab in ABILITY_MOVE_FAILS
+        or user_ab == _ABILITYNAMES_MULTITYPE or user_ab == target_ab
+    )
+
+
+@njit
+def skill_swap_fails(user, target):
+    """
+    Either side has Wonder Guard, Multitype or a Griseous Orb ([pp] subscript_exchange_abilities),
+    or both have the same ability ([SD] skillSwap up to Gen V), which covers neither having one
+    """
+    user_ab = raw_ability(user)
+    target_ab = raw_ability(target)
+    return (
+        user_ab in ABILITY_MOVE_FAILS or target_ab in ABILITY_MOVE_FAILS
+        or user[_ITEM_ID] == _ITEMNAMES_GRISEOUS_ORB or target[_ITEM_ID] == _ITEMNAMES_GRISEOUS_ORB
+        or user_ab == target_ab
+    )
+
+
+@njit
+def _gained_ability(pok, foe, battle_array, is_mine):
+    """
+    An ability pok got from Role Play or Skill Swap starts as if it had just come in: Trace, the
+    weather abilities, Intimidate, Download and the announced ones ([SD] setAbility's Start event,
+    Gen IV on)
+    """
+    if pok[_POK_CURRENT_HP] <= 0:
+        return
+    if trace(pok, foe):
+        reveal_ability(pok)
+        reveal_ability(foe)
+    switch_in_ability(pok, foe, battle_array, is_mine)
+
+
+@njit
+def role_play(user, target, battle_array, is_mine):
+    """Role Play: the user's ability becomes the target's until it switches out.
+    is_mine: the user is on my side"""
+    set_ability(user, raw_ability(target))
+    _gained_ability(user, target, battle_array, is_mine)
+    forecast_actives(battle_array)
+
+
+@njit
+def skill_swap(user, target, battle_array, is_mine):
+    """
+    Skill Swap trades the abilities, each side's until it switches out. The target's new one starts
+    first ([SD] skillSwap). A Gastro Acid stays on its Pokemon and suppresses the ability it got.
+    is_mine: the user is on my side
+    """
+    user_ab = raw_ability(user)
+    set_ability(user, raw_ability(target))
+    set_ability(target, user_ab)
+    _gained_ability(target, user, battle_array, not is_mine)
+    _gained_ability(user, target, battle_array, is_mine)
+    forecast_actives(battle_array)
+
+
+@njit
+def has_type(pok, p_type):
+    """pok is of this type"""
+    return pok[_POK_TYPE1] == p_type or pok[_POK_TYPE2] == p_type
+
+
+@njit
+def set_type(pok, p_type):
+    """pok becomes this single type until it switches out (BASE_TYPE1/2 keep its own)"""
+    pok[_POK_TYPE1] = p_type
+    pok[_POK_TYPE2] = 0
+
+
+@njit
+def _conversion_pick(pok, slot):
+    """The type Conversion can take from this slot, 0 if none: not Conversion itself, not Curse, not
+    a type the user has. Hidden Power counts as Normal ([SD] gen4 conversion, the move's data type)"""
+    base = OFFSET_MOVE + slot * MOVE_STRIDE
+    move_id = pok[base + _MOVE_ID]
+    if move_id == 0 or move_id == _MOVENAME_CONVERSION or move_id == _MOVENAME_CURSE:
+        return 0
+    m_type = pok[base + _MOVE_TYPE]
+    if move_id == _MOVENAME_HIDDEN_POWER:
+        m_type = _TYPES_NORMAL
+    if has_type(pok, m_type):
+        return 0
+    return m_type
+
+
+@njit
+def conversion_fails(pok):
+    """No move of a type the user doesn't have, or Multitype ([pp] BtlCmd_TryConversion)"""
+    if raw_ability(pok) == _ABILITYNAMES_MULTITYPE:
+        return True
+    for slot in range(4):
+        if _conversion_pick(pok, slot):
+            return False
+    return True
+
+
+@njit
+def conversion(pok):
+    """Conversion: the user becomes the type of one of its moves, each slot that qualifies as likely
+    as the others ([SD] gen4 samples the slots, [pp] rerolls them)"""
+    count = 0
+    for slot in range(4):
+        if _conversion_pick(pok, slot):
+            count += 1
+    if count == 0:
+        return
+    pick = random.randint(0, count - 1)
+    for slot in range(4):
+        m_type = _conversion_pick(pok, slot)
+        if m_type:
+            if pick == 0:
+                set_type(pok, m_type)
+                return
+            pick -= 1
+
+
+@njit
+def _conversion2_attack_type(foe, weather):
+    """The type of the foe's last used move, 0 if it used none: Struggle counts as Normal, a move in
+    its slots has the type it hits with (Hidden Power, Weather Ball, Normalize) ([SD] gen4
+    conversion2, lastMoveUsed)"""
+    move_id = foe[_POK_LAST_MOVE_ID]
+    if move_id == 0:
+        return 0
+    if move_id == _MOVENAME_STRUGGLE:
+        return _TYPES_NORMAL
+    for slot in range(4):
+        base = OFFSET_MOVE + slot * MOVE_STRIDE
+        if foe[base + _MOVE_ID] == move_id:
+            return slot_move_type(foe, foe[base:base + MOVE_STRIDE], weather)
+    return MOVE_TABLE[move_id, _MOVE_TYPE]
+
+
+@njit
+def _conversion2_resists(pok, attack_type, p_type):
+    """Conversion 2 can pick this type: it resists or is immune to the attack and the user isn't it"""
+    if has_type(pok, p_type):
+        return False
+    eff, den = get_type_effectiveness(attack_type, p_type, 0)
+    return eff < den
+
+
+@njit
+def conversion2_fails(pok, foe, weather):
+    """The foe hasn't used a move, nothing the user isn't resists it, or Multitype"""
+    if raw_ability(pok) == _ABILITYNAMES_MULTITYPE:
+        return True
+    attack_type = _conversion2_attack_type(foe, weather)
+    if attack_type == 0:
+        return True
+    for p_type in range(_TYPES_NORMAL, _TYPES_TYPELESS):
+        if _conversion2_resists(pok, attack_type, p_type):
+            return False
+    return True
+
+
+@njit
+def conversion2(pok, foe, weather):
+    """Conversion 2: the user becomes a random type that resists or is immune to the foe's last
+    used move ([SD] gen4 conversion2)"""
+    attack_type = _conversion2_attack_type(foe, weather)
+    count = 0
+    for p_type in range(_TYPES_NORMAL, _TYPES_TYPELESS):
+        if _conversion2_resists(pok, attack_type, p_type):
+            count += 1
+    if count == 0:
+        return
+    pick = random.randint(0, count - 1)
+    for p_type in range(_TYPES_NORMAL, _TYPES_TYPELESS):
+        if _conversion2_resists(pok, attack_type, p_type):
+            if pick == 0:
+                set_type(pok, p_type)
+                return
+            pick -= 1
+
+
+@njit
+def camouflage_type(terrain):
+    """The type Camouflage gives on this terrain ([pp] sTerrainCamouflageType)"""
+    return CAMOUFLAGE_TYPES[min(terrain, _TERRAIN_SPECIAL)]
+
+
+@njit
+def camouflage_fails(pok, terrain):
+    """The user already has the terrain's type, or Multitype ([pp] BtlCmd_TryCamouflage)"""
+    return (
+        raw_ability(pok) == _ABILITYNAMES_MULTITYPE or has_type(pok, camouflage_type(terrain))
+    )
+
+
+@njit
+def camouflage(pok, terrain):
+    """Camouflage: the user becomes the terrain's type, and its flag stays for the AI's Basic check
+    ([pp] effect 213, MOVE_EFFECT_CAMOUFLAGE)"""
+    set_type(pok, camouflage_type(terrain))
+    pok[_POK_VOL_STATUS2] |= _VOLSTATUS2_CAMOUFLAGE
+
+
+@njit
+def type_move_fails(move, attacker, defender, terrain, weather):
+    """Conversion, Conversion 2 or Camouflage would fail"""
+    move_id = move[_MOVE_ID]
+    if move_id == _MOVENAME_CONVERSION:
+        return conversion_fails(attacker)
+    if move_id == _MOVENAME_CONVERSION_2:
+        return conversion2_fails(attacker, defender, weather)
+    if move_id == _MOVENAME_CAMOUFLAGE:
+        return camouflage_fails(attacker, terrain)
+    return False
+
+
+@njit
+def color_change(attacker, defender, move, dealt):
+    """
+    Color Change: a damaging hit that reached a holder still standing makes it the hit's type,
+    unless it already is. Not Struggle ([pp] BattleSystem_TriggerAbilityOnHit, subscript_color_change;
+    [SD] gen4 onDamagingHit)
+    """
+    if (
+        dealt <= 0 or defender[_POK_CURRENT_HP] <= 0
+        or move[_MOVE_ID] == _MOVENAME_STRUGGLE or move[_MOVE_CATEGORY] == _MOVECATEGORY_STATUS
+    ):
+        return
+    m_type = normalized_type(attacker, move)
+    if m_type == _TYPES_TYPELESS or m_type == 0 or has_type(defender, m_type):
+        return
+    set_type(defender, m_type)
+    reveal_ability(defender)
 
 
 @njit

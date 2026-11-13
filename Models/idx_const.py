@@ -75,7 +75,10 @@ class Pok:
     FRIENDSHIP                = LAST_RESORT + 1
     STOCKPILE                 = FRIENDSHIP + 1
     LOCK_ON_TURNS             = STOCKPILE + 1
-    AB_ID                     = LOCK_ON_TURNS + 1
+    BASE_TYPE1                = LOCK_ON_TURNS + 1
+    BASE_TYPE2                = BASE_TYPE1 + 1
+    SUPPRESSED_AB_ID          = BASE_TYPE2 + 1
+    AB_ID                     = SUPPRESSED_AB_ID + 1
     AB_WHEN                   = AB_ID + 1
     AB_BREAKABLE              = AB_WHEN + 1
     """AB_CANT_SUPRESS           = AB_BREAKABLE + 1

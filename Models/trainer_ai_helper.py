@@ -110,6 +110,10 @@ from Models.constants import (
     _MOVENAME_SOFT_BOILED, _MOVENAME_MILK_DRINK, _MOVENAME_SLACK_OFF, _MOVENAME_HEAL_ORDER,
     _MOVENAME_ROOST, _MOVENAME_MOONLIGHT, _MOVENAME_MORNING_SUN, _MOVENAME_TORMENT,
     _MOVENAME_IMPRISON, _VOLSTATUS2_TORMENT, _VOLSTATUS2_IMPRISON, _VOLSTATUS2_MEAN_LOOK,
+    _MOVENAME_GASTRO_ACID, _MOVENAME_CAMOUFLAGE, _MOVENAME_CONVERSION, _MOVENAME_ROLE_PLAY,
+    _MOVENAME_SKILL_SWAP, _VOLSTATUS2_GASTRO_ACID, _VOLSTATUS2_CAMOUFLAGE,
+    _ABILITYNAMES_SLOW_START, _ABILITYNAMES_STENCH, _ABILITYNAMES_RUN_AWAY, _ABILITYNAMES_PICKUP,
+    _ABILITYNAMES_HONEY_GATHER,
     _VOLSTATUS_HEAL_BLOCK, _MOVENAME_INGRAIN, _MOVENAME_AQUA_RING, _ABILITYNAMES_ICE_BODY,
     _ABILITYNAMES_FLOWER_GIFT, _ABILITYNAMES_SOLAR_POWER, _MOVENAME_SUNNY_DAY, _MOVENAME_HAIL,
     _MOVENAME_WEATHER_BALL, _MOVENAME_MEMENTO, _MOVENAME_HEALING_WISH, _MOVENAME_U_TURN,
@@ -163,6 +167,17 @@ SLEEP_MOVES = (_MOVENAME_DREAM_EATER, _MOVENAME_NIGHTMARE)
 CONFUSE_SPECIAL_CASES = (_MOVENAME_SWAGGER, _MOVENAME_FLATTER)
 CURSE_SPECIAL_CASES = (_MOVENAME_GYRO_BALL, _MOVENAME_TRICK_ROOM)
 
+# Expert_ChangeUserAbility_DesirableAbilities
+DESIRABLE_AB = (
+    AbilityNames.SPEED_BOOST, AbilityNames.BATTLE_ARMOR, AbilityNames.SAND_VEIL, AbilityNames.STATIC,
+    AbilityNames.FLASH_FIRE, AbilityNames.WONDER_GUARD, AbilityNames.EFFECT_SPORE,
+    AbilityNames.SWIFT_SWIM, AbilityNames.HUGE_POWER, AbilityNames.RAIN_DISH, AbilityNames.CUTE_CHARM,
+    AbilityNames.SHED_SKIN, AbilityNames.MARVEL_SCALE, AbilityNames.PURE_POWER,
+    AbilityNames.CHLOROPHYLL, AbilityNames.SHIELD_DUST, AbilityNames.ADAPTABILITY,
+    AbilityNames.MAGIC_GUARD, AbilityNames.MOLD_BREAKER, AbilityNames.SUPER_LUCK, AbilityNames.UNAWARE,
+    AbilityNames.TINTED_LENS, AbilityNames.FILTER, AbilityNames.SOLID_ROCK, AbilityNames.RECKLESS
+)
+
 # --- Abilities explicitly checked in basic_flag / expert_flag ---
 _EXPLICIT_RELEVANT: set = {
     _ABILITYNAMES_VOLT_ABSORB,
@@ -197,6 +212,12 @@ _EXPLICIT_RELEVANT: set = {
     _ABILITYNAMES_TRUANT,
     _ABILITYNAMES_MULTITYPE,
     _ABILITYNAMES_ICE_BODY,
+    _ABILITYNAMES_SLOW_START,
+    _ABILITYNAMES_STENCH,
+    _ABILITYNAMES_RUN_AWAY,
+    _ABILITYNAMES_PICKUP,
+    _ABILITYNAMES_HONEY_GATHER,
+    *DESIRABLE_AB,
 }
 
 _DAMAGE_RELEVANT_WHEN = {"on_try_move"}
@@ -418,12 +439,19 @@ HEAL_BLOCK_GOOD_M = HEAL_M + (
 # Scored by basic_misc / expert_misc
 MISC_BASIC_M = HEAL_M + (
     _MOVENAME_REFRESH, _MOVENAME_RECYCLE, _MOVENAME_WORRY_SEED, _MOVENAME_PERISH_SONG,
-    _MOVENAME_TORMENT, _MOVENAME_IMPRISON, _MOVENAME_MIRACLE_EYE
+    _MOVENAME_TORMENT, _MOVENAME_IMPRISON, _MOVENAME_MIRACLE_EYE, _MOVENAME_GASTRO_ACID,
+    _MOVENAME_CAMOUFLAGE
 ) + TRAP_MOVES + LOCK_ON_MOVES
 MISC_EXPERT_M = MISC_BASIC_M + (_MOVENAME_KNOCK_OFF, _MOVENAME_SPLASH, _MOVENAME_SWALLOW)
 # Expert_Recovery's moves, Swallow included (pokeplatinum script.s)
 RECOVERY_EXPERT_M = HEAL_M + (_MOVENAME_SWALLOW,)
 REFRESH_STATUSES = (_STATUS_BURN, _STATUS_POISON, _STATUS_TOXIC, _STATUS_PARALYSIS)
+# Basic_CheckGastroAcid: the target's abilities not worth suppressing
+GASTRO_ACID_BAD_AB = (
+    _ABILITYNAMES_MULTITYPE, _ABILITYNAMES_TRUANT, _ABILITYNAMES_SLOW_START, _ABILITYNAMES_STENCH,
+    _ABILITYNAMES_RUN_AWAY, _ABILITYNAMES_PICKUP, _ABILITYNAMES_HONEY_GATHER
+)
+ABILITY_MOVES_M = (_MOVENAME_ROLE_PLAY, _MOVENAME_SKILL_SWAP)
 WORRY_SEED_BAD_AB = (
     _ABILITYNAMES_TRUANT, _ABILITYNAMES_INSOMNIA, _ABILITYNAMES_VITAL_SPIRIT, _ABILITYNAMES_MULTITYPE
 )
@@ -1023,6 +1051,14 @@ def basic_misc(move, ability, ai_pok, user_pok, ai_know):
         return 0
     if move_id == _MOVENAME_MIRACLE_EYE:
         return -10 if user_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_MIRACLE_EYE else 0
+    # Basic_CheckGastroAcid
+    if move_id == _MOVENAME_GASTRO_ACID:
+        if user_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_GASTRO_ACID or ability in GASTRO_ACID_BAD_AB:
+            return -10
+        return 0
+    # Basic_CheckCamouflage: the flag of a Camouflage that worked, whatever its type is now
+    if move_id == _MOVENAME_CAMOUFLAGE:
+        return -10 if ai_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_CAMOUFLAGE else 0
     return 0
 
 
@@ -1406,8 +1442,8 @@ def basic_flag(
     --------------Specific Moves---------------
     Selfdestruct/Explosion
     Reflect / Light Screen / Mist / Safeguard
-    Camouflage / Lucky Chant
-    Lock On / Mean Look / Torment / Miracle Eye / Heal Block / Gastro Acid
+    Lucky Chant
+    Lock On / Mean Look / Torment / Miracle Eye / Heal Block
     Trick / Switcheroo
     Imprison
     Gravity / Tailwind
@@ -2540,7 +2576,50 @@ def expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know=0):
             add_adjustment(rand, idx, 2, 176)
             return 0
         return -2
+    # Expert_GastroAcid: 64/256 nothing; else +1, then with the target at 70% or less half the
+    # time -1, at 50% or less -1, at 30% or less -1
+    if move_id == _MOVENAME_GASTRO_ACID:
+        if random.getrandbits(8) < 64:
+            return 0
+        score = 1
+        if hp_pct_u > 70:
+            return score
+        if random.getrandbits(8) >= 128:
+            score -= 1
+        if hp_pct_u > 50:
+            return score
+        score -= 1
+        if hp_pct_u > 30:
+            return score
+        return score - 1
     return 0
+
+
+@njit
+def expert_conversion(ai_pok, rand, idx, turn):
+    """pokeplatinum Expert_Conversion: -2 with the AI at 90% HP or less, and after the battle's
+    first turn 200/256 of -2"""
+    score = 0
+    if (ai_pok[_POK_CURRENT_HP] * 100) // ai_pok[_POK_MAX_HP] <= 90:
+        score = -2
+    if turn > 1:
+        add_adjustment(rand, idx, -2, 200)
+    return score
+
+
+@njit
+def expert_change_ability(ai_pok, u_pok, rand, idx, ability):
+    """pokeplatinum Expert_ChangeUserAbility (Role Play, Skill Swap): -1 if the AI's ability is a
+    desirable one; else 206/256 of +2 if the target's is, -1 if it isn't (Pokemow). ability is the
+    target's as the AI sees it, -1 for its real one"""
+    if ability < 0:
+        ability = u_pok[_POK_AB_ID]
+    if ai_pok[_POK_AB_ID] in DESIRABLE_AB:
+        return -1
+    if ability in DESIRABLE_AB:
+        add_adjustment(rand, idx, 2, 206)
+        return 0
+    return -1
 
 
 @njit
@@ -3150,6 +3229,10 @@ def expert_flag(
         return expert_items(move, ai_pok, u_pok, effectiveness, rand, idx, ai_side, user_side)
     if move[_MOVE_ID] in MISC_EXPERT_M:
         return expert_misc(move, ai_pok, u_pok, rand, idx, weather, move_first, ai_know)
+    if move[_MOVE_ID] == _MOVENAME_CONVERSION:
+        return expert_conversion(ai_pok, rand, idx, turn)
+    if move[_MOVE_ID] in ABILITY_MOVES_M:
+        return expert_change_ability(ai_pok, u_pok, rand, idx, ability)
     if move[_MOVE_ID] in STAGE_M:
         return expert_stage(move, ai_pok, u_pok, rand, idx)
     if move[_MOVE_ID] in CALL_M:
@@ -3347,7 +3430,6 @@ def expert_flag(
     --------------Specific Moves---------------
     Selfdestruct, Explosion
     Mirror Move
-    Conversion
     Spit Up
     Lock On, Mind Reader
     Reversal, Flail
@@ -3377,7 +3459,6 @@ def expert_flag(
     Trump Card
     Heal Block
     Wring Out, Crush Grip
-    Gastro Acid
     Me First
     Copycat
     Punishment
@@ -3389,7 +3470,6 @@ def expert_flag(
     Switch-Forcing Moves (Roar, Whirlwind)
     Recovery Moves (e.g., Swallow)
     Charge Turn Moves With Invulnerability (Fly, Dive, Dig, Bounce)
-    Moves Which Change the User's Ability (Role Play, Skill Swap)
     Moves Which Decrease in Power With Less User HP (Water Spout, Eruption)
     Moves Reducing the User's SpAttack by 2 (e.g., Overheat, Draco Meteor)
 

@@ -29,6 +29,7 @@ from Models.constants import (
     _FIELD_OPP_SIDE_COND, _FIELD_MY_TOXIC_SPIKES, _FIELD_MY_SPIKES, _VOLSTATUS_PERISH_SONG, _POK_PERISH_TURNS,
     _MOVENAME_COPYCAT, _ABILITYNAMES_SHADOW_TAG, _ABILITYNAMES_ARENA_TRAP, _ABILITYNAMES_MAGNET_PULL,
     _TYPES_STEEL, _MOVE_POWER, _MOVENAME_HIDDEN_POWER, _MOVENAME_HEALING_WISH, _POK_VOL_STATUS2,
+    _VOLSTATUS2_GASTRO_ACID,
     _MOVENAME_U_TURN,
     _VOLSTATUS2_EMBARGO, _POK_HIDDEN_POWER_TYPE, _POK_HIDDEN_POWER_POWER, _VOLSTATUS2_MEAN_LOOK
 )
@@ -432,10 +433,12 @@ def choose_move(battle_array):
 
     ab=user_pok[_POK_AB_ID]
     # A battle message named it (Pok.AB_KNOWN) or Worry Seed gave it (Field.AI_KNOWS)
+    # Under Gastro Acid the AI reads no ability (pokeplatinum AICmd_LoadBattlerAbility)
     if (
         not POKEMON_HAS_RELEVANT_ABILITY[user_pok[_POK_ID]]
         or (ai_know & _ENEMY_AI_KNOWS_ABILITY)
         or user_pok[_POK_AB_KNOWN]
+        or user_pok[_POK_VOL_STATUS2] & _VOLSTATUS2_GASTRO_ACID
     ):
         ability = ab
     else:

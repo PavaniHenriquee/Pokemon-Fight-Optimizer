@@ -58,7 +58,8 @@ class MoveName:
     BULLET_PUNCH    = BULLDOZE + 1
     BULLET_SEED     = BULLET_PUNCH + 1
     CALM_MIND       = BULLET_SEED + 1
-    CAPTIVATE       = CALM_MIND + 1
+    CAMOUFLAGE      = CALM_MIND + 1
+    CAPTIVATE       = CAMOUFLAGE + 1
     CHARGE          = CAPTIVATE + 1
     CHARGE_BEAM     = CHARGE + 1
     CHARM           = CHARGE_BEAM + 1
@@ -68,7 +69,9 @@ class MoveName:
     COMET_PUNCH     = CLOSE_COMBAT + 1
     CONFUSE_RAY     = COMET_PUNCH + 1
     CONFUSION       = CONFUSE_RAY + 1
-    COPYCAT         = CONFUSION + 1
+    CONVERSION      = CONFUSION + 1
+    CONVERSION_2    = CONVERSION + 1
+    COPYCAT         = CONVERSION_2 + 1
     COSMIC_POWER    = COPYCAT + 1
     COTTON_SPORE    = COSMIC_POWER + 1
     COUNTER         = COTTON_SPORE + 1
@@ -160,7 +163,8 @@ class MoveName:
     FURY_CUTTER     = FURY_ATTACK + 1
     FURY_SWIPES     = FURY_CUTTER + 1
     FUTURE_SIGHT    = FURY_SWIPES + 1
-    GIGA_DRAIN      = FUTURE_SIGHT + 1
+    GASTRO_ACID     = FUTURE_SIGHT + 1
+    GIGA_DRAIN      = GASTRO_ACID + 1
     GIGA_IMPACT     = GIGA_DRAIN + 1
     GLARE           = GIGA_IMPACT + 1
     GRASS_KNOT      = GLARE + 1
@@ -332,7 +336,8 @@ class MoveName:
     ROCK_THROW      = ROCK_SMASH + 1
     ROCK_TOMB       = ROCK_THROW + 1
     ROCK_WRECKER    = ROCK_TOMB + 1
-    ROLLING_KICK    = ROCK_WRECKER + 1
+    ROLE_PLAY       = ROCK_WRECKER + 1
+    ROLLING_KICK    = ROLE_PLAY + 1
     ROLLOUT         = ROLLING_KICK + 1
     ROOST           = ROLLOUT + 1
     SACRED_FIRE     = ROOST + 1
@@ -359,7 +364,8 @@ class MoveName:
     SIGNAL_BEAM     = SHOCK_WAVE + 1
     SILVER_WIND     = SIGNAL_BEAM + 1
     SING            = SILVER_WIND + 1
-    SKULL_BASH      = SING + 1
+    SKILL_SWAP      = SING + 1
+    SKULL_BASH      = SKILL_SWAP + 1
     SKY_ATTACK      = SKULL_BASH + 1
     SKY_UPPERCUT    = SKY_ATTACK + 1
     SLACK_OFF       = SKY_UPPERCUT + 1

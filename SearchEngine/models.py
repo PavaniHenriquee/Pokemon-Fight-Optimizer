@@ -246,12 +246,12 @@ def _hp_bracket(hp, max_hp):
 SIDE_KEY_SHIFT = 32
 # k5 per side: VOL_STATUS2 from bit 0, the choice-locked slot, the Stockpile count, Last Resort
 # working, then the Encore and Disable slots while they hold
-VOL2_KEY_BITS = 20
-CHOICE_KEY_SHIFT = 20
-STOCKPILE_KEY_SHIFT = 23
-LAST_RESORT_KEY_BIT = 25
-ENCORE_KEY_SHIFT = 26
-DISABLE_KEY_SHIFT = 28
+VOL2_KEY_BITS = 21
+CHOICE_KEY_SHIFT = 21
+STOCKPILE_KEY_SHIFT = 24
+LAST_RESORT_KEY_BIT = 26
+ENCORE_KEY_SHIFT = 27
+DISABLE_KEY_SHIFT = 29
 # k1 keeps each side's first SIDE_COND_K1_BITS side conditions, k6 gets the ones above
 SIDE_COND_K1_BITS = 10
 SIDE_COND_K1_MASK = (1 << SIDE_COND_K1_BITS) - 1

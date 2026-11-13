@@ -25,6 +25,7 @@ from Engine.engine_helper import (
     status_move_fails, rest, psycho_shift, heal_bell, start_magnet_rise, end_magnet_rise,
     magnet_rise_count, stockpile, release_stockpile, swallow, future_hit_lands, SPIT_UP_POWER,
     spite, TRAP_MOVES, lock_on_count, LOCK_ON_MOVES, LOCK_ON_DURATION,
+    suppress_ability, role_play, skill_swap, conversion, conversion2, camouflage, type_move_fails,
 )
 from Engine.status_calc import (
     sec_effects, calculate_effects, TURNS_2_5, sleep_blocked, SLOT_MASK, SLOT_STEP,
@@ -124,6 +125,10 @@ from Models.constants import (
     _FLAGS_REFLECTABLE, _FLAGS_SNATCH, _ABILITYNAMES_PRESSURE,
 )
 from Models.move import STRUGGLE, MOVE_TABLE, DEFOG_DROP
+from Models.constants import (
+    _VOLSTATUS2_GASTRO_ACID, _MOVENAME_GASTRO_ACID, _MOVENAME_ROLE_PLAY, _MOVENAME_SKILL_SWAP,
+    _MOVENAME_CONVERSION, _MOVENAME_CONVERSION_2, _MOVENAME_CAMOUFLAGE, _FIELD_TERRAIN,
+)
 from Models.item import refresh_item, raw_item_type
 
 
@@ -205,7 +210,7 @@ BATON_PASS_VOLS = (
 # with its turns, Power Trick by trading the receiver's Attack and Defense)
 BATON_PASS_VOLS2 = (
     _VOLSTATUS2_SUBSTITUTE | _VOLSTATUS2_EMBARGO | _VOLSTATUS2_POWER_TRICK | _VOLSTATUS2_MAGNET_RISE
-    | _VOLSTATUS2_MEAN_LOOK | _VOLSTATUS2_LOCK_ON
+    | _VOLSTATUS2_MEAN_LOOK | _VOLSTATUS2_LOCK_ON | _VOLSTATUS2_GASTRO_ACID
 )
 # A move or switch already resolved before action (Pursuit on a switching Pokemon)
 NO_ACTION = -50
@@ -251,6 +256,9 @@ def _pass_baton(old, new):
     # The receiver's own Attack and Defense trade (pokeplatinum BattleSystem_UpdateAfterSwitch)
     if new[_POK_VOL_STATUS2] & _VOLSTATUS2_POWER_TRICK:
         swap_atk_def(new)
+    # Gastro Acid goes on over the receiver's ability (pokeplatinum MOVE_EFFECT_BATON_PASSED)
+    if new[_POK_VOL_STATUS2] & _VOLSTATUS2_GASTRO_ACID:
+        suppress_ability(new)
     refresh_item(new)
 
 
@@ -1410,6 +1418,7 @@ def _execute_move_slot(
     if (
         sub_blocks_status_move(mv, atk, defn, weather) or confuse_boost_fails(mv, defn)
         or stage_move_fails(mv, atk, defn) or status_move_fails(mv, atk, defn)
+        or type_move_fails(mv, atk, defn, battle_array[_FIELD_TERRAIN], weather)
     ):
         if counted:
             metronome_fail(atk, outer_id)
@@ -1520,6 +1529,20 @@ def _status_move(atk, defn, mv, is_mine, battle_array, weather):
         defn[_POK_VOL_STATUS2] |= _VOLSTATUS2_MIRACLE_EYE
     elif move_id == _MOVENAME_SPITE:
         spite(defn)
+    elif move_id == _MOVENAME_GASTRO_ACID:
+        suppress_ability(defn)
+    elif move_id == _MOVENAME_ROLE_PLAY:
+        role_play(atk, defn, battle_array, is_mine)
+    elif move_id == _MOVENAME_SKILL_SWAP:
+        skill_swap(atk, defn, battle_array, is_mine)
+        # The AI knows the ability it gave me
+        battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY
+    elif move_id == _MOVENAME_CONVERSION:
+        conversion(atk)
+    elif move_id == _MOVENAME_CONVERSION_2:
+        conversion2(atk, defn, weather)
+    elif move_id == _MOVENAME_CAMOUFLAGE:
+        camouflage(atk, battle_array[_FIELD_TERRAIN])
     # The AI learns my new ability (pokeplatinum BattleAI_SetAbility)
     elif move_id == _MOVENAME_WORRY_SEED and worry_seed(defn) and not is_mine:
         battle_array[_FIELD_AI_KNOWS] |= _ENEMY_AI_KNOWS_ABILITY

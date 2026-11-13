@@ -26,7 +26,8 @@ Updated only when asked.
 - Done: 11.1 (restriction and trapping) and 11.2 (accuracy locks and protection), 2026-11-12.
 - Done: 11.3 (reflection), and with it Phase 11, 2026-11-12. Its `benchmarks.run quick` on the home PC is still
   to do.
-- Next: 12.1 (type and ability changes).
+- Done: 12.1 (type and ability changes), 2026-11-12.
+- Next: 12.2 (copying).
 
 ## Goal
 
@@ -693,13 +694,13 @@ Fixed damage:
 
 ### 12.1 Type and ability changes
 
-- [ ] Conversion(E) \*
-- [ ] Conversion 2 \*
-- [ ] Camouflage(B)
-- [ ] Color Change (ability) !
-- [ ] Role Play
-- [ ] Skill Swap \*
-- [ ] Gastro Acid(B/E)
+- [x] Conversion(E) \*
+- [x] Conversion 2 \*
+- [x] Camouflage(B)
+- [x] Color Change (ability) !
+- [x] Role Play
+- [x] Skill Swap \*
+- [x] Gastro Acid(B/E)
 
 ### 12.2 Copying
 

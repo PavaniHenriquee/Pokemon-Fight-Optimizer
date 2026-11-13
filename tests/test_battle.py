@@ -6916,3 +6916,330 @@ def test_the_users_pressure_costs_the_taker_a_pp(make_pokemon, make_battle, take
     assert taker[Pok.ATTACK_STAT_STAGE] == 2
     if not taker_mine:
         assert arr[Field.OPP_MOVE_RAN] == 1 + 16 * 2
+
+
+# ── 12.1 type and ability changes: Conversion, Conversion 2, Camouflage, Color Change, Role Play,
+#    Skill Swap, Gastro Acid ──────────────────────────────────────────────────────────────────────
+
+def _change_battle(make_pokemon, make_battle, my_moves, foe_moves=("Splash",), my_ab="Download",
+                   foe=("Geodude", "Sturdy"), mine="Porygon"):
+    """My level 30 Pokemon with my_moves against a level 30 foe, both with a Rattata on the bench"""
+    return make_battle(
+        [make_pokemon(mine, 30, my_ab, list(my_moves)),
+         make_pokemon("Rattata", 30, "Run Away", ["Tackle"])],
+        [make_pokemon(foe[0], 30, foe[1], list(foe_moves)),
+         make_pokemon("Rattata", 30, "Run Away", ["Tackle"])],
+    )
+
+
+def test_conversion_takes_a_move_type_until_switch_out(make_pokemon, make_battle):
+    """Tackle is its own type, so only Thunderbolt's is left. Switch-out gives Normal back"""
+    arr = _change_battle(make_pokemon, make_battle, ["Conversion", "Thunderbolt", "Tackle"])
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.TYPE1], me[Pok.TYPE2]) == (Types.ELECTRIC, 0)
+    engine_helper.reset_switch_out(me)
+    assert (me[Pok.TYPE1], me[Pok.TYPE2]) == (Types.NORMAL, 0)
+
+
+@pytest.mark.parametrize("moves, ability, fails", [
+    (["Conversion", "Tackle"], "Download", True),
+    (["Conversion", "Curse"], "Download", True),          # [SD] gen4 skips Curse
+    (["Conversion", "Hidden Power"], "Download", True),   # Normal in the move data
+    (["Conversion", "Ember"], "Download", False),
+    (["Conversion", "Ember"], "Multitype", True),
+])
+def test_conversion_fails(poke, moves, ability, fails):
+    """No move of another type, or Multitype (pokeplatinum BtlCmd_TryConversion)"""
+    p = poke("Porygon", 30, ability, moves)
+    assert engine_helper.conversion_fails(p) == fails
+
+
+def test_conversion_picks_each_slot_evenly(poke):
+    """Two Fire moves and one Water move: Fire two times in three"""
+    random.seed(3)
+    seen = []
+    for _ in range(300):
+        p = poke("Porygon", 30, "Download", ["Conversion", "Ember", "Flamethrower", "Surf"])
+        engine_helper.conversion(p)
+        seen.append(int(p[Pok.TYPE1]))
+    assert set(seen) == {Types.FIRE, Types.WATER}
+    assert 170 < seen.count(Types.FIRE) < 230
+
+
+@pytest.mark.parametrize("last_move, attack_type", [
+    (MoveName.EMBER, Types.FIRE), (MoveName.STRUGGLE, Types.NORMAL), (MoveName.EARTHQUAKE, Types.GROUND),
+])
+def test_conversion_2_resists_the_foes_last_move(poke, last_move, attack_type):
+    """A type that resists or is immune to it, never one the user has ([SD] gen4 conversion2)"""
+    foe = poke("Geodude", 30, "Sturdy", ["Ember", "Tackle"])
+    foe[Pok.LAST_MOVE_ID] = last_move
+    random.seed(5)
+    seen = set()
+    for _ in range(200):
+        p = poke("Porygon", 30, "Download", ["Conversion 2"])
+        assert not engine_helper.conversion2_fails(p, foe, 0)
+        engine_helper.conversion2(p, foe, 0)
+        assert p[Pok.TYPE2] == 0
+        seen.add(int(p[Pok.TYPE1]))
+    assert Types.NORMAL not in seen and len(seen) > 1
+    for p_type in seen:
+        eff, den = engine_helper.get_type_effectiveness(attack_type, p_type, 0)
+        assert eff < den
+
+
+def test_conversion_2_fails_without_a_last_move(poke):
+    """And with Multitype"""
+    foe = poke("Geodude", 30, "Sturdy", ["Ember"])
+    p = poke("Porygon", 30, "Download", ["Conversion 2"])
+    assert engine_helper.conversion2_fails(p, foe, 0)
+    foe[Pok.LAST_MOVE_ID] = MoveName.EMBER
+    assert not engine_helper.conversion2_fails(p, foe, 0)
+    assert engine_helper.conversion2_fails(poke("Porygon", 30, "Multitype", ["Conversion 2"]), foe, 0)
+
+
+def test_conversion_2_reads_hidden_power_from_the_slot(poke):
+    """The type it hits with, not the move data's Normal"""
+    foe = poke("Geodude", 30, "Sturdy", ["Hidden Power"])
+    move_slice(foe, 0)[Move.TYPE] = Types.DRAGON
+    foe[Pok.LAST_MOVE_ID] = MoveName.HIDDEN_POWER
+    assert engine_helper._conversion2_attack_type(foe, 0) == Types.DRAGON
+
+
+@pytest.mark.parametrize("terrain, p_type", [
+    (Terrain.PLAIN, Types.GROUND), (Terrain.GRASS, Types.GRASS), (Terrain.CAVE, Types.ROCK),
+    (Terrain.SNOW, Types.ICE), (Terrain.WATER, Types.WATER), (Terrain.BRIDGE, Types.FLYING),
+])
+def test_camouflage_takes_the_terrain_type(make_pokemon, make_battle, terrain, p_type):
+    """pokeplatinum sTerrainCamouflageType, and the flag the AI's Basic check reads"""
+    arr = _change_battle(make_pokemon, make_battle, ["Camouflage"])
+    arr[Field.TERRAIN] = terrain
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.TYPE1], me[Pok.TYPE2]) == (p_type, 0)
+    assert me[Pok.VOL_STATUS2] & VolStatus2.CAMOUFLAGE
+    assert engine_helper.camouflage_fails(me, terrain)
+    engine_helper.reset_switch_out(me)
+    assert me[Pok.TYPE1] == Types.NORMAL and not me[Pok.VOL_STATUS2] & VolStatus2.CAMOUFLAGE
+
+
+def test_camouflage_fails_on_its_own_type(make_pokemon, make_battle):
+    """A Normal type in a building: no change, no flag. Multitype fails too"""
+    arr = _change_battle(make_pokemon, make_battle, ["Camouflage"])
+    arr[Field.TERRAIN] = Terrain.BUILDING
+    me = my_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.TYPE1] == Types.NORMAL and not me[Pok.VOL_STATUS2] & VolStatus2.CAMOUFLAGE
+    me[Pok.AB_ID] = AbilityNames.MULTITYPE
+    assert engine_helper.camouflage_fails(me, Terrain.CAVE)
+
+
+def test_color_change_takes_the_hits_type(make_pokemon, make_battle):
+    """Both types become the move's and the ability is named"""
+    arr = _change_battle(make_pokemon, make_battle, ["Splash"], ["Ember"], my_ab="Color Change",
+                         mine="Kecleon")
+    me = my_active(arr)
+    random.seed(0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.CURRENT_HP] < me[Pok.MAX_HP]
+    assert (me[Pok.TYPE1], me[Pok.TYPE2]) == (Types.FIRE, 0) and me[Pok.AB_KNOWN]
+    engine_helper.reset_switch_out(me)
+    assert me[Pok.TYPE1] == Types.NORMAL
+
+
+@pytest.mark.parametrize("case", ["same type", "struggle", "fainted", "no damage", "other ability"])
+def test_color_change_does_nothing(poke, case):
+    """A type it already has, Struggle, a KO, a hit that dealt nothing, or another ability"""
+    foe = poke("Geodude", 30, "Sturdy", ["Tackle", "Ember"])
+    me = poke("Kecleon", 30, "Run Away" if case == "other ability" else "Color Change", ["Splash"])
+    move = STRUGGLE.copy() if case == "struggle" else move_slice(foe, 0 if case == "same type" else 1)
+    if case == "fainted":
+        me[Pok.CURRENT_HP] = 0
+    engine_helper.on_hit_abilities(foe, me, move, 0 if case == "no damage" else 5, 0)
+    assert (me[Pok.TYPE1], me[Pok.TYPE2]) == (Types.NORMAL, 0) and not me[Pok.AB_KNOWN]
+
+
+def test_color_change_not_through_a_substitute(make_pokemon, make_battle):
+    """The hit never reached the holder (pokeplatinum physicalDamageTaken)"""
+    arr = _change_battle(make_pokemon, make_battle, ["Splash"], ["Ember"], my_ab="Color Change",
+                         mine="Kecleon")
+    me = my_active(arr)
+    me[Pok.VOL_STATUS2] = VolStatus2.SUBSTITUTE
+    me[Pok.SUB_HP] = 500
+    random.seed(0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.TYPE1] == Types.NORMAL
+
+
+def test_role_play_copies_the_ability_until_switch_out(make_pokemon, make_battle):
+    """The whole ability block, and its own comes back"""
+    arr = _change_battle(make_pokemon, make_battle, ["Role Play"])
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert (me[Pok.AB_ID:Pok.AB_BREAKABLE + 1] == foe[Pok.AB_ID:Pok.AB_BREAKABLE + 1]).all()
+    assert me[Pok.BASE_AB_ID] == AbilityNames.DOWNLOAD and foe[Pok.BASE_AB_ID] == 0
+    engine_helper.reset_switch_out(me)
+    assert me[Pok.AB_ID] == AbilityNames.DOWNLOAD and me[Pok.BASE_AB_ID] == 0
+
+
+@pytest.mark.parametrize("user_ab, target_ab, fails", [
+    ("Download", "Sturdy", False), ("Download", "Wonder Guard", True), ("Download", "Multitype", True),
+    ("Multitype", "Sturdy", True), ("Sturdy", "Sturdy", True), ("Wonder Guard", "Sturdy", False),
+])
+def test_role_play_fails(poke, user_ab, target_ab, fails):
+    """pokeplatinum subscript_copy_ability, plus Showdown's same ability"""
+    me = poke("Porygon", 30, user_ab, ["Role Play"])
+    foe = poke("Geodude", 30, target_ab, ["Tackle"])
+    assert engine_helper.status_move_fails(move_slice(me, 0), me, foe) == fails
+
+
+def test_role_play_goes_through_protect_and_a_substitute(make_pokemon, make_battle):
+    """No protect flag and it bypasses the Substitute"""
+    arr = _change_battle(make_pokemon, make_battle, ["Role Play"], ["Protect"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS2] = VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 50
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.AB_ID] == AbilityNames.STURDY
+
+
+def test_a_copied_intimidate_fires(make_pokemon, make_battle):
+    """The gained ability starts like on a switch-in ([SD] setAbility)"""
+    arr = _change_battle(make_pokemon, make_battle, ["Role Play"], foe=("Gyarados", "Intimidate"))
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.ATTACK_STAT_STAGE] = 0
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.AB_ID] == AbilityNames.INTIMIDATE and foe[Pok.ATTACK_STAT_STAGE] == -1
+
+
+def test_skill_swap_trades_the_abilities(make_pokemon, make_battle):
+    """Each side keeps its own as the base and gets it back on switch-out. The AI knows mine"""
+    arr = _change_battle(make_pokemon, make_battle, ["Skill Swap"])
+    me, foe = my_active(arr), opp_active(arr)
+    turn_sim(0, (MOVE, 0), arr)
+    assert me[Pok.AB_ID] == AbilityNames.STURDY and foe[Pok.AB_ID] == AbilityNames.DOWNLOAD
+    assert me[Pok.BASE_AB_ID] == AbilityNames.DOWNLOAD and foe[Pok.BASE_AB_ID] == AbilityNames.STURDY
+    assert arr[Field.AI_KNOWS] & Enemy_AI_Knows.ABILITY
+    engine_helper.reset_switch_out(foe)
+    assert foe[Pok.AB_ID] == AbilityNames.STURDY and me[Pok.AB_ID] == AbilityNames.STURDY
+
+
+@pytest.mark.parametrize("user_ab, target_ab, user_item, target_item, fails", [
+    ("Download", "Sturdy", None, None, False),
+    ("Wonder Guard", "Sturdy", None, None, True), ("Download", "Wonder Guard", None, None, True),
+    ("Multitype", "Sturdy", None, None, True), ("Download", "Multitype", None, None, True),
+    ("Download", "Sturdy", "Griseous Orb", None, True), ("Download", "Sturdy", None, "Griseous Orb", True),
+    ("Sturdy", "Sturdy", None, None, True),
+])
+def test_skill_swap_fails(make_pokemon, user_ab, target_ab, user_item, target_item, fails):
+    """pokeplatinum subscript_exchange_abilities, plus Showdown's same ability"""
+    me = make_pokemon("Porygon", 30, user_ab, ["Skill Swap"], item=user_item).to_np()
+    foe = make_pokemon("Geodude", 30, target_ab, ["Tackle"], item=target_item).to_np()
+    assert engine_helper.status_move_fails(move_slice(me, 0), me, foe) == fails
+
+
+def test_skill_swap_is_stopped_by_protect(make_pokemon, make_battle):
+    """It has the protect flag, unlike Role Play"""
+    arr = _change_battle(make_pokemon, make_battle, ["Skill Swap"], ["Protect"])
+    turn_sim(0, (MOVE, 0), arr)
+    assert my_active(arr)[Pok.AB_ID] == AbilityNames.DOWNLOAD
+
+
+def test_gastro_acid_suppresses_until_switch_out(make_pokemon, make_battle):
+    """No ability block, the real one kept aside, and it fails a second time"""
+    arr = _change_battle(make_pokemon, make_battle, ["Gastro Acid"])
+    me, foe = my_active(arr), opp_active(arr)
+    random.seed(0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert not foe[Pok.AB_ID:Pok.AB_BREAKABLE + 1].any()
+    assert foe[Pok.VOL_STATUS2] & VolStatus2.GASTRO_ACID
+    assert foe[Pok.SUPPRESSED_AB_ID] == AbilityNames.STURDY and foe[Pok.BASE_AB_ID] == AbilityNames.STURDY
+    assert engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+    engine_helper.reset_switch_out(foe)
+    assert foe[Pok.AB_ID] == AbilityNames.STURDY and foe[Pok.SUPPRESSED_AB_ID] == 0
+    assert not foe[Pok.VOL_STATUS2] & VolStatus2.GASTRO_ACID
+
+
+def test_gastro_acid_lets_earthquake_reach_a_levitator(make_pokemon, make_battle):
+    """A suppressed Levitate is no ability at all"""
+    arr = _change_battle(make_pokemon, make_battle, ["Gastro Acid", "Earthquake"],
+                         foe=("Gastly", "Levitate"))
+    foe = opp_active(arr)
+    random.seed(0)
+    turn_sim(0, (MOVE, 1), arr)
+    assert foe[Pok.CURRENT_HP] == foe[Pok.MAX_HP]
+    turn_sim(0, (MOVE, 0), arr)
+    turn_sim(0, (MOVE, 1), arr)
+    assert foe[Pok.CURRENT_HP] < foe[Pok.MAX_HP]
+
+
+def test_gastro_acid_fails_on_multitype_and_a_substitute(make_pokemon, make_battle):
+    """pokeplatinum subscript_suppress_target_ability"""
+    arr = _change_battle(make_pokemon, make_battle, ["Gastro Acid"])
+    me, foe = my_active(arr), opp_active(arr)
+    foe[Pok.VOL_STATUS2] = VolStatus2.SUBSTITUTE
+    foe[Pok.SUB_HP] = 50
+    random.seed(0)
+    turn_sim(0, (MOVE, 0), arr)
+    assert foe[Pok.AB_ID] == AbilityNames.STURDY
+    foe[Pok.AB_ID] = AbilityNames.MULTITYPE
+    assert engine_helper.status_move_fails(move_slice(me, 0), me, foe)
+
+
+def test_baton_pass_passes_gastro_acid(make_pokemon):
+    """The receiver's ability is suppressed, a Multitype one isn't (pokeplatinum Battler_Ability)"""
+    old = make_pokemon("Rattata", 20, "Run Away", ["Baton Pass"]).to_np()
+    engine_helper.suppress_ability(old)
+    new = make_pokemon("Geodude", 20, "Sturdy", ["Tackle"]).to_np()
+    battle._pass_baton(old, new)
+    assert new[Pok.AB_ID] == 0 and new[Pok.SUPPRESSED_AB_ID] == AbilityNames.STURDY
+    assert new[Pok.VOL_STATUS2] & VolStatus2.GASTRO_ACID
+    arceus = make_pokemon("Geodude", 20, "Multitype", ["Tackle"]).to_np()
+    battle._pass_baton(old, arceus)
+    assert arceus[Pok.AB_ID] == AbilityNames.MULTITYPE
+    assert not arceus[Pok.VOL_STATUS2] & VolStatus2.GASTRO_ACID
+
+
+def test_a_suppressed_ability_can_still_be_copied_and_traded(poke):
+    """Role Play and Skill Swap read the ability under the Gastro Acid, which stays on its Pokemon
+    and suppresses what it got (pokeplatinum battleMons.ability against Battler_Ability)"""
+    me = poke("Porygon", 30, "Download", ["Role Play"])
+    foe = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    engine_helper.suppress_ability(foe)
+    assert not engine_helper.role_play_fails(me, foe)
+    engine_helper.set_ability(me, engine_helper.raw_ability(foe))
+    assert me[Pok.AB_ID] == AbilityNames.STURDY
+    other = poke("Rattata", 30, "Run Away", ["Skill Swap"])
+    assert not engine_helper.skill_swap_fails(other, foe)
+    engine_helper.set_ability(foe, AbilityNames.RUN_AWAY)
+    assert foe[Pok.AB_ID] == 0 and foe[Pok.SUPPRESSED_AB_ID] == AbilityNames.RUN_AWAY
+    engine_helper.reset_switch_out(foe)
+    assert foe[Pok.AB_ID] == AbilityNames.STURDY
+
+
+def test_worry_seed_under_gastro_acid(poke):
+    """Insomnia goes under the suppression, so a sleeper stays asleep"""
+    foe = poke("Machop", 30, "Guts", ["Tackle"])
+    engine_helper.suppress_ability(foe)
+    foe[Pok.STATUS] = Status.SLEEP
+    foe[Pok.SLEEP_COUNTER] = 3
+    assert engine_helper.worry_seed(foe)
+    assert foe[Pok.AB_ID] == 0 and foe[Pok.SUPPRESSED_AB_ID] == AbilityNames.INSOMNIA
+    assert foe[Pok.STATUS] == Status.SLEEP
+
+
+def test_trace_copies_a_suppressed_ability(poke):
+    """pokeplatinum ChooseTraceTarget reads battleMons.ability"""
+    me = poke("Porygon", 30, "Trace", ["Tackle"])
+    foe = poke("Geodude", 30, "Sturdy", ["Tackle"])
+    engine_helper.suppress_ability(foe)
+    assert engine_helper.trace(me, foe) and me[Pok.AB_ID] == AbilityNames.STURDY
+
+
+def test_forecast_only_changes_castform(make_pokemon, make_battle):
+    """A Pokemon that got Forecast from Skill Swap keeps its types (pokeplatinum SPECIES_CASTFORM)"""
+    arr = make_battle([make_pokemon("Rattata", 30, "Forecast", ["Splash"])],
+                      [make_pokemon("Onix", 30, "Rock Head", ["Harden"])])
+    arr[Field.WEATHER] = Weather.HAIL
+    battle.forecast_actives(arr)
+    assert my_active(arr)[Pok.TYPE1] == Types.NORMAL

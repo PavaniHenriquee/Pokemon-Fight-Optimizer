@@ -1,6 +1,7 @@
 """Ability checks shared by damage_calc and engine_helper"""
 from Utils.jit import njit
 from Models.idx_const import POK_LEN
+from DataBase.PkDB import PokemonName
 from Models.constants import (
     _POK_AB_BREAKABLE, _POK_AB_ID, _ABILITYNAMES_MOLD_BREAKER, _ABILITYNAMES_LEVITATE,
     _POK_VOL_STATUS, _VOLSTATUS_INGRAIN, _POK_AB_KNOWN, _POK_CURRENT_HP, _FIELD_MY_POK,
@@ -9,7 +10,7 @@ from Models.constants import (
     _ITEM_HOLD_EFFECT, _HOLDEFFECT_SPEED_DOWN_GROUNDED, _MOVENAME_WEATHER_BALL, _MOVE_POWER,
     _WEATHER_SUN, _WEATHER_RAIN, _WEATHER_SANDSTORM, _WEATHER_HAIL, _TYPES_FIRE, _TYPES_WATER,
     _TYPES_ROCK, _TYPES_ICE, _ABILITYNAMES_FORECAST, _POK_TYPE1, _POK_TYPE2,
-    _POK_MAGNET_RISE_TURNS,
+    _POK_MAGNET_RISE_TURNS, _POK_ID,
 )
 
 # Abilities that switch the weather's effects off while their holder is out
@@ -21,6 +22,7 @@ WEATHER_BALL_TYPES = (
 )
 # Castform's type per weather, sandstorm leaves it Normal (pokeplatinum FIELD_CONDITION_CASTFORM)
 FORECAST_TYPES = ((_WEATHER_SUN, _TYPES_FIRE), (_WEATHER_RAIN, _TYPES_WATER), (_WEATHER_HAIL, _TYPES_ICE))
+CASTFORM = PokemonName.CASTFORM
 
 
 @njit
@@ -86,6 +88,9 @@ def forecast(pok, weather):
     Nine turns it back to Normal)
     """
     if pok[_POK_CURRENT_HP] <= 0 or pok[_POK_AB_ID] != _ABILITYNAMES_FORECAST:
+        return
+    # Only Castform changes, whoever got the ability from Role Play or Skill Swap doesn't
+    if pok[_POK_ID] != CASTFORM:
         return
     new_type = _TYPES_NORMAL
     for w, f_type in FORECAST_TYPES:
